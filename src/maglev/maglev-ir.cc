@@ -1201,6 +1201,38 @@ void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
 }
 
+void CheckSymbol::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckSymbol::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
+  }
+  __ CompareObjectType(object, SYMBOL_TYPE);
+  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotASymbol, this);
+}
+
+void CheckInstanceType::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
+  }
+  __ CompareObjectType(object, instance_type());
+  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongInstanceType, this);
+}
+
 void CheckInt32Condition::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -1209,6 +1241,23 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CompareInt32(ToRegister(left_input()), ToRegister(right_input()));
   __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
+}
+
+void CheckString::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckString::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotAString, this);
+  }
+  __ CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+  __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotAString,
+                      this);
 }
 
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
@@ -1221,6 +1270,44 @@ void ConvertHoleToUndefined::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(object_input()), ToRegister(result()));
   __ JumpIfNotRoot(ToRegister(object_input()), RootIndex::kTheHoleValue, &done);
   __ LoadRoot(ToRegister(result()), RootIndex::kUndefinedValue);
+  __ bind(&done);
+}
+
+int ConvertReceiver::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  return D::GetStackParameterCount();
+}
+void ConvertReceiver::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Label convert_to_object, done;
+  Register receiver = ToRegister(receiver_input());
+  __ JumpIfSmi(receiver, &convert_to_object, Label::Distance::kNear);
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CompareObjectType(receiver, FIRST_JS_RECEIVER_TYPE);
+  __ JumpIf(kUnsignedGreaterThanEqual, &done);
+
+  if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
+    Label convert_global_proxy;
+    __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy,
+                  Label::Distance::kNear);
+    __ JumpIfNotRoot(receiver, RootIndex::kNullValue, &convert_to_object,
+                     Label::Distance::kNear);
+    __ bind(&convert_global_proxy);
+    // Patch receiver to global proxy.
+    __ Move(ToRegister(result()),
+            target_.native_context().global_proxy_object().object());
+    __ Jump(&done);
+  }
+
+  __ bind(&convert_to_object);
+  // ToObject needs to be ran with the target context installed.
+  __ Move(kContextRegister, target_.context().object());
+  __ CallBuiltin(Builtin::kToObject);
   __ bind(&done);
 }
 
@@ -1872,12 +1959,12 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
   temps.Include(ToRegister(result()));
 
   Label is_true, is_false, done;
-  __ TestTypeOf(object, literal_, &is_true, Label::kNear, true, &is_false,
-                Label::kNear, false);
+  __ TestTypeOf(object, literal_, &is_true, Label::Distance::kNear, true,
+                &is_false, Label::Distance::kNear, false);
   // Fallthrough into true.
   __ bind(&is_true);
   __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
-  __ Jump(&done, Label::kNear);
+  __ Jump(&done, Label::Distance::kNear);
   __ bind(&is_false);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
@@ -1963,6 +2050,64 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
       break;
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int ToObject::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  return D::GetStackParameterCount();
+}
+void ToObject::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ToObject::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a JSReceiver.
+  __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
+  __ CompareObjectType(value, FIRST_JS_RECEIVER_TYPE);
+  __ JumpIf(kUnsignedGreaterThanEqual, &done, Label::Distance::kNear);
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToObject);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  __ bind(&done);
+}
+
+int ToString::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  return D::GetStackParameterCount();
+}
+void ToString::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kO));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ToString::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kO));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a string.
+  __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
+  __ CompareObjectType(value, FIRST_NONSTRING_TYPE);
+  __ JumpIf(kUnsignedLessThan, &done, Label::Distance::kNear);
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToString);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  __ bind(&done);
 }
 
 int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
@@ -2543,7 +2688,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
                 FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
     basm.JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
-                    *no_code_for_osr, Label::kNear);
+                    *no_code_for_osr, Label::Distance::kNear);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.
@@ -2707,6 +2852,18 @@ void BranchIfTypeOf::GenerateCode(MaglevAssembler* masm,
   __ TestTypeOf(value, literal_, if_true()->label(), Label::kFar,
                 if_true() == state.next_block(), if_false()->label(),
                 Label::kFar, if_false() == state.next_block());
+}
+
+void BranchIfJSReceiver::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+}
+void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register value = ToRegister(condition_input());
+  __ JumpIfSmi(value, if_false()->label());
+  __ CompareObjectType(value, FIRST_JS_RECEIVER_TYPE);
+  __ Branch(kUnsignedGreaterThanEqual, if_true(), if_false(),
+            state.next_block());
 }
 
 void Switch::SetValueLocationConstraints() {

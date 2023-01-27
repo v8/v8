@@ -385,6 +385,26 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   movzxbl(dst, src);
 }
 
+inline void MaglevAssembler::CompareObjectType(Register heap_object,
+                                               InstanceType type) {
+  LoadMap(kScratchRegister, heap_object);
+  CmpInstanceType(kScratchRegister, type);
+}
+
+inline void MaglevAssembler::CompareObjectType(Register heap_object,
+                                               InstanceType type,
+                                               Register scratch) {
+  CompareObjectType(heap_object, type);
+}
+
+inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
+                                                    InstanceType lower_limit,
+                                                    InstanceType higher_limit) {
+  LoadMap(kScratchRegister, heap_object);
+  CmpInstanceTypeRange(kScratchRegister, kScratchRegister, lower_limit,
+                       higher_limit);
+}
+
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
   Cmp(reg, obj);
@@ -405,6 +425,23 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance distance) {
   j(cond, target, distance);
+}
+
+inline void MaglevAssembler::JumpIfRoot(Register with, RootIndex index,
+                                        Label* if_equal,
+                                        Label::Distance distance) {
+  MacroAssembler::JumpIfRoot(with, index, if_equal, distance);
+}
+
+inline void MaglevAssembler::JumpIfNotRoot(Register with, RootIndex index,
+                                           Label* if_not_equal,
+                                           Label::Distance distance) {
+  MacroAssembler::JumpIfNotRoot(with, index, if_not_equal, distance);
+}
+
+inline void MaglevAssembler::JumpIfSmi(Register src, Label* on_smi,
+                                       Label::Distance distance) {
+  MacroAssembler::JumpIfSmi(src, on_smi, distance);
 }
 
 void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,

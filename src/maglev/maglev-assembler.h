@@ -194,6 +194,13 @@ class MaglevAssembler : public MacroAssembler {
   inline void DeoptIfBufferDetached(Register array, Register scratch,
                                     NodeT* node);
 
+  inline void CompareObjectType(Register heap_object, InstanceType type);
+  inline void CompareObjectType(Register heap_object, InstanceType type,
+                                Register scratch);
+  inline void CompareObjectTypeRange(Register heap_object,
+                                     InstanceType lower_limit,
+                                     InstanceType higher_limit);
+
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
 
   inline void CompareInt32(Register reg, int32_t imm);
@@ -202,6 +209,13 @@ class MaglevAssembler : public MacroAssembler {
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIf(Condition cond, Label* target,
                      Label::Distance distance = Label::kFar);
+
+  inline void JumpIfRoot(Register with, RootIndex index, Label* if_equal,
+                         Label::Distance distance = Label::kFar);
+  inline void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal,
+                            Label::Distance distance = Label::kFar);
+  inline void JumpIfSmi(Register src, Label* on_smi,
+                        Label::Distance near_jump = Label::kFar);
 
   inline void CompareInt32AndJumpIf(Register r1, Register r2, Condition cond,
                                     Label* target,

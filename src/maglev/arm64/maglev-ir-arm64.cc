@@ -74,116 +74,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-int ConvertReceiver::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  return D::GetStackParameterCount();
-}
-void ConvertReceiver::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  Label convert_to_object, done;
-  Register receiver = ToRegister(receiver_input());
-  __ JumpIfSmi(receiver, &convert_to_object);
-  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ JumpIfObjectType(receiver, scratch, scratch, FIRST_JS_RECEIVER_TYPE,
-                        &done, hs);
-  }
-
-  if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
-    Label convert_global_proxy;
-    __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy);
-    __ JumpIfNotRoot(receiver, RootIndex::kNullValue, &convert_to_object);
-    __ bind(&convert_global_proxy);
-    {
-      // Patch receiver to global proxy.
-      __ Move(ToRegister(result()),
-              target_.native_context().global_proxy_object().object());
-    }
-    __ jmp(&done);
-  }
-
-  __ bind(&convert_to_object);
-  // ToObject needs to be ran with the target context installed.
-  __ Move(kContextRegister, target_.context().object());
-  __ CallBuiltin(Builtin::kToObject);
-  __ bind(&done);
-}
-
-int ToObject::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  return D::GetStackParameterCount();
-}
-void ToObject::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  UseFixed(context(), kContextRegister);
-  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ToObject::GenerateCode(MaglevAssembler* masm,
-                            const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
-#endif  // DEBUG
-  Register value = ToRegister(value_input());
-  Label call_builtin, done;
-  // Avoid the builtin call if {value} is a JSReceiver.
-  __ JumpIfSmi(value, &call_builtin);
-  {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ LoadMap(scratch, value);
-    __ CompareInstanceType(scratch, scratch.W(), FIRST_JS_RECEIVER_TYPE);
-    __ B(&done, hs);
-  }
-  __ bind(&call_builtin);
-  __ CallBuiltin(Builtin::kToObject);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  __ bind(&done);
-}
-
-int ToString::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
-  return D::GetStackParameterCount();
-}
-void ToString::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
-  UseFixed(context(), kContextRegister);
-  UseFixed(value_input(), D::GetRegisterParameter(D::kO));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ToString::GenerateCode(MaglevAssembler* masm,
-                            const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kO));
-#endif  // DEBUG
-  Register value = ToRegister(value_input());
-  Label call_builtin, done;
-  // Avoid the builtin call if {value} is a string.
-  __ JumpIfSmi(value, &call_builtin);
-  {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ LoadMap(scratch, value);
-    __ CompareInstanceType(scratch, scratch.W(), FIRST_NONSTRING_TYPE);
-    __ B(&done, lo);
-  }
-  __ bind(&call_builtin);
-  __ CallBuiltin(Builtin::kToString);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  __ bind(&done);
-}
-
 void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   set_temporaries_needed(1);
@@ -199,7 +89,7 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(object);
 
   if (v8_flags.debug_code) {
-    __ CompareObjectType(object, scratch, scratch, FIRST_JS_OBJECT_TYPE);
+    __ CompareObjectType(object, FIRST_JS_OBJECT_TYPE, scratch);
     __ Assert(ge, AbortReason::kUnexpectedValue);
   }
   __ LoadAnyTaggedField(scratch,
@@ -334,7 +224,7 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
 
   if (v8_flags.debug_code) {
-    __ CompareObjectType(object, scratch, scratch, JS_ARRAY_TYPE);
+    __ CompareObjectType(object, JS_ARRAY_TYPE, scratch);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -684,63 +574,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   }
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
   __ bind(&done);
-}
-
-void CheckSymbol::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckSymbol::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
-  }
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ CompareObjectType(object, scratch, scratch, SYMBOL_TYPE);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotASymbol, this);
-}
-
-void CheckInstanceType::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
-  }
-  __ LoadMap(scratch, object);
-  __ CompareInstanceType(scratch, scratch, instance_type());
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongInstanceType, this);
-}
-
-void CheckString::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckString::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotAString, this);
-  }
-  __ LoadMap(scratch, object);
-  __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
-                              LAST_STRING_TYPE);
-  __ EmitEagerDeoptIf(hi, DeoptimizeReason::kNotAString, this);
 }
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
@@ -1373,9 +1206,7 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
 
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ CompareObjectType(object, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -1411,7 +1242,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   Register byte_length = scratch;
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
-    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ CompareObjectType(object, JS_DATA_VIEW_TYPE, scratch);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -1863,8 +1694,7 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ CompareObjectType(object, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -1957,10 +1787,8 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
   Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
     __ AssertNotSmi(elements);
-    __ CompareObjectType(elements, scratch, scratch, FIXED_ARRAY_TYPE);
+    __ CompareObjectType(elements, FIXED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
   Register result_reg = ToRegister(result());
@@ -1979,10 +1807,8 @@ void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
   Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
     __ AssertNotSmi(elements);
-    __ CompareObjectType(elements, scratch, scratch, FIXED_DOUBLE_ARRAY_TYPE);
+    __ CompareObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
@@ -2085,9 +1911,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ CompareObjectType(object, JS_DATA_VIEW_TYPE);
     __ Assert(hs, AbortReason::kUnexpectedValue);
   }
 
@@ -2146,9 +1970,7 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ CompareObjectType(object, JS_DATA_VIEW_TYPE);
     __ Assert(hs, AbortReason::kUnexpectedValue);
   }
 
@@ -2200,9 +2022,7 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ CompareObjectType(object, JS_DATA_VIEW_TYPE);
     __ Assert(hs, AbortReason::kUnexpectedValue);
   }
 
@@ -2265,9 +2085,7 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ CompareObjectType(object, JS_DATA_VIEW_TYPE);
     __ Assert(hs, AbortReason::kUnexpectedValue);
   }
 
@@ -2507,20 +2325,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
   __ Ret();
-}
-
-void BranchIfJSReceiver::SetValueLocationConstraints() {
-  UseRegister(condition_input());
-}
-void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register value = ToRegister(condition_input());
-  __ JumpIfSmi(value, if_false()->label());
-  __ LoadMap(scratch, value);
-  __ CompareInstanceType(scratch, scratch, FIRST_JS_RECEIVER_TYPE);
-  __ Branch(hs, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
