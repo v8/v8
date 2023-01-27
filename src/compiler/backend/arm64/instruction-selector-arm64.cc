@@ -3886,9 +3886,11 @@ void InstructionSelector::VisitS128Zero(Node* node) {
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(
-    kArm64I32x4DotI8x16AddS, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-    g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+  InstructionOperand output = CpuFeatures::IsSupported(DOTPROD)
+                                  ? g.DefineSameAsInput(node, 2)
+                                  : g.DefineAsRegister(node);
+  Emit(kArm64I32x4DotI8x16AddS, output, g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                     \

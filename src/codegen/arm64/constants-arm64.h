@@ -1653,6 +1653,7 @@ constexpr NEON3SameOp NEON_BSL = NEON3SameLogicalFixed | 0x20400000;
 // NEON instructions with three different-type operands.
 using NEON3DifferentOp = uint32_t;
 constexpr NEON3DifferentOp NEON3DifferentFixed = 0x0E200000;
+constexpr NEON3DifferentOp NEON3DifferentDot = 0x0E800000;
 constexpr NEON3DifferentOp NEON3DifferentFMask = 0x9F200C00;
 constexpr NEON3DifferentOp NEON3DifferentMask = 0xFF20FC00;
 constexpr NEON3DifferentOp NEON_ADDHN = NEON3DifferentFixed | 0x00004000;
@@ -1671,6 +1672,7 @@ constexpr NEON3DifferentOp NEON_SADDL = NEON3DifferentFixed | 0x00000000;
 constexpr NEON3DifferentOp NEON_SADDL2 = NEON_SADDL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SADDW = NEON3DifferentFixed | 0x00001000;
 constexpr NEON3DifferentOp NEON_SADDW2 = NEON_SADDW | NEON_Q;
+constexpr NEON3DifferentOp NEON_SDOT = NEON3DifferentDot | 0x00009400;
 constexpr NEON3DifferentOp NEON_SMLAL = NEON3DifferentFixed | 0x00008000;
 constexpr NEON3DifferentOp NEON_SMLAL2 = NEON_SMLAL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SMLSL = NEON3DifferentFixed | 0x0000A000;

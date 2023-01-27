@@ -407,6 +407,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(saddl, Saddl)                \
   V(saddw2, Saddw2)              \
   V(saddw, Saddw)                \
+  V(sdot, Sdot)                  \
   V(shadd, Shadd)                \
   V(shsub, Shsub)                \
   V(smaxp, Smaxp)                \

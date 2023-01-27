@@ -1219,6 +1219,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Signed minimum across vector.
   void sminv(const VRegister& vd, const VRegister& vn);
 
+  // Signed dot product
+  void sdot(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
   // One-element structure store from one register.
   void st1(const VRegister& vt, const MemOperand& src);
 

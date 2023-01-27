@@ -67,6 +67,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_JCVT)
   features |= 1u << JSCVT;
 #endif
+#if defined(__ARM_FEATURE_DOTPROD)
+  features |= 1u << DOTPROD;
+#endif
   return features;
 }
 
@@ -75,6 +78,7 @@ constexpr unsigned CpuFeaturesFromTargetOS() {
 #if defined(V8_TARGET_OS_MACOS) && !defined(V8_TARGET_OS_IOS)
   // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt.
   features |= 1u << JSCVT;
+  features |= 1u << DOTPROD;
 #endif
   return features;
 }
@@ -105,6 +109,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   unsigned runtime = 0;
   if (cpu.has_jscvt()) {
     runtime |= 1u << JSCVT;
+  }
+  if (cpu.has_dot_prod()) {
+    runtime |= 1u << DOTPROD;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -1422,6 +1429,14 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rn.Is64Bits());
   DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::sdot(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  DCHECK(CpuFeatures::IsSupported(DOTPROD));
+  DCHECK(vn.Is16B() && vd.Is4S());
+  DCHECK(AreSameFormat(vn, vm));
+  Emit(NEON_Q | NEON_SDOT | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,

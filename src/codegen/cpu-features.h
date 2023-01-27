@@ -43,6 +43,7 @@ enum CpuFeature {
 
 #elif V8_TARGET_ARCH_ARM64
   JSCVT,
+  DOTPROD,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,
