@@ -2099,18 +2099,20 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       return false;
     }
 
-    Representation field_repr = Representation::Smi();
+    bool only_double_or_smi_load = true;
 
     // Check if we support the polymorphic load.
     for (compiler::PropertyAccessInfo access_info : access_infos) {
       switch (access_info.kind()) {
         case compiler::PropertyAccessInfo::kNotFound:
         case compiler::PropertyAccessInfo::kModuleExport:
-          field_repr.generalize(Representation::Tagged());
+          only_double_or_smi_load = false;
           break;
         case compiler::PropertyAccessInfo::kDataField:
         case compiler::PropertyAccessInfo::kFastDataConstant:
-          field_repr.generalize(access_info.field_representation());
+          only_double_or_smi_load &=
+              (access_info.field_index().is_double() ||
+               access_info.field_representation().IsSmi());
           break;
         default:
           // TODO(victorgomes): Support other access.
@@ -2135,14 +2137,13 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       }
     }
 
-    if (field_repr.kind() == Representation::kDouble) {
+    if (only_double_or_smi_load) {
       SetAccumulator(AddNewNode<LoadPolymorphicDoubleField>(
           {lookup_start_object}, std::move(access_infos)));
     } else {
       SetAccumulator(AddNewNode<LoadPolymorphicTaggedField>(
           {lookup_start_object}, std::move(access_infos)));
     }
-
     return true;
   }
 }
