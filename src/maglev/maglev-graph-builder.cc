@@ -494,13 +494,7 @@ void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
   ValueNode* value = input_is_truncated ? GetAccumulatorTruncatedInt32()
                                         : GetAccumulatorInt32();
   using OpNodeT = Int32NodeFor<kOperation>;
-  OpNodeT* result = AddNewNode<OpNodeT>({value});
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(result);
-  node_info->type = NodeType::kSmi;
-  static_assert(OpNodeT::kProperties.value_representation() ==
-                ValueRepresentation::kInt32);
-  node_info->tagged_alternative = AddNewNode<CheckedSmiTagInt32>({result});
-  SetAccumulator(result);
+  SetAccumulator(AddNewNode<OpNodeT>({value}));
 }
 
 void MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForNumber() {
@@ -567,20 +561,7 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
   }
   using OpNodeT = Int32NodeFor<kOperation>;
 
-  OpNodeT* result = AddNewNode<OpNodeT>({left, right});
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(result);
-  node_info->type = NodeType::kSmi;
-  if constexpr (OpNodeT::kProperties.value_representation() ==
-                ValueRepresentation::kInt32) {
-    // For Int32, the check is the same as a tag operation, so we may as well
-    // keep the tagged result as the tagged alternative.
-    node_info->tagged_alternative = AddNewNode<CheckedSmiTagInt32>({result});
-  } else {
-    static_assert(OpNodeT::kProperties.value_representation() ==
-                  ValueRepresentation::kUint32);
-    AddNewNode<CheckUint32IsSmi>({result});
-  }
-  SetAccumulator(result);
+  SetAccumulator(AddNewNode<OpNodeT>({left, right}));
 }
 
 template <Operation kOperation>
