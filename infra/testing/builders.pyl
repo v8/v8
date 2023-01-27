@@ -1289,6 +1289,14 @@
       {'name': 'v8testing'},
     ],
   },
+  'V8 Linux PGO instrumentation - builder' : {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
   'V8 Linux64': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
@@ -1651,6 +1659,14 @@
         'test_args': ['--gc-stress', '--no-harness'],
         'shards': 3,
       },
+    ],
+  },
+  'V8 Linux64 PGO instrumentation - builder' : {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
     ],
   },
   'V8 Linux64 TSAN': {
