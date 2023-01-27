@@ -705,12 +705,19 @@ struct MemoryAccessImmediate {
   uint32_t length = 0;
 
   template <typename ValidationTag>
-  MemoryAccessImmediate(Decoder* decoder, const byte* pc,
-                        uint32_t max_alignment, bool is_memory64,
-                        ValidationTag = {}) {
-    uint32_t alignment_length;
-    alignment =
-        decoder->read_u32v<ValidationTag>(pc, &alignment_length, "alignment");
+  V8_INLINE MemoryAccessImmediate(Decoder* decoder, const byte* pc,
+                                  uint32_t max_alignment, bool is_memory64,
+                                  ValidationTag = {}) {
+    // Check for the fast path (two single-byte LEBs).
+    const bool two_bytes = !ValidationTag::validate || decoder->end() - pc >= 2;
+    const bool use_fast_path = two_bytes && !((pc[0] | pc[1]) & 0x80);
+    if (V8_LIKELY(use_fast_path)) {
+      alignment = pc[0];
+      offset = pc[1];
+      length = 2;
+    } else {
+      ConstructSlow<ValidationTag>(decoder, pc, max_alignment, is_memory64);
+    }
     if (!VALIDATE(alignment <= max_alignment)) {
       DecodeError<ValidationTag>(
           decoder, pc,
@@ -718,6 +725,17 @@ struct MemoryAccessImmediate {
           "actual alignment is %u",
           max_alignment, alignment);
     }
+  }
+
+ private:
+  template <typename ValidationTag>
+  V8_NOINLINE V8_PRESERVE_MOST void ConstructSlow(Decoder* decoder,
+                                                  const byte* pc,
+                                                  uint32_t max_alignment,
+                                                  bool is_memory64) {
+    uint32_t alignment_length;
+    alignment =
+        decoder->read_u32v<ValidationTag>(pc, &alignment_length, "alignment");
     uint32_t offset_length;
     offset = is_memory64 ? decoder->read_u64v<ValidationTag>(
                                pc + alignment_length, &offset_length, "offset")
@@ -2933,8 +2951,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return true;
   }
 
-  MemoryAccessImmediate MakeMemoryAccessImmediate(uint32_t pc_offset,
-                                                  uint32_t max_alignment) {
+  V8_INLINE MemoryAccessImmediate
+  MakeMemoryAccessImmediate(uint32_t pc_offset, uint32_t max_alignment) {
     return MemoryAccessImmediate(this, this->pc_ + pc_offset, max_alignment,
                                  this->module_->is_memory64, validate);
   }
