@@ -982,6 +982,7 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
   Register result_reg = ToRegister(result());
   Register object = ToRegister(object_input());
   Register object_map = temps.Acquire();
+  DoubleRegister double_scratch = temps.AcquireDouble();
 
   Label done;
   Label is_number;
@@ -1010,7 +1011,6 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
       case compiler::PropertyAccessInfo::kFastDataConstant: {
         __ LoadDataField(access_info, result_reg, object, object_map);
         if (access_info.field_index().is_double()) {
-          DoubleRegister double_scratch = temps.AcquireDouble();
           __ LoadHeapNumberValue(double_scratch, result_reg);
           __ AllocateHeapNumber(register_snapshot(), result_reg,
                                 double_scratch);
