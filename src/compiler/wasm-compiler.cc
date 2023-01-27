@@ -4974,7 +4974,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   std::tie(index, bounds_check_result) =
       CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0], offset,
                               position, enforce_bounds_check);
-  // MemoryAccessKind::kUnalligned is impossible due to explicit aligment check.
+  // MemoryAccessKind::kUnaligned is impossible due to explicit aligment check.
   MemoryAccessKind access_kind =
       bounds_check_result == WasmGraphBuilder::kTrapHandler
           ? MemoryAccessKind::kProtected

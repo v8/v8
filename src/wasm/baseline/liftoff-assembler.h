@@ -818,40 +818,47 @@ class LiftoffAssembler : public TurboAssembler {
                     bool is_store_mem = false, bool i64_offset = false);
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
-                         LoadType type, LiftoffRegList pinned);
+                         LoadType type, LiftoffRegList pinned, bool i64_offset);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
-                          StoreType type, LiftoffRegList pinned);
+                          StoreType type, LiftoffRegList pinned,
+                          bool i64_offset);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type);
+                        LiftoffRegister result, StoreType type,
+                        bool i64_offset);
 
   inline void AtomicSub(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type);
+                        LiftoffRegister result, StoreType type,
+                        bool i64_offset);
 
   inline void AtomicAnd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type);
+                        LiftoffRegister result, StoreType type,
+                        bool i64_offset);
 
   inline void AtomicOr(Register dst_addr, Register offset_reg,
                        uintptr_t offset_imm, LiftoffRegister value,
-                       LiftoffRegister result, StoreType type);
+                       LiftoffRegister result, StoreType type, bool i64_offset);
 
   inline void AtomicXor(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type);
+                        LiftoffRegister result, StoreType type,
+                        bool i64_offset);
 
   inline void AtomicExchange(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister value,
-                             LiftoffRegister result, StoreType type);
+                             LiftoffRegister result, StoreType type,
+                             bool i64_offset);
 
   inline void AtomicCompareExchange(Register dst_addr, Register offset_reg,
                                     uintptr_t offset_imm,
                                     LiftoffRegister expected,
                                     LiftoffRegister new_value,
-                                    LiftoffRegister value, StoreType type);
+                                    LiftoffRegister value, StoreType type,
+                                    bool i64_offset);
 
   inline void AtomicFence();
 

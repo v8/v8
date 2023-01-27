@@ -6222,28 +6222,30 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         opcode_length, ElementSizeLog2Of(memtype.representation()));
     if (!this->Validate(this->pc_ + opcode_length, imm)) return false;
 
-    // TODO(10949): Fix this for memory64 (index type should be kWasmI64
-    // then).
-    CHECK(!this->module_->is_memory64);
-    ArgVector args = PeekArgs(sig);
-    if (sig->return_count() == 0) {
-      if (V8_LIKELY(
-              !CheckStaticallyOutOfBounds(memtype.MemSize(), imm.offset))) {
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode,
-                                           base::VectorOf(args), imm, nullptr);
-      }
-      DropArgs(sig);
-    } else {
-      DCHECK_EQ(1, sig->return_count());
-      Value result = CreateValue(sig->GetReturn());
-      if (V8_LIKELY(
-              !CheckStaticallyOutOfBounds(memtype.MemSize(), imm.offset))) {
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode,
-                                           base::VectorOf(args), imm, &result);
-      }
-      DropArgs(sig);
-      Push(result);
+    int parameter_count = static_cast<int>(sig->parameter_count());
+    DCHECK_LE(1, parameter_count);
+    DCHECK_EQ(kWasmI32, sig->GetParam(0));
+    EnsureStackArguments(parameter_count);
+    ArgVector args(stack_value(parameter_count), parameter_count);
+    ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    ValidateArgType(args, 0, mem_type);
+    for (int i = 1; i < parameter_count; i++) {
+      ValidateArgType(args, i, sig->GetParam(i));
     }
+
+    base::Optional<Value> result;
+    if (sig->return_count()) {
+      DCHECK_EQ(1, sig->return_count());
+      result = CreateValue(sig->GetReturn());
+    }
+
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(memtype.MemSize(), imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(
+          AtomicOp, opcode, base::VectorOf(args), imm,
+          result.has_value() ? &result.value() : nullptr);
+    }
+    DropArgs(sig);
+    if (result.has_value()) Push(result.value());
     return opcode_length + imm.length;
   }
 

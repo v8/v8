@@ -4752,6 +4752,7 @@ class LiftoffCompiler {
                       const MemoryAccessImmediate& imm) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
+    bool i64_offset = __ cache_state()->stack_state.back().kind() == kI64;
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
@@ -4763,7 +4764,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(pinned));
     LiftoffRegList outer_pinned;
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
-    __ AtomicStore(addr, index, offset, value, type, outer_pinned);
+    __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
@@ -4773,6 +4774,7 @@ class LiftoffCompiler {
   void AtomicLoadMem(FullDecoder* decoder, LoadType type,
                      const MemoryAccessImmediate& imm) {
     ValueKind kind = type.value_type().kind();
+    bool i64_offset = __ cache_state()->stack_state.back().kind() == kI64;
     LiftoffRegister full_index = __ PopToRegister();
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, {}, kDoForceCheck);
@@ -4784,7 +4786,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ AtomicLoad(value, addr, index, offset, type, pinned);
+    __ AtomicLoad(value, addr, index, offset, type, pinned, i64_offset);
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -4797,8 +4799,8 @@ class LiftoffCompiler {
                    const MemoryAccessImmediate& imm,
                    void (LiftoffAssembler::*emit_fn)(Register, Register,
                                                      uintptr_t, LiftoffRegister,
-                                                     LiftoffRegister,
-                                                     StoreType)) {
+                                                     LiftoffRegister, StoreType,
+                                                     bool)) {
     ValueKind result_kind = type.value_type().kind();
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
@@ -4818,6 +4820,7 @@ class LiftoffCompiler {
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
 #endif
+    bool i64_offset = __ cache_state()->stack_state.back().kind() == kI64;
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
@@ -4829,7 +4832,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(GetMemoryStart(pinned));
 
-    (asm_.*emit_fn)(addr, index, offset, value, result, type);
+    (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset);
     __ PushRegister(result_kind, result);
   }
 
@@ -4859,6 +4862,7 @@ class LiftoffCompiler {
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
 
     // Pop the index from the stack.
+    bool i64_offset = __ cache_state()->stack_state.back().kind() == kI64;
     __ DropValues(1);
 
     LiftoffRegister result = expected;
@@ -4867,7 +4871,7 @@ class LiftoffCompiler {
     // We already added the index to addr, so we can just pass no_reg to the
     // assembler now.
     __ AtomicCompareExchange(addr, no_reg, offset, expected, new_value, result,
-                             type);
+                             type, i64_offset);
     __ PushRegister(type.value_type().kind(), result);
     return;
 #else
@@ -4875,6 +4879,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
+    bool i64_offset = __ cache_state()->stack_state.back().kind() == kI64;
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
@@ -4887,7 +4892,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(reg_class_for(result_kind), pinned));
 
     __ AtomicCompareExchange(addr, index, offset, expected, new_value, result,
-                             type);
+                             type, i64_offset);
     __ PushRegister(result_kind, result);
 #endif
   }

@@ -452,8 +452,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList /* pinned */) {
-  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
+                                  LoadType type, LiftoffRegList /* pinned */,
+                                  bool i64_offset) {
+  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true, i64_offset);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -549,8 +550,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type,
-                                   LiftoffRegList /* pinned */) {
+                                   StoreType type, LiftoffRegList /* pinned */,
+                                   bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Register src_reg = src.gp();
   if (cache_state()->is_used(src)) {
@@ -580,7 +582,9 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   DCHECK(!cache_state()->is_used(result));
   if (cache_state()->is_used(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
@@ -622,7 +626,9 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   LiftoffRegList dont_overwrite =
       cache_state()->used_registers | LiftoffRegList{dst_addr, offset_reg};
   DCHECK(!dont_overwrite.has(result));
@@ -679,7 +685,9 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
                         void (Assembler::*opq)(Register, Register),
                         Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
-                        LiftoffRegister result, StoreType type) {
+                        LiftoffRegister result, StoreType type,
+                        bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) __ AssertZeroExtended(offset_reg);
   DCHECK(!__ cache_state()->is_used(result));
   Register value_reg = value.gp();
   // The cmpxchg instruction uses rax to store the old value of the
@@ -752,29 +760,34 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   liftoff::AtomicBinop(this, &Assembler::andl, &Assembler::andq, dst_addr,
-                       offset_reg, offset_imm, value, result, type);
+                       offset_reg, offset_imm, value, result, type, i64_offset);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
-                                LiftoffRegister result, StoreType type) {
+                                LiftoffRegister result, StoreType type,
+                                bool i64_offset) {
   liftoff::AtomicBinop(this, &Assembler::orl, &Assembler::orq, dst_addr,
-                       offset_reg, offset_imm, value, result, type);
+                       offset_reg, offset_imm, value, result, type, i64_offset);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   liftoff::AtomicBinop(this, &Assembler::xorl, &Assembler::xorq, dst_addr,
-                       offset_reg, offset_imm, value, result, type);
+                       offset_reg, offset_imm, value, result, type, i64_offset);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type) {
+                                      LiftoffRegister result, StoreType type,
+                                      bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   DCHECK(!cache_state()->is_used(result));
   if (cache_state()->is_used(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
@@ -816,7 +829,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type) {
+    StoreType type, bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Register value_reg = new_value.gp();
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
