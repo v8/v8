@@ -93,7 +93,7 @@ static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
       __ CmpU32(lhs, rhs);
     }
   }
-  __ b(cc, target);
+  __ b(check_condition(cc), target);
 }
 
 #undef __
@@ -159,7 +159,7 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AndP(r0, value, Operand(mask));
-  __ b(cc, target);
+  __ b(check_condition(cc), target);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
@@ -170,7 +170,7 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
   } else {
     __ CmpU64(lhs, rhs);
   }
-  __ b(cc, target);
+  __ b(check_condition(cc), target);
 }
 
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,

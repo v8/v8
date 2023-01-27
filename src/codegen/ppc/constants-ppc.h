@@ -132,21 +132,44 @@ enum Condition {
   al = 10,  // Always.
 
   // Unified cross-platform condition names/aliases.
+  // Do not set unsigned constants equal to their signed variants.
+  // We need to be able to differentiate between signed and unsigned enum
+  // constants in order to emit the right instructions (i.e CmpS64 vs CmpU64).
   kEqual = eq,
   kNotEqual = ne,
   kLessThan = lt,
   kGreaterThan = gt,
   kLessThanEqual = le,
   kGreaterThanEqual = ge,
-  kUnsignedLessThan = lt,
-  kUnsignedGreaterThan = gt,
-  kUnsignedLessThanEqual = le,
-  kUnsignedGreaterThanEqual = ge,
+  kUnsignedLessThan = 11,
+  kUnsignedGreaterThan = 12,
+  kUnsignedLessThanEqual = 13,
+  kUnsignedGreaterThanEqual = 14,
   kOverflow = overflow,
   kNoOverflow = nooverflow,
-  kZero = eq,
-  kNotZero = ne,
+  kZero = 15,
+  kNotZero = 16,
 };
+
+inline Condition check_condition(Condition cond) {
+  switch (cond) {
+    case kUnsignedLessThan:
+      return lt;
+    case kUnsignedGreaterThan:
+      return gt;
+    case kUnsignedLessThanEqual:
+      return le;
+    case kUnsignedGreaterThanEqual:
+      return ge;
+    case kZero:
+      return eq;
+    case kNotZero:
+      return ne;
+    default:
+      break;
+  }
+  return cond;
+}
 
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
