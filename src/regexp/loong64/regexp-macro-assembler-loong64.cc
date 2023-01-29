@@ -966,7 +966,7 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
           .Build();
   Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(istream), source));
+      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(istream);
 }
 
