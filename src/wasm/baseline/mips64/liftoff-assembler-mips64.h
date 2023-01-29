@@ -663,9 +663,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned) {
+                                  LoadType type, LiftoffRegList pinned,
+                                  bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U: {
@@ -701,9 +703,11 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList pinned) {
+                                   StoreType type, LiftoffRegList pinned,
+                                   bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8: {
@@ -763,43 +767,44 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     sync();                                                             \
   } while (0)
 
-#define ATOMIC_BINOP_CASE(name, inst32, inst64)                          \
-  void LiftoffAssembler::Atomic##name(                                   \
-      Register dst_addr, Register offset_reg, uintptr_t offset_imm,      \
-      LiftoffRegister value, LiftoffRegister result, StoreType type) {   \
-    LiftoffRegList pinned{dst_addr, offset_reg, value, result};          \
-    Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
-    Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
-    Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
-    Register temp3 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
-    MemOperand dst_op =                                                  \
-        liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);       \
-    Daddu(temp0, dst_op.rm(), dst_op.offset());                          \
-    switch (type.value()) {                                              \
-      case StoreType::kI64Store8:                                        \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 8, inst64, 7);               \
-        break;                                                           \
-      case StoreType::kI32Store8:                                        \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 8, inst32, 3);                 \
-        break;                                                           \
-      case StoreType::kI64Store16:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 16, inst64, 7);              \
-        break;                                                           \
-      case StoreType::kI32Store16:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 16, inst32, 3);                \
-        break;                                                           \
-      case StoreType::kI64Store32:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 32, inst64, 7);              \
-        break;                                                           \
-      case StoreType::kI32Store:                                         \
-        ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst32);                           \
-        break;                                                           \
-      case StoreType::kI64Store:                                         \
-        ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst64);                         \
-        break;                                                           \
-      default:                                                           \
-        UNREACHABLE();                                                   \
-    }                                                                    \
+#define ATOMIC_BINOP_CASE(name, inst32, inst64)                                \
+  void LiftoffAssembler::Atomic##name(                                         \
+      Register dst_addr, Register offset_reg, uintptr_t offset_imm,            \
+      LiftoffRegister value, LiftoffRegister result, StoreType type,           \
+      bool i64_offset) {                                                       \
+    LiftoffRegList pinned{dst_addr, offset_reg, value, result};                \
+    Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
+    Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
+    Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
+    Register temp3 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
+    MemOperand dst_op =                                                        \
+        liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset); \
+    Daddu(temp0, dst_op.rm(), dst_op.offset());                                \
+    switch (type.value()) {                                                    \
+      case StoreType::kI64Store8:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 8, inst64, 7);                     \
+        break;                                                                 \
+      case StoreType::kI32Store8:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 8, inst32, 3);                       \
+        break;                                                                 \
+      case StoreType::kI64Store16:                                             \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 16, inst64, 7);                    \
+        break;                                                                 \
+      case StoreType::kI32Store16:                                             \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 16, inst32, 3);                      \
+        break;                                                                 \
+      case StoreType::kI64Store32:                                             \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 32, inst64, 7);                    \
+        break;                                                                 \
+      case StoreType::kI32Store:                                               \
+        ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst32);                                 \
+        break;                                                                 \
+      case StoreType::kI64Store:                                               \
+        ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst64);                               \
+        break;                                                                 \
+      default:                                                                 \
+        UNREACHABLE();                                                         \
+    }                                                                          \
   }
 
 ATOMIC_BINOP_CASE(Add, Addu, Daddu)
@@ -843,12 +848,14 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor)
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type) {
+                                      LiftoffRegister result, StoreType type,
+                                      bool i64_offset) {
   LiftoffRegList pinned{dst_addr, offset_reg, value, result};
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
   Daddu(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
@@ -919,12 +926,13 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type) {
+    StoreType type, bool i64_offset) {
   LiftoffRegList pinned{dst_addr, offset_reg, expected, new_value, result};
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
   Daddu(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
