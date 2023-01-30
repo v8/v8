@@ -456,9 +456,6 @@ class MarkCompactCollector final : public CollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() final;
 
-  std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk);
-
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
   // Finds an object header based on a `maybe_inner_ptr`. It returns
   // `kNullAddress` if the parameter does not point to (the interior of) a valid
@@ -705,9 +702,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
   void CleanupPromotedPages();
-
-  std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk);
 
   void Finish() final;
 

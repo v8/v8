@@ -866,14 +866,11 @@ void GCTracer::PrintNVP() const {
           "complete.sweep_array_buffers=%.2f "
           "complete.sweeping=%.2f "
           "evacuate=%.2f "
-          "evacuate.clean_up=%.2f "
           "evacuate.copy=%.2f "
           "evacuate.prologue=%.2f "
           "evacuate.epilogue=%.2f "
           "evacuate.rebalance=%.2f "
           "evacuate.update_pointers=%.2f "
-          "evacuate.update_pointers.slots=%.2f "
-          "evacuate.update_pointers.weak=%.2f "
           "sweep=%.2f "
           "sweep.new=%.2f "
           "sweep.new_lo=%.2f "
@@ -882,7 +879,6 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.sweep=%.2f "
           "background.evacuate.copy=%.2f "
-          "background.evacuate.update_pointers=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
           "total_size_before=%zu "
@@ -915,14 +911,11 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEPING),
           current_scope(Scope::MINOR_MC_EVACUATE),
-          current_scope(Scope::MINOR_MC_EVACUATE_CLEAN_UP),
           current_scope(Scope::MINOR_MC_EVACUATE_COPY),
           current_scope(Scope::MINOR_MC_EVACUATE_PROLOGUE),
           current_scope(Scope::MINOR_MC_EVACUATE_EPILOGUE),
           current_scope(Scope::MINOR_MC_EVACUATE_REBALANCE),
           current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS),
-          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS),
-          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK),
           current_scope(Scope::MINOR_MC_SWEEP),
           current_scope(Scope::MINOR_MC_SWEEP_NEW),
           current_scope(Scope::MINOR_MC_SWEEP_NEW_LO),
@@ -931,7 +924,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MC_BACKGROUND_SWEEPING),
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),
-          current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
           current_scope(Scope::BACKGROUND_UNMAPPER),
           current_scope(Scope::UNMAPPER), current_.start_object_size,
           current_.end_object_size, current_.start_holes_size,
@@ -1771,8 +1763,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
        current_.scopes[Scope::MINOR_MARK_COMPACTOR] +
        current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
        current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY] +
-       current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING] +
-       current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]) *
+       current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING]) *
       base::Time::kMicrosecondsPerMillisecond;
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
   // (both for the case of the scavenger and the minor mark-compactor), and
