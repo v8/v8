@@ -1790,6 +1790,7 @@ filegroup(
         "src/objects/js-shadow-realm-inl.h",
         "src/objects/js-shared-array.h",
         "src/objects/js-shared-array-inl.h",
+        "src/objects/js-struct.cc",
         "src/objects/js-struct.h",
         "src/objects/js-struct-inl.h",
         "src/objects/js-temporal-objects.h",

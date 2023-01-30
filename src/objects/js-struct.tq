@@ -6,7 +6,6 @@
 // shared space. Its instance type range is used to fast path the shared value
 // barrier.
 @abstract
-@highestInstanceTypeWithinParentClassRange
 extern class AlwaysSharedSpaceJSObject extends JSObject {
 }
 

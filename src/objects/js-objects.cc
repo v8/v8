@@ -1179,6 +1179,11 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
+  if (object->IsAlwaysSharedSpaceJSObject()) {
+    return AlwaysSharedSpaceJSObject::DefineOwnProperty(
+        isolate, Handle<AlwaysSharedSpaceJSObject>::cast(object), key, desc,
+        should_throw);
+  }
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
@@ -4352,6 +4357,17 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return PreventExtensionsWithTransition<attrs>(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
+  }
+
+  // Shared objects are designed to have fixed layout, i.e. their maps are
+  // effectively immutable. They are constructed seal, but the semantics of
+  // ordinary ECMAScript objects allow sealed to be upgraded to frozen. This
+  // upgrade violates the fixed layout invariant and is disallowed.
+  if (object->IsAlwaysSharedSpaceJSObject()) {
+    DCHECK(FastTestIntegrityLevel(*object, SEALED));
+    if (attrs != FROZEN) return Just(true);
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kCannotFreeze));
   }
 
   if (object->map().has_named_interceptor() ||
