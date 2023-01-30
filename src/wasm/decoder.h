@@ -550,15 +550,15 @@ class Decoder {
                                                       Name<ValidationTag> name,
                                                       IntType* result) {
     // Create an unrolled LEB decoding function per integer type.
-    *result = 0;
-    read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(pc, length,
-                                                                  name, result);
+    std::tie(*result, *length) =
+        read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(pc, name,
+                                                                      0);
   }
 
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits, int byte_index>
-  V8_INLINE void read_leb_tail(const byte* pc, uint32_t* length,
-                               Name<ValidationTag> name, IntType* result) {
+  V8_INLINE std::pair<IntType, uint32_t> read_leb_tail(
+      const byte* pc, Name<ValidationTag> name, IntType intermediate_result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
@@ -571,19 +571,17 @@ class Decoder {
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
       using Unsigned = typename std::make_unsigned<IntType>::type;
-      *result = *result | (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f)
-                           << shift);
+      intermediate_result |=
+          (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }
     if (!is_last_byte && (b & 0x80)) {
       // Make sure that we only instantiate the template for valid byte indexes.
       // Compilers are not smart enough to figure out statically that the
       // following call is unreachable if is_last_byte is false.
       constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      read_leb_tail<IntType, ValidationTag, trace, size_in_bits,
-                    next_byte_index>(pc + 1, length, name, result);
-      return;
+      return read_leb_tail<IntType, ValidationTag, trace, size_in_bits,
+                           next_byte_index>(pc + 1, name, intermediate_result);
     }
-    *length = byte_index + (at_end ? 0 : 1);
     if (ValidationTag::validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
       if constexpr (ValidationTag::full_validation) {
@@ -591,8 +589,7 @@ class Decoder {
       } else {
         MarkError();
       }
-      *result = 0;
-      *length = 0;
+      return {0, 0};
     }
     if constexpr (is_last_byte) {
       // A signed-LEB128 must sign-extend the final byte, excluding its
@@ -616,19 +613,21 @@ class Decoder {
         } else {
           MarkError();
         }
-        *result = 0;
-        *length = 0;
+        return {0, 0};
       }
     }
     constexpr int sign_ext_shift =
         is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
     // Perform sign extension.
-    *result = (*result << sign_ext_shift) >> sign_ext_shift;
+    intermediate_result =
+        (intermediate_result << sign_ext_shift) >> sign_ext_shift;
     if (trace && is_signed) {
-      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(*result));
+      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(intermediate_result));
     } else if (trace) {
-      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(*result));
+      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(intermediate_result));
     }
+    const uint32_t length = byte_index + 1;
+    return {intermediate_result, length};
   }
 };
 
