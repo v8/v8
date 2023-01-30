@@ -777,25 +777,26 @@ bool SlotInterference(const VarState& a, base::Vector<const VarState> v) {
 }  // namespace
 #endif
 
-void LiftoffAssembler::MergeFullStackWith(CacheState& target,
-                                          const CacheState& source) {
-  DCHECK_EQ(source.stack_height(), target.stack_height());
+void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
+  DCHECK_EQ(cache_state_.stack_height(), target.stack_height());
   // TODO(clemensb): Reuse the same StackTransferRecipe object to save some
   // allocations.
   StackTransferRecipe transfers(this);
-  for (uint32_t i = 0, e = source.stack_height(); i < e; ++i) {
-    transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
-    DCHECK(!SlotInterference(target.stack_state[i],
-                             base::VectorOf(source.stack_state.data() + i + 1,
-                                            source.stack_height() - i - 1)));
+  for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
+    transfers.TransferStackSlot(target.stack_state[i],
+                                cache_state_.stack_state[i]);
+    DCHECK(!SlotInterference(
+        target.stack_state[i],
+        base::VectorOf(cache_state_.stack_state.data() + i + 1,
+                       cache_state_.stack_height() - i - 1)));
   }
 
   // Full stack merging is only done for forward jumps, so we can just clear the
   // cache registers at the target in case of mismatch.
-  if (source.cached_instance != target.cached_instance) {
+  if (cache_state_.cached_instance != target.cached_instance) {
     target.ClearCachedInstanceRegister();
   }
-  if (source.cached_mem_start != target.cached_mem_start) {
+  if (cache_state_.cached_mem_start != target.cached_mem_start) {
     target.ClearCachedMemStartRegister();
   }
 }

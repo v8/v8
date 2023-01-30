@@ -651,7 +651,7 @@ class LiftoffAssembler : public TurboAssembler {
   void PrepareForBranch(uint32_t arity, LiftoffRegList pinned);
 
   enum JumpDirection { kForwardJump, kBackwardJump };
-  void MergeFullStackWith(CacheState& target, const CacheState& source);
+  void MergeFullStackWith(CacheState& target);
   void MergeStackWith(CacheState& target, uint32_t arity, JumpDirection);
 
   void Spill(VarState* slot);

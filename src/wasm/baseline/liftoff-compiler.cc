@@ -1340,7 +1340,7 @@ class LiftoffCompiler {
                         frozen);
       // The tags don't match, merge the current state into the catch state and
       // jump to the next handler.
-      __ MergeFullStackWith(block->try_info->catch_state, *__ cache_state());
+      __ MergeFullStackWith(block->try_info->catch_state);
       __ emit_jump(&block->try_info->catch_label);
       __ bind(&caught);
     }
@@ -1490,7 +1490,7 @@ class LiftoffCompiler {
       __ MergeStackWith(c->label_state, c->br_merge()->arity,
                         LiftoffAssembler::kForwardJump);
     } else {
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ MergeFullStackWith(c->label_state);
     }
     __ emit_jump(c->label.get());
     TraceCacheState(decoder);
@@ -1502,14 +1502,14 @@ class LiftoffCompiler {
       // Someone already merged to the end of the if. Merge both arms into that.
       if (c->reachable()) {
         // Merge the if state into the end state.
-        __ MergeFullStackWith(c->label_state, *__ cache_state());
+        __ MergeFullStackWith(c->label_state);
         __ emit_jump(c->label.get());
       }
       // Merge the else state into the end state. Set this state as the current
       // state first so helper functions know which registers are in use.
       __ bind(c->else_state->label.get());
       __ cache_state()->Steal(c->else_state->state);
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ MergeFullStackWith(c->label_state);
       __ cache_state()->Steal(c->label_state);
     } else if (c->reachable()) {
       // No merge yet at the end of the if, but we need to create a merge for
@@ -1519,13 +1519,13 @@ class LiftoffCompiler {
       c->label_state.InitMerge(c->else_state->state, __ num_locals(),
                                c->start_merge.arity,
                                c->stack_depth + c->num_exceptions);
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ MergeFullStackWith(c->label_state);
       __ emit_jump(c->label.get());
       // Merge the else state into the end state. Set this state as the current
       // state first so helper functions know which registers are in use.
       __ bind(c->else_state->label.get());
       __ cache_state()->Steal(c->else_state->state);
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ MergeFullStackWith(c->label_state);
       __ cache_state()->Steal(c->label_state);
     } else {
       // No merge needed, just continue with the else state.
@@ -1565,7 +1565,7 @@ class LiftoffCompiler {
       // There is a merge already. Merge our state into that, then continue with
       // that state.
       if (c->reachable()) {
-        __ MergeFullStackWith(c->label_state, *__ cache_state());
+        __ MergeFullStackWith(c->label_state);
       }
       __ cache_state()->Steal(c->label_state);
     } else {
@@ -2917,7 +2917,7 @@ class LiftoffCompiler {
                                  c->end_merge.arity,
                                  c->stack_depth + c->num_exceptions);
       }
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ MergeFullStackWith(c->label_state);
       __ emit_jump(c->label.get());
     }
     __ bind(c->else_state->label.get());
