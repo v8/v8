@@ -2772,7 +2772,8 @@ Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   Handle<JSArray> raw_object =
       NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
                              raw_strings->length(), AllocationType::kOld);
-  JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
+  JSObject::SetIntegrityLevel(isolate(), raw_object, FROZEN, kThrowOnError)
+      .ToChecked();
 
   Handle<NativeContext> native_context = isolate()->native_context();
   Handle<TemplateLiteralObject> template_object =

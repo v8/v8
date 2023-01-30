@@ -215,9 +215,10 @@ BUILTIN(ObjectFreeze) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   if (object->IsJSReceiver()) {
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
-                                               FROZEN, kThrowOnError),
-                 ReadOnlyRoots(isolate).exception());
+    MAYBE_RETURN(
+        JSReceiver::SetIntegrityLevel(isolate, Handle<JSReceiver>::cast(object),
+                                      FROZEN, kThrowOnError),
+        ReadOnlyRoots(isolate).exception());
   }
   return *object;
 }
@@ -295,10 +296,11 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
 BUILTIN(ObjectIsFrozen) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Maybe<bool> result = object->IsJSReceiver()
-                           ? JSReceiver::TestIntegrityLevel(
-                                 Handle<JSReceiver>::cast(object), FROZEN)
-                           : Just(true);
+  Maybe<bool> result =
+      object->IsJSReceiver()
+          ? JSReceiver::TestIntegrityLevel(
+                isolate, Handle<JSReceiver>::cast(object), FROZEN)
+          : Just(true);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -307,10 +309,11 @@ BUILTIN(ObjectIsFrozen) {
 BUILTIN(ObjectIsSealed) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Maybe<bool> result = object->IsJSReceiver()
-                           ? JSReceiver::TestIntegrityLevel(
-                                 Handle<JSReceiver>::cast(object), SEALED)
-                           : Just(true);
+  Maybe<bool> result =
+      object->IsJSReceiver()
+          ? JSReceiver::TestIntegrityLevel(
+                isolate, Handle<JSReceiver>::cast(object), SEALED)
+          : Just(true);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -356,9 +359,10 @@ BUILTIN(ObjectSeal) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   if (object->IsJSReceiver()) {
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
-                                               SEALED, kThrowOnError),
-                 ReadOnlyRoots(isolate).exception());
+    MAYBE_RETURN(
+        JSReceiver::SetIntegrityLevel(isolate, Handle<JSReceiver>::cast(object),
+                                      SEALED, kThrowOnError),
+        ReadOnlyRoots(isolate).exception());
   }
   return *object;
 }

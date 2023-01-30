@@ -1382,7 +1382,7 @@ MaybeHandle<HeapObject> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
                     HeapObject);
   }
   // 9. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(is_extensible, MaybeHandle<HeapObject>());
   // 10. If extensibleTarget is true, return handlerProto.
   if (is_extensible.FromJust()) return Handle<HeapObject>::cast(handler_proto);
@@ -3092,7 +3092,7 @@ Maybe<bool> JSProxy::CheckHasTrap(Isolate* isolate, Handle<Name> name,
       return Nothing<bool>();
     }
     // 9b ii. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 9b iii. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target.FromJust()) {
@@ -3211,7 +3211,7 @@ Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, Handle<Name> name,
       return Nothing<bool>();
     }
     // 13. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 14. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target.FromJust()) {
@@ -3519,7 +3519,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, key, &target_desc);
   MAYBE_RETURN(target_found, Nothing<bool>());
   // 12. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(maybe_extensible, Nothing<bool>());
   bool extensible_target = maybe_extensible.FromJust();
   // 13. If Desc has a [[Configurable]] field and if Desc.[[Configurable]]
@@ -3692,7 +3692,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
       return Nothing<bool>();
     }
     // 11c. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 11d. (Assert)
     // 11e. If extensibleTarget is false, throw a TypeError exception.
@@ -3705,7 +3705,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     return Just(false);
   }
   // 12. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+  Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(extensible_target, Nothing<bool>());
   // 13. Let resultDesc be ? ToPropertyDescriptor(trapResultObj).
   if (!PropertyDescriptor::ToPropertyDescriptor(isolate, trap_result_obj,
@@ -3773,7 +3773,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
   if (trap->IsUndefined(isolate)) {
-    return JSReceiver::PreventExtensions(target, should_throw);
+    return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
 
   Handle<Object> trap_result;
@@ -3789,7 +3789,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   }
 
   // Enforce the invariant.
-  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust()) {
     isolate->Throw(*factory->NewTypeError(
@@ -3817,7 +3817,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
   if (trap->IsUndefined(isolate)) {
-    return JSReceiver::IsExtensible(target);
+    return JSReceiver::IsExtensible(isolate, target);
   }
 
   Handle<Object> trap_result;
@@ -3828,7 +3828,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
       Nothing<bool>());
 
   // Enforce the invariant.
-  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust() != trap_result->BooleanValue(isolate)) {
     isolate->Throw(
@@ -5291,7 +5291,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, Handle<JSProxy> proxy,
         NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
   }
   // 10. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(isolate, target);
   if (is_extensible.IsNothing()) return Nothing<bool>();
   // 11. If extensibleTarget is true, return true.
   if (is_extensible.FromJust()) {

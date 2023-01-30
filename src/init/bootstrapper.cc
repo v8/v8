@@ -792,7 +792,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
-  if (JSObject::PreventExtensions(function, kThrowOnError).IsNothing()) {
+  if (JSObject::PreventExtensions(isolate_, function, kThrowOnError)
+          .IsNothing()) {
     DCHECK(false);
   }
 
@@ -5895,7 +5896,8 @@ bool Genesis::InstallABunchOfRandomThings() {
         .ToChecked();
 
     // Freeze the {template_object} as well.
-    JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
+    JSObject::SetIntegrityLevel(isolate(), template_object, FROZEN,
+                                kThrowOnError)
         .ToChecked();
     {
       DisallowGarbageCollection no_gc;
