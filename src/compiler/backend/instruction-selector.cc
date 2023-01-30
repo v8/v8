@@ -57,8 +57,8 @@ InstructionSelector::InstructionSelector(
       continuation_inputs_(sequence->zone()),
       continuation_outputs_(sequence->zone()),
       continuation_temps_(sequence->zone()),
-      defined_(node_count, false, zone),
-      used_(node_count, false, zone),
+      defined_(static_cast<int>(node_count), zone),
+      used_(static_cast<int>(node_count), zone),
       effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
@@ -389,16 +389,12 @@ const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
 
 bool InstructionSelector::IsDefined(Node* node) const {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, defined_.size());
-  return defined_[id];
+  return defined_.Contains(node->id());
 }
 
 void InstructionSelector::MarkAsDefined(Node* node) {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, defined_.size());
-  defined_[id] = true;
+  defined_.Add(node->id());
 }
 
 bool InstructionSelector::IsUsed(Node* node) const {
@@ -407,16 +403,12 @@ bool InstructionSelector::IsUsed(Node* node) const {
   // that the Retain is actually emitted, otherwise the GC will mess up.
   if (node->opcode() == IrOpcode::kRetain) return true;
   if (!node->op()->HasProperty(Operator::kEliminatable)) return true;
-  size_t const id = node->id();
-  DCHECK_LT(id, used_.size());
-  return used_[id];
+  return used_.Contains(node->id());
 }
 
 void InstructionSelector::MarkAsUsed(Node* node) {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, used_.size());
-  used_[id] = true;
+  used_.Add(node->id());
 }
 
 int InstructionSelector::GetEffectLevel(Node* node) const {

@@ -15,6 +15,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -742,8 +743,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionOperandVector continuation_inputs_;
   InstructionOperandVector continuation_outputs_;
   InstructionOperandVector continuation_temps_;
-  BoolVector defined_;
-  BoolVector used_;
+  BitVector defined_;
+  BitVector used_;
   IntVector effect_level_;
   int current_effect_level_;
   IntVector virtual_registers_;

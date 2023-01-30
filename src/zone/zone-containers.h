@@ -201,7 +201,6 @@ class ZoneMultimap
 };
 
 // Typedefs to shorten commonly used vectors.
-using BoolVector = ZoneVector<bool>;
 using IntVector = ZoneVector<int>;
 
 }  // namespace internal

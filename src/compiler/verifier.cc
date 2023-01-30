@@ -2101,34 +2101,34 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   }
 
   // Verify that all blocks reachable from start are in the RPO.
-  BoolVector marked(static_cast<int>(count), false, zone);
+  BitVector marked(static_cast<int>(count), zone);
   {
     ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
-    marked[start->id().ToSize()] = true;
+    marked.Add(start->id().ToInt());
     while (!queue.empty()) {
       BasicBlock* block = queue.front();
       queue.pop();
       for (size_t s = 0; s < block->SuccessorCount(); s++) {
         BasicBlock* succ = block->SuccessorAt(s);
-        if (!marked[succ->id().ToSize()]) {
-          marked[succ->id().ToSize()] = true;
+        if (!marked.Contains(succ->id().ToInt())) {
+          marked.Add(succ->id().ToInt());
           queue.push(succ);
         }
       }
     }
   }
   // Verify marked blocks are in the RPO.
-  for (size_t i = 0; i < count; i++) {
-    BasicBlock* block = schedule->GetBlockById(BasicBlock::Id::FromSize(i));
-    if (marked[i]) {
+  for (int i = 0; i < static_cast<int>(count); i++) {
+    BasicBlock* block = schedule->GetBlockById(BasicBlock::Id::FromInt(i));
+    if (marked.Contains(i)) {
       CHECK_GE(block->rpo_number(), 0);
       CHECK_EQ(block, rpo_order->at(block->rpo_number()));
     }
   }
   // Verify RPO blocks are marked.
   for (size_t b = 0; b < rpo_order->size(); b++) {
-    CHECK(marked[rpo_order->at(b)->id().ToSize()]);
+    CHECK(marked.Contains(rpo_order->at(b)->id().ToInt()));
   }
 
   {
