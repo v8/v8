@@ -1084,6 +1084,7 @@ void Sweeper::AddNewSpacePage(Page* page) {
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
+  DCHECK(heap_->IsMainThread());
   DCHECK(!heap_->ShouldReduceMemory());
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
@@ -1102,7 +1103,8 @@ void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
   DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
             chunk->concurrent_sweeping_state());
   chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
-  base::MutexGuard guard(&promoted_pages_iteration_mutex_);
+  // This method is called only from the main thread while sweeping tasks have
+  // not yet started, thus a mutex is not needed.
   sweeping_list_for_promoted_page_iteration_.push_back(chunk);
   promoted_pages_for_iteration_count_++;
 }

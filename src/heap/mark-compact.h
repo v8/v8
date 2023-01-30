@@ -283,7 +283,6 @@ class CollectorBase {
 
  private:
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<LargePage*> promoted_large_pages_;
 
  protected:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
