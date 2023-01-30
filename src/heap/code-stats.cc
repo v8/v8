@@ -32,7 +32,7 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
     // Record code+metadata statistics.
     AbstractCode abstract_code = AbstractCode::cast(object);
     int size = abstract_code.SizeIncludingMetadata(cage_base);
-    if (abstract_code.IsInstructionStream(cage_base)) {
+    if (abstract_code.IsCode(cage_base)) {
       size += isolate->code_and_metadata_size();
       isolate->set_code_and_metadata_size(size);
     } else {
@@ -204,9 +204,9 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
   // them in the stats.
   // Only process code objects for code comment statistics.
   PtrComprCageBase cage_base(isolate);
-  if (!obj.IsInstructionStream(cage_base)) return;
+  if (!obj.IsCode(cage_base)) return;
 
-  InstructionStream code = InstructionStream::cast(obj);
+  Code code = Code::cast(obj);
   CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
   int delta = 0;
   int prev_pc_offset = 0;
