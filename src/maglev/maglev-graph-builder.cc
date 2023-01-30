@@ -2118,11 +2118,12 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       switch (access_info.kind()) {
         case compiler::PropertyAccessInfo::kNotFound:
         case compiler::PropertyAccessInfo::kModuleExport:
-          field_repr.generalize(Representation::Tagged());
+          field_repr = field_repr.generalize(Representation::Tagged());
           break;
         case compiler::PropertyAccessInfo::kDataField:
         case compiler::PropertyAccessInfo::kFastDataConstant:
-          field_repr.generalize(access_info.field_representation());
+          field_repr =
+              field_repr.generalize(access_info.field_representation());
           break;
         default:
           // TODO(victorgomes): Support other access.
