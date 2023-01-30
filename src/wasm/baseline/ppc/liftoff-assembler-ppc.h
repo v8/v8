@@ -544,16 +544,19 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList /* pinned */) {
-  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
+                                  LoadType type, LiftoffRegList /* pinned */,
+                                  bool i64_offset) {
+  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true, i64_offset);
   lwsync();
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList pinned) {
+                                   StoreType type, LiftoffRegList pinned,
+                                   bool i64_offset) {
   lwsync();
-  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true);
+  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true,
+        i64_offset);
   sync();
 }
 
@@ -565,17 +568,19 @@ constexpr bool is_be = false;
 
 #define ATOMIC_OP(instr)                                                 \
   {                                                                      \
+    if (!i64_offset && offset_reg != no_reg) {                           \
+      ZeroExtWord32(ip, offset_reg);                                     \
+      offset_reg = ip;                                                   \
+    }                                                                    \
+                                                                         \
     Register offset = r0;                                                \
     if (offset_imm != 0) {                                               \
-      mov(ip, Operand(offset_imm));                                      \
-      if (offset_reg != no_reg) {                                        \
-        add(ip, ip, offset_reg);                                         \
-      }                                                                  \
+      mov(offset, Operand(offset_imm));                                  \
+      if (offset_reg != no_reg) add(offset, offset, offset_reg);         \
+      mr(ip, offset);                                                    \
       offset = ip;                                                       \
-    } else {                                                             \
-      if (offset_reg != no_reg) {                                        \
-        offset = offset_reg;                                             \
-      }                                                                  \
+    } else if (offset_reg != no_reg) {                                   \
+      offset = offset_reg;                                               \
     }                                                                    \
                                                                          \
     MemOperand dst = MemOperand(offset, dst_addr);                       \
@@ -652,49 +657,57 @@ constexpr bool is_be = false;
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   ATOMIC_OP(add);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   ATOMIC_OP(sub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   ATOMIC_OP(and_);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
-                                LiftoffRegister result, StoreType type) {
+                                LiftoffRegister result, StoreType type,
+                                bool i64_offset) {
   ATOMIC_OP(orx);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
-                                 LiftoffRegister result, StoreType type) {
+                                 LiftoffRegister result, StoreType type,
+                                 bool i64_offset) {
   ATOMIC_OP(xor_);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type) {
+                                      LiftoffRegister result, StoreType type,
+                                      bool i64_offset) {
+  if (!i64_offset && offset_reg != no_reg) {
+    ZeroExtWord32(ip, offset_reg);
+    offset_reg = ip;
+  }
+
   Register offset = r0;
   if (offset_imm != 0) {
-    mov(ip, Operand(offset_imm));
-    if (offset_reg != no_reg) {
-      add(ip, ip, offset_reg);
-    }
+    mov(offset, Operand(offset_imm));
+    if (offset_reg != no_reg) add(offset, offset, offset_reg);
+    mr(ip, offset);
     offset = ip;
-  } else {
-    if (offset_reg != no_reg) {
-      offset = offset_reg;
-    }
+  } else if (offset_reg != no_reg) {
+    offset = offset_reg;
   }
   MemOperand dst = MemOperand(offset, dst_addr);
   switch (type.value()) {
@@ -749,18 +762,20 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type) {
+    StoreType type, bool i64_offset) {
+  if (!i64_offset && offset_reg != no_reg) {
+    ZeroExtWord32(ip, offset_reg);
+    offset_reg = ip;
+  }
+
   Register offset = r0;
   if (offset_imm != 0) {
-    mov(ip, Operand(offset_imm));
-    if (offset_reg != no_reg) {
-      add(ip, ip, offset_reg);
-    }
+    mov(offset, Operand(offset_imm));
+    if (offset_reg != no_reg) add(offset, offset, offset_reg);
+    mr(ip, offset);
     offset = ip;
-  } else {
-    if (offset_reg != no_reg) {
-      offset = offset_reg;
-    }
+  } else if (offset_reg != no_reg) {
+    offset = offset_reg;
   }
   MemOperand dst = MemOperand(offset, dst_addr);
   switch (type.value()) {
