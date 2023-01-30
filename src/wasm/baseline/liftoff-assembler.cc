@@ -95,7 +95,7 @@ class StackTransferRecipe {
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK(CompatibleStackSlotTypes(dst.kind(), src.kind()));
     if (dst.is_reg()) {
-      LoadIntoRegister(dst.reg(), src, src.offset());
+      LoadIntoRegister(dst.reg(), src);
       return;
     }
     if (dst.is_const()) {
@@ -119,11 +119,10 @@ class StackTransferRecipe {
   }
 
   V8_INLINE void LoadIntoRegister(LiftoffRegister dst,
-                                  const LiftoffAssembler::VarState& src,
-                                  uint32_t src_offset) {
+                                  const LiftoffAssembler::VarState& src) {
     switch (src.loc()) {
       case VarState::kStack:
-        LoadStackSlot(dst, src_offset, src.kind());
+        LoadStackSlot(dst, src.offset(), src.kind());
         break;
       case VarState::kRegister:
         DCHECK_EQ(dst.reg_class(), src.reg_class());
@@ -137,14 +136,14 @@ class StackTransferRecipe {
 
   void LoadI64HalfIntoRegister(LiftoffRegister dst,
                                const LiftoffAssembler::VarState& src,
-                               int offset, RegPairHalf half) {
+                               RegPairHalf half) {
     // Use CHECK such that the remaining code is statically dead if
     // {kNeedI64RegPair} is false.
     CHECK(kNeedI64RegPair);
     DCHECK_EQ(kI64, src.kind());
     switch (src.loc()) {
       case VarState::kStack:
-        LoadI64HalfStackSlot(dst, offset, half);
+        LoadI64HalfStackSlot(dst, src.offset(), half);
         break;
       case VarState::kRegister: {
         LiftoffRegister src_half =
@@ -977,7 +976,6 @@ void PrepareStackTransfers(const ValueKindSig* sig,
     const bool is_gp_pair = kNeedI64RegPair && kind == kI64;
     const int num_lowered_params = is_gp_pair ? 2 : 1;
     const VarState& slot = slots[param];
-    const uint32_t stack_offset = slot.offset();
     DCHECK(CompatibleStackSlotTypes(slot.kind(), kind));
     // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
@@ -995,15 +993,14 @@ void PrepareStackTransfers(const ValueKindSig* sig,
             LiftoffRegister::from_external_code(rc, kind, reg_code);
         param_regs->set(reg);
         if (is_gp_pair) {
-          stack_transfers->LoadI64HalfIntoRegister(reg, slot, stack_offset,
-                                                   half);
+          stack_transfers->LoadI64HalfIntoRegister(reg, slot, half);
         } else {
-          stack_transfers->LoadIntoRegister(reg, slot, stack_offset);
+          stack_transfers->LoadIntoRegister(reg, slot);
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
         int param_offset = -loc.GetLocation() - 1;
-        stack_slots->Add(slot, stack_offset, half, param_offset);
+        stack_slots->Add(slot, slot.offset(), half, param_offset);
       }
     }
   }
@@ -1201,8 +1198,7 @@ void LiftoffAssembler::MoveToReturnLocations(
       DCHECK_EQ(kGpReg, reg_class_for(return_kind));
     }
     stack_transfers.LoadIntoRegister(return_reg,
-                                     cache_state_.stack_state.back(),
-                                     cache_state_.stack_state.back().offset());
+                                     cache_state_.stack_state.back());
     return;
   }
 
@@ -1259,10 +1255,9 @@ void LiftoffAssembler::MoveToReturnLocations(
             LiftoffRegister::from_external_code(rc, return_kind, reg_code);
         VarState& slot = slots[i];
         if (needs_gp_pair) {
-          stack_transfers.LoadI64HalfIntoRegister(reg, slot, slot.offset(),
-                                                  half);
+          stack_transfers.LoadI64HalfIntoRegister(reg, slot, half);
         } else {
-          stack_transfers.LoadIntoRegister(reg, slot, slot.offset());
+          stack_transfers.LoadIntoRegister(reg, slot);
         }
       }
     }
