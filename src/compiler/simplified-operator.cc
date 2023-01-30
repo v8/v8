@@ -1715,9 +1715,13 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
     CheckMapsFlags flags, ZoneHandleSet<Map> maps,
     const FeedbackSource& feedback) {
   CheckMapsParameters const parameters(flags, maps, feedback);
+  Operator::Properties operator_props = Operator::kNoThrow;
+  if (!(flags & CheckMapsFlag::kTryMigrateInstance)) {
+    operator_props |= Operator::kNoWrite;
+  }
   return zone()->New<Operator1<CheckMapsParameters>>(  // --
       IrOpcode::kCheckMaps,                            // opcode
-      Operator::kNoThrow | Operator::kNoWrite,         // flags
+      operator_props,                                  // flags
       "CheckMaps",                                     // name
       1, 1, 1, 0, 1, 0,                                // counts
       parameters);                                     // parameter
