@@ -161,7 +161,7 @@ void BreakLocation::AllAtCurrentStatement(
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   PtrComprCageBase cage_base = GetPtrComprCageBase(*debug_info);
-  if (abstract_code->IsInstructionStream(cage_base)) offset = offset - 1;
+  if (abstract_code->IsCode(cage_base)) offset = offset - 1;
   int statement_position;
   {
     BreakIterator it(debug_info);

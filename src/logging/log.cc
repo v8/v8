@@ -825,9 +825,8 @@ void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_start = reinterpret_cast<void*>(code->InstructionStart(cage_base));
-  event.code_type = code->IsInstructionStream(cage_base)
-                        ? JitCodeEvent::JIT_CODE
-                        : JitCodeEvent::BYTE_CODE;
+  event.code_type = code->IsCode(cage_base) ? JitCodeEvent::JIT_CODE
+                                            : JitCodeEvent::BYTE_CODE;
   event.code_len = code->InstructionSize(cage_base);
   Handle<SharedFunctionInfo> shared;
   if (maybe_shared.ToHandle(&shared) &&
