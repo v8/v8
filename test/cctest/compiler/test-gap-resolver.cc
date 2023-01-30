@@ -269,7 +269,8 @@ class MoveInterpreter : public GapResolver::Assembler {
     state_.ClearTemps();
   }
 
-  void MoveToTempLocation(InstructionOperand* source) final {
+  void MoveToTempLocation(InstructionOperand* source,
+                          MachineRepresentation rep) final {
     state_.MoveToTempLocation(*source);
   }
   void MoveTempLocationTo(InstructionOperand* dest,
