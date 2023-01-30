@@ -328,6 +328,7 @@ MachineRepresentation NodeProperties::GetProjectionType(
                         : MachineRepresentation::kBit;
     case IrOpcode::kTryTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
+    case IrOpcode::kTryTruncateFloat64ToUint64:
     case IrOpcode::kTryTruncateFloat32ToUint64:
       CHECK_LE(index, static_cast<size_t>(1));
       return index == 0 ? MachineRepresentation::kWord64
