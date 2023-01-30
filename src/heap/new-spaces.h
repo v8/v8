@@ -638,6 +638,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool ShouldReleasePage() const;
 
+  void RefillFreeList() final;
+
  private:
   bool PreallocatePages();
 

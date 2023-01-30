@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  void RefillFreeList();
+  virtual void RefillFreeList() = 0;
 
   base::Mutex* mutex() { return &space_mutex_; }
 
@@ -300,9 +300,9 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return !is_compaction_space();
   }
 
+ protected:
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
- protected:
   void UpdateInlineAllocationLimit(size_t min_size) override;
 
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -327,10 +327,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
 
-  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(int required_freed_bytes,
-                                                      int max_pages,
-                                                      int size_in_bytes,
-                                                      AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(
+      int required_freed_bytes, int max_pages, int size_in_bytes,
+      AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
+      ThreadKind sweeping_scope_kind);
 
   // Refills LAB for EnsureLabMain. This function is space-dependent. Returns
   // false if there is not enough space and the caller has to retry after
@@ -381,6 +381,8 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
       : PagedSpaceBase(heap, id, executable, free_list, allocation_counter_,
                        allocation_info, linear_area_original_data_,
                        compaction_space_kind) {}
+
+  void RefillFreeList() final;
 
  private:
   AllocationCounter allocation_counter_;

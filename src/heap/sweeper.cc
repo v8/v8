@@ -407,12 +407,25 @@ void Sweeper::StartSweeperTasks() {
 Page* Sweeper::GetSweptPageSafe(PagedSpaceBase* space) {
   base::MutexGuard guard(&mutex_);
   SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
+  Page* page = nullptr;
   if (!list.empty()) {
-    auto last_page = list.back();
+    page = list.back();
     list.pop_back();
-    return last_page;
   }
-  return nullptr;
+  if (list.empty()) {
+    has_swept_pages_[GetSweepSpaceIndex(space->identity())].store(
+        false, std::memory_order_release);
+  }
+  return page;
+}
+
+Sweeper::SweptList Sweeper::GetAllSweptPagesSafe(PagedSpaceBase* space) {
+  base::MutexGuard guard(&mutex_);
+  SweptList list;
+  list.swap(swept_list_[GetSweepSpaceIndex(space->identity())]);
+  has_swept_pages_[GetSweepSpaceIndex(space->identity())].store(
+      false, std::memory_order_release);
+  return list;
 }
 
 void Sweeper::FinalizeLocalSweepers() {
@@ -453,6 +466,7 @@ void Sweeper::EnsureCompleted() {
 
   ForAllSweepingSpaces([this](AllocationSpace space) {
     CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
+    DCHECK(IsSweepingDoneForSpace(space));
   });
 
   FinalizeLocalSweepers();
@@ -487,6 +501,7 @@ void Sweeper::PauseAndEnsureNewSpaceCompleted() {
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Cancel();
 
   CHECK(sweeping_list_[GetSweepSpaceIndex(NEW_SPACE)].empty());
+  DCHECK(IsSweepingDoneForSpace(NEW_SPACE));
   CHECK(sweeping_list_for_promoted_page_iteration_.empty());
 
   FinalizeLocalSweepers();
@@ -1007,7 +1022,7 @@ size_t Sweeper::ConcurrentSweepingPageCount() {
 int Sweeper::ParallelSweepSpace(AllocationSpace identity,
                                 SweepingMode sweeping_mode,
                                 int required_freed_bytes, int max_pages) {
-  DCHECK_IMPLIES(!heap_->IsMainThread(), identity != NEW_SPACE);
+  DCHECK_IMPLIES(identity == NEW_SPACE, heap_->IsMainThread());
   return main_thread_local_sweeper_.ParallelSweepSpace(
       identity, sweeping_mode, required_freed_bytes, max_pages);
 }
@@ -1046,6 +1061,10 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
       std::find(sweeping_list.begin(), sweeping_list.end(), page);
   if (position == sweeping_list.end()) return false;
   sweeping_list.erase(position);
+  if (sweeping_list.empty()) {
+    has_sweeping_work_[GetSweepSpaceIndex(space)].store(
+        false, std::memory_order_release);
+  }
   return true;
 }
 
@@ -1104,6 +1123,8 @@ void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
   DCHECK_EQ(Page::ConcurrentSweepingState::kPending,
             page->concurrent_sweeping_state());
   sweeping_list_[GetSweepSpaceIndex(space)].push_back(page);
+  has_sweeping_work_[GetSweepSpaceIndex(space)].store(
+      true, std::memory_order_release);
 }
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
@@ -1132,9 +1153,14 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   DCHECK(IsValidSweepingSpace(space));
   int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;
-  if (!sweeping_list_[space_index].empty()) {
-    page = sweeping_list_[space_index].back();
-    sweeping_list_[space_index].pop_back();
+  SweepingList& sweeping_list = sweeping_list_[space_index];
+  if (!sweeping_list.empty()) {
+    page = sweeping_list.back();
+    sweeping_list.pop_back();
+  }
+  if (sweeping_list.empty()) {
+    has_sweeping_work_[GetSweepSpaceIndex(space)].store(
+        false, std::memory_order_release);
   }
   return page;
 }
@@ -1166,15 +1192,23 @@ GCTracer::Scope::ScopeId Sweeper::GetTracingScopeForCompleteYoungSweep() {
              : GCTracer::Scope::MC_COMPLETE_SWEEPING;
 }
 
-bool Sweeper::IsSweepingDoneForSpace(AllocationSpace space) {
-  DCHECK(!AreSweeperTasksRunning());
-  return sweeping_list_[GetSweepSpaceIndex(space)].empty();
+bool Sweeper::IsSweepingDoneForSpace(AllocationSpace space) const {
+  return !has_sweeping_work_[GetSweepSpaceIndex(space)].load(
+      std::memory_order_acquire);
 }
 
 void Sweeper::AddSweptPage(Page* page, AllocationSpace identity) {
   base::MutexGuard guard(&mutex_);
   swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
+  has_swept_pages_[GetSweepSpaceIndex(identity)].store(
+      true, std::memory_order_release);
   cv_page_swept_.NotifyAll();
+}
+
+bool Sweeper::ShouldRefillFreelistForSpace(AllocationSpace space) const {
+  DCHECK_IMPLIES(space == NEW_SPACE, v8_flags.minor_mc);
+  return has_swept_pages_[GetSweepSpaceIndex(space)].load(
+      std::memory_order_acquire);
 }
 
 }  // namespace internal

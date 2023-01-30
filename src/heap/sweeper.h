@@ -158,8 +158,9 @@ class Sweeper {
   bool AreSweeperTasksRunning();
 
   Page* GetSweptPageSafe(PagedSpaceBase* space);
+  SweptList GetAllSweptPagesSafe(PagedSpaceBase* space);
 
-  bool IsSweepingDoneForSpace(AllocationSpace space);
+  bool IsSweepingDoneForSpace(AllocationSpace space) const;
 
   GCTracer::Scope::ScopeId GetTracingScope(AllocationSpace space,
                                            bool is_joining_thread);
@@ -167,6 +168,8 @@ class Sweeper {
 
   bool IsIteratingPromotedPages() const;
   void ContributeAndWaitForPromotedPagesIteration();
+
+  bool ShouldRefillFreelistForSpace(AllocationSpace space) const;
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
@@ -232,6 +235,8 @@ class Sweeper {
   bool IsDoneSweeping() const {
     bool is_done = true;
     ForAllSweepingSpaces([this, &is_done](AllocationSpace space) {
+      DCHECK_EQ(IsSweepingDoneForSpace(space),
+                sweeping_list_[GetSweepSpaceIndex(space)].empty());
       if (!sweeping_list_[GetSweepSpaceIndex(space)].empty()) is_done = false;
     });
     return is_done;
@@ -270,6 +275,8 @@ class Sweeper {
   base::ConditionVariable cv_page_swept_;
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
+  std::atomic<bool> has_sweeping_work_[kNumberOfSweepingSpaces]{false};
+  std::atomic<bool> has_swept_pages_[kNumberOfSweepingSpaces]{false};
   std::vector<MemoryChunk*> sweeping_list_for_promoted_page_iteration_;
   std::vector<ConcurrentSweeper> concurrent_sweepers_;
   // Main thread can finalize sweeping, while background threads allocation slow

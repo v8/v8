@@ -142,50 +142,6 @@ void PagedSpaceBase::TearDown() {
   accounting_stats_.Clear();
 }
 
-void PagedSpaceBase::RefillFreeList() {
-  // Any PagedSpace might invoke RefillFreeList. We filter all but our old
-  // generation spaces out.
-  DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == NEW_SPACE || identity() == SHARED_SPACE);
-
-  Sweeper* sweeper = heap()->sweeper();
-  size_t added = 0;
-
-  {
-    Page* p = nullptr;
-    while ((p = sweeper->GetSweptPageSafe(this)) != nullptr) {
-      // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
-      // entries here to make them unavailable for allocations.
-      if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
-        p->ForAllFreeListCategories([this](FreeListCategory* category) {
-          category->Reset(free_list());
-        });
-      }
-
-      // Only during compaction pages can actually change ownership. This is
-      // safe because there exists no other competing action on the page links
-      // during compaction.
-      if (is_compaction_space()) {
-        DCHECK_NE(this, p->owner());
-        DCHECK_NE(NEW_SPACE, identity());
-        PagedSpaceBase* owner = reinterpret_cast<PagedSpaceBase*>(p->owner());
-        base::MutexGuard guard(owner->mutex());
-        owner->RefineAllocatedBytesAfterSweeping(p);
-        owner->RemovePage(p);
-        added += AddPage(p);
-        added += p->wasted_memory();
-      } else {
-        base::MutexGuard guard(mutex());
-        DCHECK_EQ(this, p->owner());
-        RefineAllocatedBytesAfterSweeping(p);
-        added += RelinkFreeListCategories(p);
-        added += p->wasted_memory();
-      }
-      if (is_compaction_space() && (added > kCompactionMemoryWanted)) break;
-    }
-  }
-}
-
 void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   base::MutexGuard guard(mutex());
 
@@ -909,7 +865,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   if (heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
-    {
+    if (heap()->sweeper()->ShouldRefillFreelistForSpace(identity())) {
       TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
       RefillFreeList();
     }
@@ -919,12 +875,10 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
                                       origin))
       return true;
 
-    {
-      TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
-      if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep,
-                                   size_in_bytes, origin))
-        return true;
-    }
+    if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
+                                 origin, sweeping_scope_id,
+                                 sweeping_scope_kind))
+      return true;
   }
 
   if (is_compaction_space()) {
@@ -951,10 +905,9 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   }
 
   // Try sweeping all pages.
-  {
-    TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
-    if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) return true;
-  }
+  if (ContributeToSweepingMain(0, 0, size_in_bytes, origin, sweeping_scope_id,
+                               sweeping_scope_kind))
+    return true;
 
   if (identity() != NEW_SPACE && heap()->gc_state() != Heap::NOT_IN_GC &&
       !heap()->force_oom()) {
@@ -965,22 +918,26 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   return false;
 }
 
-bool PagedSpaceBase::ContributeToSweepingMain(int required_freed_bytes,
-                                              int max_pages, int size_in_bytes,
-                                              AllocationOrigin origin) {
+bool PagedSpaceBase::ContributeToSweepingMain(
+    int required_freed_bytes, int max_pages, int size_in_bytes,
+    AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
+    ThreadKind sweeping_scope_kind) {
+  if (!heap()->sweeping_in_progress()) return false;
+  if (!heap()->sweeper()->AreSweeperTasksRunning() &&
+      heap()->sweeper()->IsSweepingDoneForSpace(identity()))
+    return false;
+
+  TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =
       is_compaction_space() ? Sweeper::SweepingMode::kEagerDuringGC
                             : Sweeper::SweepingMode::kLazyOrConcurrent;
 
-  if (heap()->sweeping_in_progress()) {
-    heap()->sweeper()->ParallelSweepSpace(identity(), sweeping_mode,
-                                          required_freed_bytes, max_pages);
-    RefillFreeList();
-    return TryAllocationFromFreeListMain(size_in_bytes, origin);
-  }
-  return false;
+  heap()->sweeper()->ParallelSweepSpace(identity(), sweeping_mode,
+                                        required_freed_bytes, max_pages);
+  RefillFreeList();
+  return TryAllocationFromFreeListMain(size_in_bytes, origin);
 }
 
 void PagedSpaceBase::AddRangeToActiveSystemPages(Page* page, Address start,
@@ -1024,6 +981,47 @@ size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
                  page->AvailableInFreeList() ==
                      page->AvailableInFreeListFromAllocatedBytes());
   return added;
+}
+
+void PagedSpace::RefillFreeList() {
+  // Any PagedSpace might invoke RefillFreeList.
+  DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
+         identity() == SHARED_SPACE);
+
+  Sweeper* sweeper = heap()->sweeper();
+
+  size_t added = 0;
+
+  Page* p = nullptr;
+  while ((p = sweeper->GetSweptPageSafe(this)) != nullptr) {
+    // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
+    // entries here to make them unavailable for allocations.
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      p->ForAllFreeListCategories(
+          [this](FreeListCategory* category) { category->Reset(free_list()); });
+    }
+
+    // Only during compaction pages can actually change ownership. This is
+    // safe because there exists no other competing action on the page links
+    // during compaction.
+    if (is_compaction_space()) {
+      DCHECK_NE(this, p->owner());
+      DCHECK_NE(NEW_SPACE, identity());
+      PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
+      base::MutexGuard guard(owner->mutex());
+      owner->RefineAllocatedBytesAfterSweeping(p);
+      owner->RemovePage(p);
+      added += AddPage(p);
+      added += p->wasted_memory();
+    } else {
+      base::MutexGuard guard(mutex());
+      DCHECK_EQ(this, p->owner());
+      RefineAllocatedBytesAfterSweeping(p);
+      added += RelinkFreeListCategories(p);
+      added += p->wasted_memory();
+    }
+    if (is_compaction_space() && (added > kCompactionMemoryWanted)) break;
+  }
 }
 
 }  // namespace internal

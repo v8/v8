@@ -5965,7 +5965,8 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 };
 
 void MinorMarkCompactCollector::Prepare() {
-  DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+  DCHECK(!sweeper()->AreSweeperTasksRunning() &&
+         sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
 
   // Probably requires more.
   if (!heap()->incremental_marking()->IsMarking()) {

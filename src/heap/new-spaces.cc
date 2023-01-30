@@ -1006,6 +1006,27 @@ bool PagedSpaceForNewSpace::ShouldReleasePage() const {
   return current_capacity_ > target_capacity_;
 }
 
+void PagedSpaceForNewSpace::RefillFreeList() {
+  // New space is not used for concurrent allcations or allocations during
+  // evacuation.
+  DCHECK(heap_->IsMainThread() ||
+         (heap_->IsSharedMainThread() &&
+          !heap_->isolate()->is_shared_heap_isolate()));
+  DCHECK(!is_compaction_space());
+
+  Sweeper* sweeper = heap()->sweeper();
+
+  Sweeper::SweptList swept_pages = sweeper->GetAllSweptPagesSafe(this);
+  if (swept_pages.empty()) return;
+
+  base::MutexGuard guard(mutex());
+  for (Page* p : swept_pages) {
+    DCHECK(!p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE));
+    RefineAllocatedBytesAfterSweeping(p);
+    RelinkFreeListCategories(p);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // PagedNewSpace implementation
 

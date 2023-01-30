@@ -2268,7 +2268,7 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
 
-  if (collector != GarbageCollector::MARK_COMPACTOR) {
+  if (collector == GarbageCollector::SCAVENGER) {
     // Objects that died in the new space might have been accounted
     // as bytes marked ahead of schedule by the incremental marker.
     incremental_marking()->UpdateMarkedBytesAfterScavenge(
