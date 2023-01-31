@@ -4,23 +4,22 @@
 
 #include "tools/v8windbg/src/cur-isolate.h"
 
-HRESULT GetIsolateKey(WRL::ComPtr<IDebugHostContext>& sp_ctx,
-                      int* isolate_key) {
+HRESULT GetIsolateOffset(WRL::ComPtr<IDebugHostContext>& sp_ctx,
+                         ptrdiff_t* isolate_offset) {
   auto sp_v8_module = Extension::Current()->GetV8Module(sp_ctx);
   if (sp_v8_module == nullptr) return E_FAIL;
 
   WRL::ComPtr<IDebugHostSymbol> sp_isolate_sym;
-  RETURN_IF_FAIL(sp_v8_module->FindSymbolByName(kIsolateKey, &sp_isolate_sym));
+  RETURN_IF_FAIL(
+      sp_v8_module->FindSymbolByName(kIsolateOffset, &sp_isolate_sym));
   SymbolKind kind;
   RETURN_IF_FAIL(sp_isolate_sym->GetSymbolKind(&kind));
   if (kind != SymbolData) return E_FAIL;
   WRL::ComPtr<IDebugHostData> sp_isolate_key_data;
   RETURN_IF_FAIL(sp_isolate_sym.As(&sp_isolate_key_data));
-  Location loc;
-  RETURN_IF_FAIL(sp_isolate_key_data->GetLocation(&loc));
-  ULONG64 bytes_read;
-  RETURN_IF_FAIL(sp_debug_host_memory->ReadBytes(
-      sp_ctx.Get(), loc, isolate_key, sizeof(isolate_key), &bytes_read));
+  Location location;
+  RETURN_IF_FAIL(sp_isolate_key_data->GetLocation(&location));
+  *isolate_offset = location.Offset;
   return S_OK;
 }
 
@@ -35,7 +34,7 @@ HRESULT GetCurrentIsolate(WRL::ComPtr<IModelObject>& sp_result) {
   RETURN_IF_FAIL(GetCurrentThread(sp_host_context, &sp_curr_thread));
 
   WRL::ComPtr<IModelObject> sp_environment, sp_environment_block;
-  WRL::ComPtr<IModelObject> sp_tls_slots, sp_slot_index, sp_isolate_ptr;
+  WRL::ComPtr<IModelObject> sp_tls_pointer, sp_isolate_offset;
   RETURN_IF_FAIL(
       sp_curr_thread->GetKeyValue(L"Environment", &sp_environment, nullptr));
 
@@ -49,21 +48,15 @@ HRESULT GetCurrentIsolate(WRL::ComPtr<IModelObject>& sp_result) {
   RETURN_IF_FAIL(sp_environment_block->GetKind(&kind));
   if (kind != ModelObjectKind::ObjectTargetObject) return E_FAIL;
 
-  RETURN_IF_FAIL(sp_environment_block->GetRawValue(SymbolField, L"TlsSlots", 0,
-                                                   &sp_tls_slots));
+  RETURN_IF_FAIL(sp_environment_block->GetRawValue(
+      SymbolField, L"ThreadLocalStoragePointer", 0, &sp_tls_pointer));
 
-  int isolate_key = -1;
-  RETURN_IF_FAIL(GetIsolateKey(sp_host_context, &isolate_key));
-  RETURN_IF_FAIL(CreateInt32(isolate_key, &sp_slot_index));
-
-  RETURN_IF_FAIL(GetModelAtIndex(sp_tls_slots, sp_slot_index, &sp_isolate_ptr));
-
-  // Need to dereference the slot and then get the address held in it
-  WRL::ComPtr<IModelObject> sp_dereferenced_slot;
-  RETURN_IF_FAIL(sp_isolate_ptr->Dereference(&sp_dereferenced_slot));
+  ptrdiff_t isolate_offset = -1;
+  RETURN_IF_FAIL(GetIsolateOffset(sp_host_context, &isolate_offset));
 
   uint64_t isolate_ptr;
-  RETURN_IF_FAIL(UnboxULong64(sp_dereferenced_slot.Get(), &isolate_ptr));
+  RETURN_IF_FAIL(UnboxULong64(sp_tls_pointer.Get(), &isolate_ptr));
+  isolate_ptr += isolate_offset;
   Location isolate_addr{isolate_ptr};
 
   // If we got the isolate_key OK, then must have the V8 module loaded
