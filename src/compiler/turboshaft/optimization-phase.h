@@ -47,7 +47,8 @@ struct AnalyzerBase {
   void Run() {}
   bool OpIsUsed(OpIndex i) const {
     const Operation& op = graph.Get(i);
-    return op.saturated_use_count > 0 || op.Properties().observable_when_unused;
+    return op.saturated_use_count > 0 ||
+           op.Properties().is_required_when_unused;
   }
 
   explicit AnalyzerBase(const Graph& graph, Zone* phase_zone)
@@ -58,7 +59,7 @@ struct AnalyzerBase {
 // Analyzers modify the input graph in-place when they want to mark some
 // Operations as removeable. In order to make that work for operations that have
 // no uses such as Goto and Branch, all operations that have the property
-// `observable_when_unused` have a non-zero `saturated_use_count`.
+// `is_required_when_unused` have a non-zero `saturated_use_count`.
 V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   return op.saturated_use_count == 0;
 }
@@ -242,14 +243,6 @@ class GraphVisitor {
         if (!VisitOp<false>(index, input_block)) break;
       }
     }
-  }
-
-  // {InlineOp} introduces two limitations unlike {CloneAndInlineBlock}:
-  // 1. The input operation must not be emitted anymore as part of its
-  // regular input block;
-  // 2. {InlineOp} must not be used multiple times for the same input op.
-  bool InlineOp(OpIndex index, const Block* input_block) {
-    return VisitOp<false>(index, input_block);
   }
 
   template <bool can_be_invalid = false>
@@ -767,7 +760,6 @@ class GraphVisitor {
       assembler().Set(*var, new_index);
       return;
     }
-    DCHECK(!op_mapping_[old_index.id()].valid());
     op_mapping_[old_index.id()] = new_index;
   }
 
