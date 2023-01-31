@@ -1158,6 +1158,9 @@
   'wasm/log-code-after-post-message': [SKIP],
   'asm/regress-1395401': [SKIP],
   'regress/regress-1394663': [SKIP],
+
+  # Skipped because it has contradictory flags.
+  'compiler/regress-crbug-1399490': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
