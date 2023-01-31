@@ -7,6 +7,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -117,7 +118,7 @@ void ArrayBufferSweeper::EnsureFinished() {
   switch (abort_result) {
     case TryAbortResult::kTaskAborted:
       // Task has not run, so we need to run it synchronously here.
-      job_->Sweep();
+      DoSweep();
       break;
     case TryAbortResult::kTaskRemoved:
       // Task was removed, but did actually run, just ensure we are in the right
@@ -164,18 +165,23 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
               ? GCTracer::Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
               : GCTracer::Scope::BACKGROUND_FULL_ARRAY_BUFFER_SWEEP;
       TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kBackground);
-      local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
       base::MutexGuard guard(&sweeping_mutex_);
-      job_->Sweep();
+      DoSweep();
       job_finished_.NotifyAll();
     });
     job_->id_ = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
-    local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
-    job_->Sweep();
+    DoSweep();
     Finalize();
   }
+}
+
+void ArrayBufferSweeper::DoSweep() {
+  DCHECK_NOT_NULL(job_);
+  local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  DCHECK(!heap_->sweeper()->IsIteratingPromotedPages());
+  job_->Sweep();
 }
 
 void ArrayBufferSweeper::Prepare(SweepingType type) {

@@ -91,6 +91,8 @@ class ArrayBufferSweeper final {
 
   void ReleaseAll(ArrayBufferList* extension);
 
+  void DoSweep();
+
   Heap* const heap_;
   std::unique_ptr<SweepingJob> job_;
   base::Mutex sweeping_mutex_;

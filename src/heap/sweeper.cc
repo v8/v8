@@ -855,11 +855,6 @@ class PromotedPageRecordMigratedSlotVisitor
   inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                    ExternalPointerTag tag) final {}
 
-  inline void MarkArrayBufferExtensionPromoted(HeapObject object) {
-    if (!object.IsJSArrayBuffer()) return;
-    JSArrayBuffer::cast(object).YoungMarkExtensionPromoted();
-  }
-
  protected:
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) {
