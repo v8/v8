@@ -5355,10 +5355,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kStackToRegister: {
       Operand src = g.ToOperand(source);
       if (source->IsStackSlot()) {
-        // TODO(13581): Fix this for other code kinds (see
-        // https://crbug.com/1356461).
-        if (code_kind() == CodeKind::WASM_FUNCTION && Is32BitOperand(source) &&
-            Is32BitOperand(destination)) {
+        if (Is32BitOperand(source) && Is32BitOperand(destination)) {
           // When we need only 32 bits, move only 32 bits. Benefits:
           // - Save a byte here and there (depending on the destination
           //   register; "movl eax, ..." is smaller than "movq rax, ...").
