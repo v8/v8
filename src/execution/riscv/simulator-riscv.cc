@@ -3665,14 +3665,14 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
                      // so use its float representation directly
           : static_cast<float>(static_cast<uint64_t>(max_i) + 1);
   if (rounded >= max_i_plus_1) {
-    set_fflags(kOverflow | kInvalidOperation);
+    set_fflags(kFPUOverflow | kInvalidOperation);
     return max_i;
   }
 
   // Since min_i (either 0 for unsigned, or for signed) is represented
   // precisely in floating-point,  comparing rounded directly against min_i
   if (rounded <= min_i) {
-    if (rounded < min_i) set_fflags(kOverflow | kInvalidOperation);
+    if (rounded < min_i) set_fflags(kFPUOverflow | kInvalidOperation);
     return min_i;
   }
 

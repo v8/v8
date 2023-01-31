@@ -381,10 +381,10 @@ UTEST_R2_FORM_WITH_OP(sra, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
 // -- CSR --
 UTEST_CSRI(csr_frm, DYN, RUP)
 UTEST_CSRI(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSRI(csr_fcsr, kDivideByZero | kOverflow, kUnderflow)
+UTEST_CSRI(csr_fcsr, kDivideByZero | kFPUOverflow, kUnderflow)
 UTEST_CSR(csr_frm, DYN, RUP)
 UTEST_CSR(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSR(csr_fcsr, kDivideByZero | kOverflow | (RDN << kFcsrFrmShift),
+UTEST_CSR(csr_fcsr, kDivideByZero | kFPUOverflow | (RDN << kFcsrFrmShift),
           kUnderflow | (RNE << kFcsrFrmShift))
 
 // -- RV64I --

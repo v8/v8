@@ -529,7 +529,7 @@ enum ControlStatusReg {
 enum FFlagsMask {
   kInvalidOperation = 0b10000,  // NV: Invalid
   kDivideByZero = 0b1000,       // DZ:  Divide by Zero
-  kOverflow = 0b100,            // OF: Overflow
+  kFPUOverflow = 0b100,         // OF: Overflow
   kUnderflow = 0b10,            // UF: Underflow
   kInexact = 0b1                // NX:  Inexact
 };
