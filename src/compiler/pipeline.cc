@@ -96,6 +96,7 @@
 #include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
+#include "src/compiler/turboshaft/structural-optimization-reducer.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/typed-optimizations-reducer.h"
 #include "src/compiler/turboshaft/types.h"
@@ -2132,6 +2133,7 @@ struct OptimizeTurboshaftPhase {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
+        turboshaft::StructuralOptimizationReducer,
         turboshaft::LateEscapeAnalysisReducer,
         turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
         turboshaft::MachineOptimizationReducerSignallingNanImpossible,
@@ -3116,7 +3118,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   }
 
   // Optimize control flow.
-  if (v8_flags.turbo_cf_optimization) {
+  if (v8_flags.turbo_cf_optimization && !v8_flags.turboshaft) {
     Run<ControlFlowOptimizationPhase>();
     RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
   }

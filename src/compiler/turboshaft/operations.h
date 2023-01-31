@@ -152,7 +152,7 @@ struct OpProperties {
   // guaranteed to be derived.
   const bool is_pure_no_allocation = !(can_read || can_write || can_allocate ||
                                        can_abort || is_block_terminator);
-  const bool is_required_when_unused =
+  const bool observable_when_unused =
       can_write || can_abort || is_block_terminator;
   // Operations that don't read, write, allocate and aren't block terminators
   // can be eliminated via value numbering, which means that if there are two
