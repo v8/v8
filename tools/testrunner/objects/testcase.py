@@ -423,7 +423,7 @@ class TestCase(object):
         env=env,
         timeout=timeout,
         verbose=self.test_config.verbose,
-        resources_func=self._get_resources,
+        test_case=self,
         handle_sigterm=True,
     )
 
@@ -442,14 +442,6 @@ class TestCase(object):
 
   def _get_source_path(self):
     return None
-
-  def _get_resources(self):
-    """Returns a list of absolute paths with additional files needed by the
-    test case.
-
-    Used to push additional files to Android devices.
-    """
-    return []
 
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""
@@ -495,25 +487,6 @@ class TestCase(object):
   def processor_name(self):
     return self.processor.name
 
-
-class DuckProcessor:
-  """Dummy default processor for original tests implemented by duck-typing."""
-
-  def test_suffix(self, test):
-    return None
-
-  @property
-  def name(self):
-    return None
-
-
-class D8TestCase(TestCase):
-  def get_shell(self):
-    return "d8"
-
-  def _get_shell_flags(self):
-    return ['--test']
-
   def _get_resources_for_file(self, file):
     """Returns for a given file a list of absolute paths of files needed by the
     given file.
@@ -546,8 +519,12 @@ class D8TestCase(TestCase):
       add_import_path(match.group(1))
     return result
 
-  def _get_resources(self):
-    """Returns the list of files needed by a test case."""
+  def get_android_resources(self):
+    """Returns a list of absolute paths with additional files needed by the
+    test case.
+
+    Used to push additional files to Android devices.
+    """
     if not self._get_source_path():
       return []
     result = set()
@@ -562,6 +539,25 @@ class D8TestCase(TestCase):
         if resource not in result and os.path.exists(resource):
           to_check.append(resource)
     return sorted(list(result))
+
+
+class DuckProcessor:
+  """Dummy default processor for original tests implemented by duck-typing."""
+
+  def test_suffix(self, test):
+    return None
+
+  @property
+  def name(self):
+    return None
+
+
+class D8TestCase(TestCase):
+  def get_shell(self):
+    return "d8"
+
+  def _get_shell_flags(self):
+    return ['--test']
 
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""

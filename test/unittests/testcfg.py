@@ -90,7 +90,7 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return self.suite.name
 
-  def _get_resources(self):
+  def get_android_resources(self):
     # Bytecode-generator tests are the only ones requiring extra files on
     # Android.
     parts = self.name.split('.')

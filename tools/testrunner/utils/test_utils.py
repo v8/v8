@@ -243,7 +243,7 @@ class FakeCommand(BaseCommand):
                timeout=60,
                env=None,
                verbose=False,
-               resources_func=None,
+               test_case=None,
                handle_sigterm=False):
     f_prefix = ['fake_wrapper'] + cmd_prefix
     super(FakeCommand, self).__init__(

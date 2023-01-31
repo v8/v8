@@ -55,8 +55,9 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return 'inspector-test'
 
-  def _get_resources(self):
-    return [
+  def get_android_resources(self):
+    super_resources = super().get_android_resources()
+    return super_resources + [
         os.path.join('test', 'inspector', 'debugger', 'resources',
                      'break-locations.js'),
         os.path.join('test', 'inspector', WASM_INSPECTOR_JS),
