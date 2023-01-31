@@ -48,6 +48,11 @@ class BuildFlags : public ContextualClass<BuildFlags> {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
+#ifdef V8_INTL_SUPPORT
+    build_flags_["V8_INTL_SUPPORT"] = true;
+#else
+    build_flags_["V8_INTL_SUPPORT"] = false;
+#endif
     build_flags_["V8_ENABLE_SWISS_NAME_DICTIONARY"] =
         V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL;
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS

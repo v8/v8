@@ -992,10 +992,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/since/nanoseconds-to-days-range-errors': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/nanoseconds-to-days-range-errors': [FAIL],
 
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13584
-  'intl402/Array/prototype/toLocaleString/invoke-element-tolocalestring': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference-yield': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference-yield': [FAIL],
@@ -1230,9 +1226,6 @@
   'language/identifiers/start-unicode-7*': [FAIL],
   'language/identifiers/start-unicode-8*': [FAIL],
   'language/identifiers/start-unicode-9*': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13584
-  'built-ins/Array/prototype/toLocaleString/invoke-element-tolocalestring': [FAIL],
 
   # Temporal staging test which use timeZone other than "UTC" or
   # calendar other than "iso8601" which are not supported in no i18n mode.
