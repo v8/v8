@@ -98,8 +98,6 @@ class ValueSerializer {
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
  private:
-  friend class WebSnapshotSerializer;
-
   // Managing allocations of the internal buffer.
   Maybe<bool> ExpandBuffer(size_t required_capacity);
 
@@ -249,8 +247,6 @@ class ValueDeserializer {
   bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
-  friend class WebSnapshotDeserializer;
-
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const V8_WARN_UNUSED_RESULT;
   void ConsumeTag(SerializationTag peeked_tag);

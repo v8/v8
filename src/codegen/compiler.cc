@@ -62,7 +62,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
-#include "src/web-snapshot/web-snapshot.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #ifdef V8_ENABLE_MAGLEV
@@ -3451,29 +3450,6 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     DCHECK_NULL(deserialize_task);
   }
 
-  if (V8_UNLIKELY(
-          v8_flags.experimental_web_snapshots &&
-          (source->IsExternalOneByteString() || source->IsSeqOneByteString() ||
-           source->IsExternalTwoByteString() || source->IsSeqTwoByteString()) &&
-          source->length() > 4)) {
-    // Experimental: Treat the script as a web snapshot if it starts with the
-    // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
-    // integration is done.
-    bool magic_matches = true;
-    for (size_t i = 0;
-         i < sizeof(WebSnapshotSerializerDeserializer::kMagicNumber); ++i) {
-      if (source->Get(static_cast<int>(i)) !=
-          WebSnapshotSerializerDeserializer::kMagicNumber[i]) {
-        magic_matches = false;
-        break;
-      }
-    }
-    if (magic_matches) {
-      return Compiler::GetSharedFunctionInfoForWebSnapshot(
-          isolate, source, script_details.name_obj);
-    }
-  }
-
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
@@ -3800,30 +3776,6 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   streaming_data->Release();
   return maybe_result;
 }  // namespace internal
-
-// static
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
-    Isolate* isolate, Handle<String> source,
-    MaybeHandle<Object> maybe_script_name) {
-  // This script won't hold the functions created from the web snapshot;
-  // reserving space only for the top-level SharedFunctionInfo is enough.
-  Handle<WeakFixedArray> shared_function_infos =
-      isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
-  Handle<Script> script = isolate->factory()->NewScript(source);
-  script->set_type(Script::TYPE_WEB_SNAPSHOT);
-  script->set_shared_function_infos(*shared_function_infos);
-  Handle<Object> script_name;
-  if (maybe_script_name.ToHandle(&script_name) && script_name->IsString()) {
-    script->set_name(String::cast(*script_name));
-  } else {
-    script->set_name(*isolate->factory()->empty_string());
-  }
-
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForWebSnapshot();
-  shared->SetScript(isolate->factory()->read_only_roots(), *script, 0, false);
-  return shared;
-}
 
 // static
 template <typename IsolateT>

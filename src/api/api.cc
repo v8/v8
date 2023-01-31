@@ -128,7 +128,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
-#include "src/web-snapshot/web-snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -2225,22 +2224,6 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   }
 #endif
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
-
-  if (V8_UNLIKELY(i::v8_flags.experimental_web_snapshots)) {
-    i::Handle<i::HeapObject> maybe_script =
-        handle(fun->shared().script(), i_isolate);
-    if (maybe_script->IsScript() &&
-        i::Script::cast(*maybe_script).type() == i::Script::TYPE_WEB_SNAPSHOT) {
-      i::WebSnapshotDeserializer deserializer(
-          reinterpret_cast<i::Isolate*>(v8_isolate),
-          i::Handle<i::Script>::cast(maybe_script));
-      deserializer.Deserialize();
-      RETURN_ON_FAILED_EXECUTION(Value);
-      Local<Value> result = v8::Undefined(v8_isolate);
-      RETURN_ESCAPED(result);
-    }
-  }
-
   i::Handle<i::Object> receiver = i_isolate->global_proxy();
   // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
   i::Handle<i::Object> options(

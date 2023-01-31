@@ -5123,11 +5123,6 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
   int function_literal_id = function_literal->function_literal_id();
-  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT &&
-                  function_literal_id >=
-                      script->shared_function_info_count())) {
-    return FindWebSnapshotSharedFunctionInfo(script, isolate, function_literal);
-  }
 
   CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
@@ -5148,77 +5143,6 @@ template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, LocalIsolate* isolate,
     FunctionLiteral* function_literal);
-
-MaybeHandle<SharedFunctionInfo> Script::FindWebSnapshotSharedFunctionInfo(
-    Handle<Script> script, Isolate* isolate,
-    FunctionLiteral* function_literal) {
-  // We might be able to de-dupe the SFI against a SFI that was
-  // created when deserializing the snapshot (or when calling a function which
-  // was included in the snapshot). In that case, we can find it based on the
-  // start position in shared_function_info_table.
-  Handle<ObjectHashTable> shared_function_info_table = handle(
-      ObjectHashTable::cast(script->shared_function_info_table()), isolate);
-  {
-    DisallowHeapAllocation no_gc;
-    Object index_object = shared_function_info_table->Lookup(
-        handle(Smi::FromInt(function_literal->start_position()), isolate));
-    if (!index_object.IsTheHole()) {
-      int index = Smi::cast(index_object).value();
-      DCHECK_LT(index, script->shared_function_info_count());
-      MaybeObject maybe_shared = script->shared_function_infos().Get(index);
-      HeapObject heap_object;
-      if (!maybe_shared->GetHeapObject(&heap_object)) {
-        // We found the correct location but it's not filled in (e.g., the weak
-        // pointer to the SharedFunctionInfo has been cleared). Record the
-        // location in the FunctionLiteral, so that it will be refilled later.
-        // SharedFunctionInfo::SetScript will write the SharedFunctionInfo in
-        // the shared_function_infos.
-        function_literal->set_function_literal_id(index);
-        return MaybeHandle<SharedFunctionInfo>();
-      }
-      SharedFunctionInfo shared = SharedFunctionInfo::cast(heap_object);
-      DCHECK_EQ(shared.StartPosition(), function_literal->start_position());
-      DCHECK_EQ(shared.EndPosition(), function_literal->end_position());
-      return handle(shared, isolate);
-    }
-  }
-
-  // It's possible that FunctionLiterals which were processed before this one
-  // were deduplicated against existing ones. Decrease function_literal_id to
-  // avoid holes in shared_function_infos.
-  int old_length = script->shared_function_info_count();
-  int function_literal_id = old_length;
-  function_literal->set_function_literal_id(function_literal_id);
-
-  // Also add to shared_function_info_table.
-  shared_function_info_table = ObjectHashTable::Put(
-      shared_function_info_table,
-      handle(Smi::FromInt(function_literal->start_position()), isolate),
-      handle(Smi::FromInt(function_literal_id), isolate));
-  script->set_shared_function_info_table(*shared_function_info_table);
-
-  // Grow shared_function_infos if needed (we don't know the correct amount of
-  // space needed upfront).
-  int new_length = old_length + 1;
-  Handle<WeakFixedArray> old_infos =
-      handle(script->shared_function_infos(), isolate);
-  if (new_length > old_infos->length()) {
-    int capacity = WeakArrayList::CapacityForLength(new_length);
-    Handle<WeakFixedArray> new_infos(
-        isolate->factory()->NewWeakFixedArray(capacity, AllocationType::kOld));
-    new_infos->CopyElements(isolate, 0, *old_infos, 0, old_length,
-                            WriteBarrierMode::UPDATE_WRITE_BARRIER);
-    script->set_shared_function_infos(*new_infos);
-  }
-  return MaybeHandle<SharedFunctionInfo>();
-}
-
-MaybeHandle<SharedFunctionInfo> Script::FindWebSnapshotSharedFunctionInfo(
-    Handle<Script> script, LocalIsolate* isolate,
-    FunctionLiteral* function_literal) {
-  // Off-thread serialization of web snapshots is not implemented.
-  UNREACHABLE();
-}
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}

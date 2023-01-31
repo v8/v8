@@ -338,7 +338,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
                                               AllocationType allocation);
 
  private:
-  friend class WebSnapshotDeserializer;
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }

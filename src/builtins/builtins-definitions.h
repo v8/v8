@@ -626,10 +626,6 @@ namespace internal {
   CPP(JsonRawJson)                                                             \
   CPP(JsonIsRawJson)                                                           \
                                                                                \
-  /* Web snapshots */                                                          \
-  CPP(WebSnapshotSerialize)                                                    \
-  CPP(WebSnapshotDeserialize)                                                  \
-                                                                               \
   /* ICs */                                                                    \
   TFH(LoadIC, LoadWithVector)                                                  \
   TFH(LoadIC_Megamorphic, LoadWithVector)                                      \

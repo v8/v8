@@ -319,9 +319,6 @@ class PerIsolateData {
   Local<FunctionTemplate> GetTestApiObjectCtor() const;
   void SetTestApiObjectCtor(Local<FunctionTemplate> ctor);
 
-  Local<FunctionTemplate> GetSnapshotObjectCtor() const;
-  void SetSnapshotObjectCtor(Local<FunctionTemplate> ctor);
-
   Local<FunctionTemplate> GetDomNodeCtor() const;
   void SetDomNodeCtor(Local<FunctionTemplate> ctor);
 
@@ -344,7 +341,6 @@ class PerIsolateData {
   std::unordered_set<DynamicImportData*> import_data_;
 #endif
   Global<FunctionTemplate> test_api_object_ctor_;
-  Global<FunctionTemplate> snapshot_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -464,13 +460,7 @@ class ShellOptions {
       "enable-system-instrumentation", false};
   DisallowReassignment<bool> enable_etw_stack_walking = {
       "enable-etw-stack-walking", false};
-  DisallowReassignment<const char*> web_snapshot_config = {
-      "web-snapshot-config", nullptr};
-  DisallowReassignment<const char*> web_snapshot_output = {
-      "web-snapshot-output", nullptr};
-  DisallowReassignment<bool> d8_web_snapshot_api = {
-      "experimental-d8-web-snapshot-api", false};
-  // Applies to web snapshot and JSON deserialization.
+  // Applies to JSON deserialization.
   DisallowReassignment<bool> stress_deserialize = {"stress-deserialize", false};
   DisallowReassignment<bool> compile_only = {"compile-only", false};
   DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
@@ -508,8 +498,6 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
-  static bool TakeWebSnapshot(Isolate* isolate);
-  static bool ExecuteWebSnapshot(Isolate* isolate, const char* file_name);
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
                               Local<Value> exception);
@@ -569,10 +557,6 @@ class Shell : public i::AllStatic {
                              const PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<String> property, Local<Value> value,
                              const PropertyCallbackInfo<void>& info);
-  static void RealmTakeWebSnapshot(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RealmUseWebSnapshot(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TestVerifySourcePositions(
@@ -736,8 +720,6 @@ class Shell : public i::AllStatic {
                          bool isOnMainThread = true);
 
   static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
-
-  static Local<FunctionTemplate> CreateSnapshotTemplate(Isolate* isolate);
 
  private:
   static inline int DeserializationRunCount() {

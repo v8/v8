@@ -391,7 +391,6 @@ class JSTypedArray
   template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
-  friend class WebSnapshotDeserializer;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
   // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB

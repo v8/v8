@@ -2374,9 +2374,6 @@ void Script::ScriptPrint(std::ostream& os) {
       os << "\n - eval from shared: " << Brief(eval_from_shared());
     } else if (is_wrapped()) {
       os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
-    } else if (type() == TYPE_WEB_SNAPSHOT) {
-      os << "\n - shared function info table: "
-         << Brief(shared_function_info_table());
     }
     os << "\n - eval from position: " << eval_from_position();
   }

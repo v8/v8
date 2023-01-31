@@ -494,21 +494,6 @@ class RuntimeCallTimer final {
   V(TestCounter2)                              \
   V(TestCounter3)                              \
   V(UpdateProtector)                           \
-  V(WebSnapshotDeserialize)                    \
-  V(WebSnapshotDeserialize_Arrays)             \
-  V(WebSnapshotDeserialize_ArrayBuffers)       \
-  V(WebSnapshotDeserialize_BigInts)            \
-  V(WebSnapshotDeserialize_BuiltinObjects)     \
-  V(WebSnapshotDeserialize_Classes)            \
-  V(WebSnapshotDeserialize_Contexts)           \
-  V(WebSnapshotDeserialize_DataViews)          \
-  V(WebSnapshotDeserialize_Exports)            \
-  V(WebSnapshotDeserialize_Functions)          \
-  V(WebSnapshotDeserialize_Maps)               \
-  V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)            \
-  V(WebSnapshotDeserialize_Symbols)            \
-  V(WebSnapshotDeserialize_TypedArrays)        \
   V(WrappedFunctionLengthGetter)               \
   V(WrappedFunctionNameGetter)
 

@@ -36,7 +36,6 @@
 #include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
-#include "src/web-snapshot/web-snapshot.h"
 
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev.h"

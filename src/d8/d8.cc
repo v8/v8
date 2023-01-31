@@ -69,7 +69,6 @@
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/web-snapshot/web-snapshot.h"
 
 #if V8_OS_POSIX
 #include <signal.h>
@@ -914,52 +913,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   return success;
 }
 
-bool Shell::TakeWebSnapshot(Isolate* isolate) {
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  Local<Context> realm =
-      Local<Context>::New(isolate, data->realms_[data->realm_current_]);
-  Context::Scope context_scope(realm);
-  Local<Context> context(isolate->GetCurrentContext());
-
-  v8::TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
-  const char* web_snapshot_output_file_name = "web.snap";
-  if (options.web_snapshot_output) {
-    web_snapshot_output_file_name = options.web_snapshot_output;
-  }
-
-  if (!options.web_snapshot_config) {
-    isolate->ThrowError(
-        "Web snapshots: --web-snapshot-config is needed when "
-        "--web-snapshot-output is passed");
-    CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
-    return false;
-  }
-
-  MaybeLocal<PrimitiveArray> maybe_exports =
-      ReadLines(isolate, options.web_snapshot_config);
-  Local<PrimitiveArray> exports;
-  if (!maybe_exports.ToLocal(&exports)) {
-    isolate->ThrowError("Web snapshots: unable to read config");
-    CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
-    return false;
-  }
-
-  i::WebSnapshotSerializer serializer(isolate);
-  i::WebSnapshotData snapshot_data;
-  if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
-    DCHECK_NOT_NULL(snapshot_data.buffer);
-    WriteChars(web_snapshot_output_file_name, snapshot_data.buffer,
-               snapshot_data.buffer_size);
-  } else {
-    CHECK(try_catch.HasCaught());
-    return false;
-  }
-  return true;
-}
-
 namespace {
 
 bool IsAbsolutePath(const std::string& path) {
@@ -1499,44 +1452,6 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   return true;
 }
 
-bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
-  HandleScope handle_scope(isolate);
-
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
-  Context::Scope context_scope(realm);
-
-  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
-
-  int length = 0;
-  std::unique_ptr<uint8_t[]> snapshot_data(
-      reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
-  if (length == 0) {
-    TryCatch try_catch(isolate);
-    isolate->ThrowError("Could not read the web snapshot file");
-    CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
-    return false;
-  } else {
-    for (int r = 0; r < DeserializationRunCount(); ++r) {
-      bool skip_exports = r > 0;
-      i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
-                                              static_cast<size_t>(length));
-      if (!deserializer.Deserialize({}, skip_exports)) {
-        // d8 is calling into the internal APIs which won't do
-        // ReportPendingMessages in all error paths (it's supposed to be done at
-        // the API boundary). Call it here.
-        auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        if (i_isolate->has_pending_exception()) {
-          i_isolate->ReportPendingMessages();
-        }
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 // Treat every line as a JSON value and parse it.
 bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
@@ -1579,10 +1494,6 @@ PerIsolateData::PerIsolateData(Isolate* isolate)
     async_hooks_wrapper_ = new AsyncHooks(isolate);
   }
   ignore_unhandled_promises_ = false;
-  // TODO(v8:11525): Use methods on global Snapshot objects with
-  // signature checks.
-  HandleScope scope(isolate);
-  Shell::CreateSnapshotTemplate(isolate);
 }
 
 PerIsolateData::~PerIsolateData() {
@@ -1676,14 +1587,6 @@ Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
 
 void PerIsolateData::SetTestApiObjectCtor(Local<FunctionTemplate> ctor) {
   test_api_object_ctor_.Reset(isolate_, ctor);
-}
-
-Local<FunctionTemplate> PerIsolateData::GetSnapshotObjectCtor() const {
-  return snapshot_object_ctor_.Get(isolate_);
-}
-
-void PerIsolateData::SetSnapshotObjectCtor(Local<FunctionTemplate> ctor) {
-  snapshot_object_ctor_.Reset(isolate_, ctor);
 }
 
 Local<FunctionTemplate> PerIsolateData::GetDomNodeCtor() const {
@@ -2166,100 +2069,6 @@ void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
-}
-
-// Realm.takeWebSnapshot(index, exports) takes a snapshot of the list of exports
-// in the realm with the specified index and returns the result.
-void Shell::RealmTakeWebSnapshot(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  if (args.Length() < 2 || !args[1]->IsArray()) {
-    isolate->ThrowError("Invalid argument");
-    return;
-  }
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  int index = data->RealmIndexOrThrow(args, 0);
-  if (index == -1) return;
-  // Create a Local<PrimitiveArray> from the exports array.
-  Local<Context> current_context = isolate->GetCurrentContext();
-  Local<Array> exports_array = args[1].As<Array>();
-  int length = exports_array->Length();
-  Local<PrimitiveArray> exports = PrimitiveArray::New(isolate, length);
-  for (int i = 0; i < length; ++i) {
-    Local<Value> value;
-    Local<String> str;
-    if (!exports_array->Get(current_context, i).ToLocal(&value) ||
-        !value->ToString(current_context).ToLocal(&str) || str.IsEmpty()) {
-      isolate->ThrowError("Invalid argument");
-      return;
-    }
-    exports->Set(isolate, i, str);
-  }
-  // Take the snapshot in the specified Realm.
-  auto snapshot_data_shared = std::make_shared<i::WebSnapshotData>();
-  {
-    TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    PerIsolateData::ExplicitRealmScope realm_scope(data, index);
-    i::WebSnapshotSerializer serializer(isolate);
-    if (!serializer.TakeSnapshot(realm_scope.context(), exports,
-                                 *snapshot_data_shared)) {
-      CHECK(try_catch.HasCaught());
-      args.GetReturnValue().Set(Undefined(isolate));
-      return;
-    }
-  }
-  // Create a snapshot object and store the WebSnapshotData as an embedder
-  // field. TODO(v8:11525): Use methods on global Snapshot objects with
-  // signature checks.
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::Object> snapshot_data_managed =
-      i::Managed<i::WebSnapshotData>::FromSharedPtr(
-          i_isolate, snapshot_data_shared->buffer_size, snapshot_data_shared);
-  v8::Local<v8::Value> shapshot_data = Utils::ToLocal(snapshot_data_managed);
-  Local<ObjectTemplate> snapshot_template =
-      data->GetSnapshotObjectCtor()->InstanceTemplate();
-  Local<Object> snapshot_instance =
-      snapshot_template->NewInstance(isolate->GetCurrentContext())
-          .ToLocalChecked();
-  snapshot_instance->SetInternalField(0, shapshot_data);
-  args.GetReturnValue().Set(snapshot_instance);
-}
-
-// Realm.useWebSnapshot(index, snapshot) deserializes the snapshot in the realm
-// with the specified index.
-void Shell::RealmUseWebSnapshot(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  if (args.Length() < 2 || !args[1]->IsObject()) {
-    isolate->ThrowError("Invalid argument");
-    return;
-  }
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  int index = data->RealmIndexOrThrow(args, 0);
-  if (index == -1) return;
-  // Restore the snapshot data from the snapshot object.
-  Local<Object> snapshot_instance = args[1].As<Object>();
-  Local<FunctionTemplate> snapshot_template = data->GetSnapshotObjectCtor();
-  if (!snapshot_template->HasInstance(snapshot_instance)) {
-    isolate->ThrowError("Invalid argument");
-    return;
-  }
-  v8::Local<v8::Value> snapshot_data = snapshot_instance->GetInternalField(0);
-  i::Handle<i::Object> snapshot_data_handle = Utils::OpenHandle(*snapshot_data);
-  auto snapshot_data_managed =
-      i::Handle<i::Managed<i::WebSnapshotData>>::cast(snapshot_data_handle);
-  std::shared_ptr<i::WebSnapshotData> snapshot_data_shared =
-      snapshot_data_managed->get();
-  // Deserialize the snapshot in the specified Realm.
-  {
-    PerIsolateData::ExplicitRealmScope realm_scope(data, index);
-    i::WebSnapshotDeserializer deserializer(isolate,
-                                            snapshot_data_shared->buffer,
-                                            snapshot_data_shared->buffer_size);
-    bool success = deserializer.Deserialize();
-    args.GetReturnValue().Set(success);
-  }
 }
 
 void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -3569,21 +3378,9 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
                       FunctionTemplate::New(isolate, RealmEval));
   realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
-  if (options.d8_web_snapshot_api) {
-    realm_template->Set(isolate, "takeWebSnapshot",
-                        FunctionTemplate::New(isolate, RealmTakeWebSnapshot));
-    realm_template->Set(isolate, "useWebSnapshot",
-                        FunctionTemplate::New(isolate, RealmUseWebSnapshot));
-  }
   return realm_template;
 }
 
-Local<FunctionTemplate> Shell::CreateSnapshotTemplate(Isolate* isolate) {
-  Local<FunctionTemplate> snapshot_template = FunctionTemplate::New(isolate);
-  snapshot_template->InstanceTemplate()->SetInternalFieldCount(1);
-  PerIsolateData::Get(isolate)->SetSnapshotObjectCtor(snapshot_template);
-  return snapshot_template;
-}
 Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
   {
@@ -4464,15 +4261,6 @@ bool SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       continue;
-    } else if (strcmp(arg, "--web-snapshot") == 0 && i + 1 < end_offset_) {
-      // Treat the next file as a web snapshot.
-      arg = argv_[++i];
-      Shell::set_script_executed();
-      if (!Shell::ExecuteWebSnapshot(isolate, arg)) {
-        success = false;
-        break;
-      }
-      continue;
     } else if (strcmp(arg, "--json") == 0 && i + 1 < end_offset_) {
       // Treat the next file as a JSON file.
       arg = argv_[++i];
@@ -4504,13 +4292,6 @@ bool SourceGroup::Execute(Isolate* isolate) {
       success = false;
       break;
     }
-  }
-  if (!success) {
-    return false;
-  }
-  if (Shell::options.web_snapshot_config ||
-      Shell::options.web_snapshot_output) {
-    success = Shell::TakeWebSnapshot(isolate);
   }
   return success;
 }
@@ -5067,15 +4848,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--stress-deserialize") == 0) {
       options.stress_deserialize = true;
       argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
-      options.web_snapshot_config = argv[i] + 22;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--web-snapshot-output=", 22) == 0) {
-      options.web_snapshot_output = argv[i] + 22;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--experimental-d8-web-snapshot-api") == 0) {
-      options.d8_web_snapshot_api = true;
-      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--compile-only") == 0) {
       options.compile_only = true;
       argv[i] = nullptr;
@@ -5154,12 +4926,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   const char* usage =
       "Synopsis:\n"
       "  shell [options] [--shell] [<file>...]\n"
-      "  d8 [options] [-e <string>] [--shell] [[--module|--web-snapshot]"
+      "  d8 [options] [-e <string>] [--shell] [--module|]"
       " <file>...]\n\n"
       "  -e        execute a string in V8\n"
       "  --shell   run an interactive JavaScript shell\n"
-      "  --module  execute a file as a JavaScript module\n"
-      "  --web-snapshot  execute a file as a web snapshot\n\n";
+      "  --module  execute a file as a JavaScript module\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::v8_flags.abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
@@ -5186,9 +4957,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
-    } else if (strcmp(str, "--module") == 0 ||
-               strcmp(str, "--web-snapshot") == 0 ||
-               strcmp(str, "--json") == 0) {
+    } else if (strcmp(str, "--module") == 0 || strcmp(str, "--json") == 0) {
       // Pass on to SourceGroup, which understands these options.
     } else if (strncmp(str, "--", 2) == 0) {
       if (!i::v8_flags.correctness_fuzzer_suppressions) {
@@ -5222,7 +4991,6 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    CreateSnapshotTemplate(isolate);
     bool use_existing_context = last_run && use_interactive_shell();
     if (use_existing_context) {
       // Keep using the same context in the interactive shell.

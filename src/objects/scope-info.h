@@ -316,8 +316,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   V8_EXPORT_PRIVATE uint32_t Hash();
 
  private:
-  friend class WebSnapshotDeserializer;
-
   int InlinedLocalNamesLookup(String name);
 
   int ContextLocalNamesIndex() const;

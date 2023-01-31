@@ -73,9 +73,6 @@ void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
 class BigInt;
 class ValueDeserializer;
 class ValueSerializer;
-class WebSnapshotSerializerDeserializer;
-class WebSnapshotSerializer;
-class WebSnapshotDeserializer;
 
 #include "torque-generated/src/objects/bigint-tq.inc"
 
@@ -304,9 +301,6 @@ class BigInt : public BigIntBase {
   friend class StringToBigIntHelper;
   friend class ValueDeserializer;
   friend class ValueSerializer;
-  friend class WebSnapshotSerializerDeserializer;
-  friend class WebSnapshotSerializer;
-  friend class WebSnapshotDeserializer;
 
   // Special functions for StringToBigIntHelper:
   template <typename IsolateT>
