@@ -640,7 +640,7 @@
   F(MINOR_MC_EVACUATE_EPILOGUE)                      \
   F(MINOR_MC_EVACUATE_PROLOGUE)                      \
   F(MINOR_MC_EVACUATE_REBALANCE)                     \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
+  F(MINOR_MC_EVACUATE_UPDATE_STRING_TABLE)           \
   F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
   F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \

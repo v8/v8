@@ -870,7 +870,7 @@ void GCTracer::PrintNVP() const {
           "evacuate.prologue=%.2f "
           "evacuate.epilogue=%.2f "
           "evacuate.rebalance=%.2f "
-          "evacuate.update_pointers=%.2f "
+          "evacuate.update_string_table=%.2f "
           "sweep=%.2f "
           "sweep.new=%.2f "
           "sweep.new_lo=%.2f "
@@ -915,7 +915,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_EVACUATE_PROLOGUE),
           current_scope(Scope::MINOR_MC_EVACUATE_EPILOGUE),
           current_scope(Scope::MINOR_MC_EVACUATE_REBALANCE),
-          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS),
+          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_STRING_TABLE),
           current_scope(Scope::MINOR_MC_SWEEP),
           current_scope(Scope::MINOR_MC_SWEEP_NEW),
           current_scope(Scope::MINOR_MC_SWEEP_NEW_LO),
