@@ -230,9 +230,6 @@ bool SmallEnoughForOSR(Isolate* isolate, JSFunction function,
 
 void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
   SharedFunctionInfo shared = function.shared();
-  // Guaranteed since we've got a feedback vector.
-  DCHECK(shared.IsUserJavaScript());
-
   if (V8_UNLIKELY(!v8_flags.use_osr)) return;
   if (V8_UNLIKELY(shared.optimization_disabled())) return;
 
