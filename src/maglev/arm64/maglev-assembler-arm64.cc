@@ -627,7 +627,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     // Reuse {instance_type} register here, since CompareRoot requires a scratch
     // register as well.
     Register second_string = instance_type;
-    Ldr(second_string, FieldMemOperand(string, ConsString::kSecondOffset));
+    Ldr(second_string.W(), FieldMemOperand(string, ConsString::kSecondOffset));
     CompareRoot(second_string, RootIndex::kempty_string);
     B(&deferred_runtime_call->deferred_code_label, ne);
     DecompressAnyTagged(string,
