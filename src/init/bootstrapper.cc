@@ -4821,6 +4821,10 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
                         DONT_ENUM);
 }
 
+void Genesis::InitializeGlobal_harmony_array_from_async() {
+  if (!v8_flags.harmony_array_from_async) return;
+}
+
 void Genesis::InitializeGlobal_regexp_linear_flag() {
   if (!v8_flags.enable_experimental_regexp_engine) return;
 
