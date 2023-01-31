@@ -2035,7 +2035,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
 
         // Gather information from the handler.
-        Code code = frame->LookupCode().code();
+        Code code = frame->LookupCode();
         HandlerTable table(code);
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code.constant_pool(),
@@ -2107,7 +2107,7 @@ Object Isolate::UnwindAndFindHandler() {
         int offset = opt_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
         // The code might be an optimized code or a turbofanned builtin.
-        Code code = frame->LookupCode().ToCode();
+        Code code = frame->LookupCode();
         // Compute the stack pointer from the frame pointer. This ensures
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -2141,7 +2141,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // The code might be a dynamically generated stub or a turbofanned
         // embedded builtin.
-        Code code = stub_frame->LookupCode().ToCode();
+        Code code = stub_frame->LookupCode();
         if (code.kind() != CodeKind::BUILTIN || !code.is_turbofanned() ||
             !code.has_handler_table()) {
           break;
@@ -2192,7 +2192,6 @@ Object Isolate::UnwindAndFindHandler() {
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
           InstructionStream code = sp_frame->LookupCode().instruction_stream();
-          DCHECK(!code.is_off_heap_trampoline());
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
@@ -2236,7 +2235,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        Code code = js_frame->LookupCode().code();
+        Code code = js_frame->LookupCode();
         return FoundHandler(Context(), code.InstructionStart(), 0,
                             code.constant_pool(), return_sp, frame->fp(),
                             visited_frames);
@@ -2253,8 +2252,7 @@ Object Isolate::UnwindAndFindHandler() {
       USE(removed);
       // If there were any materialized objects, the code should be
       // marked for deopt.
-      DCHECK_IMPLIES(removed,
-                     frame->LookupCode().ToCode().marked_for_deoptimization());
+      DCHECK_IMPLIES(removed, frame->LookupCode().marked_for_deoptimization());
     }
   }
 
@@ -2353,20 +2351,20 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::STUB: {
-        CodeLookupResult code = frame->LookupCode();
-        if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
-            !code.is_turbofanned()) {
+        base::Optional<Code> code = frame->LookupCode();
+        if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
+            !code->is_turbofanned()) {
           break;
         }
 
-        CatchType prediction = ToCatchType(code.GetBuiltinCatchPrediction());
+        CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
         if (prediction != NOT_CAUGHT) return prediction;
         break;
       }
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        CodeLookupResult code = frame->LookupCode();
-        CatchType prediction = ToCatchType(code.GetBuiltinCatchPrediction());
+        base::Optional<Code> code = frame->LookupCode();
+        CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
         if (prediction != NOT_CAUGHT) return prediction;
         break;
       }
@@ -2832,12 +2830,12 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      CodeLookupResult code = frame->LookupCode();
-      if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
-          !code.is_turbofanned()) {
+      base::Optional<Code> code = frame->LookupCode();
+      if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
+          !code->is_turbofanned()) {
         continue;
       }
-      catch_prediction = code.GetBuiltinCatchPrediction();
+      catch_prediction = code->GetBuiltinCatchPrediction();
     } else {
       continue;
     }
@@ -4952,10 +4950,6 @@ int Isolate::GenerateIdentityHash(uint32_t mask) {
     hash = random_number_generator()->NextInt() & mask;
   } while (hash == 0 && attempts++ < 30);
   return hash != 0 ? hash : 1;
-}
-
-CodeLookupResult Isolate::FindCodeObject(Address a) {
-  return heap()->GcSafeFindCodeForInnerPointer(a);
 }
 
 #ifdef DEBUG

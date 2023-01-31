@@ -1809,10 +1809,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     }
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
-      if (target_space == CODE_SPACE)
+      if (target_space == CODE_SPACE) {
         MemoryChunk::FromHeapObject(*target_object)
             ->GetCodeObjectRegistry()
             ->RegisterNewlyAllocatedCodeObject((*target_object).address());
+      }
       return true;
     }
     return false;
@@ -2684,14 +2685,16 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
        it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
-      CodeLookupResult lookup_result = it.frame()->LookupCode();
-      // Embedded builtins can't deoptimize.
-      if (lookup_result.IsCode()) return;
-      InstructionStream code = lookup_result.instruction_stream();
-      if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
+      GcSafeCode lookup_result = it.frame()->GcSafeLookupCode();
+      // Builtins can't deoptimize.
+      if (lookup_result.is_off_heap_trampoline()) return;
+      InstructionStream istream = InstructionStream::unchecked_cast(
+          lookup_result.raw_instruction_stream());
+      DCHECK_NE(istream, Smi::zero());
+      if (!istream.CanDeoptAt(isolate, it.frame()->pc())) {
         PtrComprCageBase cage_base(isolate);
-        InstructionStream::BodyDescriptor::IterateBody(code.map(cage_base),
-                                                       code, visitor);
+        InstructionStream::BodyDescriptor::IterateBody(istream.map(cage_base),
+                                                       istream, visitor);
       }
       return;
     }
@@ -5411,6 +5414,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);
   }
+
+  // Flush the inner_pointer_to_code_cache which may now have stale contents.
+  isolate()->inner_pointer_to_code_cache()->Flush();
 }
 
 void MarkCompactCollector::UpdatePointersInClientHeaps() {

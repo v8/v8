@@ -26,6 +26,13 @@ MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
   DCHECK(code.is_maglevved());
 }
 
+MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
+                                           GcSafeCode code)
+    : MaglevSafepointTable(code.InstructionStart(isolate, pc),
+                           code.SafepointTableAddress()) {
+  DCHECK(code.is_maglevved());
+}
+
 MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
                                            Address safepoint_table_address)
     : instruction_start_(instruction_start),
@@ -79,6 +86,14 @@ MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
   return MaglevSafepointEntry(pc_offset, deopt_index, num_tagged_slots_,
                               num_untagged_slots_, num_pushed_registers,
                               tagged_register_indexes, trampoline_pc);
+}
+
+// static
+MaglevSafepointEntry MaglevSafepointTable::FindEntry(Isolate* isolate,
+                                                     GcSafeCode code,
+                                                     Address pc) {
+  MaglevSafepointTable table(isolate, pc, code);
+  return table.FindEntry(pc);
 }
 
 void MaglevSafepointTable::Print(std::ostream& os) const {

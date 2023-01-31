@@ -202,8 +202,8 @@ void CheckEmbeddedObjectsAreEqual(Isolate* isolate,
   CHECK(lhs_it.done() == rhs_it.done());
 }
 
-static void CheckFindCodeObject(Isolate* isolate) {
-  // Test FindCodeObject
+static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
+  // Test GcSafeFindCodeForInnerPointer
 #define __ assm.
 
   Assembler assm(AssemblerOptions{});
@@ -225,7 +225,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   Address obj_addr = obj.address();
 
   for (int i = 0; i < obj.Size(cage_base); i += kTaggedSize) {
-    CodeLookupResult lookup_result = isolate->FindCodeObject(obj_addr + i);
+    Code lookup_result = isolate->heap()->FindCodeForInnerPointer(obj_addr + i);
     CHECK_EQ(*code, lookup_result.instruction_stream());
   }
 
@@ -235,12 +235,11 @@ static void CheckFindCodeObject(Isolate* isolate) {
           ->instruction_stream(),
       isolate);
   HeapObject obj_copy = HeapObject::cast(*copy);
-  CodeLookupResult not_right = isolate->FindCodeObject(
+  Code not_right = isolate->heap()->FindCodeForInnerPointer(
       obj_copy.address() + obj_copy.Size(cage_base) / 2);
   CHECK_NE(not_right.instruction_stream(), *code);
   CHECK_EQ(not_right.instruction_stream(), *copy);
 }
-
 
 TEST(HandleNull) {
   CcTest::InitializeVM();
@@ -333,7 +332,7 @@ TEST(HeapObjects) {
   // Check ToString for Numbers
   CheckNumber(isolate, 1.1, "1.1");
 
-  CheckFindCodeObject(isolate);
+  CheckGcSafeFindCodeForInnerPointer(isolate);
 }
 
 TEST(Tagging) {

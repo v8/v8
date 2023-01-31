@@ -15,11 +15,11 @@
 namespace v8 {
 namespace internal {
 
-class InnerPointerToCodeCache {
+class InnerPointerToCodeCache final {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    CodeLookupResult code;
+    base::Optional<GcSafeCode> code;
     union {
       SafepointEntry safepoint_entry;
       MaglevSafepointEntry maglev_safepoint_entry;
@@ -27,20 +27,8 @@ class InnerPointerToCodeCache {
     InnerPointerToCodeCacheEntry() : safepoint_entry() {}
   };
 
-  static void FlushCallback(LocalIsolate*, GCType, GCCallbackFlags,
-                            void* data) {
-    static_cast<InnerPointerToCodeCache*>(data)->Flush();
-  }
-
   explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
     Flush();
-    isolate_->main_thread_local_heap()->AddGCEpilogueCallback(
-        FlushCallback, this, GCType::kGCTypeMarkSweepCompact);
-  }
-
-  ~InnerPointerToCodeCache() {
-    isolate_->main_thread_local_heap()->RemoveGCEpilogueCallback(FlushCallback,
-                                                                 this);
   }
 
   InnerPointerToCodeCache(const InnerPointerToCodeCache&) = delete;
@@ -53,7 +41,7 @@ class InnerPointerToCodeCache {
  private:
   InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
 
   static const int kInnerPointerToCodeCacheSize = 1024;
   InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];

@@ -70,6 +70,8 @@ class Code : public HeapObject {
   // Back-reference to the InstructionStream object.
   DECL_GETTER(instruction_stream, InstructionStream)
   DECL_RELAXED_GETTER(instruction_stream, InstructionStream)
+  DECL_ACCESSORS(raw_instruction_stream, Object)
+  DECL_RELAXED_GETTER(raw_instruction_stream, Object)
 
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -152,8 +154,12 @@ class Code : public HeapObject {
   // TurboFan optimizing compiler.
   inline bool is_turbofanned() const;
 
-  // [is_off_heap_trampoline]: For kind BUILTIN tells whether
-  // this is a trampoline to an off-heap builtin.
+  // [is_off_heap_trampoline]: For kind BUILTIN tells whether this is a
+  // trampoline to an off-heap builtin.
+  //
+  // This is identical to is_builtin, *except* when
+  // FLAG_interpreter_frames_native_stack is enabled where we may have physical
+  // (non-trampoline) InterpreterEntryTrampoline copies on the heap.
   inline bool is_off_heap_trampoline() const;
 
   // [uses_safepoint_table]: Whether this InstructionStream object uses
@@ -291,9 +297,6 @@ class Code : public HeapObject {
                 FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte);
 
  private:
-  DECL_ACCESSORS(raw_instruction_stream, Object)
-  DECL_RELAXED_GETTER(raw_instruction_stream, Object)
-
   inline void init_code_entry_point(Isolate* isolate, Address initial_value);
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
@@ -310,6 +313,61 @@ class Code : public HeapObject {
   friend Isolate;
 
   OBJECT_CONSTRUCTORS(Code, HeapObject);
+};
+
+// A Code object when used in situations where gc might be in progress. The
+// underlying pointer is guaranteed to be a Code object.
+//
+// Semantics around Code and InstructionStream objects are quite delicate when
+// GC is in progress and objects are currently being moved, because the
+// tightly-coupled object pair {Code,InstructionStream} are conceptually
+// treated as a single object in our codebase, and we frequently convert
+// between the two. However, during GC, extra care must be taken when accessing
+// the `Code::instruction_stream` and `InstructionStream::code` slots because
+// they may contain forwarding pointers.
+//
+// This class a) clarifies at use sites that we're dealing with a Code object
+// in a situation that requires special semantics, and b) safely implements
+// related functions.
+//
+// Note that both the underlying Code object and the associated
+// InstructionStream may be forwarding pointers, thus type checks and normal
+// (checked) casts do not work on GcSafeCode.
+class GcSafeCode : public HeapObject {
+ public:
+  DECL_CAST(GcSafeCode)
+
+  // Use with care, this casts away knowledge that we're dealing with a
+  // special-semantics object.
+  inline Code UnsafeCastToCode() const;
+
+  // Safe accessors (these just forward to Code methods).
+  inline Address InstructionStart() const;
+  inline Address InstructionEnd() const;
+  inline bool is_builtin() const;
+  inline Builtin builtin_id() const;
+  inline CodeKind kind() const;
+  inline bool is_interpreter_trampoline_builtin() const;
+  inline bool is_baseline_trampoline_builtin() const;
+  inline bool is_baseline_leave_frame_builtin() const;
+  inline bool is_off_heap_trampoline() const;
+  inline bool is_maglevved() const;
+  inline bool is_turbofanned() const;
+  inline bool has_tagged_outgoing_params() const;
+  inline bool marked_for_deoptimization() const;
+  inline Object raw_instruction_stream() const;
+  inline Address raw_instruction_start() const;
+
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+  inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  inline Address InstructionEnd(Isolate* isolate, Address pc) const;
+
+  // Accessors that had to be modified to be used in GC settings.
+  inline Address SafepointTableAddress() const;
+  inline int stack_slots() const;
+
+ private:
+  OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
 };
 
 // InstructionStream contains the instruction stream for V8-generated code
@@ -504,8 +562,6 @@ class InstructionStream : public HeapObject {
   // [code]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, HeapObject)
-  // As above but safe to use during GC.
-  inline Code GcSafeCode(AcquireLoadTag);
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -588,12 +644,6 @@ class InstructionStream : public HeapObject {
   // [is_off_heap_trampoline]: For kind BUILTIN tells whether
   // this is a trampoline to an off-heap builtin.
   inline bool is_off_heap_trampoline() const;
-
-  // Get the safepoint entry for the given pc.
-  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-
-  // Get the maglev safepoint entry for the given pc.
-  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during
@@ -869,92 +919,6 @@ V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
                                                Builtin builtin);
 V8_EXPORT_PRIVATE int OffHeapStackSlots(HeapObject code, Builtin builtin);
 
-// Represents result of the code by inner address (or pc) lookup. There are
-// three possible result cases:
-//
-//  - the pc does not correspond to any known code (in which case IsFound()
-//    will return false),
-//  - the pc corresponds to an existing InstructionStream object (in which case
-//  code() will
-//    return the respective InstructionStream object),
-//  - the pc corresponds to an embedded builtin (in which case the
-//    code() will return the Code object
-//    corresponding to the builtin).
-class CodeLookupResult {
- public:
-  // Not found.
-  CodeLookupResult() = default;
-
-  // A InstructionStream object was found.
-  explicit CodeLookupResult(InstructionStream code)
-      : instruction_stream_(code) {}
-
-  // An embedded builtin was found.
-  explicit CodeLookupResult(Code code) : code_(code) {}
-
-  bool IsFound() const { return IsInstructionStream() || IsCode(); }
-  bool IsInstructionStream() const { return !instruction_stream_.is_null(); }
-  bool IsCode() const { return !code_.is_null(); }
-
-  InstructionStream instruction_stream() const {
-    DCHECK(IsInstructionStream());
-    return instruction_stream_;
-  }
-
-  Code code() const {
-    DCHECK(IsCode());
-    return code_;
-  }
-
-  // Helper methods, in case of successful lookup return the result of
-  // respective accessor of the InstructionStream/Code object
-  // found. It's safe use them from GC.
-  inline CodeKind kind() const;
-  inline Builtin builtin_id() const;
-  inline bool has_tagged_outgoing_params() const;
-  inline bool has_handler_table() const;
-  inline bool is_baseline_trampoline_builtin() const;
-  inline bool is_interpreter_trampoline_builtin() const;
-  inline bool is_baseline_leave_frame_builtin() const;
-  inline bool is_maglevved() const;
-  inline bool is_turbofanned() const;
-  inline bool is_optimized_code() const;
-  inline int stack_slots() const;
-  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
-
-  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
-
-  inline SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc) const;
-  inline MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate,
-                                                      Address pc) const;
-
-  // Helper method, converts the successful lookup result to an AbstractCode
-  // object.
-  inline AbstractCode ToAbstractCode() const;
-
-  // Helper method, converts the successful lookup result to a InstructionStream
-  // object. It's not safe to be used from GC because conversion might perform a
-  // map check.
-  inline InstructionStream ToInstructionStream() const;
-
-  // Helper method, converts the successful lookup result to Code
-  // object. It's not safe to be used from GC because conversion might perform a
-  // map check.
-  inline Code ToCode() const;
-
-  bool operator==(const CodeLookupResult& other) const {
-    return instruction_stream_ == other.instruction_stream_ &&
-           code_ == other.code_;
-  }
-  bool operator!=(const CodeLookupResult& other) const {
-    return !operator==(other);
-  }
-
- private:
-  InstructionStream instruction_stream_;
-  Code code_;
-};
-
 class InstructionStream::OptimizedCodeIterator {
  public:
   explicit OptimizedCodeIterator(Isolate* isolate);
@@ -1021,6 +985,9 @@ class AbstractCode : public HeapObject {
 
   inline Builtin builtin_id(PtrComprCageBase cage_base);
 
+  // This is identical to is_builtin, *except* when
+  // FLAG_interpreter_frames_native_stack is enabled where we may have physical
+  // (non-trampoline) InterpreterEntryTrampoline copies on the heap.
   inline bool is_off_heap_trampoline(PtrComprCageBase cage_base);
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction(

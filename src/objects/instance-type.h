@@ -275,8 +275,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
   V(AbstractCode)                        \
-  V(FreeSpaceOrFiller)                   \
   V(ExternalString)                      \
+  V(FreeSpaceOrFiller)                   \
+  V(GcSafeCode)                          \
   V(InternalizedString)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \

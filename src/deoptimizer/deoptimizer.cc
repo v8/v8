@@ -229,7 +229,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
-  ActivationsFinder(Code topmost_optimized_code,
+  ActivationsFinder(GcSafeCode topmost_optimized_code,
                     bool safe_to_deopt_topmost_optimized_code) {
 #ifdef DEBUG
     topmost_ = topmost_optimized_code;
@@ -243,18 +243,18 @@ class ActivationsFinder : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->is_optimized()) {
-        Code code = it.frame()->LookupCode().ToCode();
+        GcSafeCode code = it.frame()->GcSafeLookupCode();
         if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
           // Obtain the trampoline to the deoptimizer call.
           int trampoline_pc;
           if (code.is_maglevved()) {
-            MaglevSafepointEntry safepoint =
-                code.GetMaglevSafepointEntry(isolate, it.frame()->pc());
+            MaglevSafepointEntry safepoint = MaglevSafepointTable::FindEntry(
+                isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           } else {
             SafepointEntry safepoint =
-                code.GetSafepointEntry(isolate, it.frame()->pc());
+                SafepointTable::FindEntry(isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           }
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
@@ -272,7 +272,7 @@ class ActivationsFinder : public ThreadVisitor {
 
  private:
 #ifdef DEBUG
-  Code topmost_;
+  GcSafeCode topmost_;
   bool safe_to_deopt_;
 #endif
 };
@@ -283,7 +283,7 @@ class ActivationsFinder : public ThreadVisitor {
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  Code topmost_optimized_code;
+  GcSafeCode topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
@@ -292,18 +292,18 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
        it.Advance()) {
     if (it.frame()->is_optimized()) {
-      Code code = it.frame()->LookupCode().ToCode();
+      GcSafeCode code = it.frame()->GcSafeLookupCode();
       JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       TraceFoundActivation(isolate, function);
       bool safe_if_deopt_triggered;
       if (code.is_maglevved()) {
         MaglevSafepointEntry safepoint =
-            code.GetMaglevSafepointEntry(isolate, it.frame()->pc());
+            MaglevSafepointTable::FindEntry(isolate, code, it.frame()->pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       } else {
         SafepointEntry safepoint =
-            code.GetSafepointEntry(isolate, it.frame()->pc());
+            SafepointTable::FindEntry(isolate, code, it.frame()->pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       }
 
@@ -448,8 +448,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   }
 
   DCHECK_NE(from, kNullAddress);
-  compiled_code_ = FindOptimizedCode();
+  compiled_code_ =
+      isolate_->heap()->FindCodeForInnerPointer(from).instruction_stream();
   DCHECK(!compiled_code_.is_null());
+  DCHECK(compiled_code_.IsInstructionStream());
 
   DCHECK(function.IsJSFunction());
 #ifdef DEBUG
@@ -497,11 +499,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     DCHECK_EQ(0, offset % kLazyDeoptExitSize);
     deopt_exit_index_ = eager_deopt_count + (offset / kLazyDeoptExitSize);
   }
-}
-
-InstructionStream Deoptimizer::FindOptimizedCode() {
-  CodeLookupResult lookup_result = isolate_->FindCodeObject(from_);
-  return lookup_result.instruction_stream();
 }
 
 Handle<JSFunction> Deoptimizer::function() const {

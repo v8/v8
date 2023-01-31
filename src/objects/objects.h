@@ -158,7 +158,8 @@
 //     - PropertyCell
 //     - PropertyArray
 //     - InstructionStream
-//     - AbstractCode, a wrapper around InstructionStream or BytecodeArray
+//     - AbstractCode, a wrapper around Code or BytecodeArray
+//     - GcSafeCode, a wrapper around Code
 //     - Map
 //     - Foreign
 //     - SmallOrderedHashTable

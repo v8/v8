@@ -6815,7 +6815,7 @@ void Heap::CreateObjectStats() {
   }
 }
 
-Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
+Map Heap::GcSafeMapOfHeapObject(HeapObject object) {
   PtrComprCageBase cage_base(isolate());
   MapWord map_word = object.map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
@@ -6824,45 +6824,52 @@ Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
   return map_word.ToMap();
 }
 
-CodeLookupResult Heap::GcSafeCastToCode(HeapObject object,
-                                        Address inner_pointer) {
-  InstructionStream code = InstructionStream::unchecked_cast(object);
-  DCHECK(!code.is_null());
-  DCHECK(GcSafeCodeContains(code, inner_pointer));
-  return CodeLookupResult{code};
+GcSafeCode Heap::GcSafeGetCodeFromInstructionStream(
+    HeapObject instruction_stream, Address inner_pointer) {
+  InstructionStream istream =
+      InstructionStream::unchecked_cast(instruction_stream);
+  DCHECK(!istream.is_null());
+  DCHECK(GcSafeInstructionStreamContains(istream, inner_pointer));
+  return GcSafeCode::unchecked_cast(istream.raw_code(kAcquireLoad));
 }
 
-bool Heap::GcSafeCodeContains(InstructionStream code, Address addr) {
-  Map map = GcSafeMapOfCodeSpaceObject(code);
-  DCHECK(map == ReadOnlyRoots(this).instruction_stream_map());
-  Builtin maybe_builtin =
+bool Heap::GcSafeInstructionStreamContains(InstructionStream instruction_stream,
+                                           Address addr) {
+  Map map = GcSafeMapOfHeapObject(instruction_stream);
+  DCHECK_EQ(map, ReadOnlyRoots(this).instruction_stream_map());
+
+  Builtin builtin_lookup_result =
       OffHeapInstructionStream::TryLookupCode(isolate(), addr);
-  if (Builtins::IsBuiltinId(maybe_builtin) &&
-      code.builtin_id() == maybe_builtin) {
-    return true;
+  if (Builtins::IsBuiltinId(builtin_lookup_result)) {
+    // Builtins don't have InstructionStream objects.
+    DCHECK(!Builtins::IsBuiltinId(instruction_stream.builtin_id()));
+    return false;
   }
-  Address start = code.address();
-  Address end = code.address() + code.SizeFromMap(map);
+
+  Address start = instruction_stream.address();
+  Address end = start + instruction_stream.SizeFromMap(map);
   return start <= addr && addr < end;
 }
 
-CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(
-    Address inner_pointer, bool die_on_unsuccessful_lookup) {
+base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
+    Address inner_pointer) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return CodeLookupResult{isolate()->builtins()->code(maybe_builtin)};
+    return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
   }
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
-    return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
+    return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
+                                              inner_pointer);
   }
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
-    return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
+    return GcSafeGetCodeFromInstructionStream(large_page->GetObject(),
+                                              inner_pointer);
   }
 
   if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
@@ -6873,59 +6880,54 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(
     Address start =
         page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
             inner_pointer);
-    return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
+    return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
+                                              inner_pointer);
   }
 
-  if (!die_on_unsuccessful_lookup) return {};
-
-  // Put useful info on the stack for debugging and crash the process.
-
-  // TODO(1241665): Remove once the issue is solved.
-  CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
-  void* code_range_embedded_blob_code_copy =
-      code_range ? code_range->embedded_blob_code_copy() : nullptr;
-  Address flags = (isolate()->is_short_builtin_calls_enabled() ? 1 : 0) |
-                  (code_range ? 2 : 0) |
-                  static_cast<Address>(max_old_generation_size());
-
-  isolate()->PushParamsAndDie(
-      reinterpret_cast<void*>(inner_pointer),
-      const_cast<uint8_t*>(isolate()->embedded_blob_code()),
-      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
-      code_range_embedded_blob_code_copy,
-      reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()),
-      reinterpret_cast<void*>(flags));
-
-  UNREACHABLE();
+  return {};
 }
 
-CodeLookupResult Heap::GcSafeFindCodeForInnerPointerForPrinting(
+Code Heap::FindCodeForInnerPointer(Address inner_pointer) {
+  return GcSafeFindCodeForInnerPointer(inner_pointer).UnsafeCastToCode();
+}
+
+GcSafeCode Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+  base::Optional<GcSafeCode> maybe_code =
+      GcSafeTryFindCodeForInnerPointer(inner_pointer);
+  if (V8_UNLIKELY(!maybe_code.has_value())) {
+    // Put useful info on the stack for debugging and crash the process.
+
+    // TODO(1241665): Remove once the issue is solved.
+    CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+    void* code_range_embedded_blob_code_copy =
+        code_range ? code_range->embedded_blob_code_copy() : nullptr;
+    Address flags = (isolate()->is_short_builtin_calls_enabled() ? 1 : 0) |
+                    (code_range ? 2 : 0) |
+                    static_cast<Address>(max_old_generation_size());
+
+    isolate()->PushParamsAndDie(
+        reinterpret_cast<void*>(inner_pointer),
+        const_cast<uint8_t*>(isolate()->embedded_blob_code()),
+        const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
+        code_range_embedded_blob_code_copy,
+        reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()),
+        reinterpret_cast<void*>(flags));
+
+    UNREACHABLE();
+  }
+
+  return GcSafeCode::unchecked_cast(maybe_code.value());
+}
+
+base::Optional<Code> Heap::TryFindCodeForInnerPointerForPrinting(
     Address inner_pointer) {
   if (InSpaceSlow(inner_pointer, i::CODE_SPACE) ||
       InSpaceSlow(inner_pointer, i::CODE_LO_SPACE) ||
       i::OffHeapInstructionStream::PcIsOffHeap(isolate(), inner_pointer)) {
-    CodeLookupResult result =
-        GcSafeFindCodeForInnerPointer(inner_pointer, false);
-    if (result.IsFound()) return result;
-  }
-
-  // During normal execution builtins from RO_SPACE can't appear on the stack
-  // as instruction address because RO_SPACE is not executable. However during
-  // debugging "jco" macro might be called with an address from a readonly
-  // builtin trampoline.
-
-  if (read_only_space()->ContainsSlow(inner_pointer)) {
-    // TODO(delphick): Possibly optimize this as it iterates over all pages in
-    // RO_SPACE instead of just the one containing the address.
-    ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-    for (HeapObject object = iterator.Next(); !object.is_null();
-         object = iterator.Next()) {
-      if (!object.IsInstructionStream()) continue;
-      InstructionStream code = InstructionStream::cast(object);
-      if (inner_pointer >= code.address() &&
-          inner_pointer < code.address() + code.Size()) {
-        return CodeLookupResult{code};
-      }
+    base::Optional<GcSafeCode> maybe_code =
+        GcSafeTryFindCodeForInnerPointer(inner_pointer);
+    if (maybe_code.has_value()) {
+      return maybe_code->UnsafeCastToCode();
     }
   }
   return {};

@@ -224,23 +224,9 @@ void InstructionStream::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
   }
 }
 
-SafepointEntry InstructionStream::GetSafepointEntry(Isolate* isolate,
-                                                    Address pc) {
-  DCHECK(!is_maglevved());
-  SafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   DCHECK(!is_maglevved());
   SafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
-MaglevSafepointEntry InstructionStream::GetMaglevSafepointEntry(
-    Isolate* isolate, Address pc) {
-  DCHECK(is_maglevved());
-  MaglevSafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
 

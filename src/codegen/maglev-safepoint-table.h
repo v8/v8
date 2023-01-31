@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+class GcSafeCode;
+
 class MaglevSafepointEntry : public SafepointEntryBase {
  public:
   static constexpr int kNoDeoptIndex = -1;
@@ -114,10 +116,14 @@ class MaglevSafepointTable {
 
   // Returns the entry for the given pc.
   MaglevSafepointEntry FindEntry(Address pc) const;
+  static MaglevSafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+                                        Address pc);
 
   void Print(std::ostream&) const;
 
  private:
+  MaglevSafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+
   // Layout information.
   static constexpr int kLengthOffset = 0;
   static constexpr int kEntryConfigurationOffset = kLengthOffset + kIntSize;

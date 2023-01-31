@@ -1545,30 +1545,20 @@ class Heap {
   // Stack frame support. ======================================================
   // ===========================================================================
 
-  // Searches for compiled code or embedded builtins code object by given
-  // interior pointer.
-  // Crashes process on unsuccessful lookup if {die_on_unsuccessful_lookup}
-  // is true. All code lookups made by GC must succeed.
-  CodeLookupResult GcSafeFindCodeForInnerPointer(
-      Address inner_pointer, bool die_on_unsuccessful_lookup = true);
-
-  // Same as GcSafeFindCodeForInnerPointer() but it doesn't crash the process
-  // on unsuccessful lookup.
-  // It's intended to be used only from gdb's 'jco' macro.
-  CodeLookupResult GcSafeFindCodeForInnerPointerForPrinting(
+  // Searches for a Code object by the given interior pointer.
+  V8_EXPORT_PRIVATE Code FindCodeForInnerPointer(Address inner_pointer);
+  // Use the GcSafe family of functions if called while GC is in progress.
+  GcSafeCode GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  base::Optional<GcSafeCode> GcSafeTryFindCodeForInnerPointer(
+      Address inner_pointer);
+  // Only intended for use from the `jco` gdb macro.
+  base::Optional<Code> TryFindCodeForInnerPointerForPrinting(
       Address inner_pointer);
 
-  // Returns true if {addr} is contained within {code} and false otherwise.
-  // Mostly useful for debugging.
-  bool GcSafeCodeContains(InstructionStream code, Address addr);
-
-  // Casts a heap object to a code object and checks if the inner_pointer is
-  // within the object.
-  CodeLookupResult GcSafeCastToCode(HeapObject object, Address inner_pointer);
-
-  // Returns the map of an object. Can be used during garbage collection, i.e.
-  // it supports a forwarded map. Fails if the map is not the code map.
-  Map GcSafeMapOfCodeSpaceObject(HeapObject object);
+  // Returns true if {addr} is contained within {instruction_stream} and false
+  // otherwise. Mostly useful for debugging.
+  bool GcSafeInstructionStreamContains(InstructionStream instruction_stream,
+                                       Address addr);
 
   // ===========================================================================
   // Sweeping. =================================================================
@@ -1885,6 +1875,14 @@ class Heap {
 
   void InvokeIncrementalMarkingPrologueCallbacks();
   void InvokeIncrementalMarkingEpilogueCallbacks();
+
+  // Casts a heap object to an InstructionStream, DCHECKs that the
+  // inner_pointer is within the object, and returns the attached Code object.
+  GcSafeCode GcSafeGetCodeFromInstructionStream(HeapObject instruction_stream,
+                                                Address inner_pointer);
+  // Returns the map of a HeapObject. Can be used during garbage collection,
+  // i.e. it supports a forwarded map.
+  Map GcSafeMapOfHeapObject(HeapObject object);
 
   // ===========================================================================
   // Actual GC. ================================================================

@@ -29,6 +29,10 @@ SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, GcSafeCode code)
+    : SafepointTable(code.InstructionStart(isolate, pc),
+                     code.SafepointTableAddress()) {}
+
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
     : SafepointTable(
@@ -76,6 +80,13 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
     }
   }
   UNREACHABLE();
+}
+
+// static
+SafepointEntry SafepointTable::FindEntry(Isolate* isolate, GcSafeCode code,
+                                         Address pc) {
+  SafepointTable table(isolate, pc, code);
+  return table.FindEntry(pc);
 }
 
 void SafepointTable::Print(std::ostream& os) const {

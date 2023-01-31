@@ -1561,9 +1561,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // with the provided mask.
   int GenerateIdentityHash(uint32_t mask);
 
-  // Given an address occupied by a live code object, return that object.
-  CodeLookupResult FindCodeObject(Address a);
-
   int NextOptimizationId() {
     int id = next_optimization_id_++;
     if (!Smi::IsValid(next_optimization_id_)) {

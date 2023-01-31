@@ -120,6 +120,7 @@ class ZoneForwardList;
   V(Foreign)                                    \
   V(FreeSpace)                                  \
   V(Function)                                   \
+  V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
   V(HandlerTable)                               \
   V(HeapNumber)                                 \

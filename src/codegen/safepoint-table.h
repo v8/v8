@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+class GcSafeCode;
+
 namespace wasm {
 class WasmCode;
 }  // namespace wasm
@@ -113,10 +115,14 @@ class SafepointTable {
 
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
+  static SafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+                                  Address pc);
 
   void Print(std::ostream&) const;
 
  private:
+  SafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+
   // Layout information.
   static constexpr int kLengthOffset = 0;
   static constexpr int kEntryConfigurationOffset = kLengthOffset + kIntSize;

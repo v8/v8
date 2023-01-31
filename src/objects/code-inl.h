@@ -36,16 +36,54 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
-NEVER_READ_ONLY_SPACE_IMPL(Code)
+OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
+NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 CAST_ACCESSOR(AbstractCode)
+CAST_ACCESSOR(GcSafeCode)
 CAST_ACCESSOR(InstructionStream)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
+
+Code GcSafeCode::UnsafeCastToCode() const {
+  return Code::unchecked_cast(*this);
+}
+
+#define GCSAFE_CODE_FWD_ACCESSOR(ReturnType, Name) \
+  ReturnType GcSafeCode::Name() const { return UnsafeCastToCode().Name(); }
+GCSAFE_CODE_FWD_ACCESSOR(Address, InstructionStart)
+GCSAFE_CODE_FWD_ACCESSOR(Address, InstructionEnd)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_builtin)
+GCSAFE_CODE_FWD_ACCESSOR(Builtin, builtin_id)
+GCSAFE_CODE_FWD_ACCESSOR(CodeKind, kind)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_interpreter_trampoline_builtin)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_baseline_trampoline_builtin)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_baseline_leave_frame_builtin)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_off_heap_trampoline)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_maglevved)
+GCSAFE_CODE_FWD_ACCESSOR(bool, is_turbofanned)
+GCSAFE_CODE_FWD_ACCESSOR(bool, has_tagged_outgoing_params)
+GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
+GCSAFE_CODE_FWD_ACCESSOR(Object, raw_instruction_stream)
+GCSAFE_CODE_FWD_ACCESSOR(Address, raw_instruction_start)
+#undef GCSAFE_CODE_FWD_ACCESSOR
+
+int GcSafeCode::GetOffsetFromInstructionStart(Isolate* isolate,
+                                              Address pc) const {
+  return UnsafeCastToCode().GetOffsetFromInstructionStart(isolate, pc);
+}
+
+Address GcSafeCode::InstructionStart(Isolate* isolate, Address pc) const {
+  return UnsafeCastToCode().InstructionStart(isolate, pc);
+}
+
+Address GcSafeCode::InstructionEnd(Isolate* isolate, Address pc) const {
+  return UnsafeCastToCode().InstructionEnd(isolate, pc);
+}
 
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
@@ -197,92 +235,81 @@ INT32_ACCESSORS(InstructionStream, unwinding_info_offset,
 
 // Same as ACCESSORS_CHECKED2 macro but with InstructionStream as a host and
 // using main_cage_base() for computing the base.
-#define CODE_ACCESSORS_CHECKED2(name, type, offset, get_condition,        \
-                                set_condition)                            \
-  type InstructionStream::name() const {                                  \
-    PtrComprCageBase cage_base = main_cage_base();                        \
-    return InstructionStream::name(cage_base);                            \
-  }                                                                       \
-  type InstructionStream::name(PtrComprCageBase cage_base) const {        \
-    type value = TaggedField<type, offset>::load(cage_base, *this);       \
-    DCHECK(get_condition);                                                \
-    return value;                                                         \
-  }                                                                       \
-  void InstructionStream::set_##name(type value, WriteBarrierMode mode) { \
-    DCHECK(set_condition);                                                \
-    TaggedField<type, offset>::store(*this, value);                       \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
+#define INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset,           \
+                                              get_condition, set_condition) \
+  type InstructionStream::name() const {                                    \
+    PtrComprCageBase cage_base = main_cage_base();                          \
+    return InstructionStream::name(cage_base);                              \
+  }                                                                         \
+  type InstructionStream::name(PtrComprCageBase cage_base) const {          \
+    type value = TaggedField<type, offset>::load(cage_base, *this);         \
+    DCHECK(get_condition);                                                  \
+    return value;                                                           \
+  }                                                                         \
+  void InstructionStream::set_##name(type value, WriteBarrierMode mode) {   \
+    DCHECK(set_condition);                                                  \
+    TaggedField<type, offset>::store(*this, value);                         \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
   }
 
 // Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with InstructionStream
 // as a host and using main_cage_base(kRelaxedLoad) for computing the base.
-#define RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2(name, type, offset,           \
-                                                get_condition, set_condition) \
-  type InstructionStream::name(AcquireLoadTag tag) const {                    \
-    PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);                \
-    return InstructionStream::name(cage_base, tag);                           \
-  }                                                                           \
-  type InstructionStream::name(PtrComprCageBase cage_base, AcquireLoadTag)    \
-      const {                                                                 \
-    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this);   \
-    DCHECK(get_condition);                                                    \
-    return value;                                                             \
-  }                                                                           \
-  void InstructionStream::set_##name(type value, ReleaseStoreTag,             \
-                                     WriteBarrierMode mode) {                 \
-    DCHECK(set_condition);                                                    \
-    TaggedField<type, offset>::Release_Store(*this, value);                   \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
+#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(              \
+    name, type, offset, get_condition, set_condition)                       \
+  type InstructionStream::name(AcquireLoadTag tag) const {                  \
+    PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);              \
+    return InstructionStream::name(cage_base, tag);                         \
+  }                                                                         \
+  type InstructionStream::name(PtrComprCageBase cage_base, AcquireLoadTag)  \
+      const {                                                               \
+    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
+    DCHECK(get_condition);                                                  \
+    return value;                                                           \
+  }                                                                         \
+  void InstructionStream::set_##name(type value, ReleaseStoreTag,           \
+                                     WriteBarrierMode mode) {               \
+    DCHECK(set_condition);                                                  \
+    TaggedField<type, offset>::Release_Store(*this, value);                 \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
   }
 
-#define CODE_ACCESSORS(name, type, offset) \
-  CODE_ACCESSORS_CHECKED2(name, type, offset, true, true)
+#define INSTRUCTION_STREAM_ACCESSORS(name, type, offset) \
+  INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset, true, true)
 
-#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)                 \
-  RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2(name, type, offset,              \
-                                          !ObjectInYoungGeneration(value), \
+#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(name, type, offset) \
+  RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(                 \
+      name, type, offset, !ObjectInYoungGeneration(value),               \
+      !ObjectInYoungGeneration(value))
+
+INSTRUCTION_STREAM_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+
+INSTRUCTION_STREAM_ACCESSORS_CHECKED2(
+    deoptimization_data, FixedArray, kDeoptimizationDataOrInterpreterDataOffset,
+    kind() != CodeKind::BASELINE,
+    kind() != CodeKind::BASELINE && !ObjectInYoungGeneration(value))
+INSTRUCTION_STREAM_ACCESSORS_CHECKED2(
+    bytecode_or_interpreter_data, HeapObject,
+    kDeoptimizationDataOrInterpreterDataOffset, kind() == CodeKind::BASELINE,
+    kind() == CodeKind::BASELINE && !ObjectInYoungGeneration(value))
+
+INSTRUCTION_STREAM_ACCESSORS_CHECKED2(source_position_table, ByteArray,
+                                      kPositionTableOffset,
+                                      kind() != CodeKind::BASELINE,
+                                      kind() != CodeKind::BASELINE &&
+                                          !ObjectInYoungGeneration(value))
+INSTRUCTION_STREAM_ACCESSORS_CHECKED2(bytecode_offset_table, ByteArray,
+                                      kPositionTableOffset,
+                                      kind() == CodeKind::BASELINE,
+                                      kind() == CodeKind::BASELINE &&
                                           !ObjectInYoungGeneration(value))
 
-CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
-
-CODE_ACCESSORS_CHECKED2(deoptimization_data, FixedArray,
-                        kDeoptimizationDataOrInterpreterDataOffset,
-                        kind() != CodeKind::BASELINE,
-                        kind() != CodeKind::BASELINE &&
-                            !ObjectInYoungGeneration(value))
-CODE_ACCESSORS_CHECKED2(bytecode_or_interpreter_data, HeapObject,
-                        kDeoptimizationDataOrInterpreterDataOffset,
-                        kind() == CodeKind::BASELINE,
-                        kind() == CodeKind::BASELINE &&
-                            !ObjectInYoungGeneration(value))
-
-CODE_ACCESSORS_CHECKED2(source_position_table, ByteArray, kPositionTableOffset,
-                        kind() != CodeKind::BASELINE,
-                        kind() != CodeKind::BASELINE &&
-                            !ObjectInYoungGeneration(value))
-CODE_ACCESSORS_CHECKED2(bytecode_offset_table, ByteArray, kPositionTableOffset,
-                        kind() == CodeKind::BASELINE,
-                        kind() == CodeKind::BASELINE &&
-                            !ObjectInYoungGeneration(value))
-
 // Concurrent marker needs to access kind specific flags in code.
-RELEASE_ACQUIRE_CODE_ACCESSORS(code, Code, kCodeOffset)
-RELEASE_ACQUIRE_CODE_ACCESSORS(raw_code, HeapObject, kCodeOffset)
-#undef CODE_ACCESSORS
-#undef CODE_ACCESSORS_CHECKED2
-#undef RELEASE_ACQUIRE_CODE_ACCESSORS
-#undef RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2
-
-Code InstructionStream::GcSafeCode(AcquireLoadTag tag) {
-  HeapObject heap_obj = raw_code(tag);
-  // Currently this function is only expected to be called from MARK_COMPACT.
-  SLOW_DCHECK(GetIsolate()->heap()->gc_state() == Heap::MARK_COMPACT);
-  MapWord map_word = heap_obj.map_word(kRelaxedLoad);
-  if (map_word.IsForwardingAddress()) {
-    heap_obj = map_word.ToForwardingAddress(heap_obj);
-  }
-  return Code::cast(heap_obj);
-}
+RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
+RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, HeapObject, kCodeOffset)
+#undef INSTRUCTION_STREAM_ACCESSORS
+#undef INSTRUCTION_STREAM_ACCESSORS_CHECKED2
+#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
+#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2
 
 PtrComprCageBase InstructionStream::main_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -360,71 +387,6 @@ inline InstructionStream FromCode(Code code, Isolate* isolate,
 #else
   return FromCode(code, GetPtrComprCageBase(code), tag);
 #endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-#define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)            \
-  Type CodeLookupResult::name() const {                        \
-    DCHECK(IsFound());                                         \
-    return IsInstructionStream() ? instruction_stream().name() \
-                                 : code().name();              \
-  }
-
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(kind, CodeKind)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(builtin_id, Builtin)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(has_tagged_outgoing_params, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(has_handler_table, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_baseline_trampoline_builtin, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_interpreter_trampoline_builtin, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_baseline_leave_frame_builtin, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_maglevved, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_turbofanned, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_optimized_code, bool)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(stack_slots, int)
-CODE_LOOKUP_RESULT_FWD_ACCESSOR(GetBuiltinCatchPrediction,
-                                HandlerTable::CatchPrediction)
-
-#undef CODE_LOOKUP_RESULT_FWD_ACCESSOR
-
-int CodeLookupResult::GetOffsetFromInstructionStart(Isolate* isolate,
-                                                    Address pc) const {
-  DCHECK(IsFound());
-  if (IsCode()) {
-    return code().GetOffsetFromInstructionStart(isolate, pc);
-  }
-  return instruction_stream().GetOffsetFromInstructionStart(isolate, pc);
-}
-
-SafepointEntry CodeLookupResult::GetSafepointEntry(Isolate* isolate,
-                                                   Address pc) const {
-  DCHECK(IsFound());
-  if (IsCode()) {
-    return code().GetSafepointEntry(isolate, pc);
-  }
-  return instruction_stream().GetSafepointEntry(isolate, pc);
-}
-
-MaglevSafepointEntry CodeLookupResult::GetMaglevSafepointEntry(
-    Isolate* isolate, Address pc) const {
-  DCHECK(IsFound());
-  if (IsCode()) {
-    return code().GetMaglevSafepointEntry(isolate, pc);
-  }
-  return instruction_stream().GetMaglevSafepointEntry(isolate, pc);
-}
-
-AbstractCode CodeLookupResult::ToAbstractCode() const {
-  DCHECK(IsFound());
-  return IsCode() ? AbstractCode::cast(code())
-                  : AbstractCode::cast(instruction_stream().code(kAcquireLoad));
-}
-
-InstructionStream CodeLookupResult::ToInstructionStream() const {
-  DCHECK(IsFound());
-  return IsInstructionStream() ? instruction_stream() : FromCode(code());
-}
-
-Code CodeLookupResult::ToCode() const {
-  return IsCode() ? code() : i::ToCode(instruction_stream());
 }
 
 void InstructionStream::WipeOutHeader() {
@@ -545,7 +507,7 @@ Address InstructionStream::InstructionEnd(Isolate* isolate, Address pc) const {
 Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapInstructionEnd(isolate, pc)
-             : instruction_stream().raw_instruction_end();
+             : raw_instruction_end();
 }
 
 int InstructionStream::GetOffsetFromInstructionStart(Isolate* isolate,
@@ -605,6 +567,15 @@ Address Code::SafepointTableAddress() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapSafepointTableAddress(*this, builtin_id())
              : instruction_stream().raw_safepoint_table_address();
+}
+
+Address GcSafeCode::SafepointTableAddress() const {
+  Code unsafe_this = UnsafeCastToCode();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapSafepointTableAddress(unsafe_this, builtin_id())
+             : InstructionStream::unchecked_cast(
+                   unsafe_this.raw_instruction_stream(kRelaxedLoad))
+                   .raw_safepoint_table_address();
 }
 
 int Code::safepoint_table_size() const {
@@ -1011,6 +982,15 @@ int Code::stack_slots() const {
              : instruction_stream().stack_slots();
 }
 
+int GcSafeCode::stack_slots() const {
+  Code unsafe_this = UnsafeCastToCode();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapStackSlots(unsafe_this, builtin_id())
+             : InstructionStream::unchecked_cast(
+                   unsafe_this.raw_instruction_stream(kRelaxedLoad))
+                   .stack_slots();
+}
+
 bool Code::marked_for_deoptimization() const {
   DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = kind_specific_flags(kRelaxedLoad);
@@ -1252,16 +1232,6 @@ void Code::set_raw_instruction_stream(Object value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kInstructionStreamOffset, value, mode);
 }
 
-Object Code::raw_instruction_stream(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = code_cage_base();
-  return Code::raw_instruction_stream(cage_base, tag);
-}
-
-Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
-                                    RelaxedLoadTag) const {
-  return ExternalCodeField<Object>::Relaxed_Load(cage_base, *this);
-}
-
 PtrComprCageBase Code::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
   Isolate* isolate = GetIsolateFromWritableObject(*this);
@@ -1289,6 +1259,17 @@ InstructionStream Code::instruction_stream(PtrComprCageBase cage_base,
                                            RelaxedLoadTag tag) const {
   DCHECK(!is_off_heap_trampoline());
   return ExternalCodeField<InstructionStream>::Relaxed_Load(cage_base, *this);
+}
+
+Object Code::raw_instruction_stream(RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = code_cage_base();
+  return Code::raw_instruction_stream(cage_base, tag);
+}
+
+Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
+                                    RelaxedLoadTag tag) const {
+  DCHECK(!is_off_heap_trampoline());
+  return ExternalCodeField<HeapObject>::Relaxed_Load(cage_base, *this);
 }
 
 DEF_GETTER(Code, code_entry_point, Address) {
@@ -1326,7 +1307,9 @@ Address Code::InstructionStart() const { return code_entry_point(); }
 
 Address Code::raw_instruction_start() const { return code_entry_point(); }
 Address Code::raw_instruction_end() const {
-  return instruction_stream().raw_instruction_end();
+  DCHECK(!is_off_heap_trampoline());
+  return InstructionStream::unchecked_cast(raw_instruction_stream())
+      .raw_instruction_end();
 }
 int Code::raw_instruction_size() const {
   return instruction_stream().raw_instruction_size();

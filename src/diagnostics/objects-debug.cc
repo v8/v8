@@ -1092,43 +1092,41 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 void Code::CodeVerify(Isolate* isolate) {
   CHECK(IsCode());
   if (raw_instruction_stream() != Smi::zero()) {
-    InstructionStream code = this->instruction_stream();
-    CHECK_EQ(code.kind(), kind());
-    CHECK_EQ(code.builtin_id(), builtin_id());
+    InstructionStream istream = instruction_stream();
+    CHECK_EQ(istream.kind(), kind());
+    CHECK_EQ(istream.builtin_id(), builtin_id());
     // When v8_flags.interpreted_frames_native_stack is enabled each
     // interpreted function gets its own copy of the
     // InterpreterEntryTrampoline. Thus, there could be InstructionStream'ful
     // builtins.
     CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
                   builtin_id() == Builtin::kInterpreterEntryTrampoline);
-    CHECK_EQ(code.code(kAcquireLoad), *this);
+    CHECK_EQ(istream.code(kAcquireLoad), *this);
 
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-      if (code.InstructionStart() == code_entry_point()) {
+      if (istream.InstructionStart() == code_entry_point()) {
         // Most common case, all good.
       } else {
         // When shared pointer compression cage is enabled and it has the
         // embedded code blob copy then the
-        // InstructionStream::InstructionStart() might return the address of the
-        // remapped builtin regardless of whether the builtins copy existed when
-        // the code_entry_point value was cached in the Code (see
+        // InstructionStream::InstructionStart() might return the address of
+        // the remapped builtin regardless of whether the builtins copy existed
+        // when the code_entry_point value was cached in the Code (see
         // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
-        // InstructionStream object lookup via code_entry_point value to ensure
-        // it corresponds to the same InstructionStream object associated with
-        // this Code.
-        CodeLookupResult lookup_result =
-            isolate->heap()->GcSafeFindCodeForInnerPointer(code_entry_point());
-        CHECK(lookup_result.IsFound());
-        CHECK_EQ(lookup_result.ToInstructionStream(), code);
+        // Code object lookup via code_entry_point value to ensure it
+        // corresponds to this current Code object.
+        Code lookup_result =
+            isolate->heap()->FindCodeForInnerPointer(code_entry_point());
+        CHECK_EQ(lookup_result, *this);
       }
     } else {
-      CHECK_EQ(code.InstructionStart(), code_entry_point());
+      CHECK_EQ(istream.InstructionStart(), code_entry_point());
     }
 #else
-    CHECK_EQ(code.InstructionStart(), code_entry_point());
+    CHECK_EQ(istream.InstructionStart(), code_entry_point());
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   }
 }

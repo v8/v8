@@ -297,19 +297,20 @@ class StackFrame {
   // Get the type of this frame.
   virtual Type type() const = 0;
 
-  // Get the code associated with this frame. The result might be a
-  // InstructionStream object, a Code object or an empty value.
+  // Get the code associated with this frame. The result might be a Code object
+  // or an empty value.
   // This method is used by Isolate::PushStackTraceAndDie() for collecting a
   // stack trace on fatal error and thus it might be called in the middle of GC
   // and should be as safe as possible.
   virtual HeapObject unchecked_code() const = 0;
 
   // Search for the code associated with this frame.
-  V8_EXPORT_PRIVATE CodeLookupResult LookupCode() const;
+  V8_EXPORT_PRIVATE Code LookupCode() const;
+  V8_EXPORT_PRIVATE GcSafeCode GcSafeLookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* pc_address,
-                 Address* constant_pool_address, CodeLookupResult holder) const;
+                 Address* constant_pool_address, GcSafeCode holder) const;
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
@@ -508,8 +509,6 @@ class CommonFrame : public StackFrame {
   inline void SetExpression(int index, Object value);
   int ComputeExpressionsCount() const;
 
-  bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;
-
   Address GetCallerStackPointer() const override;
 
   // Build a list with summaries for this frame including all inlined frames.
@@ -524,6 +523,8 @@ class CommonFrame : public StackFrame {
 
  protected:
   inline explicit CommonFrame(StackFrameIteratorBase* iterator);
+
+  bool HasTaggedOutgoingParams(GcSafeCode code_lookup) const;
 
   void ComputeCallerState(State* state) const override;
 
@@ -641,10 +642,6 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const override;
-
-  // Determines whether this frame includes inlined activations. To get details
-  // about the inlined frames use {GetFunctions} and {Summarize}.
-  bool HasInlinedFrames() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;

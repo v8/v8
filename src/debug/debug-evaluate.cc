@@ -1240,10 +1240,8 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     for (RelocIterator it(code, mode); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-      CodeLookupResult lookup_result =
-          isolate->heap()->GcSafeFindCodeForInnerPointer(
-              rinfo->target_address());
-      CHECK(lookup_result.IsFound());
+      Code lookup_result =
+          isolate->heap()->FindCodeForInnerPointer(rinfo->target_address());
       Builtin callee = lookup_result.builtin_id();
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;

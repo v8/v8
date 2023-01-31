@@ -3036,31 +3036,20 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  i::CodeLookupResult lookup_result =
-      isolate->heap()->GcSafeFindCodeForInnerPointerForPrinting(address);
-  if (!lookup_result.IsFound()) {
+  v8::base::Optional<i::Code> lookup_result =
+      isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
+  if (!lookup_result.has_value()) {
     i::PrintF(
-        "%p is not within the current isolate's code, read_only or embedded "
-        "spaces\n",
+        "%p is not within the current isolate's code or embedded spaces\n",
         object);
     return;
   }
 
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  if (lookup_result.IsCode()) {
-    i::Code code = i::Code::cast(lookup_result.code());
-    code.Disassemble(nullptr, os, isolate, address);
-  } else {
-    lookup_result.instruction_stream().Disassemble(nullptr, os, isolate,
-                                                   address);
-  }
+  lookup_result->Disassemble(nullptr, os, isolate, address);
 #else   // ENABLE_DISASSEMBLER
-  if (lookup_result.IsCode()) {
-    lookup_result.code().Print();
-  } else {
-    lookup_result.instruction_stream().Print();
-  }
+  lookup_result->Print();
 #endif  // ENABLE_DISASSEMBLER
 }
 

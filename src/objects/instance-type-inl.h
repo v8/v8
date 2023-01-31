@@ -145,6 +145,12 @@ V8_INLINE bool IsThinString(Map map_object) {
   return IsThinString(map_object.instance_type());
 }
 
+V8_INLINE constexpr bool IsGcSafeCode(InstanceType instance_type) {
+  return IsCode(instance_type);
+}
+
+V8_INLINE bool IsGcSafeCode(Map map_object) { return IsCode(map_object); }
+
 V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
   return IsBytecodeArray(instance_type) || IsCode(instance_type);
 }

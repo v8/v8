@@ -503,8 +503,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       // Check that we can find the right code object.
       InstructionStream code =
           InstructionStream::GetCodeFromTargetAddress(addr);
-      CodeLookupResult lookup_result = isolate->FindCodeObject(addr);
-      CHECK(lookup_result.IsFound());
+      Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
       CHECK_EQ(code.address(), lookup_result.instruction_stream().address());
       break;
     }
@@ -512,8 +511,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case INTERNAL_REFERENCE_ENCODED: {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
-      CodeLookupResult lookup_result = isolate->FindCodeObject(pc);
-      CHECK(lookup_result.IsFound());
+      Code lookup_result = isolate->heap()->FindCodeForInnerPointer(pc);
       InstructionStream code = lookup_result.instruction_stream();
       CHECK(target >= code.InstructionStart(isolate, pc));
       CHECK(target <= code.InstructionEnd(isolate, pc));

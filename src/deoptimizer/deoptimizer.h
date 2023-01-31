@@ -150,7 +150,6 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               Address from, int fp_to_sp_delta);
-  InstructionStream FindOptimizedCode();
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();

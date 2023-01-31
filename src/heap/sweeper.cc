@@ -759,8 +759,9 @@ int Sweeper::RawSweep(
                                          *active_system_pages_after_sweeping);
   }
 
-  if (code_object_registry)
+  if (code_object_registry) {
     code_object_registry->ReinitializeFrom(std::move(code_objects));
+  }
   p->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
 
   return static_cast<int>(
