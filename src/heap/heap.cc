@@ -6853,32 +6853,33 @@ bool Heap::GcSafeInstructionStreamContains(InstructionStream instruction_stream,
 
 base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
     Address inner_pointer) {
-  // Embedded builtins.
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
     return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
   }
 
-  // Code space.
-  if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
-    Address start = Page::FromAddress(inner_pointer)
-                        ->GetCodeObjectRegistry()
-                        ->GetCodeObjectStartFromInnerAddress(inner_pointer);
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
     return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
                                               inner_pointer);
   }
 
-  // Code large object space.
+  // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
     return GcSafeGetCodeFromInstructionStream(large_page->GetObject(),
                                               inner_pointer);
   }
 
-  // Third-party heap.
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
+  if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
+    // Iterate through the page until we reach the end or find an object
+    // starting after the inner pointer.
+    Page* page = Page::FromAddress(inner_pointer);
+
+    Address start =
+        page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
+            inner_pointer);
     return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
                                               inner_pointer);
   }
