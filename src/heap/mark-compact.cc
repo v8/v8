@@ -4173,10 +4173,6 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
 
     // GCs need to filter invalidated slots.
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
-    // TODO(v8:12612): This DCHECK holds for MinorMC because MinorMC doesn't use
-    // incremental/concurrent marking, and thus it is not possible to allocate
-    // an invalidated slots set during MinorMC. This will likely break once
-    // MinorMC marks concurrently.
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
     if (collector == GarbageCollector::MARK_COMPACTOR) {
       DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
@@ -6149,6 +6145,9 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
         return CheckAndMarkObject(task, slot);
       },
       SlotSet::FREE_EMPTY_BUCKETS);
+  // The invalidated slots are not needed after old-to-new slots were
+  // processed.
+  chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
 }
 
 void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
