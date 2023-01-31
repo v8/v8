@@ -75,7 +75,8 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -85,7 +86,8 @@ trybot_pair(
     cq_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -616,21 +618,24 @@ trybot_pair(
     name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_numfuzz_tsan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -638,7 +643,8 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
