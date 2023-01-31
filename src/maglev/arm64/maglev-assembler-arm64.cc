@@ -293,11 +293,6 @@ void MaglevAssembler::TestTypeOf(
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {
-  if (v8_flags.maglev_ool_prologue) {
-    // TODO(v8:7700): Implement!
-    UNREACHABLE();
-  }
-
   ScratchRegisterScope temps(this);
   //  We add two extra registers to the scope. Ideally we could add all the
   //  allocatable general registers, except Context, JSFunction, NewTarget and

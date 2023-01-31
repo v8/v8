@@ -1373,12 +1373,6 @@ void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
   static_assert(D::kParameterCount == 1);
   masm->Trap();
 }
-void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
-  using D =
-      i::CallInterfaceDescriptorFor<Builtin::kMaglevOutOfLinePrologue>::type;
-  static_assert(D::kParameterCount == 0);
-  masm->Trap();
-}
 #endif  // V8_TARGET_ARCH_X64
 
 // ES6 [[Get]] operation.

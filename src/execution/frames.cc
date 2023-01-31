@@ -1468,18 +1468,9 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
     // We don't have a complete frame in this case.
     uint32_t register_input_count =
         maglev_safepoint_entry.register_input_count();
-    if (v8_flags.maglev_ool_prologue) {
-      // DCHECK the frame setup under the above assumption. The
-      // MaglevOutOfLinePrologue builtin creates an INTERNAL frame for the
-      // StackGuardWithGap call (where extra slots and args are), so the MAGLEV
-      // frame itself is exactly kFixedFrameSizeFromFp.
-      DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
-                StandardFrameConstants::kFixedFrameSizeFromFp);
-    } else {
-      // DCHECK the frame setup under the above assumption.
-      DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
-                MaglevFrame::StackGuardFrameSize(register_input_count));
-    }
+    // DCHECK the frame setup under the above assumption.
+    DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
+              MaglevFrame::StackGuardFrameSize(register_input_count));
     spill_slot_count = 0;
     // We visit the saved register inputs as if they were tagged slots.
     tagged_slot_count = register_input_count;

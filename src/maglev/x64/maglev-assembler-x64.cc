@@ -487,14 +487,6 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {
-  if (v8_flags.maglev_ool_prologue) {
-    // Call the out-of-line prologue (with parameters passed on the stack).
-    Push(Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
-    Push(Immediate(code_gen_state()->tagged_slots() * kSystemPointerSize));
-    CallBuiltin(Builtin::kMaglevOutOfLinePrologue);
-    return;
-  }
-
   BailoutIfDeoptimized(rbx);
 
   // Tiering support.
