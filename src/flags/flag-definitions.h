@@ -521,9 +521,19 @@ DEFINE_STRING(
     "Select which native code sequence to use for wasm trace instruction: "
     "default or cpuid")
 
+// iOS does not support executable code pages for 3rd party applications so
+// we need to forcibly disable the JIT.
+#if defined(V8_TARGET_OS_IOS)
+#define V8_JITLESS_BOOL true
+#define DEFINE_JITLESS_BOOL DEFINE_BOOL_READONLY
+#else
+#define V8_JITLESS_BOOL V8_LITE_BOOL
+#define DEFINE_JITLESS_BOOL DEFINE_BOOL
+#endif
+
 // Flags for jitless
-DEFINE_BOOL(jitless, V8_LITE_BOOL,
-            "Disable runtime allocation of executable memory.")
+DEFINE_JITLESS_BOOL(jitless, V8_JITLESS_BOOL,
+                    "Disable runtime allocation of executable memory.")
 
 DEFINE_WEAK_IMPLICATION(jitless, lower_tier_as_toptier)
 

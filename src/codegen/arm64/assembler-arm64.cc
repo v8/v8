@@ -64,7 +64,7 @@ unsigned SimulatorFeaturesFromCommandLine() {
 
 constexpr unsigned CpuFeaturesFromCompiler() {
   unsigned features = 0;
-#if defined(__ARM_FEATURE_JCVT)
+#if defined(__ARM_FEATURE_JCVT) && !defined(V8_TARGET_OS_IOS)
   features |= 1u << JSCVT;
 #endif
 #if defined(__ARM_FEATURE_DOTPROD)
