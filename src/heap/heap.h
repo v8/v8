@@ -248,9 +248,9 @@ class Heap {
 
   class ExternalMemoryAccounting {
    public:
-    int64_t total() { return total_.load(std::memory_order_relaxed); }
-    int64_t limit() { return limit_.load(std::memory_order_relaxed); }
-    int64_t low_since_mark_compact() {
+    int64_t total() const { return total_.load(std::memory_order_relaxed); }
+    int64_t limit() const { return limit_.load(std::memory_order_relaxed); }
+    int64_t low_since_mark_compact() const {
       return low_since_mark_compact_.load(std::memory_order_relaxed);
     }
 
@@ -269,7 +269,7 @@ class Heap {
       return amount;
     }
 
-    int64_t AllocatedSinceMarkCompact() {
+    int64_t AllocatedSinceMarkCompact() const {
       int64_t total_bytes = total();
       int64_t low_since_mark_compact_bytes = low_since_mark_compact();
 
@@ -502,7 +502,7 @@ class Heap {
   inline Address* OldSpaceAllocationLimitAddress();
 
   size_t NewSpaceSize();
-  size_t NewSpaceCapacity();
+  size_t NewSpaceCapacity() const;
 
   // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
   // The source and destination memory ranges can overlap.
@@ -660,6 +660,7 @@ class Heap {
   }
 
   bool IsGCWithStack() const;
+  V8_EXPORT_PRIVATE void ForceSharedGCWithEmptyStackForTesting();
 
   // Performs GC after background allocation failure.
   void CollectGarbageForBackground(LocalHeap* local_heap);
@@ -853,8 +854,8 @@ class Heap {
     return shared_lo_allocation_space_;
   }
 
-  inline PagedSpace* paged_space(int idx);
-  inline Space* space(int idx);
+  inline PagedSpace* paged_space(int idx) const;
+  inline Space* space(int idx) const;
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -1284,7 +1285,7 @@ class Heap {
   // ===========================================================================
 
   // Returns the maximum amount of memory reserved for the heap.
-  V8_EXPORT_PRIVATE size_t MaxReserved();
+  V8_EXPORT_PRIVATE size_t MaxReserved() const;
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size(); }
@@ -1313,7 +1314,7 @@ class Heap {
   size_t Capacity();
 
   // Returns the capacity of the old generation.
-  V8_EXPORT_PRIVATE size_t OldGenerationCapacity();
+  V8_EXPORT_PRIVATE size_t OldGenerationCapacity() const;
 
   // Returns the amount of memory currently held alive by the unmapper.
   size_t CommittedMemoryOfUnmapper();
@@ -1431,18 +1432,18 @@ class Heap {
 
   // Returns the size of objects residing in non-new spaces.
   // Excludes external memory held by those objects.
-  V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects();
+  V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects() const;
 
   // Returns the size of objects held by the EmbedderHeapTracer.
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects();
+  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
 
   // We allow incremental marking to overshoot the V8 and global allocation
   // limit for performance reasons. If the overshoot is too large then we are
   // more eager to finalize incremental marking.
-  bool AllocationLimitOvershotByLargeMargin();
+  bool AllocationLimitOvershotByLargeMargin() const;
 
   // Return the maximum size objects can be before having to allocate them as
   // large objects. This takes into account allocating in the code space for
@@ -1466,8 +1467,10 @@ class Heap {
   void RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                 void* data);
 
-  void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
-  void CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags);
+  void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
+                               GCTracer::Scope::ScopeId scope_id);
+  void CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags,
+                               GCTracer::Scope::ScopeId scope_id);
 
   // ===========================================================================
   // Allocation methods. =======================================================
@@ -1634,8 +1637,9 @@ class Heap {
   // over all objects.
   V8_EXPORT_PRIVATE void MakeHeapIterable();
 
-  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
-  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
+  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(
+      size_t size) const;
+  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size) const;
 
   inline bool ShouldReduceMemory() const {
     return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
@@ -1757,7 +1761,7 @@ class Heap {
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           GarbageCollectionReason gc_reason,
-                                          const char** reason);
+                                          const char** reason) const;
 
   // Free all LABs in the heap.
   void FreeLinearAllocationAreas();
@@ -1974,7 +1978,7 @@ class Heap {
 
   size_t global_allocation_limit() const { return global_allocation_limit_; }
 
-  size_t max_old_generation_size() {
+  size_t max_old_generation_size() const {
     return max_old_generation_size_.load(std::memory_order_relaxed);
   }
 
@@ -2193,7 +2197,7 @@ class Heap {
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 
   // Returns the amount of external memory registered since last global gc.
-  V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact();
+  V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
   // Starts marking when stress_marking_percentage_% of the marking start limit
   // is reached.
@@ -2382,6 +2386,7 @@ class Heap {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
+  bool force_shared_gc_with_empty_stack_for_testing_ = false;
 
   UnorderedHeapObjectMap<HeapObject> retainer_;
   UnorderedHeapObjectMap<Root> retaining_root_;
@@ -2638,12 +2643,12 @@ class V8_NODISCARD IgnoreLocalGCRequests {
 // is done.
 class V8_EXPORT_PRIVATE PagedSpaceIterator {
  public:
-  explicit PagedSpaceIterator(Heap* heap)
+  explicit PagedSpaceIterator(const Heap* heap)
       : heap_(heap), counter_(FIRST_GROWABLE_PAGED_SPACE) {}
   PagedSpace* Next();
 
  private:
-  Heap* heap_;
+  const Heap* const heap_;
   int counter_;
 };
 

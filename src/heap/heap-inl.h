@@ -160,12 +160,12 @@ void Heap::SetFunctionsMarkedForManualOptimization(Object hash_table) {
       hash_table.ptr();
 }
 
-PagedSpace* Heap::paged_space(int idx) {
+PagedSpace* Heap::paged_space(int idx) const {
   DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 
-Space* Heap::space(int idx) { return space_[idx].get(); }
+Space* Heap::space(int idx) const { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
   return new_space_ ? new_space_->allocation_top_address() : nullptr;

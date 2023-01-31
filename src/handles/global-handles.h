@@ -83,8 +83,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void InvokeSecondPassPhantomCallbacks();
 
   // Schedule or invoke second pass weak callbacks.
-  void PostGarbageCollectionProcessing(
-      GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
+  void PostGarbageCollectionProcessing(v8::GCCallbackFlags gc_callback_flags);
 
   void IterateStrongRoots(RootVisitor* v);
   void IterateWeakRoots(RootVisitor* v);

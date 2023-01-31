@@ -256,7 +256,7 @@ Heap::Heap()
 
 Heap::~Heap() = default;
 
-size_t Heap::MaxReserved() {
+size_t Heap::MaxReserved() const {
   const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
   return static_cast<size_t>(2 * max_semi_space_size_ +
                              kMaxNewLargeObjectSpaceSize +
@@ -368,7 +368,7 @@ size_t Heap::Capacity() {
   return NewSpaceCapacity() + OldGenerationCapacity();
 }
 
-size_t Heap::OldGenerationCapacity() {
+size_t Heap::OldGenerationCapacity() const {
   if (!HasBeenSetUp()) return 0;
   PagedSpaceIterator spaces(this);
   size_t total = 0;
@@ -452,7 +452,7 @@ size_t Heap::Available() {
   return total;
 }
 
-bool Heap::CanExpandOldGeneration(size_t size) {
+bool Heap::CanExpandOldGeneration(size_t size) const {
   if (force_oom_ || force_gc_on_next_allocation_) return false;
   if (OldGenerationCapacity() + size > max_old_generation_size()) return false;
   // The OldGenerationCapacity does not account compaction spaces used
@@ -478,7 +478,7 @@ bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
          memory_allocator()->Size() + size <= MaxReserved();
 }
 
-bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) {
+bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
   size_t new_space_capacity = NewSpaceCapacity();
   size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
 
@@ -494,7 +494,7 @@ bool Heap::HasBeenSetUp() const {
 
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
-                                              const char** reason) {
+                                              const char** reason) const {
   if (gc_reason == GarbageCollectionReason::kFinalizeMinorMC) {
     DCHECK(new_space());
     *reason = "finalize MinorMC";
@@ -1620,6 +1620,24 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
                    heap_->SizeOfObjects());
 }
 
+namespace {
+
+template <typename Callback>
+void InvokeExternalCallbacks(Isolate* isolate, Callback callback) {
+  AllowGarbageCollection allow_gc;
+  AllowJavascriptExecution allow_js(isolate);
+  // Temporary override any embedder stack state as callbacks may create
+  // their own state on the stack and recursively trigger GC.
+  EmbedderStackStateScope embedder_scope(
+      isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+      StackState::kMayContainHeapPointers);
+  VMState<EXTERNAL> callback_state(isolate);
+
+  callback();
+}
+
+}  // namespace
+
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
@@ -1645,11 +1663,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   DCHECK(AllowGarbageCollection::IsAllowed());
 
-  GarbageCollector collector;
   const char* collector_reason = nullptr;
-
-  collector = SelectGarbageCollector(space, gc_reason, &collector_reason);
-
+  const GarbageCollector collector =
+      SelectGarbageCollector(space, gc_reason, &collector_reason);
   current_or_last_garbage_collector_ = collector;
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
@@ -1657,29 +1673,27 @@ bool Heap::CollectGarbage(AllocationSpace space,
     CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
   }
 
-  // Ensure that all pending phantom callbacks are invoked.
-  isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
+  const GCType gc_type = GetGCTypeFromGarbageCollector(collector);
 
-  GCType gc_type = GetGCTypeFromGarbageCollector(collector);
-  {
-    GCCallbacksScope scope(this);
-    // Temporary override any embedder stack state as callbacks may create
-    // their own state on the stack and recursively trigger GC.
-    EmbedderStackStateScope embedder_scope(
-        this, EmbedderStackStateScope::kExplicitInvocation,
-        StackState::kMayContainHeapPointers);
-    if (scope.CheckReenter()) {
-      AllowGarbageCollection allow_gc;
-      AllowJavascriptExecution allow_js(isolate());
-      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
-      VMState<EXTERNAL> callback_state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
-    }
-  }
+  // Prologue callbacks. These callbacks may trigger GC themselves and thus
+  // cannot be related exactly to garbage collection cycles.
+  //
+  // GCTracer scopes are managed by callees.
+  InvokeExternalCallbacks(isolate(), [this, gc_callback_flags, gc_type]() {
+    // Ensure that all pending phantom callbacks are invoked.
+    isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
 
-  // Part 2: The main garbage collection phase.
+    // Prologue callbacks registered with Heap.
+    CallGCPrologueCallbacks(gc_type, gc_callback_flags,
+                            GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
+  });
+
+  // The main garbage collection phase.
   DisallowGarbageCollection no_gc_during_gc;
+
+  if (force_shared_gc_with_empty_stack_for_testing_) {
+    embedder_stack_state_ = StackState::kNoHeapPointers;
+  }
 
   size_t freed_global_handles = 0;
   size_t committed_memory_before = collector == GarbageCollector::MARK_COMPACTOR
@@ -1769,31 +1783,18 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
   }
 
-  // Part 3: Invoke all callbacks which should happen after the actual garbage
-  // collection is triggered. Note that these callbacks may trigger another
-  // garbage collection since they may allocate.
+  // Epilogue callbacks. These callbacks may trigger GC themselves and thus
+  // cannot be related exactly to garbage collection cycles.
+  //
+  // GCTracer scopes are managed by callees.
+  InvokeExternalCallbacks(isolate(), [this, gc_callback_flags, gc_type]() {
+    // Epilogue callbacks registered with Heap.
+    CallGCEpilogueCallbacks(gc_type, gc_callback_flags,
+                            GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
 
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
-    {
-      AllowGarbageCollection allow_gc;
-      AllowJavascriptExecution allow_js(isolate());
-      isolate_->global_handles()->PostGarbageCollectionProcessing(
-          collector, gc_callback_flags);
-    }
-  }
-
-  {
-    GCCallbacksScope scope(this);
-    if (scope.CheckReenter()) {
-      AllowGarbageCollection allow_gc;
-      AllowJavascriptExecution allow_js(isolate());
-      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
-      VMState<EXTERNAL> callback_state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
-    }
-  }
+    isolate()->global_handles()->PostGarbageCollectionProcessing(
+        gc_callback_flags);
+  });
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       (gc_callback_flags & (kGCCallbackFlagForced |
@@ -2517,14 +2518,30 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   }
 }
 
-void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCPrologueCallback);
-  gc_prologue_callbacks_.Invoke(gc_type, flags);
+void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
+                                   GCTracer::Scope::ScopeId scope_id) {
+  if (gc_prologue_callbacks_.IsEmpty()) return;
+
+  GCCallbacksScope scope(this);
+  if (scope.CheckReenter()) {
+    RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCPrologueCallback);
+    TRACE_GC(tracer(), scope_id);
+    HandleScope handle_scope(isolate());
+    gc_prologue_callbacks_.Invoke(gc_type, flags);
+  }
 }
 
-void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
-  gc_epilogue_callbacks_.Invoke(gc_type, flags);
+void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags,
+                                   GCTracer::Scope::ScopeId scope_id) {
+  if (gc_epilogue_callbacks_.IsEmpty()) return;
+
+  GCCallbacksScope scope(this);
+  if (scope.CheckReenter()) {
+    RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
+    TRACE_GC(tracer(), scope_id);
+    HandleScope handle_scope(isolate());
+    gc_epilogue_callbacks_.Invoke(gc_type, flags);
+  }
 }
 
 void Heap::MarkCompact() {
@@ -3791,7 +3808,7 @@ void Heap::ReduceNewSpaceSize() {
 
 size_t Heap::NewSpaceSize() { return new_space() ? new_space()->Size() : 0; }
 
-size_t Heap::NewSpaceCapacity() {
+size_t Heap::NewSpaceCapacity() const {
   return new_space() ? new_space()->Capacity() : 0;
 }
 
@@ -3809,25 +3826,17 @@ void Heap::FinalizeIncrementalMarkingAtomically(
 }
 
 void Heap::InvokeIncrementalMarkingPrologueCallbacks() {
-  GCCallbacksScope scope(this);
-  if (scope.CheckReenter()) {
-    AllowGarbageCollection allow_allocation;
-    TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
-    VMState<EXTERNAL> state(isolate_);
-    HandleScope handle_scope(isolate_);
-    CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
-  }
+  AllowGarbageCollection allow_allocation;
+  VMState<EXTERNAL> state(isolate_);
+  CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags,
+                          GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
 }
 
 void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
-  GCCallbacksScope scope(this);
-  if (scope.CheckReenter()) {
-    AllowGarbageCollection allow_allocation;
-    TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
-    VMState<EXTERNAL> state(isolate_);
-    HandleScope handle_scope(isolate_);
-    CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
-  }
+  AllowGarbageCollection allow_allocation;
+  VMState<EXTERNAL> state(isolate_);
+  CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags,
+                          GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
 }
 
 void Heap::NotifyObjectLayoutChange(
@@ -5104,7 +5113,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
     GetFromRingBuffer(stats->last_few_messages);
 }
 
-size_t Heap::OldGenerationSizeOfObjects() {
+size_t Heap::OldGenerationSizeOfObjects() const {
   PagedSpaceIterator spaces(this);
   size_t total = 0;
   for (PagedSpace* space = spaces.Next(); space != nullptr;
@@ -5121,15 +5130,15 @@ size_t Heap::EmbedderSizeOfObjects() const {
   return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
 }
 
-size_t Heap::GlobalSizeOfObjects() {
+size_t Heap::GlobalSizeOfObjects() const {
   return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects();
 }
 
-uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() {
+uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
   return external_memory_.AllocatedSinceMarkCompact();
 }
 
-bool Heap::AllocationLimitOvershotByLargeMargin() {
+bool Heap::AllocationLimitOvershotByLargeMargin() const {
   // This guards against too eager finalization in small heaps.
   // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
@@ -5834,6 +5843,13 @@ void Heap::StartTearDown() {
   main_thread_local_heap()->FreeLinearAllocationArea();
 
   FreeMainThreadSharedLinearAllocationAreas();
+}
+
+void Heap::ForceSharedGCWithEmptyStackForTesting() {
+  // No mutex or atomics as this variable is always set from only a single
+  // thread before invoking a shared GC. The shared GC then resets the flag
+  // while the initiating thread is guaranteed to wait on a condition variable.
+  force_shared_gc_with_empty_stack_for_testing_ = true;
 }
 
 void Heap::TearDownWithSharedHeap() {

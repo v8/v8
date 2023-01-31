@@ -2009,8 +2009,13 @@ class WorkerIsolateThread : public v8::base::Thread {
 
     {
       // Disable CSS for the shared heap and all clients.
-      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-          i_client->shared_heap_isolate()->heap());
+      // DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      //     i_client->shared_heap_isolate()->heap());
+
+      Isolate* gc_isolate = v8_flags.shared_space
+                                ? i_client->shared_space_isolate()
+                                : i_client->shared_heap_isolate();
+      gc_isolate->heap()->ForceSharedGCWithEmptyStackForTesting();
       i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
                                              GarbageCollectionReason::kTesting);
     }
