@@ -46,7 +46,7 @@ class LateEscapeAnalysisAnalyzer {
 template <class Next>
 class LateEscapeAnalysisReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
 
   template <class... Args>
   explicit LateEscapeAnalysisReducer(const std::tuple<Args...>& args)

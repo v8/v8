@@ -16,8 +16,9 @@ template <typename Next>
 class TypedOptimizationsReducer
     : public UniformReducerAdapter<TypedOptimizationsReducer, Next> {
  public:
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
-  using Next::Asm;
 
   template <typename... Args>
   explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)

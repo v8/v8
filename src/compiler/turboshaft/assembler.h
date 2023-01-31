@@ -52,15 +52,31 @@ class ReducerStack<Assembler, FirstReducer, Reducers...>
   using FirstReducer<ReducerStack<Assembler, Reducers...>>::FirstReducer;
 };
 
-template <class Assembler>
-class ReducerStack<Assembler> {
+template <class Reducers>
+class ReducerStack<Assembler<Reducers>> {
  public:
-  using AssemblerType = Assembler;
-  Assembler& Asm() { return *static_cast<Assembler*>(this); }
+  using AssemblerType = Assembler<Reducers>;
+  using ReducerList = Reducers;
+  Assembler<ReducerList>& Asm() {
+    return *static_cast<Assembler<ReducerList>*>(this);
+  }
+};
+
+template <class Reducers>
+struct reducer_stack_type {};
+template <template <class> class... Reducers>
+struct reducer_stack_type<reducer_list<Reducers...>> {
+  using type = ReducerStack<Assembler<reducer_list<Reducers...>>, Reducers...,
+                            v8::internal::compiler::turboshaft::ReducerBase>;
 };
 
 template <typename Next>
 class ReducerBase;
+
+#define TURBOSHAFT_REDUCER_BOILERPLATE()                               \
+  Assembler<typename Next::ReducerList>& Asm() {                       \
+    return *static_cast<Assembler<typename Next::ReducerList>*>(this); \
+  }
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
 // reducer without change. A typical use would be:
@@ -101,9 +117,9 @@ class ReducerBaseForwarder : public Next {
 template <class Next>
 class ReducerBase : public ReducerBaseForwarder<Next> {
  public:
-  using Next::Asm;
-  using Base = ReducerBaseForwarder<Next>;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
 
+  using Base = ReducerBaseForwarder<Next>;
   using ArgT = std::tuple<>;
 
   template <class... Args>
@@ -1047,24 +1063,18 @@ class AssemblerOpInterface {
   Assembler& stack() { return *static_cast<Assembler*>(this); }
 };
 
-template <template <class> class... Reducers>
-class Assembler
-    : public GraphVisitor<Assembler<Reducers...>>,
-      public ReducerStack<Assembler<Reducers...>, Reducers...,
-                          v8::internal::compiler::turboshaft::ReducerBase>,
-      public OperationMatching<Assembler<Reducers...>>,
-      public AssemblerOpInterface<Assembler<Reducers...>> {
-  using Stack = ReducerStack<Assembler<Reducers...>, Reducers...,
-                             v8::internal::compiler::turboshaft::ReducerBase>;
+template <class Reducers>
+class Assembler : public GraphVisitor<Assembler<Reducers>>,
+                  public reducer_stack_type<Reducers>::type,
+                  public OperationMatching<Assembler<Reducers>>,
+                  public AssemblerOpInterface<Assembler<Reducers>> {
+  using Stack = typename reducer_stack_type<Reducers>::type;
 
  public:
   template <class... ReducerArgs>
-  explicit Assembler(
-      Graph& input_graph, Graph& output_graph, Zone* phase_zone,
-      compiler::NodeOriginTable* origins,
-      const typename ReducerStack<
-          Assembler<Reducers...>, Reducers...,
-          v8::internal::compiler::turboshaft::ReducerBase>::ArgT& reducer_args)
+  explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
+                     compiler::NodeOriginTable* origins,
+                     const typename Stack::ArgT& reducer_args)
       : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone, origins),
         Stack(reducer_args) {
     SupportedOperations::Initialize();
@@ -1075,7 +1085,7 @@ class Assembler
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }
 
-  using OperationMatching<Assembler<Reducers...>>::Get;
+  using OperationMatching<Assembler<Reducers>>::Get;
   using Stack::Get;
 
   V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block,

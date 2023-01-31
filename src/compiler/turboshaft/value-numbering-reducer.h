@@ -71,7 +71,8 @@ namespace turboshaft {
 template <class Next>
 class ValueNumberingReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   template <class... Args>
   explicit ValueNumberingReducer(const std::tuple<Args...>& args)
       : Next(args),

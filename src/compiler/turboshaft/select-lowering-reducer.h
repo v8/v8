@@ -33,7 +33,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class SelectLoweringReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
 
   template <class... Args>
   explicit SelectLoweringReducer(const std::tuple<Args...>& args)

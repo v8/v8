@@ -9,8 +9,8 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/bigint.h"
 
@@ -25,7 +25,8 @@ struct MachineLoweringReducerArgs {
 template <typename Next>
 class MachineLoweringReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   using ArgT =
       base::append_tuple_type<typename Next::ArgT, MachineLoweringReducerArgs>;
 

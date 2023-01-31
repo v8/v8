@@ -68,10 +68,11 @@ template <template <class> class... Reducers>
 class OptimizationPhaseImpl {
  public:
   static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
-                  const typename Assembler<Reducers...>::ArgT& reducer_args =
-                      std::tuple<>{}) {
-    Assembler<Reducers...> phase(*input, input->GetOrCreateCompanion(),
-                                 phase_zone, origins, reducer_args);
+                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
+                      reducer_args = std::tuple<>{}) {
+    Assembler<reducer_list<Reducers...>> phase(
+        *input, input->GetOrCreateCompanion(), phase_zone, origins,
+        reducer_args);
     if (v8_flags.turboshaft_trace_reduction) {
       phase.template VisitGraph<true>();
     } else {
@@ -120,8 +121,8 @@ class OptimizationPhase {
  public:
   static void Run(Isolate* isolate, Graph* input, Zone* phase_zone,
                   NodeOriginTable* origins,
-                  const typename Assembler<Reducers...>::ArgT& reducer_args =
-                      std::tuple<>{}) {
+                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
+                      reducer_args = std::tuple<>{}) {
 #ifdef DEBUG
     if (v8_flags.turboshaft_verify_reductions) {
       impl_with_verification_t::Run(

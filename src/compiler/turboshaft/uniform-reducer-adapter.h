@@ -19,8 +19,8 @@ namespace v8::internal::compiler::turboshaft {
 // template <typename Next>
 // class MyReducer : public UniformReducerAdapter<MyReducer, Next> {
 //  public:
+//   TURBOSHAFT_REDUCER_BOILERPLATE()
 //   using Adapter = UniformReducerAdapter<MyReducer, Next>;
-//   using Next::Asm;
 //
 //   template <typename... Args>
 //   explicit MyReducer(const std::tuple<Args...>& args)

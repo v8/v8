@@ -37,7 +37,8 @@ struct AssertTypesReducerArgs {
 template <class Next>
 class AssertTypesReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   using ArgT =
       base::append_tuple_type<typename Next::ArgT, AssertTypesReducerArgs>;
 

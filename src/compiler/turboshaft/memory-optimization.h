@@ -95,7 +95,8 @@ struct MemoryOptimizationReducerArgs {
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   using ArgT = base::append_tuple_type<typename Next::ArgT,
                                        MemoryOptimizationReducerArgs>;
 

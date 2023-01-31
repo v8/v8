@@ -23,7 +23,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-template <template <class> class... Reducers>
+template <class Reducers>
 class Assembler;
 
 // `OperationBuffer` is a growable, Zone-allocated buffer to store Turboshaft
@@ -405,7 +405,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   }
 
   friend class Graph;
-  template <template <class> class... Reducers>
+  template <class Reducers>
   friend class Assembler;
 
   Kind kind_;

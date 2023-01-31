@@ -415,8 +415,9 @@ template <class Next>
 class DeadCodeEliminationReducer
     : public UniformReducerAdapter<DeadCodeEliminationReducer, Next> {
  public:
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
-  using Next::Asm;
 
   template <class... Args>
   explicit DeadCodeEliminationReducer(const std::tuple<Args...>& args)

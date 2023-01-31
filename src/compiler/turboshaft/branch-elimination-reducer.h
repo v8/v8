@@ -168,7 +168,8 @@ class BranchEliminationReducer : public Next {
   // that's the case, then we copy the destination block, and the 1st
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
   template <class... Args>
   explicit BranchEliminationReducer(const std::tuple<Args...>& args)
       : Next(args),

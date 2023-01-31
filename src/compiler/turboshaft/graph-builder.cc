@@ -45,7 +45,7 @@ struct GraphBuilder {
   Zone* graph_zone;
   Zone* phase_zone;
   Schedule& schedule;
-  Assembler<> assembler;
+  Assembler<reducer_list<>> assembler;
   Linkage* linkage;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -1121,15 +1121,15 @@ base::Optional<BailoutReason> BuildGraph(JSHeapBroker* broker,
                                          Graph* graph, Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
-  GraphBuilder builder{
-      broker,
-      graph_zone,
-      phase_zone,
-      *schedule,
-      Assembler<>(*graph, *graph, phase_zone, nullptr, std::tuple<>{}),
-      linkage,
-      source_positions,
-      origins};
+  GraphBuilder builder{broker,
+                       graph_zone,
+                       phase_zone,
+                       *schedule,
+                       Assembler<reducer_list<>>(*graph, *graph, phase_zone,
+                                                 nullptr, std::tuple<>{}),
+                       linkage,
+                       source_positions,
+                       origins};
   return builder.Run();
 }
 
