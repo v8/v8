@@ -2758,6 +2758,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassUnion(
         // range.
         if (!ranges->is_empty() || !strings->empty()) {
           if (needs_case_folding) {
+            CharacterRange::Canonicalize(ranges);
             CharacterRange::AddUnicodeCaseEquivalents(ranges, zone());
           }
           may_contain_strings |= !strings->empty();
@@ -2779,6 +2780,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassUnion(
   // Add the range we started building as operand.
   if (!ranges->is_empty() || !strings->empty()) {
     if (needs_case_folding) {
+      CharacterRange::Canonicalize(ranges);
       CharacterRange::AddUnicodeCaseEquivalents(ranges, zone());
     }
     may_contain_strings |= !strings->empty();
