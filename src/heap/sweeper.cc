@@ -61,7 +61,7 @@ class Sweeper::ConcurrentSweeper final {
     return false;
   }
 
-  void FinalizeLocalSweeper() { local_sweeper_.Finalize(); }
+  void Finalize() { local_sweeper_.Finalize(); }
 
  private:
   Sweeper* const sweeper_;
@@ -70,10 +70,9 @@ class Sweeper::ConcurrentSweeper final {
 
 class Sweeper::SweeperJob final : public JobTask {
  public:
-  SweeperJob(Isolate* isolate, Sweeper* sweeper,
-             std::vector<ConcurrentSweeper>* concurrent_sweepers)
+  SweeperJob(Isolate* isolate, Sweeper* sweeper)
       : sweeper_(sweeper),
-        concurrent_sweepers_(concurrent_sweepers),
+        concurrent_sweepers_(sweeper_->concurrent_sweepers_),
         tracer_(isolate->heap()->tracer()) {}
 
   ~SweeperJob() override = default;
@@ -90,7 +89,7 @@ class Sweeper::SweeperJob final : public JobTask {
   size_t GetMaxConcurrency(size_t worker_count) const override {
     const size_t kPagePerTask = 2;
     return std::min<size_t>(
-        concurrent_sweepers_->size(),
+        concurrent_sweepers_.size(),
         worker_count +
             (sweeper_->ConcurrentSweepingPageCount() + kPagePerTask - 1) /
                 kPagePerTask);
@@ -100,8 +99,8 @@ class Sweeper::SweeperJob final : public JobTask {
   void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
     static_assert(NEW_SPACE == FIRST_SWEEPABLE_SPACE);
     const int offset = delegate->GetTaskId();
-    DCHECK_LT(offset, concurrent_sweepers_->size());
-    ConcurrentSweeper& concurrent_sweeper = (*concurrent_sweepers_)[offset];
+    DCHECK_LT(offset, concurrent_sweepers_.size());
+    ConcurrentSweeper& concurrent_sweeper = concurrent_sweepers_[offset];
     if (offset > 0) {
       if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread,
                              offset, kNumberOfSweepingSpaces))
@@ -137,7 +136,7 @@ class Sweeper::SweeperJob final : public JobTask {
   }
 
   Sweeper* const sweeper_;
-  std::vector<ConcurrentSweeper>* const concurrent_sweepers_;
+  std::vector<ConcurrentSweeper>& concurrent_sweepers_;
   GCTracer* const tracer_;
 };
 
@@ -310,13 +309,22 @@ void Sweeper::TearDown() {
 }
 
 void Sweeper::SnapshotPageSets() {
+  DCHECK(heap_->IsMainThread());
+  // No mutex needed for the main thread.
   std::tie(snapshot_normal_pages_set_, snapshot_large_pages_set_) =
-      heap_->memory_allocator()->SnapshotPageSets();
+      heap_->memory_allocator()->SnapshotPageSetsUnsafe();
   if (heap_->isolate()->has_shared_heap()) {
     Heap* shared_heap = heap_->isolate()->shared_heap_isolate()->heap();
-    std::tie(snapshot_shared_normal_pages_set_,
-             snapshot_shared_large_pages_set_) =
-        shared_heap->memory_allocator()->SnapshotPageSets();
+    if (shared_heap == heap_) {
+      // Current heap is the shared heap, thus all relevant pages have already
+      // been snapshotted and no lock is required.
+      snapshot_shared_normal_pages_set_ = snapshot_normal_pages_set_;
+      snapshot_shared_large_pages_set_ = snapshot_large_pages_set_;
+    } else {
+      std::tie(snapshot_shared_normal_pages_set_,
+               snapshot_shared_large_pages_set_) =
+          shared_heap->memory_allocator()->SnapshotPageSetsSafe();
+    }
   }
 }
 
@@ -342,12 +350,6 @@ void Sweeper::StartSweeping(GarbageCollector collector) {
           return marking_state->live_bytes(a) > marking_state->live_bytes(b);
         });
   });
-  DCHECK(snapshot_normal_pages_set_.empty());
-  DCHECK(snapshot_large_pages_set_.empty());
-  if (v8_flags.minor_mc && (current_new_space_collector_ ==
-                            GarbageCollector::MINOR_MARK_COMPACTOR)) {
-    SnapshotPageSets();
-  }
 }
 
 int Sweeper::NumberOfConcurrentSweepers() const {
@@ -359,34 +361,18 @@ int Sweeper::NumberOfConcurrentSweepers() const {
 void Sweeper::StartSweeperTasks() {
   DCHECK(current_new_space_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  if (v8_flags.minor_mc && (current_new_space_collector_ ==
-                            GarbageCollector::MINOR_MARK_COMPACTOR)) {
-    // Some large pages may have been freed since starting sweeping.
-#if DEBUG
-    MemoryAllocator::NormalPagesSet old_snapshot_normal_pages_set =
-        std::move(snapshot_normal_pages_set_);
-    MemoryAllocator::LargePagesSet old_snapshot_large_pages_set =
-        std::move(snapshot_large_pages_set_);
-#endif  // DEBUG
-    SnapshotPageSets();
-#if DEBUG
-    // Normal pages may only have been added.
-    DCHECK(std::all_of(old_snapshot_normal_pages_set.begin(),
-                       old_snapshot_normal_pages_set.end(),
-                       [this](const Page* page) {
-                         return snapshot_normal_pages_set_.find(page) !=
-                                snapshot_normal_pages_set_.end();
-                       }));
-    // Large pages may only have been removed.
-    DCHECK(std::all_of(snapshot_large_pages_set_.begin(),
-                       snapshot_large_pages_set_.end(),
-                       [old_snapshot_large_pages_set](const LargePage* page) {
-                         return old_snapshot_large_pages_set.find(page) !=
-                                old_snapshot_large_pages_set.end();
-                       }));
-#endif  // DEBUG
-  }
   if (promoted_pages_for_iteration_count_ > 0) {
+    DCHECK(v8_flags.minor_mc);
+    DCHECK_EQ(GarbageCollector::MINOR_MARK_COMPACTOR,
+              current_new_space_collector_);
+    // Snapshotted page sets are only needed for concurrent promoted page
+    // iteration, which is not used during memory-reducing GCs.
+    DCHECK(!heap_->ShouldReduceMemory());
+
+    DCHECK(snapshot_normal_pages_set_.empty());
+    DCHECK(snapshot_large_pages_set_.empty());
+    SnapshotPageSets();
+
     promoted_page_iteration_in_progress_.store(true, std::memory_order_release);
   }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
@@ -399,8 +385,7 @@ void Sweeper::StartSweeperTasks() {
     DCHECK_EQ(NumberOfConcurrentSweepers(), concurrent_sweepers_.size());
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         TaskPriority::kUserVisible,
-        std::make_unique<SweeperJob>(heap_->isolate(), this,
-                                     &concurrent_sweepers_));
+        std::make_unique<SweeperJob>(heap_->isolate(), this));
   }
 }
 
@@ -434,7 +419,7 @@ void Sweeper::FinalizeLocalSweepers() {
   main_thread_local_sweeper_.Finalize();
 
   for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
-    concurrent_sweeper.FinalizeLocalSweeper();
+    concurrent_sweeper.Finalize();
   }
 }
 

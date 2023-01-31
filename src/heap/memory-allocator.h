@@ -285,12 +285,17 @@ class MemoryAllocator {
   void RecordLargePageCreated(const LargePage& page);
   void RecordLargePageDestroyed(const LargePage& page);
 
-  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSets()
+  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSetsUnsafe()
+      const {
+    return std::make_pair(normal_pages_, large_pages_);
+  }
+
+  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSetsSafe()
       const {
     // For shared heap, this method may be called by client isolates thus
     // requiring a mutex.
     base::MutexGuard guard(&pages_mutex_);
-    return std::make_pair(normal_pages_, large_pages_);
+    return SnapshotPageSetsUnsafe();
   }
 
  private:
