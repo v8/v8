@@ -632,7 +632,11 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // scope and we terminate the iteration there anyway.
     do {
       Variable* var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
-      if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+      // Note that the systhesized variable 'var' below is of
+      // VariableMode::kVar, it works as expected to redeclare 'var' when
+      // should_hoist is true.
+      if (var != nullptr && IsLexicalVariableMode(var->mode()) &&
+          !var->is_sloppy_block_function()) {
         should_hoist = false;
         break;
       }

@@ -1116,6 +1116,9 @@
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
+  # https://tc39.es/ecma262/#sec-web-compat-blockdeclarationinstantiation
+  'annexB/language/function-code/block-decl-nested-blocks-with-fun-decl': [FAIL],
+
   # Non-simple assignment targets are runtime errors instead of syntax errors
   # for web compat. https://crbug.com/358346
   'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
