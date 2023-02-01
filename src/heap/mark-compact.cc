@@ -2802,13 +2802,14 @@ void MarkCompactCollector::MarkLiveObjects() {
   // with the C stack limit check.
   PostponeInterruptsScope postpone(isolate());
 
-  bool was_marked_incrementally = false;
-  {
+  const bool was_marked_incrementally =
+      !heap_->incremental_marking()->IsStopped();
+  if (was_marked_incrementally) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
-    if (heap_->incremental_marking()->Stop()) {
-      MarkingBarrier::PublishAll(heap());
-      was_marked_incrementally = true;
-    }
+    auto* incremental_marking = heap_->incremental_marking();
+    DCHECK(incremental_marking->IsMajorMarking());
+    incremental_marking->Stop();
+    MarkingBarrier::PublishAll(heap());
   }
 
 #ifdef DEBUG
@@ -6342,18 +6343,19 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   PostponeInterruptsScope postpone(isolate());
 
-  bool was_marked_incrementally = false;
-  {
+  const bool was_marked_incrementally =
+      !heap_->incremental_marking()->IsStopped();
+  if (was_marked_incrementally) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_FINISH_INCREMENTAL);
-    if (heap_->incremental_marking()->Stop()) {
-      MarkingBarrier::PublishAll(heap());
-      // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN.
-      // TODO(v8:13012): Instead of finishing concurrent marking here, we could
-      // continue running it to replace parallel marking.
-      FinishConcurrentMarking();
-      was_marked_incrementally = true;
-    }
+    auto* incremental_marking = heap_->incremental_marking();
+    DCHECK(incremental_marking->IsMinorMarking());
+    incremental_marking->Stop();
+    MarkingBarrier::PublishAll(heap());
+    // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN.
+    // TODO(v8:13012): Instead of finishing concurrent marking here, we could
+    // continue running it to replace parallel marking.
+    FinishConcurrentMarking();
   }
 
   RootMarkingVisitor root_visitor(this);
