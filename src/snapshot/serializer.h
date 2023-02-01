@@ -118,10 +118,10 @@ class CodeAddressMap : public CodeEventLogger {
     base::HashMap impl_;
   };
 
-  void LogRecordedBuffer(Handle<AbstractCode> code,
-                         MaybeHandle<SharedFunctionInfo>, const char* name,
-                         int length) override {
-    address_to_name_map_.Insert(code->address(), name, length);
+  void LogRecordedBuffer(AbstractCode code, MaybeHandle<SharedFunctionInfo>,
+                         const char* name, int length) override {
+    DisallowGarbageCollection no_gc;
+    address_to_name_map_.Insert(code.address(), name, length);
   }
 
 #if V8_ENABLE_WEBASSEMBLY

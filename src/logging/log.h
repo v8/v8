@@ -448,7 +448,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(Handle<AbstractCode> code,
+  virtual void LogRecordedBuffer(AbstractCode code,
                                  MaybeHandle<SharedFunctionInfo> maybe_shared,
                                  const char* name, int length) = 0;
 #if V8_ENABLE_WEBASSEMBLY

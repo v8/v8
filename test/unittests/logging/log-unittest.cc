@@ -453,7 +453,7 @@ TEST_F(LogTest, Issue539892) {
     }
 
    private:
-    void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
+    void LogRecordedBuffer(i::AbstractCode code,
                            i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                            const char* name, int length) override {}
 #if V8_ENABLE_WEBASSEMBLY

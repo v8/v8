@@ -19,6 +19,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/source-position-table.h"
+#include "src/common/assert-scope.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/perf-jit.h"
 #include "src/execution/isolate.h"
@@ -248,7 +249,8 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(comment);
-  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+  DisallowGarbageCollection no_gc;
+  LogRecordedBuffer(*code, MaybeHandle<SharedFunctionInfo>(),
                     name_buffer_->get(), name_buffer_->size());
 }
 
@@ -257,7 +259,8 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendName(*name);
-  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+  DisallowGarbageCollection no_gc;
+  LogRecordedBuffer(*code, MaybeHandle<SharedFunctionInfo>(),
                     name_buffer_->get(), name_buffer_->size());
 }
 
@@ -269,7 +272,8 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   name_buffer_->AppendBytes(ComputeMarker(*shared, *code));
   name_buffer_->AppendByte(' ');
   name_buffer_->AppendName(*script_name);
-  LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
+  DisallowGarbageCollection no_gc;
+  LogRecordedBuffer(*code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
@@ -292,7 +296,8 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   name_buffer_->AppendInt(line);
   name_buffer_->AppendByte(':');
   name_buffer_->AppendInt(column);
-  LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
+  DisallowGarbageCollection no_gc;
+  LogRecordedBuffer(*code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -312,6 +317,7 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   }
   name_buffer_->AppendByte('-');
   name_buffer_->AppendBytes(ExecutionTierToString(code->tier()));
+  DisallowGarbageCollection no_gc;
   LogRecordedBuffer(code, name_buffer_->get(), name_buffer_->size());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -321,7 +327,8 @@ void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(LogEventListener::CodeTag::kRegExp);
   name_buffer_->AppendString(*source);
-  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+  DisallowGarbageCollection no_gc;
+  LogRecordedBuffer(*code, MaybeHandle<SharedFunctionInfo>(),
                     name_buffer_->get(), name_buffer_->size());
 }
 
@@ -338,7 +345,7 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
                            Handle<SharedFunctionInfo> shared) override {}
 
  private:
-  void LogRecordedBuffer(Handle<AbstractCode> code,
+  void LogRecordedBuffer(AbstractCode code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
 #if V8_ENABLE_WEBASSEMBLY
@@ -414,18 +421,19 @@ void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
                    size, name_length, name);
 }
 
-void LinuxPerfBasicLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+void LinuxPerfBasicLogger::LogRecordedBuffer(AbstractCode code,
                                              MaybeHandle<SharedFunctionInfo>,
                                              const char* name, int length) {
+  DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   if (v8_flags.perf_basic_prof_only_functions &&
-      CodeKindIsBuiltinOrJSFunction(code->kind(cage_base))) {
+      CodeKindIsBuiltinOrJSFunction(code.kind(cage_base))) {
     return;
   }
 
   WriteLogRecordedBuffer(
-      static_cast<uintptr_t>(code->InstructionStart(cage_base)),
-      code->InstructionSize(cage_base), name, length);
+      static_cast<uintptr_t>(code.InstructionStart(cage_base)),
+      code.InstructionSize(cage_base), name, length);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -637,7 +645,7 @@ class LowLevelLogger : public CodeEventLogger {
   void CodeMovingGCEvent() override;
 
  private:
-  void LogRecordedBuffer(Handle<AbstractCode> code,
+  void LogRecordedBuffer(AbstractCode code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
 #if V8_ENABLE_WEBASSEMBLY
@@ -727,19 +735,19 @@ void LowLevelLogger::LogCodeInfo() {
   LogWriteBytes(arch, sizeof(arch));
 }
 
-void LowLevelLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+void LowLevelLogger::LogRecordedBuffer(AbstractCode code,
                                        MaybeHandle<SharedFunctionInfo>,
                                        const char* name, int length) {
+  DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   CodeCreateStruct event;
   event.name_size = length;
-  event.code_address = code->InstructionStart(cage_base);
-  event.code_size = code->InstructionSize(cage_base);
+  event.code_address = code.InstructionStart(cage_base);
+  event.code_size = code.InstructionSize(cage_base);
   LogWriteStruct(event);
   LogWriteBytes(name, length);
-  LogWriteBytes(
-      reinterpret_cast<const char*>(code->InstructionStart(cage_base)),
-      code->InstructionSize(cage_base));
+  LogWriteBytes(reinterpret_cast<const char*>(code.InstructionStart(cage_base)),
+                code.InstructionSize(cage_base));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -801,7 +809,7 @@ class JitLogger : public CodeEventLogger {
                            JitCodeEvent::CodeType code_type);
 
  private:
-  void LogRecordedBuffer(Handle<AbstractCode> code,
+  void LogRecordedBuffer(AbstractCode code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
 #if V8_ENABLE_WEBASSEMBLY
@@ -818,16 +826,17 @@ JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
   DCHECK_NOT_NULL(code_event_handler);
 }
 
-void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+void JitLogger::LogRecordedBuffer(AbstractCode code,
                                   MaybeHandle<SharedFunctionInfo> maybe_shared,
                                   const char* name, int length) {
+  DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_ADDED;
-  event.code_start = reinterpret_cast<void*>(code->InstructionStart(cage_base));
-  event.code_type = code->IsCode(cage_base) ? JitCodeEvent::JIT_CODE
-                                            : JitCodeEvent::BYTE_CODE;
-  event.code_len = code->InstructionSize(cage_base);
+  event.code_start = reinterpret_cast<void*>(code.InstructionStart(cage_base));
+  event.code_type =
+      code.IsCode(cage_base) ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
+  event.code_len = code.InstructionSize(cage_base);
   Handle<SharedFunctionInfo> shared;
   if (maybe_shared.ToHandle(&shared) &&
       shared->script(cage_base).IsScript(cage_base)) {

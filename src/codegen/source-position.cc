@@ -79,10 +79,10 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(Isolate* isolate,
 }
 
 SourcePositionInfo SourcePosition::FirstInfo(Isolate* isolate,
-                                             Handle<Code> code) const {
+                                             Code code) const {
   DisallowGarbageCollection no_gc;
   DeoptimizationData deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      DeoptimizationData::cast(code.deoptimization_data());
   SourcePosition pos = *this;
   if (pos.isInlined()) {
     InliningPosition inl = deopt_data.InliningPositions().get(pos.InliningId());

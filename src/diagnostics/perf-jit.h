@@ -58,7 +58,7 @@ class LinuxPerfJitLogger : public CodeEventLogger {
   void CloseMarkerFile(void* marker_address);
 
   uint64_t GetTimestamp();
-  void LogRecordedBuffer(Handle<AbstractCode> code,
+  void LogRecordedBuffer(AbstractCode code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
 #if V8_ENABLE_WEBASSEMBLY
@@ -79,7 +79,7 @@ class LinuxPerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Handle<Code> code, Handle<SharedFunctionInfo> shared);
+  void LogWriteDebugInfo(Code code, Handle<SharedFunctionInfo> shared);
 #if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
