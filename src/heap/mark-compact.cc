@@ -2797,10 +2797,6 @@ void MarkCompactCollector::RetainMaps() {
 
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
-  // The recursive GC marker detects when it is nearing stack overflow,
-  // and switches to a different marking system.  JS interrupts interfere
-  // with the C stack limit check.
-  PostponeInterruptsScope postpone(isolate());
 
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
@@ -5448,16 +5444,16 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
     if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet<OLD_TO_SHARED>();
 
-    RememberedSet<OLD_TO_SHARED>::IterateTyped(chunk, [this](SlotType slot_type,
-                                                             Address slot) {
-      // Using UpdateStrongSlot is OK here, because there are no weak
-      // typed slots.
-      PtrComprCageBase cage_base = heap_->isolate();
-      return UpdateTypedSlotHelper::UpdateTypedSlot(
-          heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-            return UpdateStrongOldToSharedSlot(cage_base, slot);
-          });
-    });
+    RememberedSet<OLD_TO_SHARED>::IterateTyped(
+        chunk, [this](SlotType slot_type, Address slot) {
+          // Using UpdateStrongSlot is OK here, because there are no weak
+          // typed slots.
+          PtrComprCageBase cage_base = heap_->isolate();
+          return UpdateTypedSlotHelper::UpdateTypedSlot(
+              heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+                return UpdateStrongOldToSharedSlot(cage_base, slot);
+              });
+        });
     if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet<OLD_TO_SHARED>();
   }
 }
@@ -6340,8 +6336,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   DCHECK_NOT_NULL(local_marking_worklists_);
   DCHECK_NOT_NULL(main_marking_visitor_);
-
-  PostponeInterruptsScope postpone(isolate());
 
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
