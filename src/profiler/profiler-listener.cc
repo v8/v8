@@ -302,8 +302,8 @@ void ProfilerListener::CodeMoveEvent(InstructionStream from,
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from.InstructionStart();
-  rec->to_instruction_start = to.InstructionStart();
+  rec->from_instruction_start = from.instruction_start();
+  rec->to_instruction_start = to.instruction_start();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -340,7 +340,7 @@ void ProfilerListener::CodeDeoptEvent(Handle<InstructionStream> code,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code->instruction_start();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
   rec->pc = pc;

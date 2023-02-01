@@ -64,11 +64,10 @@ HeapObject UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
   switch (slot_type) {
     case SlotType::kCodeEntry: {
       RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, InstructionStream());
-      return InstructionStream::GetCodeFromTargetAddress(
-          rinfo.target_address());
+      return InstructionStream::FromTargetAddress(rinfo.target_address());
     }
     case SlotType::kConstPoolCodeEntry: {
-      return InstructionStream::GetObjectFromEntryAddress(addr);
+      return InstructionStream::FromEntryAddress(addr);
     }
     case SlotType::kEmbeddedObjectCompressed: {
       RelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT, 0,

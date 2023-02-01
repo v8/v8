@@ -523,7 +523,7 @@ void ScavengeVisitor::VisitCodePointer(HeapObject host, CodeObjectSlot slot) {
 void ScavengeVisitor::VisitCodeTarget(InstructionStream host,
                                       RelocInfo* rinfo) {
   InstructionStream target =
-      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream::FromTargetAddress(rinfo->target_address());
 #ifdef DEBUG
   InstructionStream old_target = target;
 #endif

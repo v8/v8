@@ -27,8 +27,6 @@ class CodeReference {
       : kind_(Kind::WASM_CODE), wasm_code_(wasm_code) {}
   explicit CodeReference(const CodeDesc* code_desc)
       : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
-  explicit CodeReference(Handle<InstructionStream> code)
-      : kind_(Kind::INSTRUCTION_STREAM), instruction_stream_(code) {}
   explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
 
   Address constant_pool() const;
@@ -42,16 +40,8 @@ class CodeReference {
   int code_comments_size() const;
 
   bool is_null() const { return kind_ == Kind::NONE; }
-  bool is_instruction_stream() const {
-    return kind_ == Kind::INSTRUCTION_STREAM;
-  }
   bool is_code() const { return kind_ == Kind::CODE; }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
-
-  Handle<InstructionStream> as_instruction_stream() const {
-    DCHECK_EQ(Kind::INSTRUCTION_STREAM, kind_);
-    return instruction_stream_;
-  }
 
   Handle<Code> as_code() const {
     DCHECK_EQ(Kind::CODE, kind_);
@@ -64,18 +54,11 @@ class CodeReference {
   }
 
  private:
-  enum class Kind {
-    NONE,
-    INSTRUCTION_STREAM,
-    CODE,
-    WASM_CODE,
-    CODE_DESC
-  } kind_;
+  enum class Kind { NONE, CODE, WASM_CODE, CODE_DESC } kind_;
   union {
     std::nullptr_t null_;
     const wasm::WasmCode* wasm_code_;
     const CodeDesc* code_desc_;
-    Handle<InstructionStream> instruction_stream_;
     Handle<Code> code_;
   };
 

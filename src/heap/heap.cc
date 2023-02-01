@@ -6309,7 +6309,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
     void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
       InstructionStream target =
-          InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+          InstructionStream::FromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
     void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {

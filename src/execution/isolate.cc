@@ -1995,7 +1995,8 @@ Object Isolate::UnwindAndFindHandler() {
 
         // Jump directly to the optimized frames return, to immediately fall
         // into the deoptimizer.
-        int offset = code.GetOffsetFromInstructionStart(this, frame->pc());
+        const int offset =
+            static_cast<int>(frame->pc() - code.instruction_start());
 
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
@@ -2003,9 +2004,9 @@ Object Isolate::UnwindAndFindHandler() {
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code.stack_slots() * kSystemPointerSize;
-        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
-                            offset, code.constant_pool(), return_sp,
-                            frame->fp(), visited_frames);
+        return FoundHandler(Context(), code.instruction_start(), offset,
+                            code.constant_pool(), return_sp, frame->fp(),
+                            visited_frames);
       }
       DCHECK(!frame->is_maglev());
 
@@ -2040,7 +2041,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
         InstructionStream code = frame->LookupCode().instruction_stream();
         HandlerTable table(code);
-        Address instruction_start = code.InstructionStart(this, frame->pc());
+        Address instruction_start = code.instruction_start();
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
         int handler_offset = table.LookupReturn(return_offset);
         DCHECK_NE(-1, handler_offset);
@@ -2187,7 +2188,7 @@ Object Isolate::UnwindAndFindHandler() {
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(Context(), code.InstructionStart(), pc_offset,
+          return FoundHandler(Context(), code.instruction_start(), pc_offset,
                               code.constant_pool(), return_sp, sp_frame->fp(),
                               visited_frames);
         } else {

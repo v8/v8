@@ -1794,13 +1794,14 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 
 void InstructionStream::InstructionStreamPrint(std::ostream& os) {
   PrintHeader(os, "InstructionStream");
-  os << "\n - code: " << Brief(code(kAcquireLoad));
+  Code the_code = code(kAcquireLoad);
+  os << "\n - code: " << Brief(the_code);
   if (is_builtin()) {
     os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
-  Disassemble(nullptr, os, GetIsolate());
+  the_code.Disassemble(nullptr, os, GetIsolate());
 #endif
 }
 

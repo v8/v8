@@ -46,6 +46,27 @@ class Register;
 // write-protected pages within the heap, its header fields need to be
 // immutable.  Every InstructionStream object has an associated Code object,
 // but not every Code object has an InstructionStream (e.g. for builtins).
+//
+// Embedded builtins consist of on-heap Code objects, with an out-of-line body
+// section. Accessors (e.g. InstructionStart), redirect to the off-heap area.
+// Metadata table offsets remain relative to MetadataStart(), i.e. they point
+// into the off-heap metadata section. The off-heap layout is described in
+// detail in the EmbeddedData class, but at a high level one can assume a
+// dedicated, out-of-line, instruction and metadata section for each embedded
+// builtin:
+//
+//  +--------------------------+  <-- InstructionStart()
+//  |   off-heap instructions  |
+//  |           ...            |
+//  +--------------------------+  <-- InstructionEnd()
+//
+//  +--------------------------+  <-- MetadataStart() (MS)
+//  |    off-heap metadata     |
+//  |           ...            |  <-- MS + handler_table_offset()
+//  |                          |  <-- MS + constant_pool_offset()
+//  |                          |  <-- MS + code_comments_offset()
+//  |                          |  <-- MS + unwinding_info_offset()
+//  +--------------------------+  <-- MetadataEnd()
 class Code : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -63,6 +84,11 @@ class Code : public HeapObject {
 
   DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
   DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
+
+  // [is_promise_rejection]: For kind BUILTIN tells whether the
+  // exception thrown by the code will lead to promise rejection or
+  // uncaught if both this and is_exception_caught is set.
+  // Use GetBuiltinCatchPrediction to access this.
   DECL_PRIMITIVE_ACCESSORS(is_promise_rejection, bool)
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
@@ -221,6 +247,7 @@ class Code : public HeapObject {
   // raw_instruction_start/end() values.
   // TODO(11527): remove these versions once the full solution is ready.
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionStart(Isolate* isolate,
                                                     Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
@@ -305,8 +332,26 @@ class Code : public HeapObject {
   // InstructionStream object.
   DECL_RELAXED_UINT16_ACCESSORS(flags)
 
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
+  V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapMetadataStart() const;
+  V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
+  V8_EXPORT_PRIVATE int OffHeapMetadataSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapSafepointTableAddress() const;
+  V8_EXPORT_PRIVATE int OffHeapSafepointTableSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapHandlerTableAddress() const;
+  V8_EXPORT_PRIVATE int OffHeapHandlerTableSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapConstantPoolAddress() const;
+  V8_EXPORT_PRIVATE int OffHeapConstantPoolSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapCodeCommentsAddress() const;
+  V8_EXPORT_PRIVATE int OffHeapCodeCommentsSize() const;
+  V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress() const;
+  V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize() const;
+  V8_EXPORT_PRIVATE int OffHeapStackSlots() const;
+
   template <typename IsolateT>
   friend class Deserializer;
+  friend class GcSafeCode;  // For OffHeapFoo functions.
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
@@ -375,8 +420,9 @@ class GcSafeCode : public HeapObject {
 class InstructionStream : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  // Opaque data type for encapsulating code flags like kind, inline
-  // cache state, and arguments count.
+
+  // Opaque data type for encapsulating code flags like kind, inline cache
+  // state, and arguments count.
   using Flags = uint32_t;
 
   // All InstructionStream objects have the following layout:
@@ -384,53 +430,24 @@ class InstructionStream : public HeapObject {
   //  +--------------------------+
   //  |          header          |
   //  | padded to code alignment |
-  //  +--------------------------+  <-- raw_body_start()
-  //  |       instructions       |   == raw_instruction_start()
+  //  +--------------------------+  <-- body_start()
+  //  |       instructions       |   == instruction_start()
   //  |           ...            |
   //  | padded to meta alignment |      see kMetadataAlignment
-  //  +--------------------------+  <-- raw_instruction_end()
-  //  |         metadata         |   == raw_metadata_start() (MS)
+  //  +--------------------------+  <-- instruction_end()
+  //  |         metadata         |   == metadata_start() (MS)
   //  |           ...            |
   //  |                          |  <-- MS + handler_table_offset()
   //  |                          |  <-- MS + constant_pool_offset()
   //  |                          |  <-- MS + code_comments_offset()
   //  |                          |  <-- MS + unwinding_info_offset()
   //  | padded to obj alignment  |
-  //  +--------------------------+  <-- raw_metadata_end() == raw_body_end()
+  //  +--------------------------+  <-- metadata_end() == body_end()
   //  | padded to code alignment |
   //  +--------------------------+
   //
   // In other words, the variable-size 'body' consists of 'instructions' and
   // 'metadata'.
-  //
-  // Note the accessor functions below may be prefixed with 'raw'. In this case,
-  // raw accessors (e.g. raw_instruction_start) always refer to the on-heap
-  // InstructionStream object, while camel-case accessors (e.g.
-  // InstructionStart) may refer to an off-heap area in the case of embedded
-  // builtins.
-  //
-  // Embedded builtins are on-heap InstructionStream objects, with an
-  // out-of-line body section. The on-heap InstructionStream object contains an
-  // essentially empty body section, while accessors, as mentioned above,
-  // redirect to the off-heap area. Metadata table offsets remain relative to
-  // MetadataStart(), i.e. they point into the off-heap metadata section. The
-  // off-heap layout is described in detail in the EmbeddedData class, but at a
-  // high level one can assume a dedicated, out-of-line, instruction and
-  // metadata section for each embedded builtin *in addition* to the on-heap
-  // InstructionStream object:
-  //
-  //  +--------------------------+  <-- InstructionStart()
-  //  |   off-heap instructions  |
-  //  |           ...            |
-  //  +--------------------------+  <-- InstructionEnd()
-  //
-  //  +--------------------------+  <-- MetadataStart() (MS)
-  //  |    off-heap metadata     |
-  //  |           ...            |  <-- MS + handler_table_offset()
-  //  |                          |  <-- MS + constant_pool_offset()
-  //  |                          |  <-- MS + code_comments_offset()
-  //  |                          |  <-- MS + unwinding_info_offset()
-  //  +--------------------------+  <-- MetadataEnd()
 
   // Constants for use in static asserts, stating whether the body is adjacent,
   // i.e. instructions and metadata areas are adjacent.
@@ -439,51 +456,27 @@ class InstructionStream : public HeapObject {
   static constexpr bool kBodyIsContiguous =
       kOnHeapBodyIsContiguous && kOffHeapBodyIsContiguous;
 
-  inline Address raw_body_start() const;
-  inline Address raw_body_end() const;
-  inline int raw_body_size() const;
+  inline Address body_start() const;
+  inline Address body_end() const;
+  inline int body_size() const;
 
-  inline Address raw_instruction_start() const;
-  inline Address InstructionStart() const;
+  inline Address instruction_start() const;
+  inline Address instruction_end() const;
 
-  inline Address raw_instruction_end() const;
-  inline Address InstructionEnd() const;
+  inline int instruction_size() const;
+  inline void set_instruction_size(int value);
 
-  // When builtins un-embedding is enabled for the Isolate
-  // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
-  // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
-  // appear on the stack.
-  // Unlike the paremeterless versions of the functions above the below variants
-  // ensure that the instruction start correspond to the given |pc| value.
-  // Thus for off-heap trampoline InstructionStream objects the result might be
-  // the instruction start/end of the embedded code stream or of un-embedded
-  // one. For normal InstructionStream objects these functions just return the
-  // raw_instruction_start/end() values.
-  // TODO(11527): remove these versions once the full solution is ready.
-  inline Address InstructionStart(Isolate* isolate, Address pc) const;
-  inline Address InstructionEnd(Isolate* isolate, Address pc) const;
-
-  // Computes offset of the |pc| from the instruction start. The |pc| must
-  // belong to this code.
-  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
-
-  inline int raw_instruction_size() const;
-  inline void set_raw_instruction_size(int value);
-  inline int InstructionSize() const;
-
-  inline Address raw_metadata_start() const;
-  inline Address raw_metadata_end() const;
-  inline int raw_metadata_size() const;
-  inline void set_raw_metadata_size(int value);
-  inline int MetadataSize() const;
+  inline Address metadata_start() const;
+  inline Address metadata_end() const;
+  inline int metadata_size() const;
+  inline void set_metadata_size(int value);
 
   // The metadata section is aligned to this value.
   static constexpr int kMetadataAlignment = kIntSize;
 
   // [safepoint_table_offset]: The offset where the safepoint table starts.
   inline int safepoint_table_offset() const { return 0; }
-  inline Address raw_safepoint_table_address() const;
-  inline Address SafepointTableAddress() const;
+  inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;
   inline bool has_safepoint_table() const;
 
@@ -491,15 +484,13 @@ class InstructionStream : public HeapObject {
   // starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
-  inline Address raw_handler_table_address() const;
-  inline Address HandlerTableAddress() const;
+  inline Address handler_table_address() const;
   inline int handler_table_size() const;
   inline bool has_handler_table() const;
 
   // [constant_pool offset]: Offset of the constant pool.
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
-  inline Address raw_constant_pool() const;
   inline Address constant_pool() const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
@@ -507,7 +498,6 @@ class InstructionStream : public HeapObject {
   // [code_comments_offset]: Offset of the code comment section.
   inline int code_comments_offset() const;
   inline void set_code_comments_offset(int offset);
-  inline Address raw_code_comments() const;
   inline Address code_comments() const;
   inline int code_comments_size() const;
   inline bool has_code_comments() const;
@@ -515,17 +505,10 @@ class InstructionStream : public HeapObject {
   // [unwinding_info_offset]: Offset of the unwinding info section.
   inline int32_t unwinding_info_offset() const;
   inline void set_unwinding_info_offset(int32_t offset);
-  inline Address raw_unwinding_info_start() const;
   inline Address unwinding_info_start() const;
   inline Address unwinding_info_end() const;
   inline int unwinding_info_size() const;
   inline bool has_unwinding_info() const;
-
-#ifdef ENABLE_DISASSEMBLER
-  V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
-                                     Isolate* isolate,
-                                     Address current_pc = kNullAddress);
-#endif
 
   // [relocation_info]: InstructionStream relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
@@ -552,7 +535,7 @@ class InstructionStream : public HeapObject {
   inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
                                        SharedFunctionInfo sfi) const;
 
-  // [code]: A container indirection for all mutable fields.
+  // [code]: The associated Code object.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, HeapObject)
 
@@ -567,16 +550,9 @@ class InstructionStream : public HeapObject {
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
-  // Testers for interpreter builtins.
   inline bool is_interpreter_trampoline_builtin() const;
-
-  // Testers for baseline builtins.
   inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
-
-  // Tells whether the code checks the tiering state in the function's
-  // feedback vector.
-  inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.
   inline bool has_tagged_outgoing_params() const;
@@ -628,12 +604,6 @@ class InstructionStream : public HeapObject {
   inline bool embedded_objects_cleared() const;
   inline void set_embedded_objects_cleared(bool flag);
 
-  // [is_promise_rejection]: For kind BUILTIN tells whether the
-  // exception thrown by the code will lead to promise rejection or
-  // uncaught if both this and is_exception_caught is set.
-  // Use GetBuiltinCatchPrediction to access this.
-  inline void set_is_promise_rejection(bool flag);
-
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during
   // deserialization. The deserializer will overwrite some pointers, rather
@@ -660,12 +630,8 @@ class InstructionStream : public HeapObject {
   inline void initialize_flags(CodeKind kind, bool is_turbofanned,
                                int stack_slots);
 
-  // Convert a target address into a code object.
-  static inline InstructionStream GetCodeFromTargetAddress(Address address);
-
-  // Convert an entry address into an object.
-  static inline InstructionStream GetObjectFromEntryAddress(
-      Address location_of_address);
+  static inline InstructionStream FromTargetAddress(Address address);
+  static inline InstructionStream FromEntryAddress(Address location_of_address);
 
   // Returns the size of code and its metadata. This includes the size of code
   // relocation information, deoptimization data.
@@ -755,7 +721,7 @@ class InstructionStream : public HeapObject {
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                        \
+#define ISTREAM_FIELDS(V)                                                     \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
@@ -783,8 +749,8 @@ class InstructionStream : public HeapObject {
   V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset))     \
   V(kHeaderSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
-#undef CODE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
+#undef ISTREAM_FIELDS
 
   // This documents the amount of free space we have in each InstructionStream
   // object header due to padding for code alignment.
@@ -822,27 +788,27 @@ class InstructionStream : public HeapObject {
   class BodyDescriptor;
 
   // Flags layout.  base::BitField<type, shift, size>.
-#define CODE_FLAGS_BIT_FIELDS(V, _) \
-  V(KindField, CodeKind, 4, _)      \
-  V(IsTurbofannedField, bool, 1, _) \
+#define ISTREAM_FLAGS_BIT_FIELDS(V, _) \
+  V(KindField, CodeKind, 4, _)         \
+  V(IsTurbofannedField, bool, 1, _)    \
   V(StackSlotsField, int, 24, _)
-  DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
-#undef CODE_FLAGS_BIT_FIELDS
+  DEFINE_BIT_FIELDS(ISTREAM_FLAGS_BIT_FIELDS)
+#undef ISTREAM_FLAGS_BIT_FIELDS
   static_assert(kCodeKindCount <= KindField::kNumValues);
-  static_assert(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 29);
-  static_assert(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+  static_assert(ISTREAM_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 29);
+  static_assert(ISTREAM_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 
   // KindSpecificFlags layout.
-#define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
-  V(MarkedForDeoptimizationField, bool, 1, _)     \
-  V(EmbeddedObjectsClearedField, bool, 1, _)      \
-  V(CanHaveWeakObjectsField, bool, 1, _)          \
+#define ISTREAM_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
+  V(MarkedForDeoptimizationField, bool, 1, _)        \
+  V(EmbeddedObjectsClearedField, bool, 1, _)         \
+  V(CanHaveWeakObjectsField, bool, 1, _)             \
   V(IsPromiseRejectionField, bool, 1, _)
-  DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
-#undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
-  static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+  DEFINE_BIT_FIELDS(ISTREAM_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
+#undef ISTREAM_KIND_SPECIFIC_FLAGS_BIT_FIELDS
+  static_assert(ISTREAM_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
+  static_assert(ISTREAM_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(Code::kKindSpecificFlagsOffset) * kBitsPerByte);
 
   // The {marked_for_deoptimization} field is accessed from generated code.
@@ -874,38 +840,6 @@ class InstructionStream : public HeapObject {
 
   OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
 };
-
-// TODO(v8:11880): move these functions to Code once they are no
-// longer used from InstructionStream.
-V8_EXPORT_PRIVATE Address OffHeapInstructionStart(HeapObject code,
-                                                  Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(HeapObject code,
-                                                Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapInstructionSize(HeapObject code, Builtin builtin);
-
-V8_EXPORT_PRIVATE Address OffHeapMetadataStart(HeapObject code,
-                                               Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapMetadataEnd(HeapObject code, Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapMetadataSize(HeapObject code, Builtin builtin);
-
-V8_EXPORT_PRIVATE Address OffHeapSafepointTableAddress(HeapObject code,
-                                                       Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapSafepointTableSize(HeapObject code,
-                                                Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapHandlerTableAddress(HeapObject code,
-                                                     Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapHandlerTableSize(HeapObject code, Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapConstantPoolAddress(HeapObject code,
-                                                     Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapConstantPoolSize(HeapObject code, Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapCodeCommentsAddress(HeapObject code,
-                                                     Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapCodeCommentsSize(HeapObject code, Builtin builtin);
-V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress(HeapObject code,
-                                                      Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
-                                               Builtin builtin);
-V8_EXPORT_PRIVATE int OffHeapStackSlots(HeapObject code, Builtin builtin);
 
 class InstructionStream::OptimizedCodeIterator {
  public:

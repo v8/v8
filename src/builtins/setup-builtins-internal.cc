@@ -250,8 +250,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
-        InstructionStream target = InstructionStream::GetCodeFromTargetAddress(
-            rinfo->target_address());
+        InstructionStream target =
+            InstructionStream::FromTargetAddress(rinfo->target_address());
         DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
                        Builtins::IsIsolateIndependent(target.builtin_id()));
         if (!target.is_builtin()) continue;
@@ -271,8 +271,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code.raw_instruction_start(),
-                            code.raw_instruction_size());
+      FlushInstructionCache(code.instruction_start(), code.instruction_size());
     }
   }
 }

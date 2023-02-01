@@ -18,9 +18,8 @@ namespace internal {
 
 namespace {
 
-template <typename CodeOrInstructionStream>
-struct CodeOrInstructionStreamOps {
-  Handle<CodeOrInstructionStream> code;
+struct CodeOps {
+  Handle<Code> code;
 
   Address constant_pool() const { return code->constant_pool(); }
   Address instruction_start() const { return code->InstructionStart(); }
@@ -32,9 +31,6 @@ struct CodeOrInstructionStreamOps {
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
 };
-
-using InstructionStreamOps = CodeOrInstructionStreamOps<InstructionStream>;
-using CodeOps = CodeOrInstructionStreamOps<Code>;
 
 #if V8_ENABLE_WEBASSEMBLY
 struct WasmCodeOps {
@@ -92,21 +88,19 @@ struct CodeDescOps {
 #define HANDLE_WASM(...) UNREACHABLE()
 #endif
 
-#define DISPATCH(ret, method)                                      \
-  ret CodeReference::method() const {                              \
-    DCHECK(!is_null());                                            \
-    switch (kind_) {                                               \
-      case Kind::INSTRUCTION_STREAM:                               \
-        return InstructionStreamOps{instruction_stream_}.method(); \
-      case Kind::CODE:                                             \
-        return CodeOps{code_}.method();                            \
-      case Kind::WASM_CODE:                                        \
-        HANDLE_WASM(return WasmCodeOps{wasm_code_}.method());      \
-      case Kind::CODE_DESC:                                        \
-        return CodeDescOps{code_desc_}.method();                   \
-      default:                                                     \
-        UNREACHABLE();                                             \
-    }                                                              \
+#define DISPATCH(ret, method)                                 \
+  ret CodeReference::method() const {                         \
+    DCHECK(!is_null());                                       \
+    switch (kind_) {                                          \
+      case Kind::CODE:                                        \
+        return CodeOps{code_}.method();                       \
+      case Kind::WASM_CODE:                                   \
+        HANDLE_WASM(return WasmCodeOps{wasm_code_}.method()); \
+      case Kind::CODE_DESC:                                   \
+        return CodeDescOps{code_desc_}.method();              \
+      default:                                                \
+        UNREACHABLE();                                        \
+    }                                                         \
   }
 
 DISPATCH(Address, constant_pool)

@@ -598,7 +598,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   const Address old_pc = ReadPC(pc_address);
   DCHECK(isolate_->heap()->GcSafeInstructionStreamContains(unsafe_istream,
                                                            old_pc));
-  const uintptr_t pc_offset = old_pc - unsafe_istream.raw_instruction_start();
+  const uintptr_t pc_offset = old_pc - unsafe_istream.instruction_start();
 
   // Visit the InstructionStream.
   Object visited_unsafe_istream = unsafe_istream;
@@ -608,7 +608,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   // Take care when accessing unsafe_istream from here on. It may have been
   // moved.
   unsafe_istream = InstructionStream::unchecked_cast(visited_unsafe_istream);
-  const Address pc = unsafe_istream.raw_instruction_start() + pc_offset;
+  const Address pc = unsafe_istream.instruction_start() + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {

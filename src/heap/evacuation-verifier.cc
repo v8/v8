@@ -115,7 +115,7 @@ void FullEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
 void FullEvacuationVerifier::VisitCodeTarget(InstructionStream host,
                                              RelocInfo* rinfo) {
   InstructionStream target =
-      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
 void FullEvacuationVerifier::VisitEmbeddedPointer(InstructionStream host,
@@ -161,7 +161,7 @@ void YoungGenerationEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
 void YoungGenerationEvacuationVerifier::VisitCodeTarget(InstructionStream host,
                                                         RelocInfo* rinfo) {
   InstructionStream target =
-      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
 void YoungGenerationEvacuationVerifier::VisitEmbeddedPointer(

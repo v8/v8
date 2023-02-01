@@ -1101,12 +1101,12 @@ void Code::CodeVerify(Isolate* isolate) {
     // object associated with this Code.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-      if (istream.InstructionStart() == code_entry_point()) {
+      if (istream.instruction_start() == code_entry_point()) {
         // Most common case, all good.
       } else {
         // When shared pointer compression cage is enabled and it has the
         // embedded code blob copy then the
-        // InstructionStream::InstructionStart() might return the address of
+        // InstructionStream::instruction_start() might return the address of
         // the remapped builtin regardless of whether the builtins copy existed
         // when the code_entry_point value was cached in the Code (see
         // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
@@ -1117,31 +1117,31 @@ void Code::CodeVerify(Isolate* isolate) {
         CHECK_EQ(lookup_result, *this);
       }
     } else {
-      CHECK_EQ(istream.InstructionStart(), code_entry_point());
+      CHECK_EQ(istream.instruction_start(), code_entry_point());
     }
 #else
-    CHECK_EQ(istream.InstructionStart(), code_entry_point());
+    CHECK_EQ(istream.instruction_start(), code_entry_point());
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   }
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK(
-      IsAligned(InstructionSize(),
+      IsAligned(instruction_size(),
                 static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
   CHECK_EQ(safepoint_table_offset(), 0);
   CHECK_LE(safepoint_table_offset(), handler_table_offset());
   CHECK_LE(handler_table_offset(), constant_pool_offset());
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), unwinding_info_offset());
-  CHECK_LE(unwinding_info_offset(), MetadataSize());
+  CHECK_LE(unwinding_info_offset(), metadata_size());
 #if !defined(_MSC_VER) || defined(__clang__)
   // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
-                IsAligned(InstructionStart(), kCodeAlignment));
+                IsAligned(instruction_start(), kCodeAlignment));
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
-                IsAligned(raw_instruction_start(), kCodeAlignment));
+                IsAligned(instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
   relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||

@@ -155,8 +155,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     InstructionStream raw_istream = *instruction_stream;
     DisallowGarbageCollection no_gc;
 
-    raw_istream.set_raw_instruction_size(code_desc_.instruction_size());
-    raw_istream.set_raw_metadata_size(code_desc_.metadata_size());
+    raw_istream.set_instruction_size(code_desc_.instruction_size());
+    raw_istream.set_metadata_size(code_desc_.metadata_size());
     raw_istream.set_relocation_info(*reloc_info);
     raw_istream.initialize_flags(kind_, is_turbofanned_, stack_slots_);
     raw_istream.set_builtin_id(builtin_);
@@ -236,7 +236,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   if (V8_UNLIKELY(profiler_data_ && v8_flags.turbo_profiling_verbose)) {
 #ifdef ENABLE_DISASSEMBLER
     std::ostringstream os;
-    instruction_stream->Disassemble(nullptr, os, isolate_);
+    code->Disassemble(nullptr, os, isolate_);
     if (!on_heap_profiler_data.is_null()) {
       Handle<String> disassembly =
           isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),

@@ -14,8 +14,8 @@ namespace internal {
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
                                            InstructionStream code)
-    : MaglevSafepointTable(code.InstructionStart(isolate, pc),
-                           code.SafepointTableAddress()) {
+    : MaglevSafepointTable(code.instruction_start(),
+                           code.safepoint_table_address()) {
   DCHECK(code.is_maglevved());
 }
 

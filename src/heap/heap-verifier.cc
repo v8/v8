@@ -167,7 +167,7 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject host,
 void VerifyPointersVisitor::VisitCodeTarget(InstructionStream host,
                                             RelocInfo* rinfo) {
   InstructionStream target =
-      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
 
@@ -493,7 +493,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     Object target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&

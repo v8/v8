@@ -901,14 +901,14 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
   }
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   base::Vector<const byte> instructions(
-      reinterpret_cast<byte*>(code->raw_body_start()),
-      static_cast<size_t>(code->raw_body_size()));
+      reinterpret_cast<byte*>(code->body_start()),
+      static_cast<size_t>(code->body_size()));
   const int stack_slots = code->stack_slots();
 
   // Metadata offsets in InstructionStream objects are relative to the start of
   // the metadata section, whereas WasmCode expects offsets relative to
   // InstructionStart.
-  const int base_offset = code->raw_instruction_size();
+  const int base_offset = code->instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // InstructionStream objects contains real offsets but WasmCode expects an
   // offset of 0 to mean 'empty'.
@@ -926,7 +926,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->raw_instruction_start();
+                   code->instruction_start();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =

@@ -1032,7 +1032,7 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
     DCHECK(!RelocInfo::IsRelativeCodeTarget(target->rmode()));
 #endif
     InstructionStream object =
-        InstructionStream::GetCodeFromTargetAddress(target->target_address());
+        InstructionStream::FromTargetAddress(target->target_address());
     serializer_->SerializeObject(handle(object, isolate()));
     num_serialized_objects_++;
   }
@@ -1074,15 +1074,12 @@ void Serializer::ObjectSerializer::VisitExternalReference(
 
 void Serializer::ObjectSerializer::VisitInternalReference(
     InstructionStream host, RelocInfo* rinfo) {
-  Address entry = Handle<InstructionStream>::cast(object_)->entry();
+  Handle<InstructionStream> istream = Handle<InstructionStream>::cast(object_);
+  Address entry = istream->entry();
   DCHECK_GE(rinfo->target_internal_reference(), entry);
   uintptr_t target_offset = rinfo->target_internal_reference() - entry;
-  // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
-  // consider using raw_instruction_size() instead of raw_body_size() in the
-  // future.
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  DCHECK_LE(target_offset,
-            Handle<InstructionStream>::cast(object_)->raw_body_size());
+  DCHECK_LT(target_offset, istream->instruction_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
 }

@@ -1019,16 +1019,16 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kNative) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Handle<InstructionStream> c =
-          Handle<InstructionStream>::cast(result.code);
-      auto pattern_cstring = pattern->ToCString();
-      c->Disassemble(pattern_cstring.get(), os, isolate);
+      Code code =
+          Handle<InstructionStream>::cast(result.code)->code(kAcquireLoad);
+      std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
+      code.Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
       Handle<ByteArray> bytecode = Handle<ByteArray>::cast(result.code);
-      auto pattern_cstring = pattern->ToCString();
+      std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->GetDataStartAddress(),
                                 bytecode->length(), pattern_cstring.get());
     }

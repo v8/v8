@@ -610,8 +610,8 @@ void InitializeCodeEvent(Isolate* isolate, CodeEvent* event,
 void ExternalLogEventListener::CodeMoveEvent(InstructionStream from,
                                              InstructionStream to) {
   CodeEvent code_event;
-  InitializeCodeEvent(isolate_, &code_event, from.InstructionStart(),
-                      to.InstructionStart(), to.InstructionSize());
+  InitializeCodeEvent(isolate_, &code_event, from.instruction_start(),
+                      to.instruction_start(), to.instruction_size());
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
@@ -759,8 +759,8 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 void LowLevelLogger::CodeMoveEvent(InstructionStream from,
                                    InstructionStream to) {
   CodeMoveStruct event;
-  event.from_address = from.InstructionStart();
-  event.to_address = to.InstructionStart();
+  event.from_address = from.instruction_start();
+  event.to_address = to.instruction_start();
   LogWriteStruct(event);
 }
 
@@ -898,9 +898,9 @@ void JitLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type = JitCodeEvent::JIT_CODE;
-  event.code_start = reinterpret_cast<void*>(from.InstructionStart());
-  event.code_len = from.InstructionSize();
-  event.new_code_start = reinterpret_cast<void*>(to.InstructionStart());
+  event.code_start = reinterpret_cast<void*>(from.instruction_start());
+  event.code_len = from.instruction_size();
+  event.new_code_start = reinterpret_cast<void*>(to.instruction_start());
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
   code_event_handler_(&event);
@@ -1577,8 +1577,8 @@ void V8FileLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 
 void V8FileLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(Event::kCodeMove, from.InstructionStart(),
-                    to.InstructionStart());
+  MoveEventInternal(Event::kCodeMove, from.instruction_start(),
+                    to.instruction_start());
 }
 
 void V8FileLogger::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
@@ -1613,7 +1613,7 @@ void V8FileLogger::ProcessDeoptEvent(Handle<InstructionStream> code,
                                      const char* reason) {
   MSG_BUILDER();
   msg << Event::kCodeDeopt << kNext << Time() << kNext << code->CodeSize()
-      << kNext << reinterpret_cast<void*>(code->InstructionStart());
+      << kNext << reinterpret_cast<void*>(code->instruction_start());
 
   std::ostringstream deopt_location;
   int inlining_id = -1;

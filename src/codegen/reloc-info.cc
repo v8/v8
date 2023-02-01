@@ -263,7 +263,7 @@ RelocIterator::RelocIterator(Code code, int mode_mask)
 
 RelocIterator::RelocIterator(InstructionStream code, ByteArray relocation_info,
                              int mode_mask)
-    : RelocIterator(code, code.raw_instruction_start(), code.constant_pool(),
+    : RelocIterator(code, code.instruction_start(), code.constant_pool(),
                     relocation_info.GetDataEndAddress(),
                     relocation_info.GetDataStartAddress(), mode_mask) {}
 
@@ -358,7 +358,7 @@ void RelocInfo::set_target_address(Address target,
   if (!host().is_null() && IsCodeTargetMode(rmode_) &&
       !v8_flags.disable_write_barriers) {
     InstructionStream target_code =
-        InstructionStream::GetCodeFromTargetAddress(target);
+        InstructionStream::FromTargetAddress(target);
     WriteBarrierForCode(host(), this, target_code, write_barrier_mode);
   }
 }
@@ -470,8 +470,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
        << ")";
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
-    InstructionStream code =
-        InstructionStream::GetCodeFromTargetAddress(code_target);
+    InstructionStream code = InstructionStream::FromTargetAddress(code_target);
     DCHECK(code.IsInstructionStream());
     os << " (" << CodeKindToString(code.kind());
     if (Builtins::IsBuiltin(code)) {
@@ -501,8 +500,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
-      InstructionStream code =
-          InstructionStream::GetCodeFromTargetAddress(addr);
+      InstructionStream code = InstructionStream::FromTargetAddress(addr);
       Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
       CHECK_EQ(code.address(), lookup_result.instruction_stream().address());
       break;
@@ -513,8 +511,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address pc = target_internal_reference_address();
       Code lookup_result = isolate->heap()->FindCodeForInnerPointer(pc);
       InstructionStream code = lookup_result.instruction_stream();
-      CHECK(target >= code.InstructionStart(isolate, pc));
-      CHECK(target <= code.InstructionEnd(isolate, pc));
+      CHECK(target >= code.instruction_start());
+      CHECK(target < code.instruction_end());
       break;
     }
     case OFF_HEAP_TARGET: {

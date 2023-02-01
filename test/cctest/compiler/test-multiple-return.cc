@@ -187,7 +187,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
 
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-          handles.main_isolate(), istream->raw_instruction_size());
+          handles.main_isolate(), istream->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
           module->AddCodeForTesting(istream)->instructions().begin();
@@ -218,9 +218,9 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
       mt.Return(ToInt32(&mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
-      Handle<InstructionStream> code2 = mt.GetInstructionStream();
       if (v8_flags.print_code) {
         StdoutStream os;
+        Handle<Code> code2 = mt.GetCode();
         code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }
 #endif
@@ -286,7 +286,7 @@ void ReturnLastValue(MachineType type) {
                                       handles.main_isolate());
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-        handles.main_isolate(), istream->raw_instruction_size());
+        handles.main_isolate(), istream->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start =
         module->AddCodeForTesting(istream)->instructions().begin();
@@ -352,7 +352,7 @@ void ReturnSumOfReturns(MachineType type) {
                                       handles.main_isolate());
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-        handles.main_isolate(), istream->raw_instruction_size());
+        handles.main_isolate(), istream->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start =
         module->AddCodeForTesting(istream)->instructions().begin();

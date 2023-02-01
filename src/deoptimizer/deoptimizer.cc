@@ -475,8 +475,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK_GT(kLazyDeoptExitSize, 0);
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(compiled_code_.deoptimization_data());
-  Address deopt_start = compiled_code_.raw_instruction_start() +
-                        deopt_data.DeoptExitStart().value();
+  Address deopt_start =
+      compiled_code_.instruction_start() + deopt_data.DeoptExitStart().value();
   int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
       deopt_start + eager_deopt_count * kEagerDeoptExitSize;
@@ -1935,7 +1935,7 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
 
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(InstructionStream code,
                                                  Address pc) {
-  CHECK(code.InstructionStart() <= pc && pc <= code.InstructionEnd());
+  CHECK(code.instruction_start() <= pc && pc <= code.instruction_end());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;
   uint32_t last_node_id = 0;

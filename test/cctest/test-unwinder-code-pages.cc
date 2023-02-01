@@ -305,9 +305,9 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).
-  const uintptr_t offset = instruction_stream.InstructionSize() - 20;
-  CHECK_LT(offset, instruction_stream.InstructionSize());
-  Address pc = instruction_stream.InstructionStart() + offset;
+  const uintptr_t offset = instruction_stream.instruction_size() - 20;
+  CHECK_LT(offset, instruction_stream.instruction_size());
+  Address pc = instruction_stream.instruction_start() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
   // Get code pages from the API now that the code obejct exists and check that
@@ -680,7 +680,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
       i_isolate);
 
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
-  byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
+  byte* start = reinterpret_cast<byte*>(foo_code->instruction_start());
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   size_t pages_length =

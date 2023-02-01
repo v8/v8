@@ -376,16 +376,16 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
     // Print all the reloc info for this instruction which are not comments.
     for (size_t i = 0; i < pcs.size(); i++) {
-      // Put together the reloc info
+      // Put together the reloc info.
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      InstructionStream code_pointer;
-      if (host.is_instruction_stream()) {
-        code_pointer = *host.as_instruction_stream();
+      InstructionStream instruction_stream;
+      if (host.is_code()) {
+        instruction_stream = host.as_code()->instruction_stream();
       }
 
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], code_pointer,
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], instruction_stream,
                           constant_pool);
 
       bool first_reloc_info = (i == 0);

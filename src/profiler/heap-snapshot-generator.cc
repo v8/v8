@@ -1081,7 +1081,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     VisitHeapObjectImpl(target, -1);
   }
 

@@ -497,11 +497,11 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       new_code_objects_.push_back(Handle<InstructionStream>::cast(obj));
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
-    auto code = Code::cast(raw_obj);
+    Code code = Code::cast(raw_obj);
     code.init_code_entry_point(main_thread_isolate(), kNullAddress);
     if (!code.has_instruction_stream()) {
-      Address entry = OffHeapInstructionStart(code, code.builtin_id());
-      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(), entry);
+      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
+                                          code.OffHeapInstructionStart());
     } else {
       code.UpdateCodeEntryPoint(main_thread_isolate(),
                                 code.instruction_stream());
@@ -753,7 +753,7 @@ void DeserializerRelocInfoVisitor::VisitCodeTarget(InstructionStream host,
                                                    RelocInfo* rinfo) {
   HeapObject object = *objects_->at(current_object_++);
   rinfo->set_target_address(
-      InstructionStream::cast(object).raw_instruction_start());
+      InstructionStream::cast(object).instruction_start());
 }
 
 void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(InstructionStream host,
@@ -784,14 +784,11 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kInternalReference);
 
-  // Internal reference target is encoded as an offset from code entry.
+  // An internal reference target is encoded as an offset from code entry.
   int target_offset = source().GetInt();
-  // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
-  // consider using raw_instruction_size() instead of raw_body_size() in the
-  // future.
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(host.raw_body_size()));
+            static_cast<unsigned>(host.instruction_size()));
   Address target = host.entry() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
       rinfo->pc(), target, rinfo->rmode());

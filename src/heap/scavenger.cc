@@ -72,7 +72,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   V8_INLINE void VisitCodeTarget(InstructionStream host,
                                  RelocInfo* rinfo) final {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
   V8_INLINE void VisitEmbeddedPointer(InstructionStream host,

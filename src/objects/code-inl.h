@@ -219,8 +219,8 @@ BytecodeArray AbstractCode::GetBytecodeArray() {
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
 
-INT_ACCESSORS(InstructionStream, raw_instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(InstructionStream, raw_metadata_size, kMetadataSizeOffset)
+INT_ACCESSORS(InstructionStream, instruction_size, kInstructionSizeOffset)
+INT_ACCESSORS(InstructionStream, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(InstructionStream, handler_table_offset,
               kHandlerTableOffsetOffset)
 INT_ACCESSORS(InstructionStream, code_comments_offset,
@@ -396,16 +396,16 @@ void InstructionStream::WipeOutHeader() {
 }
 
 void InstructionStream::clear_padding() {
-  // Clear the padding between the header and `raw_body_start`.
+  // Clear the padding between the header and `body_start`.
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
 
-  // Clear the padding after `raw_body_end`.
+  // Clear the padding after `body_end`.
   size_t trailing_padding_size =
-      CodeSize() - InstructionStream::kHeaderSize - raw_body_size();
-  memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
+      CodeSize() - InstructionStream::kHeaderSize - body_size();
+  memset(reinterpret_cast<void*>(body_end()), 0, trailing_padding_size);
 }
 
 ByteArray Code::SourcePositionTable(PtrComprCageBase cage_base,
@@ -426,61 +426,38 @@ ByteArray InstructionStream::SourcePositionTable(PtrComprCageBase cage_base,
   return source_position_table(cage_base);
 }
 
-Address InstructionStream::raw_body_start() const {
-  return raw_instruction_start();
+Address InstructionStream::body_start() const { return instruction_start(); }
+
+Address InstructionStream::body_end() const {
+  return body_start() + body_size();
 }
 
-Address InstructionStream::raw_body_end() const {
-  return raw_body_start() + raw_body_size();
-}
-
-int InstructionStream::raw_body_size() const {
-  return raw_instruction_size() + raw_metadata_size();
-}
-
-// TODO(jgruber): Remove this.
-int InstructionStream::InstructionSize() const {
-  return raw_instruction_size();
+int InstructionStream::body_size() const {
+  return instruction_size() + metadata_size();
 }
 
 int Code::InstructionSize() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_instruction_size()
-             : i::OffHeapInstructionSize(*this, builtin_id());
+             ? instruction_stream().instruction_size()
+             : OffHeapInstructionSize();
 }
 
-Address InstructionStream::raw_instruction_start() const {
+Address InstructionStream::instruction_start() const {
   return field_address(kHeaderSize);
 }
 
-// TODO(jgruber): Remove this.
-Address InstructionStream::InstructionStart() const {
-  return raw_instruction_start();
-}
-
-Address InstructionStream::raw_instruction_end() const {
-  return raw_instruction_start() + raw_instruction_size();
-}
-
-// TODO(jgruber): Remove this.
-Address InstructionStream::InstructionEnd() const {
-  return raw_instruction_end();
+Address InstructionStream::instruction_end() const {
+  return instruction_start() + instruction_size();
 }
 
 Address Code::InstructionEnd() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_instruction_end()
-             : i::OffHeapInstructionEnd(*this, builtin_id());
+             ? instruction_stream().instruction_end()
+             : OffHeapInstructionEnd();
 }
 
-Address InstructionStream::raw_metadata_start() const {
-  return raw_instruction_start() + raw_instruction_size();
-}
-
-// TODO(jgruber): Remove this.
-Address InstructionStream::InstructionStart(Isolate* isolate,
-                                            Address pc) const {
-  return raw_instruction_start();
+Address InstructionStream::metadata_start() const {
+  return instruction_start() + instruction_size();
 }
 
 Address Code::InstructionStart(Isolate* isolate, Address pc) const {
@@ -489,23 +466,10 @@ Address Code::InstructionStart(Isolate* isolate, Address pc) const {
              : OffHeapInstructionStart(isolate, pc);
 }
 
-// TODO(jgruber): Remove this.
-Address InstructionStream::InstructionEnd(Isolate* isolate, Address pc) const {
-  return raw_instruction_end();
-}
-
 Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
   return V8_LIKELY(has_instruction_stream())
              ? raw_instruction_end()
              : OffHeapInstructionEnd(isolate, pc);
-}
-
-int InstructionStream::GetOffsetFromInstructionStart(Isolate* isolate,
-                                                     Address pc) const {
-  Address instruction_start = InstructionStart(isolate, pc);
-  Address offset = pc - instruction_start;
-  DCHECK_LE(offset, InstructionSize());
-  return static_cast<int>(offset);
 }
 
 int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
@@ -515,12 +479,9 @@ int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   return static_cast<int>(offset);
 }
 
-Address InstructionStream::raw_metadata_end() const {
-  return raw_metadata_start() + raw_metadata_size();
+Address InstructionStream::metadata_end() const {
+  return metadata_start() + metadata_size();
 }
-
-// TODO(jgruber): Remove this.
-int InstructionStream::MetadataSize() const { return raw_metadata_size(); }
 
 DEF_GETTER(InstructionStream, SizeIncludingMetadata, int) {
   int size = CodeSize();
@@ -531,13 +492,8 @@ DEF_GETTER(InstructionStream, SizeIncludingMetadata, int) {
   return size;
 }
 
-Address InstructionStream::raw_safepoint_table_address() const {
-  return raw_metadata_start() + safepoint_table_offset();
-}
-
-// TODO(jgruber): Remove this.
-Address InstructionStream::SafepointTableAddress() const {
-  return raw_safepoint_table_address();
+Address InstructionStream::safepoint_table_address() const {
+  return metadata_start() + safepoint_table_offset();
 }
 
 int InstructionStream::safepoint_table_size() const {
@@ -551,8 +507,8 @@ bool InstructionStream::has_safepoint_table() const {
 
 Address Code::SafepointTableAddress() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_safepoint_table_address()
-             : OffHeapSafepointTableAddress(*this, builtin_id());
+             ? instruction_stream().safepoint_table_address()
+             : OffHeapSafepointTableAddress();
 }
 
 Address GcSafeCode::SafepointTableAddress() const {
@@ -560,25 +516,20 @@ Address GcSafeCode::SafepointTableAddress() const {
   return V8_LIKELY(has_instruction_stream())
              ? InstructionStream::unchecked_cast(
                    unsafe_this.raw_instruction_stream(kRelaxedLoad))
-                   .raw_safepoint_table_address()
-             : OffHeapSafepointTableAddress(unsafe_this, builtin_id());
+                   .safepoint_table_address()
+             : unsafe_this.OffHeapSafepointTableAddress();
 }
 
 int Code::safepoint_table_size() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().safepoint_table_size()
-             : OffHeapSafepointTableSize(*this, builtin_id());
+             : OffHeapSafepointTableSize();
 }
 
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
-Address InstructionStream::raw_handler_table_address() const {
-  return raw_metadata_start() + handler_table_offset();
-}
-
-// TODO(jgruber): Remove this.
-Address InstructionStream::HandlerTableAddress() const {
-  return raw_handler_table_address();
+Address InstructionStream::handler_table_address() const {
+  return metadata_start() + handler_table_offset();
 }
 
 int InstructionStream::handler_table_size() const {
@@ -592,14 +543,14 @@ bool InstructionStream::has_handler_table() const {
 
 Address Code::HandlerTableAddress() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_handler_table_address()
-             : OffHeapHandlerTableAddress(*this, builtin_id());
+             ? instruction_stream().handler_table_address()
+             : OffHeapHandlerTableAddress();
 }
 
 int Code::handler_table_size() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().handler_table_size()
-             : OffHeapHandlerTableSize(*this, builtin_id());
+             : OffHeapHandlerTableSize();
 }
 
 bool Code::has_handler_table() const { return handler_table_size() > 0; }
@@ -621,7 +572,7 @@ bool InstructionStream::has_constant_pool() const {
 int Code::constant_pool_size() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().constant_pool_size()
-             : OffHeapConstantPoolSize(*this, builtin_id());
+             : OffHeapConstantPoolSize();
 }
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
@@ -662,7 +613,7 @@ int Code::relocation_size() const {
              : 0;
 }
 
-Address InstructionStream::entry() const { return raw_instruction_start(); }
+Address InstructionStream::entry() const { return instruction_start(); }
 
 bool InstructionStream::contains(Isolate* isolate, Address inner_pointer) {
   return (address() <= inner_pointer) &&
@@ -684,7 +635,7 @@ void InstructionStream::CopyRelocInfoToByteArray(ByteArray dest,
             static_cast<size_t>(desc.reloc_size));
 }
 
-int InstructionStream::CodeSize() const { return SizeFor(raw_body_size()); }
+int InstructionStream::CodeSize() const { return SizeFor(body_size()); }
 
 DEF_GETTER(InstructionStream, Size, int) { return CodeSize(); }
 
@@ -702,7 +653,7 @@ int InstructionStream::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
       ByteArray::cast(bytecode_offset_table()), bytecodes);
-  Address pc = baseline_pc - InstructionStart();
+  Address pc = baseline_pc - instruction_start();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
 }
@@ -782,17 +733,7 @@ inline bool InstructionStream::is_baseline_leave_frame_builtin() const {
   return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
-// Note, must be in sync with InstructionStream::checks_tiering_state().
 inline bool Code::checks_tiering_state() const {
-  bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
-                       builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-                       CodeKindCanTierUp(kind()));
-  return checks_state ||
-         (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
-}
-
-// Note, must be in sync with Code::checks_tiering_state().
-inline bool InstructionStream::checks_tiering_state() const {
   bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
                        CodeKindCanTierUp(kind()));
@@ -884,12 +825,6 @@ inline bool InstructionStream::is_promise_rejection() const {
   return container.is_promise_rejection();
 }
 
-inline void InstructionStream::set_is_promise_rejection(bool value) {
-  DCHECK_EQ(kind(), CodeKind::BUILTIN);
-  Code container = code(kAcquireLoad);
-  container.set_is_promise_rejection(value);
-}
-
 inline HandlerTable::CatchPrediction
 InstructionStream::GetBuiltinCatchPrediction() const {
   if (is_promise_rejection()) return HandlerTable::PROMISE;
@@ -955,7 +890,7 @@ int InstructionStream::stack_slots() const {
 int Code::stack_slots() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().stack_slots()
-             : OffHeapStackSlots(*this, builtin_id());
+             : OffHeapStackSlots();
 }
 
 int GcSafeCode::stack_slots() const {
@@ -964,7 +899,7 @@ int GcSafeCode::stack_slots() const {
              ? InstructionStream::unchecked_cast(
                    unsafe_this.raw_instruction_stream(kRelaxedLoad))
                    .stack_slots()
-             : OffHeapStackSlots(unsafe_this, builtin_id());
+             : unsafe_this.OffHeapStackSlots();
 }
 
 bool Code::marked_for_deoptimization() const {
@@ -1029,33 +964,25 @@ void InstructionStream::set_constant_pool_offset(int value) {
     // Redirection needed since the field doesn't exist in this case.
     return;
   }
-  DCHECK_LE(value, MetadataSize());
+  DCHECK_LE(value, metadata_size());
   WriteField<int>(kConstantPoolOffsetOffset, value);
-}
-
-Address InstructionStream::raw_constant_pool() const {
-  if (!has_constant_pool()) return kNullAddress;
-  return raw_metadata_start() + constant_pool_offset();
 }
 
 Address InstructionStream::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return raw_constant_pool();
+  return metadata_start() + constant_pool_offset();
 }
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_constant_pool()
-             : OffHeapConstantPoolAddress(*this, builtin_id());
+             ? instruction_stream().constant_pool()
+             : OffHeapConstantPoolAddress();
 }
 
-Address InstructionStream::raw_code_comments() const {
-  return raw_metadata_start() + code_comments_offset();
+Address InstructionStream::code_comments() const {
+  return metadata_start() + code_comments_offset();
 }
-
-// TODO(jgruber): Remove this.
-Address InstructionStream::code_comments() const { return raw_code_comments(); }
 
 int InstructionStream::code_comments_size() const {
   DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
@@ -1069,30 +996,22 @@ bool InstructionStream::has_code_comments() const {
 Address Code::code_comments() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().code_comments()
-             : OffHeapCodeCommentsAddress(*this, builtin_id());
+             : OffHeapCodeCommentsAddress();
 }
 
 int Code::code_comments_size() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().code_comments_size()
-             : OffHeapCodeCommentsSize(*this, builtin_id());
+             : OffHeapCodeCommentsSize();
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
-Address InstructionStream::raw_unwinding_info_start() const {
-  return raw_metadata_start() + unwinding_info_offset();
-}
-
-// TODO(jgruber): Remove this.
 Address InstructionStream::unwinding_info_start() const {
-  return raw_unwinding_info_start();
+  return metadata_start() + unwinding_info_offset();
 }
 
-// TODO(jgruber): Remove this.
-Address InstructionStream::unwinding_info_end() const {
-  return raw_metadata_end();
-}
+Address InstructionStream::unwinding_info_end() const { return metadata_end(); }
 
 int InstructionStream::unwinding_info_size() const {
   DCHECK_GE(unwinding_info_end(), unwinding_info_start());
@@ -1105,20 +1024,20 @@ bool InstructionStream::has_unwinding_info() const {
 
 Address Code::unwinding_info_start() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_unwinding_info_start()
-             : OffHeapUnwindingInfoAddress(*this, builtin_id());
+             ? instruction_stream().unwinding_info_start()
+             : OffHeapUnwindingInfoAddress();
 }
 
 Address Code::unwinding_info_end() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().raw_metadata_end()
-             : OffHeapMetadataEnd(*this, builtin_id());
+             ? instruction_stream().metadata_end()
+             : OffHeapMetadataEnd();
 }
 
 int Code::unwinding_info_size() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().unwinding_info_size()
-             : OffHeapUnwindingInfoSize(*this, builtin_id());
+             : OffHeapUnwindingInfoSize();
 
   DCHECK_GE(unwinding_info_end(), unwinding_info_start());
   return static_cast<int>(unwinding_info_end() - unwinding_info_start());
@@ -1126,7 +1045,8 @@ int Code::unwinding_info_size() const {
 
 bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
-InstructionStream InstructionStream::GetCodeFromTargetAddress(Address address) {
+// static
+InstructionStream InstructionStream::FromTargetAddress(Address address) {
   {
     // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
     // in the current isolate.
@@ -1138,18 +1058,19 @@ InstructionStream InstructionStream::GetCodeFromTargetAddress(Address address) {
 
   HeapObject code =
       HeapObject::FromAddress(address - InstructionStream::kHeaderSize);
-  // Unchecked cast because we can't rely on the map currently
-  // not being a forwarding pointer.
+  // Unchecked cast because we can't rely on the map currently not being a
+  // forwarding pointer.
   return InstructionStream::unchecked_cast(code);
 }
 
-InstructionStream InstructionStream::GetObjectFromEntryAddress(
+// static
+InstructionStream InstructionStream::FromEntryAddress(
     Address location_of_address) {
   Address code_entry = base::Memory<Address>(location_of_address);
   HeapObject code =
       HeapObject::FromAddress(code_entry - InstructionStream::kHeaderSize);
-  // Unchecked cast because we can't rely on the map currently
-  // not being a forwarding pointer.
+  // Unchecked cast because we can't rely on the map currently not being a
+  // forwarding pointer.
   return InstructionStream::unchecked_cast(code);
 }
 
@@ -1265,7 +1186,7 @@ void Code::SetInstructionStreamAndEntryPoint(Isolate* isolate_for_sandbox,
                                              InstructionStream code,
                                              WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
-  set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
+  set_code_entry_point(isolate_for_sandbox, code.instruction_start());
 }
 
 void Code::SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
@@ -1277,7 +1198,7 @@ void Code::SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
 void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
                                 InstructionStream code) {
   DCHECK_EQ(raw_instruction_stream(), code);
-  set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
+  set_code_entry_point(isolate_for_sandbox, code.instruction_start());
 }
 
 Address Code::InstructionStart() const { return code_entry_point(); }
@@ -1286,14 +1207,12 @@ Address Code::raw_instruction_start() const { return code_entry_point(); }
 Address Code::raw_instruction_end() const {
   DCHECK(has_instruction_stream());
   return InstructionStream::unchecked_cast(raw_instruction_stream())
-      .raw_instruction_end();
+      .instruction_end();
 }
 int Code::raw_instruction_size() const {
-  return instruction_stream().raw_instruction_size();
+  return instruction_stream().instruction_size();
 }
-Address Code::raw_body_size() const {
-  return instruction_stream().raw_body_size();
-}
+Address Code::raw_body_size() const { return instruction_stream().body_size(); }
 
 Address Code::entry() const { return code_entry_point(); }
 
@@ -1353,25 +1272,26 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
 // InstructionStream object.
 //
 
-#define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
+#define DEF_PRIMITIVE_FORWARDING_CODE_GETTER(name, type) \
   type Code::name() const { return FromCode(*this).name(); }
 
-#define DEF_FORWARDING_CDC_GETTER(name, type, result_if_no_instruction_stream) \
-  DEF_GETTER(Code, name, type) {                                               \
-    if (!has_instruction_stream()) {                                           \
-      return GetReadOnlyRoots().result_if_no_instruction_stream();             \
-    }                                                                          \
-    return FromCode(*this).name(cage_base);                                    \
+#define DEF_FORWARDING_CODE_GETTER(name, type,                      \
+                                   result_if_no_instruction_stream) \
+  DEF_GETTER(Code, name, type) {                                    \
+    if (!has_instruction_stream()) {                                \
+      return GetReadOnlyRoots().result_if_no_instruction_stream();  \
+    }                                                               \
+    return FromCode(*this).name(cage_base);                         \
   }
 
-DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray, empty_fixed_array)
-DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject,
-                          empty_fixed_array)
-DEF_FORWARDING_CDC_GETTER(source_position_table, ByteArray, empty_byte_array)
-DEF_FORWARDING_CDC_GETTER(bytecode_offset_table, ByteArray, empty_byte_array)
+DEF_FORWARDING_CODE_GETTER(deoptimization_data, FixedArray, empty_fixed_array)
+DEF_FORWARDING_CODE_GETTER(bytecode_or_interpreter_data, HeapObject,
+                           empty_fixed_array)
+DEF_FORWARDING_CODE_GETTER(source_position_table, ByteArray, empty_byte_array)
+DEF_FORWARDING_CODE_GETTER(bytecode_offset_table, ByteArray, empty_byte_array)
 
-#undef DEF_PRIMITIVE_FORWARDING_CDC_GETTER
-#undef DEF_FORWARDING_CDC_GETTER
+#undef DEF_PRIMITIVE_FORWARDING_CODE_GETTER
+#undef DEF_FORWARDING_CODE_GETTER
 
 byte BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());

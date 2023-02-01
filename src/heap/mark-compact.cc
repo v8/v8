@@ -273,7 +273,7 @@ class FullMarkingVerifier : public MarkingVerifier {
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
 
@@ -1188,7 +1188,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     MarkObject(host, target);
   }
 
@@ -1243,7 +1243,7 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     MarkObject(host, target);
   }
 
@@ -1572,7 +1572,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!Heap::InYoungGeneration(target));
@@ -5657,7 +5657,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
-        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream::FromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {

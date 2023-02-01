@@ -135,7 +135,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
     InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   InstructionStream target =
-      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream::FromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
   MarkObject(host, target);

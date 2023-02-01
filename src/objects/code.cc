@@ -63,91 +63,108 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
 
 }  // namespace
 
-Address OffHeapInstructionStart(HeapObject code, Builtin builtin) {
+Address Code::OffHeapInstructionStart() const {
   // TODO(11527): Here and below: pass Isolate as an argument for getting
   // the EmbeddedData.
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin);
 }
 
-Address OffHeapInstructionEnd(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapInstructionEnd() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin) +
          d.InstructionSizeOfBuiltin(builtin);
 }
 
-int OffHeapInstructionSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapInstructionSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionSizeOfBuiltin(builtin);
 }
 
-Address OffHeapMetadataStart(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapMetadataStart() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataStartOfBuiltin(builtin);
 }
 
-Address OffHeapMetadataEnd(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapMetadataEnd() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataStartOfBuiltin(builtin) + d.MetadataSizeOfBuiltin(builtin);
 }
 
-int OffHeapMetadataSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapMetadataSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataSizeOfBuiltin(builtin);
 }
 
-Address OffHeapSafepointTableAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapSafepointTableAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.SafepointTableStartOf(builtin);
 }
 
-int OffHeapSafepointTableSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapSafepointTableSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.SafepointTableSizeOf(builtin);
 }
 
-Address OffHeapHandlerTableAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapHandlerTableAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.HandlerTableStartOf(builtin);
 }
 
-int OffHeapHandlerTableSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapHandlerTableSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.HandlerTableSizeOf(builtin);
 }
 
-Address OffHeapConstantPoolAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapConstantPoolAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.ConstantPoolStartOf(builtin);
 }
 
-int OffHeapConstantPoolSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapConstantPoolSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.ConstantPoolSizeOf(builtin);
 }
 
-Address OffHeapCodeCommentsAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapCodeCommentsAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.CodeCommentsStartOf(builtin);
 }
 
-int OffHeapCodeCommentsSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapCodeCommentsSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.CodeCommentsSizeOf(builtin);
 }
 
-Address OffHeapUnwindingInfoAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapUnwindingInfoAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.UnwindingInfoStartOf(builtin);
 }
 
-int OffHeapUnwindingInfoSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapUnwindingInfoSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.UnwindingInfoSizeOf(builtin);
 }
 
-int OffHeapStackSlots(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapStackSlots() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.StackSlotsOf(builtin);
 }
 
@@ -169,17 +186,17 @@ void InstructionStream::Relocate(intptr_t delta) {
 }
 
 void InstructionStream::FlushICache() const {
-  FlushInstructionCache(raw_instruction_start(), raw_instruction_size());
+  FlushInstructionCache(instruction_start(), instruction_size());
 }
 
 void InstructionStream::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
                                         const CodeDesc& desc) {
   // Copy code.
   static_assert(kOnHeapBodyIsContiguous);
-  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
+  CopyBytes(reinterpret_cast<byte*>(instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
-  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start() + desc.instr_size),
+  CopyBytes(reinterpret_cast<byte*>(instruction_start() + desc.instr_size),
             desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
 
   // Copy reloc info.
@@ -206,7 +223,7 @@ void InstructionStream::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(p->IsCode(GetPtrComprCageBaseSlow(*p)));
       InstructionStream code = FromCode(Code::cast(*p));
-      it.rinfo()->set_target_address(code.raw_instruction_start(),
+      it.rinfo()->set_target_address(code.instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
@@ -218,7 +235,7 @@ void InstructionStream::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       DCHECK_EQ(p, it.rinfo()->target_address());
     } else {
       intptr_t delta =
-          raw_instruction_start() - reinterpret_cast<Address>(desc.buffer);
+          instruction_start() - reinterpret_cast<Address>(desc.buffer);
       it.rinfo()->apply(delta);
     }
   }
@@ -298,7 +315,7 @@ int AbstractCode::SourceStatementPosition(PtrComprCageBase cage_base,
 bool InstructionStream::CanDeoptAt(Isolate* isolate, Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
-  Address code_start_address = InstructionStart(isolate, pc);
+  Address code_start_address = instruction_start();
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
@@ -346,7 +363,7 @@ bool InstructionStream::IsIsolateIndependent(Isolate* isolate) {
         continue;
 
       InstructionStream target =
-          InstructionStream::GetCodeFromTargetAddress(target_address);
+          InstructionStream::FromTargetAddress(target_address);
       CHECK(target.IsInstructionStream());
       if (Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad))) {
         continue;
@@ -500,10 +517,8 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 
 namespace {
 
-template <typename CodeOrInstructionStream>
-inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
-                                 CodeOrInstructionStream code, Address begin,
-                                 size_t size, Address current_pc) {
+void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
+                          Address begin, size_t size, Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
   DisallowGarbageCollection no_gc;
@@ -513,9 +528,8 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
                        CodeReference(handle(code, isolate)), current_pc);
 }
 
-template <typename CodeOrInstructionStream>
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                 CodeOrInstructionStream code, Address current_pc) {
+                 Code code, Address current_pc) {
   CodeKind kind = code.kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
   if (name == nullptr && code.is_builtin()) {
@@ -635,11 +649,6 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 }
 
 }  // namespace
-
-void InstructionStream::Disassemble(const char* name, std::ostream& os,
-                                    Isolate* isolate, Address current_pc) {
-  i::Disassemble(name, os, isolate, *this, current_pc);
-}
 
 void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                        Address current_pc) {

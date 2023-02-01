@@ -20,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 HandlerTable::HandlerTable(InstructionStream code)
-    : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
+    : HandlerTable(code.handler_table_address(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 
 HandlerTable::HandlerTable(Code code)

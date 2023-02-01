@@ -238,7 +238,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
       InstructionStream target =
-          InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+          InstructionStream::FromTargetAddress(rinfo->target_address());
       CHECK(Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad)));
 
       // Do not emit write-barrier for off-heap writes.
@@ -303,9 +303,8 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
               Builtins::name(builtin));
     }
 
-    uint32_t instruction_size =
-        static_cast<uint32_t>(code.raw_instruction_size());
-    uint32_t metadata_size = static_cast<uint32_t>(code.raw_metadata_size());
+    uint32_t instruction_size = static_cast<uint32_t>(code.instruction_size());
+    uint32_t metadata_size = static_cast<uint32_t>(code.metadata_size());
 
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
     {
@@ -378,10 +377,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
-    DCHECK_LE(RawMetadataOffset() + offset + code.raw_metadata_size(),
+    DCHECK_LE(RawMetadataOffset() + offset + code.metadata_size(),
               blob_data_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_metadata_start()),
-                code.raw_metadata_size());
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.metadata_start()),
+                code.metadata_size());
   }
   CHECK_IMPLIES(
       kMaxPCRelativeCodeRangeInMB,
@@ -396,10 +395,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
-    DCHECK_LE(RawCodeOffset() + offset + code.raw_instruction_size(),
+    DCHECK_LE(RawCodeOffset() + offset + code.instruction_size(),
               blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_instruction_start()),
-                code.raw_instruction_size());
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.instruction_start()),
+                code.instruction_size());
   }
 
   EmbeddedData d(blob_code, blob_code_size, blob_data, blob_data_size);
@@ -430,8 +429,8 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
          ++builtin) {
       InstructionStream code = FromCode(builtins->code(builtin));
 
-      CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.InstructionSize());
-      CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.MetadataSize());
+      CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.instruction_size());
+      CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.metadata_size());
 
       CHECK_EQ(d.SafepointTableSizeOf(builtin), code.safepoint_table_size());
       CHECK_EQ(d.HandlerTableSizeOf(builtin), code.handler_table_size());
