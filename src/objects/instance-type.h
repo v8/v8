@@ -339,16 +339,10 @@ INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 
 // This list must contain only maps that are shared by all objects of their
 // instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                 \
-  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                  \
-  V(_, ByteArrayMap, byte_array_map, ByteArray)                       \
-  V(_, NameDictionaryMap, name_dictionary_map, NameDictionary)        \
-  V(_, OrderedNameDictionaryMap, ordered_name_dictionary_map,         \
-    OrderedNameDictionary)                                            \
-  V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)  \
-  V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell) \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                    \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)       \
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)           \
+  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)            \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)              \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray) \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal
