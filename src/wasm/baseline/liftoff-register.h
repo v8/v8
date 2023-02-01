@@ -446,13 +446,13 @@ class LiftoffRegList {
   }
 
   LiftoffRegister GetFirstRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int first_code = base::bits::CountTrailingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(first_code);
   }
 
   LiftoffRegister GetLastRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int last_code =
         8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(last_code);

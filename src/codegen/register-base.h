@@ -34,7 +34,7 @@ class RegisterBase {
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
   static constexpr SubType from_code(int8_t code) {
-    DCHECK(base::IsInRange(static_cast<int>(code), 0, kNumRegisters - 1));
+    V8_ASSUME(code >= 0 && code < kNumRegisters);
     return SubType{code};
   }
 
