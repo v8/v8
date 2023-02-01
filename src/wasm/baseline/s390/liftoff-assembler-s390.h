@@ -18,40 +18,19 @@ namespace wasm {
 
 namespace liftoff {
 
-inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
+inline constexpr bool UseSignedOp(Condition cond) {
+  switch (cond) {
     case kEqual:
-      return eq;
-    case kUnequal:
-      return ne;
-    case kSignedLessThan:
-    case kUnsignedLessThan:
-      return lt;
-    case kSignedLessEqual:
-    case kUnsignedLessEqual:
-      return le;
-    case kSignedGreaterEqual:
-    case kUnsignedGreaterEqual:
-      return ge;
-    case kSignedGreaterThan:
-    case kUnsignedGreaterThan:
-      return gt;
-  }
-}
-
-inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-    case kUnequal:
-    case kSignedLessThan:
-    case kSignedLessEqual:
-    case kSignedGreaterThan:
-    case kSignedGreaterEqual:
+    case kNotEqual:
+    case kLessThan:
+    case kLessThanEqual:
+    case kGreaterThan:
+    case kGreaterThanEqual:
       return true;
     case kUnsignedLessThan:
-    case kUnsignedLessEqual:
+    case kUnsignedLessThanEqual:
     case kUnsignedGreaterThan:
-    case kUnsignedGreaterEqual:
+    case kUnsignedGreaterThanEqual:
       return false;
     default:
       UNREACHABLE();
@@ -2123,12 +2102,11 @@ void LiftoffAssembler::emit_jump(Label* label) { b(al, label); }
 
 void LiftoffAssembler::emit_jump(Register target) { Jump(target); }
 
-void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueKind kind,
-                                      Register lhs, Register rhs,
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueKind kind, Register lhs,
+                                      Register rhs,
                                       const FreezeCacheState& frozen) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
+  bool use_signed = liftoff::UseSignedOp(cond);
 
   if (rhs != no_reg) {
     switch (kind) {
@@ -2142,7 +2120,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRef:
       case kRefNull:
       case kRtt:
-        DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
+        DCHECK(cond == kEqual || cond == kNotEqual);
 #if defined(V8_COMPRESS_POINTERS)
         if (use_signed) {
           CmpS32(lhs, rhs);
@@ -2176,12 +2154,10 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   b(cond, label);
 }
 
-void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
-                                           Label* label, Register lhs,
-                                           int32_t imm,
+void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
+                                           Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
-  Condition cond = liftoff::ToCondition(liftoff_cond);
+  bool use_signed = liftoff::UseSignedOp(cond);
   if (use_signed) {
     CmpS32(lhs, Operand(imm));
   } else {
@@ -2220,48 +2196,47 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
     bind(&done);                      \
   }
 
-void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, Register lhs,
-                                         Register rhs) {
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
+  bool use_signed = liftoff::UseSignedOp(cond);
   if (use_signed) {
     CmpS32(lhs, rhs);
   } else {
     CmpU32(lhs, rhs);
   }
 
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  EMIT_SET_CONDITION(dst, cond);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   EMIT_EQZ(ltgr, src.gp());
 }
 
-void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
+  bool use_signed = liftoff::UseSignedOp(cond);
   if (use_signed) {
     CmpS64(lhs.gp(), rhs.gp());
   } else {
     CmpU64(lhs.gp(), rhs.gp());
   }
 
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  EMIT_SET_CONDITION(dst, cond);
 }
 
-void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
   cebr(lhs, rhs);
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  EMIT_SET_CONDITION(dst, cond);
 }
 
-void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
   cdbr(lhs, rhs);
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  EMIT_SET_CONDITION(dst, cond);
 }
 
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,

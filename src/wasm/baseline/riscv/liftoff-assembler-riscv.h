@@ -23,31 +23,6 @@ inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
-inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-      return eq;
-    case kUnequal:
-      return ne;
-    case kSignedLessThan:
-      return lt;
-    case kSignedLessEqual:
-      return le;
-    case kSignedGreaterThan:
-      return gt;
-    case kSignedGreaterEqual:
-      return ge;
-    case kUnsignedLessThan:
-      return ult;
-    case kUnsignedLessEqual:
-      return ule;
-    case kUnsignedGreaterThan:
-      return ugt;
-    case kUnsignedGreaterEqual:
-      return uge;
-  }
-}
-
 }  // namespace liftoff
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
@@ -303,17 +278,17 @@ FP_UNOP(f64_sqrt, fsqrt_d)
 #undef FP_UNOP
 #undef FP_UNOP_RETURN_TRUE
 
-static FPUCondition ConditionToConditionCmpFPU(LiftoffCondition condition) {
+static FPUCondition ConditionToConditionCmpFPU(Condition condition) {
   switch (condition) {
     case kEqual:
       return EQ;
-    case kUnequal:
+    case kNotEqual:
       return NE;
     case kUnsignedLessThan:
       return LT;
-    case kUnsignedGreaterEqual:
+    case kUnsignedGreaterThanEqual:
       return GE;
-    case kUnsignedLessEqual:
+    case kUnsignedLessThanEqual:
       return LE;
     case kUnsignedGreaterThan:
       return GT;
@@ -323,17 +298,17 @@ static FPUCondition ConditionToConditionCmpFPU(LiftoffCondition condition) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  FPUCondition fcond = ConditionToConditionCmpFPU(liftoff_cond);
+  FPUCondition fcond = ConditionToConditionCmpFPU(cond);
   TurboAssembler::CompareF32(dst, fcond, lhs, rhs);
 }
 
-void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  FPUCondition fcond = ConditionToConditionCmpFPU(liftoff_cond);
+  FPUCondition fcond = ConditionToConditionCmpFPU(cond);
   TurboAssembler::CompareF64(dst, fcond, lhs, rhs);
 }
 

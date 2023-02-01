@@ -16,31 +16,6 @@ namespace wasm {
 
 namespace liftoff {
 
-inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-      return eq;
-    case kUnequal:
-      return ne;
-    case kSignedLessThan:
-      return lt;
-    case kSignedLessEqual:
-      return le;
-    case kSignedGreaterThan:
-      return gt;
-    case kSignedGreaterEqual:
-      return ge;
-    case kUnsignedLessThan:
-      return ult;
-    case kUnsignedLessEqual:
-      return ule;
-    case kUnsignedGreaterThan:
-      return ugt;
-    case kUnsignedGreaterEqual:
-      return uge;
-  }
-}
-
 // Liftoff Frames.
 //
 //  slot      Frame
@@ -1863,27 +1838,23 @@ void LiftoffAssembler::emit_jump(Register target) {
   TurboAssembler::Jump(target);
 }
 
-void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueKind kind,
-                                      Register lhs, Register rhs,
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueKind kind, Register lhs,
+                                      Register rhs,
                                       const FreezeCacheState& frozen) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs == no_reg) {
     DCHECK(kind == kI32 || kind == kI64);
     TurboAssembler::Branch(label, cond, lhs, Operand(zero_reg));
   } else {
     DCHECK((kind == kI32 || kind == kI64) ||
-           (is_reference(kind) &&
-            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
+           (is_reference(kind) && (cond == kEqual || cond == kNotEqual)));
     TurboAssembler::Branch(label, cond, lhs, Operand(rhs));
   }
 }
 
-void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
-                                           Label* label, Register lhs,
-                                           int32_t imm,
+void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
+                                           Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   TurboAssembler::Branch(label, cond, lhs, Operand(imm));
 }
 
@@ -1898,10 +1869,8 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   sltiu(dst, src, 1);
 }
 
-void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, Register lhs,
-                                         Register rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
   Register tmp = dst;
   if (dst == lhs || dst == rhs) {
     tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
@@ -1921,10 +1890,9 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   sltiu(dst, src.gp(), 1);
 }
 
-void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   Register tmp = dst;
   if (dst == lhs.gp() || dst == rhs.gp()) {
     tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
@@ -1943,22 +1911,22 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 
 namespace liftoff {
 
-inline FPUCondition ConditionToConditionCmpFPU(LiftoffCondition condition,
+inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
                                                bool* predicate) {
   switch (condition) {
     case kEqual:
       *predicate = true;
       return EQ;
-    case kUnequal:
+    case kNotEqual:
       *predicate = false;
       return EQ;
     case kUnsignedLessThan:
       *predicate = true;
       return OLT;
-    case kUnsignedGreaterEqual:
+    case kUnsignedGreaterThanEqual:
       *predicate = false;
       return OLT;
-    case kUnsignedLessEqual:
+    case kUnsignedLessThanEqual:
       *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
@@ -1993,10 +1961,9 @@ inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 
 }  // namespace liftoff
 
-void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   Label not_nan, cont;
   TurboAssembler::CompareIsNanF32(lhs, rhs);
   TurboAssembler::BranchFalseF(&not_nan);
@@ -2012,8 +1979,7 @@ void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond =
-      liftoff::ConditionToConditionCmpFPU(liftoff_cond, &predicate);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF32(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);
@@ -2024,10 +1990,9 @@ void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
   bind(&cont);
 }
 
-void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   Label not_nan, cont;
   TurboAssembler::CompareIsNanF64(lhs, rhs);
   TurboAssembler::BranchFalseF(&not_nan);
@@ -2043,8 +2008,7 @@ void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond =
-      liftoff::ConditionToConditionCmpFPU(liftoff_cond, &predicate);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF64(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);

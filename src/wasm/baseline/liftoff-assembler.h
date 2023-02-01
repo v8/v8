@@ -30,68 +30,57 @@ class CallDescriptor;
 
 namespace wasm {
 
-enum LiftoffCondition {
-  kEqual,
-  kEqualZero = kEqual,  // When used in a unary operation.
-  kUnequal,
-  kNotEqualZero = kUnequal,  // When used in a unary operation.
-  kSignedLessThan,
-  kSignedLessEqual,
-  kSignedGreaterThan,
-  kSignedGreaterEqual,
-  kUnsignedLessThan,
-  kUnsignedLessEqual,
-  kUnsignedGreaterThan,
-  kUnsignedGreaterEqual
-};
-
-inline constexpr LiftoffCondition Negate(LiftoffCondition cond) {
+inline constexpr Condition Negate(Condition cond) {
   switch (cond) {
     case kEqual:
-      return kUnequal;
-    case kUnequal:
+      return kNotEqual;
+    case kNotEqual:
       return kEqual;
-    case kSignedLessThan:
-      return kSignedGreaterEqual;
-    case kSignedLessEqual:
-      return kSignedGreaterThan;
-    case kSignedGreaterEqual:
-      return kSignedLessThan;
-    case kSignedGreaterThan:
-      return kSignedLessEqual;
+    case kLessThan:
+      return kGreaterThanEqual;
+    case kLessThanEqual:
+      return kGreaterThan;
+    case kGreaterThanEqual:
+      return kLessThan;
+    case kGreaterThan:
+      return kLessThanEqual;
     case kUnsignedLessThan:
-      return kUnsignedGreaterEqual;
-    case kUnsignedLessEqual:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedLessThanEqual:
       return kUnsignedGreaterThan;
-    case kUnsignedGreaterEqual:
+    case kUnsignedGreaterThanEqual:
       return kUnsignedLessThan;
     case kUnsignedGreaterThan:
-      return kUnsignedLessEqual;
+      return kUnsignedLessThanEqual;
+    default:
+      UNREACHABLE();
   }
 }
 
-inline constexpr LiftoffCondition Flip(LiftoffCondition cond) {
+inline constexpr Condition Flip(Condition cond) {
   switch (cond) {
     case kEqual:
       return kEqual;
-    case kUnequal:
-      return kUnequal;
-    case kSignedLessThan:
-      return kSignedGreaterThan;
-    case kSignedLessEqual:
-      return kSignedGreaterEqual;
-    case kSignedGreaterEqual:
-      return kSignedLessEqual;
-    case kSignedGreaterThan:
-      return kSignedLessThan;
+    case kNotEqual:
+      return kNotEqual;
+    case kLessThan:
+      return kGreaterThan;
+    case kLessThanEqual:
+      return kGreaterThanEqual;
+    case kGreaterThanEqual:
+      return kLessThanEqual;
+    case kGreaterThan:
+      return kLessThan;
     case kUnsignedLessThan:
       return kUnsignedGreaterThan;
-    case kUnsignedLessEqual:
-      return kUnsignedGreaterEqual;
-    case kUnsignedGreaterEqual:
-      return kUnsignedLessEqual;
+    case kUnsignedLessThanEqual:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedGreaterThanEqual:
+      return kUnsignedLessThanEqual;
     case kUnsignedGreaterThan:
       return kUnsignedLessThan;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -1006,7 +995,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
 
-  void emit_ptrsize_set_cond(LiftoffCondition condition, Register dst,
+  void emit_ptrsize_set_cond(Condition condition, Register dst,
                              LiftoffRegister lhs, LiftoffRegister rhs) {
     if (kSystemPointerSize == 8) {
       emit_i64_set_cond(condition, dst, lhs, rhs);
@@ -1086,24 +1075,23 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_jump(Label*);
   inline void emit_jump(Register);
 
-  inline void emit_cond_jump(LiftoffCondition, Label*, ValueKind value,
-                             Register lhs, Register rhs,
-                             const FreezeCacheState& frozen);
-  inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
-                                  int imm, const FreezeCacheState& frozen);
+  inline void emit_cond_jump(Condition, Label*, ValueKind value, Register lhs,
+                             Register rhs, const FreezeCacheState& frozen);
+  inline void emit_i32_cond_jumpi(Condition, Label*, Register lhs, int imm,
+                                  const FreezeCacheState& frozen);
   inline void emit_i32_subi_jump_negative(Register value, int subtrahend,
                                           Label* result_negative,
                                           const FreezeCacheState& frozen);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
-  inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,
+  inline void emit_i32_set_cond(Condition, Register dst, Register lhs,
                                 Register rhs);
   inline void emit_i64_eqz(Register dst, LiftoffRegister src);
-  inline void emit_i64_set_cond(LiftoffCondition condition, Register dst,
+  inline void emit_i64_set_cond(Condition condition, Register dst,
                                 LiftoffRegister lhs, LiftoffRegister rhs);
-  inline void emit_f32_set_cond(LiftoffCondition condition, Register dst,
+  inline void emit_f32_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
-  inline void emit_f64_set_cond(LiftoffCondition condition, Register dst,
+  inline void emit_f64_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
 
   // Optional select support: Returns false if generic code (via branches)

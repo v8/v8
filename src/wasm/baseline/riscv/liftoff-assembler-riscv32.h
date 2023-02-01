@@ -1598,27 +1598,23 @@ void LiftoffAssembler::emit_jump(Register target) {
   TurboAssembler::Jump(target);
 }
 
-void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueKind kind,
-                                      Register lhs, Register rhs,
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueKind kind, Register lhs,
+                                      Register rhs,
                                       const FreezeCacheState& frozen) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs == no_reg) {
     DCHECK(kind == kI32);
     TurboAssembler::Branch(label, cond, lhs, Operand(zero_reg));
   } else {
     DCHECK((kind == kI32) ||
-           (is_reference(kind) &&
-            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
+           (is_reference(kind) && (cond == kEqual || cond == kNotEqual)));
     TurboAssembler::Branch(label, cond, lhs, Operand(rhs));
   }
 }
 
-void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
-                                           Label* label, Register lhs,
-                                           int32_t imm,
+void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
+                                           Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   TurboAssembler::Branch(label, cond, lhs, Operand(imm));
 }
 
@@ -1633,10 +1629,8 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   TurboAssembler::Sltu(dst, src, 1);
 }
 
-void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, Register lhs,
-                                         Register rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
   TurboAssembler::CompareI(dst, lhs, Operand(rhs), cond);
 }
 
@@ -1648,34 +1642,32 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
 }
 
 namespace liftoff {
-inline LiftoffCondition cond_make_unsigned(LiftoffCondition cond) {
+inline Condition cond_make_unsigned(Condition cond) {
   switch (cond) {
-    case kSignedLessThan:
+    case kLessThan:
       return kUnsignedLessThan;
-    case kSignedLessEqual:
-      return kUnsignedLessEqual;
-    case kSignedGreaterThan:
+    case kLessThanEqual:
+      return kUnsignedLessThanEqual;
+    case kGreaterThan:
       return kUnsignedGreaterThan;
-    case kSignedGreaterEqual:
-      return kUnsignedGreaterEqual;
+    case kGreaterThanEqual:
+      return kUnsignedGreaterThanEqual;
     default:
       return cond;
   }
 }
 }  // namespace liftoff
 
-void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
   ASM_CODE_COMMENT(this);
-  Condition cond = liftoff::ToCondition(liftoff_cond);
   Label low, cont;
 
   // For signed i64 comparisons, we still need to use unsigned comparison for
   // the low word (the only bit carrying signedness information is the MSB in
   // the high word).
-  Condition unsigned_cond =
-      liftoff::ToCondition(liftoff::cond_make_unsigned(liftoff_cond));
+  Condition unsigned_cond = liftoff::cond_make_unsigned(cond);
 
   Register tmp = dst;
   if (liftoff::IsRegInRegPair(lhs, dst) || liftoff::IsRegInRegPair(rhs, dst)) {

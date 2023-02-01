@@ -135,28 +135,28 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
-constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
+constexpr Condition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
       return kEqual;
     case kExprI32Ne:
-      return kUnequal;
+      return kNotEqual;
     case kExprI32LtS:
-      return kSignedLessThan;
+      return kLessThan;
     case kExprI32LtU:
       return kUnsignedLessThan;
     case kExprI32GtS:
-      return kSignedGreaterThan;
+      return kGreaterThan;
     case kExprI32GtU:
       return kUnsignedGreaterThan;
     case kExprI32LeS:
-      return kSignedLessEqual;
+      return kLessThanEqual;
     case kExprI32LeU:
-      return kUnsignedLessEqual;
+      return kUnsignedLessThanEqual;
     case kExprI32GeS:
-      return kSignedGreaterEqual;
+      return kGreaterThanEqual;
     case kExprI32GeU:
-      return kUnsignedGreaterEqual;
+      return kUnsignedGreaterThanEqual;
     default:
       UNREACHABLE();
   }
@@ -1128,7 +1128,7 @@ class LiftoffCompiler {
       __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
                pinned);
       Label cont;
-      __ emit_i32_cond_jumpi(kSignedGreaterEqual, &cont, max_steps.gp(), 0,
+      __ emit_i32_cond_jumpi(kGreaterThanEqual, &cont, max_steps.gp(), 0,
                              frozen);
       // Abort.
       Trap(decoder, kTrapUnreachable);
@@ -1176,11 +1176,11 @@ class LiftoffCompiler {
                           {});
       FREEZE_STATE(frozen);
       __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U, {});
-      __ emit_cond_jump(kNotEqualZero, &do_break, kI32, flag, no_reg, frozen);
+      __ emit_cond_jump(kNotZero, &do_break, kI32, flag, no_reg, frozen);
 
       // Check if we should stop on "script entry".
       LOAD_INSTANCE_FIELD(flag, BreakOnEntry, kUInt8Size, {});
-      __ emit_cond_jump(kEqualZero, &no_break, kI32, flag, no_reg, frozen);
+      __ emit_cond_jump(kZero, &no_break, kI32, flag, no_reg, frozen);
 
       __ bind(&do_break);
       EmitBreakpoint(decoder);
@@ -1414,8 +1414,8 @@ class LiftoffCompiler {
 
   void JumpIfFalse(FullDecoder* decoder, Label* false_dst,
                    std::unique_ptr<FreezeCacheState>& will_freeze) {
-    LiftoffCondition cond =
-        test_and_reset_outstanding_op(kExprI32Eqz) ? kNotEqualZero : kEqualZero;
+    Condition cond =
+        test_and_reset_outstanding_op(kExprI32Eqz) ? kNotZero : kZero;
 
     if (!has_outstanding_op()) {
       // Unary comparison.
@@ -1723,10 +1723,10 @@ class LiftoffCompiler {
 #if defined(V8_COMPRESS_POINTERS)
     // As the value in the {null} register is only the tagged pointer part,
     // we may only compare 32 bits, not the full pointer size.
-    __ emit_i32_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal, dst.gp(),
-                         ref.gp(), null.gp());
+    __ emit_i32_set_cond(opcode == kExprRefIsNull ? kEqual : kNotEqual,
+                         dst.gp(), ref.gp(), null.gp());
 #else
-    __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
+    __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kNotEqual,
                              dst.gp(), ref, null);
 #endif
     __ PushRegister(kI32, dst);
@@ -2058,37 +2058,37 @@ class LiftoffCompiler {
             BindFirst(&LiftoffAssembler::emit_i64_set_cond, kEqual));
       case kExprI64Ne:
         return EmitBinOp<kI64, kI32>(
-            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnequal));
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kNotEqual));
       case kExprI64LtS:
         return EmitBinOp<kI64, kI32>(
-            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessThan));
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kLessThan));
       case kExprI64LtU:
         return EmitBinOp<kI64, kI32>(
             BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnsignedLessThan));
       case kExprI64GtS:
-        return EmitBinOp<kI64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterThan));
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kGreaterThan));
       case kExprI64GtU:
         return EmitBinOp<kI64, kI32>(BindFirst(
             &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterThan));
       case kExprI64LeS:
         return EmitBinOp<kI64, kI32>(
-            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessEqual));
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kLessThanEqual));
       case kExprI64LeU:
         return EmitBinOp<kI64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_i64_set_cond, kUnsignedLessEqual));
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedLessThanEqual));
       case kExprI64GeS:
-        return EmitBinOp<kI64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterEqual));
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kGreaterThanEqual));
       case kExprI64GeU:
         return EmitBinOp<kI64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterEqual));
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterThanEqual));
       case kExprF32Eq:
         return EmitBinOp<kF32, kI32>(
             BindFirst(&LiftoffAssembler::emit_f32_set_cond, kEqual));
       case kExprF32Ne:
         return EmitBinOp<kF32, kI32>(
-            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnequal));
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kNotEqual));
       case kExprF32Lt:
         return EmitBinOp<kF32, kI32>(
             BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnsignedLessThan));
@@ -2097,16 +2097,16 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterThan));
       case kExprF32Le:
         return EmitBinOp<kF32, kI32>(BindFirst(
-            &LiftoffAssembler::emit_f32_set_cond, kUnsignedLessEqual));
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedLessThanEqual));
       case kExprF32Ge:
         return EmitBinOp<kF32, kI32>(BindFirst(
-            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterEqual));
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterThanEqual));
       case kExprF64Eq:
         return EmitBinOp<kF64, kI32>(
             BindFirst(&LiftoffAssembler::emit_f64_set_cond, kEqual));
       case kExprF64Ne:
         return EmitBinOp<kF64, kI32>(
-            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnequal));
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kNotEqual));
       case kExprF64Lt:
         return EmitBinOp<kF64, kI32>(
             BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnsignedLessThan));
@@ -2115,10 +2115,10 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterThan));
       case kExprF64Le:
         return EmitBinOp<kF64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_f64_set_cond, kUnsignedLessEqual));
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedLessThanEqual));
       case kExprF64Ge:
         return EmitBinOp<kF64, kI32>(BindFirst(
-            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterEqual));
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterThanEqual));
       case kExprI32Shl:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shl,
                                         &LiftoffAssembler::emit_i32_shli);
@@ -2664,7 +2664,7 @@ class LiftoffCompiler {
   }
 
   void AssertNullTypecheckImpl(FullDecoder* decoder, const Value& arg,
-                               Value* result, LiftoffCondition cond) {
+                               Value* result, Condition cond) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     Label* trap_label =
@@ -2681,7 +2681,7 @@ class LiftoffCompiler {
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& arg,
                            Value* result) {
-    AssertNullTypecheckImpl(decoder, arg, result, kUnequal);
+    AssertNullTypecheckImpl(decoder, arg, result, kNotEqual);
   }
 
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& arg,
@@ -2837,7 +2837,7 @@ class LiftoffCompiler {
     uint32_t split = min + (max - min) / 2;
     Label upper_half;
     __ LoadConstant(tmp, WasmValue(split));
-    __ emit_cond_jump(kUnsignedGreaterEqual, &upper_half, kI32, value.gp(),
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, &upper_half, kI32, value.gp(),
                       tmp.gp(), frozen);
     // Emit br table for lower half:
     GenerateBrTable(decoder, tmp, value, min, split, table_iterator, br_targets,
@@ -2894,8 +2894,8 @@ class LiftoffCompiler {
       __ LoadConstant(tmp, WasmValue(uint32_t{imm.table_count}));
       FREEZE_STATE(frozen);
       Label case_default;
-      __ emit_cond_jump(kUnsignedGreaterEqual, &case_default, kI32, value.gp(),
-                        tmp.gp(), frozen);
+      __ emit_cond_jump(kUnsignedGreaterThanEqual, &case_default, kI32,
+                        value.gp(), tmp.gp(), frozen);
 
       GenerateBrTable(decoder, tmp, value, 0, imm.table_count, &table_iterator,
                       &br_targets, tmp1, tmp2, frozen);
@@ -3012,8 +3012,8 @@ class LiftoffCompiler {
     } else if (kSystemPointerSize == kInt32Size) {
       DCHECK_GE(kMaxUInt32, env_->module->max_memory_size);
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotEqualZero, trap_label, kI32, index.high_gp(),
-                        no_reg, trapping);
+      __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
+                        trapping);
     }
 
     uintptr_t end_offset = offset + access_size - 1u;
@@ -3031,7 +3031,7 @@ class LiftoffCompiler {
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
     if (end_offset > env_->module->min_memory_size) {
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kIntPtrKind,
+      __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kIntPtrKind,
                         end_offset_reg.gp(), mem_size.gp(), trapping);
     }
 
@@ -3041,7 +3041,7 @@ class LiftoffCompiler {
     __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size.gp(),
                         end_offset_reg.gp());
 
-    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kIntPtrKind,
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kIntPtrKind,
                       index_ptrsize, effective_size_reg.gp(), trapping);
     return index_ptrsize;
   }
@@ -3064,12 +3064,12 @@ class LiftoffCompiler {
       // {emit_cond_jump} to use the "test" instruction without the "and" here.
       // Then we can also avoid using the temp register here.
       __ emit_i32_andi(address, index, align_mask);
-      __ emit_cond_jump(kUnequal, trap_label, kI32, address, no_reg, trapping);
+      __ emit_cond_jump(kNotEqual, trap_label, kI32, address, no_reg, trapping);
     } else {
       // For alignment checks we only look at the lower 32-bits in {offset}.
       __ emit_i32_addi(address, index, static_cast<uint32_t>(offset));
       __ emit_i32_andi(address, address, align_mask);
-      __ emit_cond_jump(kUnequal, trap_label, kI32, address, no_reg, trapping);
+      __ emit_cond_jump(kNotEqual, trap_label, kI32, address, no_reg, trapping);
     }
   }
 
@@ -3406,14 +3406,14 @@ class LiftoffCompiler {
       __ LoadConstant(result, WasmValue(int32_t{-1}));
       if (kNeedI64RegPair) {
         FREEZE_STATE(all_spilled_anyway);
-        __ emit_cond_jump(kUnequal, &done, kI32, input.high_gp(), no_reg,
+        __ emit_cond_jump(kNotEqual, &done, kI32, input.high_gp(), no_reg,
                           all_spilled_anyway);
         input = input.low();
       } else {
         LiftoffRegister high_word = __ GetUnusedRegister(kGpReg, pinned);
         __ emit_i64_shri(high_word, input, 32);
         FREEZE_STATE(all_spilled_anyway);
-        __ emit_cond_jump(kUnequal, &done, kI32, high_word.gp(), no_reg,
+        __ emit_cond_jump(kNotEqual, &done, kI32, high_word.gp(), no_reg,
                           all_spilled_anyway);
       }
     }
@@ -3588,8 +3588,8 @@ class LiftoffCompiler {
     LoadNullValueForCompare(null, pinned);
     {
       FREEZE_STATE(frozen);
-      __ emit_cond_jump(kUnequal, &cont_false, ref_object.type.kind(), ref.gp(),
-                        null, frozen);
+      __ emit_cond_jump(kNotEqual, &cont_false, ref_object.type.kind(),
+                        ref.gp(), null, frozen);
       BrOrRetImpl(decoder, depth, null, tmp);
     }
     __ bind(&cont_false);
@@ -5235,7 +5235,7 @@ class LiftoffCompiler {
     if (mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotEqualZero, trap_label, kI32, mem_offsets_high_word,
+      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
                         no_reg, trapping);
       pinned.clear(mem_offsets_high_word);
     }
@@ -5303,7 +5303,7 @@ class LiftoffCompiler {
     if (mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotEqualZero, trap_label, kI32, mem_offsets_high_word,
+      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
                         no_reg, trapping);
     }
 
@@ -5342,7 +5342,7 @@ class LiftoffCompiler {
     if (mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotEqualZero, trap_label, kI32, mem_offsets_high_word,
+      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
                         no_reg, trapping);
     }
 
@@ -5665,7 +5665,7 @@ class LiftoffCompiler {
       // TODO(jkummerow): See if we can make this more elegant, e.g. by passing
       // a temp register to {StoreObjectField}.
       FREEZE_STATE(in_this_case_its_fine);
-      __ emit_cond_jump(kUnsignedGreaterEqual, &done, kI32, offset.gp(),
+      __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
                         end_offset.gp(), in_this_case_its_fine);
     }
     StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind);
@@ -5942,7 +5942,7 @@ class LiftoffCompiler {
 
     if (module->types[rtt_type.ref_index()].is_final) {
       // In this case, simply check for map equality.
-      __ emit_cond_jump(kUnequal, no_match, rtt_type.kind(), tmp1, rtt_reg,
+      __ emit_cond_jump(kNotEqual, no_match, rtt_type.kind(), tmp1, rtt_reg,
                         frozen);
     } else {
       // Check for rtt equality, and if not, check if the rtt is a struct/array
@@ -5973,15 +5973,15 @@ class LiftoffCompiler {
         int offset =
             ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
         __ LoadSmiAsInt32(list_length, tmp1, offset);
-        __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                               rtt_depth, frozen);
+        __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, no_match,
+                               list_length.gp(), rtt_depth, frozen);
       }
       // Step 3: load the candidate list slot into {tmp1}, and compare it.
       __ LoadTaggedPointer(
           tmp1, tmp1, no_reg,
           ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                  rtt_depth * kTaggedSize));
-      __ emit_cond_jump(kUnequal, no_match, rtt_type.kind(), tmp1, rtt_reg,
+      __ emit_cond_jump(kNotEqual, no_match, rtt_type.kind(), tmp1, rtt_reg,
                         frozen);
     }
 
@@ -6257,14 +6257,14 @@ class LiftoffCompiler {
   void StructCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     LoadInstanceType(check, frozen, check.no_match);
     LiftoffRegister instance_type(check.instance_type());
-    __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
+    __ emit_i32_cond_jumpi(kNotEqual, check.no_match, check.instance_type(),
                            WASM_STRUCT_TYPE, frozen);
   }
 
   void ArrayCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     LoadInstanceType(check, frozen, check.no_match);
     LiftoffRegister instance_type(check.instance_type());
-    __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
+    __ emit_i32_cond_jumpi(kNotEqual, check.no_match, check.instance_type(),
                            WASM_ARRAY_TYPE, frozen);
   }
 
@@ -6855,19 +6855,19 @@ class LiftoffCompiler {
 
       // If values pointer-equal, result is 1.
       __ LoadConstant(result_reg, WasmValue(int32_t{1}));
-      __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull, a_reg.gp(),
-                        b_reg.gp(), frozen);
+      __ emit_cond_jump(kEqual, &done, kRefNull, a_reg.gp(), b_reg.gp(),
+                        frozen);
 
       // Otherwise if either operand is null, result is 0.
       if (check_for_null) {
         __ LoadConstant(result_reg, WasmValue(int32_t{0}));
         if (a.type.is_nullable()) {
-          __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull,
-                            a_reg.gp(), null.gp(), frozen);
+          __ emit_cond_jump(kEqual, &done, kRefNull, a_reg.gp(), null.gp(),
+                            frozen);
         }
         if (b.type.is_nullable()) {
-          __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull,
-                            b_reg.gp(), null.gp(), frozen);
+          __ emit_cond_jump(kEqual, &done, kRefNull, b_reg.gp(), null.gp(),
+                            frozen);
         }
       }
 
@@ -7429,7 +7429,7 @@ class LiftoffCompiler {
           AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
       {
         FREEZE_STATE(trapping);
-        __ emit_cond_jump(kUnsignedGreaterEqual, out_of_bounds_label, kI32,
+        __ emit_cond_jump(kUnsignedGreaterThanEqual, out_of_bounds_label, kI32,
                           index, table_size, trapping);
       }
     }
@@ -7510,7 +7510,7 @@ class LiftoffCompiler {
           int offset =
               ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
           __ LoadSmiAsInt32(list_length, type_info, offset);
-          __ emit_i32_cond_jumpi(kUnsignedLessEqual, sig_mismatch_label,
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, sig_mismatch_label,
                                  list_length.gp(), rtt_depth, frozen);
         }
         // Step 3: load the candidate list slot, and compare it.
@@ -7525,13 +7525,13 @@ class LiftoffCompiler {
             formal_rtt, formal_rtt, no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                 imm.sig_imm.index));
-        __ emit_cond_jump(kUnequal, sig_mismatch_label, kRtt, formal_rtt,
+        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRtt, formal_rtt,
                           maybe_match, frozen);
 
         __ bind(&success_label);
       } else {
         FREEZE_STATE(trapping);
-        __ emit_cond_jump(kUnequal, sig_mismatch_label, kI32, real_sig_id,
+        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kI32, real_sig_id,
                           formal_sig_id, trapping);
       }
     } else if (needs_null_check) {
@@ -7699,7 +7699,7 @@ class LiftoffCompiler {
 
       LiftoffRegister null_address = temp;
       __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
-      __ emit_cond_jump(kUnequal, &perform_call, kIntPtrKind, target.gp(),
+      __ emit_cond_jump(kNotEqual, &perform_call, kIntPtrKind, target.gp(),
                         null_address.gp(), frozen);
       // The cached target can only be null for WasmJSFunctions.
       __ LoadTaggedPointer(
@@ -7769,8 +7769,8 @@ class LiftoffCompiler {
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValueForCompare(null.gp(), pinned);
     FREEZE_STATE(trapping);
-    __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, kRefNull, object,
-                      null.gp(), trapping);
+    __ emit_cond_jump(kEqual, trap_label, kRefNull, object, null.gp(),
+                      trapping);
   }
 
   void BoundsCheckArray(FullDecoder* decoder, LiftoffRegister array,
@@ -7783,8 +7783,8 @@ class LiftoffCompiler {
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
     __ Load(length, array.gp(), no_reg, kLengthOffset, LoadType::kI32Load);
     FREEZE_STATE(trapping);
-    __ emit_cond_jump(LiftoffCondition::kUnsignedGreaterEqual, trap_label, kI32,
-                      index.gp(), length.gp(), trapping);
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kI32, index.gp(),
+                      length.gp(), trapping);
   }
 
   int StructFieldOffset(const StructType* struct_type, int field_index) {
