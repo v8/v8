@@ -187,6 +187,26 @@
 //
 #define FLAG FLAG_FULL
 
+// Experimental features.
+// Features that are still considered experimental and which are not ready for
+// fuzz testing should be defined using this macro. The feature will then imply
+// --experimental, which will indicate to the user that they are running an
+// experimental configuration of V8. Experimental features are always disabled
+// by default. When these features mature, the flag should first turn into a
+// regular feature flag (still disabled by default) and then ideally be staged
+// behind (for example) --future before being enabled by default.
+DEFINE_BOOL(experimental, false,
+            "Indicates that V8 is running with experimental features enabled. "
+            "This flag is typically not set explicitly but instead enabled as "
+            "an implication of other flags which enable experimental features.")
+// Features considered experimental should not be staged behind --future.
+DEFINE_NEG_IMPLICATION(future, experimental)
+// Features considered experimental are not ready for fuzzing.
+DEFINE_NEG_IMPLICATION(fuzzing, experimental)
+#define DEFINE_EXPERIMENTAL_FEATURE(nam, cmt)         \
+  FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
+  DEFINE_IMPLICATION(nam, experimental)
+
 // ATTENTION: This is set to true by default in d8. But for API compatibility,
 // it generally defaults to false.
 DEFINE_BOOL(abort_on_contradictory_flags, false,
