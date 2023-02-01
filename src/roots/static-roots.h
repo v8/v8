@@ -12,9 +12,6 @@
 
 #if V8_STATIC_ROOTS_BOOL
 
-#include "src/objects/instance-type.h"
-#include "src/roots/roots.h"
-
 // Disabling Wasm or Intl invalidates the contents of static-roots.h.
 // TODO(olivf): To support static roots for multiple build configurations we
 //              will need to generate target specific versions of this file.
@@ -95,19 +92,19 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kClosureFeedbackCellArrayMap = 0x2b05;
   static constexpr Tagged_t kFeedbackVectorMap = 0x2b2d;
   static constexpr Tagged_t kHeapNumberMap = 0x2b55;
-  static constexpr Tagged_t kForeignMap = 0x2b7d;
-  static constexpr Tagged_t kMegaDomHandlerMap = 0x2ba5;
-  static constexpr Tagged_t kBooleanMap = 0x2bcd;
-  static constexpr Tagged_t kUninitializedMap = 0x2bf5;
-  static constexpr Tagged_t kArgumentsMarkerMap = 0x2c1d;
-  static constexpr Tagged_t kExceptionMap = 0x2c45;
-  static constexpr Tagged_t kTerminationExceptionMap = 0x2c6d;
-  static constexpr Tagged_t kOptimizedOutMap = 0x2c95;
-  static constexpr Tagged_t kStaleRegisterMap = 0x2cbd;
-  static constexpr Tagged_t kSelfReferenceMarkerMap = 0x2ce5;
-  static constexpr Tagged_t kBasicBlockCountersMarkerMap = 0x2d0d;
-  static constexpr Tagged_t kBigIntMap = 0x2d35;
-  static constexpr Tagged_t kSymbolMap = 0x2d5d;
+  static constexpr Tagged_t kSymbolMap = 0x2b7d;
+  static constexpr Tagged_t kForeignMap = 0x2ba5;
+  static constexpr Tagged_t kMegaDomHandlerMap = 0x2bcd;
+  static constexpr Tagged_t kBooleanMap = 0x2bf5;
+  static constexpr Tagged_t kUninitializedMap = 0x2c1d;
+  static constexpr Tagged_t kArgumentsMarkerMap = 0x2c45;
+  static constexpr Tagged_t kExceptionMap = 0x2c6d;
+  static constexpr Tagged_t kTerminationExceptionMap = 0x2c95;
+  static constexpr Tagged_t kOptimizedOutMap = 0x2cbd;
+  static constexpr Tagged_t kStaleRegisterMap = 0x2ce5;
+  static constexpr Tagged_t kSelfReferenceMarkerMap = 0x2d0d;
+  static constexpr Tagged_t kBasicBlockCountersMarkerMap = 0x2d35;
+  static constexpr Tagged_t kBigIntMap = 0x2d5d;
   static constexpr Tagged_t kStringMap = 0x2d85;
   static constexpr Tagged_t kOneByteStringMap = 0x2dad;
   static constexpr Tagged_t kConsStringMap = 0x2dd5;
@@ -1506,34 +1503,6 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStoreHandler2Map,
     StaticReadOnlyRoot::kStoreHandler3Map,
 };
-
-inline constexpr base::Optional<std::pair<RootIndex, RootIndex>>
-StaticReadOnlyRootMapRange(InstanceType type) {
-  switch (type) {
-    case INTERNALIZED_STRING_TYPE:
-      return {{RootIndex::kInternalizedStringMap,
-               RootIndex::kUncachedExternalOneByteInternalizedStringMap}};
-    case ALLOCATION_SITE_TYPE:
-      return {{RootIndex::kAllocationSiteWithWeakNextMap,
-               RootIndex::kAllocationSiteWithoutWeakNextMap}};
-    default: {
-    }
-  }
-  return {};
-}
-
-inline constexpr base::Optional<std::pair<RootIndex, RootIndex>>
-StaticReadOnlyRootMapRange(InstanceType first, InstanceType last) {
-  if (first == FIRST_STRING_TYPE && last == LAST_STRING_TYPE) {
-    return {{RootIndex::kStringMap, RootIndex::kSharedThinOneByteStringMap}};
-  }
-  if (first == FIRST_NAME_TYPE && last == LAST_NAME_TYPE) {
-    return {{RootIndex::kSymbolMap, RootIndex::kSharedThinOneByteStringMap}};
-  }
-  return {};
-}
-
-static constexpr size_t kStaticReadOnlyRootRangesHash = 4014968950881612012UL;
 
 }  // namespace internal
 }  // namespace v8
