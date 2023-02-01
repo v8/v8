@@ -1307,10 +1307,20 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
-        LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
+        if (handler.IsWeakFixedArray()) {
+          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        }
+        LoadHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
-        WeakFixedArray array =
-            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        WeakFixedArray array;
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+        } else {
+          array = WeakFixedArray::cast(feedback);
+        }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
           LoadHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
@@ -1325,10 +1335,20 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
-        StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
+        if (handler.IsWeakFixedArray()) {
+          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        }
+        StoreHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
-        WeakFixedArray array =
-            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        WeakFixedArray array;
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+        } else {
+          array = WeakFixedArray::cast(feedback);
+        }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
           StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);

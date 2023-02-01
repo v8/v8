@@ -190,7 +190,8 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
     INSTANCE_TYPE_LIST(WRITE_TYPE)
 #undef WRITE_TYPE
   }
-  UNREACHABLE();
+  return os << "[unknown instance type " << static_cast<int16_t>(instance_type)
+            << "]";
 }
 
 std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
