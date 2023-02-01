@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -1220,6 +1221,56 @@ void CheckValue::GenerateCode(MaglevAssembler* masm,
   Register target = ToRegister(target_input());
   __ Cmp(target, value().object());
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
+}
+
+void CheckValueEqualsString::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kStringEqual>::type;
+  UseFixed(target_input(), D::GetRegisterParameter(D::kLeft));
+  RequireSpecificTemporary(D::GetRegisterParameter(D::kLength));
+}
+void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kStringEqual>::type;
+
+  ZoneLabelRef end(masm);
+  DCHECK_EQ(D::GetRegisterParameter(D::kLeft), ToRegister(target_input()));
+  Register target = D::GetRegisterParameter(D::kLeft);
+  // Maybe the string is internalized already, do a fast reference check first.
+  __ Cmp(target, value().object());
+  __ JumpIf(kEqual, *end, Label::kNear);
+
+  __ EmitEagerDeoptIf(__ CheckSmi(target), DeoptimizeReason::kWrongValue, this);
+  __ CompareObjectTypeRange(target, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+
+  __ JumpToDeferredIf(
+      kLessThanEqual,
+      [](MaglevAssembler* masm, CheckValueEqualsString* node,
+         ZoneLabelRef end) {
+        Register target = D::GetRegisterParameter(D::kLeft);
+        Register string_length = D::GetRegisterParameter(D::kLength);
+        __ StringLength(string_length, target);
+        __ CompareInt32(string_length, node->value().length());
+        __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
+
+        RegisterSnapshot snapshot = node->register_snapshot();
+        AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
+        {
+          SaveRegisterStateForCall save_register_state(
+              masm, node->register_snapshot());
+          __ Move(D::GetRegisterParameter(D::kRight), node->value().object());
+          __ CallBuiltin(Builtin::kStringEqual);
+          // Compare before restoring registers, so that the deopt below has the
+          // correct register set.
+          __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
+        }
+        __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
+        __ Jump(*end);
+      },
+      this, end);
+
+  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongValue);
+
+  __ bind(*end);
 }
 
 void CheckDynamicValue::SetValueLocationConstraints() {
@@ -3056,6 +3107,11 @@ void CheckMaps::PrintParams(std::ostream& os,
 
 void CheckValue::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *value().object() << ")";
+}
+
+void CheckValueEqualsString::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *value().object() << ")";
 }
 

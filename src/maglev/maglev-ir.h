@@ -253,6 +253,7 @@ class CompactInterpreterFrameState;
   V(CheckString)                      \
   V(CheckSymbol)                      \
   V(CheckValue)                       \
+  V(CheckValueEqualsString)           \
   V(CheckInstanceType)                \
   V(DebugBreak)                       \
   V(GeneratorStore)                   \
@@ -3598,6 +3599,34 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
 
  private:
   const compiler::ObjectRef value_;
+};
+
+class CheckValueEqualsString
+    : public FixedInputNodeT<1, CheckValueEqualsString> {
+  using Base = FixedInputNodeT<1, CheckValueEqualsString>;
+
+ public:
+  explicit CheckValueEqualsString(uint64_t bitfield,
+                                  const compiler::InternalizedStringRef& value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  compiler::InternalizedStringRef value() const { return value_; }
+
+  static constexpr int kTargetIndex = 0;
+  Input& target_input() { return input(kTargetIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::InternalizedStringRef value_;
 };
 
 class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {

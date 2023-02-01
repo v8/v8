@@ -3427,7 +3427,15 @@ bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     return false;
   }
-  AddNewNode<CheckValue>({node}, ref);
+  // TODO: Add CheckValue support for numbers (incl. conversion between Smi and
+  // HeapNumber).
+  DCHECK(!ref.IsSmi());
+  DCHECK(!ref.IsHeapNumber());
+  if (ref.IsString()) {
+    AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
+  } else {
+    AddNewNode<CheckValue>({node}, ref);
+  }
   return true;
 }
 
