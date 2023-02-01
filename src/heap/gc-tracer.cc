@@ -409,6 +409,7 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
 
   if (V8_UNLIKELY(TracingFlags::gc.load(std::memory_order_relaxed) &
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    TRACE_EVENT0(TRACE_GC_CATEGORIES, "V8.GC_HEAP_DUMP_STATISTICS");
     std::stringstream heap_stats;
     heap_->DumpJSONHeapStatistics(heap_stats);
 
