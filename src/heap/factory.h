@@ -450,7 +450,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
-  Handle<Cell> NewCell(Handle<Object> value);
+  Handle<Cell> NewCell(Smi value);
+  Handle<Cell> NewCell();
 
   Handle<PropertyCell> NewPropertyCell(
       Handle<Name> name, PropertyDetails details, Handle<Object> value,
