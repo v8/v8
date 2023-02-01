@@ -1501,10 +1501,8 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
   Code code = shared.GetCode();
-  // Don't try to get the InstructionStream object from InstructionStream-less
-  // embedded builtin.
   HeapObject maybe_code_obj =
-      code.is_off_heap_trampoline() ? HeapObject::cast(code) : FromCode(code);
+      code.has_instruction_stream() ? FromCode(code) : HeapObject::cast(code);
   if (name[0] != '\0') {
     TagObject(maybe_code_obj,
               names_->GetFormatted("(code for %s)", name.get()));
@@ -1577,7 +1575,7 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 
 void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
-  if (!code.is_off_heap_trampoline()) {
+  if (code.has_instruction_stream()) {
     TagObject(FromCode(code), names_->GetFormatted("(%s builtin)", name));
   }
 }
@@ -2075,7 +2073,7 @@ class RootsReferencesExtractor : public RootVisitor {
       // When external code space is enabled, the slot might contain a
       // Code object representing an embedded builtin, which
       // doesn't require additional processing.
-      DCHECK(Code::cast(value).is_off_heap_trampoline());
+      DCHECK(!Code::cast(value).has_instruction_stream());
     } else {
       InstructionStream code = InstructionStream::cast(value);
       if (code.kind() != CodeKind::BASELINE) {

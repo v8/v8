@@ -899,7 +899,6 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
     source_pos_table->copy_out(0, source_pos.begin(),
                                source_pos_table->length());
   }
-  CHECK(!code->is_off_heap_trampoline());
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   base::Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->raw_body_start()),

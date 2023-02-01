@@ -1425,7 +1425,7 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
 namespace {
 
 void RecordStats(Code code, Counters* counters) {
-  if (code.is_off_heap_trampoline()) return;
+  if (!code.has_instruction_stream()) return;
   InstructionStream instruction_stream = FromCode(code);
   counters->wasm_generated_code_size()->Increment(
       instruction_stream.raw_body_size());

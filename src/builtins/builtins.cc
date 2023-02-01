@@ -313,7 +313,7 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   // The entry table.
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
     DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i).builtin_id()));
-    DCHECK(isolate->builtins()->code(i).is_off_heap_trampoline());
+    DCHECK(!isolate->builtins()->code(i).has_instruction_stream());
     isolate_data->builtin_entry_table()[ToInt(i)] =
         embedded_data.InstructionStartOfBuiltin(i);
   }

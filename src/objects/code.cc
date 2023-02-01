@@ -237,41 +237,20 @@ MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
   return table.FindEntry(pc);
 }
 
-Address InstructionStream::OffHeapInstructionStart(Isolate* isolate,
-                                                   Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionStartOfBuiltin(builtin_id());
-}
-
 Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id());
-}
-
-Address InstructionStream::OffHeapInstructionEnd(Isolate* isolate,
-                                                 Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionEndOf(builtin_id());
 }
 
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionEndOf(builtin_id());
 }
 
-bool InstructionStream::OffHeapBuiltinContains(Isolate* isolate,
-                                               Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.BuiltinContains(builtin_id(), pc);
-}
-
 bool Code::OffHeapBuiltinContains(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.BuiltinContains(builtin_id(), pc);
 }
@@ -555,16 +534,6 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                                       : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(code.ptr()) << "\n\n";
-
-  if (code.IsInstructionStream() && code.is_off_heap_trampoline()) {
-    InstructionStream trampoline_code = InstructionStream::cast(code);
-    int trampoline_size = trampoline_code.raw_instruction_size();
-    os << "Trampoline (size = " << trampoline_size << ")\n";
-    DisassembleCodeRange(isolate, os, trampoline_code,
-                         trampoline_code.raw_instruction_start(),
-                         trampoline_size, current_pc);
-    os << "\n";
-  }
 
   {
     int code_size = code.InstructionSize();

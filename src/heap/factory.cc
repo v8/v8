@@ -117,9 +117,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code = factory->NewCode(0, AllocationType::kOld);
   }
 
-  static constexpr bool kIsNotOffHeapTrampoline = false;
-  code->initialize_flags(kind_, builtin_, is_turbofanned_,
-                         kIsNotOffHeapTrampoline);
+  code->initialize_flags(kind_, builtin_, is_turbofanned_);
   code->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
@@ -160,8 +158,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     raw_istream.set_raw_instruction_size(code_desc_.instruction_size());
     raw_istream.set_raw_metadata_size(code_desc_.metadata_size());
     raw_istream.set_relocation_info(*reloc_info);
-    raw_istream.initialize_flags(kind_, is_turbofanned_, stack_slots_,
-                                 kIsNotOffHeapTrampoline);
+    raw_istream.initialize_flags(kind_, is_turbofanned_, stack_slots_);
     raw_istream.set_builtin_id(builtin_);
     // This might impact direct concurrent reads from TF if we are resetting
     // this field. We currently assume it's immutable thus a relaxed read (after
@@ -2489,10 +2486,8 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   const int no_flags = 0;
   Handle<Code> off_heap_trampoline = NewCode(no_flags, AllocationType::kOld);
 
-  const bool set_is_off_heap_trampoline = true;
   off_heap_trampoline->initialize_flags(code->kind(), code->builtin_id(),
-                                        code->is_turbofanned(),
-                                        set_is_off_heap_trampoline);
+                                        code->is_turbofanned());
   off_heap_trampoline->set_kind_specific_flags(
       code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
   off_heap_trampoline->set_code_entry_point(isolate(),

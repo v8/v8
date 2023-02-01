@@ -499,7 +499,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     auto code = Code::cast(raw_obj);
     code.init_code_entry_point(main_thread_isolate(), kNullAddress);
-    if (code.is_off_heap_trampoline()) {
+    if (!code.has_instruction_stream()) {
       Address entry = OffHeapInstructionStart(code, code.builtin_id());
       code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(), entry);
     } else {

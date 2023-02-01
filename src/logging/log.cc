@@ -129,7 +129,7 @@ const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   // We record interpreter trampoline builtin copies as having the
   // "interpreted" marker.
   if (v8_flags.interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
-      !code.is_off_heap_trampoline(cage_base)) {
+      code.has_instruction_stream(cage_base)) {
     DCHECK_EQ(code.builtin_id(cage_base), Builtin::kInterpreterEntryTrampoline);
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
@@ -2326,7 +2326,7 @@ void ExistingCodeLogger::LogCodeObject(AbstractCode object) {
       tag = CodeTag::kBytecodeHandler;
       break;
     case CodeKind::BUILTIN:
-      if (!abstract_code->is_off_heap_trampoline(cage_base)) {
+      if (abstract_code->has_instruction_stream(cage_base)) {
         DCHECK_EQ(abstract_code->builtin_id(cage_base),
                   Builtin::kInterpreterEntryTrampoline);
         // We treat interpreter trampoline builtin copies as

@@ -1104,7 +1104,7 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     if (!IsCodeSpaceObject(value)) {
       // The slot might contain a Code object representing an
       // embedded builtin, which doesn't require additional processing.
-      DCHECK(Code::cast(value).is_off_heap_trampoline());
+      DCHECK(!Code::cast(value).has_instruction_stream());
     } else {
       InstructionStream code = InstructionStream::cast(value);
       if (code.kind() != CodeKind::BASELINE) {
@@ -2688,8 +2688,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
       GcSafeCode lookup_result = it.frame()->GcSafeLookupCode();
-      // Builtins can't deoptimize.
-      if (lookup_result.is_off_heap_trampoline()) return;
+      if (!lookup_result.has_instruction_stream()) return;
       InstructionStream istream = InstructionStream::unchecked_cast(
           lookup_result.raw_instruction_stream());
       DCHECK_NE(istream, Smi::zero());

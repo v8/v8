@@ -460,18 +460,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
                   Code::kUnalignedSize);
     constexpr int kStartOffset = Code::kFlagsOffset;
 
-    // |is_off_heap_trampoline| is false during builtins compilation (since
-    // the builtins are not trampolines yet) but it's true for off-heap
-    // builtin trampolines. The rest of the data fields should be the same.
-    // So we temporarily set |is_off_heap_trampoline| to true during hash
-    // computation.
-    bool is_off_heap_trampoline_sav = code.is_off_heap_trampoline();
-    code.set_is_off_heap_trampoline_for_hash(true);
-
     for (int j = kStartOffset; j < Code::kUnalignedSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});
     }
-    code.set_is_off_heap_trampoline_for_hash(is_off_heap_trampoline_sav);
   }
 
   // The builtins constants table is also tightly tied to embedded builtins.

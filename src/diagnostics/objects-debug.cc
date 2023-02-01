@@ -1095,12 +1095,6 @@ void Code::CodeVerify(Isolate* isolate) {
     InstructionStream istream = instruction_stream();
     CHECK_EQ(istream.kind(), kind());
     CHECK_EQ(istream.builtin_id(), builtin_id());
-    // When v8_flags.interpreted_frames_native_stack is enabled each
-    // interpreted function gets its own copy of the
-    // InterpreterEntryTrampoline. Thus, there could be InstructionStream'ful
-    // builtins.
-    CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
-                  builtin_id() == Builtin::kInterpreterEntryTrampoline);
     CHECK_EQ(istream.code(kAcquireLoad), *this);
 
     // Ensure the cached code entry point corresponds to the InstructionStream

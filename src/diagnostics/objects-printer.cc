@@ -1810,13 +1810,12 @@ void Code::CodePrint(std::ostream& os) {
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
   }
-  os << "\n - is_off_heap_trampoline: " << is_off_heap_trampoline();
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
-  if (!is_off_heap_trampoline()) {
+  if (has_instruction_stream()) {
     instruction_stream().Print(os);
   }
 }

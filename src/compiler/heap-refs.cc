@@ -2293,7 +2293,7 @@ unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
 
 unsigned CodeRef::GetInlinedBytecodeSize() const {
   Code code = *object();
-  if (code.is_off_heap_trampoline()) {
+  if (!code.has_instruction_stream()) {
     return 0;
   }
 

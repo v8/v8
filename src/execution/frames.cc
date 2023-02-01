@@ -582,16 +582,13 @@ Code StackFrame::LookupCode() const {
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address,
                            GcSafeCode holder) const {
-  if (holder.is_off_heap_trampoline()) {
+  if (!holder.has_instruction_stream()) {
     // The embedded builtins are immovable so there's no need to update PCs on
     // the stack. Just visit the Code object.
     Object code = holder.UnsafeCastToCode();
     v->VisitRunningCode(FullObjectSlot(&code));
     return;
   }
-
-  // .. because we access e.g. raw_instruction_start() below.
-  DCHECK(!holder.is_off_heap_trampoline());
 
   InstructionStream unsafe_istream = InstructionStream::unchecked_cast(
       holder.UnsafeCastToCode().raw_instruction_stream());

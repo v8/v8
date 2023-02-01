@@ -119,7 +119,7 @@ Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale, Code handler) {
-  DCHECK(handler.is_off_heap_trampoline());
+  DCHECK(!handler.has_instruction_stream());
   DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = handler.InstructionStart();
@@ -342,8 +342,7 @@ void Interpreter::Initialize() {
   // initialized.
   Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
-  DCHECK(code->is_off_heap_trampoline() ||
-         isolate_->heap()->IsImmovable(FromCode(*code)));
+  DCHECK(!code->has_instruction_stream());
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.
