@@ -317,7 +317,7 @@ def _torque_initializers_impl(ctx):
     # Generate/declare output files
     outs = []
     for src in ctx.files.srcs:
-        root, period, ext = src.path.rpartition(".")
+        root, _period, _ext = src.path.rpartition(".")
 
         # Strip v8root
         if root[:len(v8root)] == v8root:
@@ -397,7 +397,7 @@ def _torque_definitions_impl(ctx):
     # Generate/declare output files
     outs = []
     for src in ctx.files.srcs:
-        root, period, ext = src.path.rpartition(".")
+        root, _period, _ext = src.path.rpartition(".")
 
         # Strip v8root
         if root[:len(v8root)] == v8root:

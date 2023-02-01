@@ -2588,7 +2588,6 @@ filegroup(
     name = "icu/v8_base_without_compiler_files",
     srcs = [
         "src/builtins/builtins-intl.cc",
-        "src/builtins/builtins-intl-gen.cc",
         "src/objects/intl-objects.cc",
         "src/objects/intl-objects.h",
         "src/objects/js-break-iterator.cc",
@@ -3016,7 +3015,7 @@ filegroup(
 )
 
 filegroup(
-    name = "v8_initializers_files",
+    name = "noicu/v8_initializers_files",
     srcs = [
         "src/builtins/builtins-array-gen.cc",
         "src/builtins/builtins-array-gen.h",
@@ -3106,6 +3105,14 @@ filegroup(
         ],
         "//conditions:default": [],
     }),
+)
+
+filegroup(
+    name = "icu/v8_initializers_files",
+    srcs = [
+        "src/builtins/builtins-intl-gen.cc",
+        ":noicu/v8_initializers_files",
+    ],
 )
 
 filegroup(
@@ -3813,7 +3820,6 @@ v8_binary(
     name = "mksnapshot",
     srcs = [
         ":mksnapshot_files",
-        ":v8_initializers_files",
     ] + select({
         ":is_not_v8_enable_turbofan": [
             # Turbofan is needed to generate builtins.
@@ -3829,10 +3835,12 @@ v8_binary(
     }),
     icu_srcs = [
         ":icu/generated_torque_initializers",
+        ":icu/v8_initializers_files",
     ],
     noicu_deps = [":v8_libshared_noicu"],
     noicu_srcs = [
         ":noicu/generated_torque_initializers",
+        ":noicu/v8_initializers_files",
     ],
 )
 
