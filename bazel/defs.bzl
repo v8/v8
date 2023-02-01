@@ -205,7 +205,7 @@ def v8_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["noicu/"] + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             **kwargs
@@ -214,7 +214,7 @@ def v8_binary(
             name = "icu/" + name,
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["icu/"] + default.includes,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             **kwargs
@@ -249,7 +249,7 @@ def v8_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["noicu/"] + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
@@ -268,7 +268,7 @@ def v8_library(
             name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["icu/"] + default.includes,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
@@ -296,7 +296,7 @@ def v8_library(
             **kwargs
         )
 
-def _torque_impl(ctx):
+def _torque_initializers_impl(ctx):
     if ctx.workspace_name == "v8":
         v8root = "."
     else:
@@ -325,22 +325,19 @@ def _torque_impl(ctx):
         file = ctx.attr.prefix + "/torque-generated/" + root
         outs.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
         outs.append(ctx.actions.declare_file(file + "-tq-csa.h"))
-        outs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.cc"))
     outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
     ctx.actions.run(
         outputs = outs,
         inputs = ctx.files.srcs,
         arguments = args,
         executable = ctx.executable.tool,
-        mnemonic = "GenTorque",
-        progress_message = "Generating Torque files",
+        mnemonic = "GenTorqueInitializers",
+        progress_message = "Generating Torque initializers",
     )
     return [DefaultInfo(files = depset(outs))]
 
-_v8_torque = rule(
-    implementation = _torque_impl,
+_v8_torque_initializers = rule(
+    implementation = _torque_initializers_impl,
     # cfg = v8_target_cpu_transition,
     attrs = {
         "prefix": attr.string(mandatory = True),
@@ -355,8 +352,8 @@ _v8_torque = rule(
     },
 )
 
-def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
-    _v8_torque(
+def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
+    _v8_torque_initializers(
         name = "noicu/" + name,
         prefix = "noicu",
         srcs = noicu_srcs,
@@ -367,7 +364,88 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
             "//conditions:default": ":torque",
         }),
     )
-    _v8_torque(
+    _v8_torque_initializers(
+        name = "icu/" + name,
+        prefix = "icu",
+        srcs = icu_srcs,
+        args = args,
+        extras = extras,
+        tool = select({
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "//conditions:default": ":torque",
+        }),
+    )
+
+def _torque_definitions_impl(ctx):
+    if ctx.workspace_name == "v8":
+        v8root = "."
+    else:
+        v8root = "external/v8"
+
+    # Arguments
+    args = []
+    args += ctx.attr.args
+    args.append("-o")
+    args.append(ctx.bin_dir.path + "/" + v8root + "/" + ctx.attr.prefix + "/torque-generated")
+    args.append("-strip-v8-root")
+    args.append("-v8-root")
+    args.append(v8root)
+
+    # Sources
+    args += [f.path for f in ctx.files.srcs]
+
+    # Generate/declare output files
+    outs = []
+    for src in ctx.files.srcs:
+        root, period, ext = src.path.rpartition(".")
+
+        # Strip v8root
+        if root[:len(v8root)] == v8root:
+            root = root[len(v8root):]
+        file = ctx.attr.prefix + "/torque-generated/" + root
+        outs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
+        outs.append(ctx.actions.declare_file(file + "-tq.inc"))
+        outs.append(ctx.actions.declare_file(file + "-tq.cc"))
+    outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
+    ctx.actions.run(
+        outputs = outs,
+        inputs = ctx.files.srcs,
+        arguments = args,
+        executable = ctx.executable.tool,
+        mnemonic = "GenTorqueDefinitions",
+        progress_message = "Generating Torque definitions",
+    )
+    return [DefaultInfo(files = depset(outs))]
+
+_v8_torque_definitions = rule(
+    implementation = _torque_definitions_impl,
+    # cfg = v8_target_cpu_transition,
+    attrs = {
+        "prefix": attr.string(mandatory = True),
+        "srcs": attr.label_list(allow_files = True, mandatory = True),
+        "extras": attr.string_list(),
+        "tool": attr.label(
+            allow_files = True,
+            executable = True,
+            cfg = "exec",
+        ),
+        "args": attr.string_list(),
+    },
+)
+
+def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
+    _v8_torque_definitions(
+        name = "noicu/" + name,
+        prefix = "noicu",
+        srcs = noicu_srcs,
+        args = args,
+        extras = extras,
+        tool = select({
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "//conditions:default": ":torque",
+        }),
+    )
+    _v8_torque_definitions(
         name = "icu/" + name,
         prefix = "icu",
         srcs = icu_srcs,
