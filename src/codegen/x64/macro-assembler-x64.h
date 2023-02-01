@@ -891,6 +891,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Load the native context slot with the current index.
   void LoadNativeContextSlot(Register dst, int index);
 
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                               Register feedback_vector, FeedbackSlot slot,
+                               Label* on_result, Label::Distance distance);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 

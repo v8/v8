@@ -3577,6 +3577,37 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
+void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             Register feedback_vector,
+                                             FeedbackSlot slot,
+                                             Label* on_result,
+                                             Label::Distance) {
+  Label fallthrough, clear_slot;
+  LoadTaggedPointerField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  LoadWeakValue(scratch_and_result, scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    UseScratchRegisterScope temps(this);
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temps.AcquireX(),
+                                        &clear_slot);
+    B(on_result);
+  }
+
+  bind(&clear_slot);
+  Mov(scratch_and_result, ClearedValue());
+  StoreTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+
+  bind(&fallthrough);
+  Mov(scratch_and_result, 0);
+}
+
 // This is the main Printf implementation. All other Printf variants call
 // PrintfNoPreserve after setting up one or more PreserveRegisterScopes.
 void TurboAssembler::PrintfNoPreserve(const char* format,

@@ -559,6 +559,11 @@ inline void MaglevAssembler::JumpIfSmi(Register src, Label* on_smi,
   MacroAssembler::JumpIfSmi(src, on_smi);
 }
 
+void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
+                                 Label* target, Label::Distance) {
+  CompareAndBranch(value, Immediate(byte), cc, target);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Condition cond,
                                                    Label* target,

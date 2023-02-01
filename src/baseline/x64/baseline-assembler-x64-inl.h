@@ -377,23 +377,8 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                                 FeedbackSlot slot,
                                                 Label* on_result,
                                                 Label::Distance distance) {
-  Label fallthrough;
-  LoadTaggedPointerField(scratch_and_result, feedback_vector,
-                         FeedbackVector::OffsetOfElementAt(slot.ToInt()));
-  __ LoadWeakValue(scratch_and_result, &fallthrough);
-
-  // Is it marked_for_deoptimization? If yes, clear the slot.
-  {
-    __ TestCodeIsMarkedForDeoptimization(scratch_and_result);
-    __ j(equal, on_result, distance);
-    __ StoreTaggedField(
-        FieldOperand(feedback_vector,
-                     FeedbackVector::OffsetOfElementAt(slot.ToInt())),
-        __ ClearedValue());
-  }
-
-  __ bind(&fallthrough);
-  __ Move(scratch_and_result, 0);
+  __ MacroAssembler::TryLoadOptimizedOsrCode(
+      scratch_and_result, feedback_vector, slot, on_result, distance);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(

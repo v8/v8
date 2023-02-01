@@ -4,7 +4,6 @@
 
 #include "src/maglev/maglev-ir.h"
 
-#include "src/baseline/baseline-assembler-inl.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -2733,24 +2732,21 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
   //
   // See also: InterpreterAssembler::OnStackReplacement.
 
-  baseline::BaselineAssembler basm(masm);
   __ AssertFeedbackVector(scratch0);
 
   // Case 1).
   Label deopt;
   Register maybe_target_code = scratch1;
-  {
-    basm.TryLoadOptimizedOsrCode(maybe_target_code, scratch0, feedback_slot,
-                                 &deopt, Label::kFar);
-  }
+  __ TryLoadOptimizedOsrCode(maybe_target_code, scratch0, feedback_slot, &deopt,
+                             Label::kFar);
 
   // Case 2).
   {
     __ LoadByte(scratch0,
                 FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
-    basm.JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
-                    *no_code_for_osr, Label::Distance::kNear);
+    __ JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
+                  *no_code_for_osr, Label::Distance::kNear);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.

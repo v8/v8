@@ -3234,6 +3234,32 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedPointerField(dst, Operand(dst, Context::SlotOffset(index)));
 }
 
+void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             Register feedback_vector,
+                                             FeedbackSlot slot,
+                                             Label* on_result,
+                                             Label::Distance distance) {
+  Label fallthrough;
+  LoadTaggedPointerField(
+      scratch_and_result,
+      FieldOperand(feedback_vector,
+                   FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  LoadWeakValue(scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    TestCodeIsMarkedForDeoptimization(scratch_and_result);
+    j(equal, on_result, distance);
+    StoreTaggedField(
+        FieldOperand(feedback_vector,
+                     FeedbackVector::OffsetOfElementAt(slot.ToInt())),
+        ClearedValue());
+  }
+
+  bind(&fallthrough);
+  Move(scratch_and_result, 0);
+}
+
 int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
   // On Windows 64 stack slots are reserved by the caller for all arguments
   // including the ones passed in registers, and space is always allocated for
