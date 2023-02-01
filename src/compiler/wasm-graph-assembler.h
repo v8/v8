@@ -159,6 +159,10 @@ class WasmGraphAssembler : public GraphAssembler {
                                        value);
   }
 
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           ExternalPointerTag tag,
+                                           Node* isolate_root);
+
   Node* IsI31(Node* object);
 
   // Maps and their contents.
@@ -269,6 +273,10 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* ArrayLength(Node* array);
 
   void ArrayInitializeLength(Node* array, Node* length);
+
+  Node* StringAsWtf16(Node* string);
+
+  Node* StringPrepareForGetCodeunit(Node* string);
 
   // Generic helpers.
 

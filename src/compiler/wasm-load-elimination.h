@@ -84,8 +84,6 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
       map.Set(outer_key, map_copy);
     }
 
-    static void KillField(int field_index, Node* object,
-                          MachineRepresentation repr, Zone* zone);
     static void Print(const FieldInfos& infos);
     static void Print(const ElementInfos& infos);
 
@@ -120,6 +118,8 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   Reduction ReduceWasmStructSet(Node* node);
   Reduction ReduceWasmArrayLength(Node* node);
   Reduction ReduceWasmArrayInitializeLength(Node* node);
+  Reduction ReduceStringPrepareForGetCodeunit(Node* node);
+  Reduction ReduceStringAsWtf16(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);

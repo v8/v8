@@ -7041,7 +7041,22 @@ class LiftoffCompiler {
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    RefAsNonNull(decoder, str, result);
+    LiftoffRegList pinned;
+
+    LiftoffRegister str_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, str_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState str_var(kRef, str_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringAsWtf16,
+                    MakeSig::Returns(kRef).Params(kRef),
+                    {
+                        str_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,

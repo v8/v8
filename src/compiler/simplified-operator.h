@@ -1162,6 +1162,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmArraySet(const wasm::ArrayType* type);
   const Operator* WasmArrayLength();
   const Operator* WasmArrayInitializeLength();
+  const Operator* StringAsWtf16();
+  const Operator* StringPrepareForGetCodeunit();
 #endif
 
   const Operator* DateNow();

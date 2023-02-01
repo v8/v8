@@ -53,8 +53,11 @@ Node* ResolveAliases(Node* node) {
   return node;
 }
 
-// We model array length as a field at index kArrayLengthFieldIndex.
+// We model array length and string canonicalization as fields at negative
+// indices.
 constexpr int kArrayLengthFieldIndex = -1;
+constexpr int kStringPrepareForGetCodeunitIndex = -2;
+constexpr int kStringAsWtf16Index = -3;
 }  // namespace
 
 Reduction WasmLoadElimination::UpdateState(Node* node,
@@ -121,6 +124,10 @@ Reduction WasmLoadElimination::Reduce(Node* node) {
       return ReduceWasmArrayLength(node);
     case IrOpcode::kWasmArrayInitializeLength:
       return ReduceWasmArrayInitializeLength(node);
+    case IrOpcode::kStringPrepareForGetCodeunit:
+      return ReduceStringPrepareForGetCodeunit(node);
+    case IrOpcode::kStringAsWtf16:
+      return ReduceStringAsWtf16(node);
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
@@ -284,6 +291,70 @@ Reduction WasmLoadElimination::ReduceWasmArrayInitializeLength(Node* node) {
   return UpdateState(node, new_state);
 }
 
+Reduction WasmLoadElimination::ReduceStringPrepareForGetCodeunit(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kStringPrepareForGetCodeunit);
+  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+
+  HalfState const* mutable_state = &state->mutable_state;
+
+  FieldOrElementValue lookup_result =
+      mutable_state->LookupField(kStringPrepareForGetCodeunitIndex, object);
+
+  if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
+    for (size_t i : {0, 1, 2}) {
+      Node* proj_to_replace = NodeProperties::FindProjection(node, i);
+      ReplaceWithValue(proj_to_replace,
+                       NodeProperties::FindProjection(lookup_result.value, i));
+      proj_to_replace->Kill();
+    }
+    ReplaceWithValue(node, lookup_result.value, effect, control);
+    node->Kill();
+    return Replace(lookup_result.value);
+  }
+
+  mutable_state =
+      mutable_state->AddField(kStringPrepareForGetCodeunitIndex, object, node);
+
+  AbstractState const* new_state =
+      zone()->New<AbstractState>(*mutable_state, state->immutable_state);
+
+  return UpdateState(node, new_state);
+}
+
+Reduction WasmLoadElimination::ReduceStringAsWtf16(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kStringAsWtf16);
+  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+
+  HalfState const* immutable_state = &state->immutable_state;
+
+  FieldOrElementValue lookup_result =
+      immutable_state->LookupField(kStringAsWtf16Index, object);
+
+  if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
+    ReplaceWithValue(node, lookup_result.value, effect, control);
+    node->Kill();
+    return Replace(lookup_result.value);
+  }
+
+  immutable_state =
+      immutable_state->AddField(kStringAsWtf16Index, object, node);
+
+  AbstractState const* new_state =
+      zone()->New<AbstractState>(state->mutable_state, *immutable_state);
+
+  return UpdateState(node, new_state);
+}
+
 Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
   if (node->op()->EffectOutputCount() == 0) return NoChange();
   DCHECK_EQ(node->op()->EffectInputCount(), 1);
@@ -296,6 +367,10 @@ Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
   // If this {node} has some uncontrolled side effects (i.e. it is a call
   // without {kNoWrite}), set its state to the immutable half-state of its
   // input state, otherwise to its input state.
+  // Any cached StringPrepareForGetCodeUnit nodes must be killed at any point
+  // that can cause internalization of strings (i.e. that can turn sequential
+  // strings into thin strings). Currently, that can only happen in JS, so
+  // from Wasm's point of view only in calls.
   return UpdateState(node, node->opcode() == IrOpcode::kCall &&
                                    !node->op()->HasProperty(Operator::kNoWrite)
                                ? zone()->New<AbstractState>(
@@ -308,6 +383,7 @@ Reduction WasmLoadElimination::ReduceStart(Node* node) {
 }
 
 Reduction WasmLoadElimination::ReduceEffectPhi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
   Node* const effect0 = NodeProperties::GetEffectInput(node, 0);
   Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state0 = node_states_.Get(effect0);

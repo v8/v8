@@ -74,16 +74,24 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceWasmArrayLength(node);
     case IrOpcode::kWasmArrayInitializeLength:
       return ReduceWasmArrayInitializeLength(node);
+    case IrOpcode::kStringAsWtf16:
+      return ReduceStringAsWtf16(node);
+    case IrOpcode::kStringPrepareForGetCodeunit:
+      return ReduceStringPrepareForGetCodeunit(node);
     default:
       return NoChange();
   }
 }
 
-Node* WasmGCLowering::RootNode(RootIndex index) {
+Node* WasmGCLowering::IsolateRoot() {
   // TODO(13449): Use root register instead of isolate.
-  Node* isolate_root = gasm_.LoadImmutable(
+  return gasm_.LoadImmutable(
       MachineType::Pointer(), instance_node_,
       WasmInstanceObject::kIsolateRootOffset - kHeapObjectTag);
+}
+
+Node* WasmGCLowering::RootNode(RootIndex index) {
+  Node* isolate_root = IsolateRoot();
   return gasm_.LoadImmutable(MachineType::Pointer(), isolate_root,
                              IsolateData::root_slot_offset(index));
 }
@@ -443,6 +451,204 @@ Reduction WasmGCLowering::ReduceWasmArrayInitializeLength(Node* node) {
       wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
 
   return Replace(set_length);
+}
+
+Reduction WasmGCLowering::ReduceStringAsWtf16(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kStringAsWtf16);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* str = NodeProperties::GetValueInput(node, 0);
+
+  gasm_.InitializeEffectControl(effect, control);
+
+  auto done = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+  Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(str));
+  Node* string_representation = gasm_.Word32And(
+      instance_type, gasm_.Int32Constant(kStringRepresentationMask));
+  gasm_.GotoIf(gasm_.Word32Equal(string_representation,
+                                 gasm_.Int32Constant(kSeqStringTag)),
+               &done, str);
+  gasm_.Goto(&done, gasm_.CallBuiltin(Builtin::kWasmStringAsWtf16,
+                                      Operator::kPure, str));
+  gasm_.Bind(&done);
+  ReplaceWithValue(node, done.PhiAt(0), gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(done.PhiAt(0));
+}
+
+Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kStringPrepareForGetCodeunit);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* original_string = NodeProperties::GetValueInput(node, 0);
+
+  gasm_.InitializeEffectControl(effect, control);
+
+  auto dispatch =
+      gasm_.MakeLoopLabel(MachineRepresentation::kTaggedPointer,  // String.
+                          MachineRepresentation::kWord32,   // Instance type.
+                          MachineRepresentation::kWord32);  // Offset.
+  auto next = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer,  // String.
+                              MachineRepresentation::kWord32,  // Instance type.
+                              MachineRepresentation::kWord32);  // Offset.
+  auto direct_string =
+      gasm_.MakeLabel(MachineRepresentation::kTaggedPointer,  // String.
+                      MachineRepresentation::kWord32,         // Instance type.
+                      MachineRepresentation::kWord32);        // Offset.
+
+  // These values will be used to replace the original node's projections.
+  // The first, "string", is either a SeqString or Smi(0) (in case of external
+  // string). Notably this makes it GC-safe: if that string moves, this pointer
+  // will be updated accordingly.
+  // The second, "offset", has full register width so that it can be used to
+  // store external pointers: for external strings, we add up the character
+  // backing store's base address and any slice offset.
+  // The third, "character width", is a shift width, i.e. it is 0 for one-byte
+  // strings, 1 for two-byte strings, kCharWidthBailoutSentinel for uncached
+  // external strings (for which "string"/"offset" are invalid and unusable).
+  auto done =
+      gasm_.MakeLabel(MachineRepresentation::kTagged,        // String.
+                      MachineType::PointerRepresentation(),  // Offset.
+                      MachineRepresentation::kWord32);       // Character width.
+
+  Node* original_type = gasm_.LoadInstanceType(gasm_.LoadMap(original_string));
+  gasm_.Goto(&dispatch, original_string, original_type, gasm_.Int32Constant(0));
+
+  gasm_.Bind(&dispatch);
+  {
+    auto thin_string = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+    auto cons_string = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+
+    Node* string = dispatch.PhiAt(0);
+    Node* instance_type = dispatch.PhiAt(1);
+    Node* offset = dispatch.PhiAt(2);
+    static_assert(kIsIndirectStringTag == 1);
+    static constexpr int kIsDirectStringTag = 0;
+    gasm_.GotoIf(gasm_.Word32Equal(
+                     gasm_.Word32And(instance_type, gasm_.Int32Constant(
+                                                        kIsIndirectStringMask)),
+                     gasm_.Int32Constant(kIsDirectStringTag)),
+                 &direct_string, string, instance_type, offset);
+
+    // Handle indirect strings.
+    Node* string_representation = gasm_.Word32And(
+        instance_type, gasm_.Int32Constant(kStringRepresentationMask));
+    gasm_.GotoIf(gasm_.Word32Equal(string_representation,
+                                   gasm_.Int32Constant(kThinStringTag)),
+                 &thin_string, string);
+    gasm_.GotoIf(gasm_.Word32Equal(string_representation,
+                                   gasm_.Int32Constant(kConsStringTag)),
+                 &cons_string, string);
+
+    // Sliced string.
+    Node* new_offset = gasm_.Int32Add(
+        offset,
+        gasm_.BuildChangeSmiToInt32(gasm_.LoadImmutableFromObject(
+            MachineType::TaggedSigned(), string,
+            wasm::ObjectAccess::ToTagged(SlicedString::kOffsetOffset))));
+    Node* parent = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), string,
+        wasm::ObjectAccess::ToTagged(SlicedString::kParentOffset));
+    Node* parent_type = gasm_.LoadInstanceType(gasm_.LoadMap(parent));
+    gasm_.Goto(&next, parent, parent_type, new_offset);
+
+    // Thin string.
+    gasm_.Bind(&thin_string);
+    Node* actual = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), string,
+        wasm::ObjectAccess::ToTagged(ThinString::kActualOffset));
+    Node* actual_type = gasm_.LoadInstanceType(gasm_.LoadMap(actual));
+    // ThinStrings always reference (internalized) direct strings.
+    gasm_.Goto(&direct_string, actual, actual_type, offset);
+
+    // Flat cons string. (Non-flat cons strings are ruled out by
+    // string.as_wtf16.)
+    gasm_.Bind(&cons_string);
+    Node* first = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), string,
+        wasm::ObjectAccess::ToTagged(ConsString::kFirstOffset));
+    Node* first_type = gasm_.LoadInstanceType(gasm_.LoadMap(first));
+    gasm_.Goto(&next, first, first_type, offset);
+
+    gasm_.Bind(&next);
+    gasm_.Goto(&dispatch, next.PhiAt(0), next.PhiAt(1), next.PhiAt(2));
+  }
+
+  gasm_.Bind(&direct_string);
+  {
+    Node* string = direct_string.PhiAt(0);
+    Node* instance_type = direct_string.PhiAt(1);
+    Node* offset = direct_string.PhiAt(2);
+
+    Node* is_onebyte = gasm_.Word32And(
+        instance_type, gasm_.Int32Constant(kStringEncodingMask));
+    // Char width shift is 1 - (is_onebyte).
+    static_assert(kStringEncodingMask == 1 << 3);
+    Node* charwidth_shift =
+        gasm_.Int32Sub(gasm_.Int32Constant(1),
+                       gasm_.Word32Shr(is_onebyte, gasm_.Int32Constant(3)));
+
+    auto external = gasm_.MakeLabel();
+    Node* string_representation = gasm_.Word32And(
+        instance_type, gasm_.Int32Constant(kStringRepresentationMask));
+    gasm_.GotoIf(gasm_.Word32Equal(string_representation,
+                                   gasm_.Int32Constant(kExternalStringTag)),
+                 &external);
+
+    // Sequential string.
+    static_assert(SeqOneByteString::kCharsOffset ==
+                  SeqTwoByteString::kCharsOffset);
+    Node* final_offset = gasm_.Int32Add(
+        gasm_.Int32Constant(
+            wasm::ObjectAccess::ToTagged(SeqOneByteString::kCharsOffset)),
+        gasm_.Word32Shl(offset, charwidth_shift));
+    gasm_.Goto(&done, string, gasm_.BuildChangeInt32ToIntPtr(final_offset),
+               charwidth_shift);
+
+    // External string.
+    gasm_.Bind(&external);
+    gasm_.GotoIf(
+        gasm_.Word32And(instance_type,
+                        gasm_.Int32Constant(kUncachedExternalStringMask)),
+        &done, string, gasm_.IntPtrConstant(0),
+        gasm_.Int32Constant(kCharWidthBailoutSentinel));
+    Node* resource = gasm_.BuildLoadExternalPointerFromObject(
+        string, ExternalString::kResourceDataOffset,
+        kExternalStringResourceDataTag, IsolateRoot());
+    Node* shifted_offset = gasm_.Word32Shl(offset, charwidth_shift);
+    final_offset = gasm_.IntPtrAdd(
+        resource, gasm_.BuildChangeInt32ToIntPtr(shifted_offset));
+    gasm_.Goto(&done, gasm_.SmiConstant(0), final_offset, charwidth_shift);
+  }
+
+  gasm_.Bind(&done);
+  Node* base = done.PhiAt(0);
+  Node* final_offset = done.PhiAt(1);
+  Node* charwidth_shift = done.PhiAt(2);
+
+  Node* base_proj = NodeProperties::FindProjection(node, 0);
+  Node* offset_proj = NodeProperties::FindProjection(node, 1);
+  Node* charwidth_proj = NodeProperties::FindProjection(node, 2);
+  if (base_proj) {
+    ReplaceWithValue(base_proj, base, gasm_.effect(), gasm_.control());
+    base_proj->Kill();
+  }
+  if (offset_proj) {
+    ReplaceWithValue(offset_proj, final_offset, gasm_.effect(),
+                     gasm_.control());
+    offset_proj->Kill();
+  }
+  if (charwidth_proj) {
+    ReplaceWithValue(charwidth_proj, charwidth_shift, gasm_.effect(),
+                     gasm_.control());
+    charwidth_proj->Kill();
+  }
+
+  // Wire up the dangling end of the new effect chain.
+  ReplaceWithValue(node, node, gasm_.effect(), gasm_.control());
+
+  node->Kill();
+  return Replace(base);
 }
 
 }  // namespace compiler

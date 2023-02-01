@@ -565,7 +565,9 @@
   V(WasmArrayGet)                  \
   V(WasmArraySet)                  \
   V(WasmArrayLength)               \
-  V(WasmArrayInitializeLength)
+  V(WasmArrayInitializeLength)     \
+  V(StringAsWtf16)                 \
+  V(StringPrepareForGetCodeunit)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

@@ -2035,7 +2035,8 @@ enum IsolateAddressId {
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)          \
-  V(TrapArrayTooLarge)
+  V(TrapArrayTooLarge)             \
+  V(TrapStringOffsetOutOfBounds)
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,

@@ -1286,6 +1286,22 @@ struct SimplifiedOperatorGlobalCache final {
                    "WasmArrayInitializeLength", 2, 1, 1, 0, 1, 0) {}
   };
   WasmArrayInitializeLengthOperator kWasmArrayInitializeLength;
+
+  struct StringAsWtf16Operator final : public Operator {
+    StringAsWtf16Operator()
+        : Operator(IrOpcode::kStringAsWtf16, Operator::kEliminatable,
+                   "StringAsWtf16", 1, 1, 1, 1, 1, 1) {}
+  };
+  StringAsWtf16Operator kStringAsWtf16;
+
+  struct StringPrepareForGetCodeunitOperator final : public Operator {
+    StringPrepareForGetCodeunitOperator()
+        : Operator(IrOpcode::kStringPrepareForGetCodeunit,
+                   Operator::kEliminatable, "StringPrepareForGetCodeunit", 1, 1,
+                   1, 3, 1, 1) {}
+  };
+  StringPrepareForGetCodeunitOperator kStringPrepareForGetCodeunit;
+
 #endif
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
@@ -1517,6 +1533,14 @@ const Operator* SimplifiedOperatorBuilder::AssertNotNull(TrapId trap_id) {
 const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
 const Operator* SimplifiedOperatorBuilder::IsNotNull() {
   return &cache_.kIsNotNull;
+}
+
+const Operator* SimplifiedOperatorBuilder::StringAsWtf16() {
+  return &cache_.kStringAsWtf16;
+}
+
+const Operator* SimplifiedOperatorBuilder::StringPrepareForGetCodeunit() {
+  return &cache_.kStringPrepareForGetCodeunit;
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {

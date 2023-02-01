@@ -40,6 +40,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceIf(node, true);
     case IrOpcode::kIfFalse:
       return ReduceIf(node, false);
+    case IrOpcode::kDead:
+      return NoChange();
     case IrOpcode::kLoop:
       return TakeStatesFromFirstControl(node);
     default:

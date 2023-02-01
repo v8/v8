@@ -534,6 +534,8 @@ class WasmGraphBuilder {
                            Node* start, Node* end);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
   Node* StringNewWtf16Array(Node* array, Node* start, Node* end);
+  Node* StringAsWtf16(Node* string, CheckForNull null_check,
+                      wasm::WasmCodePosition position);
   Node* StringConst(uint32_t index);
   Node* StringMeasureUtf8(Node* string, CheckForNull null_check,
                           wasm::WasmCodePosition position);
@@ -820,10 +822,6 @@ class WasmGraphBuilder {
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
-
-  Node* BuildLoadExternalPointerFromObject(
-      Node* object, int offset,
-      ExternalPointerTag tag = kForeignForeignAddressTag);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 

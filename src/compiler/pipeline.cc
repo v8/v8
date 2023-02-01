@@ -2224,6 +2224,8 @@ struct WasmGCOptimizationPhase {
                                          temp_zone);
     WasmGCOperatorReducer wasm_gc(&graph_reducer, temp_zone, data->mcgraph(),
                                   module);
+    // Note: if we want to add DeadCodeElimination here, we'll have to update
+    // the existing reducers to handle kDead and kDeadValue nodes everywhere.
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &wasm_gc);
     graph_reducer.ReduceGraph();

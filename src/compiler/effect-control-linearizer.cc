@@ -4152,11 +4152,10 @@ Node* EffectControlLinearizer::StringCharCodeAt(Node* receiver,
 
     __ Bind(&if_seqstring);
     {
-      Node* receiver_is_onebyte = __ Word32Equal(
+      Node* receiver_is_onebyte =
           __ Word32Equal(__ Word32And(receiver_instance_type,
                                       __ Int32Constant(kStringEncodingMask)),
-                         __ Int32Constant(kTwoByteStringTag)),
-          __ Int32Constant(0));
+                         __ Int32Constant(kOneByteStringTag));
       Node* result = LoadFromSeqString(receiver, position, receiver_is_onebyte);
       __ Goto(&loop_done, result);
     }

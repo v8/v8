@@ -1723,12 +1723,9 @@ class WasmGraphBuildingInterface {
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    // Since we implement stringview_wtf16 as string, that's the type we'll
-    // use for the Node. (The decoder's Value type must be stringview_wtf16
-    // because static type validation relies on it.)
-    result->node = builder_->SetType(
-        builder_->AssertNotNull(str.node, decoder->position()),
-        ValueType::Ref(HeapType::kString));
+    SetAndTypeNode(result,
+                   builder_->StringAsWtf16(str.node, NullCheckFor(str.type),
+                                           decoder->position()));
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,

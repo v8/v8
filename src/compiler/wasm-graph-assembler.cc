@@ -173,6 +173,36 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
                        offset, value, effect(), control()));
 }
 
+Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
+    Node* object, int offset, ExternalPointerTag tag, Node* isolate_root) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  Node* external_pointer = LoadFromObject(MachineType::Uint32(), object,
+                                          wasm::ObjectAccess::ToTagged(offset));
+  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  Node* shift_amount =
+      Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
+  Node* scaled_index = Word32Shr(external_pointer, shift_amount);
+  Node* table;
+  if (IsSharedExternalPointerType(tag)) {
+    Node* table_address =
+        LoadFromObject(MachineType::Pointer(), isolate_root,
+                       IsolateData::shared_external_pointer_table_offset());
+    table = LoadFromObject(MachineType::Pointer(), table_address,
+                           Internals::kExternalPointerTableBufferOffset);
+  } else {
+    table = LoadFromObject(MachineType::Pointer(), isolate_root,
+                           IsolateData::external_pointer_table_offset() +
+                               Internals::kExternalPointerTableBufferOffset);
+  }
+  Node* decoded_ptr = Load(MachineType::Pointer(), table, scaled_index);
+  return WordAnd(decoded_ptr, IntPtrConstant(~tag));
+#else
+  return LoadFromObject(MachineType::Pointer(), object,
+                        wasm::ObjectAccess::ToTagged(offset));
+#endif  // V8_ENABLE_SANDBOX
+}
+
 Node* WasmGraphAssembler::IsI31(Node* object) {
   if (COMPRESS_POINTERS_BOOL) {
     return Word32Equal(Word32And(object, Int32Constant(kSmiTagMask)),
@@ -407,6 +437,16 @@ Node* WasmGraphAssembler::ArrayLength(Node* array) {
 void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
   AddNode(graph()->NewNode(simplified_.WasmArrayInitializeLength(), array,
                            length, effect(), control()));
+}
+
+Node* WasmGraphAssembler::StringAsWtf16(Node* string) {
+  return AddNode(graph()->NewNode(simplified_.StringAsWtf16(), string, effect(),
+                                  control()));
+}
+
+Node* WasmGraphAssembler::StringPrepareForGetCodeunit(Node* string) {
+  return AddNode(graph()->NewNode(simplified_.StringPrepareForGetCodeunit(),
+                                  string, effect(), control()));
 }
 
 // Generic HeapObject helpers.

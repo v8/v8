@@ -699,6 +699,10 @@ builtin ThrowWasmTrapArrayTooLarge(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayTooLarge));
 }
 
+builtin ThrowWasmTrapStringOffsetOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapStringOffsetOutOfBounds));
+}
+
 macro TryNumberToIntptr(value: JSAny): intptr labels Failure {
   typeswitch (value) {
     case (s: Smi): {
@@ -937,6 +941,13 @@ builtin WasmStringNewWtf16Array(
     tail runtime::WasmStringNewWtf16Array(
         context, array, SmiFromUint32(start), SmiFromUint32(end));
   }
+}
+
+// Contract: input is any string, output is a string that the TF operator
+// "StringPrepareForGetCodeunit" can handle.
+builtin WasmStringAsWtf16(str: String): String {
+  const cons = Cast<ConsString>(str) otherwise return str;
+  return Flatten(cons);
 }
 
 builtin WasmStringConst(index: uint32): String {
