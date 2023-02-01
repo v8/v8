@@ -2033,6 +2033,7 @@ class RepresentationSelector {
         return MachineType::Float32();
       case wasm::kF64:
         return MachineType::Float64();
+      case wasm::kRef:
       case wasm::kRefNull:
         return MachineType::AnyTagged();
       default:
@@ -2057,6 +2058,7 @@ class RepresentationSelector {
         // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
         return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
                                                         feedback);
+      case wasm::kRef:
       case wasm::kRefNull:
         return UseInfo::AnyTagged();
       default:
