@@ -988,26 +988,25 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
   for (const PolymorphicAccessInfo& access_info : node->access_infos()) {
     Label next;
     Label map_found;
-    bool has_heap_number_map = false;
+    auto& maps = access_info.maps();
 
-    for (auto it = access_info.maps().begin(); it != access_info.maps().end();
-         ++it) {
-      if (it->IsHeapNumberMap()) {
-        has_heap_number_map = true;
-      }
-      __ CompareTagged(object_map, it->object());
-      if (it == access_info.maps().end() - 1) {
-        __ JumpIf(kNotEqual, &next);
-        // Fallthrough... to map_found.
-      } else {
-        __ JumpIf(kEqual, &map_found);
-      }
-    }
-
-    // Bind number case here if one of the maps is HeapNumber.
-    if (has_heap_number_map) {
+    if (HasOnlyNumberMaps(base::VectorOf(maps))) {
       DCHECK(!is_number.is_bound());
       __ bind(&is_number);
+    } else if (HasOnlyStringMaps(base::VectorOf(maps))) {
+      __ CompareInstanceTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+      __ JumpIf(kUnsignedGreaterThan, &next);
+      // Fallthrough... to map_found.
+    } else {
+      for (auto it = maps.begin(); it != maps.end(); ++it) {
+        __ CompareTagged(object_map, it->object());
+        if (it == maps.end() - 1) {
+          __ JumpIf(kNotEqual, &next);
+          // Fallthrough... to map_found.
+        } else {
+          __ JumpIf(kEqual, &map_found);
+        }
+      }
     }
 
     __ bind(&map_found);
