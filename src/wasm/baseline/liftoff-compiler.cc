@@ -1405,7 +1405,7 @@ class LiftoffCompiler {
     }
 
     __ bind(&block->try_info->catch_label);
-    __ cache_state()->Steal(block->try_info->catch_state);
+    __ cache_state()->Split(block->try_info->catch_state);
     if (!block->try_info->in_handler) {
       block->try_info->in_handler = true;
       num_exceptions_++;

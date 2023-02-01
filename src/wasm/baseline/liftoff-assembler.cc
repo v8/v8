@@ -521,7 +521,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
                   kRegistersAllowed, kReuseRegisters, used_regs);
 }
 
-void LiftoffAssembler::CacheState::Steal(const CacheState& source) {
+void LiftoffAssembler::CacheState::Steal(CacheState& source) {
   // Just use the move assignment operator.
   *this = std::move(source);
 }

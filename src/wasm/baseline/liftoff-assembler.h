@@ -457,7 +457,7 @@ class LiftoffAssembler : public MacroAssembler {
     void InitMerge(const CacheState& source, uint32_t num_locals,
                    uint32_t arity, uint32_t stack_depth);
 
-    void Steal(const CacheState& source);
+    void Steal(CacheState& source);
 
     void Split(const CacheState& source);
 
