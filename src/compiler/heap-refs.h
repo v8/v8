@@ -432,6 +432,8 @@ class JSDataViewRef : public JSObjectRef {
   Handle<JSDataView> object() const;
 
   size_t byte_length() const;
+  bool is_backed_by_rab() const;
+  bool is_length_tracking() const;
 };
 
 class JSBoundFunctionRef : public JSObjectRef {

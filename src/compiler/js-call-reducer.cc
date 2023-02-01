@@ -7969,6 +7969,13 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     // We only deal with DataViews here whose [[ByteLength]] is at least
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
+
+    if (dataview.is_backed_by_rab() || dataview.is_length_tracking()) {
+      // Disable this optimization for RAB/GSAB. TODO(v8:11111): Don't bail out,
+      // instead generate code for reading the current length.
+      return NoChange();
+    }
+
     size_t length = dataview.byte_length();
     if (length < element_size) return NoChange();
 
