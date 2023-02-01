@@ -42,6 +42,10 @@ template <>
 bool CheckType<v8::Local<v8::BigInt>>(v8::Local<v8::Value> result) {
   return result->IsBigInt();
 }
+template <>
+bool CheckType<v8::Local<v8::String>>(v8::Local<v8::Value> result) {
+  return result->IsString();
+}
 
 static TestSignatures sigs;
 
@@ -79,6 +83,9 @@ DECLARE_EXPORTED_FUNCTION(i32_square, sigs.i_i(),
 DECLARE_EXPORTED_FUNCTION(i64_square, sigs.l_l(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI64Mul}))
+
+DECLARE_EXPORTED_FUNCTION(externref_id, sigs.a_a(),
+                          WASM_CODE({WASM_LOCAL_GET(0)}))
 
 DECLARE_EXPORTED_FUNCTION(f32_square, sigs.f_f(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
@@ -308,8 +315,12 @@ class FastJSWasmCallTester {
         env, exported_function_name, args, test_lazy_deopt);
 
     CHECK(CheckType<T>(result_value));
-    T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
-    CHECK_EQ(result, expected_result);
+    if constexpr (std::is_convertible_v<T, decltype(result_value)>) {
+      CHECK_EQ(result_value, expected_result);
+    } else {
+      T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
+      CHECK_EQ(result, expected_result);
+    }
   }
 
   // Executes a test function that returns NaN.
@@ -804,6 +815,17 @@ TEST(TestFastJSWasmCall_I64NegativeResult) {
   tester.AddExportedFunction(k_i64_add);
   tester.CallAndCheckWasmFunctionBigInt(
       "i64_add", {v8_bigint(1ll), v8_bigint(-2ll)}, v8_bigint(-1ll));
+}
+
+TEST(TestFastJSWasmCall_ExternrefArg) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  tester.AddExportedFunction(k_externref_id);
+  tester.CallAndCheckWasmFunction("externref_id", {v8_num(42)}, 42);
+  tester.CallAndCheckWasmFunctionBigInt("externref_id", {v8_bigint(42)},
+                                        v8_bigint(42));
+  auto str = v8_str("test");
+  tester.CallAndCheckWasmFunction("externref_id", {str}, str);
 }
 
 TEST(TestFastJSWasmCall_MultipleArgs) {

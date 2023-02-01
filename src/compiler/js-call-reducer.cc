@@ -3559,7 +3559,8 @@ bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
     if (type == wasm::kWasmI64) return false;
 #endif
     if (type != wasm::kWasmI32 && type != wasm::kWasmI64 &&
-        type != wasm::kWasmF32 && type != wasm::kWasmF64) {
+        type != wasm::kWasmF32 && type != wasm::kWasmF64 &&
+        type != wasm::kWasmExternRef) {
       return false;
     }
   }

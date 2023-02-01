@@ -730,6 +730,9 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
     case wasm::kF32:
     case wasm::kF64:
       return Type::Number();
+    case wasm::kRefNull:
+      CHECK_EQ(type.heap_type(), wasm::HeapType::kExtern);
+      return Type::Any();
     default:
       UNREACHABLE();
   }

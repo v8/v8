@@ -2033,6 +2033,8 @@ class RepresentationSelector {
         return MachineType::Float32();
       case wasm::kF64:
         return MachineType::Float64();
+      case wasm::kRefNull:
+        return MachineType::AnyTagged();
       default:
         UNREACHABLE();
     }
@@ -2055,6 +2057,8 @@ class RepresentationSelector {
         // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
         return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
                                                         feedback);
+      case wasm::kRefNull:
+        return UseInfo::AnyTagged();
       default:
         UNREACHABLE();
     }
