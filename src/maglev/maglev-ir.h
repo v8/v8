@@ -4038,6 +4038,109 @@ class BuiltinStringPrototypeCharCodeAt
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class PolymorphicAccessInfo {
+ public:
+  enum Kind {
+    kNotFound,
+    kConstant,
+    kDataLoad,
+    kModuleExport,
+    kStringLength,
+  };
+
+  static PolymorphicAccessInfo NotFound(
+      const ZoneVector<compiler::MapRef>& maps) {
+    return PolymorphicAccessInfo(kNotFound, maps, Representation::Tagged());
+  }
+  static PolymorphicAccessInfo Constant(
+      const ZoneVector<compiler::MapRef>& maps, compiler::ObjectRef constant) {
+    return PolymorphicAccessInfo(kConstant, maps, Representation::Tagged(),
+                                 constant);
+  }
+  static PolymorphicAccessInfo DataLoad(
+      const ZoneVector<compiler::MapRef>& maps, Representation representation,
+      base::Optional<compiler::JSObjectRef> holder, FieldIndex field_index) {
+    return PolymorphicAccessInfo(kDataLoad, maps, representation, holder,
+                                 field_index);
+  }
+  static PolymorphicAccessInfo ModuleExport(
+      const ZoneVector<compiler::MapRef>& maps, compiler::CellRef cell) {
+    return PolymorphicAccessInfo(kModuleExport, maps, Representation::Tagged(),
+                                 cell);
+  }
+  static PolymorphicAccessInfo StringLength(
+      const ZoneVector<compiler::MapRef>& maps) {
+    return PolymorphicAccessInfo(kStringLength, maps, Representation::Smi());
+  }
+
+  Kind kind() const { return kind_; }
+
+  const ZoneVector<compiler::MapRef>& maps() const { return maps_; }
+
+  Handle<Object> constant() const {
+    DCHECK_EQ(kind_, kConstant);
+    return constant_.object();
+  }
+
+  Handle<Cell> cell() const {
+    DCHECK_EQ(kind_, kModuleExport);
+    return constant_.AsCell().object();
+  }
+
+  base::Optional<compiler::JSObjectRef> holder() const {
+    DCHECK_EQ(kind_, kDataLoad);
+    return data_load_.holder_;
+  }
+
+  FieldIndex field_index() const {
+    DCHECK_EQ(kind_, kDataLoad);
+    return data_load_.field_index_;
+  }
+
+  Representation field_representation() const { return representation_; }
+
+ private:
+  explicit PolymorphicAccessInfo(Kind kind,
+                                 const ZoneVector<compiler::MapRef>& maps,
+                                 Representation representation)
+      : kind_(kind), maps_(maps), representation_(representation) {
+    DCHECK(kind == kNotFound || kind == kStringLength);
+  }
+
+  PolymorphicAccessInfo(Kind kind, const ZoneVector<compiler::MapRef>& maps,
+                        Representation representation,
+                        compiler::ObjectRef constant)
+      : kind_(kind),
+        maps_(maps),
+        representation_(representation),
+        constant_(constant) {
+    DCHECK(kind == kConstant || kind == kModuleExport);
+  }
+
+  PolymorphicAccessInfo(Kind kind, const ZoneVector<compiler::MapRef>& maps,
+                        Representation representation,
+                        base::Optional<compiler::JSObjectRef> holder,
+                        FieldIndex field_index)
+      : kind_(kind),
+        maps_(maps),
+        representation_(representation),
+        data_load_{holder, field_index} {
+    DCHECK_EQ(kind, kDataLoad);
+  }
+
+  const Kind kind_;
+  // TODO(victorgomes): Create a PolymorphicMapChecks and avoid the maps here.
+  const ZoneVector<compiler::MapRef> maps_;
+  const Representation representation_;
+  union {
+    const compiler::ObjectRef constant_;
+    struct {
+      const base::Optional<compiler::JSObjectRef> holder_;
+      const FieldIndex field_index_;
+    } data_load_;
+  };
+};
+
 class LoadPolymorphicTaggedField
     : public FixedInputValueNodeT<1, LoadPolymorphicTaggedField> {
   using Base = FixedInputValueNodeT<1, LoadPolymorphicTaggedField>;
@@ -4045,7 +4148,7 @@ class LoadPolymorphicTaggedField
  public:
   explicit LoadPolymorphicTaggedField(
       uint64_t bitfield, Representation field_representation,
-      ZoneVector<compiler::PropertyAccessInfo>&& access_info)
+      ZoneVector<PolymorphicAccessInfo>&& access_info)
       : Base(bitfield),
         field_representation_(field_representation),
         access_infos_(access_info) {}
@@ -4060,6 +4163,9 @@ class LoadPolymorphicTaggedField
   Input& object_input() { return input(kObjectIndex); }
 
   Representation field_representation() const { return field_representation_; }
+  const ZoneVector<PolymorphicAccessInfo> access_infos() const {
+    return access_infos_;
+  }
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
@@ -4068,7 +4174,7 @@ class LoadPolymorphicTaggedField
 
  private:
   Representation field_representation_;
-  ZoneVector<compiler::PropertyAccessInfo> access_infos_;
+  ZoneVector<PolymorphicAccessInfo> access_infos_;
 };
 
 class LoadPolymorphicDoubleField
@@ -4077,7 +4183,7 @@ class LoadPolymorphicDoubleField
 
  public:
   explicit LoadPolymorphicDoubleField(
-      uint64_t bitfield, ZoneVector<compiler::PropertyAccessInfo>&& access_info)
+      uint64_t bitfield, ZoneVector<PolymorphicAccessInfo>&& access_info)
       : Base(bitfield), access_infos_(access_info) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading() |
@@ -4088,13 +4194,16 @@ class LoadPolymorphicDoubleField
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
+  const ZoneVector<PolymorphicAccessInfo> access_infos() const {
+    return access_infos_;
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  ZoneVector<compiler::PropertyAccessInfo> access_infos_;
+  ZoneVector<PolymorphicAccessInfo> access_infos_;
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {

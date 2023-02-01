@@ -611,6 +611,18 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  size_t lazy_deopt_count,
                                                  Label* lazy_deopt_entry) {}
 
+void MaglevAssembler::StringLength(Register result, Register string) {
+  if (v8_flags.debug_code) {
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(kScratchRegister, string);
+    CmpInstanceTypeRange(kScratchRegister, kScratchRegister, FIRST_STRING_TYPE,
+                         LAST_STRING_TYPE);
+    Check(below_equal, AbortReason::kUnexpectedValue);
+  }
+  movl(result, FieldOperand(string, String::kLengthOffset));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

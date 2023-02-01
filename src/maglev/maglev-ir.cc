@@ -970,19 +970,13 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
                          FieldMemOperand(object, offset()));
 }
 
-void LoadPolymorphicTaggedField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-  set_double_temporaries_needed(1);
-}
-void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
+namespace {
+
+template <typename NodeT, typename Function, typename... Args>
+void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
+                             Register object, Function&& f, Args&&... args) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register result_reg = ToRegister(result());
-  Register object = ToRegister(object_input());
   Register object_map = temps.Acquire();
-  DoubleRegister double_scratch = temps.AcquireDouble();
 
   Label done;
   Label is_number;
@@ -991,36 +985,35 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
   __ JumpIf(is_smi, &is_number);
   __ LoadMap(object_map, object);
 
-  for (const compiler::PropertyAccessInfo& access_info : access_infos_) {
+  for (const PolymorphicAccessInfo& access_info : node->access_infos()) {
     Label next;
-    __ CheckMaps(access_info.lookup_start_object_maps(), object_map, &is_number,
-                 &next);
-    switch (access_info.kind()) {
-      case compiler::PropertyAccessInfo::kNotFound:
-        __ LoadRoot(result_reg, RootIndex::kUndefinedValue);
-        break;
-      case compiler::PropertyAccessInfo::kModuleExport: {
-        Register cell = object_map;  // Reuse scratch.
-        __ Move(cell, access_info.constant().value().AsCell().object());
-        __ AssertNotSmi(cell);
-        __ DecompressAnyTagged(result_reg,
-                               FieldMemOperand(cell, Cell::kValueOffset));
-        break;
+    Label map_found;
+    bool has_heap_number_map = false;
+
+    for (auto it = access_info.maps().begin(); it != access_info.maps().end();
+         ++it) {
+      if (it->IsHeapNumberMap()) {
+        has_heap_number_map = true;
       }
-      case compiler::PropertyAccessInfo::kDataField:
-      case compiler::PropertyAccessInfo::kFastDataConstant: {
-        __ LoadDataField(access_info, result_reg, object, object_map);
-        if (access_info.field_index().is_double()) {
-          __ LoadHeapNumberValue(double_scratch, result_reg);
-          __ AllocateHeapNumber(register_snapshot(), result_reg,
-                                double_scratch);
-        }
-        break;
+      __ CompareTagged(object_map, it->object());
+      if (it == access_info.maps().end() - 1) {
+        __ JumpIf(kNotEqual, &next);
+        // Fallthrough... to map_found.
+      } else {
+        __ JumpIf(kEqual, &map_found);
       }
-      default:
-        UNREACHABLE();
     }
+
+    // Bind number case here if one of the maps is HeapNumber.
+    if (has_heap_number_map) {
+      DCHECK(!is_number.is_bound());
+      __ bind(&is_number);
+    }
+
+    __ bind(&map_found);
+    f(masm, node, access_info, object, object_map, std::forward<Args>(args)...);
     __ Jump(&done);
+
     __ bind(&next);
   }
 
@@ -1031,8 +1024,66 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
   }
 
   // No map matched!
-  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
+  __ EmitEagerDeopt(node, DeoptimizeReason::kWrongMap);
   __ bind(&done);
+}
+
+}  // namespace
+
+void LoadPolymorphicTaggedField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
+}
+void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  EmitPolymorphicAccesses(
+      masm, this, object,
+      [](MaglevAssembler* masm, LoadPolymorphicTaggedField* node,
+         const PolymorphicAccessInfo& access_info, Register object,
+         Register map, Register result) {
+        switch (access_info.kind()) {
+          case PolymorphicAccessInfo::kNotFound:
+            __ LoadRoot(result, RootIndex::kUndefinedValue);
+            break;
+          case PolymorphicAccessInfo::kConstant: {
+            Handle<Object> constant = access_info.constant();
+            if (constant->IsSmi()) {
+              __ Move(result, Smi::cast(*constant));
+            } else {
+              DCHECK(access_info.constant()->IsHeapObject());
+              __ Move(result, Handle<HeapObject>::cast(constant));
+            }
+            break;
+          }
+          case PolymorphicAccessInfo::kModuleExport: {
+            Register cell = map;  // Reuse scratch.
+            __ Move(cell, access_info.cell());
+            __ AssertNotSmi(cell);
+            __ DecompressAnyTagged(result,
+                                   FieldMemOperand(cell, Cell::kValueOffset));
+            break;
+          }
+          case PolymorphicAccessInfo::kDataLoad: {
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            DoubleRegister double_scratch = temps.AcquireDouble();
+            __ LoadDataField(access_info, result, object, map);
+            if (access_info.field_index().is_double()) {
+              __ LoadHeapNumberValue(double_scratch, result);
+              __ AllocateHeapNumber(node->register_snapshot(), result,
+                                    double_scratch);
+            }
+            break;
+          }
+          case PolymorphicAccessInfo::kStringLength:
+            __ StringLength(result, object);
+            __ SmiTag(result);
+            break;
+        }
+      },
+      ToRegister(result()));
 }
 
 void LoadPolymorphicDoubleField::SetValueLocationConstraints() {
@@ -1042,45 +1093,47 @@ void LoadPolymorphicDoubleField::SetValueLocationConstraints() {
 }
 void LoadPolymorphicDoubleField::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
   Register object = ToRegister(object_input());
-  Register scratch = temps.Acquire();
-
-  Label done;
-  Label is_number;
-
-  Condition is_smi = __ CheckSmi(object);
-  __ JumpIf(is_smi, &is_number);
-  __ LoadMap(scratch, object);
-
-  for (const compiler::PropertyAccessInfo& access_info : access_infos_) {
-    Label next;
-    __ CheckMaps(access_info.lookup_start_object_maps(), scratch, &is_number,
-                 &next);
-    __ LoadDataField(access_info, scratch, object, scratch);
-    switch (access_info.field_representation().kind()) {
-      case Representation::kSmi:
-        __ SmiToDouble(ToDoubleRegister(result()), scratch);
-        break;
-      case Representation::kDouble:
-        __ LoadHeapNumberValue(ToDoubleRegister(result()), scratch);
-        break;
-      default:
-        UNREACHABLE();
-    }
-    __ Jump(&done);
-    __ bind(&next);
-  }
-
-  // A HeapNumberMap was not found, we should eager deopt here in case of a
-  // number.
-  if (!is_number.is_bound()) {
-    __ bind(&is_number);
-  }
-
-  // No map matched!
-  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
-  __ bind(&done);
+  EmitPolymorphicAccesses(
+      masm, this, object,
+      [](MaglevAssembler* masm, LoadPolymorphicDoubleField* node,
+         const PolymorphicAccessInfo& access_info, Register object,
+         Register map, DoubleRegister result) {
+        Register scratch = map;
+        switch (access_info.kind()) {
+          case PolymorphicAccessInfo::kDataLoad:
+            __ LoadDataField(access_info, scratch, object, map);
+            switch (access_info.field_representation().kind()) {
+              case Representation::kSmi:
+                __ SmiToDouble(result, scratch);
+                break;
+              case Representation::kDouble:
+                __ LoadHeapNumberValue(result, scratch);
+                break;
+              default:
+                UNREACHABLE();
+            }
+            break;
+          case PolymorphicAccessInfo::kConstant: {
+            Handle<Object> constant = access_info.constant();
+            if (constant->IsSmi()) {
+              __ Move(scratch, Smi::cast(*constant));
+              __ SmiToDouble(result, scratch);
+            } else {
+              DCHECK(constant->IsHeapNumber());
+              __ Move(result, Handle<HeapNumber>::cast(constant)->value());
+            }
+            break;
+          }
+          case PolymorphicAccessInfo::kStringLength:
+            __ StringLength(scratch, object);
+            __ Int32ToDouble(result, scratch);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      },
+      ToDoubleRegister(result()));
 }
 
 void LoadEnumCacheLength::SetValueLocationConstraints() {
@@ -1884,6 +1937,15 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
                       &cached_one_byte_string);
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
                         char_code, scratch);
+}
+
+void StringLength::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void StringLength::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  __ StringLength(ToRegister(result()), ToRegister(object_input()));
 }
 
 void TaggedEqual::SetValueLocationConstraints() {

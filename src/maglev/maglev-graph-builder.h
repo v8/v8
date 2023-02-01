@@ -1283,10 +1283,9 @@ class MaglevGraphBuilder {
   bool CanTreatHoleAsUndefined(
       ZoneVector<compiler::MapRef> const& receiver_maps);
 
-  bool TryFoldLoadDictPrototypeConstant(
+  base::Optional<compiler::ObjectRef> TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);
-  // Returns a ValueNode if the load could be folded, and nullptr otherwise.
-  ValueNode* TryFoldLoadConstantDataField(
+  base::Optional<compiler::ObjectRef> TryFoldLoadConstantDataField(
       compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object);
 
   // Returns the loaded value node but doesn't update the accumulator yet.

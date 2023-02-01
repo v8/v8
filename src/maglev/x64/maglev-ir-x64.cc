@@ -1211,28 +1211,6 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
   __ bind(*done);
 }
 
-void StringLength::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void StringLength::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  if (v8_flags.debug_code) {
-    // Use return register as temporary. Push it in case it aliases the object
-    // register.
-    Register tmp = ToRegister(result());
-    __ Push(tmp);
-    // Check if {object} is a string.
-    __ AssertNotSmi(object);
-    __ LoadMap(tmp, object);
-    __ CmpInstanceTypeRange(tmp, tmp, FIRST_STRING_TYPE, LAST_STRING_TYPE);
-    __ Check(below_equal, AbortReason::kUnexpectedValue);
-    __ Pop(tmp);
-  }
-  __ movl(ToRegister(result()), FieldOperand(object, String::kLengthOffset));
-}
-
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

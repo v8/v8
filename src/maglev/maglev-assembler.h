@@ -221,7 +221,10 @@ class MaglevAssembler : public MacroAssembler {
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
 
+  inline void Int32ToDouble(DoubleRegister result, Register n);
   inline void SmiToDouble(DoubleRegister result, Register smi);
+
+  void StringLength(Register result, Register string);
 
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);
@@ -240,11 +243,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
 
-  void CheckMaps(ZoneVector<compiler::MapRef> const& maps, Register map,
-                 Label* is_number, Label* no_match);
-
-  void LoadDataField(const compiler::PropertyAccessInfo& access_info,
-                     Register result, Register object, Register scratch);
+  void LoadDataField(const PolymorphicAccessInfo& access_info, Register result,
+                     Register object, Register scratch);
 
   void MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                   Label* eager_deopt_entry,

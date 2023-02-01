@@ -37,36 +37,9 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                   table, FixedArray::kHeaderSize + char_code * kTaggedSize));
 }
 
-void MaglevAssembler::CheckMaps(ZoneVector<compiler::MapRef> const& maps,
-                                Register map, Label* is_number,
-                                Label* no_match) {
-  Label done;
-  bool has_heap_number_map = false;
-  for (auto it = maps.begin(); it != maps.end(); ++it) {
-    if (it->IsHeapNumberMap()) {
-      has_heap_number_map = true;
-    }
-    CompareTagged(map, it->object());
-    if (it == maps.end() - 1) {
-      JumpIf(kNotEqual, no_match);
-      // Fallthrough...
-    } else {
-      JumpIf(kEqual, &done);
-    }
-  }
-  // Bind number case here if one of the maps is HeapNumber.
-  if (has_heap_number_map) {
-    DCHECK(!is_number->is_bound());
-    bind(is_number);
-  }
-  bind(&done);
-}
-
-void MaglevAssembler::LoadDataField(
-    const compiler::PropertyAccessInfo& access_info, Register result,
-    Register object, Register scratch) {
-  DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-  // TODO(victorgomes): Support ConstantDataFields.
+void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
+                                    Register result, Register object,
+                                    Register scratch) {
   Register load_source = object;
   // Resolve property holder.
   if (access_info.holder().has_value()) {

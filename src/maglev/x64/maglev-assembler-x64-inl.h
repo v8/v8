@@ -456,10 +456,8 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
   Movsd(result, FieldOperand(heap_number, HeapNumber::kValueOffset));
 }
 
-inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
-  AssertSmi(smi);
-  SmiUntag(smi);
-  Cvtlsi2sd(result, smi);
+inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
+  Cvtlsi2sd(result, n);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }

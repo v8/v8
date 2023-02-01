@@ -2209,27 +2209,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void StringLength::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void StringLength::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  if (v8_flags.debug_code) {
-    // Check if {object} is a string.
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ AssertNotSmi(object);
-    __ LoadMap(scratch, object);
-    __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
-                                LAST_STRING_TYPE);
-    __ Check(ls, AbortReason::kUnexpectedValue);
-  }
-  __ Ldr(ToRegister(result()).W(),
-         FieldMemOperand(object, String::kLengthOffset));
-}
-
 void TestUndetectable::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);

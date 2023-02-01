@@ -206,6 +206,12 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
   JumpIf(cond, &deferred_code->deferred_code_label);
 }
 
+inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
+  AssertSmi(smi);
+  SmiUntag(smi);
+  Int32ToDouble(result, smi);
+}
+
 inline void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                                     BasicBlock* if_false,
                                     BasicBlock* next_block) {

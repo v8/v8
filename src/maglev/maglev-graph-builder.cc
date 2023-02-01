@@ -1682,7 +1682,8 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   return broker()->dependencies()->DependOnNoElementsProtector();
 }
 
-bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
+base::Optional<compiler::ObjectRef>
+MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     compiler::PropertyAccessInfo access_info) {
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
@@ -1691,7 +1692,7 @@ bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
   base::Optional<compiler::ObjectRef> constant =
       access_info.holder()->GetOwnDictionaryProperty(
           access_info.dictionary_index(), broker()->dependencies());
-  if (!constant.has_value()) return false;
+  if (!constant.has_value()) return {};
 
   for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
     Handle<Map> map_handle = map.object();
@@ -1713,28 +1714,25 @@ bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
         map, access_info.name(), constant.value(), PropertyKind::kData);
   }
 
-  SetAccumulator(GetConstant(constant.value()));
-  return true;
+  return constant;
 }
 
-ValueNode* MaglevGraphBuilder::TryFoldLoadConstantDataField(
+base::Optional<compiler::ObjectRef>
+MaglevGraphBuilder::TryFoldLoadConstantDataField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  if (!access_info.IsFastDataConstant()) return nullptr;
+  if (!access_info.IsFastDataConstant()) return {};
   base::Optional<compiler::JSObjectRef> source;
   if (access_info.holder().has_value()) {
     source = access_info.holder();
   } else if (Constant* n = lookup_start_object->TryCast<Constant>()) {
-    if (!n->ref().IsJSObject()) return nullptr;
+    if (!n->ref().IsJSObject()) return {};
     source = n->ref().AsJSObject();
   } else {
-    return nullptr;
+    return {};
   }
-  base::Optional<compiler::ObjectRef> constant =
-      source.value().GetOwnFastDataProperty(access_info.field_representation(),
-                                            access_info.field_index(),
-                                            broker()->dependencies());
-  if (!constant.has_value()) return nullptr;
-  return GetConstant(constant.value());
+  return source.value().GetOwnFastDataProperty(
+      access_info.field_representation(), access_info.field_index(),
+      broker()->dependencies());
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
@@ -1795,9 +1793,10 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
 
 ValueNode* MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  if (ValueNode* result =
-          TryFoldLoadConstantDataField(access_info, lookup_start_object)) {
-    return result;
+  base::Optional<compiler::ObjectRef> constant =
+      TryFoldLoadConstantDataField(access_info, lookup_start_object);
+  if (constant.has_value()) {
+    return GetConstant(constant.value());
   }
 
   // Resolve property holder.
@@ -1955,8 +1954,13 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
                           current_interpreter_frame_.accumulator(),
                           access_info);
       return true;
-    case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant:
-      return TryFoldLoadDictPrototypeConstant(access_info);
+    case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
+      base::Optional<compiler::ObjectRef> constant =
+          TryFoldLoadDictPrototypeConstant(access_info);
+      if (!constant.has_value()) return false;
+      SetAccumulator(GetConstant(constant.value()));
+      return true;
+    }
     case compiler::PropertyAccessInfo::kFastAccessorConstant:
     case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
       return TryBuildPropertyGetterCall(access_info, receiver,
@@ -2111,23 +2115,19 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       return false;
     }
 
-    Representation field_repr = Representation::Smi();
-
     // Check if we support the polymorphic load.
     for (compiler::PropertyAccessInfo access_info : access_infos) {
-      switch (access_info.kind()) {
-        case compiler::PropertyAccessInfo::kNotFound:
-        case compiler::PropertyAccessInfo::kModuleExport:
-          field_repr = field_repr.generalize(Representation::Tagged());
-          break;
-        case compiler::PropertyAccessInfo::kDataField:
-        case compiler::PropertyAccessInfo::kFastDataConstant:
-          field_repr =
-              field_repr.generalize(access_info.field_representation());
-          break;
-        default:
-          // TODO(victorgomes): Support other access.
+      DCHECK(!access_info.IsInvalid());
+      if (access_info.IsDictionaryProtoDataConstant()) {
+        base::Optional<compiler::ObjectRef> constant =
+            access_info.holder()->GetOwnDictionaryProperty(
+                access_info.dictionary_index(), broker()->dependencies());
+        if (!constant.has_value()) {
           return false;
+        }
+      } else if (access_info.IsDictionaryProtoAccessorConstant() ||
+                 access_info.IsFastAccessorConstant()) {
+        return false;
       }
 
       // TODO(victorgomes): Support map migration.
@@ -2138,7 +2138,12 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       }
     }
 
-    // Add compilation dependencies if needed.
+    // Add compilation dependencies if needed, get constants and fill
+    // polymorphic access info.
+    Representation field_repr = Representation::Smi();
+    ZoneVector<PolymorphicAccessInfo> poly_access_infos(zone());
+    poly_access_infos.reserve(access_infos.size());
+
     for (compiler::PropertyAccessInfo access_info : access_infos) {
       if (access_info.holder().has_value() &&
           !access_info.HasDictionaryHolder()) {
@@ -2146,14 +2151,57 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
             access_info.lookup_start_object_maps(), kStartAtPrototype,
             access_info.holder().value());
       }
+
+      const auto& maps = access_info.lookup_start_object_maps();
+      switch (access_info.kind()) {
+        case compiler::PropertyAccessInfo::kNotFound:
+          field_repr = Representation::Tagged();
+          poly_access_infos.push_back(PolymorphicAccessInfo::NotFound(maps));
+          break;
+        case compiler::PropertyAccessInfo::kDataField:
+        case compiler::PropertyAccessInfo::kFastDataConstant: {
+          field_repr =
+              field_repr.generalize(access_info.field_representation());
+          base::Optional<compiler::ObjectRef> constant =
+              TryFoldLoadConstantDataField(access_info, lookup_start_object);
+          if (constant.has_value()) {
+            poly_access_infos.push_back(
+                PolymorphicAccessInfo::Constant(maps, constant.value()));
+          } else {
+            poly_access_infos.push_back(PolymorphicAccessInfo::DataLoad(
+                maps, access_info.field_representation(), access_info.holder(),
+                access_info.field_index()));
+          }
+          break;
+        }
+        case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
+          field_repr =
+              field_repr.generalize(access_info.field_representation());
+          base::Optional<compiler::ObjectRef> constant =
+              TryFoldLoadDictPrototypeConstant(access_info);
+          DCHECK(constant.has_value());
+          poly_access_infos.push_back(
+              PolymorphicAccessInfo::Constant(maps, constant.value()));
+          break;
+        }
+        case compiler::PropertyAccessInfo::kModuleExport:
+          field_repr = Representation::Tagged();
+          break;
+        case compiler::PropertyAccessInfo::kStringLength:
+          poly_access_infos.push_back(
+              PolymorphicAccessInfo::StringLength(maps));
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
 
     if (field_repr.kind() == Representation::kDouble) {
       SetAccumulator(AddNewNode<LoadPolymorphicDoubleField>(
-          {lookup_start_object}, std::move(access_infos)));
+          {lookup_start_object}, std::move(poly_access_infos)));
     } else {
       SetAccumulator(AddNewNode<LoadPolymorphicTaggedField>(
-          {lookup_start_object}, field_repr, std::move(access_infos)));
+          {lookup_start_object}, field_repr, std::move(poly_access_infos)));
     }
 
     return true;

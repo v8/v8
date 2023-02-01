@@ -571,10 +571,8 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
   Ldr(result, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
 }
 
-inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
-  AssertSmi(smi);
-  SmiUntag(smi);
-  Scvtf(result, smi.W());
+inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
+  Scvtf(result, n.W());
 }
 
 inline void MaglevAssembler::Pop(Register dst) { Pop(dst, padreg); }
