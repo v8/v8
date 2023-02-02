@@ -257,6 +257,12 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       ...GCInstr(kExprStringFromCodePoint)
     ]);
 
+  builder.addFunction("string.hash", kSig_i_w)
+    .addBody([
+      kExprLocalGet, 0,
+      ...GCInstr(kExprStringHash)
+    ]);
+
   let i8_array = builder.addArray(kWasmI8, true);
   let i16_array = builder.addArray(kWasmI16, true);
 

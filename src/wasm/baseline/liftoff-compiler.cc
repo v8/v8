@@ -7304,6 +7304,22 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result_reg);
   }
 
+  void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister string_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-1], pinned));
+    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, string.type);
+    LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringHash,
+                    MakeSig::Returns(kI32).Params(kRef), {string_var},
+                    decoder->position());
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValues(1);
+    __ PushRegister(kI32, result_reg);
+  }
+
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     // Nothing to do here.
   }

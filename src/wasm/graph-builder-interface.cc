@@ -1799,6 +1799,12 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->StringFromCodePoint(code_point.node));
   }
 
+  void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
+    SetAndTypeNode(result,
+                   builder_->StringHash(string.node, NullCheckFor(string.type),
+                                        decoder->position()));
+  }
+
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     if (from.type == to->type) {
       to->node = from.node;

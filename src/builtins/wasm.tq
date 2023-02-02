@@ -61,6 +61,7 @@ extern runtime WasmStringViewWtf8Slice(
     Context, ByteArray, Number, Number): String;
 extern runtime WasmStringCompare(NoContext, String, String): Smi;
 extern runtime WasmStringFromCodePoint(Context, Number): String;
+extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 }
 
@@ -1263,6 +1264,11 @@ builtin WasmStringCompare(lhs: String, rhs: String): Smi {
 builtin WasmStringFromCodePoint(codePoint: uint32): String {
   tail runtime::WasmStringFromCodePoint(
       LoadContextFromFrame(), WasmUint32ToNumber(codePoint));
+}
+
+builtin WasmStringHash(string: String): int32 {
+  const result = runtime::WasmStringHash(kNoContext, string);
+  return SmiToInt32(result);
 }
 
 builtin WasmExternInternalize(externObject: JSAny): JSAny {

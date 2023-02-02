@@ -39,6 +39,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/name.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/tracing/trace-event.h"
@@ -6286,6 +6287,40 @@ Node* WasmGraphBuilder::StringCompare(Node* lhs, CheckForNull null_check_lhs,
 Node* WasmGraphBuilder::StringFromCodePoint(Node* code_point) {
   return gasm_->CallBuiltin(Builtin::kWasmStringFromCodePoint,
                             Operator::kEliminatable, code_point);
+}
+
+Node* WasmGraphBuilder::StringHash(Node* string, CheckForNull null_check,
+                                   wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+
+  auto runtime_label = gasm_->MakeLabel();
+  auto end_label = gasm_->MakeLabel(MachineRepresentation::kWord32);
+
+  Node* raw_hash = gasm_->LoadFromObject(
+      MachineType::Int32(), string,
+      wasm::ObjectAccess::ToTagged(Name::kRawHashFieldOffset));
+  Node* hash_not_computed_mask =
+      gasm_->Int32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
+  static_assert(Name::HashFieldTypeBits::kShift == 0);
+  Node* hash_not_computed = gasm_->Word32And(raw_hash, hash_not_computed_mask);
+  gasm_->GotoIf(hash_not_computed, &runtime_label);
+
+  // Fast path if hash is already computed: Decode raw hash value.
+  static_assert(Name::HashBits::kLastUsedBit == kBitsPerInt - 1);
+  Node* hash = gasm_->Word32Shr(
+      raw_hash,
+      gasm_->Int32Constant(static_cast<int32_t>(Name::HashBits::kShift)));
+  gasm_->Goto(&end_label, hash);
+
+  gasm_->Bind(&runtime_label);
+  Node* hash_runtime = gasm_->CallBuiltin(Builtin::kWasmStringHash,
+                                          Operator::kEliminatable, string);
+  gasm_->Goto(&end_label, hash_runtime);
+
+  gasm_->Bind(&end_label);
+  return end_label.PhiAt(0);
 }
 
 Node* WasmGraphBuilder::I31New(Node* input) {

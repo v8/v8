@@ -598,6 +598,8 @@ class WasmGraphBuilder {
                       CheckForNull null_check_rhs,
                       wasm::WasmCodePosition position);
   Node* StringFromCodePoint(Node* code_point);
+  Node* StringHash(Node* string, CheckForNull null_check,
+                   wasm::WasmCodePosition position);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

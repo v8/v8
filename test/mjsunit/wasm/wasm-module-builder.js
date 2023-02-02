@@ -569,6 +569,7 @@ let kExprStringViewIterRewind = 0xa3
 let kExprStringViewIterSlice = 0xa4;
 let kExprStringCompare = 0xa8;
 let kExprStringFromCodePoint = 0xa9;
+let kExprStringHash = 0xaa;
 let kExprStringNewUtf8Array = 0xb0;
 let kExprStringNewWtf16Array = 0xb1;
 let kExprStringEncodeUtf8Array = 0xb2;
