@@ -314,7 +314,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register flags = temps.Acquire();
     Register feedback_vector = temps.Acquire();
 
-    DeferredCodeInfo* deferred_flags_need_processing = PushDeferredCode(
+    Label* deferred_flags_need_processing = MakeDeferredCode(
         [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
           ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
           // TODO(leszeks): This could definitely be a builtin that we
@@ -328,7 +328,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
          compilation_info()->toplevel_compilation_unit()->feedback().object());
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,
-        &deferred_flags_need_processing->deferred_code_label);
+        deferred_flags_need_processing);
   }
 
   EnterFrame(StackFrame::MAGLEV);
@@ -538,7 +538,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
   Label cons_string;
   Label sliced_string;
 
-  DeferredCodeInfo* deferred_runtime_call = PushDeferredCode(
+  Label* deferred_runtime_call = MakeDeferredCode(
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register string, Register index) {
         DCHECK(!register_snapshot.live_registers.has(result));
@@ -598,7 +598,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     Cmp(representation, Immediate(kSlicedStringTag));
     B(&sliced_string, eq);
     Cmp(representation, Immediate(kThinStringTag));
-    B(&deferred_runtime_call->deferred_code_label, ne);
+    B(deferred_runtime_call, ne);
     // Fallthrough to thin string.
   }
 
@@ -629,7 +629,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     Register second_string = instance_type;
     Ldr(second_string.W(), FieldMemOperand(string, ConsString::kSecondOffset));
     CompareRoot(second_string, RootIndex::kempty_string);
-    B(&deferred_runtime_call->deferred_code_label, ne);
+    B(deferred_runtime_call, ne);
     DecompressAnyTagged(string,
                         FieldMemOperand(string, ConsString::kFirstOffset));
     B(&loop);  // Try again with first string.

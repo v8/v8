@@ -150,12 +150,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void DefineExceptionHandlerAndLazyDeoptPoint(NodeBase* node);
 
   template <typename Function, typename... Args>
-  inline DeferredCodeInfo* PushDeferredCode(Function&& deferred_code_gen,
-                                            Args&&... args);
+  inline Label* MakeDeferredCode(Function&& deferred_code_gen, Args&&... args);
   template <typename Function, typename... Args>
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
-
   template <typename NodeT>
   inline Label* GetDeoptLabel(NodeT* node, DeoptimizeReason reason);
   template <typename NodeT>

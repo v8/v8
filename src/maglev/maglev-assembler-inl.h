@@ -167,8 +167,8 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
 }  // namespace detail
 
 template <typename Function, typename... Args>
-inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
-    Function&& deferred_code_gen, Args&&... args) {
+inline Label* MaglevAssembler::MakeDeferredCode(Function&& deferred_code_gen,
+                                                Args&&... args) {
   using FunctionPointer =
       typename detail::FunctionArgumentsTupleHelper<Function>::FunctionPointer;
   static_assert(
@@ -177,7 +177,7 @@ inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
                               std::declval<MaglevCompilationInfo*>(),
                               std::declval<Args>()))...>,
       "Parameters of deferred_code_gen function should match arguments into "
-      "PushDeferredCode");
+      "MakeDeferredCode");
 
   ScratchRegisterScope scratch_scope(this);
   using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
@@ -188,7 +188,7 @@ inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
           std::forward<Args>(args)...);
 
   code_gen_state()->PushDeferredCode(deferred_code);
-  return deferred_code;
+  return &deferred_code->deferred_code_label;
 }
 
 // Note this doesn't take capturing lambdas by design, since state may
@@ -198,12 +198,12 @@ template <typename Function, typename... Args>
 inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                                               Function&& deferred_code_gen,
                                               Args&&... args) {
-  DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
-      std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
   if (v8_flags.code_comments) {
     RecordComment("-- Jump to deferred code");
   }
-  JumpIf(cond, &deferred_code->deferred_code_label);
+  JumpIf(cond, MakeDeferredCode<Function, Args...>(
+                   std::forward<Function>(deferred_code_gen),
+                   std::forward<Args>(args)...));
 }
 
 inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {

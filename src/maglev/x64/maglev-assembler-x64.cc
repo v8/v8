@@ -160,7 +160,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
   Label cons_string;
   Label sliced_string;
 
-  DeferredCodeInfo* deferred_runtime_call = PushDeferredCode(
+  Label* deferred_runtime_call = MakeDeferredCode(
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register string, Register index) {
         DCHECK(!register_snapshot.live_registers.has(result));
@@ -218,7 +218,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     cmpl(representation, Immediate(kSlicedStringTag));
     j(equal, &sliced_string, Label::kNear);
     cmpl(representation, Immediate(kThinStringTag));
-    j(not_equal, &deferred_runtime_call->deferred_code_label);
+    j(not_equal, deferred_runtime_call);
     // Fallthrough to thin string.
   }
 
@@ -244,7 +244,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
   {
     CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                 RootIndex::kempty_string);
-    j(not_equal, &deferred_runtime_call->deferred_code_label);
+    j(not_equal, deferred_runtime_call);
     DecompressAnyTagged(string, FieldOperand(string, ConsString::kFirstOffset));
     jmp(&loop, Label::kNear);  // Try again with first string.
   }
@@ -499,7 +499,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register flags = rcx;
     Register feedback_vector = r9;
 
-    DeferredCodeInfo* deferred_flags_need_processing = PushDeferredCode(
+    Label* deferred_flags_need_processing = MakeDeferredCode(
         [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
           ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
           // TODO(leszeks): This could definitely be a builtin that we
@@ -514,7 +514,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
          compilation_info()->toplevel_compilation_unit()->feedback().object());
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,
-        &deferred_flags_need_processing->deferred_code_label);
+        deferred_flags_need_processing);
   }
 
   EnterFrame(StackFrame::MAGLEV);

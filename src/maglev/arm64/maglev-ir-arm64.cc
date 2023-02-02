@@ -1247,7 +1247,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   }
 
   ZoneLabelRef done_byte_length(masm);
-  DeferredCodeInfo* deferred_get_byte_length = __ PushDeferredCode(
+  Label* deferred_get_byte_length = __ MakeDeferredCode(
       [](MaglevAssembler* masm, CheckJSDataViewBounds* node, ZoneLabelRef done,
          Register object, Register index, Register byte_length) {
         RegisterSnapshot snapshot = node->register_snapshot();
@@ -1271,7 +1271,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
       },
       this, done_byte_length, object, index, byte_length);
   __ Ldr(scratch.W(), FieldMemOperand(object, JSDataView::kBitFieldOffset));
-  __ Cbnz(scratch.W(), &deferred_get_byte_length->deferred_code_label);
+  __ Cbnz(scratch.W(), deferred_get_byte_length);
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
   __ LoadBoundedSizeFromObject(byte_length, object,
@@ -1421,7 +1421,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                              WriteBarrierDescriptor::SlotAddressRegister());
 
     ZoneLabelRef done(masm);
-    DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+    Label* deferred_write_barrier = __ MakeDeferredCode(
         [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
            Register array, GeneratorStore* node, int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -1453,7 +1453,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // Consider hoisting the check out of the loop and duplicating the loop into
     // with and without write barrier.
     __ CheckPageFlag(array, MemoryChunk::kPointersFromHereAreInterestingMask,
-                     ne, &deferred_write_barrier->deferred_code_label);
+                     ne, deferred_write_barrier);
 
     __ bind(*done);
   }
@@ -1464,7 +1464,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       context_input(), WriteBarrierDescriptor::SlotAddressRegister());
 
   ZoneLabelRef done(masm);
-  DeferredCodeInfo* deferred_context_write_barrier = __ PushDeferredCode(
+  Label* deferred_context_write_barrier = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register context,
          Register generator, GeneratorStore* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -1499,7 +1499,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       context, FieldMemOperand(generator, JSGeneratorObject::kContextOffset));
   __ AssertNotSmi(context);
   __ CheckPageFlag(generator, MemoryChunk::kPointersFromHereAreInterestingMask,
-                   ne, &deferred_context_write_barrier->deferred_code_label);
+                   ne, deferred_context_write_barrier);
   __ bind(*done);
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
@@ -1857,7 +1857,7 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   __ StoreTaggedField(value, FieldMemOperand(object, HeapObject::kMapOffset));
 
   ZoneLabelRef done(masm);
-  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+  Label* deferred_write_barrier = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreMap* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -1888,7 +1888,7 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
 
   __ JumpIfSmi(value, *done);
   __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                   &deferred_write_barrier->deferred_code_label);
+                   deferred_write_barrier);
   __ bind(*done);
 }
 
@@ -2147,7 +2147,7 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
   __ StoreTaggedField(FieldMemOperand(object, offset()), value);
 
   ZoneLabelRef done(masm);
-  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+  Label* deferred_write_barrier = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -2178,7 +2178,7 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
 
   __ JumpIfSmi(value, *done);
   __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                   &deferred_write_barrier->deferred_code_label);
+                   deferred_write_barrier);
 
   __ bind(*done);
 }
@@ -2246,7 +2246,7 @@ void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
 }
 void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  DeferredCodeInfo* deferred_abort = __ PushDeferredCode(
+  Label* deferred_abort = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
         __ Push(ToRegister(node->constructor()), ToRegister(node->function()));
         __ Move(kContextRegister, masm->native_context().object());
@@ -2260,7 +2260,7 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(scratch, ToRegister(constructor()));
   __ Ldr(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
   __ TestAndBranchIfAllClear(scratch, Map::Bits1::IsConstructorBit::kMask,
-                             &deferred_abort->deferred_code_label);
+                             deferred_abort);
 }
 
 // ---
