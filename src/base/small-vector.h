@@ -81,13 +81,13 @@ class SmallVector {
       begin_ = other.begin_;
       end_ = other.end_;
       end_of_storage_ = other.end_of_storage_;
-      other.reset_to_inline_storage();
     } else {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
       size_t other_size = other.size();
       memcpy(begin_, other.begin_, sizeof(T) * other_size);
       end_ = begin_ + other_size;
     }
+    other.reset_to_inline_storage();
     return *this;
   }
 
