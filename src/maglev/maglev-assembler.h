@@ -201,12 +201,6 @@ class MaglevAssembler : public MacroAssembler {
                                      InstanceType lower_limit,
                                      InstanceType higher_limit);
 
-  inline void CompareInstanceTypeRange(Register map, InstanceType lower_limit,
-                                       InstanceType higher_limit);
-  inline void CompareInstanceTypeRange(Register map, Register instance_type_out,
-                                       InstanceType lower_limit,
-                                       InstanceType higher_limit);
-
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
 
   inline void CompareInt32(Register reg, int32_t imm);
