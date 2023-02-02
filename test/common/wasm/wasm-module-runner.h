@@ -34,7 +34,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 // set and an exception occurs).
 int32_t CallWasmFunctionForTesting(
     Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name,
-    int argc, Handle<Object> argv[],
+    base::Vector<Handle<Object>> args,
     std::unique_ptr<const char[]>* exception = nullptr);
 
 // Decode, verify, and run the function labeled "main" in the

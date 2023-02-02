@@ -73,8 +73,7 @@ class SharedEngineIsolate {
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
-    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", 0,
-                                               nullptr);
+    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", {});
   }
 
  private:

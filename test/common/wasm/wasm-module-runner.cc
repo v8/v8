@@ -130,7 +130,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
     return -1;
   }
   return CallWasmFunctionForTesting(isolate, instance.ToHandleChecked(), "main",
-                                    0, nullptr);
+                                    {});
 }
 
 WasmInterpretationResult InterpretWasmModule(
@@ -218,8 +218,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   const char* name, int argc,
-                                   Handle<Object> argv[],
+                                   const char* name,
+                                   base::Vector<Handle<Object>> args,
                                    std::unique_ptr<const char[]>* exception) {
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
@@ -231,8 +231,8 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_export, undefined, argc, argv);
+  MaybeHandle<Object> retval = Execution::Call(isolate, main_export, undefined,
+                                               args.length(), args.begin());
 
   // The result should be a number.
   if (retval.is_null()) {

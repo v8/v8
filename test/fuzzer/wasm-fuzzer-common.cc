@@ -124,8 +124,7 @@ void ExecuteAgainstReference(Isolate* isolate,
       testing::MakeDefaultArguments(isolate, main_function->sig());
   std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
-      isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
-      compiled_args.begin(), &exception_ref);
+      isolate, instance_ref, "main", compiled_args.as_vector(), &exception_ref);
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
   if (max_steps < 0) return;
@@ -157,8 +156,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
   std::unique_ptr<const char[]> exception;
   int32_t result = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", static_cast<int>(compiled_args.size()),
-      compiled_args.begin(), &exception);
+      isolate, instance, "main", compiled_args.as_vector(), &exception);
 
   if ((exception_ref != nullptr) != (exception != nullptr)) {
     FATAL("Exception mispatch! Expected: <%s>; got: <%s>",

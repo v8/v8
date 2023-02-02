@@ -96,10 +96,10 @@ class WasmSerializationTest {
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
-    Handle<Object> params[1] = {
-        Handle<Object>(Smi::FromInt(41), CcTest::i_isolate())};
+    Handle<Object> params[1] = {handle(Smi::FromInt(41), CcTest::i_isolate())};
     int32_t result = testing::CallWasmFunctionForTesting(
-        CcTest::i_isolate(), instance, kFunctionName, 1, params);
+        CcTest::i_isolate(), instance, kFunctionName,
+        base::ArrayVector(params));
     CHECK_EQ(42, result);
   }
 
@@ -171,7 +171,7 @@ class WasmSerializationTest {
       CHECK_EQ(0, data_.size);
       while (data_.size == 0) {
         testing::CallWasmFunctionForTesting(serialization_isolate, instance,
-                                            kFunctionName, 0, nullptr);
+                                            kFunctionName, {});
         data_ = compiled_module.Serialize();
       }
       CHECK_LT(0, data_.size);
