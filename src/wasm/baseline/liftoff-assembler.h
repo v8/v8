@@ -453,10 +453,6 @@ class LiftoffAssembler : public MacroAssembler {
       return reg;
     }
 
-    // TODO(clemensb): Don't copy the full parent state (this makes us N^2).
-    void InitMerge(const CacheState& source, uint32_t num_locals,
-                   uint32_t arity, uint32_t stack_depth);
-
     void Steal(CacheState& source);
 
     void Split(const CacheState& source);
@@ -639,8 +635,15 @@ class LiftoffAssembler : public MacroAssembler {
   // avoids making each subsequent (conditional) branch repeat this work.
   void PrepareForBranch(uint32_t arity, LiftoffRegList pinned);
 
-  enum JumpDirection { kForwardJump, kBackwardJump };
+  // These methods handle control-flow merges. {MergeIntoNewState} is used to
+  // generate a new {CacheState} for a merge point, and also emits code to
+  // transfer values from the current state to the new merge state.
+  // {MergeFullStackWith} and {MergeStackWith} then later generate the code for
+  // more merges into an existing state.
+  V8_NODISCARD CacheState MergeIntoNewState(uint32_t num_locals, uint32_t arity,
+                                            uint32_t stack_depth);
   void MergeFullStackWith(CacheState& target);
+  enum JumpDirection { kForwardJump, kBackwardJump };
   void MergeStackWith(CacheState& target, uint32_t arity, JumpDirection);
 
   void Spill(VarState* slot);

@@ -1370,14 +1370,14 @@ class LiftoffCompiler {
         MaybeOSR();
       } else {
         DCHECK(target->is_incomplete_try());
-        if (!target->try_info->catch_reached) {
-          target->try_info->catch_state.InitMerge(
-              *__ cache_state(), __ num_locals(), 1,
-              target->stack_depth + target->num_exceptions);
+        if (target->try_info->catch_reached) {
+          __ MergeStackWith(target->try_info->catch_state, 1,
+                            LiftoffAssembler::kForwardJump);
+        } else {
+          target->try_info->catch_state = __ MergeIntoNewState(
+              __ num_locals(), 1, target->stack_depth + target->num_exceptions);
           target->try_info->catch_reached = true;
         }
-        __ MergeStackWith(target->try_info->catch_state, 1,
-                          LiftoffAssembler::kForwardJump);
         __ emit_jump(&target->try_info->catch_label);
       }
     }
@@ -1478,19 +1478,13 @@ class LiftoffCompiler {
   }
 
   void FallThruTo(FullDecoder* decoder, Control* c) {
-    if (!c->end_merge.reached) {
-      c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                               c->end_merge.arity,
-                               c->stack_depth + c->num_exceptions);
-    }
-    DCHECK(!c->is_try_catchall());
-    if (c->is_try_catch()) {
-      // Drop the implicit exception ref if any. There may be none if this is a
-      // catch-less try block.
+    DCHECK_IMPLIES(c->is_try_catchall(), !c->end_merge.reached);
+    if (c->end_merge.reached) {
       __ MergeStackWith(c->label_state, c->br_merge()->arity,
                         LiftoffAssembler::kForwardJump);
     } else {
-      __ MergeFullStackWith(c->label_state);
+      c->label_state = __ MergeIntoNewState(__ num_locals(), c->end_merge.arity,
+                                            c->stack_depth + c->num_exceptions);
     }
     __ emit_jump(c->label.get());
     TraceCacheState(decoder);
@@ -1513,13 +1507,12 @@ class LiftoffCompiler {
       __ cache_state()->Steal(c->label_state);
     } else if (c->reachable()) {
       // No merge yet at the end of the if, but we need to create a merge for
-      // the both arms of this if. Thus init the merge point from the else
-      // state, then merge the if state into that.
+      // the both arms of this if. Thus init the merge point from the current
+      // state, then merge the else state into that.
       DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
-      c->label_state.InitMerge(c->else_state->state, __ num_locals(),
-                               c->start_merge.arity,
+      c->label_state =
+          __ MergeIntoNewState(__ num_locals(), c->start_merge.arity,
                                c->stack_depth + c->num_exceptions);
-      __ MergeFullStackWith(c->label_state);
       __ emit_jump(c->label.get());
       // Merge the else state into the end state. Set this state as the current
       // state first so helper functions know which registers are in use.
@@ -2742,14 +2735,15 @@ class LiftoffCompiler {
         // and found to not make a difference.
       }
     }
-    if (!target->br_merge()->reached) {
-      target->label_state.InitMerge(
-          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
-          target->stack_depth + target->num_exceptions);
+    if (target->br_merge()->reached) {
+      __ MergeStackWith(target->label_state, target->br_merge()->arity,
+                        target->is_loop() ? LiftoffAssembler::kBackwardJump
+                                          : LiftoffAssembler::kForwardJump);
+    } else {
+      target->label_state =
+          __ MergeIntoNewState(__ num_locals(), target->br_merge()->arity,
+                               target->stack_depth + target->num_exceptions);
     }
-    __ MergeStackWith(target->label_state, target->br_merge()->arity,
-                      target->is_loop() ? LiftoffAssembler::kBackwardJump
-                                        : LiftoffAssembler::kForwardJump);
     __ jmp(target->label.get());
   }
 
@@ -2912,12 +2906,13 @@ class LiftoffCompiler {
 
   void Else(FullDecoder* decoder, Control* c) {
     if (c->reachable()) {
-      if (!c->end_merge.reached) {
-        c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                 c->end_merge.arity,
+      if (c->end_merge.reached) {
+        __ MergeFullStackWith(c->label_state);
+      } else {
+        c->label_state =
+            __ MergeIntoNewState(__ num_locals(), c->end_merge.arity,
                                  c->stack_depth + c->num_exceptions);
       }
-      __ MergeFullStackWith(c->label_state);
       __ emit_jump(c->label.get());
     }
     __ bind(c->else_state->label.get());
@@ -4675,14 +4670,15 @@ class LiftoffCompiler {
     Control* current_try =
         decoder->control_at(decoder->control_depth_of_current_catch());
     DCHECK_NOT_NULL(current_try->try_info);
-    if (!current_try->try_info->catch_reached) {
-      current_try->try_info->catch_state.InitMerge(
-          *__ cache_state(), __ num_locals(), 1,
+    if (current_try->try_info->catch_reached) {
+      __ MergeStackWith(current_try->try_info->catch_state, 1,
+                        LiftoffAssembler::kForwardJump);
+    } else {
+      current_try->try_info->catch_state = __ MergeIntoNewState(
+          __ num_locals(), 1,
           current_try->stack_depth + current_try->num_exceptions);
       current_try->try_info->catch_reached = true;
     }
-    __ MergeStackWith(current_try->try_info->catch_state, 1,
-                      LiftoffAssembler::kForwardJump);
     __ emit_jump(&current_try->try_info->catch_label);
 
     __ bind(&skip_handler);
