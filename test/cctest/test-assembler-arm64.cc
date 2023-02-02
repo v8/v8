@@ -12408,7 +12408,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push<TurboAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
+          __ Push<MacroAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
                                                 r[i - 4]);
         }
         // Finish off the leftovers.
@@ -12433,7 +12433,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop<TurboAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
+          __ Pop<MacroAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
                                               r[i + 3]);
         }
         // Finish off the leftovers.
@@ -12975,7 +12975,7 @@ TEST(copy_double_words_downwards_even) {
   __ SlotAddress(x5, 12);
   __ SlotAddress(x6, 11);
   __ Mov(x7, 12);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   __ Pop(xzr, x4, x5, x6);
   __ Pop(x7, x8, x9, x10);
@@ -13029,7 +13029,7 @@ TEST(copy_double_words_downwards_odd) {
   __ SlotAddress(x5, 13);
   __ SlotAddress(x6, 12);
   __ Mov(x7, 13);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   __ Pop(xzr, x4);
   __ Pop(x5, x6, x7, x8);
@@ -13085,13 +13085,13 @@ TEST(copy_noop) {
   __ SlotAddress(x5, 3);
   __ SlotAddress(x6, 2);
   __ Mov(x7, 0);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   // dst < src, count == 0
   __ SlotAddress(x5, 2);
   __ SlotAddress(x6, 3);
   __ Mov(x7, 0);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kDstLessThanSrc);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kDstLessThanSrc);
 
   __ Pop(x1, x2, x3, x4);
   __ Pop(x5, x6, x7, x8);

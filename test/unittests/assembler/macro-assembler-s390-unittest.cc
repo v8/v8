@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/mips64/assembler-mips64-inl.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
 #include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
@@ -12,17 +12,17 @@
 namespace v8 {
 namespace internal {
 
-#define __ tasm.
+#define __ masm.
 
-// Test the x64 assembler by compiling some simple functions into
+// Test the s390 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
-class TurboAssemblerTest : public TestWithIsolate {};
+class MacroAssemblerTest : public TestWithIsolate {};
 
-TEST_F(TurboAssemblerTest, TestHardAbort) {
+TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -30,7 +30,7 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
@@ -38,19 +38,21 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
-TEST_F(TurboAssemblerTest, TestCheck) {
+TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
 
-  // Fail if the first parameter (in {a0}) is 17.
-  __ Check(Condition::ne, AbortReason::kNoReason, a0, Operand(17));
+  // Fail if the first parameter is 17.
+  __ lgfi(r3, Operand(17));
+  __ CmpS64(r2, r3);  // 1st parameter is in {r2}.
+  __ Check(Condition::ne, AbortReason::kNoReason);
   __ Ret();
 
   CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());

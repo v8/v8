@@ -125,7 +125,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack and return.
   __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+                   MacroAssembler::kCountIncludesReceiver);
 
   __ ret(0);
 
@@ -282,7 +282,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
   __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+                   MacroAssembler::kCountIncludesReceiver);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -890,8 +890,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2, TurboAssembler::kCountIsBytes,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_state| == |expected_state|
@@ -1265,7 +1265,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
                   kSystemPointerSize));
   // Push the arguments.
   __ PushArray(start_address, num_args, scratch,
-               TurboAssembler::PushArrayOrder::kReverse);
+               MacroAssembler::PushArrayOrder::kReverse);
 }
 
 // static
@@ -1814,8 +1814,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     }
     __ bind(&no_this_arg);
     __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1919,8 +1919,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
     __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1971,8 +1971,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
     __ DropArgumentsAndPushNewReceiver(
         rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx,
-        TurboAssembler::kCountIsInteger,
-        TurboAssembler::kCountIncludesReceiver);
+        MacroAssembler::kCountIsInteger,
+        MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -3812,8 +3812,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // expected to be on the top of the stack).
   // We cannot use just the ret instruction for this, because we cannot pass the
   // number of slots to remove in a Register as an argument.
-  __ DropArguments(param_count, rbx, TurboAssembler::kCountIsInteger,
-                   TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(param_count, rbx, MacroAssembler::kCountIsInteger,
+                   MacroAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   // --------------------------------------------------------------------------

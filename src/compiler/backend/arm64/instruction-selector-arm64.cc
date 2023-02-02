@@ -623,7 +623,7 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
       selector->CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
     ptrdiff_t const delta =
         g.GetIntegerConstantValue(index) +
-        TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+        MacroAssemblerBase::RootRegisterOffsetForExternalReference(
             selector->isolate(), m.ResolvedValue());
     input_count = 1;
     // Check that the delta is a 32-bit integer due to the limitations of
@@ -988,7 +988,7 @@ void InstructionSelector::VisitStore(Node* node) {
         CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
       ptrdiff_t const delta =
           g.GetIntegerConstantValue(index) +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               isolate(), m.ResolvedValue());
       if (is_int32(delta)) {
         input_count = 2;

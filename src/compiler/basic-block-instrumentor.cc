@@ -84,7 +84,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // PatchBasicBlockCountersReference). An important and subtle point: we
     // cannot use the root handle basic_block_counters_marker_handle() and must
     // create a new separate handle. Otherwise
-    // TurboAssemblerBase::IndirectLoadConstant would helpfully emit a
+    // MacroAssemblerBase::IndirectLoadConstant would helpfully emit a
     // root-relative load rather than putting this value in the constants table
     // where we expect it to be for patching.
     counters_array = graph->NewNode(common.HeapConstant(Handle<HeapObject>::New(

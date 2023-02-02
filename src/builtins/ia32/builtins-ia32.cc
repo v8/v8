@@ -125,8 +125,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(edx, ecx, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver);
   __ ret(0);
 
   __ bind(&stack_overflow);
@@ -280,8 +280,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(edx, ecx, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver);
   __ ret(0);
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -768,8 +768,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2, TurboAssembler::kCountIsBytes,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1810,8 +1810,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     }
     __ bind(&no_this_arg);
     __ DropArgumentsAndPushNewReceiver(eax, edi, ecx,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
 
     // Restore receiver to edi.
     __ movd(edi, xmm0);
@@ -1919,8 +1919,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ movd(xmm0, edx);
 
     __ DropArgumentsAndPushNewReceiver(eax, ecx, edx,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
 
     // Restore argumentsList.
     __ movd(edx, xmm0);
@@ -1978,8 +1978,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
     __ DropArgumentsAndPushNewReceiver(
         eax, masm->RootAsOperand(RootIndex::kUndefinedValue), ecx,
-        TurboAssembler::kCountIsInteger,
-        TurboAssembler::kCountIncludesReceiver);
+        MacroAssembler::kCountIsInteger,
+        MacroAssembler::kCountIncludesReceiver);
 
     // Restore argumentsList.
     __ movd(ecx, xmm0);

@@ -130,8 +130,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(scratch, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(scratch, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver);
   __ Jump(lr);
 
   __ bind(&stack_overflow);
@@ -278,8 +278,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(r1, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(r1, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver);
   __ Jump(lr);
 
   __ bind(&check_receiver);
@@ -826,8 +826,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1352,7 +1352,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
   __ sub(start_address, start_address, scratch);
   // Push the arguments.
   __ PushArray(start_address, num_args, scratch,
-               TurboAssembler::PushArrayOrder::kReverse);
+               MacroAssembler::PushArrayOrder::kReverse);
 }
 
 // static
@@ -1820,8 +1820,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ ldr(r5, MemOperand(sp, kSystemPointerSize), ge);  // thisArg
     __ cmp(r0, Operand(JSParameterCount(2)), ge);
     __ ldr(r2, MemOperand(sp, 2 * kSystemPointerSize), ge);  // argArray
-    __ DropArgumentsAndPushNewReceiver(r0, r5, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r0, r5, MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1897,8 +1897,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ ldr(r5, MemOperand(sp, 2 * kSystemPointerSize), ge);  // thisArgument
     __ cmp(r0, Operand(JSParameterCount(3)), ge);
     __ ldr(r2, MemOperand(sp, 3 * kSystemPointerSize), ge);  // argumentsList
-    __ DropArgumentsAndPushNewReceiver(r0, r5, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r0, r5, MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1940,8 +1940,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ ldr(r2, MemOperand(sp, 2 * kSystemPointerSize), ge);  // argumentsList
     __ cmp(r0, Operand(JSParameterCount(3)), ge);
     __ ldr(r3, MemOperand(sp, 3 * kSystemPointerSize), ge);  // new.target
-    __ DropArgumentsAndPushNewReceiver(r0, r4, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r0, r4, MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------

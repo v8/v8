@@ -47,9 +47,9 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define ClearRightImm clrrwi
 #endif
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using MacroAssemblerBase::MacroAssemblerBase;
 
   void CallBuiltin(Builtin builtin, Condition cond = al);
   void TailCallBuiltin(Builtin builtin, Condition cond = al,
@@ -1438,21 +1438,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void S128Select(Simd128Register dst, Simd128Register src1,
                   Simd128Register src2, Simd128Register mask);
 
- private:
-  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments,
-                           bool has_function_descriptor);
-};
-
-// MacroAssembler implements a collection of frequently used acros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   // It assumes that the arguments are located below the stack pointer.
   // argc is the number of arguments not including the receiver.
   // TODO(victorgomes): Remove this function once we stick with the reversed
@@ -1744,6 +1729,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
+
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
+  void CallCFunctionHelper(Register function, int num_reg_arguments,
+                           int num_double_arguments,
+                           bool has_function_descriptor);
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

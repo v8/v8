@@ -224,7 +224,7 @@ class X64OperandGenerator final : public OperandGenerator {
               m.object().ResolvedValue())) {
         ptrdiff_t const delta =
             m.index().ResolvedValue() +
-            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector()->isolate(), m.object().ResolvedValue());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
@@ -2538,7 +2538,7 @@ void VisitWord64EqualImpl(InstructionSelector* selector, Node* node,
       return VisitCompare(
           selector, opcode,
           g.TempImmediate(
-              TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+              MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
           g.UseRegister(m.left().node()), cont);
     }
   }
@@ -2576,7 +2576,7 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
       return VisitCompare(
           selector, opcode,
           g.TempImmediate(
-              TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+              MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
           g.UseRegister(left), cont);
     }
   }

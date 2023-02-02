@@ -18,7 +18,7 @@
 #include "src/codegen/ia32/assembler-ia32.h"
 #include "src/codegen/ia32/register-ia32.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/turbo-assembler.h"
+#include "src/codegen/macro-assembler-base.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -208,7 +208,7 @@ class IA32OperandGenerator final : public OperandGenerator {
               m.object().ResolvedValue())) {
         ptrdiff_t const delta =
             m.index().ResolvedValue() +
-            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector()->isolate(), m.object().ResolvedValue());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));

@@ -182,7 +182,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   bind(&continuation);
 
   // Now allocate the stack space. Note that this might do more than just
-  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  // decrementing the SP; consult {MacroAssembler::AllocateStackSpace}.
   lay(sp, MemOperand(sp, -frame_size));
 
   // Jump back to the start of the function, from {pc_offset()} to
@@ -2966,7 +2966,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   // Asserts unreachable within the wasm code.
-  TurboAssembler::AssertUnreachable(reason);
+  MacroAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -3120,7 +3120,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
   lay(sp, MemOperand(sp, -size));
-  TurboAssembler::Move(addr, sp);
+  MacroAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {

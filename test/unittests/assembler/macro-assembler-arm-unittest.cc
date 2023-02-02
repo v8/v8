@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ tasm.
+#define __ masm.
 
 // If we are running on android and the output is not redirected (i.e. ends up
 // in the android log) then we cannot find the error message in the output. This
@@ -28,11 +28,11 @@ namespace internal {
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
-class TurboAssemblerTest : public TestWithIsolate {};
+class MacroAssemblerTest : public TestWithIsolate {};
 
-TEST_F(TurboAssemblerTest, TestHardAbort) {
+TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -40,7 +40,7 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
@@ -48,9 +48,9 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, ERROR_MESSAGE("abort: no reason"));
 }
 
-TEST_F(TurboAssemblerTest, TestCheck) {
+TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -62,7 +62,7 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   __ Ret();
 
   CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
@@ -102,17 +102,17 @@ const MoveObjectAndSlotTestCase kMoveObjectAndSlotTestCases[] = {
 const int kOffsets[] = {0, 42, kMaxRegularHeapObjectSize, 0x101001};
 
 template <typename T>
-class TurboAssemblerTestWithParam : public TurboAssemblerTest,
+class MacroAssemblerTestWithParam : public MacroAssemblerTest,
                                     public ::testing::WithParamInterface<T> {};
 
-using TurboAssemblerTestMoveObjectAndSlot =
-    TurboAssemblerTestWithParam<MoveObjectAndSlotTestCase>;
+using MacroAssemblerTestMoveObjectAndSlot =
+    MacroAssemblerTestWithParam<MoveObjectAndSlotTestCase>;
 
-TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
+TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
   const MoveObjectAndSlotTestCase test_case = GetParam();
   TRACED_FOREACH(int32_t, offset, kOffsets) {
     auto buffer = AllocateAssemblerBuffer();
-    TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+    MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                         buffer->CreateView());
     __ Push(r0);
     __ Move(test_case.object, r1);
@@ -143,7 +143,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     __ RecordComment("--");
 
     // The `result` pointer was saved on the stack.
-    UseScratchRegisterScope temps(&tasm);
+    UseScratchRegisterScope temps(&masm);
     Register scratch = temps.Acquire();
     __ Pop(scratch);
     __ str(dst_object, MemOperand(scratch));
@@ -152,7 +152,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     __ Ret();
 
     CodeDesc desc;
-    tasm.GetCode(nullptr, &desc);
+    masm.GetCode(nullptr, &desc);
     if (v8_flags.print_code) {
       Handle<Code> code =
           Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
@@ -179,8 +179,8 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(TurboAssemblerTest,
-                         TurboAssemblerTestMoveObjectAndSlot,
+INSTANTIATE_TEST_SUITE_P(MacroAssemblerTest,
+                         MacroAssemblerTestMoveObjectAndSlot,
                          ::testing::ValuesIn(kMoveObjectAndSlotTestCases));
 
 #undef __

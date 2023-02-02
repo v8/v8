@@ -508,7 +508,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   __ CalcScaledAddress(t6, t6, reg, entry_size_log2);
   __ Jump(t6);
   {
-    TurboAssembler::BlockTrampolinePoolScope(masm());
+    MacroAssembler::BlockTrampolinePoolScope(masm());
     __ BlockTrampolinePoolFor(num_labels * kInstrSize * 2);
     __ bind(&table);
     for (int i = 0; i < num_labels; ++i) {

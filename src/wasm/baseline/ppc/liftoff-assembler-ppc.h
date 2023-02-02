@@ -197,7 +197,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   bind(&continuation);
 
   // Now allocate the stack space. Note that this might do more than just
-  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  // decrementing the SP; consult {MacroAssembler::AllocateStackSpace}.
   SubS64(sp, sp, Operand(frame_size), r0);
 
   // Jump back to the start of the function, from {pc_offset()} to
@@ -692,7 +692,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
-      TurboAssembler::AtomicExchange<uint8_t>(dst, value.gp(), result.gp());
+      MacroAssembler::AtomicExchange<uint8_t>(dst, value.gp(), result.gp());
       break;
     }
     case StoreType::kI32Store16:
@@ -702,10 +702,10 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
         push(scratch);
         ByteReverseU16(r0, value.gp(), scratch);
         pop(scratch);
-        TurboAssembler::AtomicExchange<uint16_t>(dst, r0, result.gp());
+        MacroAssembler::AtomicExchange<uint16_t>(dst, r0, result.gp());
         ByteReverseU16(result.gp(), result.gp(), ip);
       } else {
-        TurboAssembler::AtomicExchange<uint16_t>(dst, value.gp(), result.gp());
+        MacroAssembler::AtomicExchange<uint16_t>(dst, value.gp(), result.gp());
       }
       break;
     }
@@ -716,20 +716,20 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
         push(scratch);
         ByteReverseU32(r0, value.gp(), scratch);
         pop(scratch);
-        TurboAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
+        MacroAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
         ByteReverseU32(result.gp(), result.gp(), ip);
       } else {
-        TurboAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
+        MacroAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
       }
       break;
     }
     case StoreType::kI64Store: {
       if (is_be) {
         ByteReverseU64(r0, value.gp());
-        TurboAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
+        MacroAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
         ByteReverseU64(result.gp(), result.gp());
       } else {
-        TurboAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
+        MacroAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
       }
       break;
     }
@@ -760,7 +760,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
-      TurboAssembler::AtomicCompareExchange<uint8_t>(
+      MacroAssembler::AtomicCompareExchange<uint8_t>(
           dst, expected.gp(), new_value.gp(), result.gp(), r0);
       break;
     }
@@ -774,12 +774,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         ByteReverseU16(new_value.gp(), new_value.gp(), scratch);
         ByteReverseU16(expected.gp(), expected.gp(), scratch);
         pop(scratch);
-        TurboAssembler::AtomicCompareExchange<uint16_t>(
+        MacroAssembler::AtomicCompareExchange<uint16_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU16(result.gp(), result.gp(), r0);
         Pop(new_value.gp(), expected.gp());
       } else {
-        TurboAssembler::AtomicCompareExchange<uint16_t>(
+        MacroAssembler::AtomicCompareExchange<uint16_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
       }
       break;
@@ -794,12 +794,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         ByteReverseU32(new_value.gp(), new_value.gp(), scratch);
         ByteReverseU32(expected.gp(), expected.gp(), scratch);
         pop(scratch);
-        TurboAssembler::AtomicCompareExchange<uint32_t>(
+        MacroAssembler::AtomicCompareExchange<uint32_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU32(result.gp(), result.gp(), r0);
         Pop(new_value.gp(), expected.gp());
       } else {
-        TurboAssembler::AtomicCompareExchange<uint32_t>(
+        MacroAssembler::AtomicCompareExchange<uint32_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
       }
       break;
@@ -809,12 +809,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         Push(new_value.gp(), expected.gp());
         ByteReverseU64(new_value.gp(), new_value.gp());
         ByteReverseU64(expected.gp(), expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint64_t>(
+        MacroAssembler::AtomicCompareExchange<uint64_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU64(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
-        TurboAssembler::AtomicCompareExchange<uint64_t>(
+        MacroAssembler::AtomicCompareExchange<uint64_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
       }
       break;

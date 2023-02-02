@@ -55,10 +55,10 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler
-    : public SharedTurboAssemblerBase<TurboAssembler> {
+class V8_EXPORT_PRIVATE MacroAssembler
+    : public SharedMacroAssembler<MacroAssembler> {
  public:
-  using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
+  using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -653,23 +653,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
                                 IsolateRootLocation isolateRootLocation =
                                     IsolateRootLocation::kInRootRegister);
 
- protected:
-  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-
-  // Returns a register holding the smi value. The register MUST NOT be
-  // modified. It may be the "smi 1 constant" register.
-  Register GetSmiConstant(Smi value);
-
-  // Drops arguments assuming that the return address was already popped.
-  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
-                     ArgumentsCountMode mode = kCountExcludesReceiver);
-};
-
-// MacroAssembler implements a collection of frequently used macros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
   // load_rax/store_rax if possible/necessary.
@@ -781,7 +764,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Macro instructions.
 
-  using TurboAssembler::Cmp;
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(Operand dst, Handle<Object> source);
 
@@ -944,6 +926,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // In-place weak references.
   void LoadWeakValue(Register in_out, Label* target_if_cleared);
+
+ protected:
+  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
+
+  // Returns a register holding the smi value. The register MUST NOT be
+  // modified. It may be the "smi 1 constant" register.
+  Register GetSmiConstant(Smi value);
+
+  // Drops arguments assuming that the return address was already popped.
+  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
 
  private:
   // Helper functions for generating invokes.

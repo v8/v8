@@ -163,7 +163,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(x1, MacroAssembler::kCountIncludesReceiver);
   __ Ret();
 
   __ Bind(&stack_overflow);
@@ -348,7 +348,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Leave construct frame.
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(x1, MacroAssembler::kCountIncludesReceiver);
   __ Ret();
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -1205,7 +1205,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the frame created by the baseline call.
-    __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+    __ Pop<MacroAssembler::kAuthLR>(fp, lr);
     __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
@@ -1330,7 +1330,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // the frame (that is done below).
   __ Bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ Push<TurboAssembler::kSignLR>(lr, fp);
+  __ Push<MacroAssembler::kSignLR>(lr, fp);
   __ mov(fp, sp);
   __ Push(cp, closure);
 
@@ -1342,7 +1342,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Push actual argument count, bytecode array, Smi tagged bytecode array
   // offset and an undefined (to properly align the stack pointer).
-  static_assert(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
+  static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
   __ SmiTag(x6, kInterpreterBytecodeOffsetRegister);
   __ Push(kJavaScriptCallArgCountRegister, kInterpreterBytecodeArrayRegister);
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
@@ -1582,7 +1582,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
   }
 
   __ CopyDoubleWords(stack_addr, last_arg_addr, slots_to_copy,
-                     TurboAssembler::kDstLessThanSrcAndReverse);
+                     MacroAssembler::kDstLessThanSrcAndReverse);
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // Store "undefined" as the receiver arg if we need to.
@@ -1882,7 +1882,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 
   // Restore fp, lr.
   __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+  __ Pop<MacroAssembler::kAuthLR>(fp, lr);
 
   __ LoadEntryFromBuiltinIndex(builtin);
   __ Jump(builtin);
@@ -2069,7 +2069,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Peek(arg_array, 2 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
   __ PushArgument(this_arg);
 
   // ----------- S t a t e -------------
@@ -2158,7 +2158,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     __ SlotAddress(copy_from, count);
     __ Add(copy_to, copy_from, kSystemPointerSize);
     __ CopyDoubleWords(copy_to, copy_from, count,
-                       TurboAssembler::kSrcLessThanDst);
+                       MacroAssembler::kSrcLessThanDst);
     __ Drop(2);
   }
 
@@ -2206,7 +2206,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Peek(arguments_list, 3 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
   __ PushArgument(this_argument);
 
   // ----------- S t a t e -------------
@@ -2264,7 +2264,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
 
   // Push receiver (undefined).
   __ PushArgument(undefined_value);
@@ -2662,7 +2662,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
         __ SlotAddress(copy_to, total_argc);
         __ Sub(copy_from, copy_to, kSystemPointerSize);
         __ CopyDoubleWords(copy_to, copy_from, argc,
-                           TurboAssembler::kSrcLessThanDst);
+                           MacroAssembler::kSrcLessThanDst);
       }
     }
 
@@ -2996,7 +2996,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // Save registers.
   __ PushXRegList(kSavedGpRegs);
   __ PushQRegList(kSavedFpRegs);
-  __ Push<TurboAssembler::kSignLR>(lr, xzr);  // xzr is for alignment.
+  __ Push<MacroAssembler::kSignLR>(lr, xzr);  // xzr is for alignment.
 
   // Arguments to the runtime function: instance, func_index, and an
   // additional stack slot for the NativeModule. The first pushed register
@@ -3008,7 +3008,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Mov(vector, kReturnRegister0);
 
   // Restore registers and frame type.
-  __ Pop<TurboAssembler::kAuthLR>(xzr, lr);
+  __ Pop<MacroAssembler::kAuthLR>(xzr, lr);
   __ PopQRegList(kSavedFpRegs);
   __ PopXRegList(kSavedGpRegs);
   // Restore the instance from the frame.
@@ -3263,8 +3263,8 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
 
   // Update active continuation root.
   int32_t active_continuation_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(
-      RootIndex::kActiveContinuation);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
   __ Str(parent, MemOperand(kRootRegister, active_continuation_offset));
   jmpbuf = parent;
   __ LoadExternalPointerField(
@@ -3313,8 +3313,8 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
   __ StoreTaggedField(tmp2, state_loc);
   __ bind(&undefined);
   int32_t active_suspender_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(
-      RootIndex::kActiveSuspender);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
   __ Str(suspender, MemOperand(kRootRegister, active_suspender_offset));
 }
 
@@ -4317,7 +4317,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // expected to be on the top of the stack).
   // We cannot use just the ret instruction for this, because we cannot pass
   // the number of slots to remove in a Register as an argument.
-  __ DropArguments(param_count, TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(param_count, MacroAssembler::kCountExcludesReceiver);
   __ Ret(lr);
 
   // -------------------------------------------
@@ -4522,14 +4522,15 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
                         FieldMemOperand(suspender_continuation,
                                        WasmContinuationObject::kParentOffset));
   int32_t active_continuation_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(
-      RootIndex::kActiveContinuation);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
   __ Str(caller, MemOperand(kRootRegister, active_continuation_offset));
   DEFINE_REG(parent);
   __ LoadAnyTaggedField(
       parent, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
   int32_t active_suspender_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(RootIndex::kActiveSuspender);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
   __ Str(parent, MemOperand(kRootRegister, active_suspender_offset));
   regs.ResetExcept(promise, caller);
 
@@ -4660,8 +4661,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       scratch,
       FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
   int32_t active_suspender_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(
-      RootIndex::kActiveSuspender);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
   __ Str(suspender, MemOperand(kRootRegister, active_suspender_offset));
 
   // Next line we are going to load a field from suspender, but we have to use
@@ -4685,8 +4686,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       active_continuation, kLRHasBeenSaved, SaveFPRegsMode::kIgnore);
   FREE_REG(active_continuation);
   int32_t active_continuation_offset =
-    TurboAssembler::RootRegisterOffsetForRootIndex(
-      RootIndex::kActiveContinuation);
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
   __ Str(target_continuation,
          MemOperand(kRootRegister, active_continuation_offset));
 
@@ -4731,7 +4732,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ bind(&suspend);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   // Pop receiver + parameter.
-  __ DropArguments(2, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(2, MacroAssembler::kCountIncludesReceiver);
   __ Ret(lr);
 }
 }  // namespace
@@ -5384,9 +5385,9 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // DirectCEntry places the return address on the stack (updated by the GC),
   // making the call GC safe. The irregexp backend relies on this.
 
-  __ Poke<TurboAssembler::kSignLR>(lr, 0);  // Store the return address.
+  __ Poke<MacroAssembler::kSignLR>(lr, 0);  // Store the return address.
   __ Blr(x10);                              // Call the C++ function.
-  __ Peek<TurboAssembler::kAuthLR>(lr, 0);  // Return to calling code.
+  __ Peek<MacroAssembler::kAuthLR>(lr, 0);  // Return to calling code.
   __ AssertFPCRState();
   __ Ret();
 }

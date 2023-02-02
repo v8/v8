@@ -1494,7 +1494,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
 
  private:
   friend class Assembler;
-  friend class TurboAssembler;
+  friend class MacroAssembler;
 
   Assembler* assembler_;
   RegList old_available_;

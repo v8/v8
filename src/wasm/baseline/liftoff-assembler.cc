@@ -610,7 +610,7 @@ AssemblerOptions DefaultLiftoffOptions() { return AssemblerOptions{}; }
 }  // namespace
 
 LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
-    : TurboAssembler(nullptr, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
+    : MacroAssembler(nullptr, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
                      std::move(buffer)) {
   set_abort_hard(true);  // Avoid calls to Abort.
 }

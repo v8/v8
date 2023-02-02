@@ -90,9 +90,9 @@ inline MemOperand CFunctionArgumentOperand(int index) {
   return MemOperand(sp, offset);
 }
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using MacroAssemblerBase::MacroAssemblerBase;
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1174,71 +1174,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadLane(int sz, VRegister dst, uint8_t laneidx, MemOperand src);
   void StoreLane(int sz, VRegister src, uint8_t laneidx, MemOperand dst);
 
- protected:
-  inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
-  inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
-
- private:
-  bool has_double_zero_reg_set_ = false;
-  bool has_single_zero_reg_set_ = false;
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
-
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments);
-
-  // TODO(RISCV) Reorder parameters so out parameters come last.
-  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits);
-  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
-                       Register* scratch, const Operand& rt);
-
-  void BranchShortHelper(int32_t offset, Label* L);
-  bool BranchShortHelper(int32_t offset, Label* L, Condition cond, Register rs,
-                         const Operand& rt);
-  bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
-                        const Operand& rt);
-
-  void BranchAndLinkShortHelper(int32_t offset, Label* L);
-  void BranchAndLinkShort(int32_t offset);
-  void BranchAndLinkShort(Label* L);
-  bool BranchAndLinkShortHelper(int32_t offset, Label* L, Condition cond,
-                                Register rs, const Operand& rt);
-  bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
-                               Register rs, const Operand& rt);
-  void BranchAndLinkLong(Label* L);
-#if V8_TARGET_ARCH_RISCV64
-  template <typename F_TYPE>
-  void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
-                   FPURoundingMode mode);
-#elif V8_TARGET_ARCH_RISCV32
-  void RoundDouble(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
-                   FPURoundingMode mode);
-
-  void RoundFloat(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
-                  FPURoundingMode mode);
-#endif
-  template <typename F>
-  void RoundHelper(VRegister dst, VRegister src, Register scratch,
-                   VRegister v_scratch, FPURoundingMode frm);
-
-  template <typename TruncFunc>
-  void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
-                                   TruncFunc trunc);
-
-  // Push a fixed frame, consisting of ra, fp.
-  void PushCommonFrame(Register marker_reg = no_reg);
-};
-
-// MacroAssembler implements a collection of frequently used macros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   // It assumes that the arguments are located below the stack pointer.
   // argc is the number of arguments not including the receiver.
   // TODO(victorgomes): Remove this function once we stick with the reversed
@@ -1521,7 +1456,65 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
+ protected:
+  inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
+  inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
+
  private:
+  bool has_double_zero_reg_set_ = false;
+  bool has_single_zero_reg_set_ = false;
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
+                                  Label* done);
+
+  void CallCFunctionHelper(Register function, int num_reg_arguments,
+                           int num_double_arguments);
+
+  // TODO(RISCV) Reorder parameters so out parameters come last.
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
+                       Register* scratch, const Operand& rt);
+
+  void BranchShortHelper(int32_t offset, Label* L);
+  bool BranchShortHelper(int32_t offset, Label* L, Condition cond, Register rs,
+                         const Operand& rt);
+  bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
+                        const Operand& rt);
+
+  void BranchAndLinkShortHelper(int32_t offset, Label* L);
+  void BranchAndLinkShort(int32_t offset);
+  void BranchAndLinkShort(Label* L);
+  bool BranchAndLinkShortHelper(int32_t offset, Label* L, Condition cond,
+                                Register rs, const Operand& rt);
+  bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
+                               Register rs, const Operand& rt);
+  void BranchAndLinkLong(Label* L);
+#if V8_TARGET_ARCH_RISCV64
+  template <typename F_TYPE>
+  void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
+                   FPURoundingMode mode);
+#elif V8_TARGET_ARCH_RISCV32
+  void RoundDouble(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
+                   FPURoundingMode mode);
+
+  void RoundFloat(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
+                  FPURoundingMode mode);
+#endif
+  template <typename F>
+  void RoundHelper(VRegister dst, VRegister src, Register scratch,
+                   VRegister v_scratch, FPURoundingMode frm);
+
+  template <typename TruncFunc>
+  void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
+                                   TruncFunc trunc);
+
+  // Push a fixed frame, consisting of ra, fp.
+  void PushCommonFrame(Register marker_reg = no_reg);
+
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
@@ -1538,7 +1531,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 };
 
 template <typename Func>
-void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
+void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   // Ensure that dd-ed labels following this instruction use 8 bytes aligned
   // addresses.

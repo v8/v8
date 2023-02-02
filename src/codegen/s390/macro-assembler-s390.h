@@ -41,9 +41,9 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using MacroAssemblerBase::MacroAssemblerBase;
 
   void CallBuiltin(Builtin builtin, Condition cond = al);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
@@ -1502,22 +1502,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CountTrailingZerosU64(Register dst, Register src,
                              Register scratch_pair = r0);
 
- private:
-  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments);
-
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
-};
-
-// MacroAssembler implements a collection of frequently used macros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   void LoadStackLimit(Register destination, StackLimitKind kind);
   // It assumes that the arguments are located below the stack pointer.
   // argc is the number of arguments not including the receiver.
@@ -1803,6 +1787,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
+
+  void CallCFunctionHelper(Register function, int num_reg_arguments,
+                           int num_double_arguments);
+
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
+
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,

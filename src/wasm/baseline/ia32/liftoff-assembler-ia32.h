@@ -288,7 +288,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   bind(&continuation);
 
   // Now allocate the stack space. Note that this might do more than just
-  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  // decrementing the SP; consult {MacroAssembler::AllocateStackSpace}.
   AllocateStackSpace(frame_size);
 
   // Jump back to the start of the function, from {pc_offset()} to
@@ -319,21 +319,21 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
     case kI32:
-      TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
+      MacroAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
     case kI64: {
       DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      TurboAssembler::Move(reg.low_gp(), Immediate(low_word));
-      TurboAssembler::Move(reg.high_gp(), Immediate(high_word));
+      MacroAssembler::Move(reg.low_gp(), Immediate(low_word));
+      MacroAssembler::Move(reg.high_gp(), Immediate(high_word));
       break;
     }
     case kF32:
-      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
+      MacroAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
     case kF64:
-      TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
+      MacroAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
       UNREACHABLE();
@@ -1704,7 +1704,7 @@ inline LiftoffRegister ReplaceInPair(LiftoffRegister pair, Register old_reg,
 
 inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
-    Register amount, void (TurboAssembler::*emit_shift)(Register, Register)) {
+    Register amount, void (MacroAssembler::*emit_shift)(Register, Register)) {
   // Temporary registers cannot overlap with {dst}.
   LiftoffRegList pinned{dst};
 
@@ -1743,7 +1743,7 @@ inline void Emit64BitShiftOperation(
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShlPair_cl);
+                                   &MacroAssembler::ShlPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
@@ -1762,7 +1762,7 @@ void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::SarPair_cl);
+                                   &MacroAssembler::SarPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
@@ -1781,7 +1781,7 @@ void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShrPair_cl);
+                                   &MacroAssembler::ShrPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
@@ -2025,10 +2025,10 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
-    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
+    MacroAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
     Andps(dst, liftoff::kScratchDoubleReg);
   } else {
-    TurboAssembler::Move(dst, kSignBit - 1);
+    MacroAssembler::Move(dst, kSignBit - 1);
     Andps(dst, src);
   }
 }
@@ -2036,10 +2036,10 @@ void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
-    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
+    MacroAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
     Xorps(dst, liftoff::kScratchDoubleReg);
   } else {
-    TurboAssembler::Move(dst, kSignBit);
+    MacroAssembler::Move(dst, kSignBit);
     Xorps(dst, src);
   }
 }
@@ -2162,10 +2162,10 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint64_t kSignBit = uint64_t{1} << 63;
   if (dst == src) {
-    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
+    MacroAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
     Andpd(dst, liftoff::kScratchDoubleReg);
   } else {
-    TurboAssembler::Move(dst, kSignBit - 1);
+    MacroAssembler::Move(dst, kSignBit - 1);
     Andpd(dst, src);
   }
 }
@@ -2173,10 +2173,10 @@ void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {
 void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint64_t kSignBit = uint64_t{1} << 63;
   if (dst == src) {
-    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
+    MacroAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
     Xorpd(dst, liftoff::kScratchDoubleReg);
   } else {
-    TurboAssembler::Move(dst, kSignBit);
+    MacroAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
   }
 }
@@ -2739,7 +2739,7 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->cmov(zero, dst.gp(), tmp);
 }
 
-template <void (SharedTurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
+template <void (SharedMacroAssemblerBase::*pcmp)(XMMRegister, XMMRegister)>
 inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src,
                         base::Optional<CpuFeature> feature = base::nullopt) {
@@ -3279,14 +3279,14 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
   uint64_t vals[2];
   memcpy(vals, imms, sizeof(vals));
-  TurboAssembler::Move(dst.fp(), vals[0]);
+  MacroAssembler::Move(dst.fp(), vals[0]);
 
   uint64_t high = vals[1];
   Register tmp = GetUnusedRegister(RegClass::kGpReg, {}).gp();
-  TurboAssembler::Move(tmp, Immediate(high & 0xffff'ffff));
+  MacroAssembler::Move(tmp, Immediate(high & 0xffff'ffff));
   Pinsrd(dst.fp(), tmp, 2);
 
-  TurboAssembler::Move(tmp, Immediate(high >> 32));
+  MacroAssembler::Move(tmp, Immediate(high >> 32));
   Pinsrd(dst.fp(), tmp, 3);
 }
 
@@ -3347,7 +3347,7 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqb>(this, dst, src);
+  liftoff::EmitAllTrue<&MacroAssembler::Pcmpeqb>(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
@@ -3483,7 +3483,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqw>(this, dst, src);
+  liftoff::EmitAllTrue<&MacroAssembler::Pcmpeqw>(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
@@ -3694,7 +3694,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqd>(this, dst, src);
+  liftoff::EmitAllTrue<&MacroAssembler::Pcmpeqd>(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
@@ -3866,7 +3866,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqq>(this, dst, src, SSE4_1);
+  liftoff::EmitAllTrue<&MacroAssembler::Pcmpeqq>(this, dst, src, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -4591,7 +4591,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  TurboAssembler::AssertUnreachable(reason);
+  MacroAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

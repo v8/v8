@@ -266,14 +266,14 @@ class OutOfLineCode : public ZoneObject {
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
   const Frame* frame() const { return frame_; }
-  TurboAssembler* tasm() { return tasm_; }
+  MacroAssembler* masm() { return masm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
   const Frame* const frame_;
-  TurboAssembler* const tasm_;
+  MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };
 

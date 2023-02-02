@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/turbo-assembler.h"
+#include "src/codegen/macro-assembler-base.h"
 
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
+MacroAssemblerBase::MacroAssemblerBase(Isolate* isolate,
                                        const AssemblerOptions& options,
                                        CodeObjectRequired create_code_object,
                                        std::unique_ptr<AssemblerBuffer> buffer)
@@ -26,7 +26,7 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
   }
 }
 
-Address TurboAssemblerBase::BuiltinEntry(Builtin builtin) {
+Address MacroAssemblerBase::BuiltinEntry(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   if (isolate_ != nullptr) {
     Address entry = isolate_->builtin_entry_table()[Builtins::ToInt(builtin)];
@@ -38,7 +38,7 @@ Address TurboAssemblerBase::BuiltinEntry(Builtin builtin) {
   return d.InstructionStartOfBuiltin(builtin);
 }
 
-void TurboAssemblerBase::IndirectLoadConstant(Register destination,
+void MacroAssemblerBase::IndirectLoadConstant(Register destination,
                                               Handle<HeapObject> object) {
   CHECK(root_array_available_);
 
@@ -71,7 +71,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
   }
 }
 
-void TurboAssemblerBase::IndirectLoadExternalReference(
+void MacroAssemblerBase::IndirectLoadExternalReference(
     Register destination, ExternalReference reference) {
   CHECK(root_array_available_);
 
@@ -90,24 +90,24 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
+int32_t MacroAssemblerBase::RootRegisterOffsetForRootIndex(
     RootIndex root_index) {
   return IsolateData::root_slot_offset(root_index);
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
+int32_t MacroAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
   return IsolateData::BuiltinSlotOffset(builtin);
 }
 
 // static
-intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+intptr_t MacroAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
   return static_cast<intptr_t>(reference.address() - isolate->isolate_root());
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
+int32_t MacroAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
     Isolate* isolate, const ExternalReference& reference) {
   // Encode as an index into the external reference table stored on the
   // isolate.
@@ -120,13 +120,13 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
 }
 
 // static
-bool TurboAssemblerBase::IsAddressableThroughRootRegister(
+bool MacroAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);
 }
 
-Tagged_t TurboAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
+Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
   DCHECK(RootsTable::IsReadOnly(index));
   CHECK(V8_STATIC_ROOTS_BOOL);
   CHECK(isolate_->root(index).IsHeapObject());

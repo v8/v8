@@ -98,7 +98,7 @@ class FreezeCacheState {
 #endif
 };
 
-class LiftoffAssembler : public TurboAssembler {
+class LiftoffAssembler : public MacroAssembler {
  public:
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr int kStackSlotSize = 8;

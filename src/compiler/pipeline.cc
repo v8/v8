@@ -3473,10 +3473,10 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   CodeGenerator* code_generator = pipeline.code_generator();
   wasm::WasmCompilationResult result;
-  code_generator->tasm()->GetCode(
+  code_generator->masm()->GetCode(
       nullptr, &result.code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->handler_table_offset()));
-  result.instr_buffer = code_generator->tasm()->ReleaseBuffer();
+  result.instr_buffer = code_generator->masm()->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
   result.protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
@@ -3702,11 +3702,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   auto result = std::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
-  code_generator->tasm()->GetCode(
+  code_generator->masm()->GetCode(
       nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->handler_table_offset()));
 
-  result->instr_buffer = code_generator->tasm()->ReleaseBuffer();
+  result->instr_buffer = code_generator->masm()->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();

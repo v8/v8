@@ -21,10 +21,10 @@
 #include "src/codegen/ia32/assembler-ia32.h"
 #include "src/codegen/ia32/register-ia32.h"
 #include "src/codegen/label.h"
+#include "src/codegen/macro-assembler-base.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
-#include "src/codegen/turbo-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
@@ -68,10 +68,10 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler
-    : public SharedTurboAssemblerBase<TurboAssembler> {
+class V8_EXPORT_PRIVATE MacroAssembler
+    : public SharedMacroAssembler<MacroAssembler> {
  public:
-  using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
+  using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
@@ -411,17 +411,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
 
- protected:
-  // Drops arguments assuming that the return address was already popped.
-  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
-                     ArgumentsCountMode mode = kCountExcludesReceiver);
-};
-
-// MacroAssembler implements a collection of frequently used macros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   void PushRoot(RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
@@ -670,6 +659,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void CompareStackLimit(Register with, StackLimitKind kind);
   void StackOverflowCheck(Register num_args, Register scratch,
                           Label* stack_overflow, bool include_receiver = false);
+
+ protected:
+  // Drops arguments assuming that the return address was already popped.
+  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
 
  private:
   // Helper functions for generating invokes.

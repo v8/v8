@@ -571,7 +571,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   {
     const int instruction_count =
         num_labels * instructions_per_label + instructions_per_jump_target;
-    TurboAssembler::BlockPoolsScope block_pools(masm_,
+    MacroAssembler::BlockPoolsScope block_pools(masm_,
                                                 instruction_count * kInstrSize);
     __ Bind(&table);
     for (int i = 0; i < num_labels; ++i) {
@@ -630,7 +630,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
+  __ masm()->DropArguments(params_size, MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 

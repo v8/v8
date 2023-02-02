@@ -1381,7 +1381,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
 
   // Push the arguments.
   __ PushArray(start_address, num_args,
-               TurboAssembler::PushArrayOrder::kReverse);
+               MacroAssembler::PushArrayOrder::kReverse);
 }
 
 // static

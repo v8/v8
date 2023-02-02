@@ -146,9 +146,9 @@ enum PreShiftImmMode {
 // platforms are updated.
 enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using MacroAssemblerBase::MacroAssemblerBase;
 
 #if DEBUG
   void set_allow_macro_instructions(bool value) {
@@ -1484,81 +1484,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());
 
- protected:
-  // The actual Push and Pop implementations. These don't generate any code
-  // other than that required for the push or pop. This allows
-  // (Push|Pop)CPURegList to bundle together run-time assertions for a large
-  // block of registers.
-  //
-  // Note that size is per register, and is specified in bytes.
-  void PushHelper(int count, int size, const CPURegister& src0,
-                  const CPURegister& src1, const CPURegister& src2,
-                  const CPURegister& src3);
-  void PopHelper(int count, int size, const CPURegister& dst0,
-                 const CPURegister& dst1, const CPURegister& dst2,
-                 const CPURegister& dst3);
-
-  void ConditionalCompareMacro(const Register& rn, const Operand& operand,
-                               StatusFlags nzcv, Condition cond,
-                               ConditionalCompareOp op);
-
-  void AddSubWithCarryMacro(const Register& rd, const Register& rn,
-                            const Operand& operand, FlagsUpdate S,
-                            AddSubWithCarryOp op);
-
-  // Call Printf. On a native build, a simple call will be generated, but if the
-  // simulator is being used then a suitable pseudo-instruction is used. The
-  // arguments and stack must be prepared by the caller as for a normal AAPCS64
-  // call to 'printf'.
-  //
-  // The 'args' argument should point to an array of variable arguments in their
-  // proper PCS registers (and in calling order). The argument registers can
-  // have mixed types. The format string (x0) should not be included.
-  void CallPrintf(int arg_count = 0, const CPURegister* args = nullptr);
-
- private:
-#if DEBUG
-  // Tell whether any of the macro instruction can be used. When false the
-  // MacroAssembler will assert if a method which can emit a variable number
-  // of instructions is called.
-  bool allow_macro_instructions_ = true;
-#endif
-
-  // Scratch registers available for use by the MacroAssembler.
-  CPURegList tmp_list_ = DefaultTmpList();
-  CPURegList fptmp_list_ = DefaultFPTmpList();
-
-  // Helps resolve branching to labels potentially out of range.
-  // If the label is not bound, it registers the information necessary to later
-  // be able to emit a veneer for this branch if necessary.
-  // If the label is bound, it returns true if the label (or the previous link
-  // in the label chain) is out of range. In that case the caller is responsible
-  // for generating appropriate code.
-  // Otherwise it returns false.
-  // This function also checks wether veneers need to be emitted.
-  bool NeedExtraInstructionsOrRegisterBranch(Label* label,
-                                             ImmBranchType branch_type);
-
-  void Movi16bitHelper(const VRegister& vd, uint64_t imm);
-  void Movi32bitHelper(const VRegister& vd, uint64_t imm);
-  void Movi64bitHelper(const VRegister& vd, uint64_t imm);
-
-  void LoadStoreMacro(const CPURegister& rt, const MemOperand& addr,
-                      LoadStoreOp op);
-
-  void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
-                          const MemOperand& addr, LoadStorePairOp op);
-
-  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                byte* pc);
-
-  void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
-};
-
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   // Instruction set functions ------------------------------------------------
   // Logical macros.
   inline void Bics(const Register& rd, const Register& rn,
@@ -1594,17 +1519,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
-  void Fcvtl(const VRegister& vd, const VRegister& vn) {
-    DCHECK(allow_macro_instructions());
-    fcvtl(vd, vn);
-  }
   void Fcvtl2(const VRegister& vd, const VRegister& vn) {
     DCHECK(allow_macro_instructions());
     fcvtl2(vd, vn);
-  }
-  void Fcvtn(const VRegister& vd, const VRegister& vn) {
-    DCHECK(allow_macro_instructions());
-    fcvtn(vd, vn);
   }
   void Fcvtn2(const VRegister& vd, const VRegister& vn) {
     DCHECK(allow_macro_instructions());
@@ -1641,7 +1558,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DCHECK(allow_macro_instructions());
     mvni(vd, imm8, shift, shift_amount);
   }
-  inline void Rev(const Register& rd, const Register& rn);
   inline void Smaddl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
   inline void Smsubl(const Register& rd, const Register& rn, const Register& rm,
@@ -2139,6 +2055,76 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                Register feedback_vector, FeedbackSlot slot,
                                Label* on_result, Label::Distance distance);
 
+ protected:
+  // The actual Push and Pop implementations. These don't generate any code
+  // other than that required for the push or pop. This allows
+  // (Push|Pop)CPURegList to bundle together run-time assertions for a large
+  // block of registers.
+  //
+  // Note that size is per register, and is specified in bytes.
+  void PushHelper(int count, int size, const CPURegister& src0,
+                  const CPURegister& src1, const CPURegister& src2,
+                  const CPURegister& src3);
+  void PopHelper(int count, int size, const CPURegister& dst0,
+                 const CPURegister& dst1, const CPURegister& dst2,
+                 const CPURegister& dst3);
+
+  void ConditionalCompareMacro(const Register& rn, const Operand& operand,
+                               StatusFlags nzcv, Condition cond,
+                               ConditionalCompareOp op);
+
+  void AddSubWithCarryMacro(const Register& rd, const Register& rn,
+                            const Operand& operand, FlagsUpdate S,
+                            AddSubWithCarryOp op);
+
+  // Call Printf. On a native build, a simple call will be generated, but if the
+  // simulator is being used then a suitable pseudo-instruction is used. The
+  // arguments and stack must be prepared by the caller as for a normal AAPCS64
+  // call to 'printf'.
+  //
+  // The 'args' argument should point to an array of variable arguments in their
+  // proper PCS registers (and in calling order). The argument registers can
+  // have mixed types. The format string (x0) should not be included.
+  void CallPrintf(int arg_count = 0, const CPURegister* args = nullptr);
+
+ private:
+#if DEBUG
+  // Tell whether any of the macro instruction can be used. When false the
+  // MacroAssembler will assert if a method which can emit a variable number
+  // of instructions is called.
+  bool allow_macro_instructions_ = true;
+#endif
+
+  // Scratch registers available for use by the MacroAssembler.
+  CPURegList tmp_list_ = DefaultTmpList();
+  CPURegList fptmp_list_ = DefaultFPTmpList();
+
+  // Helps resolve branching to labels potentially out of range.
+  // If the label is not bound, it registers the information necessary to later
+  // be able to emit a veneer for this branch if necessary.
+  // If the label is bound, it returns true if the label (or the previous link
+  // in the label chain) is out of range. In that case the caller is responsible
+  // for generating appropriate code.
+  // Otherwise it returns false.
+  // This function also checks wether veneers need to be emitted.
+  bool NeedExtraInstructionsOrRegisterBranch(Label* label,
+                                             ImmBranchType branch_type);
+
+  void Movi16bitHelper(const VRegister& vd, uint64_t imm);
+  void Movi32bitHelper(const VRegister& vd, uint64_t imm);
+  void Movi64bitHelper(const VRegister& vd, uint64_t imm);
+
+  void LoadStoreMacro(const CPURegister& rt, const MemOperand& addr,
+                      LoadStoreOp op);
+
+  void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
+                          const MemOperand& addr, LoadStorePairOp op);
+
+  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                byte* pc);
+
+  void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
@@ -2148,38 +2134,38 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 // emitted is what you specified when creating the scope.
 class V8_NODISCARD InstructionAccurateScope {
  public:
-  explicit InstructionAccurateScope(TurboAssembler* tasm, size_t count = 0)
-      : tasm_(tasm),
-        block_pool_(tasm, count * kInstrSize)
+  explicit InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
+      : masm_(masm),
+        block_pool_(masm, count * kInstrSize)
 #ifdef DEBUG
         ,
         size_(count * kInstrSize)
 #endif
   {
-    tasm_->CheckVeneerPool(false, true, count * kInstrSize);
-    tasm_->StartBlockVeneerPool();
+    masm_->CheckVeneerPool(false, true, count * kInstrSize);
+    masm_->StartBlockVeneerPool();
 #ifdef DEBUG
     if (count != 0) {
-      tasm_->bind(&start_);
+      masm_->bind(&start_);
     }
-    previous_allow_macro_instructions_ = tasm_->allow_macro_instructions();
-    tasm_->set_allow_macro_instructions(false);
+    previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
+    masm_->set_allow_macro_instructions(false);
 #endif
   }
 
   ~InstructionAccurateScope() {
-    tasm_->EndBlockVeneerPool();
+    masm_->EndBlockVeneerPool();
 #ifdef DEBUG
     if (start_.is_bound()) {
-      DCHECK(tasm_->SizeOfCodeGeneratedSince(&start_) == size_);
+      DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
     }
-    tasm_->set_allow_macro_instructions(previous_allow_macro_instructions_);
+    masm_->set_allow_macro_instructions(previous_allow_macro_instructions_);
 #endif
   }
 
  private:
-  TurboAssembler* tasm_;
-  TurboAssembler::BlockConstPoolScope block_pool_;
+  MacroAssembler* masm_;
+  MacroAssembler::BlockConstPoolScope block_pool_;
 #ifdef DEBUG
   size_t size_;
   Label start_;
@@ -2188,7 +2174,7 @@ class V8_NODISCARD InstructionAccurateScope {
 };
 
 // This scope utility allows scratch registers to be managed safely. The
-// TurboAssembler's TmpList() (and FPTmpList()) is used as a pool of scratch
+// MacroAssembler's TmpList() (and FPTmpList()) is used as a pool of scratch
 // registers. These registers can be allocated on demand, and will be returned
 // at the end of the scope.
 //
@@ -2198,9 +2184,9 @@ class V8_NODISCARD InstructionAccurateScope {
 // order as the constructors. We do not have assertions for this.
 class V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(TurboAssembler* tasm)
-      : available_(tasm->TmpList()),
-        availablefp_(tasm->FPTmpList()),
+  explicit UseScratchRegisterScope(MacroAssembler* masm)
+      : available_(masm->TmpList()),
+        availablefp_(masm->FPTmpList()),
         old_available_(available_->bits()),
         old_availablefp_(availablefp_->bits()) {
     DCHECK_EQ(available_->type(), CPURegister::kRegister);

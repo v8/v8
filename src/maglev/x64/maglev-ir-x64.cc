@@ -2342,8 +2342,8 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
   __ bind(&drop_dynamic_arg_size);
   // Drop receiver + arguments according to dynamic arguments size.
-  __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(actual_params_size, r9, MacroAssembler::kCountIsInteger,
+                   MacroAssembler::kCountIncludesReceiver);
   __ Ret();
 }
 

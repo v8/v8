@@ -587,8 +587,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->DropArguments(params_size, scratch,
-                           TurboAssembler::kCountIsInteger,
-                           TurboAssembler::kCountIncludesReceiver);
+                           MacroAssembler::kCountIsInteger,
+                           MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 

@@ -203,7 +203,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   ptrdiff_t jump_distance = reinterpret_cast<byte*>(target) - jump_pc;
   DCHECK_EQ(0, jump_distance % kInstrSize);
   int64_t instr_offset = jump_distance / kInstrSize;
-  if (!TurboAssembler::IsNearCallOffset(instr_offset)) {
+  if (!MacroAssembler::IsNearCallOffset(instr_offset)) {
     return false;
   }
 

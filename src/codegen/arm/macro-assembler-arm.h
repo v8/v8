@@ -43,9 +43,9 @@ enum TargetAddressStorageMode {
   NEVER_INLINE_TARGET_ADDRESS
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using MacroAssemblerBase::MacroAssemblerBase;
 
   // Activation support.
   void EnterFrame(StackFrame::Type type,
@@ -596,49 +596,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void F64x2ConvertLowI32x4U(QwNeonRegister dst, QwNeonRegister src);
   void F64x2PromoteLowF32x4(QwNeonRegister dst, QwNeonRegister src);
 
- private:
-  // Compare single values and then load the fpscr flags to a register.
-  void VFPCompareAndLoadFlags(const SwVfpRegister src1,
-                              const SwVfpRegister src2,
-                              const Register fpscr_flags,
-                              const Condition cond = al);
-  void VFPCompareAndLoadFlags(const SwVfpRegister src1, const float src2,
-                              const Register fpscr_flags,
-                              const Condition cond = al);
-
-  // Compare double values and then load the fpscr flags to a register.
-  void VFPCompareAndLoadFlags(const DwVfpRegister src1,
-                              const DwVfpRegister src2,
-                              const Register fpscr_flags,
-                              const Condition cond = al);
-  void VFPCompareAndLoadFlags(const DwVfpRegister src1, const double src2,
-                              const Register fpscr_flags,
-                              const Condition cond = al);
-
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-
-  // Implementation helpers for FloatMin and FloatMax.
-  template <typename T>
-  void FloatMaxHelper(T result, T left, T right, Label* out_of_line);
-  template <typename T>
-  void FloatMinHelper(T result, T left, T right, Label* out_of_line);
-  template <typename T>
-  void FloatMaxOutOfLineHelper(T result, T left, T right);
-  template <typename T>
-  void FloatMinOutOfLineHelper(T result, T left, T right);
-
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
-
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments);
-};
-
-// MacroAssembler implements a collection of frequently used macros.
-class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
- public:
-  using TurboAssembler::TurboAssembler;
-
   void Mls(Register dst, Register src1, Register src2, Register srcA,
            Condition cond = al);
   void And(Register dst, Register src1, const Operand& src2,
@@ -898,6 +855,42 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeType type);
+
+  // Compare single values and then load the fpscr flags to a register.
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1,
+                              const SwVfpRegister src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1, const float src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+
+  // Compare double values and then load the fpscr flags to a register.
+  void VFPCompareAndLoadFlags(const DwVfpRegister src1,
+                              const DwVfpRegister src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+  void VFPCompareAndLoadFlags(const DwVfpRegister src1, const double src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+
+  // Implementation helpers for FloatMin and FloatMax.
+  template <typename T>
+  void FloatMaxHelper(T result, T left, T right, Label* out_of_line);
+  template <typename T>
+  void FloatMinHelper(T result, T left, T right, Label* out_of_line);
+  template <typename T>
+  void FloatMaxOutOfLineHelper(T result, T left, T right);
+  template <typename T>
+  void FloatMinOutOfLineHelper(T result, T left, T right);
+
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
+
+  void CallCFunctionHelper(Register function, int num_reg_arguments,
+                           int num_double_arguments);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

@@ -397,7 +397,7 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
     if (int_matcher.HasResolvedValue()) {
       ptrdiff_t const delta =
           int_matcher.ResolvedValue() +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), m.ResolvedValue());
       input_count = 1;
       inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
@@ -753,7 +753,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
       if (int_matcher.HasResolvedValue()) {
         ptrdiff_t const delta =
             int_matcher.ResolvedValue() +
-            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector->isolate(), m.ResolvedValue());
         int input_count = 2;
         InstructionOperand inputs[2];

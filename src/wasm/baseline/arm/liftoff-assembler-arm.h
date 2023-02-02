@@ -162,7 +162,7 @@ inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
                          LeaveCC, al);
 }
 
-template <void (TurboAssembler::*op)(Register, Register, Register, Register,
+template <void (MacroAssembler::*op)(Register, Register, Register, Register,
                                      Register),
           bool is_left_shift>
 inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
@@ -184,7 +184,7 @@ inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
   Register* later_src_reg = is_left_shift ? &src_low : &src_high;
   if (*later_src_reg == clobbered_dst_reg) {
     *later_src_reg = assm->GetUnusedRegister(kGpReg, pinned).gp();
-    assm->TurboAssembler::Move(*later_src_reg, clobbered_dst_reg);
+    assm->MacroAssembler::Move(*later_src_reg, clobbered_dst_reg);
   }
 
   (assm->*op)(dst_low, dst_high, src_low, src_high, amount_capped);
@@ -210,14 +210,14 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
                               MinOrMax min_or_max) {
   DCHECK(RegisterType::kSizeInBytes == 4 || RegisterType::kSizeInBytes == 8);
   if (lhs == rhs) {
-    assm->TurboAssembler::Move(dst, lhs);
+    assm->MacroAssembler::Move(dst, lhs);
     return;
   }
   Label done, is_nan;
   if (min_or_max == MinOrMax::kMin) {
-    assm->TurboAssembler::FloatMin(dst, lhs, rhs, &is_nan);
+    assm->MacroAssembler::FloatMin(dst, lhs, rhs, &is_nan);
   } else {
-    assm->TurboAssembler::FloatMax(dst, lhs, rhs, &is_nan);
+    assm->MacroAssembler::FloatMax(dst, lhs, rhs, &is_nan);
   }
   assm->b(&done);
   assm->bind(&is_nan);
@@ -547,7 +547,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   bind(&continuation);
 
   // Now allocate the stack space. Note that this might do more than just
-  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  // decrementing the SP; consult {MacroAssembler::AllocateStackSpace}.
   AllocateStackSpace(frame_size);
 
   // Jump back to the start of the function, from {pc_offset()} to
@@ -584,14 +584,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
     case kI32:
-      TurboAssembler::Move(reg.gp(), Operand(value.to_i32(), rmode));
+      MacroAssembler::Move(reg.gp(), Operand(value.to_i32(), rmode));
       break;
     case kI64: {
       DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      TurboAssembler::Move(reg.low_gp(), Operand(low_word));
-      TurboAssembler::Move(reg.high_gp(), Operand(high_word));
+      MacroAssembler::Move(reg.low_gp(), Operand(low_word));
+      MacroAssembler::Move(reg.high_gp(), Operand(high_word));
       break;
     }
     case kF32:
@@ -1450,7 +1450,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   DCHECK(kind == kI32 || is_reference(kind));
-  TurboAssembler::Move(dst, src);
+  MacroAssembler::Move(dst, src);
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
@@ -1828,7 +1828,7 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
-  liftoff::I64Shiftop<&TurboAssembler::LslPair, true>(this, dst, src, amount);
+  liftoff::I64Shiftop<&MacroAssembler::LslPair, true>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
@@ -1843,7 +1843,7 @@ void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
-  liftoff::I64Shiftop<&TurboAssembler::AsrPair, false>(this, dst, src, amount);
+  liftoff::I64Shiftop<&MacroAssembler::AsrPair, false>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
@@ -1858,7 +1858,7 @@ void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
-  liftoff::I64Shiftop<&TurboAssembler::LsrPair, false>(this, dst, src, amount);
+  liftoff::I64Shiftop<&MacroAssembler::LsrPair, false>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
@@ -2085,7 +2085,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
-      TurboAssembler::Move(dst.gp(), src.low_gp());
+      MacroAssembler::Move(dst.gp(), src.low_gp());
       return true;
     case kExprI32SConvertF32: {
       UseScratchRegisterScope temps(this);
@@ -2272,7 +2272,7 @@ void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  TurboAssembler::Move(dst.low_gp(), src.low_gp());
+  MacroAssembler::Move(dst.low_gp(), src.low_gp());
   mov(dst.high_gp(), Operand(src.low_gp(), ASR, 31));
 }
 
@@ -2472,7 +2472,7 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     } else if (memtype == MachineType::Int64()) {
       vld1(Neon32, NeonListOperand(dst.low_fp()),
            NeonMemOperand(actual_src_addr));
-      TurboAssembler::Move(dst.high_fp(), dst.low_fp());
+      MacroAssembler::Move(dst.high_fp(), dst.low_fp());
     }
   }
 }
@@ -2484,13 +2484,13 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   UseScratchRegisterScope temps(this);
   Register actual_src_addr = liftoff::CalculateActualAddress(
       this, &temps, addr, offset_reg, offset_imm);
-  TurboAssembler::Move(liftoff::GetSimd128Register(dst),
+  MacroAssembler::Move(liftoff::GetSimd128Register(dst),
                        liftoff::GetSimd128Register(src));
   *protected_load_pc = pc_offset();
   LoadStoreLaneParams load_params(type.mem_type().representation(), laneidx);
   NeonListOperand dst_op =
       NeonListOperand(load_params.low_op ? dst.low_fp() : dst.high_fp());
-  TurboAssembler::LoadLane(load_params.sz, dst_op, load_params.laneidx,
+  MacroAssembler::LoadLane(load_params.sz, dst_op, load_params.laneidx,
                            NeonMemOperand(actual_src_addr));
 }
 
@@ -2506,7 +2506,7 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
   LoadStoreLaneParams store_params(type.mem_rep(), laneidx);
   NeonListOperand src_op =
       NeonListOperand(store_params.low_op ? src.low_fp() : src.high_fp());
-  TurboAssembler::StoreLane(store_params.sz, src_op, store_params.laneidx,
+  MacroAssembler::StoreLane(store_params.sz, src_op, store_params.laneidx,
                             NeonMemOperand(actual_dst_addr));
 }
 
@@ -2519,7 +2519,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   if (dst == lhs) {
     // dst will be overwritten, so keep the table somewhere else.
     QwNeonRegister tbl = temps.AcquireQ();
-    TurboAssembler::Move(tbl, liftoff::GetSimd128Register(lhs));
+    MacroAssembler::Move(tbl, liftoff::GetSimd128Register(lhs));
     table = NeonListOperand(tbl);
   }
 
@@ -2564,8 +2564,8 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  TurboAssembler::Move(dst.low_fp(), src.fp());
-  TurboAssembler::Move(dst.high_fp(), src.fp());
+  MacroAssembler::Move(dst.low_fp(), src.fp());
+  MacroAssembler::Move(dst.high_fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
@@ -4243,7 +4243,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   // Asserts unreachable within the wasm code.
-  TurboAssembler::AssertUnreachable(reason);
+  MacroAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

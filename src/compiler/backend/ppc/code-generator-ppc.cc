@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define __ tasm()->
+#define __ masm()->
 
 #define kScratchReg r11
 
@@ -170,7 +170,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
+    ConstantPoolUnavailableScope constant_pool_unavailable(masm());
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTaggedPointer(value_, value_);
     }
@@ -409,7 +409,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 
 #define ASSEMBLE_FLOAT_MODULO()                                             \
   do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
     __ PrepareCallCFunction(0, 2, kScratchReg);                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
                             i.InputDoubleRegister(1));                      \
@@ -422,7 +422,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                              \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 1, kScratchReg);                                \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
@@ -435,7 +435,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                              \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 2, kScratchReg);                                \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
@@ -680,20 +680,20 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 namespace {
 
-void FlushPendingPushRegisters(TurboAssembler* tasm,
+void FlushPendingPushRegisters(MacroAssembler* masm,
                                FrameAccessState* frame_access_state,
                                ZoneVector<Register>* pending_pushes) {
   switch (pending_pushes->size()) {
     case 0:
       break;
     case 1:
-      tasm->Push((*pending_pushes)[0]);
+      masm->Push((*pending_pushes)[0]);
       break;
     case 2:
-      tasm->Push((*pending_pushes)[0], (*pending_pushes)[1]);
+      masm->Push((*pending_pushes)[0], (*pending_pushes)[1]);
       break;
     case 3:
-      tasm->Push((*pending_pushes)[0], (*pending_pushes)[1],
+      masm->Push((*pending_pushes)[0], (*pending_pushes)[1],
                  (*pending_pushes)[2]);
       break;
     default:
@@ -704,7 +704,7 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
 }
 
 void AdjustStackPointerForTailCall(
-    TurboAssembler* tasm, FrameAccessState* state, int new_slot_above_sp,
+    MacroAssembler* masm, FrameAccessState* state, int new_slot_above_sp,
     ZoneVector<Register>* pending_pushes = nullptr,
     bool allow_shrinkage = true) {
   int current_sp_offset = state->GetSPToFPSlotCount() +
@@ -712,15 +712,15 @@ void AdjustStackPointerForTailCall(
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
     if (pending_pushes != nullptr) {
-      FlushPendingPushRegisters(tasm, state, pending_pushes);
+      FlushPendingPushRegisters(masm, state, pending_pushes);
     }
-    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
+    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
-      FlushPendingPushRegisters(tasm, state, pending_pushes);
+      FlushPendingPushRegisters(masm, state, pending_pushes);
     }
-    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
+    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -742,7 +742,7 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
           LocationOperand::cast(move->destination()));
       InstructionOperand source(move->source());
       AdjustStackPointerForTailCall(
-          tasm(), frame_access_state(),
+          masm(), frame_access_state(),
           destination_location.index() - pending_pushes.size(),
           &pending_pushes);
       // Pushes of non-register data types are not supported.
@@ -752,20 +752,20 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
       // TODO(arm): We can push more than 3 registers at once. Add support in
       // the macro-assembler for pushing a list of registers.
       if (pending_pushes.size() == 3) {
-        FlushPendingPushRegisters(tasm(), frame_access_state(),
+        FlushPendingPushRegisters(masm(), frame_access_state(),
                                   &pending_pushes);
       }
       move->Eliminate();
     }
-    FlushPendingPushRegisters(tasm(), frame_access_state(), &pending_pushes);
+    FlushPendingPushRegisters(masm(), frame_access_state(), &pending_pushes);
   }
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset, nullptr, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_slot_offset) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset);
 }
 
@@ -810,7 +810,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   switch (opcode) {
     case kArchCallCodeObject: {
       v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
-          tasm());
+          masm());
       if (HasRegisterInput(instr, 0)) {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
@@ -883,7 +883,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         // We cannot use the constant pool to load the target since
         // we've already restored the caller's frame.
-        ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
+        ConstantPoolUnavailableScope constant_pool_unavailable(masm());
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -904,7 +904,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
-          tasm());
+          masm());
       Register func = i.InputRegister(0);
       if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
@@ -1058,7 +1058,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
+        FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
         __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
@@ -3320,7 +3320,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     AssembleDeconstructFrame();
   }
   // Constant pool is unavailable since the frame has been destructed
-  ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
+  ConstantPoolUnavailableScope constant_pool_unavailable(masm());
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver).
     // The number of arguments without the receiver is
@@ -3334,8 +3334,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
       __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);
     }
-    __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
-                     TurboAssembler::kCountIncludesReceiver);
+    __ DropArguments(argc_reg, MacroAssembler::kCountIsInteger,
+                     MacroAssembler::kCountIncludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);
@@ -3391,7 +3391,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
   frame_access_state()->IncreaseSPDelta(-new_slots);
   PPCOperandConverter g(this, nullptr);
   if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ Pop(scratch);
     __ StoreU64(scratch, g.ToMemOperand(dest), r0);

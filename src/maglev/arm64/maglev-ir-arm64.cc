@@ -2302,7 +2302,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // Drop receiver + arguments according to dynamic arguments size.
-  __ DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, MacroAssembler::kCountIncludesReceiver);
   __ Ret();
 }
 

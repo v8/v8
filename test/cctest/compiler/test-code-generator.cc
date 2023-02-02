@@ -1147,7 +1147,7 @@ class CodeGeneratorTester {
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
-    generator_->tasm()->CodeEntry();
+    generator_->masm()->CodeEntry();
 
     // Force a frame to be created.
     generator_->frame_access_state()->MarkHasFrame(true);
@@ -1239,10 +1239,10 @@ class CodeGeneratorTester {
 
   void CheckAssembleMove(InstructionOperand* source,
                          InstructionOperand* destination) {
-    int start = generator_->tasm()->pc_offset();
+    int start = generator_->masm()->pc_offset();
     generator_->AssembleMove(MaybeTranslateSlot(source),
                              MaybeTranslateSlot(destination));
-    CHECK(generator_->tasm()->pc_offset() > start);
+    CHECK(generator_->masm()->pc_offset() > start);
   }
 
   void CheckAssembleMoves(ParallelMove* moves) {
@@ -1255,15 +1255,15 @@ class CodeGeneratorTester {
 
   void CheckAssembleSwap(InstructionOperand* source,
                          InstructionOperand* destination) {
-    int start = generator_->tasm()->pc_offset();
+    int start = generator_->masm()->pc_offset();
     generator_->AssembleSwap(MaybeTranslateSlot(source),
                              MaybeTranslateSlot(destination));
-    CHECK(generator_->tasm()->pc_offset() > start);
+    CHECK(generator_->masm()->pc_offset() > start);
   }
 
   Handle<Code> Finalize() {
     generator_->FinishCode();
-    generator_->safepoints()->Emit(generator_->tasm(),
+    generator_->safepoints()->Emit(generator_->masm(),
                                    frame_.GetTotalFrameSlotCount());
     generator_->MaybeEmitOutOfLineConstantPool();
 

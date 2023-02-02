@@ -819,7 +819,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
         Instr instr_b = REGIMM | BGEZAL;  // Branch and link.
         instr_b = SetBranchOffset(pos, target_pos, instr_b);
         // Correct ra register to point to one instruction after jalr from
-        // TurboAssembler::BranchAndLinkLong.
+        // MacroAssembler::BranchAndLinkLong.
         Instr instr_a = DADDIU | ra.code() << kRsShift | ra.code() << kRtShift |
                         kOptimizedBranchAndLinkLongReturnOffset;
 

@@ -294,7 +294,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Adjust ra register in branch delay slot of bal instruction so to skip
   // instructions not needed after optimization of PIC in
-  // TurboAssembler::BranchAndLink method.
+  // MacroAssembler::BranchAndLink method.
 
   static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 4 * kInstrSize;
 

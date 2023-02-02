@@ -112,8 +112,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(t3, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver, t3);
+  __ DropArguments(t3, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver, t3);
   __ Ret();
 }
 
@@ -267,8 +267,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(a1, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver, a4);
+  __ DropArguments(a1, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver, a4);
   __ Ret();
 
   __ bind(&check_receiver);
@@ -804,8 +804,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1320,7 +1320,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
 
   // Push the arguments.
   __ PushArray(start_address, num_args, scratch, scratch2,
-               TurboAssembler::PushArrayOrder::kReverse);
+               MacroAssembler::PushArrayOrder::kReverse);
 }
 
 // static
@@ -1784,8 +1784,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Movz(arg_array, undefined_value, scratch);  // if argc == 1
     __ Ld(receiver, MemOperand(sp));
     __ DropArgumentsAndPushNewReceiver(argc, this_arg,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1881,8 +1881,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Movz(arguments_list, undefined_value, scratch);  // if argc == 2
 
     __ DropArgumentsAndPushNewReceiver(argc, this_argument,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1941,8 +1941,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ Movz(new_target, target, scratch);               // if argc == 2
 
     __ DropArgumentsAndPushNewReceiver(argc, undefined_value,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------

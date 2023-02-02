@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/assembler-inl.h"
+#include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
@@ -12,33 +12,33 @@
 namespace v8 {
 namespace internal {
 
-#define __ tasm.
+#define __ masm.
 
-// Test the x64 assembler by compiling some simple functions into
+// Test the loong64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
-class TurboAssemblerTest : public TestWithIsolate {};
+class MacroAssemblerTest : public TestWithIsolate {};
 
-TEST_F(TurboAssemblerTest, TestHardAbort) {
+TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
-  tasm.GetCode(nullptr, &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
-TEST_F(TurboAssemblerTest, TestCheck) {
+TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -48,7 +48,7 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   __ Ret();
 
   CodeDesc desc;
-  tasm.GetCode(nullptr, &desc);
+  masm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());

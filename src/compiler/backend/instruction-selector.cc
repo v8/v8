@@ -451,7 +451,7 @@ bool InstructionSelector::CanAddressRelativeToRootsRegister(
   // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
   //    have a fixed root-relative offset? If so, we can ignore 2.
   const bool this_root_relative_offset_is_constant =
-      TurboAssemblerBase::IsAddressableThroughRootRegister(isolate(),
+      MacroAssemblerBase::IsAddressableThroughRootRegister(isolate(),
                                                            reference);
   return this_root_relative_offset_is_constant;
 }

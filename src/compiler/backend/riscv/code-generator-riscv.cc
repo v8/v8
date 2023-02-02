@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define __ tasm()->
+#define __ masm()->
 
 // TODO(plind): consider renaming these macros.
 #define TRACE_MSG(msg)                                                      \
@@ -334,7 +334,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr, external)  \
   do {                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);           \
+    FrameScope scope(masm(), StackFrame::MANUAL);           \
     __ AddWord(a0, i.InputRegister(0), i.InputRegister(1)); \
     __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
     __ PrepareCallCFunction(3, 0, kScratchReg);             \
@@ -344,7 +344,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr, external)  \
   do {                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);           \
+    FrameScope scope(masm(), StackFrame::MANUAL);           \
     __ AddWord(a0, i.InputRegister(0), i.InputRegister(1)); \
     __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
     __ PrepareCallCFunction(3, 0, kScratchReg);             \
@@ -473,7 +473,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
   do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
     __ PrepareCallCFunction(0, 2, kScratchReg);                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
                             i.InputDoubleRegister(1));                      \
@@ -484,7 +484,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_IEEE754_UNOP(name)                                         \
   do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
     __ PrepareCallCFunction(0, 1, kScratchReg);                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                       \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
@@ -582,7 +582,7 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 
 namespace {
 
-void AdjustStackPointerForTailCall(TurboAssembler* tasm,
+void AdjustStackPointerForTailCall(MacroAssembler* masm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -590,10 +590,10 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    tasm->SubWord(sp, sp, stack_slot_delta * kSystemPointerSize);
+    masm->SubWord(sp, sp, stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    tasm->AddWord(sp, sp, -stack_slot_delta * kSystemPointerSize);
+    masm->AddWord(sp, sp, -stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -602,13 +602,13 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
                                               int first_unused_slot_offset) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_slot_offset) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset);
 }
 
@@ -829,7 +829,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
+        FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
         __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
@@ -1295,7 +1295,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvModS: {
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ PrepareCallCFunction(0, 2, kScratchReg);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
@@ -1425,7 +1425,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvModD: {
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ PrepareCallCFunction(0, 2, kScratchReg);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
@@ -1940,7 +1940,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad: {
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ AddWord(a0, i.InputRegister(0), i.InputRegister(1));
       __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
       __ PrepareCallCFunction(1, 0, kScratchReg);
@@ -1949,7 +1949,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvWord32AtomicPairStore: {
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ AddWord(a0, i.InputRegister(0), i.InputRegister(1));
       __ PushCallerSaved(SaveFPRegsMode::kIgnore);
       __ PrepareCallCFunction(3, 0, kScratchReg);
@@ -1972,7 +1972,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC64_BINOP_LOGIC_CASE(Or, OrPair, atomic_pair_or_function)
       ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair, atomic_pair_xor_function)
     case kRiscvWord32AtomicPairExchange: {
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
       __ PrepareCallCFunction(3, 0, kScratchReg);
       __ AddWord(a0, i.InputRegister(0), i.InputRegister(1));
@@ -1982,7 +1982,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvWord32AtomicPairCompareExchange: {
-      FrameScope scope(tasm(), StackFrame::MANUAL);
+      FrameScope scope(masm(), StackFrame::MANUAL);
       __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
       __ PrepareCallCFunction(5, 0, kScratchReg);
       __ add(a0, i.InputRegister(0), i.InputRegister(1));
@@ -3711,11 +3711,11 @@ bool IsInludeEqual(Condition cc) {
   }
 }
 
-void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
+void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
 #undef __
-#define __ tasm->
+#define __ masm->
   RiscvOperandConverter i(gen, instr);
 
   // RISC-V does not have condition code flags, so compare and branch are
@@ -3806,7 +3806,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   }
   if (!fallthru) __ Branch(flabel);  // no fallthru to flabel.
 #undef __
-#define __ tasm()->
+#define __ masm()->
 }
 
 // Assembles branches after an instruction.
@@ -3814,7 +3814,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
 
-  AssembleBranchToLabels(this, tasm(), instr, branch->condition, tlabel, flabel,
+  AssembleBranchToLabels(this, masm(), instr, branch->condition, tlabel, flabel,
                          branch->fallthru);
 }
 
@@ -3878,7 +3878,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   };
   auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
-  AssembleBranchToLabels(this, tasm(), instr, condition, tlabel, nullptr, true);
+  AssembleBranchToLabels(this, masm(), instr, condition, tlabel, nullptr, true);
 }
 
 // Assembles boolean materializations after an instruction.
@@ -4373,7 +4373,7 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
                                        MachineRepresentation rep) {
   // Must be kept in sync with {MoveTempLocationTo}.
   DCHECK(!source->IsImmediate());
-  move_cycle_.temps.emplace(tasm());
+  move_cycle_.temps.emplace(masm());
   auto& temps = *move_cycle_.temps;
   // Temporarily exclude the reserved scratch registers while we pick one to
   // resolve the move cycle. Re-include them immediately afterwards as they
@@ -4419,7 +4419,7 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
 void CodeGenerator::SetPendingMove(MoveOperands* move) {
   InstructionOperand* src = &move->source();
   InstructionOperand* dst = &move->destination();
-  UseScratchRegisterScope temps(tasm());
+  UseScratchRegisterScope temps(masm());
   if (src->IsConstant() && dst->IsFPLocationOperand()) {
     Register temp = temps.Acquire();
     move_cycle_.scratch_regs.set(temp);
@@ -4748,7 +4748,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
           }
         }
 #endif
-        UseScratchRegisterScope scope(tasm());
+        UseScratchRegisterScope scope(masm());
         Register temp_0 = kScratchReg;
         Register temp_1 = kScratchReg2;
         __ LoadWord(temp_0, src);
@@ -4775,7 +4775,7 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
     __ Push(g.ToRegister(source));
     frame_access_state()->IncreaseSPDelta(new_slots);
   } else if (source->IsStackSlot()) {
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ LoadWord(scratch, g.ToMemOperand(source));
     __ Push(scratch);
@@ -4798,7 +4798,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
   if (dest->IsRegister()) {
     __ Pop(g.ToRegister(dest));
   } else if (dest->IsStackSlot()) {
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ Pop(scratch);
     __ StoreWord(scratch, g.ToMemOperand(dest));

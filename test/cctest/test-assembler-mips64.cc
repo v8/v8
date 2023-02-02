@@ -6195,11 +6195,11 @@ TEST(Trampoline_with_massive_unbound_labels) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   const int kNumSlots =
-      TurboAssembler::kMaxBranchOffset / TurboAssembler::kTrampolineSlotsSize;
+      MacroAssembler::kMaxBranchOffset / MacroAssembler::kTrampolineSlotsSize;
   Label labels[kNumSlots];
 
   {
-    TurboAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
+    MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
     for (int i = 0; i < kNumSlots; i++) {
       __ Branch(&labels[i]);
     }
@@ -6218,12 +6218,12 @@ TEST(Call_with_trampoline) {
 
   int next_buffer_check_ = v8_flags.force_long_branches
                                ? kMaxInt
-                               : TurboAssembler::kMaxBranchOffset -
-                                     TurboAssembler::kTrampolineSlotsSize * 16;
+                               : MacroAssembler::kMaxBranchOffset -
+                                     MacroAssembler::kTrampolineSlotsSize * 16;
 
   Label done;
   __ Branch(&done);
-  next_buffer_check_ -= TurboAssembler::kTrampolineSlotsSize;
+  next_buffer_check_ -= MacroAssembler::kTrampolineSlotsSize;
 
   int num_nops = (next_buffer_check_ - __ pc_offset()) / kInstrSize - 1;
   for (int i = 0; i < num_nops; i++) {

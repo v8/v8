@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CODEGEN_TURBO_ASSEMBLER_H_
-#define V8_CODEGEN_TURBO_ASSEMBLER_H_
+#ifndef V8_CODEGEN_MACRO_ASSEMBLER_BASE_H_
+#define V8_CODEGEN_MACRO_ASSEMBLER_BASE_H_
 
 #include <memory>
 
@@ -15,30 +15,24 @@
 namespace v8 {
 namespace internal {
 
-// Common base class for platform-specific TurboAssemblers containing
+// Common base class for platform-specific MacroAssemblers containing
 // platform-independent bits.
-// You will encounter two subclasses, TurboAssembler (derives from
-// TurboAssemblerBase), and MacroAssembler (derives from TurboAssembler). The
-// main difference is that MacroAssembler is allowed to access the isolate, and
-// TurboAssembler accesses the isolate in a very limited way. TurboAssembler
-// contains all the functionality that is used by Turbofan, and does not expect
-// to be running on the main thread.
-class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
+// TODO(victorgomes): We should use LocalIsolate instead of Isolate in the
+// methods of this class.
+class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
  public:
   // Constructors are declared public to inherit them in derived classes
   // with `using` directive.
-  TurboAssemblerBase(Isolate* isolate, CodeObjectRequired create_code_object,
+  MacroAssemblerBase(Isolate* isolate, CodeObjectRequired create_code_object,
                      std::unique_ptr<AssemblerBuffer> buffer = {})
-      : TurboAssemblerBase(isolate, AssemblerOptions::Default(isolate),
+      : MacroAssemblerBase(isolate, AssemblerOptions::Default(isolate),
                            create_code_object, std::move(buffer)) {}
 
-  TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
+  MacroAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
                      CodeObjectRequired create_code_object,
                      std::unique_ptr<AssemblerBuffer> buffer = {});
 
-  Isolate* isolate() const {
-    return isolate_;
-  }
+  Isolate* isolate() const { return isolate_; }
 
   Handle<HeapObject> CodeObject() const {
     DCHECK(!code_object_.is_null());
@@ -135,25 +129,25 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 
   int comment_depth_ = 0;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TurboAssemblerBase);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssemblerBase);
 };
 
 // Avoids emitting calls to the {Builtin::kAbort} builtin when emitting
 // debug code during the lifetime of this scope object.
 class V8_NODISCARD HardAbortScope {
  public:
-  explicit HardAbortScope(TurboAssemblerBase* assembler)
+  explicit HardAbortScope(MacroAssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->should_abort_hard()) {
     assembler_->set_abort_hard(true);
   }
   ~HardAbortScope() { assembler_->set_abort_hard(old_value_); }
 
  private:
-  TurboAssemblerBase* assembler_;
+  MacroAssemblerBase* assembler_;
   bool old_value_;
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CODEGEN_TURBO_ASSEMBLER_H_
+#endif  // V8_CODEGEN_MACRO_ASSEMBLER_BASE_H_

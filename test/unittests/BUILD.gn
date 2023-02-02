@@ -635,7 +635,7 @@ v8_source_set("unittests_sources") {
   if (v8_current_cpu == "arm") {
     sources += [
       "assembler/disasm-arm-unittest.cc",
-      "assembler/turbo-assembler-arm-unittest.cc",
+      "assembler/macro-assembler-arm-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
@@ -644,7 +644,6 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/disasm-arm64-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
-      "assembler/turbo-assembler-arm64-unittest.cc",
       "codegen/pointer-auth-arm64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
@@ -656,7 +655,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "x86") {
     sources += [
       "assembler/disasm-ia32-unittest.cc",
-      "assembler/turbo-assembler-ia32-unittest.cc",
+      "assembler/macro-assembler-ia32-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
@@ -664,7 +663,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
       "assembler/disasm-mips64-unittest.cc",
-      "assembler/turbo-assembler-mips64-unittest.cc",
+      "assembler/macro-assembler-mips64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/mips64/instruction-selector-mips64-unittest.cc" ]
@@ -672,7 +671,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/turbo-assembler-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/riscv64/instruction-selector-riscv64-unittest.cc" ]
@@ -680,7 +679,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/turbo-assembler-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/riscv32/instruction-selector-riscv32-unittest.cc" ]
@@ -690,7 +689,6 @@ v8_source_set("unittests_sources") {
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
-      "assembler/turbo-assembler-x64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
@@ -701,7 +699,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
       "assembler/disasm-ppc-unittest.cc",
-      "assembler/turbo-assembler-ppc-unittest.cc",
+      "assembler/macro-assembler-ppc-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
@@ -709,7 +707,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
       "assembler/disasm-s390-unittest.cc",
-      "assembler/turbo-assembler-s390-unittest.cc",
+      "assembler/macro-assembler-s390-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
@@ -717,7 +715,7 @@ v8_source_set("unittests_sources") {
   } else if (v8_current_cpu == "loong64") {
     sources += [
       "assembler/disasm-loong64-unittest.cc",
-      "assembler/turbo-assembler-loong64-unittest.cc",
+      "assembler/macro-assembler-loong64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/loong64/instruction-selector-loong64-unittest.cc" ]

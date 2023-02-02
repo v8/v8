@@ -188,7 +188,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void RecordSafepoint(ReferenceMap* references);
 
   Zone* zone() const { return zone_; }
-  TurboAssembler* tasm() { return &tasm_; }
+  MacroAssembler* masm() { return &masm_; }
   SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
   size_t handler_table_offset() const { return handler_table_offset_; }
 
@@ -448,7 +448,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   RpoNumber current_block_;
   SourcePosition start_source_position_;
   SourcePosition current_source_position_;
-  TurboAssembler tasm_;
+  MacroAssembler masm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;

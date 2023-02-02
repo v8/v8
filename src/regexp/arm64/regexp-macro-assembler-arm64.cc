@@ -814,7 +814,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   DCHECK_EQ(registers_to_retain.Count(), kNumCalleeSavedRegisters);
 
   __ PushCPURegList(registers_to_retain);
-  __ Push<TurboAssembler::kSignLR>(lr, fp);
+  __ Push<MacroAssembler::kSignLR>(lr, fp);
   __ PushCPURegList(argument_registers);
 
   // Set frame pointer in place.
@@ -1125,7 +1125,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
   // Set stack pointer back to first register to retain.
   __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+  __ Pop<MacroAssembler::kAuthLR>(fp, lr);
 
   // Restore registers.
   __ PopCPURegList(registers_to_retain);
@@ -1656,14 +1656,14 @@ void RegExpMacroAssemblerARM64::CallIf(Label* to, Condition condition) {
 void RegExpMacroAssemblerARM64::RestoreLinkRegister() {
   // TODO(v8:10026): Remove when we stop compacting for code objects that are
   // active on the call stack.
-  __ Pop<TurboAssembler::kAuthLR>(padreg, lr);
+  __ Pop<MacroAssembler::kAuthLR>(padreg, lr);
   __ Add(lr, lr, Operand(masm_->CodeObject()));
 }
 
 
 void RegExpMacroAssemblerARM64::SaveLinkRegister() {
   __ Sub(lr, lr, Operand(masm_->CodeObject()));
-  __ Push<TurboAssembler::kSignLR>(lr, padreg);
+  __ Push<MacroAssembler::kSignLR>(lr, padreg);
 }
 
 
