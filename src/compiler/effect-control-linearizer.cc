@@ -1851,7 +1851,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedSigned);
 
   Node* check = ObjectIsSmi(value);
   __ GotoIfNot(check, &if_not_smi);
