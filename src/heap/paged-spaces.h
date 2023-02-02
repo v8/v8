@@ -291,7 +291,9 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     base::Optional<base::MutexGuard> guard_;
   };
 
-  bool SupportsConcurrentAllocation() const { return !is_compaction_space(); }
+  bool SupportsConcurrentAllocation() const {
+    return !is_compaction_space() && (identity() != NEW_SPACE);
+  }
 
   // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit);
