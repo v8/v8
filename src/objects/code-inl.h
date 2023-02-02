@@ -1416,15 +1416,50 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, ByteArray) {
   return roots.empty_byte_array();
 }
 
+DEF_GETTER(BytecodeArray, raw_constant_pool, Object) {
+  Object value =
+      TaggedField<Object>::load(cage_base, *this, kConstantPoolOffset);
+  // This field might be 0 during deserialization.
+  DCHECK(value == Smi::zero() || value.IsFixedArray());
+  return value;
+}
+
+DEF_GETTER(BytecodeArray, raw_handler_table, Object) {
+  Object value =
+      TaggedField<Object>::load(cage_base, *this, kHandlerTableOffset);
+  // This field might be 0 during deserialization.
+  DCHECK(value == Smi::zero() || value.IsByteArray());
+  return value;
+}
+
+DEF_GETTER(BytecodeArray, raw_source_position_table, Object) {
+  Object value =
+      TaggedField<Object>::load(cage_base, *this, kSourcePositionTableOffset);
+  // This field might be 0 during deserialization.
+  DCHECK(value == Smi::zero() || value.IsByteArray() || value.IsUndefined() ||
+         value.IsException());
+  return value;
+}
+
 int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 
 DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
-  size += constant_pool(cage_base).Size(cage_base);
-  size += handler_table(cage_base).Size();
-  ByteArray table = SourcePositionTable(cage_base);
-  if (table.length() != 0) {
-    size += table.Size();
+  Object maybe_constant_pool = raw_constant_pool(cage_base);
+  if (maybe_constant_pool.IsFixedArray()) {
+    size += FixedArray::cast(maybe_constant_pool).Size(cage_base);
+  } else {
+    DCHECK_EQ(maybe_constant_pool, Smi::zero());
+  }
+  Object maybe_handler_table = raw_handler_table(cage_base);
+  if (maybe_handler_table.IsByteArray()) {
+    size += ByteArray::cast(maybe_handler_table).Size();
+  } else {
+    DCHECK_EQ(maybe_handler_table, Smi::zero());
+  }
+  Object maybe_table = raw_source_position_table(cage_base);
+  if (maybe_table.IsByteArray()) {
+    size += ByteArray::cast(maybe_table).Size();
   }
   return size;
 }

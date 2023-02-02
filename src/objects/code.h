@@ -1068,6 +1068,11 @@ class BytecodeArray
   // this will return empty_byte_array.
   DECL_GETTER(SourcePositionTable, ByteArray)
 
+  // Raw accessors to access these fields during code cache deserialization.
+  DECL_GETTER(raw_constant_pool, Object)
+  DECL_GETTER(raw_handler_table, Object)
+  DECL_GETTER(raw_source_position_table, Object)
+
   // Indicates that an attempt was made to collect source positions, but that it
   // failed most likely due to stack exhaustion. When in this state
   // |SourcePositionTable| will return an empty byte array rather than crashing
