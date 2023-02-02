@@ -15,6 +15,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
 #include "src/codegen/cpu-features.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #include "src/snapshot/snapshot.h"
@@ -293,6 +294,8 @@ int main(int argc, char** argv) {
 
       if (i::v8_flags.static_roots_src) {
         i::StaticRootsTableGen::write(i_isolate, i::v8_flags.static_roots_src);
+      } else if (V8_STATIC_ROOTS_BOOL) {
+        i::StaticRootsTableGen::VerifyRanges(i_isolate);
       }
     }
 

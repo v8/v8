@@ -79,12 +79,15 @@ Address V8HeapCompressionScheme::DecompressTaggedPointer(
   // For V8_ASSUME_ALIGNED to be considered for optimizations the following
   // addition has to happen on a pointer type.
   Address result = reinterpret_cast<Address>(cage_base + raw_value);
-  V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
-  return result;
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-  return cage_base + static_cast<Address>(raw_value);
+  Address result = cage_base + static_cast<Address>(raw_value);
 #endif
+  // Allows to remove compress(decompress(...))
+  V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
+  // Allows to remove SMI checks when the result is compared against a constant.
+  V8_ASSUME(HAS_SMI_TAG(result) == HAS_SMI_TAG(raw_value));
+  return result;
 }
 
 // static
@@ -172,12 +175,15 @@ Address ExternalCodeCompressionScheme::DecompressTaggedPointer(
   // For V8_ASSUME_ALIGNED to be considered for optimizations the following
   // addition has to happen on a pointer type.
   Address result = reinterpret_cast<Address>(cage_base + raw_value);
-  V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
-  return result;
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-  return cage_base + static_cast<Address>(raw_value);
+  Address result = cage_base + static_cast<Address>(raw_value);
 #endif
+  // Allows to remove compress(decompress(...))
+  V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
+  // Allows to remove SMI checks when the result is compared against a constant.
+  V8_ASSUME(HAS_SMI_TAG(result) == HAS_SMI_TAG(raw_value));
+  return result;
 }
 
 // static
