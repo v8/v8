@@ -165,7 +165,7 @@ Operand MacroAssembler::RootAsOperand(RootIndex index) {
 
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    mov_tagged(destination, Immediate(ReadOnlyRootPtr(index)));
+    movq(destination, Immediate(ReadOnlyRootPtr(index)));
     return;
   }
   DCHECK(root_array_available_);
