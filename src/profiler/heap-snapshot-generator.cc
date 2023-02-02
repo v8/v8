@@ -2064,37 +2064,17 @@ class RootsReferencesExtractor : public RootVisitor {
     }
   }
 
-  void VisitRunningCode(FullObjectSlot p) override {
-    // Must match behavior in
-    // MarkCompactCollector::RootMarkingVisitor::VisitRunningCode, which treats
-    // deoptimization literals in running code as stack roots.
-    HeapObject value = HeapObject::cast(*p);
-    if (!IsCodeSpaceObject(value)) {
-      // When external code space is enabled, the slot might contain a
-      // Code object representing an embedded builtin, which
-      // doesn't require additional processing.
-      DCHECK(!Code::cast(value).has_instruction_stream());
-    } else {
-      InstructionStream code = InstructionStream::cast(value);
-      if (code.kind() != CodeKind::BASELINE) {
-        DeoptimizationData deopt_data =
-            DeoptimizationData::cast(code.deoptimization_data());
-        if (deopt_data.length() > 0) {
-          DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
-          int literals_length = literals.length();
-          for (int i = 0; i < literals_length; ++i) {
-            MaybeObject maybe_literal = literals.Get(i);
-            HeapObject heap_literal;
-            if (maybe_literal.GetHeapObject(&heap_literal)) {
-              VisitRootPointer(Root::kStackRoots, nullptr,
-                               FullObjectSlot(&heap_literal));
-            }
-          }
-        }
-      }
+  // Keep this synced with
+  // MarkCompactCollector::RootMarkingVisitor::VisitRunningCode.
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) final {
+    Object istream_or_smi_zero = *istream_or_smi_zero_slot;
+    if (istream_or_smi_zero != Smi::zero()) {
+      InstructionStream istream = InstructionStream::cast(istream_or_smi_zero);
+      istream.IterateDeoptimizationLiterals(this);
+      VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
     }
-    // Finally visit the InstructionStream itself.
-    VisitRootPointer(Root::kStackRoots, nullptr, p);
+    VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
   }
 
  private:

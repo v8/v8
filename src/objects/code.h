@@ -715,6 +715,8 @@ class InstructionStream : public HeapObject {
 
   static inline bool IsWeakObjectInDeoptimizationLiteralArray(Object object);
 
+  inline void IterateDeoptimizationLiterals(RootVisitor* v);
+
   // Returns true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo sfi);
 

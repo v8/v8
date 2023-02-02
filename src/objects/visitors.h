@@ -91,12 +91,14 @@ class RootVisitor {
     UNREACHABLE();
   }
 
-  // Visits a single pointer which is InstructionStream from the execution
-  // stack.
-  virtual void VisitRunningCode(FullObjectSlot p) {
-    // For most visitors, currently running InstructionStream is no different
-    // than any other on-stack pointer.
-    VisitRootPointer(Root::kStackRoots, nullptr, p);
+  // Visits a running Code object and potentially its associated
+  // InstructionStream from the execution stack.
+  virtual void VisitRunningCode(FullObjectSlot code_slot,
+                                FullObjectSlot istream_or_smi_zero_slot) {
+    // For most visitors, currently running code is no different than any other
+    // on-stack pointer.
+    VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
+    VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
   }
 
   // Intended for serialization/deserialization checking: insert, or

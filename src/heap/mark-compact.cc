@@ -1093,39 +1093,24 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     }
   }
 
-  void VisitRunningCode(FullObjectSlot p) final {
-    // If Code is currently executing, then we must not remove its
-    // deoptimization literals, which it might need in order to successfully
-    // deoptimize.
-    //
-    // Must match behavior in RootsReferencesExtractor::VisitRunningCode, so
-    // that heap snapshots accurately describe the roots.
-    HeapObject value = HeapObject::cast(*p);
-    if (!IsCodeSpaceObject(value)) {
-      // The slot might contain a Code object representing an
-      // embedded builtin, which doesn't require additional processing.
-      DCHECK(!Code::cast(value).has_instruction_stream());
-    } else {
-      InstructionStream code = InstructionStream::cast(value);
-      if (code.kind() != CodeKind::BASELINE) {
-        DeoptimizationData deopt_data =
-            DeoptimizationData::cast(code.deoptimization_data());
-        if (deopt_data.length() > 0) {
-          DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
-          int literals_length = literals.length();
-          for (int i = 0; i < literals_length; ++i) {
-            MaybeObject maybe_literal = literals.Get(i);
-            HeapObject heap_literal;
-            if (maybe_literal.GetHeapObject(&heap_literal)) {
-              MarkObjectByPointer(Root::kStackRoots,
-                                  FullObjectSlot(&heap_literal));
-            }
-          }
-        }
-      }
+  // Keep this synced with RootsReferencesExtractor::VisitRunningCode.
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) final {
+    Object istream_or_smi_zero = *istream_or_smi_zero_slot;
+    DCHECK(istream_or_smi_zero == Smi::zero() ||
+           istream_or_smi_zero.IsInstructionStream());
+    DCHECK_EQ(Code::cast(*code_slot).raw_instruction_stream(),
+              istream_or_smi_zero);
+
+    if (istream_or_smi_zero != Smi::zero()) {
+      InstructionStream istream = InstructionStream::cast(istream_or_smi_zero);
+      // We must not remove deoptimization literals which may be needed in
+      // order to successfully deoptimize.
+      istream.IterateDeoptimizationLiterals(this);
+      VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
     }
-    // And then mark the InstructionStream itself.
-    VisitRootPointer(Root::kStackRoots, nullptr, p);
+
+    VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
   }
 
  private:

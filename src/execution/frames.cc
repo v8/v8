@@ -582,37 +582,39 @@ Code StackFrame::LookupCode() const {
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address,
                            GcSafeCode holder) const {
-  if (!holder.has_instruction_stream()) {
-    // The embedded builtins are immovable so there's no need to update PCs on
-    // the stack. Just visit the Code object.
-    Object code = holder.UnsafeCastToCode();
-    v->VisitRunningCode(FullObjectSlot(&code));
+  const Address old_pc = ReadPC(pc_address);
+  DCHECK_GE(old_pc, holder.InstructionStart(isolate(), old_pc));
+  DCHECK_LT(old_pc, holder.InstructionEnd(isolate(), old_pc));
+
+  // Keep the old pc offset before visiting the code since we need it to
+  // calculate the new pc after a potential InstructionStream move.
+  // It's okay to use raw_instruction_start() here since `pc_offset_from_start`
+  // will only be used if `holder` is not a builtin.
+  const uintptr_t pc_offset_from_start =
+      old_pc - holder.raw_instruction_start();
+
+  // Visit.
+  GcSafeCode visited_holder = holder;
+  const Object old_istream = holder.raw_instruction_stream();
+  Object visited_istream = old_istream;
+  v->VisitRunningCode(FullObjectSlot{&visited_holder},
+                      FullObjectSlot{&visited_istream});
+  if (visited_istream == old_istream) {
+    // Note this covers two important cases:
+    // 1. the associated InstructionStream object did not move, and
+    // 2. `holder` is an embedded builtin and has no InstructionStream.
     return;
   }
 
-  InstructionStream unsafe_istream = InstructionStream::unchecked_cast(
-      holder.UnsafeCastToCode().raw_instruction_stream());
+  DCHECK(visited_holder.has_instruction_stream());
 
-  // Keep the old pc (offset) before visiting (and potentially moving) the
-  // InstructionStream.
-  const Address old_pc = ReadPC(pc_address);
-  DCHECK(isolate_->heap()->GcSafeInstructionStreamContains(unsafe_istream,
-                                                           old_pc));
-  const uintptr_t pc_offset = old_pc - unsafe_istream.instruction_start();
-
-  // Visit the InstructionStream.
-  Object visited_unsafe_istream = unsafe_istream;
-  v->VisitRunningCode(FullObjectSlot(&visited_unsafe_istream));
-  if (visited_unsafe_istream == unsafe_istream) return;
-
-  // Take care when accessing unsafe_istream from here on. It may have been
-  // moved.
-  unsafe_istream = InstructionStream::unchecked_cast(visited_unsafe_istream);
-  const Address pc = unsafe_istream.instruction_start() + pc_offset;
+  InstructionStream istream =
+      InstructionStream::unchecked_cast(visited_istream);
+  const Address new_pc = istream.instruction_start() + pc_offset_from_start;
   // TODO(v8:10026): avoid replacing a signed pointer.
-  PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
+  PointerAuthentication::ReplacePC(pc_address, new_pc, kSystemPointerSize);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {
-    *constant_pool_address = unsafe_istream.constant_pool();
+    *constant_pool_address = istream.constant_pool();
   }
 }
 

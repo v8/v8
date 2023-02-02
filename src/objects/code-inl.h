@@ -1103,6 +1103,24 @@ bool InstructionStream::IsWeakObjectInDeoptimizationLiteralArray(
              HeapObject::cast(object));
 }
 
+void InstructionStream::IterateDeoptimizationLiterals(RootVisitor* v) {
+  if (kind() == CodeKind::BASELINE) return;
+
+  auto deopt_data = DeoptimizationData::cast(deoptimization_data());
+  if (deopt_data.length() == 0) return;
+
+  DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
+  const int literals_length = literals.length();
+  for (int i = 0; i < literals_length; ++i) {
+    MaybeObject maybe_literal = literals.Get(i);
+    HeapObject heap_literal;
+    if (maybe_literal.GetHeapObject(&heap_literal)) {
+      v->VisitRootPointer(Root::kStackRoots, "deoptimization literal",
+                          FullObjectSlot(&heap_literal));
+    }
+  }
+}
+
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
 static_assert(FIELD_SIZE(Code::kKindSpecificFlagsOffset) == kInt32Size);

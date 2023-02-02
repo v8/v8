@@ -4775,10 +4775,13 @@ class ClientRootVisitor : public RootVisitor {
     actual_visitor_->VisitRootPointers(root, description, start, end);
   }
 
-  void VisitRunningCode(FullObjectSlot slot) final {
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot maybe_istream_slot) final {
 #if DEBUG
-    HeapObject object = HeapObject::cast(*slot);
-    DCHECK(!object.InSharedWritableHeap());
+    DCHECK(!HeapObject::cast(*code_slot).InSharedWritableHeap());
+    Object maybe_istream = *maybe_istream_slot;
+    DCHECK(maybe_istream == Smi::zero() ||
+           !HeapObject::cast(maybe_istream).InSharedWritableHeap());
 #endif
   }
 
