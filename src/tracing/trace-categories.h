@@ -19,8 +19,7 @@
 // For now most of v8 uses legacy trace events.
 #define PERFETTO_ENABLE_LEGACY_TRACE_EVENTS 1
 
-#include "perfetto/tracing/track_event.h"
-#include "perfetto/tracing/track_event_legacy.h"
+#include "perfetto/tracing.h"
 
 // Trace category prefixes used in tests.
 PERFETTO_DEFINE_TEST_CATEGORY_PREFIXES("v8-cat", "cat", "v8.Test2");

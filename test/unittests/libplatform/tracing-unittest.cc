@@ -11,8 +11,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/tracing/track_event.h"
-#include "perfetto/tracing/track_event_legacy.h"
+#include "perfetto/tracing.h"
 #include "protos/perfetto/trace/trace.pb.h"  // nogncheck
 #include "src/libplatform/tracing/trace-event-listener.h"
 #include "src/tracing/traced-value.h"

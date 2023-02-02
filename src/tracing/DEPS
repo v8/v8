@@ -1,5 +1,4 @@
 include_rules = [
-  "+perfetto/tracing/track_event.h",
-  "+perfetto/tracing/track_event_legacy.h",
+  "+perfetto/tracing.h",
   "+protos/perfetto"
 ]
