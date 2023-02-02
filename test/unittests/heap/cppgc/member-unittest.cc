@@ -65,9 +65,11 @@ struct CustomWriteBarrierPolicy {
   static void InitializingBarrier(const void* slot, const void* value) {
     ++InitializingWriteBarriersTriggered;
   }
+  template <WriteBarrierSlotType>
   static void AssigningBarrier(const void* slot, const void* value) {
     ++AssigningWriteBarriersTriggered;
   }
+  template <WriteBarrierSlotType>
   static void AssigningBarrier(const void* slot, DefaultMemberStorage) {
     ++AssigningWriteBarriersTriggered;
   }

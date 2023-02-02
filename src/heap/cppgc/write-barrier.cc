@@ -226,14 +226,23 @@ bool YoungGenerationEnabler::IsEnabled() {
 #ifdef CPPGC_SLIM_WRITE_BARRIER
 
 // static
+template <WriteBarrierSlotType SlotType>
 void WriteBarrier::CombinedWriteBarrierSlow(const void* slot) {
+  DCHECK_NOT_NULL(slot);
+
+  const void* value = nullptr;
 #if defined(CPPGC_POINTER_COMPRESSION)
-  using MemberStorage = CompressedPointer;
-#else   // !defined(CPPGC_POINTER_COMPRESSION)
-  using MemberStorage = RawPointer;
-#endif  // !defined(CPPGC_POINTER_COMPRESSION)
-  const auto* storage = reinterpret_cast<const MemberStorage*>(slot);
-  const void* value = storage->Load();
+  if constexpr (SlotType == WriteBarrierSlotType::kCompressed) {
+    value = CompressedPointer::Decompress(
+        *static_cast<const CompressedPointer::IntegralType*>(slot));
+  } else {
+    value = *reinterpret_cast<const void* const*>(slot);
+  }
+#else
+  static_assert(SlotType == WriteBarrierSlotType::kUncompressed);
+  value = *reinterpret_cast<const void* const*>(slot);
+#endif
+
   WriteBarrier::Params params;
   const WriteBarrier::Type type =
       WriteBarrier::GetWriteBarrierType(slot, value, params);
@@ -252,6 +261,13 @@ void WriteBarrier::CombinedWriteBarrierSlow(const void* slot) {
       break;
   }
 }
+
+template V8_EXPORT_PRIVATE void WriteBarrier::CombinedWriteBarrierSlow<
+    WriteBarrierSlotType::kUncompressed>(const void* slot);
+#if defined(CPPGC_POINTER_COMPRESSION)
+template V8_EXPORT_PRIVATE void WriteBarrier::CombinedWriteBarrierSlow<
+    WriteBarrierSlotType::kCompressed>(const void* slot);
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 #endif  // CPPGC_SLIM_WRITE_BARRIER
 

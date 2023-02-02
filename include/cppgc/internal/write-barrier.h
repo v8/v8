@@ -84,6 +84,7 @@ class V8_EXPORT WriteBarrier final {
   // A write barrier that combines `GenerationalBarrier()` and
   // `DijkstraMarkingBarrier()`. We only pass a single parameter here to clobber
   // as few registers as possible.
+  template <WriteBarrierSlotType>
   static V8_NOINLINE void V8_PRESERVE_MOST
   CombinedWriteBarrierSlow(const void* slot);
 #endif  // CPPGC_SLIM_WRITE_BARRIER
