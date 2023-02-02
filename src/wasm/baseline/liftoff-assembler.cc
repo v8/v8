@@ -678,22 +678,11 @@ LiftoffAssembler::~LiftoffAssembler() {
   }
 }
 
-LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
-                                                 LiftoffRegList pinned) {
-  if (slot.is_reg()) return slot.reg();
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
-  return LoadToRegister(slot, reg);
-}
-
-LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
-                                                 LiftoffRegister reg) {
-  if (slot.is_const()) {
-    LoadConstant(reg, slot.constant());
-  } else {
-    DCHECK(slot.is_stack());
-    Fill(reg, slot.offset(), slot.kind());
-  }
-  return reg;
+void LiftoffAssembler::LoadToRegister(VarState slot, LiftoffRegList pinned,
+                                      LiftoffRegister* out_reg) {
+  DCHECK(!slot.is_reg());
+  *out_reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
+  LoadToFixedRegister(slot, *out_reg);
 }
 
 LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
@@ -718,9 +707,7 @@ LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
                                                  LiftoffRegList pinned) {
   DCHECK_LT(index, cache_state_.stack_state.size());
   VarState& slot = cache_state_.stack_state.end()[-1 - index];
-  if (slot.is_reg()) {
-    return slot.reg();
-  }
+  if (V8_LIKELY(slot.is_reg())) return slot.reg();
   LiftoffRegister reg = LoadToRegister(slot, pinned);
   cache_state_.inc_used(reg);
   slot.MakeRegister(reg);
@@ -1372,11 +1359,10 @@ bool LiftoffAssembler::ValidateCacheState() const {
 }
 #endif
 
-LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates) {
-  // Spill one cached value to free a register.
-  LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(candidates);
-  SpillRegister(spill_reg);
-  return spill_reg;
+void LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
+                                        LiftoffRegister* spilled_reg) {
+  *spilled_reg = cache_state_.GetNextSpillReg(candidates);
+  SpillRegister(*spilled_reg);
 }
 
 LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
