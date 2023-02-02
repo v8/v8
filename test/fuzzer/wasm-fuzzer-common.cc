@@ -122,7 +122,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
   base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
-  bool exception_ref = false;
+  std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
       isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
       compiled_args.begin(), &exception_ref);
@@ -155,15 +155,15 @@ void ExecuteAgainstReference(Isolate* isolate,
     DCHECK(!thrower.error());
   }
 
-  bool exception = false;
+  std::unique_ptr<const char[]> exception;
   int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", static_cast<int>(compiled_args.size()),
       compiled_args.begin(), &exception);
 
-  if (exception_ref != exception) {
-    const char* exception_text[] = {"no exception", "exception"};
-    FATAL("expected: %s; got: %s", exception_text[exception_ref],
-          exception_text[exception]);
+  if ((exception_ref != nullptr) != (exception != nullptr)) {
+    FATAL("Exception mispatch! Expected: <%s>; got: <%s>",
+          exception_ref ? exception_ref.get() : "<no exception>",
+          exception ? exception.get() : "<no exception>");
   }
 
   if (!exception) {

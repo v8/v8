@@ -219,8 +219,9 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
                                    const char* name, int argc,
-                                   Handle<Object> argv[], bool* exception) {
-  if (exception) *exception = false;
+                                   Handle<Object> argv[],
+                                   std::unique_ptr<const char[]>* exception) {
+  DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
   Handle<WasmExportedFunction> main_export;
@@ -236,8 +237,12 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   // The result should be a number.
   if (retval.is_null()) {
     DCHECK(isolate->has_pending_exception());
+    if (exception) {
+      Handle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, handle(isolate->pending_exception(), isolate));
+      *exception = exception_string->ToCString();
+    }
     isolate->clear_pending_exception();
-    if (exception) *exception = true;
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
