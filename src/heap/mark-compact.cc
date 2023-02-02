@@ -2706,6 +2706,7 @@ void MarkCompactCollector::RecordObjectStats() {
   if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
   // Cannot run during bootstrapping due to incomplete objects.
   if (isolate()->bootstrapper()->IsActive()) return;
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, "V8.GC_OBJECT_DUMP_STATISTICS");
   heap()->CreateObjectStats();
   ObjectStatsCollector collector(heap(), heap()->live_object_stats_.get(),
                                  heap()->dead_object_stats_.get());
