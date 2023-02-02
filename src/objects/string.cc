@@ -388,13 +388,14 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
 
-  // Shared strings are never indirect or large.
-  DCHECK(!isolate->heap()->IsLargeObject(*this));
+  // Shared strings are never indirect.
   DCHECK(!StringShape(*this).IsIndirect());
 
-  isolate->heap()->NotifyObjectSizeChange(*this, size, new_size,
-                                          ClearRecordedSlots::kNo,
-                                          UpdateInvalidatedObjectSize::kNo);
+  if (!isolate->heap()->IsLargeObject(*this)) {
+    isolate->heap()->NotifyObjectSizeChange(*this, size, new_size,
+                                            ClearRecordedSlots::kNo,
+                                            UpdateInvalidatedObjectSize::kNo);
+  }
 
   // The external pointer slots must be initialized before the new map is
   // installed. Otherwise, a GC marking thread may see the new map before the
