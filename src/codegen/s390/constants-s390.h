@@ -123,7 +123,7 @@ enum Condition {
   kNotZero = 21,
 };
 
-inline Condition check_condition(Condition cond) {
+inline Condition to_condition(Condition cond) {
   switch (cond) {
     case kUnsignedLessThan:
       return lt;
@@ -141,6 +141,31 @@ inline Condition check_condition(Condition cond) {
       break;
   }
   return cond;
+}
+
+inline bool is_signed(Condition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+    case kLessThan:
+    case kGreaterThan:
+    case kLessThanEqual:
+    case kGreaterThanEqual:
+    case kOverflow:
+    case kNoOverflow:
+    case kZero:
+    case kNotZero:
+      return true;
+
+    case kUnsignedLessThan:
+    case kUnsignedGreaterThan:
+    case kUnsignedLessThanEqual:
+    case kUnsignedGreaterThanEqual:
+      return false;
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 inline Condition NegateCondition(Condition cond) {

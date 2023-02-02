@@ -49,31 +49,6 @@ class BaselineAssembler::ScratchRegisterScope {
   int registers_used_;
 };
 
-inline bool IsSignedCondition(Condition cond) {
-  switch (cond) {
-    case kEqual:
-    case kNotEqual:
-    case kLessThan:
-    case kGreaterThan:
-    case kLessThanEqual:
-    case kGreaterThanEqual:
-    case kOverflow:
-    case kNoOverflow:
-    case kZero:
-    case kNotZero:
-      return true;
-
-    case kUnsignedLessThan:
-    case kUnsignedGreaterThan:
-    case kUnsignedLessThanEqual:
-    case kUnsignedGreaterThanEqual:
-      return false;
-
-    default:
-      UNREACHABLE();
-  }
-}
-
 #define __ assm->
 // ppc helper
 template <int width = 64>
@@ -82,19 +57,19 @@ static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
   static_assert(width == 64 || width == 32,
                 "only support 64 and 32 bit compare");
   if (width == 64) {
-    if (IsSignedCondition(cc)) {
+    if (is_signed(cc)) {
       __ CmpS64(lhs, rhs);
     } else {
       __ CmpU64(lhs, rhs);
     }
   } else {
-    if (IsSignedCondition(cc)) {
+    if (is_signed(cc)) {
       __ CmpS32(lhs, rhs);
     } else {
       __ CmpU32(lhs, rhs);
     }
   }
-  __ b(check_condition(cc), target);
+  __ b(to_condition(cc), target);
 }
 #undef __
 
@@ -160,18 +135,18 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AndU64(r0, value, Operand(mask), ip, SetRC);
-  __ b(check_condition(cc), target, cr0);
+  __ b(to_condition(cc), target, cr0);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  if (IsSignedCondition(cc)) {
+  if (is_signed(cc)) {
     __ CmpS64(lhs, rhs, r0);
   } else {
     __ CmpU64(lhs, rhs, r0);
   }
-  __ b(check_condition(cc), target);
+  __ b(to_condition(cc), target);
 }
 
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
