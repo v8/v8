@@ -235,7 +235,13 @@ InspectorTest.runAsyncTestSuite([
       expression: '/\w+/y'
     })).result);
     InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/v'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
       expression: '/\w+/dgimsuy'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/dgimsvy'
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `new RegExp('\\w+', 'g')`,
@@ -245,6 +251,11 @@ InspectorTest.runAsyncTestSuite([
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `var re = /./dgimsvy;
         re.toString = () => 'foo';
         re`
     })).result);
