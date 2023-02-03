@@ -1354,6 +1354,9 @@ class InternalizedStringTableCleaner final : public RootVisitor {
   int pointers_removed_ = 0;
 };
 
+enum class ExternalStringTableCleaningMode { kAll, kYoungOnly };
+
+template <ExternalStringTableCleaningMode mode>
 class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
@@ -1367,19 +1370,22 @@ class ExternalStringTableCleaner : public RootVisitor {
     Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
     for (FullObjectSlot p = start; p < end; ++p) {
       Object o = *p;
-      if (o.IsHeapObject()) {
-        HeapObject heap_object = HeapObject::cast(o);
-        if (marking_state->IsWhite(heap_object)) {
-          if (o.IsExternalString()) {
-            heap_->FinalizeExternalString(String::cast(o));
-          } else {
-            // The original external string may have been internalized.
-            DCHECK(o.IsThinString());
-          }
-          // Set the entry to the_hole_value (as deleted).
-          p.store(the_hole);
-        }
+      if (!o.IsHeapObject()) continue;
+      HeapObject heap_object = HeapObject::cast(o);
+      // MinorMC doesn't update the young strings set and so it may contain
+      // strings that are already in old space.
+      if (!marking_state->IsWhite(heap_object)) continue;
+      if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
+          !Heap::InYoungGeneration(heap_object))
+        continue;
+      if (o.IsExternalString()) {
+        heap_->FinalizeExternalString(String::cast(o));
+      } else {
+        // The original external string may have been internalized.
+        DCHECK(o.IsThinString());
       }
+      // Set the entry to the_hole_value (as deleted).
+      p.store(the_hole);
     }
   }
 
@@ -3091,7 +3097,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
-    ExternalStringTableCleaner external_visitor(heap());
+    ExternalStringTableCleaner<ExternalStringTableCleaningMode::kAll>
+        external_visitor(heap());
     heap()->external_string_table_.IterateAll(&external_visitor);
     heap()->external_string_table_.CleanUpAll();
   }
@@ -6031,7 +6038,8 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_STRING_TABLE);
     // Internalized strings are always stored in old space, so there is no
     // need to clean them here.
-    ExternalStringTableCleaner external_visitor(heap());
+    ExternalStringTableCleaner<ExternalStringTableCleaningMode::kYoungOnly>
+        external_visitor(heap());
     heap()->external_string_table_.IterateYoung(&external_visitor);
     heap()->external_string_table_.CleanUpYoung();
   }
