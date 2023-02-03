@@ -1063,6 +1063,20 @@ class WasmSuspenderObject
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };
 
+class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
+ public:
+  // TODO(manoskouk): Make it smaller if able and needed.
+  static constexpr int kSize = 64 * KB + kTaggedSize;
+  // Payload should be a multiple of page size.
+  static_assert((kSize - kTaggedSize) % kMinimumOSPageSize == 0);
+  // Any wasm struct offset should fit in the object.
+  static_assert(kSize >= WasmStruct::kHeaderSize +
+                             wasm::kV8MaxWasmStructFields * kSimd128Size);
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmNull)
+};
+
 #undef DECL_OPTIONAL_ACCESSORS
 
 namespace wasm {

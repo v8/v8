@@ -96,12 +96,19 @@ Node* WasmGCLowering::RootNode(RootIndex index) {
                              IsolateData::root_slot_offset(index));
 }
 
-Node* WasmGCLowering::Null() { return RootNode(RootIndex::kNullValue); }
+Node* WasmGCLowering::Null(wasm::ValueType type) {
+  return wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
+             ? RootNode(RootIndex::kNullValue)
+             : RootNode(RootIndex::kWasmNull);
+}
 
-Node* WasmGCLowering::IsNull(Node* object) {
-  Tagged_t static_null = wasm::GetWasmEngine()->compressed_null_value_or_zero();
-  Node* null_value =
-      static_null != 0 ? gasm_.UintPtrConstant(static_null) : Null();
+Node* WasmGCLowering::IsNull(Node* object, wasm::ValueType type) {
+  Tagged_t static_null =
+      wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
+  Node* null_value = !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
+                             static_null != 0
+                         ? gasm_.UintPtrConstant(static_null)
+                         : Null(type);
   return gasm_.TaggedEqual(object, null_value);
 }
 
@@ -131,8 +138,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   // being a wasm object and return 0 (failure).
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     const int kResult = config.to.is_nullable() ? 1 : 0;
-    gasm_.GotoIf(IsNull(object), &end_label, BranchHint::kFalse,
-                 gasm_.Int32Constant(kResult));
+    gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &end_label,
+                 BranchHint::kFalse, gasm_.Int32Constant(kResult));
   }
 
   if (object_can_be_i31) {
@@ -209,7 +216,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   // failure. In that case the instance type check will identify null as not
   // being a wasm object and trap.
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
-    Node* is_null = IsNull(object);
+    Node* is_null = IsNull(object, wasm::kWasmAnyRef);
     if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
     } else if (!v8_flags.experimental_wasm_skip_null_checks) {
@@ -276,8 +283,9 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
+  auto op_parameter = OpParameter<AssertNotNullParameters>(node->op());
   if (!v8_flags.experimental_wasm_skip_null_checks) {
-    gasm_.TrapIf(IsNull(object), TrapIdOf(node->op()));
+    gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
   }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
@@ -287,19 +295,23 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
 
 Reduction WasmGCLowering::ReduceNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kNull);
-  return Replace(Null());
+  auto type = OpParameter<wasm::ValueType>(node->op());
+  return Replace(Null(type));
 }
 
 Reduction WasmGCLowering::ReduceIsNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(IsNull(object));
+  auto type = OpParameter<wasm::ValueType>(node->op());
+  return Replace(IsNull(object, type));
 }
 
 Reduction WasmGCLowering::ReduceIsNotNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNotNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(gasm_.Word32Equal(IsNull(object), gasm_.Int32Constant(0)));
+  auto type = OpParameter<wasm::ValueType>(node->op());
+  return Replace(
+      gasm_.Word32Equal(IsNull(object, type), gasm_.Int32Constant(0)));
 }
 
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
@@ -328,13 +340,18 @@ Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
   UNREACHABLE();
 }
 
-// TODO(7748): WasmExternExternalize is a no-op. Consider removing it.
 Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternExternalize);
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  ReplaceWithValue(node, object);
+  Node* object = node->InputAt(0);
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+  auto label = gasm_.MakeLabel(MachineRepresentation::kTagged);
+  gasm_.GotoIfNot(IsNull(object, wasm::kWasmAnyRef), &label, object);
+  gasm_.Goto(&label, Null(wasm::kWasmExternRef));
+  gasm_.Bind(&label);
+  ReplaceWithValue(node, label.PhiAt(0), gasm_.effect(), gasm_.control());
   node->Kill();
-  return Replace(object);
+  return Replace(label.PhiAt(0));
 }
 
 Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {

@@ -220,3 +220,8 @@ class WasmStringViewIter extends HeapObject {
   string: String;
   offset: uint32;  // Index into string.
 }
+
+extern class WasmNull extends HeapObject {}
+
+extern macro WasmNullConstant(): WasmNull;
+const kWasmNull: WasmNull = WasmNullConstant();

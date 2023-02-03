@@ -253,10 +253,10 @@ class WasmGraphBuilder {
                              Node* tnode, Node* fnode);
   Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects_and_control);
-  Node* RefNull();
+  Node* RefNull(wasm::ValueType type);
   Node* RefFunc(uint32_t function_index);
   Node* AssertNotNull(
-      Node* object, wasm::WasmCodePosition position,
+      Node* object, wasm::ValueType type, wasm::WasmCodePosition position,
       wasm::TrapReason reason = wasm::TrapReason::kTrapNullDereference);
   Node* TraceInstruction(uint32_t mark_id);
   Node* Int32Constant(int32_t value);
@@ -266,7 +266,9 @@ class WasmGraphBuilder {
   Node* Simd128Constant(const uint8_t value[16]);
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
+  // The {type} argument is only required for null-checking operations.
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
+             wasm::ValueType type = wasm::kWasmBottom,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t tag_index, const wasm::WasmTag* tag,
@@ -352,7 +354,8 @@ class WasmGraphBuilder {
                                         Node** failure_control,
                                         bool is_last_case);
 
-  void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
+  void BrOnNull(Node* ref_object, wasm::ValueType type, Node** non_null_node,
+                Node** null_node);
 
   Node* Invert(Node* node);
 
@@ -600,7 +603,7 @@ class WasmGraphBuilder {
   Node* StringFromCodePoint(Node* code_point);
   Node* StringHash(Node* string, CheckForNull null_check,
                    wasm::WasmCodePosition position);
-  Node* IsNull(Node* object);
+  Node* IsNull(Node* object, wasm::ValueType type);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 
   bool has_simd() const { return has_simd_; }

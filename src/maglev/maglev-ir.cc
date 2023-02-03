@@ -142,6 +142,9 @@ bool RootToBoolean(RootIndex index) {
     case RootIndex::kHoleNanValue:
     case RootIndex::kMinusZeroValue:
     case RootIndex::kempty_string:
+#ifdef V8_ENABLE_WEBASSEMBLY
+    case RootIndex::kWasmNull:
+#endif
       return false;
     default:
       return true;

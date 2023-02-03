@@ -280,9 +280,9 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
                                             Handle<FixedArray> entries,
                                             int entry_index,
                                             Handle<Object> entry) {
-  if (entry->IsNull(isolate)) {
+  if (entry->IsWasmNull(isolate)) {
     ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
-    entries->set(entry_index, ReadOnlyRoots(isolate).null_value());
+    entries->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
     return;
   }
   Handle<Object> external =
@@ -362,7 +362,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   Handle<Object> entry(entries->get(entry_index), isolate);
 
-  if (entry->IsNull(isolate)) {
+  if (entry->IsWasmNull(isolate)) {
     return entry;
   }
 
@@ -598,7 +598,7 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_valid = true;
   Handle<Object> element(table->entries().get(entry_index), isolate);
 
-  *is_null = element->IsNull(isolate);
+  *is_null = element->IsWasmNull(isolate);
   if (*is_null) return;
 
   if (element->IsWasmInternalFunction()) {
@@ -2249,7 +2249,10 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         *error_message = "stringview_iter has no JS representation";
         return {};
       default:
-        return value;
+        bool is_extern_subtype =
+            expected_canonical.heap_representation() == HeapType::kExtern ||
+            expected_canonical.heap_representation() == HeapType::kNoExtern;
+        return is_extern_subtype ? value : isolate->factory()->wasm_null();
     }
   }
 
@@ -2425,15 +2428,15 @@ MaybeHandle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value,
     case i::wasm::HeapType::kArray:
     case i::wasm::HeapType::kEq:
     case i::wasm::HeapType::kAny:
-      return value;
+      return value->IsWasmNull() ? isolate->factory()->null_value() : value;
     case i::wasm::HeapType::kFunc: {
-      if (!value->IsNull()) {
+      if (value->IsWasmNull()) {
+        return isolate->factory()->null_value();
+      } else {
         DCHECK(value->IsWasmInternalFunction());
         return handle(
             i::Handle<i::WasmInternalFunction>::cast(value)->external(),
             isolate);
-      } else {
-        return value;
       }
     }
     case i::wasm::HeapType::kStringViewWtf8:
@@ -2448,7 +2451,9 @@ MaybeHandle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value,
     case i::wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
-      if (value->IsWasmInternalFunction()) {
+      if (value->IsWasmNull()) {
+        return isolate->factory()->null_value();
+      } else if (value->IsWasmInternalFunction()) {
         return handle(
             i::Handle<i::WasmInternalFunction>::cast(value)->external(),
             isolate);
