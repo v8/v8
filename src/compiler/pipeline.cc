@@ -1733,7 +1733,8 @@ struct WasmLoopUnrollingPhase {
               loop_info.header, all_nodes, temp_zone,
               // Only discover the loop until its size is the maximum unrolled
               // size for its depth.
-              maximum_unrollable_size(loop_info.nesting_depth), true);
+              maximum_unrollable_size(loop_info.nesting_depth),
+              LoopFinder::Purpose::kLoopUnrolling);
       if (loop == nullptr) continue;
       UnrollLoop(loop_info.header, loop, loop_info.nesting_depth, data->graph(),
                  data->common(), temp_zone, data->source_positions(),
@@ -1755,7 +1756,8 @@ struct WasmLoopPeelingPhase {
         ZoneUnorderedSet<Node*>* loop =
             LoopFinder::FindSmallInnermostLoopFromHeader(
                 loop_info.header, all_nodes, temp_zone,
-                v8_flags.wasm_loop_peeling_max_size, false);
+                v8_flags.wasm_loop_peeling_max_size,
+                LoopFinder::Purpose::kLoopPeeling);
         if (loop == nullptr) continue;
         PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),
                      temp_zone, data->source_positions(), data->node_origins());

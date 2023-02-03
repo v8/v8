@@ -554,7 +554,7 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 // static
 ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
     Node* loop_header, AllNodes& all_nodes, Zone* zone, size_t max_size,
-    bool calls_are_large) {
+    Purpose purpose) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
 
@@ -598,16 +598,16 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         }
         // All uses are outside the loop, do nothing.
         break;
-      // If {calls_are_large}, call nodes are considered to have unbounded size,
+      // If unrolling, call nodes are considered to have unbounded size,
       // i.e. >max_size, with the exception of certain wasm builtins.
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
-        if (calls_are_large) return nullptr;
+        if (purpose == Purpose::kLoopUnrolling) return nullptr;
         ENQUEUE_USES(use, true)
         break;
       case IrOpcode::kCall: {
-        if (!calls_are_large) {
+        if (purpose == Purpose::kLoopPeeling) {
           ENQUEUE_USES(use, true);
           break;
         }
@@ -679,7 +679,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   // Only peel functions containing instructions for which loop peeling is known
   // to be useful. TODO(7748): Add more instructions to get more benefits out of
   // loop peeling.
-  if (!has_instruction_worth_peeling) {
+  if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
     return nullptr;
   }
   return visited;
