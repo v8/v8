@@ -197,6 +197,7 @@ try_builder(
     build_numbers = True,
     use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    disable_resultdb_exports = True,
 )
 
 try_builder(
@@ -210,6 +211,7 @@ try_builder(
     use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     reclient_jobs = RECLIENT_JOBS.J150,
+    disable_resultdb_exports = True,
 )
 
 try_builder(

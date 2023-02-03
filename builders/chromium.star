@@ -15,6 +15,7 @@ def chromium_builder(name):
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         in_console = "chromium/Future",
+        disable_resultdb_exports = True,
     )
 
 chromium_builder("Linux - Future")
