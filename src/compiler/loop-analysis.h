@@ -178,7 +178,7 @@ class V8_EXPORT_PRIVATE LoopFinder {
   static LoopTree* BuildLoopTree(Graph* graph, TickCounter* tick_counter,
                                  Zone* temp_zone);
 
-  static bool HasMarkedExits(LoopTree* loop_tree_, const LoopTree::Loop* loop);
+  static bool HasMarkedExits(LoopTree* loop_tree, const LoopTree::Loop* loop);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Find all nodes in the loop headed by {loop_header} if it contains no nested

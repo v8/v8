@@ -4,6 +4,7 @@
 
 #include "src/compiler/loop-analysis.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -565,6 +566,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   for (Node * use_name : node->uses()) {                                       \
     if (condition && visited->count(use_name) == 0) queue.push_back(use_name); \
   }
+  bool has_instruction_worth_peeling = false;
 
   while (!queue.empty()) {
     Node* node = queue.back();
@@ -632,14 +634,16 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
             WasmCode::kWasmRefFunc};
-        if (std::count(unrollable_builtins,
-                       unrollable_builtins + arraysize(unrollable_builtins),
-                       info) == 0) {
+        if (std::count(std::begin(unrollable_builtins),
+                       std::end(unrollable_builtins), info) == 0) {
           return nullptr;
         }
         ENQUEUE_USES(use, true)
         break;
       }
+      case IrOpcode::kStringPrepareForGetCodeunit:
+        has_instruction_worth_peeling = true;
+        V8_FALLTHROUGH;
       default:
         ENQUEUE_USES(use, true)
         break;
@@ -672,6 +676,12 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
     }
   }
 
+  // Only peel functions containing instructions for which loop peeling is known
+  // to be useful. TODO(7748): Add more instructions to get more benefits out of
+  // loop peeling.
+  if (!has_instruction_worth_peeling) {
+    return nullptr;
+  }
   return visited;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
