@@ -216,12 +216,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
-  # https://github.com/tc39/test262/issues/3711
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-resolved-time-zone': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone': [FAIL],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -992,10 +986,62 @@
   'built-ins/Temporal/ZonedDateTime/prototype/since/nanoseconds-to-days-range-errors': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/nanoseconds-to-days-range-errors': [FAIL],
 
+  'built-ins/Temporal/Calendar/from/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/Calendar/prototype/yearOfWeek/argument-propertybag-calendar-case-insensitive': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingincrement-out-of-range': [FAIL],
+  'built-ins/Temporal/Instant/prototype/toZonedDateTime/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/Now/plainDate/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/Now/plainDateTime/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/Now/zonedDateTime/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainDate/argument-convert': [FAIL],
+  'built-ins/Temporal/PlainDate/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/day/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/monthCode/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/month/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/since/roundingincrement-out-of-range': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/until/roundingincrement-out-of-range': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/withCalendar/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/with/order-of-operations': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/year/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDateTime/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/day/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/monthCode/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/month/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/since/roundingincrement-non-integer': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/until/roundingincrement-non-integer': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/withCalendar/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/year/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/prototype/day/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/prototype/monthCode/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/prototype/with/order-of-operations': [FAIL],
+  'built-ins/Temporal/PlainTime/prototype/with/order-of-operations': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/monthCode/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/month/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/since/roundingincrement-out-of-range': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/until/roundingincrement-out-of-range': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/with/order-of-operations': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/year/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getPlainDateTimeFor/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/day/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/monthCode/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/month/validate-calendar-value': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/roundingincrement-non-integer': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/roundingincrement-non-integer': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/withCalendar/calendar-temporal-object': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/year/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/era/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/eraYear/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/era/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/eraYear/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/era/validate-calendar-value': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/eraYear/validate-calendar-value': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/era/validate-calendar-value': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/eraYear/validate-calendar-value': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
-  'language/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference-yield': [FAIL],
-  'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference-yield': [FAIL],
-  'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-decorator-member-expr': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
@@ -1048,6 +1094,12 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12681
   'built-ins/Array/prototype/push/set-length-zero-array-length-is-non-writable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=13658
+  'built-ins/ArrayBuffer/prototype/transfer/from-resizable-to-larger': [FAIL],
+  'built-ins/ArrayBuffer/prototype/transfer/from-resizable-to-same': [FAIL],
+  'built-ins/ArrayBuffer/prototype/transfer/from-resizable-to-smaller': [FAIL],
+  'built-ins/ArrayBuffer/prototype/transfer/from-resizable-to-zero': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
