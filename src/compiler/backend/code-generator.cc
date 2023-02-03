@@ -430,6 +430,7 @@ void CodeGenerator::AssembleCode() {
   result_ = kSuccess;
 }
 
+#ifndef V8_TARGET_ARCH_X64
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
     Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
     std::pair<int32_t, Label*>* end) {
@@ -448,6 +449,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   masm()->bind(&less_label);
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
+#endif  // V8_TARGET_ARCH_X64
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target))
