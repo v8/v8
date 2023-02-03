@@ -2998,6 +2998,70 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   StoreRegisterPair(result, call_builtin);
 }
 
+ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
+                                              BasicBlockRef* start_ref,
+                                              BasicBlockRef* end_ref) {
+  DCHECK(is_inline());
+
+  // Manually create the prologue of the inner function graph, so that we
+  // can manually set up the arguments.
+  StartPrologue();
+
+  RootConstant* undefined_constant =
+      GetRootConstant(RootIndex::kUndefinedValue);
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (function().shared().language_mode() == LanguageMode::kSloppy) {
+      // TODO(leszeks): Store the global proxy somehow.
+      SetArgument(0, undefined_constant);
+    } else {
+      SetArgument(0, undefined_constant);
+    }
+  } else {
+    SetArgument(0, args.receiver());
+  }
+  for (int i = 1; i < parameter_count(); i++) {
+    ValueNode* arg_value = args[i - 1];
+    if (arg_value == nullptr) arg_value = undefined_constant;
+    SetArgument(i, arg_value);
+  }
+  BuildRegisterFrameInitialization(GetConstant(function().context()),
+                                   GetConstant(function()));
+  BuildMergeStates();
+  BasicBlock* inlined_prologue = EndPrologue();
+
+  // Set the entry JumpToInlined to jump to the prologue block.
+  // TODO(leszeks): Passing start_ref to JumpToInlined creates a two-element
+  // linked list of refs. Consider adding a helper to explicitly set the target
+  // instead.
+  start_ref->SetToBlockAndReturnNext(inlined_prologue)
+      ->SetToBlockAndReturnNext(inlined_prologue);
+
+  // Build the inlined function body.
+  BuildBody();
+
+  // All returns in the inlined body jump to a merge point one past the
+  // bytecode length (i.e. at offset bytecode.length()). Create a block at
+  // this fake offset and have it jump out of the inlined function, into a new
+  // block that we create which resumes execution of the outer function.
+  // TODO(leszeks): Wrap this up in a helper.
+  DCHECK_NULL(current_block_);
+
+  // If we don't have a merge state at the inline_exit_offset, then there is no
+  // control flow that reaches the end of the inlined function, either because
+  // of infinite loops or deopts
+  if (merge_states_[inline_exit_offset()] == nullptr) {
+    return ReduceResult::DoneWithAbort();
+  }
+
+  ProcessMergePoint(inline_exit_offset());
+  StartNewBlock(inline_exit_offset());
+  FinishBlock<JumpFromInlined>({}, end_ref);
+
+  // Pull the returned accumulator value out of the inlined function's final
+  // merged return state.
+  return current_interpreter_frame_.accumulator();
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't try to inline if the target function hasn't been compiled yet.
@@ -3025,12 +3089,6 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   if (v8_flags.trace_maglev_inlining) {
     std::cout << "  inlining " << function.shared() << std::endl;
   }
-  // The undefined constant node has to be created before the inner graph is
-  // created.
-  RootConstant* undefined_constant;
-  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
-  }
 
   // Create a new compilation unit and graph builder for the inlined
   // function.
@@ -3043,60 +3101,13 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   BasicBlockRef start_ref, end_ref;
   BasicBlock* block = FinishBlock<JumpToInlined>({}, &start_ref, inner_unit);
 
-  // Manually create the prologue of the inner function graph, so that we
-  // can manually set up the arguments.
-  inner_graph_builder.StartPrologue();
-
-  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (function.shared().language_mode() == LanguageMode::kSloppy) {
-      // TODO(leszeks): Store the global proxy somehow.
-      inner_graph_builder.SetArgument(0, undefined_constant);
-    } else {
-      inner_graph_builder.SetArgument(0, undefined_constant);
-    }
-  } else {
-    inner_graph_builder.SetArgument(0, args.receiver());
-  }
-  for (int i = 1; i < inner_unit->parameter_count(); i++) {
-    ValueNode* arg_value = args[i - 1];
-    if (arg_value == nullptr) arg_value = undefined_constant;
-    inner_graph_builder.SetArgument(i, arg_value);
-  }
-  inner_graph_builder.BuildRegisterFrameInitialization(
-      GetConstant(function.context()), GetConstant(function));
-  inner_graph_builder.BuildMergeStates();
-  BasicBlock* inlined_prologue = inner_graph_builder.EndPrologue();
-
-  // Set the entry JumpToInlined to jump to the prologue block.
-  // TODO(leszeks): Passing start_ref to JumpToInlined creates a two-element
-  // linked list of refs. Consider adding a helper to explicitly set the target
-  // instead.
-  start_ref.SetToBlockAndReturnNext(inlined_prologue)
-      ->SetToBlockAndReturnNext(inlined_prologue);
-
-  // Build the inlined function body.
-  inner_graph_builder.BuildBody();
-
-  // All returns in the inlined body jump to a merge point one past the
-  // bytecode length (i.e. at offset bytecode.length()). Create a block at
-  // this fake offset and have it jump out of the inlined function, into a new
-  // block that we create which resumes execution of the outer function.
-  // TODO(leszeks): Wrap this up in a helper.
-  DCHECK_NULL(inner_graph_builder.current_block_);
-
-  // If we don't have a merge state at the inline_exit_offset, then all the
-  // paths in the inlined function emit a "soft" deopt.
-  if (inner_graph_builder
-          .merge_states_[inner_graph_builder.inline_exit_offset()] == nullptr) {
-    // Mark parent branch as dead.
+  ReduceResult result =
+      inner_graph_builder.BuildInlined(args, &start_ref, &end_ref);
+  if (result.IsDoneWithAbort()) {
     MarkBytecodeDead();
     return ReduceResult::DoneWithAbort();
   }
-
-  inner_graph_builder.ProcessMergePoint(
-      inner_graph_builder.inline_exit_offset());
-  inner_graph_builder.StartNewBlock(inner_graph_builder.inline_exit_offset());
-  inner_graph_builder.FinishBlock<JumpFromInlined>({}, &end_ref);
+  DCHECK(result.HasValue());
 
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will
@@ -3111,12 +3122,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   end_ref.SetToBlockAndReturnNext(current_block_)
       ->SetToBlockAndReturnNext(current_block_);
 
-  // Pull the returned accumulator value out of the inlined function's final
-  // merged return state.
-  ValueNode* result =
-      inner_graph_builder.current_interpreter_frame_.accumulator();
 #ifdef DEBUG
-  new_nodes_.insert(result);
+  new_nodes_.insert(result.value());
 #endif
   return result;
 }

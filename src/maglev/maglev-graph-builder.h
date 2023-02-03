@@ -154,6 +154,9 @@ class MaglevGraphBuilder {
     BuildBody();
   }
 
+  ReduceResult BuildInlined(const CallArguments& args, BasicBlockRef* start_ref,
+                            BasicBlockRef* end_ref);
+
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
   void InitializeRegister(interpreter::Register reg,
