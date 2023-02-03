@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "RECLIENT", "v8_builder")
+load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "RECLIENT", "RECLIENT_JOBS", "v8_builder")
 
 def try_builder(
         name,
@@ -195,7 +195,8 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 4400,
     build_numbers = True,
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -206,8 +207,9 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     build_numbers = True,
-    use_goma = GOMA.DEFAULT,
-    goma_jobs = GOMA_JOBS.J150,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    reclient_jobs = RECLIENT_JOBS.J150,
 )
 
 try_builder(

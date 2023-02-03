@@ -209,10 +209,6 @@ GOMA = struct(
     NONE = {},
 )
 
-GOMA_JOBS = struct(
-    J150 = 150,
-)
-
 def _goma_properties(use_goma, goma_jobs):
     if use_goma == GOMA.NONE or use_goma == GOMA.NO:
         return use_goma
@@ -258,7 +254,11 @@ RECLIENT = struct(
     NONE = {},
 )
 
-def _reclient_properties(use_remoteexec, name):
+RECLIENT_JOBS = struct(
+    J150 = 150,
+)
+
+def _reclient_properties(use_remoteexec, reclient_jobs, name):
     if use_remoteexec == None:
         return {}
 
@@ -284,6 +284,9 @@ def _reclient_properties(use_remoteexec, name):
 
     if rewrapper_env:
         reclient["rewrapper_env"] = rewrapper_env
+
+    if reclient_jobs:
+        reclient["jobs"] = reclient_jobs
 
     return {
         "$build/reclient": reclient,
@@ -373,7 +376,11 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("use_goma", GOMA.NONE),
         kwargs.pop("goma_jobs", None),
     ))
-    properties.update(_reclient_properties(kwargs.pop("use_remoteexec", None), kwargs["name"]))
+    properties.update(_reclient_properties(
+        kwargs.pop("use_remoteexec", None),
+        kwargs.pop("reclient_jobs", None),
+        kwargs["name"],
+    ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
 
     # Fake property to move WIP builders to a special console by a generator
