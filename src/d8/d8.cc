@@ -79,7 +79,8 @@
 #endif  // V8_FUZZILLI
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/tracing.h"
+#include "perfetto/tracing/track_event.h"
+#include "perfetto/tracing/track_event_legacy.h"
 #endif  // V8_USE_PERFETTO
 
 #ifdef V8_INTL_SUPPORT
