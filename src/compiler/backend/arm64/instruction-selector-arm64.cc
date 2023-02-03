@@ -843,11 +843,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       immediate_mode = kLoadStoreImm32;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kArm64LdrDecompressTaggedPointer;
-      immediate_mode = kLoadStoreImm32;
-      break;
     case MachineRepresentation::kTagged:
-      opcode = kArm64LdrDecompressAnyTagged;
+      opcode = kArm64LdrDecompressTagged;
       immediate_mode = kLoadStoreImm32;
       break;
 #else
@@ -2773,10 +2770,10 @@ void VisitAtomicLoad(InstructionSelector* selector, Node* node,
       code = kArm64LdarDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      code = kArm64LdarDecompressTaggedPointer;
+      code = kArm64LdarDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      code = kArm64LdarDecompressAnyTagged;
+      code = kArm64LdarDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.

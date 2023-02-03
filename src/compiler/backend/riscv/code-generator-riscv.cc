@@ -173,7 +173,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   void Generate() final {
 #if V8_TARGET_ARCH_RISCV64
     if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTaggedPointer(value_, value_);
+      __ DecompressTagged(value_, value_);
     }
 #endif
     __ CheckPageFlag(
@@ -628,8 +628,8 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadTaggedPointerField(
-      kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadTaggedField(kScratchReg,
+                     MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Lw(kScratchReg,
         FieldMemOperand(kScratchReg, Code::kKindSpecificFlagsOffset));
   __ And(kScratchReg, kScratchReg,
@@ -722,14 +722,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputOrZeroRegister(0);
       if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
-        __ LoadTaggedPointerField(
-            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedField(kScratchReg,
+                           FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                   Operand(kScratchReg));
       }
       static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-      __ LoadTaggedPointerField(a2,
-                                FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedField(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -2194,18 +2193,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressTaggedSigned(result, operand);
       break;
     }
-    case kRiscvLoadDecompressTaggedPointer: {
+    case kRiscvLoadDecompressTagged: {
       CHECK(instr->HasOutput());
       Register result = i.OutputRegister();
       MemOperand operand = i.MemoryOperand();
-      __ DecompressTaggedPointer(result, operand);
-      break;
-    }
-    case kRiscvLoadDecompressAnyTagged: {
-      CHECK(instr->HasOutput());
-      Register result = i.OutputRegister();
-      MemOperand operand = i.MemoryOperand();
-      __ DecompressAnyTagged(result, operand);
+      __ DecompressTagged(result, operand);
       break;
     }
 #endif

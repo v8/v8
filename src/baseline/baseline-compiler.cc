@@ -439,8 +439,8 @@ void BaselineCompiler::LoadFeedbackVector(Register output) {
 
 void BaselineCompiler::LoadClosureFeedbackArray(Register output) {
   LoadFeedbackVector(output);
-  __ LoadTaggedPointerField(output, output,
-                            FeedbackVector::kClosureFeedbackCellArrayOffset);
+  __ LoadTaggedField(output, output,
+                     FeedbackVector::kClosureFeedbackCellArrayOffset);
 }
 
 void BaselineCompiler::SelectBooleanConstant(
@@ -754,8 +754,8 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   __ LoadContext(context);
-  __ LoadTaggedAnyField(kInterpreterAccumulatorRegister, context,
-                        Context::OffsetOfElementAt(Index(0)));
+  __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                     Context::OffsetOfElementAt(Index(0)));
 }
 
 void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
@@ -1350,9 +1350,9 @@ void BaselineCompiler::VisitIntrinsicCreateJSGeneratorObject(
 void BaselineCompiler::VisitIntrinsicGeneratorGetResumeMode(
     interpreter::RegisterList args) {
   __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
-  __ LoadTaggedAnyField(kInterpreterAccumulatorRegister,
-                        kInterpreterAccumulatorRegister,
-                        JSGeneratorObject::kResumeModeOffset);
+  __ LoadTaggedField(kInterpreterAccumulatorRegister,
+                     kInterpreterAccumulatorRegister,
+                     JSGeneratorObject::kResumeModeOffset);
 }
 
 void BaselineCompiler::VisitIntrinsicGeneratorClose(
@@ -2211,8 +2211,8 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
       Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
 
   Register context = scratch_scope.AcquireScratch();
-  __ LoadTaggedAnyField(context, generator_object,
-                        JSGeneratorObject::kContextOffset);
+  __ LoadTaggedField(context, generator_object,
+                     JSGeneratorObject::kContextOffset);
   __ StoreContext(context);
 
   interpreter::JumpTableTargetOffsets offsets =

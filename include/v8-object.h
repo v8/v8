@@ -717,7 +717,7 @@ Local<Value> Object::GetInternalField(int index) {
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
     // dealing with potential endiannes issues.
-    value = I::DecompressTaggedAnyField(obj, static_cast<uint32_t>(value));
+    value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);

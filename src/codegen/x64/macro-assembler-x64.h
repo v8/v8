@@ -583,35 +583,21 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // ---------------------------------------------------------------------------
   // Pointer compression support
 
-  // Loads a field containing a HeapObject and decompresses it if pointer
-  // compression is enabled.
-  void LoadTaggedPointerField(Register destination, Operand field_operand);
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadTaggedField(Register destination, Operand field_operand);
 
-  // Loads a field containing a HeapObject but does not decompress it when
+  // Loads a field containing any tagged value but does not decompress it when
   // pointer compression is enabled.
-  void LoadTaggedPointerField(TaggedRegister destination,
-                              Operand field_operand);
+  void LoadTaggedField(TaggedRegister destination, Operand field_operand);
 
   // Loads a field containing a Smi and decompresses it if pointer compression
   // is enabled.
   void LoadTaggedSignedField(Register destination, Operand field_operand);
 
-  // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadAnyTaggedField(Register destination, Operand field_operand);
-
-  // Loads a field containing any tagged value but does not decompress it when
-  // pointer compression is enabled.
-  void LoadAnyTaggedField(TaggedRegister destination, Operand field_operand);
-
-  // Loads a field containing a HeapObject, decompresses it if necessary and
-  // pushes full pointer to the stack. When pointer compression is enabled,
-  // uses |scratch| to decompress the value.
-  void PushTaggedPointerField(Operand field_operand, Register scratch);
-
   // Loads a field containing any tagged value, decompresses it if necessary and
   // pushes the full pointer to the stack. When pointer compression is enabled,
   // uses |scratch| to decompress the value.
-  void PushTaggedAnyField(Operand field_operand, Register scratch);
+  void PushTaggedField(Operand field_operand, Register scratch);
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, Operand src);
@@ -626,10 +612,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // The following macros work even when pointer compression is not enabled.
   void DecompressTaggedSigned(Register destination, Operand field_operand);
-  void DecompressTaggedPointer(Register destination, Operand field_operand);
-  void DecompressTaggedPointer(Register destination, Register source);
-  void DecompressTaggedPointer(Register destination, Tagged_t immediate);
-  void DecompressAnyTagged(Register destination, Operand field_operand);
+  void DecompressTagged(Register destination, Operand field_operand);
+  void DecompressTagged(Register destination, Register source);
+  void DecompressTagged(Register destination, Tagged_t immediate);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support

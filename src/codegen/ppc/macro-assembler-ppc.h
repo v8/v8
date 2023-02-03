@@ -1010,18 +1010,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   }
 
-  // Loads a field containing a HeapObject and decompresses it if pointer
-  // compression is enabled.
-  void LoadTaggedPointerField(const Register& destination,
-                              const MemOperand& field_operand,
-                              const Register& scratch = no_reg);
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadTaggedField(const Register& destination,
+                       const MemOperand& field_operand,
+                       const Register& scratch = no_reg);
   void LoadTaggedSignedField(Register destination, MemOperand field_operand,
                              Register scratch);
-
-  // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadAnyTaggedField(const Register& destination,
-                          const MemOperand& field_operand,
-                          const Register& scratch = no_reg);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
@@ -1030,11 +1024,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void DecompressTaggedSigned(Register destination, MemOperand field_operand);
   void DecompressTaggedSigned(Register destination, Register src);
-  void DecompressTaggedPointer(Register destination, MemOperand field_operand);
-  void DecompressTaggedPointer(Register destination, Register source);
-  void DecompressTaggedPointer(const Register& destination, Tagged_t immediate);
-  void DecompressAnyTagged(Register destination, MemOperand field_operand);
-  void DecompressAnyTagged(Register destination, Register source);
+  void DecompressTagged(Register destination, MemOperand field_operand);
+  void DecompressTagged(Register destination, Register source);
+  void DecompressTagged(const Register& destination, Tagged_t immediate);
 
   void LoadF64(DoubleRegister dst, const MemOperand& mem,
                Register scratch = no_reg);

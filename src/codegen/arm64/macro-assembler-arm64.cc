@@ -1522,10 +1522,9 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = x7;
-  LoadAnyTaggedField(
-      optimized_code_entry,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kMaybeOptimizedCodeOffset));
+  LoadTaggedField(optimized_code_entry,
+                  FieldMemOperand(feedback_vector,
+                                  FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(this, optimized_code_entry, x4);
 }
 
@@ -1844,7 +1843,7 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
   // TODO(v8:13466, olivf): With static roots we could use
-  // DecompressTaggedPointer here. However, currently all roots have addresses
+  // DecompressTagged here. However, currently all roots have addresses
   // that are too large to fit into addition immediate operands. Evidence
   // suggests that the extra instruction for decompression costs us more than
   // the load.
@@ -2061,9 +2060,9 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
   ASM_CODE_COMMENT(this);
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  LoadTaggedPointerField(
-      destination, FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
-                                                    constant_index)));
+  LoadTaggedField(destination,
+                  FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
+                                                   constant_index)));
 }
 
 void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
@@ -2449,8 +2448,8 @@ void MacroAssembler::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadTaggedPointerField(scratch,
-                         MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  LoadTaggedField(scratch,
+                  MemOperand(kJavaScriptCallCodeStartRegister, offset));
   Ldr(scratch.W(), FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
   Label not_deoptimized;
   Tbz(scratch.W(), InstructionStream::kMarkedForDeoptimizationBit,
@@ -2663,8 +2662,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
-  LoadTaggedPointerField(code,
-                         FieldMemOperand(function, JSFunction::kCodeOffset));
+  LoadTaggedField(code, FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
       CallCodeObject(code);
@@ -2715,12 +2713,11 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
 
   Register expected_parameter_count = x2;
 
-  LoadTaggedPointerField(cp,
-                         FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
   // The number of arguments is stored as an int32_t, and -1 is a marker
   // (kDontAdaptArgumentsSentinel), so we need sign
   // extension to correctly handle it.
-  LoadTaggedPointerField(
+  LoadTaggedField(
       expected_parameter_count,
       FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
   Ldrh(expected_parameter_count,
@@ -2744,8 +2741,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK_EQ(function, x1);
 
   // Set up the context.
-  LoadTaggedPointerField(cp,
-                         FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
 
   InvokeFunctionCode(function, no_reg, expected_parameter_count,
                      actual_parameter_count, type);
@@ -3012,7 +3008,7 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
 
 void MacroAssembler::LoadMap(Register dst, Register object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(dst, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(dst, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.
@@ -3086,19 +3082,10 @@ void MacroAssembler::JumpIfIsInRange(const Register& value,
   }
 }
 
-void MacroAssembler::LoadTaggedPointerField(const Register& destination,
-                                            const MemOperand& field_operand) {
+void MacroAssembler::LoadTaggedField(const Register& destination,
+                                     const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(destination, field_operand);
-  } else {
-    Ldr(destination, field_operand);
-  }
-}
-
-void MacroAssembler::LoadAnyTaggedField(const Register& destination,
-                                        const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressAnyTagged(destination, field_operand);
+    DecompressTagged(destination, field_operand);
   } else {
     Ldr(destination, field_operand);
   }
@@ -3149,21 +3136,21 @@ void MacroAssembler::DecompressTaggedSigned(const Register& destination,
   }
 }
 
-void MacroAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const MemOperand& field_operand) {
+void MacroAssembler::DecompressTagged(const Register& destination,
+                                      const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Ldr(destination.W(), field_operand);
   Add(destination, kPtrComprCageBaseRegister, destination);
 }
 
-void MacroAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const Register& source) {
+void MacroAssembler::DecompressTagged(const Register& destination,
+                                      const Register& source) {
   ASM_CODE_COMMENT(this);
   Add(destination, kPtrComprCageBaseRegister, Operand(source, UXTW));
 }
 
-void MacroAssembler::DecompressTaggedPointer(const Register& destination,
-                                             Tagged_t immediate) {
+void MacroAssembler::DecompressTagged(const Register& destination,
+                                      Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   if (IsImmAddSub(immediate)) {
     Add(destination, kPtrComprCageBaseRegister,
@@ -3176,13 +3163,6 @@ void MacroAssembler::DecompressTaggedPointer(const Register& destination,
         MoveImmediateForShiftedOp(destination, immediate, kAnyShift);
     Add(destination, kPtrComprCageBaseRegister, imm_operand);
   }
-}
-
-void MacroAssembler::DecompressAnyTagged(const Register& destination,
-                                         const MemOperand& field_operand) {
-  ASM_CODE_COMMENT(this);
-  Ldr(destination.W(), field_operand);
-  Add(destination, kPtrComprCageBaseRegister, destination);
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
@@ -3199,20 +3179,10 @@ void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
   }
 }
 
-void MacroAssembler::AtomicDecompressTaggedPointer(const Register& destination,
-                                                   const Register& base,
-                                                   const Register& index,
-                                                   const Register& temp) {
-  ASM_CODE_COMMENT(this);
-  Add(temp, base, index);
-  Ldar(destination.W(), temp);
-  Add(destination, kPtrComprCageBaseRegister, destination);
-}
-
-void MacroAssembler::AtomicDecompressAnyTagged(const Register& destination,
-                                               const Register& base,
-                                               const Register& index,
-                                               const Register& temp) {
+void MacroAssembler::AtomicDecompressTagged(const Register& destination,
+                                            const Register& base,
+                                            const Register& index,
+                                            const Register& temp) {
   ASM_CODE_COMMENT(this);
   Add(temp, base, index);
   Ldar(destination.W(), temp);
@@ -3465,7 +3435,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.AcquireX();
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
-    LoadTaggedPointerField(temp, MemOperand(temp));
+    LoadTaggedField(temp, MemOperand(temp));
     Cmp(temp, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
@@ -3572,10 +3542,10 @@ void MacroAssembler::Abort(AbortReason reason) {
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
-  LoadTaggedPointerField(
+  LoadTaggedField(
       dst, FieldMemOperand(
                dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
+  LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -3584,7 +3554,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                              Label* on_result,
                                              Label::Distance) {
   Label fallthrough, clear_slot;
-  LoadTaggedPointerField(
+  LoadTaggedField(
       scratch_and_result,
       FieldMemOperand(feedback_vector,
                       FeedbackVector::OffsetOfElementAt(slot.ToInt())));

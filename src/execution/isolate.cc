@@ -4140,7 +4140,7 @@ void Isolate::VerifyStaticRoots() {
   for (Tagged_t cmp_ptr : StaticReadOnlyRootsPointerTable) {
     Address the_root = roots[idx];
     Address ptr =
-        V8HeapCompressionScheme::DecompressTaggedPointer(cage_base(), cmp_ptr);
+        V8HeapCompressionScheme::DecompressTagged(cage_base(), cmp_ptr);
     CHECK_WITH_MSG(the_root == ptr, STATIC_ROOTS_FAILED_MSG);
     // All roots must fit on first page, since only this page is guaranteed to
     // have a stable offset from the cage base. If this ever changes we need
@@ -4378,9 +4378,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     Address base = code_cage->base();
     Address last = base + code_cage->size() - 1;
     PtrComprCageBase code_cage_base{code_cage_base_};
-    CHECK_EQ(base, ComprScheme::DecompressTaggedPointer(
+    CHECK_EQ(base, ComprScheme::DecompressTagged(
                        code_cage_base, ComprScheme::CompressTagged(base)));
-    CHECK_EQ(last, ComprScheme::DecompressTaggedPointer(
+    CHECK_EQ(last, ComprScheme::DecompressTagged(
                        code_cage_base, ComprScheme::CompressTagged(last)));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE

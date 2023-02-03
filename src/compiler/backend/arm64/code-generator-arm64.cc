@@ -284,7 +284,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTaggedPointer(value_, value_);
+      __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(
         value_, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
@@ -752,14 +752,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Check the function's context matches the context argument.
         UseScratchRegisterScope scope(masm());
         Register temp = scope.AcquireX();
-        __ LoadTaggedPointerField(
-            temp, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedField(temp,
+                           FieldMemOperand(func, JSFunction::kContextOffset));
         __ cmp(cp, temp);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-      __ LoadTaggedPointerField(x2,
-                                FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedField(x2, FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(x2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -1890,23 +1889,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64LdrDecompressTaggedSigned:
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kArm64LdrDecompressTaggedPointer:
-      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kArm64LdrDecompressAnyTagged:
-      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
+    case kArm64LdrDecompressTagged:
+      __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdarDecompressTaggedSigned:
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0),
                                       i.InputRegister(1), i.TempRegister(0));
       break;
-    case kArm64LdarDecompressTaggedPointer:
-      __ AtomicDecompressTaggedPointer(i.OutputRegister(), i.InputRegister(0),
-                                       i.InputRegister(1), i.TempRegister(0));
-      break;
-    case kArm64LdarDecompressAnyTagged:
-      __ AtomicDecompressAnyTagged(i.OutputRegister(), i.InputRegister(0),
-                                   i.InputRegister(1), i.TempRegister(0));
+    case kArm64LdarDecompressTagged:
+      __ AtomicDecompressTagged(i.OutputRegister(), i.InputRegister(0),
+                                i.InputRegister(1), i.TempRegister(0));
       break;
     case kArm64LdrDecodeSandboxedPointer:
       __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());

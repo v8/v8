@@ -318,10 +318,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       opcode = kX64MovqDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kX64MovqDecompressTaggedPointer;
-      break;
     case MachineRepresentation::kTagged:
-      opcode = kX64MovqDecompressAnyTagged;
+      opcode = kX64MovqDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.

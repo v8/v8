@@ -1072,14 +1072,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 
-  // Loads a field containing a HeapObject and decompresses it if pointer
-  // compression is enabled.
-  void LoadTaggedPointerField(const Register& destination,
-                              const MemOperand& field_operand);
-
   // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadAnyTaggedField(const Register& destination,
-                          const MemOperand& field_operand);
+  void LoadTaggedField(const Register& destination,
+                       const MemOperand& field_operand);
 
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
@@ -1095,12 +1090,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
-  void DecompressTaggedPointer(const Register& destination,
-                               const MemOperand& field_operand);
-  void DecompressTaggedPointer(const Register& destination,
-                               const Register& source);
-  void DecompressAnyTagged(const Register& destination,
-                           const MemOperand& field_operand);
+  void DecompressTagged(const Register& destination,
+                        const MemOperand& field_operand);
+  void DecompressTagged(const Register& destination, const Register& source);
   void CmpTagged(const Register& rd, const Register& rs1, const Register& rs2) {
     if (COMPRESS_POINTERS_BOOL) {
       Sub32(rd, rs1, rs2);
@@ -1113,12 +1105,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Pointer compression Support
   // rv32 don't support Pointer compression. Defines these functions for
   // simplify builtins.
-  inline void LoadTaggedPointerField(const Register& destination,
-                                     const MemOperand& field_operand) {
-    Lw(destination, field_operand);
-  }
-  inline void LoadAnyTaggedField(const Register& destination,
-                                 const MemOperand& field_operand) {
+  inline void LoadTaggedField(const Register& destination,
+                              const MemOperand& field_operand) {
     Lw(destination, field_operand);
   }
   inline void LoadTaggedSignedField(const Register& destination,

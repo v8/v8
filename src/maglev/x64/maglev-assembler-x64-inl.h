@@ -372,10 +372,10 @@ inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
            ->DependOnArrayBufferDetachingProtector()) {
     // A detached buffer leads to megamorphic feedback, so we won't have a deopt
     // loop if we deopt here.
-    LoadTaggedPointerField(
-        scratch, FieldOperand(array, JSArrayBufferView::kBufferOffset));
-    LoadTaggedPointerField(
-        scratch, FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+    LoadTaggedField(scratch,
+                    FieldOperand(array, JSArrayBufferView::kBufferOffset));
+    LoadTaggedField(scratch,
+                    FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
     testl(scratch, Immediate(JSArrayBuffer::WasDetachedBit::kMask));
     EmitEagerDeoptIf(not_zero, DeoptimizeReason::kArrayBufferWasDetached, node);
   }

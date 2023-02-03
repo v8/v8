@@ -287,9 +287,9 @@ void BaselineAssembler::Pop(T... registers) {
   (__ Pop(registers), ...);
 }
 
-void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
-                                               int offset) {
-  __ LoadTaggedPointerField(output, FieldOperand(source, offset));
+void BaselineAssembler::LoadTaggedField(Register output, Register source,
+                                        int offset) {
+  __ LoadTaggedField(output, FieldOperand(source, offset));
 }
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
@@ -299,10 +299,6 @@ void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
                                                       Register source,
                                                       int offset) {
   __ SmiUntagField(output, FieldOperand(source, offset));
-}
-void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
-                                           int offset) {
-  __ LoadAnyTaggedField(output, FieldOperand(source, offset));
 }
 void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
                                                   Register source, int offset) {
@@ -331,45 +327,31 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
   __ StoreTaggedField(FieldOperand(target, offset), value);
 }
 
-void BaselineAssembler::LoadTaggedPointerField(TaggedRegister output,
-                                               Register source, int offset) {
-  __ LoadTaggedPointerField(output, FieldOperand(source, offset));
+void BaselineAssembler::LoadTaggedField(TaggedRegister output, Register source,
+                                        int offset) {
+  __ LoadTaggedField(output, FieldOperand(source, offset));
 }
 
-void BaselineAssembler::LoadTaggedPointerField(TaggedRegister output,
-                                               TaggedRegister source,
-                                               int offset) {
-  __ LoadTaggedPointerField(output, FieldOperand(source, offset));
+void BaselineAssembler::LoadTaggedField(TaggedRegister output,
+                                        TaggedRegister source, int offset) {
+  __ LoadTaggedField(output, FieldOperand(source, offset));
 }
 
-void BaselineAssembler::LoadTaggedPointerField(Register output,
-                                               TaggedRegister source,
-                                               int offset) {
-  __ LoadTaggedPointerField(output, FieldOperand(source, offset));
-}
-
-void BaselineAssembler::LoadTaggedAnyField(Register output,
-                                           TaggedRegister source, int offset) {
-  __ LoadAnyTaggedField(output, FieldOperand(source, offset));
-}
-
-void BaselineAssembler::LoadTaggedAnyField(TaggedRegister output,
-                                           TaggedRegister source, int offset) {
-  __ LoadAnyTaggedField(output, FieldOperand(source, offset));
+void BaselineAssembler::LoadTaggedField(Register output, TaggedRegister source,
+                                        int offset) {
+  __ LoadTaggedField(output, FieldOperand(source, offset));
 }
 
 void BaselineAssembler::LoadFixedArrayElement(Register output,
                                               TaggedRegister array,
                                               int32_t index) {
-  LoadTaggedAnyField(output, array,
-                     FixedArray::kHeaderSize + index * kTaggedSize);
+  LoadTaggedField(output, array, FixedArray::kHeaderSize + index * kTaggedSize);
 }
 
 void BaselineAssembler::LoadFixedArrayElement(TaggedRegister output,
                                               TaggedRegister array,
                                               int32_t index) {
-  LoadTaggedAnyField(output, array,
-                     FixedArray::kHeaderSize + index * kTaggedSize);
+  LoadTaggedField(output, array, FixedArray::kHeaderSize + index * kTaggedSize);
 }
 
 void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -389,8 +371,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFunction(feedback_cell);
   // Decompresses pointer by complex addressing mode when necessary.
   TaggedRegister tagged(feedback_cell);
-  LoadTaggedPointerField(tagged, feedback_cell,
-                         JSFunction::kFeedbackCellOffset);
+  LoadTaggedField(tagged, feedback_cell, JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(tagged, FeedbackCell::kInterruptBudgetOffset),
           Immediate(weight));
   if (skip_interrupt_label) {
@@ -407,8 +388,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFunction(feedback_cell);
   // Decompresses pointer by complex addressing mode when necessary.
   TaggedRegister tagged(feedback_cell);
-  LoadTaggedPointerField(tagged, feedback_cell,
-                         JSFunction::kFeedbackCellOffset);
+  LoadTaggedField(tagged, feedback_cell, JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(tagged, FeedbackCell::kInterruptBudgetOffset), weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
@@ -420,17 +400,17 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
   // addressing mode, any intermediate context pointer is loaded in compressed
   // form.
   if (depth == 0) {
-    LoadTaggedAnyField(kInterpreterAccumulatorRegister, context,
-                       Context::OffsetOfElementAt(index));
+    LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                    Context::OffsetOfElementAt(index));
   } else {
     TaggedRegister tagged(context);
-    LoadTaggedPointerField(tagged, context, Context::kPreviousOffset);
+    LoadTaggedField(tagged, context, Context::kPreviousOffset);
     --depth;
     for (; depth > 0; --depth) {
-      LoadTaggedPointerField(tagged, tagged, Context::kPreviousOffset);
+      LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
-    LoadTaggedAnyField(kInterpreterAccumulatorRegister, tagged,
-                       Context::OffsetOfElementAt(index));
+    LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
+                    Context::OffsetOfElementAt(index));
   }
 }
 
@@ -442,10 +422,10 @@ void BaselineAssembler::StaContextSlot(Register context, Register value,
   // form.
   if (depth > 0) {
     TaggedRegister tagged(context);
-    LoadTaggedPointerField(tagged, context, Context::kPreviousOffset);
+    LoadTaggedField(tagged, context, Context::kPreviousOffset);
     --depth;
     for (; depth > 0; --depth) {
-      LoadTaggedPointerField(tagged, tagged, Context::kPreviousOffset);
+      LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
     if (COMPRESS_POINTERS_BOOL) {
       // Decompress tagged pointer.
@@ -463,29 +443,26 @@ void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
   // enabled, any intermediate context pointer is loaded in compressed form.
   TaggedRegister tagged(context);
   if (depth == 0) {
-    LoadTaggedPointerField(tagged, context, Context::kExtensionOffset);
+    LoadTaggedField(tagged, context, Context::kExtensionOffset);
   } else {
-    LoadTaggedPointerField(tagged, context, Context::kPreviousOffset);
+    LoadTaggedField(tagged, context, Context::kPreviousOffset);
     --depth;
     for (; depth > 0; --depth) {
-      LoadTaggedPointerField(tagged, tagged, Context::kPreviousOffset);
+      LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
-    LoadTaggedPointerField(tagged, tagged, Context::kExtensionOffset);
+    LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
   if (cell_index > 0) {
-    LoadTaggedPointerField(tagged, tagged,
-                           SourceTextModule::kRegularExportsOffset);
+    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
     cell_index -= 1;
   } else {
-    LoadTaggedPointerField(tagged, tagged,
-                           SourceTextModule::kRegularImportsOffset);
+    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularImportsOffset);
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
   LoadFixedArrayElement(tagged, tagged, cell_index);
-  LoadTaggedAnyField(kInterpreterAccumulatorRegister, tagged,
-                     Cell::kValueOffset);
+  LoadTaggedField(kInterpreterAccumulatorRegister, tagged, Cell::kValueOffset);
 }
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
@@ -495,17 +472,16 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   // enabled, any intermediate context pointer is loaded in compressed form.
   TaggedRegister tagged(context);
   if (depth == 0) {
-    LoadTaggedPointerField(tagged, context, Context::kExtensionOffset);
+    LoadTaggedField(tagged, context, Context::kExtensionOffset);
   } else {
-    LoadTaggedPointerField(tagged, context, Context::kPreviousOffset);
+    LoadTaggedField(tagged, context, Context::kPreviousOffset);
     --depth;
     for (; depth > 0; --depth) {
-      LoadTaggedPointerField(tagged, tagged, Context::kPreviousOffset);
+      LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
-    LoadTaggedPointerField(tagged, tagged, Context::kExtensionOffset);
+    LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
-  LoadTaggedPointerField(tagged, tagged,
-                         SourceTextModule::kRegularExportsOffset);
+  LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
 
   // The actual array index is (cell_index - 1).
   cell_index -= 1;

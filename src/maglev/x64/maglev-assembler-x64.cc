@@ -111,8 +111,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   DCHECK_NE(char_code, scratch);
   Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  DecompressAnyTagged(result, FieldOperand(table, char_code, times_tagged_size,
-                                           FixedArray::kHeaderSize));
+  DecompressTagged(result, FieldOperand(table, char_code, times_tagged_size,
+                                        FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -224,8 +224,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
 
   // Is a thin string.
   {
-    DecompressAnyTagged(string,
-                        FieldOperand(string, ThinString::kActualOffset));
+    DecompressTagged(string, FieldOperand(string, ThinString::kActualOffset));
     jmp(&loop, Label::kNear);
   }
 
@@ -234,8 +233,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     Register offset = scratch;
     movl(offset, FieldOperand(string, SlicedString::kOffsetOffset));
     SmiUntag(offset);
-    DecompressAnyTagged(string,
-                        FieldOperand(string, SlicedString::kParentOffset));
+    DecompressTagged(string, FieldOperand(string, SlicedString::kParentOffset));
     addl(index, offset);
     jmp(&loop, Label::kNear);
   }
@@ -245,7 +243,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                 RootIndex::kempty_string);
     j(not_equal, deferred_runtime_call);
-    DecompressAnyTagged(string, FieldOperand(string, ConsString::kFirstOffset));
+    DecompressTagged(string, FieldOperand(string, ConsString::kFirstOffset));
     jmp(&loop, Label::kNear);  // Try again with first string.
   }
 

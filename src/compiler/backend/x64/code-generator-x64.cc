@@ -293,7 +293,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTaggedPointer(value_, value_);
+      __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(
         value_, scratch0_,
@@ -1358,8 +1358,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-      __ LoadTaggedPointerField(rcx,
-                                FieldOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedField(rcx, FieldOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(rcx);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
@@ -2576,18 +2575,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
-    case kX64MovqDecompressTaggedPointer: {
+    case kX64MovqDecompressTagged: {
       CHECK(instr->HasOutput());
       Operand address(i.MemoryOperand());
-      __ DecompressTaggedPointer(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
-                                     DetermineStubCallMode(), kTaggedSize);
-      break;
-    }
-    case kX64MovqDecompressAnyTagged: {
-      CHECK(instr->HasOutput());
-      Operand address(i.MemoryOperand());
-      __ DecompressAnyTagged(i.OutputRegister(), address);
+      __ DecompressTagged(i.OutputRegister(), address);
       EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;

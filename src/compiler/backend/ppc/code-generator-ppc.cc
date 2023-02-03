@@ -172,7 +172,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   void Generate() final {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm());
     if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTaggedPointer(value_, value_);
+      __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(
         value_, scratch0_,
@@ -793,8 +793,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   }
 
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadTaggedPointerField(
-      r11, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
+  __ LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
+                     r0);
   __ LoadS32(r11, FieldMemOperand(r11, Code::kKindSpecificFlagsOffset), r0);
   __ TestBit(r11, InstructionStream::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -908,14 +908,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
-        __ LoadTaggedPointerField(
+        __ LoadTaggedField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
         __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-      __ LoadTaggedPointerField(
-          r5, FieldMemOperand(func, JSFunction::kCodeOffset), r0);
+      __ LoadTaggedField(r5, FieldMemOperand(func, JSFunction::kCodeOffset),
+                         r0);
       __ CallCodeObject(r5);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -2880,13 +2880,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       break;
     }
-    case kPPC_LoadDecompressTaggedPointer: {
-      CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
-      __ add(i.OutputRegister(), i.OutputRegister(), kPtrComprCageBaseRegister);
-      break;
-    }
-    case kPPC_LoadDecompressAnyTagged: {
+    case kPPC_LoadDecompressTagged: {
       CHECK(instr->HasOutput());
       ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       __ add(i.OutputRegister(), i.OutputRegister(), kPtrComprCageBaseRegister);

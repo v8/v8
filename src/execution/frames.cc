@@ -1109,7 +1109,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
       // We don't need to update smi values or full pointers.
       was_compressed = true;
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
           cage_base, static_cast<Tagged_t>(value));
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
@@ -1144,7 +1144,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(compressed_value)) {
       was_compressed = slot_contents <= 0xFFFFFFFF;
       // We don't need to update smi values.
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
           cage_base, compressed_value);
     }
   }

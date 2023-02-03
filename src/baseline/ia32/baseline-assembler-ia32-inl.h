@@ -293,8 +293,8 @@ void BaselineAssembler::Pop(T... registers) {
   (__ Pop(registers), ...);
 }
 
-void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
-                                               int offset) {
+void BaselineAssembler::LoadTaggedField(Register output, Register source,
+                                        int offset) {
   __ mov(output, FieldOperand(source, offset));
 }
 
@@ -308,11 +308,6 @@ void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
                                                       int offset) {
   LoadTaggedSignedField(output, source, offset);
   SmiUntag(output);
-}
-
-void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
-                                           int offset) {
-  __ mov(output, FieldOperand(source, offset));
 }
 
 void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
@@ -354,8 +349,8 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                                 Label* on_result,
                                                 Label::Distance distance) {
   Label fallthrough;
-  LoadTaggedPointerField(scratch_and_result, feedback_vector,
-                         FeedbackVector::OffsetOfElementAt(slot.ToInt()));
+  LoadTaggedField(scratch_and_result, feedback_vector,
+                  FeedbackVector::OffsetOfElementAt(slot.ToInt()));
   __ LoadWeakValue(scratch_and_result, &fallthrough);
 
   // Is it marked_for_deoptimization? If yes, clear the slot.
@@ -378,8 +373,8 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
-  LoadTaggedPointerField(feedback_cell, feedback_cell,
-                         JSFunction::kFeedbackCellOffset);
+  LoadTaggedField(feedback_cell, feedback_cell,
+                  JSFunction::kFeedbackCellOffset);
   __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
          Immediate(weight));
   if (skip_interrupt_label) {
@@ -395,8 +390,8 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   Register feedback_cell = scratch_scope.AcquireScratch();
   DCHECK(!AreAliased(feedback_cell, weight));
   LoadFunction(feedback_cell);
-  LoadTaggedPointerField(feedback_cell, feedback_cell,
-                         JSFunction::kFeedbackCellOffset);
+  LoadTaggedField(feedback_cell, feedback_cell,
+                  JSFunction::kFeedbackCellOffset);
   __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
          weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
@@ -405,16 +400,16 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                                        uint32_t depth) {
   for (; depth > 0; --depth) {
-    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+    LoadTaggedField(context, context, Context::kPreviousOffset);
   }
-  LoadTaggedAnyField(kInterpreterAccumulatorRegister, context,
-                     Context::OffsetOfElementAt(index));
+  LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                  Context::OffsetOfElementAt(index));
 }
 
 void BaselineAssembler::StaContextSlot(Register context, Register value,
                                        uint32_t index, uint32_t depth) {
   for (; depth > 0; --depth) {
-    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+    LoadTaggedField(context, context, Context::kPreviousOffset);
   }
   StoreTaggedFieldWithWriteBarrier(context, Context::OffsetOfElementAt(index),
                                    value);
@@ -423,33 +418,29 @@ void BaselineAssembler::StaContextSlot(Register context, Register value,
 void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
                                           uint32_t depth) {
   for (; depth > 0; --depth) {
-    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+    LoadTaggedField(context, context, Context::kPreviousOffset);
   }
-  LoadTaggedPointerField(context, context, Context::kExtensionOffset);
+  LoadTaggedField(context, context, Context::kExtensionOffset);
   if (cell_index > 0) {
-    LoadTaggedPointerField(context, context,
-                           SourceTextModule::kRegularExportsOffset);
+    LoadTaggedField(context, context, SourceTextModule::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
     cell_index -= 1;
   } else {
-    LoadTaggedPointerField(context, context,
-                           SourceTextModule::kRegularImportsOffset);
+    LoadTaggedField(context, context, SourceTextModule::kRegularImportsOffset);
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
   LoadFixedArrayElement(context, context, cell_index);
-  LoadTaggedAnyField(kInterpreterAccumulatorRegister, context,
-                     Cell::kValueOffset);
+  LoadTaggedField(kInterpreterAccumulatorRegister, context, Cell::kValueOffset);
 }
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
                                           int cell_index, uint32_t depth) {
   for (; depth > 0; --depth) {
-    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+    LoadTaggedField(context, context, Context::kPreviousOffset);
   }
-  LoadTaggedPointerField(context, context, Context::kExtensionOffset);
-  LoadTaggedPointerField(context, context,
-                         SourceTextModule::kRegularExportsOffset);
+  LoadTaggedField(context, context, Context::kExtensionOffset);
+  LoadTaggedField(context, context, SourceTextModule::kRegularExportsOffset);
 
   // The actual array index is (cell_index - 1).
   cell_index -= 1;

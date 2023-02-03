@@ -92,8 +92,8 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
     __ CompareObjectType(object, FIRST_JS_OBJECT_TYPE, scratch);
     __ Assert(ge, AbortReason::kUnexpectedValue);
   }
-  __ LoadAnyTaggedField(scratch,
-                        FieldMemOperand(object, JSObject::kElementsOffset));
+  __ LoadTaggedField(scratch,
+                     FieldMemOperand(object, JSObject::kElementsOffset));
   if (v8_flags.debug_code) {
     __ AssertNotSmi(scratch);
   }
@@ -1325,8 +1325,8 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         // Deopt if this isn't a thin string.
         __ Tst(instance_type.W(), Immediate(kThinStringTagBit));
         __ EmitEagerDeoptIf(eq, DeoptimizeReason::kWrongMap, node);
-        __ LoadTaggedPointerField(
-            object, FieldMemOperand(object, ThinString::kActualOffset));
+        __ LoadTaggedField(object,
+                           FieldMemOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {
           __ RecordComment("DCHECK IsInternalizedString");
           Register scratch = instance_type;
@@ -1408,7 +1408,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Register generator = ToRegister(generator_input());
   Register array = WriteBarrierDescriptor::ObjectRegister();
-  __ LoadTaggedPointerField(
+  __ LoadTaggedField(
       array, FieldMemOperand(generator,
                              JSGeneratorObject::kParametersAndRegistersOffset));
 
@@ -1524,7 +1524,7 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
   Register budget = temps.Acquire().W();
   __ Ldr(feedback_cell,
          MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
+  __ LoadTaggedField(
       feedback_cell,
       FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
   __ Ldr(budget,
@@ -1647,7 +1647,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
       Register budget = temps.Acquire().W();
       __ Ldr(feedback_cell,
              MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-      __ LoadTaggedPointerField(
+      __ LoadTaggedField(
           feedback_cell,
           FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
       __ Move(budget, v8_flags.interrupt_budget);
@@ -1672,7 +1672,7 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
   Register budget = temps.Acquire().W();
   __ Ldr(feedback_cell,
          MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
+  __ LoadTaggedField(
       feedback_cell,
       FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
   __ Ldr(budget,
@@ -1793,8 +1793,8 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
   }
   Register result_reg = ToRegister(result());
   __ Add(result_reg, elements, Operand(index, LSL, kTaggedSizeLog2));
-  __ DecompressAnyTagged(result_reg,
-                         FieldMemOperand(result_reg, FixedArray::kHeaderSize));
+  __ DecompressTagged(result_reg,
+                      FieldMemOperand(result_reg, FixedArray::kHeaderSize));
 }
 
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
@@ -1829,7 +1829,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   Register tmp = temps.Acquire();
 
   __ AssertNotSmi(object);
-  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
+  __ DecompressTagged(tmp, FieldMemOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ Move(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
 }

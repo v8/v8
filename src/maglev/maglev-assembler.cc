@@ -32,9 +32,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   DCHECK_LT(char_code, String::kMaxOneByteCharCode);
   Register table = result;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  DecompressAnyTagged(
-      result, FieldMemOperand(
-                  table, FixedArray::kHeaderSize + char_code * kTaggedSize));
+  DecompressTagged(result, FieldMemOperand(table, FixedArray::kHeaderSize +
+                                                      char_code * kTaggedSize));
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
@@ -54,13 +53,12 @@ void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
     }
     // The field is in the property array, first load it from there.
     AssertNotSmi(load_source_object);
-    DecompressAnyTagged(load_source,
-                        FieldMemOperand(load_source_object,
-                                        JSReceiver::kPropertiesOrHashOffset));
+    DecompressTagged(load_source,
+                     FieldMemOperand(load_source_object,
+                                     JSReceiver::kPropertiesOrHashOffset));
   }
   AssertNotSmi(load_source);
-  DecompressAnyTagged(result,
-                      FieldMemOperand(load_source, field_index.offset()));
+  DecompressTagged(result, FieldMemOperand(load_source, field_index.offset()));
 }
 
 }  // namespace maglev

@@ -125,7 +125,7 @@ void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
 
 Address ReadOnlyRoots::at(RootIndex root_index) const {
 #if V8_STATIC_ROOTS_BOOL
-  return V8HeapCompressionScheme::DecompressTaggedPointer(
+  return V8HeapCompressionScheme::DecompressTagged(
       V8HeapCompressionScheme::base(),
       StaticReadOnlyRootsPointerTable[static_cast<int>(root_index)]);
 #else

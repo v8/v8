@@ -209,7 +209,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTaggedPointer(value_, value_);
+      __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(
         value_, scratch0_,
@@ -1134,8 +1134,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   }
 
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadTaggedPointerField(
-      ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
+  __ LoadTaggedField(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset),
+                     r0);
   __ LoadS32(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
   __ TestBit(ip, InstructionStream::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -1240,14 +1240,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
-        __ LoadTaggedPointerField(
-            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedField(kScratchReg,
+                           FieldMemOperand(func, JSFunction::kContextOffset));
         __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-      __ LoadTaggedPointerField(r4,
-                                FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedField(r4, FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -3175,14 +3174,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
     }
-    case kS390_LoadDecompressTaggedPointer: {
+    case kS390_LoadDecompressTagged: {
       CHECK(instr->HasOutput());
-      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
-      break;
-    }
-    case kS390_LoadDecompressAnyTagged: {
-      CHECK(instr->HasOutput());
-      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
+      __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
     }
     default:

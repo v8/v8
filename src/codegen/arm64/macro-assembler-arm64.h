@@ -1400,14 +1400,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 
-  // Loads a field containing a HeapObject and decompresses it if pointer
-  // compression is enabled.
-  void LoadTaggedPointerField(const Register& destination,
-                              const MemOperand& field_operand);
-
   // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadAnyTaggedField(const Register& destination,
-                          const MemOperand& field_operand);
+  void LoadTaggedField(const Register& destination,
+                       const MemOperand& field_operand);
 
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
@@ -1432,24 +1427,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
-  void DecompressTaggedPointer(const Register& destination,
-                               const MemOperand& field_operand);
-  void DecompressTaggedPointer(const Register& destination,
-                               const Register& source);
-  void DecompressTaggedPointer(const Register& destination, Tagged_t immediate);
-  void DecompressAnyTagged(const Register& destination,
-                           const MemOperand& field_operand);
+  void DecompressTagged(const Register& destination,
+                        const MemOperand& field_operand);
+  void DecompressTagged(const Register& destination, const Register& source);
+  void DecompressTagged(const Register& destination, Tagged_t immediate);
 
   void AtomicDecompressTaggedSigned(const Register& destination,
                                     const Register& base, const Register& index,
                                     const Register& temp);
-  void AtomicDecompressTaggedPointer(const Register& destination,
-                                     const Register& base,
-                                     const Register& index,
-                                     const Register& temp);
-  void AtomicDecompressAnyTagged(const Register& destination,
-                                 const Register& base, const Register& index,
-                                 const Register& temp);
+  void AtomicDecompressTagged(const Register& destination, const Register& base,
+                              const Register& index, const Register& temp);
 
   // Restore FP and LR from the values stored in the current frame. This will
   // authenticate the LR when pointer authentication is enabled.

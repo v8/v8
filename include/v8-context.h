@@ -365,8 +365,7 @@ Local<Value> Context::GetEmbedderData(int index) {
 #ifdef V8_COMPRESS_POINTERS
   // We read the full pointer value and then decompress it in order to avoid
   // dealing with potential endiannes issues.
-  value =
-      I::DecompressTaggedAnyField(embedder_data, static_cast<uint32_t>(value));
+  value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
   internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
       *reinterpret_cast<A*>(this));

@@ -238,10 +238,9 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = flags;
-  LoadAnyTaggedField(
-      optimized_code_entry,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kMaybeOptimizedCodeOffset));
+  LoadTaggedField(optimized_code_entry,
+                  FieldMemOperand(feedback_vector,
+                                  FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(this, optimized_code_entry, temps.Acquire(),
                             temps.Acquire());
 }
@@ -413,7 +412,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.Acquire();
     DCHECK(!AreAliased(object, value, temp));
     AddWord(temp, object, offset);
-    LoadTaggedPointerField(temp, MemOperand(temp));
+    LoadTaggedField(temp, MemOperand(temp));
     Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite, temp,
            Operand(value));
   }
@@ -4216,9 +4215,9 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  LoadTaggedPointerField(
-      destination, FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
-                                                    constant_index)));
+  LoadTaggedField(destination,
+                  FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
+                                                   constant_index)));
 }
 
 void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
@@ -4916,8 +4915,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
-  LoadTaggedPointerField(code,
-                         FieldMemOperand(function, JSFunction::kCodeOffset));
+  LoadTaggedField(code, FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
       CallCodeObject(code);
@@ -4944,11 +4942,10 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   {
     UseScratchRegisterScope temps(this);
     Register temp_reg = temps.Acquire();
-    LoadTaggedPointerField(
+    LoadTaggedField(
         temp_reg,
         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    LoadTaggedPointerField(
-        cp, FieldMemOperand(function, JSFunction::kContextOffset));
+    LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
     // The argument count is stored as uint16_t
     Lhu(expected_parameter_count,
         FieldMemOperand(temp_reg,
@@ -4969,7 +4966,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK_EQ(function, a1);
 
   // Get the function and setup the context.
-  LoadTaggedPointerField(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+  LoadTaggedField(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   InvokeFunctionCode(a1, no_reg, expected_parameter_count,
                      actual_parameter_count, type);
@@ -5498,17 +5495,16 @@ void MacroAssembler::Abort(AbortReason reason) {
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(destination,
-                         FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   ASM_CODE_COMMENT(this);
   LoadMap(dst, cp);
-  LoadTaggedPointerField(
+  LoadTaggedField(
       dst, FieldMemOperand(
                dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
+  LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
@@ -6186,19 +6182,10 @@ void MacroAssembler::JumpCodeObject(Register code, JumpMode jump_mode) {
 }
 
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::LoadTaggedPointerField(const Register& destination,
-                                            const MemOperand& field_operand) {
+void MacroAssembler::LoadTaggedField(const Register& destination,
+                                     const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(destination, field_operand);
-  } else {
-    Ld(destination, field_operand);
-  }
-}
-
-void MacroAssembler::LoadAnyTaggedField(const Register& destination,
-                                        const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressAnyTagged(destination, field_operand);
+    DecompressTagged(destination, field_operand);
   } else {
     Ld(destination, field_operand);
   }
@@ -6237,25 +6224,18 @@ void MacroAssembler::DecompressTaggedSigned(const Register& destination,
   }
 }
 
-void MacroAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const MemOperand& field_operand) {
+void MacroAssembler::DecompressTagged(const Register& destination,
+                                      const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Lwu(destination, field_operand);
   AddWord(destination, kPtrComprCageBaseRegister, destination);
 }
 
-void MacroAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const Register& source) {
+void MacroAssembler::DecompressTagged(const Register& destination,
+                                      const Register& source) {
   ASM_CODE_COMMENT(this);
   And(destination, source, Operand(0xFFFFFFFF));
   AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
-}
-
-void MacroAssembler::DecompressAnyTagged(const Register& destination,
-                                         const MemOperand& field_operand) {
-  ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
-  AddWord(destination, kPtrComprCageBaseRegister, destination);
 }
 #endif
 void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,

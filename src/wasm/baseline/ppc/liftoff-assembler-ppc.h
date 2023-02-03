@@ -266,7 +266,7 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
-  LoadTaggedPointerField(dst, MemOperand(instance, offset), r0);
+  LoadTaggedField(dst, MemOperand(instance, offset), r0);
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -283,7 +283,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
     ShiftLeftU64(ip, offset_reg, Operand(shift_amount));
     offset_reg = ip;
   }
-  LoadTaggedPointerField(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
+  LoadTaggedField(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -310,7 +310,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   bind(&write_barrier);
   JumpIfSmi(src.gp(), &exit);
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(src.gp(), src.gp());
+    DecompressTagged(src.gp(), src.gp());
   }
   CheckPageFlag(src.gp(), ip,
                 MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,

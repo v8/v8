@@ -196,7 +196,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
   DCHECK_LE(0, offset);
-  LoadTaggedPointerField(dst, MemOperand{instance, offset});
+  LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {

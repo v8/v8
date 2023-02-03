@@ -438,7 +438,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
   DCHECK_LE(0, offset);
-  LoadTaggedPointerField(dst, MemOperand{instance, offset});
+  LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
 void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
@@ -461,7 +461,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
                                         offset_imm, false, shift_amount);
-  LoadTaggedPointerField(dst, src_op);
+  LoadTaggedField(dst, src_op);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -502,7 +502,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   bind(&write_barrier);
   JumpIfSmi(src.gp(), &exit);
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(src.gp(), src.gp());
+    DecompressTagged(src.gp(), src.gp());
   }
   CheckPageFlag(src.gp(),
                 MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,

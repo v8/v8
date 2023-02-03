@@ -85,7 +85,7 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  LoadTaggedPointerField(
+  LoadTaggedField(
       destination,
       FieldOperand(destination, FixedArray::OffsetOfElementAt(constant_index)));
 }
@@ -174,7 +174,7 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    DecompressTaggedPointer(destination, ReadOnlyRootPtr(index));
+    DecompressTagged(destination, ReadOnlyRootPtr(index));
     return;
   }
   DCHECK(root_array_available_);
@@ -220,24 +220,23 @@ void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  LoadTaggedPointerField(destination,
-                         FieldOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(destination, FieldOperand(object, HeapObject::kMapOffset));
 #ifdef V8_MAP_PACKING
   UnpackMapWord(destination);
 #endif
 }
 
-void MacroAssembler::LoadTaggedPointerField(Register destination,
-                                            Operand field_operand) {
+void MacroAssembler::LoadTaggedField(Register destination,
+                                     Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(destination, field_operand);
+    DecompressTagged(destination, field_operand);
   } else {
     mov_tagged(destination, field_operand);
   }
 }
 
-void MacroAssembler::LoadTaggedPointerField(TaggedRegister destination,
-                                            Operand field_operand) {
+void MacroAssembler::LoadTaggedField(TaggedRegister destination,
+                                     Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     movl(destination.reg(), field_operand);
   } else {
@@ -264,40 +263,10 @@ void MacroAssembler::LoadTaggedSignedField(Register destination,
   }
 }
 
-void MacroAssembler::LoadAnyTaggedField(Register destination,
-                                        Operand field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressAnyTagged(destination, field_operand);
-  } else {
-    mov_tagged(destination, field_operand);
-  }
-}
-
-void MacroAssembler::LoadAnyTaggedField(TaggedRegister destination,
-                                        Operand field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    movl(destination.reg(), field_operand);
-  } else {
-    mov_tagged(destination.reg(), field_operand);
-  }
-}
-
-void MacroAssembler::PushTaggedPointerField(Operand field_operand,
-                                            Register scratch) {
+void MacroAssembler::PushTaggedField(Operand field_operand, Register scratch) {
   if (COMPRESS_POINTERS_BOOL) {
     DCHECK(!field_operand.AddressUsesRegister(scratch));
-    DecompressTaggedPointer(scratch, field_operand);
-    Push(scratch);
-  } else {
-    Push(field_operand);
-  }
-}
-
-void MacroAssembler::PushTaggedAnyField(Operand field_operand,
-                                        Register scratch) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DCHECK(!field_operand.AddressUsesRegister(scratch));
-    DecompressAnyTagged(scratch, field_operand);
+    DecompressTagged(scratch, field_operand);
     Push(scratch);
   } else {
     Push(field_operand);
@@ -357,29 +326,21 @@ void MacroAssembler::DecompressTaggedSigned(Register destination,
   movl(destination, field_operand);
 }
 
-void MacroAssembler::DecompressTaggedPointer(Register destination,
-                                             Operand field_operand) {
+void MacroAssembler::DecompressTagged(Register destination,
+                                      Operand field_operand) {
   ASM_CODE_COMMENT(this);
   movl(destination, field_operand);
   addq(destination, kPtrComprCageBaseRegister);
 }
 
-void MacroAssembler::DecompressTaggedPointer(Register destination,
-                                             Register source) {
+void MacroAssembler::DecompressTagged(Register destination, Register source) {
   ASM_CODE_COMMENT(this);
   movl(destination, source);
   addq(destination, kPtrComprCageBaseRegister);
 }
 
-void MacroAssembler::DecompressAnyTagged(Register destination,
-                                         Operand field_operand) {
-  ASM_CODE_COMMENT(this);
-  movl(destination, field_operand);
-  addq(destination, kPtrComprCageBaseRegister);
-}
-
-void MacroAssembler::DecompressTaggedPointer(Register destination,
-                                             Tagged_t immediate) {
+void MacroAssembler::DecompressTagged(Register destination,
+                                      Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   leaq(destination,
        Operand(kPtrComprCageBaseRegister, static_cast<int32_t>(immediate)));
@@ -951,7 +912,7 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = flags;
-  LoadAnyTaggedField(
+  LoadTaggedField(
       optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(this, optimized_code_entry, closure, r9,
@@ -2803,7 +2764,7 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(
+  LoadTaggedField(
       rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movzxwq(rbx,
           FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
@@ -2816,8 +2777,7 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {
   DCHECK_EQ(function, rdi);
-  LoadTaggedPointerField(rsi,
-                         FieldOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(rsi, FieldOperand(function, JSFunction::kContextOffset));
   InvokeFunctionCode(rdi, new_target, expected_parameter_count,
                      actual_parameter_count, type);
 }
@@ -2857,7 +2817,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  LoadTaggedPointerField(rcx, FieldOperand(function, JSFunction::kCodeOffset));
+  LoadTaggedField(rcx, FieldOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
       CallCodeObject(rcx);
@@ -3227,11 +3187,11 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   ASM_CODE_COMMENT(this);
   // Load native context.
   LoadMap(dst, rsi);
-  LoadTaggedPointerField(
+  LoadTaggedField(
       dst,
       FieldOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
   // Load value from native context.
-  LoadTaggedPointerField(dst, Operand(dst, Context::SlotOffset(index)));
+  LoadTaggedField(dst, Operand(dst, Context::SlotOffset(index)));
 }
 
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -3240,7 +3200,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                              Label* on_result,
                                              Label::Distance distance) {
   Label fallthrough;
-  LoadTaggedPointerField(
+  LoadTaggedField(
       scratch_and_result,
       FieldOperand(feedback_vector,
                    FeedbackVector::OffsetOfElementAt(slot.ToInt())));
@@ -3413,8 +3373,7 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 //    3. if it is not zero then it jumps to the builtin.
 void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadTaggedPointerField(scratch,
-                         Operand(kJavaScriptCallCodeStartRegister, offset));
+  LoadTaggedField(scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
   testl(FieldOperand(scratch, Code::kKindSpecificFlagsOffset),
         Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),

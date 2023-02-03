@@ -280,10 +280,10 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kRiscvLoadDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kRiscvLoadDecompressTaggedPointer;
+      opcode = kRiscvLoadDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kRiscvLoadDecompressAnyTagged;
+      opcode = kRiscvLoadDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
@@ -1938,10 +1938,10 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
       opcode = kRiscv64LdDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kRiscv64LdDecompressTaggedPointer;
+      opcode = kRiscv64LdDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kRiscv64LdDecompressAnyTagged;
+      opcode = kRiscv64LdDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.

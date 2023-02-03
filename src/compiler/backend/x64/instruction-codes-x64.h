@@ -173,8 +173,7 @@ namespace compiler {
   V(X64Float32Abs)                                   \
   V(X64Float32Neg)                                   \
   V(X64MovqDecompressTaggedSigned)                   \
-  V(X64MovqDecompressTaggedPointer)                  \
-  V(X64MovqDecompressAnyTagged)                      \
+  V(X64MovqDecompressTagged)                         \
   V(X64MovqCompressTagged)                           \
   V(X64MovqEncodeSandboxedPointer)                   \
   V(X64MovqDecodeSandboxedPointer)                   \

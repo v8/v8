@@ -807,7 +807,7 @@ class Internals {
     return addr & -static_cast<intptr_t>(kPtrComprCageBaseAlignment);
   }
 
-  V8_INLINE static internal::Address DecompressTaggedAnyField(
+  V8_INLINE static internal::Address DecompressTaggedField(
       internal::Address heap_object_ptr, uint32_t value) {
     internal::Address base =
         GetPtrComprCageBaseFromOnHeapAddress(heap_object_ptr);

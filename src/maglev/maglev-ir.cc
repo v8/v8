@@ -953,7 +953,7 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
   Register tmp = temps.Acquire();
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
-  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
+  __ DecompressTagged(tmp, FieldMemOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ LoadHeapNumberValue(ToDoubleRegister(result()), tmp);
 }
@@ -966,8 +966,7 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
-  __ DecompressAnyTagged(ToRegister(result()),
-                         FieldMemOperand(object, offset()));
+  __ DecompressTagged(ToRegister(result()), FieldMemOperand(object, offset()));
 }
 
 namespace {
@@ -1065,8 +1064,8 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
             Register cell = map;  // Reuse scratch.
             __ Move(cell, access_info.cell());
             __ AssertNotSmi(cell);
-            __ DecompressAnyTagged(result,
-                                   FieldMemOperand(cell, Cell::kValueOffset));
+            __ DecompressTagged(result,
+                                FieldMemOperand(cell, Cell::kValueOffset));
             break;
           }
           case PolymorphicAccessInfo::kDataLoad: {
@@ -1878,7 +1877,7 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   Register value = (array == result_reg ? temp : result_reg);
 
   // Loads the current value in the generator register file.
-  __ DecompressAnyTagged(
+  __ DecompressTagged(
       value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
 
   // And trashs it with StaleRegisterConstant.
@@ -2429,9 +2428,9 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     __ CallBuiltin(shared_function_info().builtin_id());
   } else {
     __ AssertCallableFunction(kJavaScriptCallTargetRegister);
-    __ LoadTaggedPointerField(kJavaScriptCallCodeStartRegister,
-                              FieldMemOperand(kJavaScriptCallTargetRegister,
-                                              JSFunction::kCodeOffset));
+    __ LoadTaggedField(kJavaScriptCallCodeStartRegister,
+                       FieldMemOperand(kJavaScriptCallTargetRegister,
+                                       JSFunction::kCodeOffset));
     __ CallCodeObject(kJavaScriptCallCodeStartRegister);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);

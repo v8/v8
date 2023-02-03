@@ -57,7 +57,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Register generator = ToRegister(generator_input());
   Register array = WriteBarrierDescriptor::ObjectRegister();
-  __ LoadTaggedPointerField(
+  __ LoadTaggedField(
       array, FieldOperand(generator,
                           JSGeneratorObject::kParametersAndRegistersOffset));
 
@@ -498,8 +498,8 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
     __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
     __ Assert(greater_equal, AbortReason::kUnexpectedValue);
   }
-  __ LoadAnyTaggedField(kScratchRegister,
-                        FieldOperand(object, JSObject::kElementsOffset));
+  __ LoadTaggedField(kScratchRegister,
+                     FieldOperand(object, JSObject::kElementsOffset));
   if (v8_flags.debug_code) {
     __ AssertNotSmi(kScratchRegister);
   }
@@ -548,8 +548,8 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         // Deopt if this isn't a thin string.
         __ testb(map_tmp, Immediate(kThinStringTagBit));
         __ EmitEagerDeoptIf(zero, DeoptimizeReason::kWrongMap, node);
-        __ LoadTaggedPointerField(
-            object, FieldOperand(object, ThinString::kActualOffset));
+        __ LoadTaggedField(object,
+                           FieldOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {
           __ RecordComment("DCHECK IsInternalizedString");
           __ LoadMap(map_tmp, object);
@@ -721,9 +721,9 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
     __ cmpq(index, Immediate(0));
     __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
   }
-  __ DecompressAnyTagged(result_reg,
-                         FieldOperand(elements, index, times_tagged_size,
-                                      FixedArray::kHeaderSize));
+  __ DecompressTagged(result_reg,
+                      FieldOperand(elements, index, times_tagged_size,
+                                   FixedArray::kHeaderSize));
 }
 
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
@@ -1092,7 +1092,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   DoubleRegister value = ToDoubleRegister(value_input());
 
   __ AssertNotSmi(object);
-  __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
+  __ DecompressTagged(tmp, FieldOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
 }
@@ -2162,8 +2162,8 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
-      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
+  __ LoadTaggedField(scratch,
+                     FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
   __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(amount()));
 }
@@ -2253,8 +2253,8 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ incl(FieldOperand(scratch0, FeedbackVector::kProfilerTicksOffset));
     // JSFunction::SetInterruptBudget.
     __ movq(scratch0, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-    __ LoadTaggedPointerField(
-        scratch0, FieldOperand(scratch0, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedField(scratch0,
+                       FieldOperand(scratch0, JSFunction::kFeedbackCellOffset));
     __ movl(FieldOperand(scratch0, FeedbackCell::kInterruptBudgetOffset),
             Immediate(v8_flags.interrupt_budget));
     __ jmp(*done);
@@ -2272,8 +2272,8 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
-      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
+  __ LoadTaggedField(scratch,
+                     FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
   __ subl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(amount()));
   ZoneLabelRef done(masm);
