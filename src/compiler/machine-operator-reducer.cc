@@ -381,6 +381,10 @@ Node* MachineOperatorReducer::TruncateInt64ToInt32(Node* value) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
+Node* MachineOperatorReducer::ChangeInt32ToInt64(Node* value) {
+  return graph()->NewNode(machine()->ChangeInt32ToInt64(), value);
+}
+
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -1282,7 +1286,10 @@ Reduction MachineOperatorReducer::ReduceInt64Div(Node* node) {
   }
   if (m.LeftEqualsRight()) {  // x / x => x != 0
     Node* const zero = Int64Constant(0);
-    return Replace(Word64Equal(Word64Equal(m.left().node(), zero), zero));
+    // {Word64Equal} can get reduced to a bool/int32, but we need this
+    // operation to produce an int64.
+    return Replace(ChangeInt32ToInt64(
+        Word64Equal(Word64Equal(m.left().node(), zero), zero)));
   }
   if (m.right().Is(-1)) {  // x / -1 => 0 - x
     node->ReplaceInput(0, Int64Constant(0));
@@ -1358,7 +1365,10 @@ Reduction MachineOperatorReducer::ReduceUint64Div(Node* node) {
   }
   if (m.LeftEqualsRight()) {  // x / x => x != 0
     Node* const zero = Int64Constant(0);
-    return Replace(Word64Equal(Word64Equal(m.left().node(), zero), zero));
+    // {Word64Equal} can get reduced to a bool/int32, but we need this
+    // operation to produce an int64.
+    return Replace(ChangeInt32ToInt64(
+        Word64Equal(Word64Equal(m.left().node(), zero), zero)));
   }
   if (m.right().HasResolvedValue()) {
     Node* const dividend = m.left().node();

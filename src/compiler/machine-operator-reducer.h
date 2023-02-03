@@ -80,6 +80,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Uint32Div(Node* dividend, uint32_t divisor);
   Node* Uint64Div(Node* dividend, uint64_t divisor);
   Node* TruncateInt64ToInt32(Node* value);
+  Node* ChangeInt32ToInt64(Node* value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
   Reduction ReplaceFloat32(float value) {
