@@ -301,9 +301,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Changed(node);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(SetType(gasm_.AssertNotNull(object, object_type.type,
-                                                 TrapId::kTrapIllegalCast),
-                             object_type.type.AsNonNull()));
+      return Replace(
+          SetType(gasm_.AssertNotNull(object, TrapId::kTrapIllegalCast),
+                  object_type.type.AsNonNull()));
     }
   }
 
@@ -314,12 +314,11 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
     // A cast between unrelated types can only succeed if the argument is null.
     // Otherwise, it always fails.
     Node* non_trapping_condition = object_type.type.is_nullable() && to_nullable
-                                       ? gasm_.IsNull(object, object_type.type)
+                                       ? gasm_.IsNull(object)
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
-    Node* null_node = SetType(gasm_.Null(object_type.type),
-                              wasm::ToNullSentinel(object_type));
+    Node* null_node = SetType(gasm_.Null(), wasm::ToNullSentinel(object_type));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
     node->Kill();
     return Replace(null_node);
@@ -361,7 +360,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
     // Type cast will fail only on null.
     gasm_.InitializeEffectControl(effect, control);
     Node* condition = SetType(object_type.type.is_nullable() && !null_succeeds
-                                  ? gasm_.IsNotNull(object, object_type.type)
+                                  ? gasm_.IsNotNull(object)
                                   : gasm_.Int32Constant(1),
                               wasm::kWasmI32);
     ReplaceWithValue(node, condition);
@@ -378,8 +377,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
     if (null_succeeds && object_type.type.is_nullable()) {
       // The cast only succeeds in case of null.
       gasm_.InitializeEffectControl(effect, control);
-      condition =
-          SetType(gasm_.IsNull(object, object_type.type), wasm::kWasmI32);
+      condition = SetType(gasm_.IsNull(object), wasm::kWasmI32);
     } else {
       // The cast never succeeds.
       condition = SetType(gasm_.Int32Constant(0), wasm::kWasmI32);

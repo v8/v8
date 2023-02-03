@@ -274,8 +274,6 @@ class ReadOnlySpace : public BaseSpace {
 
   size_t capacity_;
   const size_t area_size_;
-
-  friend class Heap;
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {

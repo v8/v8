@@ -651,9 +651,6 @@ bool Object::BooleanValue(IsolateT* isolate) {
   DCHECK(IsHeapObject());
   if (IsBoolean()) return IsTrue(isolate);
   if (IsNullOrUndefined(isolate)) return false;
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (IsWasmNull()) return false;
-#endif
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(*this).length() != 0;
   if (IsHeapNumber()) return DoubleToBoolean(HeapNumber::cast(*this).value());
@@ -2294,9 +2291,6 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == WASM_ARRAY_TYPE) {
     return WasmArray::SizeFor(map, WasmArray::unchecked_cast(*this).length());
-  }
-  if (instance_type == WASM_NULL_TYPE) {
-    return WasmNull::kSize;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);

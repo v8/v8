@@ -233,7 +233,7 @@ class WasmGraphBuildingInterface {
         DCHECK(type.is_reference());
         // TODO(jkummerow): Consider using "the hole" instead, to make any
         // illegal uses more obvious.
-        node = builder_->SetType(builder_->RefNull(type), type);
+        node = builder_->SetType(builder_->RefNull(), type);
       } else {
         node = builder_->SetType(builder_->DefaultValue(type), type);
       }
@@ -444,8 +444,8 @@ class WasmGraphBuildingInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    SetAndTypeNode(result, builder_->Unop(opcode, value.node, value.type,
-                                          decoder->position()));
+    SetAndTypeNode(result,
+                   builder_->Unop(opcode, value.node, decoder->position()));
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
@@ -481,7 +481,7 @@ class WasmGraphBuildingInterface {
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    SetAndTypeNode(result, builder_->RefNull(type));
+    SetAndTypeNode(result, builder_->RefNull());
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
@@ -489,8 +489,7 @@ class WasmGraphBuildingInterface {
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    TFNode* cast_node =
-        builder_->AssertNotNull(arg.node, arg.type, decoder->position());
+    TFNode* cast_node = builder_->AssertNotNull(arg.node, decoder->position());
     SetAndTypeNode(result, cast_node);
   }
 
@@ -540,16 +539,15 @@ class WasmGraphBuildingInterface {
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
     builder_->TrapIfFalse(wasm::TrapReason::kTrapIllegalCast,
-                          builder_->IsNull(obj.node, obj.type),
-                          decoder->position());
+                          builder_->IsNull(obj.node), decoder->position());
     Forward(decoder, obj, result);
   }
 
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    SetAndTypeNode(
-        result, builder_->AssertNotNull(obj.node, obj.type, decoder->position(),
-                                        TrapReason::kTrapIllegalCast));
+    SetAndTypeNode(result,
+                   builder_->AssertNotNull(obj.node, decoder->position(),
+                                           TrapReason::kTrapIllegalCast));
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
@@ -917,7 +915,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
-    builder_->BrOnNull(ref_object.node, ref_object.type, &true_env->control,
+    builder_->BrOnNull(ref_object.node, &true_env->control,
                        &false_env->control);
     builder_->SetControl(false_env->control);
     {
@@ -936,7 +934,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
-    builder_->BrOnNull(ref_object.node, ref_object.type, &false_env->control,
+    builder_->BrOnNull(ref_object.node, &false_env->control,
                        &true_env->control);
     builder_->SetControl(false_env->control);
     ScopedSsaEnv scoped_env(this, true_env);

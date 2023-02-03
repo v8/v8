@@ -740,22 +740,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   return lhs.mode() == rhs.mode() && lhs.feedback() == rhs.feedback();
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, AssertNotNullParameters const& params) {
-  return os << params.type << ", " << params.trap_id;
-}
-
-size_t hash_value(AssertNotNullParameters const& params) {
-  return base::hash_combine(params.type, params.trap_id);
-}
-
-bool operator==(AssertNotNullParameters const& lhs,
-                AssertNotNullParameters const& rhs) {
-  return lhs.type == rhs.type && lhs.trap_id == rhs.trap_id;
-}
-#endif
-
 #define PURE_OP_LIST(V)                                           \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                    \
   V(NumberEqual, Operator::kCommutative, 2, 0)                    \
@@ -1254,6 +1238,40 @@ struct SimplifiedOperatorGlobalCache final {
   LoadStackArgumentOperator kLoadStackArgument;
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Note: The following two operators have a control input solely to find the
+  // typing context from the control path in wasm-gc-operator-reducer.
+  struct IsNullOperator final : public Operator {
+    IsNullOperator()
+        : Operator(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 1, 1, 0,
+                   0) {}
+  };
+  IsNullOperator kIsNull;
+
+  struct IsNotNullOperator final : public Operator {
+    IsNotNullOperator()
+        : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 1,
+                   1, 0, 0) {}
+  };
+  IsNotNullOperator kIsNotNull;
+
+  struct NullOperator final : public Operator {
+    NullOperator()
+        : Operator(IrOpcode::kNull, Operator::kPure, "Null", 0, 0, 0, 1, 0, 0) {
+    }
+  };
+  NullOperator kNull;
+
+  struct AssertNotNullOperator final : public Operator1<TrapId> {
+    explicit AssertNotNullOperator(TrapId trap_id)
+        : Operator1(
+              IrOpcode::kAssertNotNull,
+              Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+              "AssertNotNull", 1, 1, 1, 1, 1, 1, trap_id) {}
+  };
+  AssertNotNullOperator kAssertNotNullIllegalCast{TrapId::kTrapIllegalCast};
+  AssertNotNullOperator kAssertNotNullNullDereference{
+      TrapId::kTrapNullDereference};
+
   struct WasmArrayLengthOperator final : public Operator {
     WasmArrayLengthOperator()
         : Operator(IrOpcode::kWasmArrayLength, Operator::kEliminatable,
@@ -1499,48 +1517,22 @@ const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
                                      "RttCanon", 0, 0, 0, 1, 0, 0, index);
 }
 
-// Note: The following two operators have a control input solely to find the
-// typing context from the control path in wasm-gc-operator-reducer.
-struct IsNullOperator final : public Operator1<wasm::ValueType> {
-  explicit IsNullOperator(wasm::ValueType type)
-      : Operator1(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 1, 1, 0,
-                  0, type) {}
-};
+const Operator* SimplifiedOperatorBuilder::Null() { return &cache_.kNull; }
 
-struct IsNotNullOperator final : public Operator1<wasm::ValueType> {
-  explicit IsNotNullOperator(wasm::ValueType type)
-      : Operator1(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 1,
-                  1, 0, 0, type) {}
-};
-
-struct NullOperator final : public Operator1<wasm::ValueType> {
-  explicit NullOperator(wasm::ValueType type)
-      : Operator1(IrOpcode::kNull, Operator::kPure, "Null", 0, 0, 0, 1, 0, 0,
-                  type) {}
-};
-
-struct AssertNotNullOperator final : public Operator1<AssertNotNullParameters> {
-  explicit AssertNotNullOperator(wasm::ValueType type, TrapId trap_id)
-      : Operator1(
-            IrOpcode::kAssertNotNull,
-            Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
-            "AssertNotNull", 1, 1, 1, 1, 1, 1, {type, trap_id}) {}
-};
-
-const Operator* SimplifiedOperatorBuilder::Null(wasm::ValueType type) {
-  return zone()->New<NullOperator>(type);
+const Operator* SimplifiedOperatorBuilder::AssertNotNull(TrapId trap_id) {
+  switch (trap_id) {
+    case TrapId::kTrapNullDereference:
+      return &cache_.kAssertNotNullNullDereference;
+    case TrapId::kTrapIllegalCast:
+      return &cache_.kAssertNotNullIllegalCast;
+    default:
+      UNREACHABLE();
+  }
 }
 
-const Operator* SimplifiedOperatorBuilder::AssertNotNull(wasm::ValueType type,
-                                                         TrapId trap_id) {
-  return zone()->New<AssertNotNullOperator>(type, trap_id);
-}
-
-const Operator* SimplifiedOperatorBuilder::IsNull(wasm::ValueType type) {
-  return zone()->New<IsNullOperator>(type);
-}
-const Operator* SimplifiedOperatorBuilder::IsNotNull(wasm::ValueType type) {
-  return zone()->New<IsNotNullOperator>(type);
+const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
+const Operator* SimplifiedOperatorBuilder::IsNotNull() {
+  return &cache_.kIsNotNull;
 }
 
 const Operator* SimplifiedOperatorBuilder::StringAsWtf16() {

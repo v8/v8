@@ -97,10 +97,10 @@ builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
 
-builtin WasmFuncRefToJS(val: WasmInternalFunction|WasmNull): JSFunction|Null|
+builtin WasmFuncRefToJS(val: WasmInternalFunction|Null): JSFunction|Null|
     Undefined {
   typeswitch (val) {
-    case (WasmNull): {
+    case (Null): {
       return Null;
     }
     case (func: WasmInternalFunction): {

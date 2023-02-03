@@ -1135,13 +1135,15 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 namespace {
 i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
                                            i::wasm::ValueType type) {
-  DCHECK(type.is_object_reference());
-  // Use undefined for JS type (externref) but null for wasm types as wasm does
-  // not know undefined.
-  if (type.heap_representation() == i::wasm::HeapType::kExtern) {
-    return isolate->factory()->undefined_value();
+  if (type.is_reference()) {
+    // Use undefined for JS type (externref) but null for wasm types as wasm
+    // does not know undefined.
+    if (type.heap_representation() == i::wasm::HeapType::kExtern) {
+      return isolate->factory()->undefined_value();
+    }
+    return isolate->factory()->null_value();
   }
-  return isolate->factory()->wasm_null();
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -2333,18 +2335,19 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Handle<i::Object> element;
   if (args.Length() >= 2) {
     element = Utils::OpenHandle(*args[1]);
-    const char* error_message;
-    if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_object, element,
-                                             &error_message)
-             .ToHandle(&element)) {
-      thrower.TypeError("Argument 1 is invalid for table: %s", error_message);
-      return;
-    }
   } else if (table_object->type().is_defaultable()) {
     element = DefaultReferenceValue(i_isolate, table_object->type());
   } else {
     thrower.TypeError("Table of non-defaultable type %s needs explicit element",
                       table_object->type().name().c_str());
+    return;
+  }
+
+  const char* error_message;
+  if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_object, element,
+                                           &error_message)
+           .ToHandle(&element)) {
+    thrower.TypeError("Argument 1 is invalid for table: %s", error_message);
     return;
   }
 

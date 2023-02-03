@@ -49,8 +49,8 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceStringPrepareForGetCodeunit(Node* node);
   Node* IsolateRoot();
   Node* RootNode(RootIndex index);
-  Node* Null(wasm::ValueType type);
-  Node* IsNull(Node* object, wasm::ValueType type);
+  Node* Null();
+  Node* IsNull(Node* object);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
                                            ExternalPointerTag tag);
   WasmGraphAssembler gasm_;

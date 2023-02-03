@@ -106,11 +106,7 @@ void ConstantExpressionInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
 void ConstantExpressionInterface::RefNull(FullDecoder* decoder, ValueType type,
                                           Value* result) {
   if (!generate_value()) return;
-  result->runtime_value =
-      WasmValue(type == kWasmExternRef || type == kWasmNullExternRef
-                    ? Handle<Object>::cast(isolate_->factory()->null_value())
-                    : Handle<Object>::cast(isolate_->factory()->wasm_null()),
-                type);
+  result->runtime_value = WasmValue(isolate_->factory()->null_value(), type);
 }
 
 void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,

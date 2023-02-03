@@ -386,7 +386,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
   tester.CompileModule();
   Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
   // Without null checks, ref.as_non_null can actually return null.
-  CHECK(result->IsWasmNull());
+  CHECK(result->IsNull());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
@@ -1145,7 +1145,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   {
     Handle<Object> result5 =
         tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
-    CHECK(result5->IsWasmNull());
+    CHECK(result5->IsNull());
     for (int i = 6; i <= 9; i++) {
       Handle<Object> res =
           tester.GetResultObject(kCopyRef, i).ToHandleChecked();
@@ -1156,7 +1156,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   }
   CHECK(tester.GetResultObject(kCopyRefOverlapping, 6)
             .ToHandleChecked()
-            ->IsWasmNull());
+            ->IsNull());
   Handle<Object> res0 =
       tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
   CHECK(res0->IsWasmArray());
