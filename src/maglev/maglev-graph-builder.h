@@ -61,6 +61,74 @@ inline void MarkAsLazyDeoptResult(ValueNode* value,
   }
 }
 
+class ReduceResult {
+ public:
+  enum Kind {
+    kDoneWithValue = 0,  // No need to mask while returning the pointer.
+    kDoneWithAbort,
+    kDoneWithoutValue,
+    kFail,
+    kNone,
+  };
+
+  ReduceResult() : payload_(kNone) {}
+
+  // NOLINTNEXTLINE
+  ReduceResult(ValueNode* value) : payload_(value) { DCHECK_NOT_NULL(value); }
+
+  ValueNode* value() const {
+    DCHECK(HasValue());
+    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+  }
+  bool HasValue() const { return kind() == kDoneWithValue; }
+
+  static ReduceResult Done(ValueNode* value) { return ReduceResult(value); }
+  static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
+  static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
+  static ReduceResult Fail() { return ReduceResult(kFail); }
+
+  ReduceResult(const ReduceResult&) V8_NOEXCEPT = default;
+  ReduceResult& operator=(const ReduceResult&) V8_NOEXCEPT = default;
+
+  // No/undefined result, created by default constructor.
+  bool IsNone() const { return kind() == kNone; }
+
+  // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
+  bool IsDone() const { return !IsFail() && !IsNone(); }
+
+  // ReduceResult failed.
+  bool IsFail() const { return kind() == kFail; }
+
+  // Done with a ValueNode.
+  bool IsDoneWithValue() const { return HasValue(); }
+
+  // Done without producing a ValueNode.
+  bool IsDoneWithoutValue() const { return kind() == kDoneWithoutValue; }
+
+  // Done with an abort (unconditional deopt, infinite loop in an inlined
+  // function, etc)
+  bool IsDoneWithAbort() const { return kind() == kDoneWithAbort; }
+
+  Kind kind() const { return payload_.GetPayload(); }
+
+ private:
+  explicit ReduceResult(Kind kind) : payload_(kind) {}
+  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
+};
+
+#define RETURN_IF_DONE(result) \
+  do {                         \
+    auto res = result;         \
+    if (res.IsDone()) {        \
+      return res;              \
+    }                          \
+  } while (false)
+
+#define RETURN_IF_ABORT(result)           \
+  if (result.IsDoneWithAbort()) {         \
+    return ReduceResult::DoneWithAbort(); \
+  }
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -299,7 +367,8 @@ class MaglevGraphBuilder {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
-        std::cout << "== New block (" << detail << ") ==" << std::endl;
+        std::cout << "== New block (" << detail << ") at " << function()
+                  << "==" << std::endl;
       }
 
       if (merge_state->is_exception_handler()) {
@@ -1039,8 +1108,10 @@ class MaglevGraphBuilder {
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
         BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        // TODO(leszeks): Support inlining for lazy deopts.
-        nullptr);
+        // TODO(leszeks): Don't always allocate for the parent state,
+        // maybe cache it on the graph builder?
+        parent_ ? zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame())
+                : nullptr);
   }
 
   void MarkPossibleSideEffect() {
@@ -1146,7 +1217,8 @@ class MaglevGraphBuilder {
 
     if (NumPredecessors(next_block_offset) == 1) {
       if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "== New block (single fallthrough) ==" << std::endl;
+        std::cout << "== New block (single fallthrough) at " << function()
+                  << "==" << std::endl;
       }
       StartNewBlock(next_block_offset);
     } else {
@@ -1165,11 +1237,12 @@ class MaglevGraphBuilder {
                                 CallArguments& args);
 
   template <typename LoadNode>
-  ValueNode* TryBuildLoadDataView(const CallArguments& args,
-                                  ExternalArrayType type);
+  ReduceResult TryBuildLoadDataView(const CallArguments& args,
+                                    ExternalArrayType type);
   template <typename StoreNode, typename Function>
-  ValueNode* TryBuildStoreDataView(const CallArguments& args,
-                                   ExternalArrayType type, Function&& getValue);
+  ReduceResult TryBuildStoreDataView(const CallArguments& args,
+                                     ExternalArrayType type,
+                                     Function&& getValue);
 
 #define MATH_UNARY_IEEE_BUILTIN(V) \
   V(MathAcos)                      \
@@ -1207,38 +1280,38 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharCodeAt)    \
   MATH_UNARY_IEEE_BUILTIN(V)
 
-#define DEFINE_BUILTIN_REDUCER(Name)                                 \
-  ValueNode* TryReduce##Name(compiler::JSFunctionRef builtin_target, \
-                             CallArguments& args);
+#define DEFINE_BUILTIN_REDUCER(Name)                                   \
+  ReduceResult TryReduce##Name(compiler::JSFunctionRef builtin_target, \
+                               CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
   template <typename CallNode, typename... Args>
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
-  ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
-                              CallArguments& args,
-                              const compiler::FeedbackSource& feedback_source,
-                              SpeculationMode speculation_mode);
-  ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
-                                         CallArguments& args);
-  ValueNode* TryBuildInlinedCall(compiler::JSFunctionRef function,
-                                 CallArguments& args);
+  ReduceResult TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
+                                CallArguments& args,
+                                const compiler::FeedbackSource& feedback_source,
+                                SpeculationMode speculation_mode);
+  ReduceResult TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
+                                           CallArguments& args);
+  ReduceResult TryBuildInlinedCall(compiler::JSFunctionRef function,
+                                   CallArguments& args);
   ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
                               Call::TargetType target_type,
                               const CallArguments& args,
                               const compiler::FeedbackSource& feedback_source =
                                   compiler::FeedbackSource());
-  ValueNode* ReduceCall(
+  ReduceResult ReduceCall(
       compiler::ObjectRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
           compiler::FeedbackSource(),
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
-  ValueNode* ReduceCallForTarget(
+  ReduceResult ReduceCallForTarget(
       ValueNode* target_node, compiler::JSFunctionRef target,
       CallArguments& args, const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
-  ValueNode* ReduceFunctionPrototypeApplyCallWithReceiver(
+  ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
       ValueNode* target_node, compiler::JSFunctionRef receiver,
       CallArguments& args, const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
@@ -1266,7 +1339,7 @@ class MaglevGraphBuilder {
                       base::Vector<const compiler::MapRef> maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
-  bool BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
+  ReduceResult BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
 
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -1468,6 +1541,9 @@ class MaglevGraphBuilder {
   }
   const compiler::BytecodeArrayRef& bytecode() const {
     return compilation_unit_->bytecode();
+  }
+  const compiler::JSFunctionRef& function() const {
+    return compilation_unit_->function();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
     return bytecode_analysis_;
