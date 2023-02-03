@@ -838,7 +838,8 @@ class TestEnvironment : public HandleAndZoneScope {
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
-      state_out->set(to_index, GetMoveSource(state_in, move));
+      Object source = GetMoveSource(state_in, move);
+      state_out->set(to_index, source);
     }
     // If we generated redundant moves, they were eliminated automatically and
     // don't appear in the parallel move. Simulate them now.
