@@ -463,6 +463,20 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+inline bool HasOnlyStringMaps(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (!map.IsStringMap()) return false;
+  }
+  return true;
+}
+
+inline bool HasOnlyNumberMaps(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (map.instance_type() != HEAP_NUMBER_TYPE) return false;
+  }
+  return true;
+}
+
 #define DEF_FORWARD_DECLARATION(type, ...) class type;
 NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION

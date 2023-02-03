@@ -519,6 +519,20 @@ inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
   CompareInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
 }
 
+inline void MaglevAssembler::CompareInstanceTypeRange(
+    Register map, InstanceType lower_limit, InstanceType higher_limit) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  CompareInstanceTypeRange(map, scratch, lower_limit, higher_limit);
+}
+
+inline void MaglevAssembler::CompareInstanceTypeRange(
+    Register map, Register instance_type_out, InstanceType lower_limit,
+    InstanceType higher_limit) {
+  MacroAssembler::CompareInstanceTypeRange(map, instance_type_out, lower_limit,
+                                           higher_limit);
+}
+
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
   ScratchRegisterScope temps(this);
