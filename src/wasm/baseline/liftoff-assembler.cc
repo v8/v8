@@ -102,10 +102,6 @@ class StackTransferRecipe {
       DCHECK_EQ(dst.i32_const(), src.i32_const());
       return;
     }
-    TransferToStackSlot(dst, src);
-  }
-
-  void TransferToStackSlot(const VarState& dst, const VarState& src) {
     DCHECK(dst.is_stack());
     switch (src.loc()) {
       case VarState::kStack:
@@ -400,43 +396,25 @@ enum ReuseRegisters : bool {
   kReuseRegisters = true,
   kNoReuseRegisters = false
 };
-// {InitMergeRegion} is a helper used by {MergeIntoNewState} to initialize
-// a part of the target stack ([target, target+count]) from [source,
-// source+count]. The parameters specify how to initialize the part. The goal is
-// to set up the region such that later merges (via {MergeStackWith} /
-// {MergeFullStackWith} can successfully transfer their values to this new
-// state.
 void InitMergeRegion(LiftoffAssembler::CacheState* state,
                      const VarState* source, VarState* target, uint32_t count,
                      MergeKeepStackSlots keep_stack_slots,
                      MergeAllowConstants allow_constants,
                      MergeAllowRegisters allow_registers,
-                     ReuseRegisters reuse_registers, LiftoffRegList used_regs,
-                     int new_stack_offset, StackTransferRecipe& transfers) {
+                     ReuseRegisters reuse_registers, LiftoffRegList used_regs) {
   RegisterReuseMap register_reuse_map;
   for (const VarState* source_end = source + count; source < source_end;
        ++source, ++target) {
     if ((source->is_stack() && keep_stack_slots) ||
         (source->is_const() && allow_constants)) {
       *target = *source;
-      // If {new_stack_offset} is set, we want to recompute stack offsets for
-      // the region we are initializing such that they are contiguous. If
-      // {new_stack_offset} is zero (which is an illegal stack offset), we just
-      // keep the source offsets.
-      if (new_stack_offset) {
-        new_stack_offset =
-            LiftoffAssembler::NextSpillOffset(source->kind(), new_stack_offset);
-        target->set_offset(new_stack_offset);
-      }
       continue;
     }
     base::Optional<LiftoffRegister> reg;
-    bool needs_reg_transfer = true;
     if (allow_registers) {
       // First try: Keep the same register, if it's free.
       if (source->is_reg() && state->is_free(source->reg())) {
         reg = source->reg();
-        needs_reg_transfer = false;
       }
       // Second try: Use the same register we used before (if we reuse
       // registers).
@@ -449,76 +427,51 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
         reg = state->unused_register(rc, used_regs);
       }
     }
-    // See above: Recompute the stack offset if requested.
-    int target_offset = source->offset();
-    if (new_stack_offset) {
-      new_stack_offset =
-          LiftoffAssembler::NextSpillOffset(source->kind(), new_stack_offset);
-      target_offset = new_stack_offset;
-    }
-    if (reg) {
-      if (needs_reg_transfer) transfers.LoadIntoRegister(*reg, *source);
-      if (reuse_registers) register_reuse_map.Add(source->reg(), *reg);
-      state->inc_used(*reg);
-      *target = VarState(source->kind(), *reg, target_offset);
-    } else {
+    if (!reg) {
       // No free register; make this a stack slot.
-      *target = VarState(source->kind(), target_offset);
-      transfers.TransferToStackSlot(*target, *source);
+      *target = VarState(source->kind(), source->offset());
+      continue;
     }
+    if (reuse_registers) register_reuse_map.Add(source->reg(), *reg);
+    state->inc_used(*reg);
+    *target = VarState(source->kind(), *reg, source->offset());
   }
 }
 
 }  // namespace
 
-LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
-    uint32_t num_locals, uint32_t arity, uint32_t stack_depth) {
-  CacheState target;
+// TODO(clemensb): Don't copy the full parent state (this makes us N^2).
+void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
+                                             uint32_t num_locals,
+                                             uint32_t arity,
+                                             uint32_t stack_depth) {
+  // |------locals------|---(in between)----|--(discarded)--|----merge----|
+  //  <-- num_locals --> <-- stack_depth -->^stack_base      <-- arity -->
 
-  // The source state looks like this:
-  // |------locals------|---(stack prefix)---|--(discarded)--|----merge----|
-  //  <-- num_locals --> <-- stack_depth  -->                 <-- arity -->
-  //
-  // We compute the following target state from it:
-  // |------locals------|---(stack prefix)----|----merge----|
-  //  <-- num_locals --> <-- stack_depth   --> <-- arity -->
-  //
-  // The target state will have dropped the "(discarded)" region, and the
-  // "locals" and "merge" regions have been modified to avoid any constants and
-  // avoid duplicate register uses. This ensures that later merges can
-  // successfully transfer into the target state.
-  // The "stack prefix" region will be identical for any source that merges into
-  // that state.
-
-  if (cache_state_.cached_instance != no_reg) {
-    target.SetInstanceCacheRegister(cache_state_.cached_instance);
+  if (source.cached_instance != no_reg) {
+    SetInstanceCacheRegister(source.cached_instance);
   }
 
-  if (cache_state_.cached_mem_start != no_reg) {
-    target.SetMemStartCacheRegister(cache_state_.cached_mem_start);
+  if (source.cached_mem_start != no_reg) {
+    SetMemStartCacheRegister(source.cached_mem_start);
   }
 
-  uint32_t target_height = num_locals + stack_depth + arity;
+  uint32_t stack_base = stack_depth + num_locals;
+  uint32_t target_height = stack_base + arity;
+  uint32_t discarded = source.stack_height() - target_height;
+  DCHECK(stack_state.empty());
 
-  target.stack_state.resize_no_init(target_height);
+  DCHECK_GE(source.stack_height(), stack_base);
+  stack_state.resize_no_init(target_height);
 
-  const VarState* source_begin = cache_state_.stack_state.data();
-  VarState* target_begin = target.stack_state.data();
+  const VarState* source_begin = source.stack_state.data();
+  VarState* target_begin = stack_state.data();
 
-  // Compute the starts of the three different regions, for source and target
-  // (see pictograms above).
-  const VarState* locals_source = source_begin;
-  const VarState* stack_prefix_source = source_begin + num_locals;
-  const VarState* merge_source = cache_state_.stack_state.end() - arity;
-  VarState* locals_target = target_begin;
-  VarState* stack_prefix_target = target_begin + num_locals;
-  VarState* merge_target = target_begin + num_locals + stack_depth;
-
-  // Try to keep locals and the merge region in their registers. Registers used
+  // Try to keep locals and the merge region in their registers. Register used
   // multiple times need to be copied to another free register. Compute the list
   // of used registers.
   LiftoffRegList used_regs;
-  for (auto& src : base::VectorOf(locals_source, num_locals)) {
+  for (auto& src : base::VectorOf(source_begin, num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
   // If there is more than one operand in the merge region, a stack-to-stack
@@ -528,54 +481,44 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
   MergeAllowRegisters allow_registers =
       arity <= 1 ? kRegistersAllowed : kRegistersNotAllowed;
   if (allow_registers) {
-    for (auto& src : base::VectorOf(merge_source, arity)) {
+    for (auto& src :
+         base::VectorOf(source_begin + stack_base + discarded, arity)) {
       if (src.is_reg()) used_regs.set(src.reg());
     }
   }
 
-  StackTransferRecipe transfers(this);
-
-  // The merge region is often empty, hence check for this before doing any
-  // work (even though not needed for correctness).
-  if (arity) {
-    // Initialize the merge region. If this region moves, try to turn stack
-    // slots into registers since we need to load the value anyways.
-    MergeKeepStackSlots keep_merge_stack_slots =
-        target_height == cache_state_.stack_height()
-            ? kKeepStackSlots
-            : kTurnStackSlotsIntoRegisters;
-    // Shift spill offsets down to keep slots contiguous.
-    int merge_region_stack_offset = merge_target == target_begin
-                                        ? StaticStackFrameSize()
-                                        : merge_source[-1].offset();
-    InitMergeRegion(&target, merge_source, merge_target, arity,
-                    keep_merge_stack_slots, kConstantsNotAllowed,
-                    allow_registers, kNoReuseRegisters, used_regs,
-                    merge_region_stack_offset, transfers);
+  // Initialize the merge region. If this region moves, try to turn stack slots
+  // into registers since we need to load the value anyways.
+  MergeKeepStackSlots keep_merge_stack_slots =
+      discarded == 0 ? kKeepStackSlots : kTurnStackSlotsIntoRegisters;
+  InitMergeRegion(this, source_begin + stack_base + discarded,
+                  target_begin + stack_base, arity, keep_merge_stack_slots,
+                  kConstantsNotAllowed, allow_registers, kNoReuseRegisters,
+                  used_regs);
+  // Shift spill offsets down to keep slots contiguous.
+  int offset = stack_base == 0 ? StaticStackFrameSize()
+                               : source.stack_state[stack_base - 1].offset();
+  auto merge_region = base::VectorOf(target_begin + stack_base, arity);
+  for (VarState& var : merge_region) {
+    offset = LiftoffAssembler::NextSpillOffset(var.kind(), offset);
+    var.set_offset(offset);
   }
 
   // Initialize the locals region. Here, stack slots stay stack slots (because
   // they do not move). Try to keep register in registers, but avoid duplicates.
-  if (num_locals) {
-    InitMergeRegion(&target, locals_source, locals_target, num_locals,
-                    kKeepStackSlots, kConstantsNotAllowed, kRegistersAllowed,
-                    kNoReuseRegisters, used_regs, 0, transfers);
-  }
+  InitMergeRegion(this, source_begin, target_begin, num_locals, kKeepStackSlots,
+                  kConstantsNotAllowed, kRegistersAllowed, kNoReuseRegisters,
+                  used_regs);
   // Consistency check: All the {used_regs} are really in use now.
-  DCHECK_EQ(used_regs, target.used_registers & used_regs);
+  DCHECK_EQ(used_regs, used_registers & used_regs);
 
-  // Last, initialize the "stack prefix" region. Here, constants are allowed,
-  // but registers which are already used for the merge region or locals must be
+  // Last, initialize the section in between. Here, constants are allowed, but
+  // registers which are already used for the merge region or locals must be
   // moved to other registers or spilled. If a register appears twice in the
   // source region, ensure to use the same register twice in the target region.
-  if (stack_depth) {
-    InitMergeRegion(&target, stack_prefix_source, stack_prefix_target,
-                    stack_depth, kKeepStackSlots, kConstantsAllowed,
-                    kRegistersAllowed, kReuseRegisters, used_regs, 0,
-                    transfers);
-  }
-
-  return target;
+  InitMergeRegion(this, source_begin + num_locals, target_begin + num_locals,
+                  stack_depth, kKeepStackSlots, kConstantsAllowed,
+                  kRegistersAllowed, kReuseRegisters, used_regs);
 }
 
 void LiftoffAssembler::CacheState::Steal(CacheState& source) {
@@ -829,8 +772,10 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
   for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
     transfers.TransferStackSlot(target.stack_state[i],
                                 cache_state_.stack_state[i]);
-    DCHECK(!SlotInterference(target.stack_state[i],
-                             base::VectorOf(cache_state_.stack_state) + i + 1));
+    DCHECK(!SlotInterference(
+        target.stack_state[i],
+        base::VectorOf(cache_state_.stack_state.data() + i + 1,
+                       cache_state_.stack_height() - i - 1)));
   }
 
   // Full stack merging is only done for forward jumps, so we can just clear the
