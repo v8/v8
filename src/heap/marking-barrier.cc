@@ -60,7 +60,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
       return;
     }
   }
-
+  if (value.InReadOnlySpace()) return;
   MarkValueLocal(value);
 }
 

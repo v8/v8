@@ -46,6 +46,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
     return;
   }
   HeapObject heap_object = HeapObject::cast(object);
+  if (heap_object.InReadOnlySpace()) return;
   if (marking_state_->WhiteToGrey(heap_object)) {
     local_marking_worklist_->Push(heap_object);
   }

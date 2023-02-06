@@ -72,6 +72,7 @@ void MarkingBarrier::MarkValueShared(HeapObject value) {
 }
 
 void MarkingBarrier::MarkValueLocal(HeapObject value) {
+  DCHECK(!value.InReadOnlySpace());
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
