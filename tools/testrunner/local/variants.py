@@ -70,6 +70,7 @@ kIncompatibleFlagsForNoTurbofan = [
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
+    "future": ["--experimental", "--maglev-inlining"],
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
             "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
