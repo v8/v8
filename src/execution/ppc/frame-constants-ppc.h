@@ -31,10 +31,11 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
 
+  // Spilled registers are implicitly sorted backwards by number.
   static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(2), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(5),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(6), TYPED_FRAME_PUSHED_VALUE_OFFSET(7)};
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(7), TYPED_FRAME_PUSHED_VALUE_OFFSET(6),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(5), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(2)};
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
