@@ -4014,13 +4014,6 @@ void Shell::RunShell(Isolate* isolate) {
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
   Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
   printf("V8 version %s\n", V8::GetVersion());
-  if (i::v8_flags.experimental) {
-    // This message is printed to stderr so that it is also visible in
-    // Clusterfuzz reports.
-    fprintf(stderr,
-            "V8 is running with experimental features enabled. Stability and "
-            "security will suffer.\n");
-  }
   while (true) {
     HandleScope inner_scope(isolate);
     printf("d8> ");
@@ -5692,6 +5685,14 @@ int Shell::Main(int argc, char* argv[]) {
     }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (i::v8_flags.experimental) {
+    // This message is printed to stderr so that it is also visible in
+    // Clusterfuzz reports.
+    fprintf(stderr,
+            "V8 is running with experimental features enabled. Stability and "
+            "security will suffer.\n");
+  }
 
   Isolate* isolate = Isolate::New(create_params);
 
