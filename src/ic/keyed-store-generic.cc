@@ -1150,8 +1150,12 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
                       value);
     } else {
       DCHECK(IsDefineKeyedOwnInLiteral());
-      TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
-                      receiver, key, value);
+      TNode<Smi> flags =
+          SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
+      // TODO(v8:10047): Use TaggedIndexConstant here once TurboFan supports it.
+      TNode<Smi> slot = SmiConstant(FeedbackSlot::Invalid().ToInt());
+      TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context,
+                      receiver, key, value, flags, UndefinedConstant(), slot);
     }
   }
 }
@@ -1238,8 +1242,12 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
   BIND(&slow);
   {
     if (IsDefineKeyedOwnInLiteral()) {
-      CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
-                  receiver, unique_name, value);
+      TNode<Smi> flags =
+          SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
+      // TODO(v8:10047): Use TaggedIndexConstant here once TurboFan supports it.
+      TNode<Smi> slot = SmiConstant(FeedbackSlot::Invalid().ToInt());
+      CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context, receiver,
+                  unique_name, value, flags, p.vector(), slot);
     } else {
       CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
                   value);
