@@ -199,10 +199,6 @@ DEFINE_BOOL(experimental, false,
             "Indicates that V8 is running with experimental features enabled. "
             "This flag is typically not set explicitly but instead enabled as "
             "an implication of other flags which enable experimental features.")
-// Features considered experimental should not be staged behind --future.
-DEFINE_NEG_IMPLICATION(future, experimental)
-// Features considered experimental are not ready for fuzzing.
-DEFINE_NEG_IMPLICATION(fuzzing, experimental)
 #define DEFINE_EXPERIMENTAL_FEATURE(nam, cmt)         \
   FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
   DEFINE_IMPLICATION(nam, experimental)
