@@ -207,8 +207,6 @@ bool HeapObject::InSharedWritableHeap() const {
   return BasicMemoryChunk::FromHeapObject(*this)->InSharedHeap();
 }
 
-bool HeapObject::InReadOnlySpace() const { return IsReadOnlyHeapObject(*this); }
-
 bool HeapObject::IsJSObjectThatCanBeTrackedAsPrototype() const {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps

@@ -14,8 +14,6 @@ namespace v8 {
 namespace internal {
 
 void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
-  if (value.InReadOnlySpace()) return;
-
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
 
