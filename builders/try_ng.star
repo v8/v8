@@ -651,7 +651,8 @@ trybot_pair(
     name = "v8_win64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.ATS,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -669,7 +670,8 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     total_timeout = 7200,
-    use_goma = GOMA.ATS,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -678,19 +680,22 @@ trybot_pair(
     cq_compile_only_properties = CQ.BLOCK,
     cq_branch_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.ATS,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.ATS,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
     name = "v8_win64_asan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.ATS,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
