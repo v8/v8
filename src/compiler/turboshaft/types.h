@@ -395,6 +395,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
     DCHECK_EQ(set_size(), 1);
     return set_element(0);
   }
+  bool is_constant(word_t value) const {
+    if (auto c = try_get_constant()) return *c == value;
+    return false;
+  }
   word_t unsigned_min() const {
     switch (sub_kind()) {
       case SubKind::kRange:
@@ -636,6 +640,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     DCHECK(is_set());
     DCHECK_EQ(set_size(), 1);
     return set_element(0);
+  }
+  bool is_constant(float_t value) const {
+    if (V8_UNLIKELY(std::isnan(value))) return is_only_nan();
+    if (V8_UNLIKELY(IsMinusZero(value))) return is_only_minus_zero();
+    if (auto c = try_get_constant()) return *c == value;
+    return false;
   }
 
   // Misc

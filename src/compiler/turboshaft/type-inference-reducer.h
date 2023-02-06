@@ -679,7 +679,18 @@ struct FloatOperationTyper {
   }
 
   static Type Power(const type_t& l, const type_t& r, Zone* zone) {
-    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    // x ** NaN => Nan.
+    if (r.is_only_nan()) return type_t::NaN();
+    // x ** +-0 => 1.
+    if (r.is_constant(0) || r.is_only_minus_zero()) return type_t::Constant(1);
+    if (l.is_only_nan()) {
+      // NaN ** 0 => 1.
+      if (r.Contains(0) || r.has_minus_zero()) {
+        return type_t::Set({1}, type_t::kNaN, zone);
+      }
+      // NaN ** x => NaN (x != +-0).
+      return type_t::NaN();
+    }
     bool maybe_nan = l.has_nan() || r.has_nan();
 
     // a ** b produces NaN if a < 0 && b is fraction.
