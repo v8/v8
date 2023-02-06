@@ -297,7 +297,7 @@ class MemoryChunk : public BasicMemoryChunk {
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
-  ActiveSystemPages active_system_pages_;
+  ActiveSystemPages* active_system_pages_;
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap object_start_bitmap_;

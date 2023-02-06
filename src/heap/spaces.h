@@ -315,7 +315,7 @@ class Page : public MemoryChunk {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
+  ActiveSystemPages* active_system_pages() { return active_system_pages_; }
 
   template <RememberedSetType remembered_set>
   void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {

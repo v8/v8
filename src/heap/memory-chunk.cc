@@ -182,11 +182,13 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   possibly_empty_buckets_.Initialize();
 
   if (page_size == PageSize::kRegular) {
-    active_system_pages_.Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
-                              MemoryAllocator::GetCommitPageSizeBits(), size());
+    active_system_pages_ = new ActiveSystemPages;
+    active_system_pages_->Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
+                               MemoryAllocator::GetCommitPageSizeBits(),
+                               size());
   } else {
     // We do not track active system pages for large pages.
-    active_system_pages_.Clear();
+    active_system_pages_ = nullptr;
   }
 
   // All pages of a shared heap need to be marked with this flag.
@@ -202,7 +204,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
 size_t MemoryChunk::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
-  return active_system_pages_.Size(MemoryAllocator::GetCommitPageSizeBits());
+  return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
@@ -243,6 +245,11 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   if (code_object_registry_ != nullptr) {
     delete code_object_registry_;
     code_object_registry_ = nullptr;
+  }
+
+  if (active_system_pages_ != nullptr) {
+    delete active_system_pages_;
+    active_system_pages_ = nullptr;
   }
 
   possibly_empty_buckets_.Release();
