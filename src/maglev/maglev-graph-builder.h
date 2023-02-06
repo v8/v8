@@ -1237,7 +1237,7 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
-                                CallArguments& args);
+                                const CallArguments& args);
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,

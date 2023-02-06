@@ -3007,18 +3007,11 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
   // can manually set up the arguments.
   StartPrologue();
 
+  // Set receiver.
+  SetArgument(0, GetConvertReceiver(function(), args));
+  // Set remaining arguments.
   RootConstant* undefined_constant =
       GetRootConstant(RootIndex::kUndefinedValue);
-  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    if (function().shared().language_mode() == LanguageMode::kSloppy) {
-      // TODO(leszeks): Store the global proxy somehow.
-      SetArgument(0, undefined_constant);
-    } else {
-      SetArgument(0, undefined_constant);
-    }
-  } else {
-    SetArgument(0, args.receiver());
-  }
   for (int i = 1; i < parameter_count(); i++) {
     ValueNode* arg_value = args[i - 1];
     if (arg_value == nullptr) arg_value = undefined_constant;
@@ -3346,7 +3339,7 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
 }
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
-    compiler::JSFunctionRef function, CallArguments& args) {
+    compiler::JSFunctionRef function, const CallArguments& args) {
   compiler::SharedFunctionInfoRef shared = function.shared();
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
