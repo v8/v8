@@ -593,7 +593,12 @@ RegExpNode* RegExpClassSetExpression::ToNode(RegExpCompiler* compiler,
 
 void RegExpClassSetOperand::Union(RegExpClassSetOperand* other, Zone* zone) {
   ranges()->AddAll(*other->ranges(), zone);
-  strings()->insert(other->strings()->begin(), other->strings()->end());
+  if (other->has_strings()) {
+    if (strings_ == nullptr) {
+      strings_ = zone->template New<CharacterClassStrings>(zone);
+    }
+    strings()->insert(other->strings()->begin(), other->strings()->end());
+  }
 }
 
 void RegExpClassSetOperand::Intersect(RegExpClassSetOperand* other,
@@ -602,11 +607,17 @@ void RegExpClassSetOperand::Intersect(RegExpClassSetOperand* other,
   CharacterRange::Intersect(ranges(), other->ranges(), temp_ranges, zone);
   std::swap(*ranges(), *temp_ranges);
   temp_ranges->Rewind(0);
-  for (auto iter = strings()->begin(); iter != strings()->end();) {
-    if (other->strings()->find(iter->first) == other->strings()->end()) {
-      iter = strings()->erase(iter);
+  if (has_strings()) {
+    if (!other->has_strings()) {
+      strings()->clear();
     } else {
-      iter++;
+      for (auto iter = strings()->begin(); iter != strings()->end();) {
+        if (other->strings()->find(iter->first) == other->strings()->end()) {
+          iter = strings()->erase(iter);
+        } else {
+          iter++;
+        }
+      }
     }
   }
 }
@@ -617,11 +628,13 @@ void RegExpClassSetOperand::Subtract(RegExpClassSetOperand* other,
   CharacterRange::Subtract(ranges(), other->ranges(), temp_ranges, zone);
   std::swap(*ranges(), *temp_ranges);
   temp_ranges->Rewind(0);
-  for (auto iter = strings()->begin(); iter != strings()->end();) {
-    if (other->strings()->find(iter->first) != other->strings()->end()) {
-      iter = strings()->erase(iter);
-    } else {
-      iter++;
+  if (has_strings() && other->has_strings()) {
+    for (auto iter = strings()->begin(); iter != strings()->end();) {
+      if (other->strings()->find(iter->first) != other->strings()->end()) {
+        iter = strings()->erase(iter);
+      } else {
+        iter++;
+      }
     }
   }
 }

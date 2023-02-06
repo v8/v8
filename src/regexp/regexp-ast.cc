@@ -200,10 +200,12 @@ void* RegExpUnparser::VisitClassSetOperand(RegExpClassSetOperand* that,
     if (i > 0) os_ << " ";
     VisitCharacterRange(that->ranges()->at(i));
   }
-  for (auto iter : *that->strings()) {
-    os_ << " '";
-    os_ << std::string(iter.first.begin(), iter.first.end());
-    os_ << "'";
+  if (that->has_strings()) {
+    for (auto iter : *that->strings()) {
+      os_ << " '";
+      os_ << std::string(iter.first.begin(), iter.first.end());
+      os_ << "'";
+    }
   }
   os_ << "]";
   return nullptr;
@@ -382,16 +384,17 @@ RegExpClassSetOperand::RegExpClassSetOperand(ZoneList<CharacterRange>* ranges,
                                              CharacterClassStrings* strings)
     : ranges_(ranges), strings_(strings) {
   DCHECK_NOT_NULL(ranges);
-  DCHECK_NOT_NULL(strings);
   min_match_ = 0;
   max_match_ = 0;
   if (!ranges->is_empty()) {
     min_match_ = 1;
     max_match_ = 2;
   }
-  for (auto string : *strings) {
-    min_match_ = std::min(min_match_, string.second->min_match());
-    max_match_ = std::max(max_match_, string.second->max_match());
+  if (has_strings()) {
+    for (auto string : *strings) {
+      min_match_ = std::min(min_match_, string.second->min_match());
+      max_match_ = std::max(max_match_, string.second->max_match());
+    }
   }
 }
 
@@ -408,6 +411,21 @@ RegExpClassSetExpression::RegExpClassSetExpression(
   for (auto op : *operands) {
     max_match_ = std::max(max_match_, op->max_match());
   }
+}
+
+// static
+RegExpClassSetExpression* RegExpClassSetExpression::Empty(Zone* zone,
+                                                          bool is_negated) {
+  ZoneList<CharacterRange>* ranges =
+      zone->template New<ZoneList<CharacterRange>>(0, zone);
+  RegExpClassSetOperand* op =
+      zone->template New<RegExpClassSetOperand>(ranges, nullptr);
+  ZoneList<RegExpTree*>* operands =
+      zone->template New<ZoneList<RegExpTree*>>(1, zone);
+  operands->Add(op, zone);
+  return zone->template New<RegExpClassSetExpression>(
+      RegExpClassSetExpression::OperationType::kUnion, is_negated, false,
+      operands);
 }
 
 }  // namespace internal

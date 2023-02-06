@@ -184,6 +184,13 @@ check(
     /[\q{ĀĂĄĆ|AaAc}--\q{āăąć}]/vi, ['AaAc', 'aAaC'], ['ĀĂĄĆ', 'āăąć'],
     false);
 
+// Empty nested classes.
+check(/[a-c\q{foo|bar}[]]/v, ['a','b','c','foo','bar'], [], false);
+check(/[[a-c\q{foo|bar}]&&[]]/v, [], ['a','b','c','foo','bar'], true);
+check(/[[a-c\q{foo|bar}]--[]]/v, ['a','b','c','foo','bar'], [], false);
+check(/[[]&&[a-c\q{foo|bar}]]/v, [], ['a','b','c','foo','bar'], true);
+check(/[[]--[a-c\q{foo|bar}]]/v, [], ['a','b','c','foo','bar'], true);
+
 // Empty string disjunctions matches nothing, but succeeds.
 let res = /[\q{}]/v.exec('foo');
 assertNotNull(res);

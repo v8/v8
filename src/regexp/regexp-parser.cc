@@ -2913,10 +2913,14 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
       zone()->template New<ZoneList<CharacterRange>>(2, zone());
   if (current() == ']') {
     Advance();
-    RegExpClassRanges::ClassRangesFlags class_ranges_flags;
-    if (is_negated) class_ranges_flags = RegExpClassRanges::NEGATED;
-    return zone()->template New<RegExpClassRanges>(zone(), ranges,
-                                                   class_ranges_flags);
+    if (unicode_sets()) {
+      return RegExpClassSetExpression::Empty(zone(), is_negated);
+    } else {
+      RegExpClassRanges::ClassRangesFlags class_ranges_flags;
+      if (is_negated) class_ranges_flags = RegExpClassRanges::NEGATED;
+      return zone()->template New<RegExpClassRanges>(zone(), ranges,
+                                                     class_ranges_flags);
+    }
   }
 
   if (!unicode_sets()) {
