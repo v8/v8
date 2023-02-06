@@ -2073,6 +2073,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   Object o = *p;
   if (!o.IsHeapObject()) return false;
   HeapObject heap_object = HeapObject::cast(o);
+  if (heap_object.InReadOnlySpace()) return false;
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (V8_UNLIKELY(collector->uses_shared_heap_) &&
       !collector->is_shared_heap_isolate_) {
