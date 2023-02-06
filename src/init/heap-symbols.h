@@ -644,7 +644,6 @@
   F(MINOR_MC_EVACUATE_REBALANCE)                     \
   F(MINOR_MC_EVACUATE_UPDATE_STRING_TABLE)           \
   F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
-  F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
   F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \
   F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \

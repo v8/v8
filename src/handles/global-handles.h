@@ -103,9 +103,9 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Iterates over strong and dependent handles. See the note above.
   void IterateYoungStrongAndDependentRoots(RootVisitor* v);
 
-  // Processes all young weak objects. Weak objects for which
-  // `should_reset_handle()` returns true are reset and others are passed to the
-  // visitor `v`.
+  // Processes all young weak objects:
+  // - Weak objects for which `should_reset_handle()` returns true are reset;
+  // - Others are passed to `v` iff `v` is not null.
   void ProcessWeakYoungObjects(RootVisitor* v,
                                WeakSlotCallbackWithHeap should_reset_handle);
 

@@ -926,8 +926,10 @@ void TracedHandlesImpl::ProcessYoungObjects(
     } else {
       if (!node->is_root()) {
         node->set_root(true);
-        visitor->VisitRootPointer(Root::kGlobalHandles, nullptr,
-                                  node->location());
+        if (visitor) {
+          visitor->VisitRootPointer(Root::kGlobalHandles, nullptr,
+                                    node->location());
+        }
       }
     }
   }

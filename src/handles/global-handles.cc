@@ -730,9 +730,12 @@ void GlobalHandles::ProcessWeakYoungObjects(
 
     if (node->IsWeakRetainer() &&
         !ResetWeakNodeIfDead(node, should_reset_handle)) {
-      // Node is weak and alive, so it should be passed onto the visitor.
-      v->VisitRootPointer(Root::kGlobalHandles, node->label(),
-                          node->location());
+      // Node is weak and alive, so it should be passed onto the visitor if
+      // present.
+      if (v) {
+        v->VisitRootPointer(Root::kGlobalHandles, node->label(),
+                            node->location());
+      }
     }
   }
 }

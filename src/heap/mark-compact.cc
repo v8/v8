@@ -5783,17 +5783,6 @@ void MinorMarkCompactCollector::PerformWrapperTracing() {
   cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
-// static
-bool MinorMarkCompactCollector::IsUnmarkedYoungHeapObject(Heap* heap,
-                                                          FullObjectSlot p) {
-  Object o = *p;
-  if (!o.IsHeapObject()) return false;
-  HeapObject heap_object = HeapObject::cast(o);
-  MinorMarkCompactCollector* collector = heap->minor_mark_compact_collector();
-  return ObjectInYoungGeneration(o) &&
-         collector->non_atomic_marking_state()->IsWhite(heap_object);
-}
-
 class YoungGenerationRecordMigratedSlotVisitor final
     : public RecordMigratedSlotVisitor {
  public:
@@ -6053,12 +6042,20 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     heap()->external_string_table_.IterateYoung(&external_visitor);
     heap()->external_string_table_.CleanUpYoung();
   }
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-      cpp_heap && cpp_heap->generational_gc_supported()) {
+
+  {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES);
-    isolate()->traced_handles()->ResetYoungDeadNodes(
-        &MinorMarkCompactCollector::IsUnmarkedYoungHeapObject);
+    isolate()->global_handles()->ProcessWeakYoungObjects(
+        nullptr, &IsUnmarkedObjectForYoungGeneration);
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+        cpp_heap && cpp_heap->generational_gc_supported()) {
+      isolate()->traced_handles()->ResetYoungDeadNodes(
+          &IsUnmarkedObjectForYoungGeneration);
+    } else {
+      isolate()->traced_handles()->ProcessYoungObjects(
+          nullptr, &IsUnmarkedObjectForYoungGeneration);
+    }
   }
 }
 
@@ -6365,21 +6362,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
       cpp_heap->FinishConcurrentMarkingIfNeeded();
     }
-    DrainMarkingWorklist();
-  }
-
-  {
-    // Process global handles.
-    //
-    // TODO(v8:12612): There should be no need for passing the root visitor here
-    // and restarting marking. If the nodes are considered dead, then they
-    // should merely be reset. Otherwise, they are alive and still point to
-    // their corresponding objects.
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
-    isolate()->global_handles()->ProcessWeakYoungObjects(
-        &root_visitor, &IsUnmarkedObjectForYoungGeneration);
-    isolate()->traced_handles()->ProcessYoungObjects(
-        &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();
   }
 

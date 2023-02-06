@@ -861,9 +861,9 @@ void GCTracer::PrintNVP() const {
           "mark.seed=%.2f "
           "mark.closure_parallel=%.2f "
           "mark.closure=%.2f "
-          "mark.global_handles=%.2f "
           "clear=%.2f "
           "clear.string_table=%.2f "
+          "clear.global_handles=%.2f "
           "complete.sweep_array_buffers=%.2f "
           "complete.sweeping=%.2f "
           "evacuate=%.2f "
@@ -906,9 +906,9 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_MARK_SEED),
           current_scope(Scope::MINOR_MC_MARK_CLOSURE_PARALLEL),
           current_scope(Scope::MINOR_MC_MARK_CLOSURE),
-          current_scope(Scope::MINOR_MC_MARK_GLOBAL_HANDLES),
           current_scope(Scope::MINOR_MC_CLEAR),
           current_scope(Scope::MINOR_MC_CLEAR_STRING_TABLE),
+          current_scope(Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEPING),
           current_scope(Scope::MINOR_MC_EVACUATE),
