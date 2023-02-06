@@ -581,7 +581,7 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance) { B(target); }
 
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance) {
-  b(target, cond);
+  B(target, cond);
 }
 
 inline void MaglevAssembler::JumpIfRoot(Register with, RootIndex index,

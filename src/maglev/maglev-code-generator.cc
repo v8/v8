@@ -17,6 +17,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
@@ -1240,6 +1241,7 @@ void MaglevCodeGenerator::EmitCode() {
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
   EmitDeopts();
+  if (code_gen_failed_) return;
   EmitExceptionHandlerTrampolines();
   __ FinishCode();
 }
@@ -1258,6 +1260,13 @@ void MaglevCodeGenerator::EmitDeferredCode() {
 }
 
 void MaglevCodeGenerator::EmitDeopts() {
+  const size_t num_deopts = code_gen_state_.eager_deopts().size() +
+                            code_gen_state_.lazy_deopts().size();
+  if (num_deopts > Deoptimizer::kMaxNumberOfEntries) {
+    code_gen_failed_ = true;
+    return;
+  }
+
   MaglevTranslationArrayBuilder translation_builder(
       local_isolate_, &masm_, &translation_array_builder_, &deopt_literals_);
 
@@ -1351,6 +1360,8 @@ void MaglevCodeGenerator::EmitMetadata() {
 }
 
 MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
+  if (code_gen_failed_) return {};
+
   CodeDesc desc;
   masm()->GetCode(isolate, &desc, &safepoint_table_builder_,
                   handler_table_offset_);

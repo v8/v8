@@ -423,7 +423,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
         Push(xzr, xzr);
       }
       Subs(count, count, Immediate(1));
-      b(&loop, gt);
+      B(&loop, gt);
     }
   }
   if (remaining_stack_slots > 0) {

@@ -55,6 +55,8 @@ class MaglevCodeGenerator final {
   IdentityMap<int, base::DefaultAllocationPolicy> deopt_literals_;
   int deopt_exit_start_offset_ = -1;
   int handler_table_offset_ = 0;
+
+  bool code_gen_failed_ = false;
 };
 
 }  // namespace maglev
