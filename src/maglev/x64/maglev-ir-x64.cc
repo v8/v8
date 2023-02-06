@@ -977,19 +977,6 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-ScaleFactor ScaleFactorFromInt(int n) {
-  switch (n) {
-    case 1:
-      return times_1;
-    case 2:
-      return times_2;
-    case 4:
-      return times_4;
-    default:
-      UNREACHABLE();
-  }
-}
-
 template <bool check_detached, typename ResultReg, typename NodeT>
 void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
                             Register index, ResultReg result_reg,

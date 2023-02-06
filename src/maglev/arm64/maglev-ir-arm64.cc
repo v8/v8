@@ -6,6 +6,7 @@
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -1711,13 +1712,15 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   if constexpr (std::is_same_v<ResultReg, Register>) {
     if (IsSignedIntTypedArrayElementsKind(kind)) {
       int element_size = ElementsKindSize(kind);
-      __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
+      __ Add(data_pointer, data_pointer,
+             Operand(index, LSL, ShiftFromScale(element_size)));
       __ LoadSignedField(result_reg.W(), MemOperand(data_pointer),
                          element_size);
     } else {
       DCHECK(IsUnsignedIntTypedArrayElementsKind(kind));
       int element_size = ElementsKindSize(kind);
-      __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
+      __ Add(data_pointer, data_pointer,
+             Operand(index, LSL, ShiftFromScale(element_size)));
       __ LoadUnsignedField(result_reg.W(), MemOperand(data_pointer),
                            element_size);
     }

@@ -34,6 +34,19 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+inline int ShiftFromScale(int n) {
+  switch (n) {
+    case 1:
+      return 0;
+    case 2:
+      return 1;
+    case 4:
+      return 2;
+    default:
+      UNREACHABLE();
+  }
+}
+
 class MaglevAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(MaglevAssembler* masm) : wrapped_scope_(masm) {
@@ -352,6 +365,18 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   Add(data_pointer, data_pointer, base);
 }
 
+inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
+                                                    Register object,
+                                                    Register index, int scale,
+                                                    int offset) {
+  if (scale == 1) {
+    Add(result, object, index);
+  } else {
+    Add(result, object, Operand(index, LSL, ShiftFromScale(scale / 2)));
+  }
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
+}
+
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
                                                        Register object,
                                                        int offset) {
@@ -472,6 +497,9 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   Mov(dst, Operand(src.W(), SXTW));
 }
+inline void MaglevAssembler::NegateInt32(Register val) {
+  Neg(val.W(), val.W());
+}
 
 template <typename NodeT>
 inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
@@ -583,6 +611,23 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Label* target,
                                                    Label::Distance distance) {
   CompareAndBranch(r1.W(), r2.W(), cond, target);
+}
+
+inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
+                                                   Condition cond,
+                                                   Label* target,
+                                                   Label::Distance distance) {
+  CompareAndBranch(r1.W(), Immediate(value), cond, target);
+}
+
+inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
+    Register r1, int32_t mask, Label* target, Label::Distance distance) {
+  TestAndBranchIfAnySet(r1.W(), mask, target);
+}
+
+inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
+    Register r1, int32_t mask, Label* target, Label::Distance distance) {
+  TestAndBranchIfAllClear(r1.W(), mask, target);
 }
 
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,

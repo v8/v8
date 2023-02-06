@@ -165,6 +165,7 @@ class CompactInterpreterFrameState;
   V(LoadPolymorphicTaggedField)              \
   V(LoadTaggedField)                         \
   V(LoadDoubleField)                         \
+  V(LoadTaggedFieldByFieldIndex)             \
   V(LoadFixedArrayElement)                   \
   V(LoadFixedDoubleArrayElement)             \
   V(LoadSignedIntDataViewElement)            \
@@ -414,6 +415,7 @@ enum class ValueRepresentation : uint8_t {
 
 constexpr Condition ConditionFor(Operation cond);
 
+bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
 bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node);
 
 inline int ExternalArrayElementSize(const ExternalArrayType element_type) {
@@ -4296,6 +4298,29 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
 
  private:
   const int offset_;
+};
+
+class LoadTaggedFieldByFieldIndex
+    : public FixedInputValueNodeT<2, LoadTaggedFieldByFieldIndex> {
+  using Base = FixedInputValueNodeT<2, LoadTaggedFieldByFieldIndex>;
+
+ public:
+  explicit LoadTaggedFieldByFieldIndex(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class LoadFixedArrayElement

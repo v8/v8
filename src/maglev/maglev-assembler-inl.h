@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
+#include "src/maglev/maglev-assembler.h"
+
 #ifdef V8_TARGET_ARCH_ARM64
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_X64
@@ -240,6 +242,27 @@ inline void MaglevAssembler::Branch(Condition condition, Label* if_true,
       Jump(if_true, true_distance);
     }
   }
+}
+
+inline void MaglevAssembler::LoadTaggedField(Register result,
+                                             MemOperand operand) {
+  MacroAssembler::LoadTaggedField(result, operand);
+}
+
+inline void MaglevAssembler::LoadTaggedField(Register result, Register object,
+                                             int offset) {
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::LoadTaggedSignedField(Register result,
+                                                   MemOperand operand) {
+  MacroAssembler::LoadTaggedField(result, operand);
+}
+
+inline void MaglevAssembler::LoadTaggedSignedField(Register result,
+                                                   Register object,
+                                                   int offset) {
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
 }  // namespace maglev

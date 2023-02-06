@@ -182,9 +182,8 @@ bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
   return RootToBoolean(index_);
 }
 
-bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
+bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
   DCHECK(IsConstantNode(node->opcode()));
-  LocalIsolate* local_isolate = masm->isolate()->AsLocalIsolate();
   switch (node->opcode()) {
 #define CASE(Name)                                       \
   case Opcode::k##Name: {                                \
@@ -195,6 +194,14 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
     default:
       UNREACHABLE();
   }
+}
+
+bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
+  // TODO(leszeks): Getting the main thread local isolate is not what we
+  // actually want here, but it's all we have, and it happens to work because
+  // really all we're using it for is ReadOnlyRoots. We should change ToBoolean
+  // to be able to pass ReadOnlyRoots in directly.
+  return FromConstantToBool(masm->isolate()->AsLocalIsolate(), node);
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame,
@@ -967,6 +974,185 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   __ DecompressTagged(ToRegister(result()), FieldMemOperand(object, offset()));
+}
+
+void LoadTaggedFieldByFieldIndex::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseAndClobberRegister(index_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
+}
+void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  __ AssertNotSmi(object);
+  __ AssertSmi(index);
+
+  ZoneLabelRef done(masm);
+
+  // For in-object properties, the index is encoded as:
+  //
+  //      index = actual_index | is_double_bit | smi_tag_bit
+  //            = actual_index << 2 | is_double_bit << 1
+  //
+  // The value we want is at the field offset:
+  //
+  //      (actual_index << kTaggedSizeLog2) + JSObject::kHeaderSize
+  //
+  // We could get index from actual_index by shifting away the double and smi
+  // bits. But, note that `kTaggedSizeLog2 == 2` and `index` encodes
+  // `actual_index` with a two bit shift. So, we can do some rearranging
+  // to get the offset without shifting:
+  //
+  //      ((index >> 2) << kTaggedSizeLog2 + JSObject::kHeaderSize
+  //
+  //    [Expand definitions of index and kTaggedSizeLog2]
+  //    = (((actual_index << 2 | is_double_bit << 1) >> 2) << 2)
+  //           + JSObject::kHeaderSize
+  //
+  //    [Cancel out shift down and shift up, clear is_double bit by subtracting]
+  //    = (actual_index << 2 | is_double_bit << 1) - (is_double_bit << 1)
+  //           + JSObject::kHeaderSize
+  //
+  //    [Fold together the constants, and collapse definition of index]
+  //    = index + (JSObject::kHeaderSize - (is_double_bit << 1))
+  //
+  //
+  // For out-of-object properties, the encoding is:
+  //
+  //     index = (-1 - actual_index) | is_double_bit | smi_tag_bit
+  //           = (-1 - actual_index) << 2 | is_double_bit << 1
+  //           = (-1 - actual_index) * 4 + (is_double_bit ? 2 : 0)
+  //           = -(actual_index * 4) + (is_double_bit ? 2 : 0) - 4
+  //           = -(actual_index << 2) + (is_double_bit ? 2 : 0) - 4
+  //
+  // The value we want is in the property array at offset:
+  //
+  //      (actual_index << kTaggedSizeLog2) + FixedArray::kHeaderSize
+  //
+  //    [Expand definition of kTaggedSizeLog2]
+  //    = (actual_index << 2) + FixedArray::kHeaderSize
+  //
+  //    [Substitute in index]
+  //    = (-index + (is_double_bit ? 2 : 0) - 4) + FixedArray::kHeaderSize
+  //
+  //    [Fold together the constants]
+  //    = -index + (FixedArray::kHeaderSize + (is_double_bit ? 2 : 0) - 4))
+  //
+  // This allows us to simply negate the index register and do a load with
+  // otherwise constant offset.
+
+  // Check if field is a mutable double field.
+  static constexpr int32_t kIsDoubleBitMask = 1 << kSmiTagSize;
+  __ TestInt32AndJumpIfAnySet(
+      index, kIsDoubleBitMask,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, Register index,
+             Register result_reg, RegisterSnapshot register_snapshot,
+             ZoneLabelRef done) {
+            // The field is a Double field, a.k.a. a mutable HeapNumber.
+            static const int kIsDoubleBit = 1;
+
+            // Check if field is in-object or out-of-object. The is_double bit
+            // value doesn't matter, since negative values will stay negative.
+            Label if_outofobject, loaded_field;
+            __ CompareInt32AndJumpIf(index, 0, kLessThan, &if_outofobject);
+
+            // The field is located in the {object} itself.
+            {
+              // See giant comment above.
+              static_assert(kTaggedSizeLog2 == 2);
+              static_assert(kSmiTagSize == 1);
+              // We haven't untagged, so we need to sign extend.
+              __ SignExtend32To64Bits(index, index);
+              __ LoadTaggedFieldByIndex(
+                  result_reg, object, index, 1,
+                  JSObject::kHeaderSize - (kIsDoubleBit << kSmiTagSize));
+              __ Jump(&loaded_field);
+            }
+
+            __ bind(&if_outofobject);
+            {
+              MaglevAssembler::ScratchRegisterScope temps(masm);
+              Register property_array = temps.Acquire();
+              // Load the property array.
+              __ LoadTaggedField(
+                  property_array,
+                  FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
+
+              // See giant comment above.
+              static_assert(kSmiTagSize == 1);
+              __ NegateInt32(index);
+              __ LoadTaggedFieldByIndex(
+                  result_reg, property_array, index, 1,
+                  FixedArray::kHeaderSize + (kIsDoubleBit << kSmiTagSize) - 4);
+              __ Jump(&loaded_field);
+            }
+
+            __ bind(&loaded_field);
+            // We may have transitioned in-place away from double, so check that
+            // this is a HeapNumber -- otherwise the load is fine and we don't
+            // need to copy anything anyway.
+            __ JumpIfSmi(result_reg, *done);
+            // index is no longer needed and is clobbered by this node, so
+            // reuse it as a scratch reg storing the map.
+            Register map = index;
+            __ LoadMap(map, result_reg);
+            __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, *done);
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            DoubleRegister double_value = temps.AcquireDouble();
+            __ LoadHeapNumberValue(double_value, result_reg);
+            __ AllocateHeapNumber(register_snapshot, result_reg, double_value);
+            __ Jump(*done);
+          },
+          object, index, result_reg, register_snapshot(), done));
+
+  // The field is a proper Tagged field on {object}. The {index} is shifted
+  // to the left by one in the code below.
+  {
+    static const int kIsDoubleBit = 0;
+
+    // Check if field is in-object or out-of-object. The is_double bit value
+    // doesn't matter, since negative values will stay negative.
+    Label if_outofobject;
+    __ CompareInt32AndJumpIf(index, 0, kLessThan, &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      // See giant comment above.
+      static_assert(kTaggedSizeLog2 == 2);
+      static_assert(kSmiTagSize == 1);
+      // We haven't untagged, so we need to sign extend.
+      __ SignExtend32To64Bits(index, index);
+      __ LoadTaggedFieldByIndex(
+          result_reg, object, index, 1,
+          JSObject::kHeaderSize - (kIsDoubleBit << kSmiTagSize));
+      __ Jump(*done);
+    }
+
+    __ bind(&if_outofobject);
+    {
+      MaglevAssembler::ScratchRegisterScope temps(masm);
+      Register property_array = temps.Acquire();
+      // Load the property array.
+      __ LoadTaggedField(
+          property_array,
+          FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
+
+      // See giant comment above.
+      static_assert(kSmiTagSize == 1);
+      __ NegateInt32(index);
+      __ LoadTaggedFieldByIndex(
+          result_reg, property_array, index, 1,
+          FixedArray::kHeaderSize + (kIsDoubleBit << kSmiTagSize) - 4);
+      // Fallthrough to `done`.
+    }
+  }
+
+  __ bind(*done);
 }
 
 namespace {

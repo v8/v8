@@ -98,6 +98,13 @@ class MaglevAssembler : public MacroAssembler {
 
   Register FromAnyToRegister(const Input& input, Register scratch);
 
+  inline void LoadTaggedField(Register result, MemOperand operand);
+  inline void LoadTaggedField(Register result, Register object, int offset);
+  inline void LoadTaggedSignedField(Register result, MemOperand operand);
+  inline void LoadTaggedSignedField(Register result, Register object,
+                                    int offset);
+  inline void LoadTaggedFieldByIndex(Register result, Register object,
+                                     Register index, int scale, int offset);
   inline void LoadBoundedSizeFromObject(Register result, Register object,
                                         int offset);
   inline void LoadExternalPointerField(Register result, MemOperand operand);
@@ -187,6 +194,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void LoadByte(Register dst, MemOperand src);
 
   inline void SignExtend32To64Bits(Register dst, Register src);
+  inline void NegateInt32(Register val);
 
   template <typename NodeT>
   inline void DeoptIfBufferDetached(Register array, Register scratch,
@@ -226,6 +234,14 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndJumpIf(Register r1, Register r2, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
+  inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
+                                    Label* target,
+                                    Label::Distance distance = Label::kFar);
+  inline void TestInt32AndJumpIfAnySet(Register r1, int32_t mask, Label* target,
+                                       Label::Distance distance = Label::kFar);
+  inline void TestInt32AndJumpIfAllClear(
+      Register r1, int32_t mask, Label* target,
+      Label::Distance distance = Label::kFar);
 
   inline void Int32ToDouble(DoubleRegister result, Register n);
   inline void SmiToDouble(DoubleRegister result, Register smi);

@@ -1117,6 +1117,10 @@ class MaglevGraphBuilder {
                 : nullptr);
   }
 
+  void MarkPossibleMapMigration() {
+    current_for_in_state.receiver_needs_map_check = true;
+  }
+
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
     latest_checkpointed_frame_.reset();
@@ -1142,6 +1146,9 @@ class MaglevGraphBuilder {
     // clear those.
     known_node_aspects().loaded_properties.clear();
     known_node_aspects().loaded_context_slots.clear();
+
+    // Any side effect could also be a map migration.
+    MarkPossibleMapMigration();
   }
 
   int next_offset() const {
@@ -1268,19 +1275,20 @@ class MaglevGraphBuilder {
   V(MathTan)                       \
   V(MathTanh)
 
-#define MAGLEV_REDUCED_BUILTIN(V) \
-  V(DataViewPrototypeGetInt8)     \
-  V(DataViewPrototypeSetInt8)     \
-  V(DataViewPrototypeGetInt16)    \
-  V(DataViewPrototypeSetInt16)    \
-  V(DataViewPrototypeGetInt32)    \
-  V(DataViewPrototypeSetInt32)    \
-  V(DataViewPrototypeGetFloat64)  \
-  V(DataViewPrototypeSetFloat64)  \
-  V(FunctionPrototypeCall)        \
-  V(MathPow)                      \
-  V(StringFromCharCode)           \
-  V(StringPrototypeCharCodeAt)    \
+#define MAGLEV_REDUCED_BUILTIN(V)  \
+  V(DataViewPrototypeGetInt8)      \
+  V(DataViewPrototypeSetInt8)      \
+  V(DataViewPrototypeGetInt16)     \
+  V(DataViewPrototypeSetInt16)     \
+  V(DataViewPrototypeGetInt32)     \
+  V(DataViewPrototypeSetInt32)     \
+  V(DataViewPrototypeGetFloat64)   \
+  V(DataViewPrototypeSetFloat64)   \
+  V(FunctionPrototypeCall)         \
+  V(ObjectPrototypeHasOwnProperty) \
+  V(MathPow)                       \
+  V(StringFromCharCode)            \
+  V(StringPrototypeCharCodeAt)     \
   MATH_UNARY_IEEE_BUILTIN(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name)                                   \
@@ -1589,6 +1597,16 @@ class MaglevGraphBuilder {
   BasicBlock* current_block_ = nullptr;
   base::Optional<InterpretedDeoptFrame> latest_checkpointed_frame_;
   SourcePosition current_source_position_;
+  struct ForInState {
+    ValueNode* receiver = nullptr;
+    ValueNode* cache_type = nullptr;
+    ValueNode* enum_cache = nullptr;
+    ValueNode* key = nullptr;
+    ValueNode* index = nullptr;
+    bool receiver_needs_map_check = false;
+  };
+  // TODO(leszeks): Allow having a stack of these.
+  ForInState current_for_in_state = ForInState();
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
