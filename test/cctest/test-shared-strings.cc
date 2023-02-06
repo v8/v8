@@ -357,33 +357,49 @@ class ConcurrentInternalizationThread final
 
 namespace {
 
+Handle<String> CreateSharedOneByteString(Isolate* isolate, Factory* factory,
+                                         int length, bool internalize) {
+  char* ascii = new char[length + 1];
+  // Don't make single character strings, which will end up deduplicating to
+  // an RO string and mess up the string table hit test.
+  CHECK_GT(length, 1);
+  for (int j = 0; j < length; j++) ascii[j] = 'a';
+  ascii[length] = '\0';
+  if (internalize) {
+    // When testing concurrent string table hits, pre-internalize a string
+    // of the same contents so all subsequent internalizations are hits.
+    factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+  }
+  Handle<String> string = String::Share(
+      isolate, factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
+  delete[] ascii;
+  CHECK(string->IsShared());
+  string->EnsureHash();
+  return string;
+}
+
 Handle<FixedArray> CreateSharedOneByteStrings(Isolate* isolate,
                                               Factory* factory, int count,
-                                              int min_length = 2,
+                                              int lo_count, int min_length = 2,
                                               bool internalize = false) {
   Handle<FixedArray> shared_strings =
-      factory->NewFixedArray(count, AllocationType::kSharedOld);
+      factory->NewFixedArray(count + lo_count, AllocationType::kSharedOld);
   {
     // Create strings in their own scope to be able to delete and GC them.
     HandleScope scope(isolate);
     for (int i = 0; i < count; i++) {
-      char* ascii = new char[i + min_length + 1];
-      // Don't make single character strings, which will end up deduplicating to
-      // an RO string and mess up the string table hit test.
-      for (int j = 0; j < i + min_length; j++) ascii[j] = 'a';
-      ascii[i + min_length] = '\0';
-      if (internalize) {
-        // When testing concurrent string table hits, pre-internalize a string
-        // of the same contents so all subsequent internalizations are hits.
-        factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
-      }
-      Handle<String> string = String::Share(
-          isolate,
-          factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
-      CHECK(string->IsShared());
-      string->EnsureHash();
+      int length = i + min_length + 1;
+      Handle<String> string =
+          CreateSharedOneByteString(isolate, factory, length, internalize);
       shared_strings->set(i, *string);
-      delete[] ascii;
+    }
+    int min_lo_length =
+        isolate->heap()->MaxRegularHeapObjectSize(AllocationType::kOld) + 1;
+    for (int i = 0; i < lo_count; i++) {
+      int length = i + min_lo_length + 1;
+      Handle<String> string =
+          CreateSharedOneByteString(isolate, factory, length, internalize);
+      shared_strings->set(count + i, *string);
     }
   }
   return shared_strings;
@@ -396,6 +412,7 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
 
   constexpr int kThreads = 4;
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -403,8 +420,9 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-      i_isolate, factory, kStrings, 2, hit_or_miss == kTestHit);
+  Handle<FixedArray> shared_strings =
+      CreateSharedOneByteStrings(i_isolate, factory, kStrings - kLOStrings,
+                                 kLOStrings, 2, hit_or_miss == kTestHit);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -479,6 +497,7 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
   constexpr int kTotalThreads = 4;
   constexpr int kInternalizationThreads = 1;
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -486,8 +505,8 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings =
-      CreateSharedOneByteStrings(i_isolate, factory, kStrings, 2, false);
+  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+      i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, false);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -1070,6 +1089,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
   v8_flags.transition_strings_during_gc_with_stack = true;
 
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -1079,8 +1099,8 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
 
   // Run two times to test that everything is reset correctly during GC.
   for (int run = 0; run < 2; run++) {
-    Handle<FixedArray> shared_strings =
-        CreateSharedOneByteStrings(i_isolate, factory, kStrings, 2, run == 0);
+    Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+        i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, run == 0);
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
@@ -1217,6 +1237,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   MultiClientIsolateTest test;
 
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
@@ -1226,7 +1247,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   // Run two times to test that everything is reset correctly during GC.
   for (int run = 0; run < 2; run++) {
     Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-        i_isolate, factory, kStrings, ExternalString::kUncachedSize, run == 0);
+        i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, run == 0);
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
@@ -1648,6 +1669,7 @@ void TestConcurrentExternalization(bool share_resources) {
 
   constexpr int kThreads = 4;
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
@@ -1655,7 +1677,8 @@ void TestConcurrentExternalization(bool share_resources) {
   HandleScope scope(i_isolate);
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-      i_isolate, factory, kStrings, ExternalString::kUncachedSize, false);
+      i_isolate, factory, kStrings - kLOStrings, kLOStrings,
+      ExternalString::kUncachedSize, false);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -1731,6 +1754,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
 
   constexpr int kThreads = 4;
   constexpr int kStrings = 12;
+  constexpr int kLOStrings = 2;
 
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
@@ -1738,7 +1762,8 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   HandleScope scope(i_isolate);
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-      i_isolate, factory, kStrings, ExternalString::kUncachedSize, false);
+      i_isolate, factory, kStrings - kLOStrings, kLOStrings,
+      ExternalString::kUncachedSize, false);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -1860,6 +1885,7 @@ void TestConcurrentExternalizationAndInternalization(
   constexpr int kTotalThreads =
       kInternalizationThreads + kExternalizationThreads;
   constexpr int kStrings = 4096;
+  constexpr int kLOStrings = 16;
 
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
@@ -1867,8 +1893,8 @@ void TestConcurrentExternalizationAndInternalization(
   HandleScope scope(i_isolate);
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-      i_isolate, factory, kStrings, ExternalString::kUncachedSize,
-      hit_or_miss == kTestHit);
+      i_isolate, factory, kStrings - kLOStrings, kLOStrings,
+      ExternalString::kUncachedSize, hit_or_miss == kTestHit);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);

@@ -629,6 +629,7 @@
   F(MC_SWEEP_NEW_LO)                                 \
   F(MC_SWEEP_OLD)                                    \
   F(MC_SWEEP_SHARED)                                 \
+  F(MC_SWEEP_SHARED_LO)                              \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   TOP_MINOR_MC_SCOPES(F)                             \

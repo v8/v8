@@ -5579,6 +5579,12 @@ void MarkCompactCollector::Sweep() {
         heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE_LO, ThreadKind::kMain);
     SweepLargeSpace(heap()->code_lo_space());
   }
+  if (heap()->shared_space()) {
+    GCTracer::Scope sweep_scope(heap()->tracer(),
+                                GCTracer::Scope::MC_SWEEP_SHARED_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap()->shared_lo_space());
+  }
   {
     GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_OLD,
                                 ThreadKind::kMain);
