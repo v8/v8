@@ -923,14 +923,22 @@ class LiftoffCompiler {
 
       // Initialize all reference type locals with ref.null.
       if (has_refs) {
-        Register null_ref_reg = __ GetUnusedRegister(kGpReg, {}).gp();
-        LoadNullValue(null_ref_reg, {});
+        LiftoffRegList pinned;
+        Register null_ref_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned).gp());
+        Register wasm_null_ref_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned).gp());
+        LoadNullValue(null_ref_reg, pinned, kWasmExternRef);
+        LoadNullValue(wasm_null_ref_reg, pinned, kWasmAnyRef);
         for (uint32_t local_index = num_params; local_index < __ num_locals();
              ++local_index) {
-          ValueKind kind = __ local_kind(local_index);
-          if (is_reference(kind)) {
+          ValueType type = decoder->local_types_[local_index];
+          if (type.is_reference()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
-                     LiftoffRegister(null_ref_reg), kind);
+                     IsSubtypeOf(type, kWasmExternRef, decoder->module_)
+                         ? LiftoffRegister(null_ref_reg)
+                         : LiftoffRegister(wasm_null_ref_reg),
+                     type.kind());
           }
         }
       }
@@ -1712,11 +1720,11 @@ class LiftoffCompiler {
     __ PushRegister(dst_kind, dst);
   }
 
-  void EmitIsNull(WasmOpcode opcode) {
+  void EmitIsNull(WasmOpcode opcode, ValueType type) {
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister());
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValueForCompare(null.gp(), pinned);
+    LoadNullValueForCompare(null.gp(), pinned, type);
     // Prefer to overwrite one of the input registers with the result
     // of the comparison.
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
@@ -1861,7 +1869,7 @@ class LiftoffCompiler {
       // We abuse ref.as_non_null, which isn't otherwise used in this switch, as
       // a sentinel for the negation of ref.is_null.
       case kExprRefAsNonNull:
-        return EmitIsNull(opcode);
+        return EmitIsNull(opcode, value.type);
       case kExprExternInternalize: {
         LiftoffAssembler::VarState input_state =
             __ cache_state()->stack_state.back();
@@ -1872,9 +1880,22 @@ class LiftoffCompiler {
         __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
         return;
       }
-      case kExprExternExternalize:
-        // This is a no-op.
+      case kExprExternExternalize: {
+        LiftoffRegList pinned;
+        LiftoffRegister ref = pinned.set(__ PopToRegister(pinned));
+        LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
+        LoadNullValueForCompare(null.gp(), pinned, kWasmAnyRef);
+        Label label;
+        {
+          FREEZE_STATE(frozen);
+          __ emit_cond_jump(kNotEqual, &label, kRefNull, ref.gp(), null.gp(),
+                            frozen);
+          LoadNullValue(ref.gp(), pinned, kWasmExternRef);
+          __ bind(&label);
+        }
+        __ PushRegister(kRefNull, ref);
         return;
+      }
       default:
         UNREACHABLE();
     }
@@ -2301,7 +2322,7 @@ class LiftoffCompiler {
 
   void RefNull(FullDecoder* decoder, ValueType type, Value*) {
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, {});
-    LoadNullValue(null.gp(), {});
+    LoadNullValue(null.gp(), {}, type);
     __ PushRegister(type.kind(), null);
   }
 
@@ -2670,7 +2691,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValueForCompare(null.gp(), pinned);
+    LoadNullValueForCompare(null.gp(), pinned, arg.type);
     {
       FREEZE_STATE(trapping);
       __ emit_cond_jump(cond, trap_label, kRefNull, obj.gp(), null.gp(),
@@ -3585,7 +3606,7 @@ class LiftoffCompiler {
     Register tmp = NeedsTierupCheck(decoder, depth)
                        ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
                        : no_reg;
-    LoadNullValueForCompare(null, pinned);
+    LoadNullValueForCompare(null, pinned, ref_object.type);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kNotEqual, &cont_false, ref_object.type.kind(),
@@ -3615,7 +3636,7 @@ class LiftoffCompiler {
     Register tmp = NeedsTierupCheck(decoder, depth)
                        ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
                        : no_reg;
-    LoadNullValueForCompare(null, pinned);
+    LoadNullValueForCompare(null, pinned, ref_object.type);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kEqual, &cont_false, ref_object.type.kind(), ref.gp(),
@@ -5542,16 +5563,19 @@ class LiftoffCompiler {
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
       int offset = StructFieldOffset(imm.struct_type, i);
-      ValueKind field_kind = imm.struct_type->field(i).kind();
+      ValueType field_type = imm.struct_type->field(i);
       LiftoffRegister value = pinned.set(
           initial_values_on_stack
               ? __ PopToRegister(pinned)
-              : __ GetUnusedRegister(reg_class_for(field_kind), pinned));
+              : __ GetUnusedRegister(reg_class_for(field_type.kind()), pinned));
       if (!initial_values_on_stack) {
-        if (!CheckSupportedType(decoder, field_kind, "default value")) return;
-        SetDefaultValue(value, field_kind, pinned);
+        if (!CheckSupportedType(decoder, field_type.kind(), "default value")) {
+          return;
+        }
+        SetDefaultValue(value, field_type, pinned);
       }
-      StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_kind);
+      StoreObjectField(obj.gp(), no_reg, offset, value, pinned,
+                       field_type.kind());
       pinned.clear(value);
     }
     // If this assert fails then initialization of padding field might be
@@ -5612,7 +5636,8 @@ class LiftoffCompiler {
       __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
                              WasmArray::MaxLength(imm.array_type), trapping);
     }
-    ValueKind elem_kind = imm.array_type->element_type().kind();
+    ValueType elem_type = imm.array_type->element_type();
+    ValueKind elem_kind = elem_type.kind();
     int elem_size = value_kind_size(elem_kind);
     // Allocate the array.
     {
@@ -5640,7 +5665,7 @@ class LiftoffCompiler {
       __ PopToFixedRegister(value);
     } else {
       if (!CheckSupportedType(decoder, elem_kind, "default value")) return;
-      SetDefaultValue(value, elem_kind, pinned);
+      SetDefaultValue(value, elem_type, pinned);
     }
     // Initialize the array's elements.
     LiftoffRegister offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -5998,7 +6023,9 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (obj.type.is_nullable()) LoadNullValueForCompare(scratch_null, pinned);
+    if (obj.type.is_nullable()) {
+      LoadNullValueForCompare(scratch_null, pinned, obj.type);
+    }
 
     {
       FREEZE_STATE(frozen);
@@ -6032,7 +6059,7 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
         DCHECK(null_succeeds);
-        return EmitIsNull(kExprRefIsNull);
+        return EmitIsNull(kExprRefIsNull, obj.type);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6056,7 +6083,9 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    if (obj.type.is_nullable()) LoadNullValueForCompare(scratch_null, pinned);
+    if (obj.type.is_nullable()) {
+      LoadNullValueForCompare(scratch_null, pinned, obj.type);
+    }
 
     {
       FREEZE_STATE(frozen);
@@ -6107,7 +6136,9 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    if (obj.type.is_nullable()) LoadNullValue(scratch_null, pinned);
+    if (obj.type.is_nullable()) {
+      LoadNullValue(scratch_null, pinned, kWasmAnyRef);
+    }
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
@@ -6135,7 +6166,9 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    if (obj.type.is_nullable()) LoadNullValue(scratch_null, pinned);
+    if (obj.type.is_nullable()) {
+      LoadNullValue(scratch_null, pinned, kWasmAnyRef);
+    }
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
@@ -6223,7 +6256,7 @@ class LiftoffCompiler {
 
   enum PopOrPeek { kPop, kPeek };
 
-  void Initialize(TypeCheck& check, PopOrPeek pop_or_peek) {
+  void Initialize(TypeCheck& check, PopOrPeek pop_or_peek, ValueType type) {
     LiftoffRegList pinned;
     if (pop_or_peek == kPop) {
       check.obj_reg = pinned.set(__ PopToRegister(pinned)).gp();
@@ -6233,7 +6266,7 @@ class LiftoffCompiler {
     check.tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     check.tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (check.obj_type.is_nullable()) {
-      LoadNullValue(check.null_reg(), pinned);
+      LoadNullValue(check.null_reg(), pinned, type);
     }
   }
   void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
@@ -6293,7 +6326,7 @@ class LiftoffCompiler {
   void AbstractTypeCheck(const Value& object, bool null_succeeds) {
     Label match, no_match, done;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPop);
+    Initialize(check, kPop, object.type);
     LiftoffRegister result(check.tmp1);
     {
       FREEZE_STATE(frozen);
@@ -6344,7 +6377,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     TypeCheck check(object.type, trap_label, null_succeeds);
-    Initialize(check, kPeek);
+    Initialize(check, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -6389,7 +6422,7 @@ class LiftoffCompiler {
 
     Label no_match, match;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPeek);
+    Initialize(check, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -6414,7 +6447,7 @@ class LiftoffCompiler {
 
     Label no_match, end;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPeek);
+    Initialize(check, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -6848,7 +6881,7 @@ class LiftoffCompiler {
       LiftoffRegister null = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       bool check_for_null = a.type.is_nullable() || b.type.is_nullable();
       if (check_for_null) {
-        LoadNullValueForCompare(null.gp(), pinned);
+        LoadNullValueForCompare(null.gp(), pinned, kWasmStringRef);
       }
 
       FREEZE_STATE(frozen);
@@ -7762,25 +7795,30 @@ class LiftoffCompiler {
     }
   }
 
-  void LoadNullValue(Register null, LiftoffRegList pinned) {
-    __ LoadFullPointer(null, kRootRegister,
-                       IsolateData::root_slot_offset(RootIndex::kNullValue));
+  void LoadNullValue(Register null, LiftoffRegList pinned, ValueType type) {
+    __ LoadFullPointer(
+        null, kRootRegister,
+        type == kWasmExternRef || type == kWasmNullExternRef
+            ? IsolateData::root_slot_offset(RootIndex::kNullValue)
+            : IsolateData::root_slot_offset(RootIndex::kWasmNull));
   }
 
   // Stores the null value representation in the passed register.
   // If pointer compression is active, only the compressed tagged pointer
   // will be stored. Any operations with this register therefore must
   // not compare this against 64 bits using quadword instructions.
-  void LoadNullValueForCompare(Register null, LiftoffRegList pinned) {
+  void LoadNullValueForCompare(Register null, LiftoffRegList pinned,
+                               ValueType type) {
     Tagged_t static_null =
-        wasm::GetWasmEngine()->compressed_null_value_or_zero();
-    if (static_null != 0) {
+        wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
+    if (type != kWasmExternRef && type != kWasmNullExternRef &&
+        static_null != 0) {
       // static_null is only set for builds with pointer compression.
       DCHECK_LE(static_null, std::numeric_limits<uint32_t>::max());
       __ LoadConstant(LiftoffRegister(null),
                       WasmValue(static_cast<uint32_t>(static_null)));
     } else {
-      LoadNullValue(null, pinned);
+      LoadNullValue(null, pinned, type);
     }
   }
 
@@ -7798,7 +7836,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValueForCompare(null.gp(), pinned);
+    LoadNullValueForCompare(null.gp(), pinned, type);
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kRefNull, object, null.gp(),
                       trapping);
@@ -7847,10 +7885,10 @@ class LiftoffCompiler {
     }
   }
 
-  void SetDefaultValue(LiftoffRegister reg, ValueKind kind,
+  void SetDefaultValue(LiftoffRegister reg, ValueType type,
                        LiftoffRegList pinned) {
-    DCHECK(is_defaultable(kind));
-    switch (kind) {
+    DCHECK(is_defaultable(type.kind()));
+    switch (type.kind()) {
       case kI8:
       case kI16:
       case kI32:
@@ -7865,7 +7903,7 @@ class LiftoffCompiler {
         DCHECK(CpuFeatures::SupportsWasmSimd128());
         return __ emit_s128_xor(reg, reg, reg);
       case kRefNull:
-        return LoadNullValue(reg.gp(), pinned);
+        return LoadNullValue(reg.gp(), pinned, type);
       case kRtt:
       case kVoid:
       case kBottom:

@@ -743,6 +743,21 @@ size_t hash_value(FastApiCallParameters const&);
 
 bool operator==(FastApiCallParameters const&, FastApiCallParameters const&);
 
+#if V8_ENABLE_WEBASSEMBLY
+struct AssertNotNullParameters {
+  wasm::ValueType type;
+  TrapId trap_id;
+};
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           AssertNotNullParameters const&);
+
+size_t hash_value(AssertNotNullParameters const&);
+
+bool operator==(AssertNotNullParameters const&, AssertNotNullParameters const&);
+
+#endif
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -1146,10 +1161,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckTurboshaftTypeOf();
 
 #if V8_ENABLE_WEBASSEMBLY
-  const Operator* AssertNotNull(TrapId trap_id);
-  const Operator* IsNull();
-  const Operator* IsNotNull();
-  const Operator* Null();
+  const Operator* AssertNotNull(wasm::ValueType type, TrapId trap_id);
+  const Operator* IsNull(wasm::ValueType type);
+  const Operator* IsNotNull(wasm::ValueType type);
+  const Operator* Null(wasm::ValueType type);
   const Operator* RttCanon(int index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);

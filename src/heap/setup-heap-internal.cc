@@ -588,6 +588,7 @@ bool Heap::CreateInitialReadOnlyMaps() {
             wasm_type_info)
     IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
             WasmContinuationObject::kSize, wasm_continuation_object)
+    IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
   }
@@ -984,6 +985,56 @@ void Heap::CreateInitialReadOnlyObjects() {
   Handle<ScopeInfo> shadow_realm_scope_info =
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
+
+  // Initialize the wasm null_value.
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  // Allocate the wasm-null object. It is a regular V8 heap object contained in
+  // a V8 page. It is large enough so that its payload (other than its map word)
+  // can be mprotected on OS page granularity.
+  // We adjust the layout such that we have a filler object in the current OS
+  // page, and the wasm-null map word at the end of the current OS page. The
+  // payload then is contained on a separate OS page which can be protected.
+
+  // Ensure all of the following lands on the same V8 page.
+  constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
+  constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
+  static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
+  read_only_space_->EnsureSpaceForAllocation(
+      kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
+  Address next_page =
+      RoundUp(read_only_space_->top(), kLargestPossibleOSPageSize);
+  CHECK_EQ(kOffsetAfterMapWord % kObjectAlignment, 0);
+
+  // Add some filler to end up right before an OS page boundary.
+  {
+    int filler_size = static_cast<int>(next_page - read_only_space_->top() -
+                                       kOffsetAfterMapWord);
+    HeapObject filler =
+        allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+            filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
+            AllocationAlignment::kTaggedAligned);
+    CreateFillerObjectAt(filler.address(), filler_size,
+                         ClearFreedMemoryMode::kClearFreedMemory);
+    CHECK_EQ(read_only_space_->top() + kOffsetAfterMapWord, next_page);
+  }
+
+  // Finally, allocate the wasm-null object.
+  {
+    HeapObject obj;
+    CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
+    obj.set_map_after_allocation(roots.wasm_null_map(), SKIP_WRITE_BARRIER);
+    MemsetUint32(
+        reinterpret_cast<uint32_t*>(obj.ptr() - kHeapObjectTag + kTaggedSize),
+        0, (WasmNull::kSize - kTaggedSize) / sizeof(uint32_t));
+    set_wasm_null(WasmNull::cast(obj));
+
+    CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
+  }
+#endif
+
+  // We prefer to fit all of read-only space in one page.
+  CHECK_EQ(read_only_space_->pages().size(), 1);
 }
 
 void Heap::CreateInitialMutableObjects() {

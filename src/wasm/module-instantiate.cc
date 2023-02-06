@@ -680,7 +680,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, instance, table.type, table.initial_size,
           table.has_maximum_size, table.maximum_size, nullptr,
-          isolate_->factory()->null_value());
+          IsSubtypeOf(table.type, kWasmExternRef, module_)
+              ? Handle<Object>::cast(isolate_->factory()->null_value())
+              : Handle<Object>::cast(isolate_->factory()->wasm_null()));
       tables->set(i, *table_obj);
     }
     instance->set_tables(*tables);
@@ -1967,7 +1969,7 @@ V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
 V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
                                          Handle<WasmTableObject> table_object,
                                          uint32_t entry_index) {
-  table_object->entries().set(entry_index, *isolate->factory()->null_value());
+  table_object->entries().set(entry_index, *isolate->factory()->wasm_null());
   WasmTableObject::ClearDispatchTables(isolate, table_object, entry_index);
 }
 }  // namespace

@@ -345,6 +345,11 @@ class V8_EXPORT Value : public Data {
   bool IsWasmModuleObject() const;
 
   /**
+   * Returns true if this value is the WasmNull object.
+   */
+  bool IsWasmNull() const;
+
+  /**
    * Returns true if the value is a Module Namespace Object.
    */
   bool IsModuleNamespaceObject() const;

@@ -246,13 +246,13 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
 
-  Node* Null();
+  Node* Null(wasm::ValueType type);
 
-  Node* IsNull(Node* object);
+  Node* IsNull(Node* object, wasm::ValueType type);
 
-  Node* IsNotNull(Node* object);
+  Node* IsNotNull(Node* object, wasm::ValueType type);
 
-  Node* AssertNotNull(Node* object, TrapId trap_id);
+  Node* AssertNotNull(Node* object, wasm::ValueType type, TrapId trap_id);
 
   Node* WasmExternInternalize(Node* object);
 

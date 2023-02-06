@@ -18,6 +18,7 @@
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -241,10 +242,12 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
 
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance_object(), table_index, table_size);
-  Handle<WasmTableObject> table_obj =
-      WasmTableObject::New(isolate_, instance, table.type, table.initial_size,
-                           table.has_maximum_size, table.maximum_size, nullptr,
-                           isolate_->factory()->null_value());
+  Handle<WasmTableObject> table_obj = WasmTableObject::New(
+      isolate_, instance, table.type, table.initial_size,
+      table.has_maximum_size, table.maximum_size, nullptr,
+      IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
+          ? Handle<Object>::cast(isolate_->factory()->null_value())
+          : Handle<Object>::cast(isolate_->factory()->wasm_null()));
 
   WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
                                     table_index);

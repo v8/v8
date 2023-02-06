@@ -951,7 +951,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_pending_exception());
     if (result_string.is_null()) {
-      return *isolate->factory()->null_value();
+      return *isolate->factory()->wasm_null();
     }
     return *result_string.ToHandleChecked();
   }
@@ -976,7 +976,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_pending_exception());
     if (result_string.is_null()) {
-      return *isolate->factory()->null_value();
+      return *isolate->factory()->wasm_null();
     }
     return *result_string.ToHandleChecked();
   }

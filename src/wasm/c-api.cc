@@ -1884,6 +1884,9 @@ auto Global::get() const -> Val {
             handle(i::Handle<i::WasmInternalFunction>::cast(result)->external(),
                    v8_global->GetIsolate());
       }
+      if (result->IsWasmNull()) {
+        result = v8_global->GetIsolate()->factory()->null_value();
+      }
       return Val(V8RefValueToWasm(store, result));
     }
     case i::wasm::kS128:
@@ -2022,6 +2025,9 @@ auto Table::get(size_t index) const -> own<Ref> {
   if (result->IsWasmInternalFunction()) {
     result = handle(
         i::Handle<i::WasmInternalFunction>::cast(result)->external(), isolate);
+  }
+  if (result->IsWasmNull()) {
+    result = isolate->factory()->null_value();
   }
   DCHECK(result->IsNull(isolate) || result->IsJSReceiver());
   return V8RefValueToWasm(impl(this)->store(), result);

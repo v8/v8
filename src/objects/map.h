@@ -30,7 +30,8 @@ enum InstanceType : uint16_t;
   V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
-  V(FixedDoubleArray)
+  V(FixedDoubleArray)                \
+  IF_WASM(V, WasmNull)
 
 #define POINTER_VISITOR_ID_LIST(V)      \
   V(AccessorInfo)                       \

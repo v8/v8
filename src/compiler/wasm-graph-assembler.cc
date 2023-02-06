@@ -375,21 +375,23 @@ Node* WasmGraphAssembler::WasmTypeCast(Node* object, Node* rtt,
                                   effect(), control()));
 }
 
-Node* WasmGraphAssembler::Null() {
-  return AddNode(graph()->NewNode(simplified_.Null()));
+Node* WasmGraphAssembler::Null(wasm::ValueType type) {
+  return AddNode(graph()->NewNode(simplified_.Null(type)));
 }
 
-Node* WasmGraphAssembler::IsNull(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.IsNull(), object, control()));
+Node* WasmGraphAssembler::IsNull(Node* object, wasm::ValueType type) {
+  return AddNode(graph()->NewNode(simplified_.IsNull(type), object, control()));
 }
 
-Node* WasmGraphAssembler::IsNotNull(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.IsNotNull(), object, control()));
+Node* WasmGraphAssembler::IsNotNull(Node* object, wasm::ValueType type) {
+  return AddNode(
+      graph()->NewNode(simplified_.IsNotNull(type), object, control()));
 }
 
-Node* WasmGraphAssembler::AssertNotNull(Node* object, TrapId trap_id) {
-  return AddNode(graph()->NewNode(simplified_.AssertNotNull(trap_id), object,
-                                  effect(), control()));
+Node* WasmGraphAssembler::AssertNotNull(Node* object, wasm::ValueType type,
+                                        TrapId trap_id) {
+  return AddNode(graph()->NewNode(simplified_.AssertNotNull(type, trap_id),
+                                  object, effect(), control()));
 }
 
 Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
