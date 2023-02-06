@@ -445,7 +445,7 @@ void OS::Free(void* address, size_t size) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOS)
+#if !defined(V8_OS_DARWIN)
 // static
 void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
                          PlatformSharedMemoryHandle handle, uint64_t offset) {
@@ -456,7 +456,7 @@ void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
-#endif  // !defined(V8_OS_MACOS)
+#endif  // !defined(V8_OS_DARWIN)
 
 // static
 void OS::FreeShared(void* address, size_t size) {
@@ -624,7 +624,7 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOS)
+#if !defined(V8_OS_DARWIN)
 // static
 // Need to disable CFI_ICALL due to the indirect call to memfd_create.
 DISABLE_CFI_ICALL
@@ -657,7 +657,7 @@ void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
   int fd = FileDescriptorFromSharedMemoryHandle(handle);
   CHECK_EQ(0, close(fd));
 }
-#endif  // !defined(V8_OS_MACOS)
+#endif  // !defined(V8_OS_DARWIN)
 
 // static
 bool OS::HasLazyCommits() {
@@ -1016,7 +1016,7 @@ bool AddressSpaceReservation::Free(void* address, size_t size) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOS)
+#if !defined(V8_OS_DARWIN)
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
                                              OS::MemoryPermission access,
                                              PlatformSharedMemoryHandle handle,
@@ -1027,7 +1027,7 @@ bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
   return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
          MAP_FAILED;
 }
-#endif  // !defined(V8_OS_MACOS)
+#endif  // !defined(V8_OS_DARWIN)
 
 bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
   DCHECK(Contains(address, size));
