@@ -6097,9 +6097,7 @@ class YoungGenerationMarkingTask {
         marking_state_(heap->marking_state()),
         visitor_(isolate, marking_state_, marking_worklists_local()) {}
 
-  void MarkObject(Object object) {
-    if (!Heap::InYoungGeneration(object)) return;
-    HeapObject heap_object = HeapObject::cast(object);
+  void MarkYoungObject(HeapObject heap_object) {
     if (marking_state_->WhiteToGrey(heap_object)) {
       visitor_.Visit(heap_object);
       // Objects transition to black when visited.
@@ -6130,13 +6128,17 @@ class YoungGenerationMarkingTask {
 };
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "PageMarkingItem::Process");
   base::MutexGuard guard(chunk_->mutex());
-  MarkUntypedPointers(task);
-  MarkTypedPointers(task);
+  if (slots_type_ == SlotsType::kRegularSlots) {
+    MarkUntypedPointers(task);
+  } else {
+    MarkTypedPointers(task);
+  }
 }
 
 void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "PageMarkingItem::MarkUntypedPointers");
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
       chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
   RememberedSet<OLD_TO_NEW>::Iterate(
@@ -6152,6 +6154,8 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
 }
 
 void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "PageMarkingItem::MarkTypedPointers");
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       chunk_, [this, task](SlotType slot_type, Address slot) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
@@ -6169,15 +6173,10 @@ V8_INLINE SlotCallbackResult PageMarkingItem::CheckAndMarkObject(
           std::is_same<TSlot, MaybeObjectSlot>::value,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   MaybeObject object = *slot;
-  if (Heap::InYoungGeneration(object)) {
-    // Marking happens before flipping the young generation, so the object
-    // has to be in a to page.
-    DCHECK(Heap::InToPage(object));
-    HeapObject heap_object;
-    bool success = object.GetHeapObject(&heap_object);
-    USE(success);
-    DCHECK(success);
-    task->MarkObject(heap_object);
+  HeapObject heap_object;
+  if (object.GetHeapObject(&heap_object) &&
+      Heap::InYoungGeneration(heap_object)) {
+    task->MarkYoungObject(heap_object);
     return KEEP_SLOT;
   }
   return REMOVE_SLOT;
@@ -6298,7 +6297,17 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
       // Create items for each page.
       RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
           heap(), [&marking_items](MemoryChunk* chunk) {
-            marking_items.emplace_back(chunk);
+            if (chunk->slot_set<OLD_TO_NEW>()) {
+              marking_items.emplace_back(
+                  chunk, PageMarkingItem::SlotsType::kRegularSlots);
+            } else {
+              chunk->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+            }
+
+            if (chunk->typed_slot_set<OLD_TO_NEW>()) {
+              marking_items.emplace_back(
+                  chunk, PageMarkingItem::SlotsType::kTypedSlots);
+            }
           });
     }
   }

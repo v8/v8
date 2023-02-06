@@ -754,7 +754,10 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
 class PageMarkingItem : public ParallelWorkItem {
  public:
-  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
+  enum class SlotsType { kRegularSlots, kTypedSlots };
+
+  PageMarkingItem(MemoryChunk* chunk, SlotsType slots_type)
+      : chunk_(chunk), slots_type_(slots_type) {}
   ~PageMarkingItem() = default;
 
   void Process(YoungGenerationMarkingTask* task);
@@ -763,14 +766,13 @@ class PageMarkingItem : public ParallelWorkItem {
   inline Heap* heap() { return chunk_->heap(); }
 
   void MarkUntypedPointers(YoungGenerationMarkingTask* task);
-
   void MarkTypedPointers(YoungGenerationMarkingTask* task);
-
   template <typename TSlot>
   V8_INLINE SlotCallbackResult
   CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot);
 
   MemoryChunk* chunk_;
+  const SlotsType slots_type_;
 };
 
 enum class YoungMarkingJobType { kAtomic, kIncremental };

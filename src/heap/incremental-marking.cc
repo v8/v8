@@ -275,8 +275,18 @@ void IncrementalMarking::MarkRoots() {
 
     std::vector<PageMarkingItem> marking_items;
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-        heap_, [&marking_items](MemoryChunk* chunk) {
-          marking_items.emplace_back(chunk);
+        heap(), [&marking_items](MemoryChunk* chunk) {
+          if (chunk->slot_set<OLD_TO_NEW>()) {
+            marking_items.emplace_back(
+                chunk, PageMarkingItem::SlotsType::kRegularSlots);
+          } else {
+            chunk->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+          }
+
+          if (chunk->typed_slot_set<OLD_TO_NEW>()) {
+            marking_items.emplace_back(chunk,
+                                       PageMarkingItem::SlotsType::kTypedSlots);
+          }
         });
 
     V8::GetCurrentPlatform()
