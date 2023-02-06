@@ -291,64 +291,6 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }
 
-class YoungGenerationMarkingTask;
-
-class PageMarkingItem : public ParallelWorkItem {
- public:
-  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  ~PageMarkingItem() = default;
-
-  void Process(YoungGenerationMarkingTask* task);
-
- private:
-  inline Heap* heap() { return chunk_->heap(); }
-
-  void MarkUntypedPointers(YoungGenerationMarkingTask* task);
-
-  void MarkTypedPointers(YoungGenerationMarkingTask* task);
-
-  template <typename TSlot>
-  V8_INLINE SlotCallbackResult
-  CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot);
-
-  MemoryChunk* chunk_;
-};
-
-enum class YoungMarkingJobType { kAtomic, kIncremental };
-
-class YoungGenerationMarkingJob : public v8::JobTask {
- public:
-  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
-                            MarkingWorklists* global_worklists,
-                            std::vector<PageMarkingItem> marking_items,
-                            YoungMarkingJobType young_marking_job_type)
-      : isolate_(isolate),
-        heap_(heap),
-        global_worklists_(global_worklists),
-        marking_items_(std::move(marking_items)),
-        remaining_marking_items_(marking_items_.size()),
-        generator_(marking_items_.size()),
-        young_marking_job_type_(young_marking_job_type) {}
-
-  void Run(JobDelegate* delegate) override;
-  size_t GetMaxConcurrency(size_t worker_count) const override;
-  bool incremental() const {
-    return young_marking_job_type_ == YoungMarkingJobType::kIncremental;
-  }
-
- private:
-  void ProcessItems(JobDelegate* delegate);
-  void ProcessMarkingItems(YoungGenerationMarkingTask* task);
-
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkingWorklists* global_worklists_;
-  std::vector<PageMarkingItem> marking_items_;
-  std::atomic_size_t remaining_marking_items_{0};
-  IndexGenerator generator_;
-  YoungMarkingJobType young_marking_job_type_;
-};
-
 }  // namespace internal
 }  // namespace v8
 

@@ -6110,7 +6110,7 @@ class YoungGenerationMarkingTask {
     }
   }
 
-  void EmptyMarkingWorklist() {
+  void DrainMarkingWorklist() {
     HeapObject object;
     while (marking_worklists_local_->Pop(&object) ||
            marking_worklists_local_->PopOnHold(&object)) {
@@ -6204,7 +6204,7 @@ size_t YoungGenerationMarkingJob::GetMaxConcurrency(size_t worker_count) const {
   const int kPagesPerTask = 2;
   size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
   size_t num_tasks;
-  if (!incremental()) {
+  if (ShouldDrainMarkingWorklist()) {
     num_tasks = std::max(
         (items + 1) / kPagesPerTask,
         global_worklists_->shared()->Size() +
@@ -6228,8 +6228,8 @@ void YoungGenerationMarkingJob::ProcessItems(JobDelegate* delegate) {
     TimedScope scope(&marking_time);
     YoungGenerationMarkingTask task(isolate_, heap_, global_worklists_);
     ProcessMarkingItems(&task);
-    if (!incremental()) {
-      task.EmptyMarkingWorklist();
+    if (ShouldDrainMarkingWorklist()) {
+      task.DrainMarkingWorklist();
     } else {
       task.PublishMarkingWorklist();
     }
@@ -6254,8 +6254,8 @@ void YoungGenerationMarkingJob::ProcessMarkingItems(
       auto& work_item = marking_items_[i];
       if (!work_item.TryAcquire()) break;
       work_item.Process(task);
-      if (!incremental()) {
-        task->EmptyMarkingWorklist();
+      if (ShouldDrainMarkingWorklist()) {
+        task->DrainMarkingWorklist();
       }
       if (remaining_marking_items_.fetch_sub(1, std::memory_order_relaxed) <=
           1) {
@@ -6265,7 +6265,7 @@ void YoungGenerationMarkingJob::ProcessMarkingItems(
   }
 }
 
-void MinorMarkCompactCollector::MarkRootSetInParallel(
+void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
     RootMarkingVisitor* root_visitor, bool was_marked_incrementally) {
   std::vector<PageMarkingItem> marking_items;
 
@@ -6306,20 +6306,20 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
     }
   }
 
-  // CppGC starts parallel marking tasks that will trace TracedReferences. Start
-  // if after marking of traced handles.
-  if (heap_->cpp_heap()) {
-    CppHeap::From(heap_->cpp_heap())
-        ->EnterFinalPause(heap_->embedder_stack_state_);
-  }
-
   // Add tasks and run in parallel.
   {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_CLOSURE_PARALLEL);
+
+    // CppGC starts parallel marking tasks that will trace TracedReferences.
+    if (heap_->cpp_heap()) {
+      CppHeap::From(heap_->cpp_heap())
+          ->EnterFinalPause(heap_->embedder_stack_state_);
+    }
+
     // The main thread might hold local items, while GlobalPoolSize() ==
     // 0. Flush to ensure these items are visible globally and picked up
     // by the job.
     local_marking_worklists_->Publish();
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_CLOSURE_PARALLEL);
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<YoungGenerationMarkingJob>(
@@ -6357,19 +6357,24 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   RootMarkingVisitor root_visitor(this);
 
-  MarkRootSetInParallel(&root_visitor, was_marked_incrementally);
+  MarkLiveObjectsInParallel(&root_visitor, was_marked_incrementally);
 
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-    cpp_heap->FinishConcurrentMarkingIfNeeded();
-  }
-
-  // Mark rest on the main thread.
   {
+    // Finish marking the transitive closure on the main thread.
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_CLOSURE);
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      cpp_heap->FinishConcurrentMarkingIfNeeded();
+    }
     DrainMarkingWorklist();
   }
 
   {
+    // Process global handles.
+    //
+    // TODO(v8:12612): There should be no need for passing the root visitor here
+    // and restarting marking. If the nodes are considered dead, then they
+    // should merely be reset. Otherwise, they are alive and still point to
+    // their corresponding objects.
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
     isolate()->global_handles()->ProcessWeakYoungObjects(
         &root_visitor, &IsUnmarkedObjectForYoungGeneration);
@@ -6378,12 +6383,12 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     DrainMarkingWorklist();
   }
 
-  if (v8_flags.minor_mc_trace_fragmentation) {
-    TraceFragmentation();
-  }
-
   if (was_marked_incrementally) {
     MarkingBarrier::DeactivateAll(heap());
+  }
+
+  if (v8_flags.minor_mc_trace_fragmentation) {
+    TraceFragmentation();
   }
 }
 
