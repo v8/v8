@@ -398,26 +398,26 @@ inline void MaglevAssembler::LoadExternalPointerField(Register result,
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
   if (size == 1) {
-    ldrsb(result, operand);
+    Ldrsb(result, operand);
   } else if (size == 2) {
-    ldrsh(result, operand);
+    Ldrsh(result, operand);
   } else {
     DCHECK_EQ(size, 4);
     DCHECK(result.IsW());
-    ldr(result, operand);
+    Ldr(result, operand);
   }
 }
 
 inline void MaglevAssembler::LoadUnsignedField(Register result,
                                                MemOperand operand, int size) {
   if (size == 1) {
-    ldrb(result, operand);
+    Ldrb(result, operand);
   } else if (size == 2) {
-    ldrh(result, operand);
+    Ldrh(result, operand);
   } else {
     DCHECK_EQ(size, 4);
     DCHECK(result.IsW());
-    ldr(result, operand);
+    Ldr(result, operand);
   }
 }
 
@@ -425,13 +425,13 @@ inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
                                         int size) {
   DCHECK(size == 1 || size == 2 || size == 4);
   if (size == 1) {
-    strb(value, operand);
+    Strb(value, operand);
   } else if (size == 2) {
-    strh(value, operand);
+    Strh(value, operand);
   } else {
     DCHECK_EQ(size, 4);
     DCHECK(value.IsW());
-    str(value, operand);
+    Str(value, operand);
   }
 }
 
@@ -470,7 +470,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
   Ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  fmov(dst, src);
+  Fmov(dst, src);
 }
 inline void MaglevAssembler::Move(Register dst, Smi src) {
   MacroAssembler::Move(dst, src);

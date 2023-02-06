@@ -66,7 +66,7 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
           save_register_state.DefineSafepoint();
           __ Move(object, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ B(*done);
       },
       register_snapshot, object,
       in_new_space ? Builtin::kAllocateRegularInYoungGeneration
