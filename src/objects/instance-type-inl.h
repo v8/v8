@@ -52,16 +52,13 @@ UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(INSTANCE_TYPE_MAP, _)
 
 inline constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
     InstanceType type) {
-  switch (type) {
 #define INSTANCE_TYPE_CHECK(it, forinstancetype)         \
-  case forinstancetype:                                  \
+  if (type == forinstancetype) {                         \
     return InstanceTypeChecker::UniqueMapOfInstanceType< \
         InstanceTypeChecker::InstanceTypeTraits::it>();  \
-    INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECK);
-#undef INSTANCE_TYPE_CHECK
-    default: {
-    }
   }
+  INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECK);
+#undef INSTANCE_TYPE_CHECK
   return {};
 }
 
