@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   size_t UsedSize() const;
   // Number of global handles.
   size_t handles_count() const;
+  size_t last_gc_custom_callbacks() const { return last_gc_custom_callbacks_; }
 
   void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
 
@@ -137,10 +138,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   template <class NodeType>
   class NodeSpace;
   class PendingPhantomCallback;
-
-  template <typename T>
-  size_t InvokeFirstPassWeakCallbacks(
-      std::vector<std::pair<T*, PendingPhantomCallback>>* pending);
 
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
@@ -159,9 +156,10 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> young_nodes_;
   std::vector<std::pair<Node*, PendingPhantomCallback>>
-      regular_pending_phantom_callbacks_;
+      pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
+  size_t last_gc_custom_callbacks_ = 0;
 };
 
 class GlobalHandles::PendingPhantomCallback final {

@@ -981,7 +981,7 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  V8_EXPORT_PRIVATE bool CollectGarbage(
+  V8_EXPORT_PRIVATE void CollectGarbage(
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
@@ -1780,10 +1780,9 @@ class Heap {
   void UnmarkSharedLinearAllocationAreas();
 
   // Performs garbage collection in a safepoint.
-  // Returns the number of freed global handles.
-  size_t PerformGarbageCollection(GarbageCollector collector,
-                                  GarbageCollectionReason gc_reason,
-                                  const char* collector_reason);
+  void PerformGarbageCollection(GarbageCollector collector,
+                                GarbageCollectionReason gc_reason,
+                                const char* collector_reason);
 
   // Performs garbage collection in the shared heap.
   void PerformSharedGarbageCollection(Isolate* initiator,

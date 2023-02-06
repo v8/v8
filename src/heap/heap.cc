@@ -1518,21 +1518,23 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // The optimizing compiler may be unnecessarily holding on to memory.
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate()->ClearSerializerData();
+  isolate()->compilation_cache()->Clear();
+
   set_current_gc_flags(
       kReduceMemoryFootprintMask |
       (gc_reason == GarbageCollectionReason::kLowMemoryNotification ? kForcedGC
                                                                     : 0));
-  isolate_->compilation_cache()->Clear();
-  const int kMaxNumberOfAttempts = 7;
-  const int kMinNumberOfAttempts = 2;
+  constexpr int kMaxNumberOfAttempts = 7;
+  constexpr int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags) &&
-        attempt + 1 >= kMinNumberOfAttempts) {
+    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags);
+    if ((isolate()->global_handles()->last_gc_custom_callbacks() == 0) &&
+        (attempt + 1 >= kMinNumberOfAttempts)) {
       break;
     }
   }
-
   set_current_gc_flags(kNoGCFlags);
+
   EagerlyFreeExternalMemory();
 
   if (v8_flags.trace_duplicate_threshold_kb) {
@@ -1638,7 +1640,7 @@ void InvokeExternalCallbacks(Isolate* isolate, Callback callback) {
 
 }  // namespace
 
-bool Heap::CollectGarbage(AllocationSpace space,
+void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   if (V8_UNLIKELY(!deserialization_complete_)) {
@@ -1695,7 +1697,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
     embedder_stack_state_ = StackState::kNoHeapPointers;
   }
 
-  size_t freed_global_handles = 0;
   size_t committed_memory_before = collector == GarbageCollector::MARK_COMPACTOR
                                        ? CommittedOldGenerationMemory()
                                        : 0;
@@ -1737,8 +1738,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
         tp_heap_->CollectGarbage();
       } else {
-        freed_global_handles +=
-            PerformGarbageCollection(collector, gc_reason, collector_reason);
+        PerformGarbageCollection(collector, gc_reason, collector_reason);
       }
       // Clear flags describing the current GC now that the current GC is
       // complete. Do this before GarbageCollectionEpilogue() since that could
@@ -1816,8 +1816,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
       FatalProcessOutOfMemory("Reached heap limit");
     }
   }
-
-  return freed_global_handles > 0;
 }
 
 int Heap::NotifyContextDisposed(bool dependant_context) {
@@ -2164,9 +2162,9 @@ void ClearStubCaches(Isolate* isolate) {
 
 }  // namespace
 
-size_t Heap::PerformGarbageCollection(GarbageCollector collector,
-                                      GarbageCollectionReason gc_reason,
-                                      const char* collector_reason) {
+void Heap::PerformGarbageCollection(GarbageCollector collector,
+                                    GarbageCollectionReason gc_reason,
+                                    const char* collector_reason) {
   DisallowJavascriptExecution no_js(isolate());
 
   if (IsYoungGenerationCollector(collector)) {
@@ -2285,15 +2283,9 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
-  size_t freed_global_handles;
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
-    // First round weak callbacks are not supposed to allocate and trigger
-    // nested GCs.
-    freed_global_handles =
-        isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
-  }
+  // First round weak callbacks are not supposed to allocate and trigger
+  // nested GCs.
+  isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
 
   if (cpp_heap() && (collector == GarbageCollector::MARK_COMPACTOR ||
                      collector == GarbageCollector::MINOR_MARK_COMPACTOR)) {
@@ -2333,8 +2325,6 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
       }
     });
   }
-
-  return freed_global_handles;
 }
 
 bool Heap::CollectGarbageShared(LocalHeap* local_heap,

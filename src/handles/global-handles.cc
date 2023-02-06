@@ -700,7 +700,7 @@ V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
     case WeaknessType::kCallback:
       V8_FALLTHROUGH;
     case WeaknessType::kCallbackWithTwoEmbedderFields:
-      node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
+      node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
       break;
   }
   return true;
@@ -820,35 +820,35 @@ void GlobalHandles::ClearListOfYoungNodes() {
   ClearListOfYoungNodesImpl(isolate_, &young_nodes_);
 }
 
-template <typename T>
-size_t GlobalHandles::InvokeFirstPassWeakCallbacks(
-    std::vector<std::pair<T*, PendingPhantomCallback>>* pending) {
-  size_t freed_nodes = 0;
-  std::vector<std::pair<T*, PendingPhantomCallback>> pending_phantom_callbacks;
-  pending_phantom_callbacks.swap(*pending);
-  {
-    // The initial pass callbacks must simply clear the nodes.
-    for (auto& pair : pending_phantom_callbacks) {
-      T* node = pair.first;
-      DCHECK_EQ(T::NEAR_DEATH, node->state());
-      pair.second.Invoke(isolate(), PendingPhantomCallback::kFirstPass);
-
-      // Transition to second pass. It is required that the first pass callback
-      // resets the handle using |v8::PersistentBase::Reset|. Also see comments
-      // on |v8::WeakCallbackInfo|.
-      CHECK_WITH_MSG(T::FREE == node->state(),
-                     "Handle not reset in first callback. See comments on "
-                     "|v8::WeakCallbackInfo|.");
-
-      if (pair.second.callback()) second_pass_callbacks_.push_back(pair.second);
-      freed_nodes++;
-    }
-  }
-  return freed_nodes;
-}
-
 size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
-  return InvokeFirstPassWeakCallbacks(&regular_pending_phantom_callbacks_);
+  last_gc_custom_callbacks_ = 0;
+  if (pending_phantom_callbacks_.empty()) return 0;
+
+  TRACE_GC(isolate()->heap()->tracer(),
+           GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
+
+  size_t freed_nodes = 0;
+  std::vector<std::pair<Node*, PendingPhantomCallback>>
+      pending_phantom_callbacks;
+  pending_phantom_callbacks.swap(pending_phantom_callbacks_);
+  // The initial pass callbacks must simply clear the nodes.
+  for (auto& pair : pending_phantom_callbacks) {
+    Node* node = pair.first;
+    DCHECK_EQ(Node::NEAR_DEATH, node->state());
+    pair.second.Invoke(isolate(), PendingPhantomCallback::kFirstPass);
+
+    // Transition to second pass. It is required that the first pass callback
+    // resets the handle using |v8::PersistentBase::Reset|. Also see comments
+    // on |v8::WeakCallbackInfo|.
+    CHECK_WITH_MSG(Node::FREE == node->state(),
+                   "Handle not reset in first callback. See comments on "
+                   "|v8::WeakCallbackInfo|.");
+
+    if (pair.second.callback()) second_pass_callbacks_.push_back(pair.second);
+    freed_nodes++;
+  }
+  last_gc_custom_callbacks_ = freed_nodes;
+  return 0;
 }
 
 void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,
