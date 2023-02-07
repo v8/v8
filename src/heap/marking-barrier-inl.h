@@ -14,6 +14,8 @@ namespace v8 {
 namespace internal {
 
 void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
+  if (value.InReadOnlySpace()) return;
+
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
 
@@ -70,6 +72,7 @@ void MarkingBarrier::MarkValueShared(HeapObject value) {
 }
 
 void MarkingBarrier::MarkValueLocal(HeapObject value) {
+  DCHECK(!value.InReadOnlySpace());
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.

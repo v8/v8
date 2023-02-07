@@ -15,6 +15,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -46,6 +47,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
     return;
   }
   HeapObject heap_object = HeapObject::cast(object);
+  if (heap_object.InReadOnlySpace()) return;
   if (marking_state_->WhiteToGrey(heap_object)) {
     local_marking_worklist_->Push(heap_object);
   }

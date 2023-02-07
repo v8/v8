@@ -18,6 +18,7 @@
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -60,7 +61,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
       return;
     }
   }
-
+  if (value.InReadOnlySpace()) return;
   MarkValueLocal(value);
 }
 
