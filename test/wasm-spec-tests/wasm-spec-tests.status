@@ -30,12 +30,6 @@
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
-  # TODO(wasm): Roll newest tests into "tail-call" repository.
-  'proposals/tail-call/exports': [FAIL],
-  'proposals/tail-call/func': [FAIL],
-  'proposals/tail-call/globals': [FAIL],
-  'proposals/tail-call/linking': [FAIL],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'simd_f32x4*': [PASS, HEAVY],
   'simd_f64x2*': [PASS, HEAVY],
