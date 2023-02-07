@@ -4916,8 +4916,10 @@ void MaglevGraphBuilder::VisitForInNext() {
       }
       // We know that the enum cache entry is not undefined, so skip over the
       // next JumpIfUndefined.
-      DCHECK_EQ(iterator_.next_bytecode(),
-                interpreter::Bytecode::kJumpIfUndefined);
+      DCHECK(iterator_.next_bytecode() ==
+                 interpreter::Bytecode::kJumpIfUndefined ||
+             iterator_.next_bytecode() ==
+                 interpreter::Bytecode::kJumpIfUndefinedConstant);
       iterator_.Advance();
       MergeDeadIntoFrameState(iterator_.GetJumpTargetOffset());
       break;
