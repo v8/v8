@@ -163,7 +163,7 @@ class WasmGraphAssembler : public GraphAssembler {
                                            ExternalPointerTag tag,
                                            Node* isolate_root);
 
-  Node* IsI31(Node* object);
+  Node* IsSmi(Node* object);
 
   // Maps and their contents.
 

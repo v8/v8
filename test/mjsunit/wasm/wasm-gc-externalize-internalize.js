@@ -221,5 +221,7 @@ for (let type of ["struct", "i31", "array"]) {
 
 // Differently to structs and arrays, the i31 value is directly accessible in
 // JavaScript. Similarly, a JS smi can be internalized as an i31ref.
+let createHeapNumber = (x) => x + x;
 assertEquals(12345, instance.exports.i31_externalize(12345));
 assertEquals([12345, 0], instance.exports.i31_internalize(12345));
+assertEquals([11, 0], instance.exports.i31_internalize(createHeapNumber(5.5)));

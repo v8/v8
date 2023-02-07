@@ -12,6 +12,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
+#include "src/objects/heap-number.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -143,7 +144,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   }
 
   if (object_can_be_i31) {
-    gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+    gasm_.GotoIf(gasm_.IsSmi(object), &end_label, gasm_.Int32Constant(0));
   }
 
   Node* map = gasm_.LoadMap(object);
@@ -225,7 +226,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   }
 
   if (object_can_be_i31) {
-    gasm_.TrapIf(gasm_.IsI31(object), TrapId::kTrapIllegalCast);
+    gasm_.TrapIf(gasm_.IsSmi(object), TrapId::kTrapIllegalCast);
   }
 
   Node* map = gasm_.LoadMap(object);
@@ -333,11 +334,87 @@ Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
   return Replace(alias);
 }
 
+namespace {
+constexpr int32_t kInt31MaxValue = 0x3fffffff;
+constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
+}  // namespace
+
 Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
-  // TODO(7748): This is not used right now. Either use the
-  // WasmExternInternalize operator and implement its lowering here, or remove
-  // it entirely.
-  UNREACHABLE();
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  gasm_.InitializeEffectControl(effect, control);
+
+  auto end_label = gasm_.MakeLabel(MachineRepresentation::kTagged);
+  auto null_label = gasm_.MakeLabel();
+  auto smi_label = gasm_.MakeLabel();
+  auto int_to_smi_label = gasm_.MakeLabel();
+  auto heap_number_label = gasm_.MakeLabel();
+
+  gasm_.GotoIf(IsNull(input, wasm::kWasmExternRef), &null_label);
+  gasm_.GotoIf(gasm_.IsSmi(input), &smi_label);
+  Node* is_heap_number = gasm_.HasInstanceType(input, HEAP_NUMBER_TYPE);
+  gasm_.GotoIf(is_heap_number, &heap_number_label);
+  // For anything else, just pass through the value.
+  gasm_.Goto(&end_label, input);
+
+  gasm_.Bind(&null_label);
+  gasm_.Goto(&end_label, Null(wasm::kWasmNullRef));
+
+  // Canonicalize SMI.
+  gasm_.Bind(&smi_label);
+  if constexpr (SmiValuesAre31Bits()) {
+    gasm_.Goto(&end_label, input);
+  } else {
+    auto to_heap_number_label = gasm_.MakeLabel();
+    Node* int_value = gasm_.BuildChangeSmiToInt32(input);
+
+    // Convert to heap number if the int32 does not fit into an i31ref.
+    gasm_.GotoIf(
+        gasm_.Int32LessThan(gasm_.Int32Constant(kInt31MaxValue), int_value),
+        &to_heap_number_label);
+    gasm_.GotoIf(
+        gasm_.Int32LessThan(int_value, gasm_.Int32Constant(kInt31MinValue)),
+        &to_heap_number_label);
+    gasm_.Goto(&end_label, input);
+
+    gasm_.Bind(&to_heap_number_label);
+    Node* heap_number = gasm_.CallBuiltin(Builtin::kWasmInt32ToHeapNumber,
+                                          Operator::kPure, int_value);
+    gasm_.Goto(&end_label, heap_number);
+  }
+
+  // Convert HeapNumber to SMI if possible.
+  gasm_.Bind(&heap_number_label);
+  Node* float_value = gasm_.LoadFromObject(
+      MachineType::Float64(), input,
+      wasm::ObjectAccess::ToTagged(HeapNumber::kValueOffset));
+  // Check range of float value.
+  gasm_.GotoIf(
+      gasm_.Float64LessThan(float_value, gasm_.Float64Constant(kInt31MinValue)),
+      &end_label, input);
+  gasm_.GotoIf(
+      gasm_.Float64LessThan(gasm_.Float64Constant(kInt31MaxValue), float_value),
+      &end_label, input);
+  // Check if value is -0.
+  Node* minus_zero = gasm_.Int64Constant(base::bit_cast<int64_t>(-0.0));
+  Node* float_bits = gasm_.BitcastFloat64ToInt64(float_value);
+  gasm_.GotoIf(gasm_.Word64Equal(float_bits, minus_zero), &end_label, input);
+  // Check if value is integral.
+  Node* int_value = gasm_.ChangeFloat64ToInt32(float_value);
+  gasm_.GotoIf(
+      gasm_.Float64Equal(float_value, gasm_.ChangeInt32ToFloat64(int_value)),
+      &int_to_smi_label);
+  gasm_.Goto(&end_label, input);
+
+  gasm_.Bind(&int_to_smi_label);
+  gasm_.Goto(&end_label, gasm_.BuildChangeInt32ToSmi(int_value));
+
+  gasm_.Bind(&end_label);
+  ReplaceWithValue(node, end_label.PhiAt(0), gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(end_label.PhiAt(0));
 }
 
 Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {

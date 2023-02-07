@@ -295,7 +295,7 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   auto create_funcref = gasm_->MakeDeferredLabel();
   // We only care to distinguish between zero and funcref, "IsI31" is close
   // enough.
-  gasm_->GotoIf(gasm_->IsI31(maybe_function), &create_funcref);
+  gasm_->GotoIf(gasm_->IsSmi(maybe_function), &create_funcref);
   gasm_->Goto(&done, maybe_function);
 
   gasm_->Bind(&create_funcref);
@@ -1036,12 +1036,7 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprF64AsmjsLoadMem:
       return BuildAsmjsLoadMem(MachineType::Float64(), input);
     case wasm::kExprExternInternalize: {
-      // TODO(7748): Either add fast path for non-numbers, or implement
-      // entirely in TF.
-      Node* parameters[] = {
-          input, mcgraph()->IntPtrConstant(IntToSmi(
-                     static_cast<int>(wasm::kWasmAnyRef.raw_bit_field())))};
-      return BuildCallToRuntime(Runtime::kWasmJSToWasmObject, parameters, 2);
+      return gasm_->WasmExternInternalize(input);
     }
     case wasm::kExprExternExternalize:
       return gasm_->WasmExternExternalize(input);
@@ -5522,7 +5517,7 @@ void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
       callbacks.fail_if(IsNull(object, wasm::kWasmAnyRef), BranchHint::kFalse);
     }
   }
-  callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
+  callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
   Node* map = gasm_->LoadMap(object);
   callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
 }
@@ -5540,7 +5535,7 @@ void WasmGraphBuilder::ManagedObjectInstanceCheck(Node* object,
       callbacks.fail_if(IsNull(object, wasm::kWasmAnyRef), BranchHint::kFalse);
     }
   }
-  callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
+  callbacks.fail_if(gasm_->IsSmi(object), BranchHint::kFalse);
   callbacks.fail_if_not(gasm_->HasInstanceType(object, instance_type),
                         BranchHint::kTrue);
 }
@@ -5701,7 +5696,7 @@ void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
                                       BranchHint::kFalse);
                   }
                 }
-                callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
+                callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
                 Node* map = gasm_->LoadMap(object);
                 callbacks.fail_if_not(gasm_->IsDataRefMap(map),
                                       BranchHint::kTrue);
@@ -5781,13 +5776,13 @@ void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
 Node* WasmGraphBuilder::RefIsI31(Node* object, bool null_succeeds) {
   if (null_succeeds) {
     auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-    gasm_->GotoIf(gasm_->IsI31(object), &done, BranchHint::kTrue,
+    gasm_->GotoIf(gasm_->IsSmi(object), &done, BranchHint::kTrue,
                   Int32Constant(1));
     gasm_->Goto(&done, gasm_->IsNull(object, wasm::kWasmAnyRef));
     gasm_->Bind(&done);
     return done.PhiAt(0);
   }
-  return gasm_->IsI31(object);
+  return gasm_->IsSmi(object);
 }
 
 Node* WasmGraphBuilder::RefAsI31(Node* object, wasm::WasmCodePosition position,
@@ -5795,12 +5790,12 @@ Node* WasmGraphBuilder::RefAsI31(Node* object, wasm::WasmCodePosition position,
   if (null_succeeds) {
     auto done = gasm_->MakeLabel();
     gasm_->GotoIf(gasm_->IsNull(object, wasm::kWasmAnyRef), &done);
-    TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+    TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsSmi(object), position);
     gasm_->Goto(&done);
     gasm_->Bind(&done);
     return object;
   }
-  TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+  TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsSmi(object), position);
   return object;
 }
 
@@ -5820,7 +5815,7 @@ void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
                               BranchHint::kFalse);
           }
         }
-        callbacks.fail_if_not(gasm_->IsI31(object), BranchHint::kTrue);
+        callbacks.fail_if_not(gasm_->IsSmi(object), BranchHint::kTrue);
       });
 }
 

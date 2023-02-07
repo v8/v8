@@ -203,7 +203,7 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-Node* WasmGraphAssembler::IsI31(Node* object) {
+Node* WasmGraphAssembler::IsSmi(Node* object) {
   if (COMPRESS_POINTERS_BOOL) {
     return Word32Equal(Word32And(object, Int32Constant(kSmiTagMask)),
                        Int32Constant(kSmiTag));
