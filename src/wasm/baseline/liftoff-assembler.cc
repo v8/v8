@@ -668,12 +668,24 @@ void LiftoffAssembler::DropValues(int count) {
   }
 }
 
-void LiftoffAssembler::DropValue(int depth) {
-  auto* dropped = cache_state_.stack_state.begin() + depth;
+void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
+  auto* dropped = cache_state_.stack_state.begin() + offset;
   if (dropped->is_reg()) {
     cache_state_.dec_used(dropped->reg());
   }
-  std::copy(dropped + 1, cache_state_.stack_state.end(), dropped);
+  // Compute the stack offset that the remaining slots are based on.
+  int stack_offset =
+      offset == 0 ? StaticStackFrameSize() : dropped[-1].offset();
+  // Move remaining slots down.
+  for (VarState *slot = dropped, *end = cache_state_.stack_state.end() - 1;
+       slot != end; ++slot) {
+    *slot = *(slot + 1);
+    stack_offset = NextSpillOffset(slot->kind(), stack_offset);
+    if (slot->is_stack()) {
+      MoveStackValue(stack_offset, slot->offset(), slot->kind());
+    }
+    slot->set_offset(stack_offset);
+  }
   cache_state_.stack_state.pop_back();
 }
 
@@ -1268,7 +1280,11 @@ void LiftoffRegList::Print() const {
 bool LiftoffAssembler::ValidateCacheState() const {
   uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
   LiftoffRegList used_regs;
+  int offset = StaticStackFrameSize();
   for (const VarState& var : cache_state_.stack_state) {
+    // Check for continuous stack offsets.
+    offset = NextSpillOffset(var.kind(), offset);
+    DCHECK_EQ(offset, var.offset());
     if (!var.is_reg()) continue;
     LiftoffRegister reg = var.reg();
     if ((kNeedI64RegPair || kNeedS128RegPair) && reg.is_pair()) {
