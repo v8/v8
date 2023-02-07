@@ -427,8 +427,9 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
   /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(ArrayBufferPrototypeResize)                                              \
-  /* proposal-resizablearraybuffer/#sec-arraybuffer.prototype.transfer */      \
+  /* https://tc39.es/proposal-arraybuffer-transfer/ */                         \
   CPP(ArrayBufferPrototypeTransfer)                                            \
+  CPP(ArrayBufferPrototypeTransferToFixedLength)                               \
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \

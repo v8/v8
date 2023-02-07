@@ -218,6 +218,7 @@
   V(_, default_string, "default")                                    \
   V(_, defineProperty_string, "defineProperty")                      \
   V(_, deleteProperty_string, "deleteProperty")                      \
+  V(_, detached_string, "detached")                                  \
   V(_, disjunction_string, "disjunction")                            \
   V(_, done_string, "done")                                          \
   V(_, dot_brand_string, ".brand")                                   \

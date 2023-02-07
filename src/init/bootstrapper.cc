@@ -4855,6 +4855,12 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
   if (v8_flags.harmony_rab_gsab_transfer) {
     SimpleInstallFunction(isolate(), array_buffer_prototype, "transfer",
                           Builtin::kArrayBufferPrototypeTransfer, 0, false);
+    SimpleInstallFunction(
+        isolate(), array_buffer_prototype, "transferToFixedLength",
+        Builtin::kArrayBufferPrototypeTransferToFixedLength, 0, false);
+    SimpleInstallGetter(isolate(), array_buffer_prototype,
+                        factory()->detached_string(),
+                        Builtin::kArrayBufferPrototypeGetDetached, false);
   }
 
   Handle<JSObject> shared_array_buffer_prototype(
