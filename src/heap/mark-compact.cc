@@ -5860,41 +5860,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
   MinorMarkCompactCollector* const collector_;
 };
 
-void MinorMarkCompactCollector::Prepare() {
-  DCHECK(!sweeper()->AreSweeperTasksRunning() &&
-         sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-
-  // Probably requires more.
-  if (!heap()->incremental_marking()->IsMarking()) {
-    if (heap()->cpp_heap()) {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
-      // InitializeTracing should be called before visitor initialization in
-      // StartMarking.
-      CppHeap::From(heap()->cpp_heap())
-          ->InitializeTracing(CppHeap::CollectionType::kMinor);
-    }
-    StartMarking();
-    if (heap()->cpp_heap()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // StartTracing immediately starts marking which requires V8 worklists to
-      // be set up.
-      CppHeap::From(heap()->cpp_heap())->StartTracing();
-    }
-  }
-
-  heap()->new_space()->FreeLinearAllocationArea();
-}
-
 void MinorMarkCompactCollector::StartMarking() {
-  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-  local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
-      marking_worklists(),
-      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
-               : MarkingWorklists::Local::kNoCppMarkingState);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap()->isolate(), marking_state(), local_marking_worklists());
-
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     for (Page* page : *heap()->new_space()) {
@@ -5902,6 +5868,28 @@ void MinorMarkCompactCollector::StartMarking() {
     }
   }
 #endif  // VERIFY_HEAP
+
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (cpp_heap && cpp_heap->generational_gc_supported()) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
+    // InitializeTracing should be called before visitor initialization in
+    // StartMarking.
+    cpp_heap->InitializeTracing(CppHeap::CollectionType::kMinor);
+  }
+  local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
+      marking_worklists(),
+      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
+               : MarkingWorklists::Local::kNoCppMarkingState);
+  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
+      heap()->isolate(), marking_state(), local_marking_worklists());
+  if (cpp_heap && cpp_heap->generational_gc_supported()) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
+    // StartTracing immediately starts marking which requires V8 worklists to
+    // be set up.
+    cpp_heap->StartTracing();
+  }
 }
 
 void MinorMarkCompactCollector::Finish() {
@@ -5956,6 +5944,10 @@ void MinorMarkCompactCollector::CollectGarbage() {
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
   DCHECK(!heap()->array_buffer_sweeper()->sweeping_in_progress());
+  DCHECK(!sweeper()->AreSweeperTasksRunning());
+  DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+
+  heap()->new_space()->FreeLinearAllocationArea();
 
   MarkLiveObjects();
   ClearNonLiveReferences();
@@ -6339,12 +6331,11 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
 void MinorMarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK);
 
-  DCHECK_NOT_NULL(local_marking_worklists_);
-  DCHECK_NOT_NULL(main_marking_visitor_);
-
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
-  if (was_marked_incrementally) {
+  if (!was_marked_incrementally) {
+    StartMarking();
+  } else {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_FINISH_INCREMENTAL);
     auto* incremental_marking = heap_->incremental_marking();
@@ -6356,6 +6347,9 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     // continue running it to replace parallel marking.
     FinishConcurrentMarking();
   }
+
+  DCHECK_NOT_NULL(local_marking_worklists_);
+  DCHECK_NOT_NULL(main_marking_visitor_);
 
   RootMarkingVisitor root_visitor(this);
 

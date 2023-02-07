@@ -2575,15 +2575,13 @@ void Heap::MinorMarkCompact() {
   DCHECK(new_space());
   DCHECK(!incremental_marking()->IsMajorMarking());
 
-  PauseAllocationObserversScope pause_observers(this);
-  SetGCState(MINOR_MARK_COMPACT);
-
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
+
+  PauseAllocationObserversScope pause_observers(this);
   AlwaysAllocateScope always_allocate(this);
 
-  minor_mark_compact_collector_->Prepare();
+  SetGCState(MINOR_MARK_COMPACT);
   minor_mark_compact_collector_->CollectGarbage();
-
   SetGCState(NOT_IN_GC);
 }
 

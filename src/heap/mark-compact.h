@@ -699,7 +699,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void SetUp() final;
   void TearDown() final;
   void CollectGarbage() final;
-  void Prepare() final;
+  void Prepare() final {}
   void StartMarking() final;
 
   void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
