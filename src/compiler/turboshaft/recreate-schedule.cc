@@ -550,7 +550,7 @@ Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
       o = machine.Float64Equal();
       break;
     case RegisterRepresentation::Tagged():
-      o = machine.WordEqual();
+      o = machine.TaggedEqual();
       break;
     default:
       UNREACHABLE();

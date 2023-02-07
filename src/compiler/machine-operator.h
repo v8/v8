@@ -1131,6 +1131,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     return WordSar(ShiftKind::kShiftOutZeros);
   }
 
+  const Operator* TaggedEqual() {
+    return COMPRESS_POINTERS_BOOL ? Word32Equal() : WordEqual();
+  }
+
  private:
   Zone* zone_;
   MachineOperatorGlobalCache const& cache_;
