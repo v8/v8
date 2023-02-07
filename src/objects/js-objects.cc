@@ -1739,7 +1739,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
                                            Maybe<ShouldThrow> should_throw) {
   DCHECK(!it->check_prototype_chain());
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
-  Isolate* isolate = receiver->GetIsolate();
+  Isolate* isolate = it->isolate();
 
   if (receiver->IsJSObject()) {
     return JSObject::CreateDataProperty(it, value, should_throw);  // Shortcut.
@@ -4082,8 +4082,7 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
                                          Maybe<ShouldThrow> should_throw) {
   DCHECK(it->GetReceiver()->IsJSObject());
   MAYBE_RETURN(JSReceiver::GetPropertyAttributes(it), Nothing<bool>());
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
-  Isolate* isolate = receiver->GetIsolate();
+  Isolate* isolate = it->isolate();
 
   Maybe<bool> can_define =
       JSReceiver::CheckIfCanDefine(isolate, it, value, should_throw);
