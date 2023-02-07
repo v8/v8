@@ -21,7 +21,9 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRabGsabDataView)
 
 ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
@@ -385,17 +387,18 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   return array;
 }
 
-DEF_GETTER(JSDataView, data_pointer, void*) {
+DEF_GETTER(JSDataViewOrRabGsabDataView, data_pointer, void*) {
   Address value = ReadSandboxedPointerField(kDataPointerOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
-void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
+void JSDataViewOrRabGsabDataView::set_data_pointer(Isolate* isolate,
+                                                   void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   WriteSandboxedPointerField(kDataPointerOffset, isolate, value);
 }
 
-size_t JSDataView::GetByteLength() const {
+size_t JSRabGsabDataView::GetByteLength() const {
   if (IsOutOfBounds()) {
     return 0;
   }
@@ -407,7 +410,7 @@ size_t JSDataView::GetByteLength() const {
   return byte_length();
 }
 
-bool JSDataView::IsOutOfBounds() const {
+bool JSRabGsabDataView::IsOutOfBounds() const {
   if (!is_backed_by_rab()) {
     return false;
   }

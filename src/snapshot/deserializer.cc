@@ -361,6 +361,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
                                                      SnapshotSpace space) {
   DCHECK_EQ(map.instance_type(), instance_type);
 
+  DCHECK(!InstanceTypeChecker::IsJSRabGsabDataView(instance_type));
   if (InstanceTypeChecker::IsJSDataView(instance_type)) {
     auto data_view = JSDataView::cast(*obj);
     auto buffer = JSArrayBuffer::cast(data_view.buffer());

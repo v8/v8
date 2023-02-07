@@ -3794,7 +3794,8 @@ TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 #undef VALUE_IS_TYPED_ARRAY
 
 bool Value::IsDataView() const {
-  return Utils::OpenHandle(this)->IsJSDataView();
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSDataView() || obj->IsJSRabGsabDataView();
 }
 
 bool Value::IsSharedArrayBuffer() const {
@@ -4278,8 +4279,8 @@ TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
 
 void v8::DataView::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSDataView(), "v8::DataView::Cast()",
-                  "Value is not a DataView");
+  Utils::ApiCheck(obj->IsJSDataView() || obj->IsJSRabGsabDataView(),
+                  "v8::DataView::Cast()", "Value is not a DataView");
 }
 
 void v8::SharedArrayBuffer::CheckCast(Value* that) {
@@ -8591,6 +8592,12 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
     DCHECK(data_view->buffer().IsJSArrayBuffer());
     buffer = i::handle(i::JSArrayBuffer::cast(data_view->buffer()),
                        data_view->GetIsolate());
+  } else if (obj->IsJSRabGsabDataView()) {
+    i::Handle<i::JSRabGsabDataView> data_view(i::JSRabGsabDataView::cast(*obj),
+                                              obj->GetIsolate());
+    DCHECK(data_view->buffer().IsJSArrayBuffer());
+    buffer = i::handle(i::JSArrayBuffer::cast(data_view->buffer()),
+                       data_view->GetIsolate());
   } else {
     DCHECK(obj->IsJSTypedArray());
     buffer = i::JSTypedArray::cast(*obj).GetBuffer();
@@ -8608,9 +8615,13 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
     if (self->IsJSTypedArray()) {
       i::Handle<i::JSTypedArray> array(i::JSTypedArray::cast(*self), i_isolate);
       source = reinterpret_cast<char*>(array->DataPtr());
-    } else {
-      DCHECK(self->IsJSDataView());
+    } else if (self->IsJSDataView()) {
       i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*self), i_isolate);
+      source = reinterpret_cast<char*>(data_view->data_pointer());
+    } else {
+      DCHECK(self->IsJSRabGsabDataView());
+      i::Handle<i::JSRabGsabDataView> data_view(
+          i::JSRabGsabDataView::cast(*self), i_isolate);
       source = reinterpret_cast<char*>(data_view->data_pointer());
     }
     memcpy(dest, source, bytes_to_copy);
@@ -8639,7 +8650,10 @@ size_t v8::ArrayBufferView::ByteLength() {
   if (obj.IsJSTypedArray()) {
     return i::JSTypedArray::cast(obj).GetByteLength();
   }
-  return i::JSDataView::cast(obj).GetByteLength();
+  if (obj.IsJSDataView()) {
+    return i::JSDataView::cast(obj).byte_length();
+  }
+  return i::JSRabGsabDataView::cast(obj).GetByteLength();
 }
 
 size_t v8::TypedArray::Length() {
@@ -8701,8 +8715,9 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
   i::Isolate* i_isolate = buffer->GetIsolate();
   API_RCS_SCOPE(i_isolate, DataView, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSDataView> obj =
-      i_isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
+  i::Handle<i::JSDataView> obj = i::Handle<i::JSDataView>::cast(
+      i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
+                                                           byte_length));
   return Utils::ToLocal(obj);
 }
 
@@ -8713,8 +8728,9 @@ Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
   i::Isolate* i_isolate = buffer->GetIsolate();
   API_RCS_SCOPE(i_isolate, DataView, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSDataView> obj =
-      i_isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
+  i::Handle<i::JSDataView> obj = i::Handle<i::JSDataView>::cast(
+      i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
+                                                           byte_length));
   return Utils::ToLocal(obj);
 }
 

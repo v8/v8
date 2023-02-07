@@ -31,7 +31,7 @@ namespace internal {
   V(FeedbackMetadata)                   \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
-  V(JSDataView)                         \
+  V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \

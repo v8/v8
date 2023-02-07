@@ -86,6 +86,7 @@ MAKE_TO_LOCAL(ToLocal, JSProxy, Proxy)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
+MAKE_TO_LOCAL(ToLocal, JSRabGsabDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 MAKE_TO_LOCAL(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)
 

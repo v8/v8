@@ -23,6 +23,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -453,7 +454,8 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       WriteBigInt(BigInt::cast(*object));
       return ThrowIfOutOfMemory();
     case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE: {
+    case JS_DATA_VIEW_TYPE:
+    case JS_RAB_GSAB_DATA_VIEW_TYPE: {
       // Despite being JSReceivers, these have their wrapped buffer serialized
       // first. That makes this logic a little quirky, because it needs to
       // happen before we assign object IDs.
@@ -605,6 +607,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBuffer(Handle<JSArrayBuffer>::cast(receiver));
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
@@ -979,8 +982,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
 #undef TYPED_ARRAY_CASE
     }
   } else {
-    DCHECK(view.IsJSDataView());
-    if (JSDataView::cast(view).IsOutOfBounds()) {
+    DCHECK(view.IsJSDataViewOrRabGsabDataView());
+    if (view.IsJSRabGsabDataView() &&
+        JSRabGsabDataView::cast(view).IsOutOfBounds()) {
       DCHECK(v8_flags.harmony_rab_gsab);
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
                                  handle(view, isolate_));
@@ -2118,8 +2122,9 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
                                           is_backed_by_rab)) {
         return MaybeHandle<JSArrayBufferView>();
       }
-      Handle<JSDataView> data_view = isolate_->factory()->NewJSDataView(
-          buffer, byte_offset, byte_length, is_length_tracking);
+      Handle<JSDataViewOrRabGsabDataView> data_view =
+          isolate_->factory()->NewJSDataViewOrRabGsabDataView(
+              buffer, byte_offset, byte_length, is_length_tracking);
       CHECK_EQ(is_backed_by_rab, data_view->is_backed_by_rab());
       CHECK_EQ(is_length_tracking, data_view->is_length_tracking());
       AddObjectWithID(id, data_view);

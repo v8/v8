@@ -1470,10 +1470,6 @@ FixedArrayRef JSBoundFunctionRef::bound_arguments() const {
 
 // Immutable after initialization.
 HEAP_ACCESSOR_C(JSDataView, size_t, byte_length)
-HEAP_ACCESSOR_B(JSDataView, bit_field, is_backed_by_rab,
-                JSDataView::IsBackedByRabBit)
-HEAP_ACCESSOR_B(JSDataView, bit_field, is_length_tracking,
-                JSDataView::IsLengthTrackingBit)
 
 HEAP_ACCESSOR_B(Map, bit_field2, elements_kind, Map::Bits2::ElementsKindBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_dictionary_map,

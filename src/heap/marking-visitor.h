@@ -70,7 +70,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitFixedDoubleArray(Map map, FixedDoubleArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
-  V8_INLINE int VisitJSDataView(Map map, JSDataView object);
+  V8_INLINE int VisitJSDataViewOrRabGsabDataView(
+      Map map, JSDataViewOrRabGsabDataView object);
   V8_INLINE int VisitJSFunction(Map map, JSFunction object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
   V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
@@ -248,7 +249,8 @@ class YoungGenerationMarkingVisitorBase
 
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
-  V8_INLINE int VisitJSDataView(Map map, JSDataView object);
+  V8_INLINE int VisitJSDataViewOrRabGsabDataView(
+      Map map, JSDataViewOrRabGsabDataView object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
  protected:

@@ -212,7 +212,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSArrayBuffer;
 
     case JS_DATA_VIEW_TYPE:
-      return kVisitJSDataView;
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
+      return kVisitJSDataViewOrRabGsabDataView;
 
     case JS_EXTERNAL_OBJECT_TYPE:
       return kVisitJSExternalObject;

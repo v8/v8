@@ -335,8 +335,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSDataView(
-    Map map, JSDataView object) {
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitJSDataViewOrRabGsabDataView(Map map,
+                                     JSDataViewOrRabGsabDataView object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
@@ -610,9 +611,9 @@ int YoungGenerationMarkingVisitorBase<
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-int YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitJSDataView(Map map,
-                                                    JSDataView object) {
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitJSDataViewOrRabGsabDataView(Map map,
+                                     JSDataViewOrRabGsabDataView object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 

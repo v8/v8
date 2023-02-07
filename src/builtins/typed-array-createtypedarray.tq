@@ -236,7 +236,7 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
   const rabGsab: bool = IsResizableArrayBuffer(buffer) &&
       (!IsSharedArrayBuffer(buffer) || isLengthTracking);
   if (rabGsab) {
-    map = GetDerivedRabGsabMap(target, newTarget);
+    map = GetDerivedRabGsabTypedArrayMap(target, newTarget);
   } else {
     map = GetDerivedMap(target, newTarget);
   }

@@ -1247,37 +1247,9 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
-  ZoneLabelRef done_byte_length(masm);
-  Label* deferred_get_byte_length = __ MakeDeferredCode(
-      [](MaglevAssembler* masm, CheckJSDataViewBounds* node, ZoneLabelRef done,
-         Register object, Register index, Register byte_length) {
-        RegisterSnapshot snapshot = node->register_snapshot();
-        AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
-        snapshot.live_registers.set(index);  // Make sure index is saved.
-        DCHECK(!snapshot.live_registers.has(byte_length));
-        {
-          using D = CallInterfaceDescriptorFor<
-              Builtin::kDataViewGetVariableLength>::type;
-          SaveRegisterStateForCall save_register_state(masm, snapshot);
-          __ Move(D::GetRegisterParameter(D::kDataView), object);
-          __ Move(kContextRegister, masm->native_context().object());
-          __ CallBuiltin(Builtin::kDataViewGetVariableLength);
-          __ Move(byte_length, kReturnRegister0);
-        }
-        __ Cmp(byte_length, Immediate(0));
-        // The reason might not be OOB, but because array was detached.
-        // Unfortunately we can only add one reason type in Maglev.
-        __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOutOfBounds, node);
-        __ B(*done);
-      },
-      this, done_byte_length, object, index, byte_length);
-  __ Ldr(scratch.W(), FieldMemOperand(object, JSDataView::kBitFieldOffset));
-  __ Cbnz(scratch.W(), deferred_get_byte_length);
-
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
-  __ Bind(*done_byte_length);
 
   int element_size = ExternalArrayElementSize(element_type_);
   if (element_size > 1) {

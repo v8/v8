@@ -1030,7 +1030,8 @@ RUNTIME_FUNCTION(Runtime_GetDerivedMap) {
   Handle<Object> rab_gsab = args.at(2);
   if (rab_gsab->IsTrue()) {
     RETURN_RESULT_OR_FAILURE(
-        isolate, JSFunction::GetDerivedRabGsabMap(isolate, target, new_target));
+        isolate, JSFunction::GetDerivedRabGsabTypedArrayMap(isolate, target,
+                                                            new_target));
   } else {
     RETURN_RESULT_OR_FAILURE(
         isolate, JSFunction::GetDerivedMap(isolate, target, new_target));

@@ -3188,6 +3188,7 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
                                 JS_DATA_VIEW_TYPE);
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset =
       args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
   AddNewNode<CheckJSDataViewBounds>({receiver, offset}, type);
@@ -3207,6 +3208,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
                                 JS_DATA_VIEW_TYPE);
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset =
       args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
   AddNewNode<CheckJSDataViewBounds>({receiver, offset},

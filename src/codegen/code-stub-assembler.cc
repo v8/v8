@@ -7192,6 +7192,10 @@ TNode<BoolT> CodeStubAssembler::IsJSDataView(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_DATA_VIEW_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSRabGsabDataView(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_RAB_GSAB_DATA_VIEW_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSRegExp(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_REG_EXP_TYPE);
 }

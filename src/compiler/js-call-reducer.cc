@@ -4649,8 +4649,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
     case Builtin::kDataViewPrototypeGetByteLength:
+      // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_DATA_VIEW_TYPE);
     case Builtin::kDataViewPrototypeGetByteOffset:
+      // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteOffset(), builtin);
@@ -7242,6 +7244,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
 
 Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     Node* node, InstanceType instance_type) {
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   DCHECK(instance_type == JS_TYPED_ARRAY_TYPE ||
          instance_type == JS_DATA_VIEW_TYPE);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -7256,9 +7259,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
 
   std::set<ElementsKind> elements_kinds;
   bool maybe_rab_gsab = false;
-  if (instance_type == JS_DATA_VIEW_TYPE) {
-    maybe_rab_gsab = true;
-  } else {
+  if (instance_type == JS_TYPED_ARRAY_TYPE) {
     for (const auto& map : inference.GetMaps()) {
       ElementsKind kind = map.elements_kind();
       elements_kinds.insert(kind);
@@ -7857,6 +7858,7 @@ Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
 Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access,
     Builtin builtin) {
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
@@ -7939,6 +7941,7 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
 
 Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
                                               ExternalArrayType element_type) {
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   size_t const element_size = ExternalArrayElementSize(element_type);
@@ -7972,12 +7975,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
 
-    if (dataview.is_backed_by_rab() || dataview.is_length_tracking()) {
-      // Disable this optimization for RAB/GSAB. TODO(v8:11111): Don't bail out,
-      // instead generate code for reading the current length.
-      return NoChange();
-    }
-
     size_t length = dataview.byte_length();
     if (length < element_size) return NoChange();
 
@@ -7986,21 +7983,11 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
   } else {
-    Node* byte_length;
-    if (!v8_flags.harmony_rab_gsab) {
-      // We only deal with DataViews here that have Smi [[ByteLength]]s.
-      byte_length = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferViewByteLength()),
-                           receiver, effect, control);
-    } else {
-      JSCallReducerAssembler a(this, node);
-      byte_length = a.ArrayBufferViewByteLength(
-          TNode<JSArrayBufferView>::UncheckedCast(receiver), JS_DATA_VIEW_TYPE,
-          {}, a.ContextInput());
-      std::tie(effect, control) = ReleaseEffectAndControlFromAssembler(&a);
-    }
-
+    // We only deal with DataViews here that have Smi [[ByteLength]]s.
+    Node* byte_length = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSArrayBufferViewByteLength()),
+                         receiver, effect, control);
     if (element_size > 1) {
       // For non-byte accesses we also need to check that the {offset}
       // plus the {element_size}-1 fits within the given {byte_length}.

@@ -141,6 +141,7 @@ class ZoneForwardList;
   V(JSContextExtensionObject)                   \
   V(JSCustomElementsObject)                     \
   V(JSDataView)                                 \
+  V(JSDataViewOrRabGsabDataView)                \
   V(JSDate)                                     \
   V(JSError)                                    \
   V(JSExternalObject)                           \
@@ -159,6 +160,7 @@ class ZoneForwardList;
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \
   V(JSProxy)                                    \
+  V(JSRabGsabDataView)                          \
   V(JSRawJson)                                  \
   V(JSReceiver)                                 \
   V(JSRegExp)                                   \

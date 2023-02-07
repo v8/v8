@@ -49,6 +49,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -3173,25 +3174,31 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   return typed_array;
 }
 
-Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
-                                          size_t byte_offset,
-                                          size_t byte_length,
-                                          bool is_length_tracking) {
+Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
+    Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
+    bool is_length_tracking) {
   CHECK_IMPLIES(is_length_tracking, v8_flags.harmony_rab_gsab);
   if (is_length_tracking) {
     // Security: enforce the invariant that length-tracking DataViews have their
     // byte_length set to 0.
     byte_length = 0;
   }
-  Handle<Map> map(isolate()->native_context()->data_view_fun().initial_map(),
-                  isolate());
-  Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
-      map, empty_fixed_array(), buffer, byte_offset, byte_length));
+  bool is_backed_by_rab = !buffer->is_shared() && buffer->is_resizable_by_js();
+  Handle<Map> map;
+  if (is_backed_by_rab || is_length_tracking) {
+    map = handle(isolate()->native_context()->js_rab_gsab_data_view_map(),
+                 isolate());
+  } else {
+    map = handle(isolate()->native_context()->data_view_fun().initial_map(),
+                 isolate());
+  }
+  Handle<JSDataViewOrRabGsabDataView> obj =
+      Handle<JSDataViewOrRabGsabDataView>::cast(NewJSArrayBufferView(
+          map, empty_fixed_array(), buffer, byte_offset, byte_length));
   obj->set_data_pointer(
       isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   obj->set_is_length_tracking(is_length_tracking);
-  obj->set_is_backed_by_rab(!buffer->is_shared() &&
-                            buffer->is_resizable_by_js());
+  obj->set_is_backed_by_rab(is_backed_by_rab);
   return obj;
 }
 

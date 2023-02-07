@@ -2389,6 +2389,18 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   return result;
 }
 
+// static
+MaybeHandle<JSObject> JSObject::NewWithMap(Isolate* isolate,
+                                           Handle<Map> initial_map,
+                                           Handle<AllocationSite> site) {
+  int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+                             ? SwissNameDictionary::kInitialCapacity
+                             : NameDictionary::kInitialCapacity;
+  Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
+      initial_map, initial_capacity, AllocationType::kYoung, site);
+  return result;
+}
+
 // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
 // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
 MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
@@ -2488,6 +2500,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSTypedArray::kHeaderSize;
     case JS_DATA_VIEW_TYPE:
       return JSDataView::kHeaderSize;
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
+      return JSRabGsabDataView::kHeaderSize;
     case JS_SET_TYPE:
       return JSSet::kHeaderSize;
     case JS_MAP_TYPE:

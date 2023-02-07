@@ -21,6 +21,7 @@
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
@@ -2485,7 +2486,8 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed
   // via the API.
-  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(false, i_dv->is_backed_by_rab());
 }
@@ -2516,7 +2518,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
@@ -2533,7 +2536,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
   EXPECT_EQ(true, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }

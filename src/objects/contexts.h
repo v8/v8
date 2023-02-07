@@ -230,6 +230,7 @@ enum ContextLookupFlags {
   V(CATCH_CONTEXT_MAP_INDEX, Map, catch_context_map)                           \
   V(WITH_CONTEXT_MAP_INDEX, Map, with_context_map)                             \
   V(DEBUG_EVALUATE_CONTEXT_MAP_INDEX, Map, debug_evaluate_context_map)         \
+  V(JS_RAB_GSAB_DATA_VIEW_MAP_INDEX, Map, js_rab_gsab_data_view_map)           \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
   V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \

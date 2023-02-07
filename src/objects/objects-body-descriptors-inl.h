@@ -21,6 +21,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
@@ -422,7 +423,8 @@ class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSDataView::BodyDescriptor final : public BodyDescriptorBase {
+class JSDataViewOrRabGsabDataView::BodyDescriptor final
+    : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     if (offset < kEndOfTaggedFieldsOffset) return true;
@@ -433,7 +435,8 @@ class JSDataView::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    // JSDataView contains raw data that the GC does not know about.
+    // JSDataViewOrRabGsabDataView contains raw data that the GC does not know
+    // about.
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
@@ -1329,6 +1332,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(JSArrayBuffer);
     case JS_DATA_VIEW_TYPE:
       return CALL_APPLY(JSDataView);
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
+      return CALL_APPLY(JSRabGsabDataView);
     case JS_TYPED_ARRAY_TYPE:
       return CALL_APPLY(JSTypedArray);
     case JS_EXTERNAL_OBJECT_TYPE:

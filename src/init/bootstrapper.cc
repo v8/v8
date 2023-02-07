@@ -3466,6 +3466,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallToStringTag(isolate_, prototype, "DataView");
 
+    // Setup objects needed for the JSRabGsabDataView.
+    Handle<Map> rab_gsab_data_view_map = factory->NewMap(
+        JS_RAB_GSAB_DATA_VIEW_TYPE, JSDataView::kSizeWithEmbedderFields,
+        TERMINAL_FAST_ELEMENTS_KIND);
+    Map::SetPrototype(isolate(), rab_gsab_data_view_map, prototype);
+    rab_gsab_data_view_map->SetConstructor(*data_view_fun);
+    native_context()->set_js_rab_gsab_data_view_map(*rab_gsab_data_view_map);
+
     // Install the "buffer", "byteOffset" and "byteLength" getters
     // on the {prototype}.
     SimpleInstallGetter(isolate_, prototype, factory->buffer_string(),

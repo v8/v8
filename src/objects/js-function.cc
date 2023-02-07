@@ -824,6 +824,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATA_VIEW_TYPE:
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_FUNCTION_TYPE:
@@ -1107,7 +1108,7 @@ int TypedArrayElementsKindToRabGsabCtorIndex(ElementsKind elements_kind) {
 
 }  // namespace
 
-MaybeHandle<Map> JSFunction::GetDerivedRabGsabMap(
+MaybeHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
     Isolate* isolate, Handle<JSFunction> constructor,
     Handle<JSReceiver> new_target) {
   MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
@@ -1133,6 +1134,28 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabMap(
   Handle<Map> rab_gsab_map = Map::Copy(isolate, map, "RAB / GSAB");
   rab_gsab_map->set_elements_kind(
       GetCorrespondingRabGsabElementsKind(map->elements_kind()));
+  return rab_gsab_map;
+}
+
+MaybeHandle<Map> JSFunction::GetDerivedRabGsabDataViewMap(
+    Isolate* isolate, Handle<JSReceiver> new_target) {
+  Handle<Context> context =
+      handle(isolate->context().native_context(), isolate);
+  Handle<JSFunction> constructor = handle(context->data_view_fun(), isolate);
+  MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
+  Handle<Map> map;
+  if (!maybe_map.ToHandle(&map)) {
+    return MaybeHandle<Map>();
+  }
+  if (*map == constructor->initial_map()) {
+    return handle(Map::cast(context->js_rab_gsab_data_view_map()), isolate);
+  }
+
+  // This only happens when subclassing DataViews. Create a new map with the
+  // JS_RAB_GSAB_DATA_VIEW instance type. Note: the map is not cached and
+  // reused -> every data view gets a unique map, making ICs slow.
+  Handle<Map> rab_gsab_map = Map::Copy(isolate, map, "RAB / GSAB");
+  rab_gsab_map->set_instance_type(JS_RAB_GSAB_DATA_VIEW_TYPE);
   return rab_gsab_map;
 }
 

@@ -1640,6 +1640,18 @@ void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSDataViewVerify(*this, isolate);
+  CHECK(!IsVariableLength());
+  if (!WasDetached()) {
+    CHECK_EQ(reinterpret_cast<uint8_t*>(
+                 JSArrayBuffer::cast(buffer()).backing_store()) +
+                 byte_offset(),
+             data_pointer());
+  }
+}
+
+void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSRabGsabDataViewVerify(*this, isolate);
+  CHECK(IsVariableLength());
   if (!WasDetached()) {
     CHECK_EQ(reinterpret_cast<uint8_t*>(
                  JSArrayBuffer::cast(buffer()).backing_store()) +

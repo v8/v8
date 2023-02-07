@@ -482,6 +482,7 @@ class ArrayBufferViewAccessBuilder {
         instance_type_(instance_type),
         candidates_(std::move(candidates)) {
     DCHECK_NOT_NULL(assembler_);
+    // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
     DCHECK(instance_type_ == JS_DATA_VIEW_TYPE ||
            instance_type_ == JS_TYPED_ARRAY_TYPE);
   }
@@ -494,6 +495,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementShift() {
+    DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 0;
     if (candidates_.empty()) return base::nullopt;
     int shift = ElementsKindToShiftSize(*candidates_.begin());
@@ -506,6 +508,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementSize() {
+    DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 1;
     if (candidates_.empty()) return base::nullopt;
     int size = ElementsKindToByteSize(*candidates_.begin());

@@ -327,7 +327,8 @@ class YoungGenerationConcurrentMarkingVisitor final
                                                                   object);
   }
 
-  int VisitJSDataView(Map map, JSDataView object) {
+  int VisitJSDataViewOrRabGsabDataView(Map map,
+                                       JSDataViewOrRabGsabDataView object) {
     return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
                                                                   object);
   }

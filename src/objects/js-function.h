@@ -285,9 +285,14 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Handle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabMap(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabTypedArrayMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
+
+  // Like GetDerivedMap, but can be used for DataViews for retrieving / creating
+  // a map with a JS_RAB_GSAB_DATA_VIEW instance type.
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabDataViewMap(
+      Isolate* isolate, Handle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial

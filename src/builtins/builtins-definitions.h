@@ -503,7 +503,6 @@ namespace internal {
   /* DataView */                                                               \
   /* ES #sec-dataview-constructor */                                           \
   CPP(DataViewConstructor)                                                     \
-  TFC(DataViewGetVariableLength, DataViewGetVariableLength)                    \
                                                                                \
   /* Date */                                                                   \
   /* ES #sec-date-constructor */                                               \
