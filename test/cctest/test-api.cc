@@ -29553,3 +29553,265 @@ TEST(WasmAbortStreamingAfterContextDisposal) {
   wasm_streaming.reset();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+TEST(DeepFreezeIncompatibleTypes) {
+  const int numCases = 7;
+  struct {
+    const char* script;
+    const char* exception;
+  } test_cases[numCases] = {
+      {
+          R"(
+        "use strict"
+        let foo = 1;
+      )",
+          "TypeError: Cannot DeepFreeze non-const value foo"},
+      {
+          R"(
+        "use strict"
+        const foo = 1;
+        const generator = function*() {
+          yield 1;
+          yield 2;
+        }
+        const gen = generator();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Generator"},
+      {
+          R"(
+        "use strict"
+        const incrementer = (function() {
+          let a = 1;
+          return function() { a += 1; return a; };
+        })();
+      )",
+          "TypeError: Cannot DeepFreeze non-const value a"},
+      {
+          R"(
+      let a = new Number();
+      )",
+          "TypeError: Cannot DeepFreeze non-const value a"},
+      {
+          R"(
+      const a = [0, 1, 2, 3, 4, 5];
+      var it = a[Symbol.iterator]();
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Array Iterator"},
+      {
+          R"(
+      const a = "0123456789";
+      var it = a[Symbol.iterator]();
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Object"},
+      {R"(
+      const a = "0123456789";
+      var it = a.matchAll(/\d/g);
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+       "TypeError: Cannot DeepFreeze object of type Object"},
+  };
+
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    CompileRun(context, test_cases[idx].script);
+    v8::TryCatch tc(isolate);
+    maybe_success = context->DeepFreeze();
+    CHECK(maybe_success.IsNothing());
+    CHECK(tc.HasCaught());
+    v8::String::Utf8Value uS(isolate, tc.Exception());
+    std::string exception(*uS, uS.length());
+    CHECK_EQ(std::string(test_cases[idx].exception), exception);
+  }
+}
+
+TEST(DeepFreezeIsFrozen) {
+  const int numCases = 10;
+  struct {
+    const char* script;
+    const char* exception;
+    int32_t expected;
+  } test_cases[numCases] = {
+      {// Closure
+       R"(
+        const incrementer = (function() {
+          const a = {b: 1};
+          return function() { a.b += 1; return a.b; };
+        })();
+        const foo = function() { return incrementer(); }
+        foo();
+      )",
+       nullptr, 2},
+      {
+          R"(
+        const incrementer = (function() {
+          const a = {b: 1};
+          return function() { a.b += 1; return a.b; };
+        })();
+        const foo = function() { return incrementer(); }
+        foo();
+      )",
+          nullptr, 2},
+      {// Array
+       R"(
+        const a = [0, -1, -2];
+        const foo = function() { a[0] += 1; return a[0]; }
+      )",
+       nullptr, 0},
+      {
+          R"(
+        const a = [0, -1, -2];
+        const foo = function() { a[0] += 1; return a[0]; }
+      )",
+          nullptr, 0},
+      {// Wrapper Objects
+       R"(
+        const a = {b: new Number()};
+        const foo = function() {
+          a.b = new Number(a.b + 1);
+          return a.b.valueOf();
+        }
+      )",
+       nullptr, 0},
+      {// Functions
+       // Assignment to constant doesn't work.
+       R"(
+        const foo = function() {
+          foo = function() { return 2;}
+          return 1;
+        }
+      )",
+       "TypeError: Assignment to constant variable.", 0},
+      {
+          R"(
+        const a = {b: {c: {d: {e: {f: 1}}}}};
+        const foo = function() {
+          a.b.c.d.e.f += 1;
+          return a.b.c.d.e.f;
+        }
+      )",
+          nullptr, 1},
+      {
+          R"(
+        const foo = function() {
+          if (!('count' in globalThis))
+            globalThis.count = 1;
+          ++count;
+          return count;
+        }
+      )",
+          "ReferenceError: count is not defined", 0},
+      {
+          R"(
+        const countPrototype = {
+          get() {
+            return 1;
+          },
+        };
+        const count = Object.create(countPrototype);
+        function foo() {
+          const curr_count = count.get();
+          count.prototype = { get() { return curr_count + 1; }};
+          return count.get();
+        }
+      )",
+          nullptr, 1},
+      {
+          R"(
+          const a = (function(){
+            function A(){};
+            A.o = 1;
+            return new A();
+          })();
+        function foo() {
+          a.constructor.o++;
+          return a.constructor.o;
+        }
+      )",
+          nullptr, 1},
+  };
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    v8::TryCatch tc(isolate);
+    v8::MaybeLocal<v8::Value> status =
+        CompileRun(context, test_cases[idx].script);
+    CHECK(!status.IsEmpty());
+    CHECK(!tc.HasCaught());
+
+    maybe_success = context->DeepFreeze();
+    CHECK(!tc.HasCaught());
+    status = CompileRun(context, "foo()");
+
+    if (test_cases[idx].exception) {
+      CHECK(tc.HasCaught());
+      v8::String::Utf8Value uS(isolate, tc.Exception());
+      std::string exception(*uS, uS.length());
+      CHECK_EQ(std::string(test_cases[idx].exception), exception);
+    } else {
+      CHECK(!tc.HasCaught());
+      CHECK(!status.IsEmpty());
+      ExpectInt32("foo()", test_cases[idx].expected);
+    }
+  }
+}
+
+TEST(DeepFreezeAllowsSyntax) {
+  const int numCases = 2;
+  struct {
+    const char* script;
+    int32_t expected;
+  } test_cases[numCases] = {
+      {
+          R"(
+      const a = 1;
+      function foo() {
+        let b = 4;
+        b += 1;
+        return a + b;
+      }
+    )",
+          6,
+      },
+      {
+          R"(
+      var a = 1;
+      function foo() {
+        let b = 4;
+        b += 1;
+        return a + b;
+      }
+    )",
+          6,
+      }};  // TODO(behamilton): Add more cases that should be supported.
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    v8::MaybeLocal<v8::Value> status =
+        CompileRun(context, test_cases[idx].script);
+    CHECK(!status.IsEmpty());
+    maybe_success = context->DeepFreeze();
+    CHECK(!maybe_success.IsNothing());
+    ExpectInt32("foo()", test_cases[idx].expected);
+  }
+}

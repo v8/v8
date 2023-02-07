@@ -711,7 +711,10 @@ namespace internal {
   T(OptionalChainingNoSuper, "Invalid optional chain from super property")     \
   T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")   \
   /* AggregateError */                                                         \
-  T(AllPromisesRejected, "All promises were rejected")
+  T(AllPromisesRejected, "All promises were rejected")                         \
+  T(CannotDeepFreezeObject, "Cannot DeepFreeze object of type %")              \
+  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")
+
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,
   MESSAGE_TEMPLATES(TEMPLATE)

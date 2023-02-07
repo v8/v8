@@ -47,6 +47,7 @@
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/objects/primitive-heap-object.h"
+#include "src/utils/identity-map.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -85,6 +86,7 @@
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -6715,6 +6717,218 @@ Local<Value> v8::Context::GetSecurityToken() {
   i::Object security_token = env->security_token();
   i::Handle<i::Object> token_handle(security_token, i_isolate);
   return Utils::ToLocal(token_handle);
+}
+
+namespace {
+
+bool MayContainObjectsToFreeze(i::InstanceType obj_type) {
+  if (i::InstanceTypeChecker::IsString(obj_type)) return false;
+  if (i::InstanceTypeChecker::IsSharedFunctionInfo(obj_type)) return false;
+  return true;
+}
+
+bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
+  DCHECK(i::InstanceTypeChecker::IsJSReceiver(obj_type));
+  switch (obj_type) {
+    case i::JS_OBJECT_TYPE:
+    case i::JS_GLOBAL_OBJECT_TYPE:
+    case i::JS_GLOBAL_PROXY_TYPE:
+    case i::JS_PRIMITIVE_WRAPPER_TYPE:
+    case i::JS_FUNCTION_TYPE:
+    /* Function types */
+    case i::BIGINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::BIGUINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::FLOAT32_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::FLOAT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::INT16_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::INT32_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::INT8_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::UINT16_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::UINT32_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::UINT8_CLAMPED_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::UINT8_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::JS_ARRAY_CONSTRUCTOR_TYPE:
+    case i::JS_PROMISE_CONSTRUCTOR_TYPE:
+    case i::JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case i::JS_CLASS_CONSTRUCTOR_TYPE:
+    /* Prototype Types */
+    case i::JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case i::JS_ITERATOR_PROTOTYPE_TYPE:
+    case i::JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case i::JS_OBJECT_PROTOTYPE_TYPE:
+    case i::JS_PROMISE_PROTOTYPE_TYPE:
+    case i::JS_REG_EXP_PROTOTYPE_TYPE:
+    case i::JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case i::JS_SET_PROTOTYPE_TYPE:
+    case i::JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case i::JS_TYPED_ARRAY_PROTOTYPE_TYPE:
+    /* */
+    case i::JS_ARRAY_TYPE:
+      return true;
+#if V8_ENABLE_WEBASSEMBLY
+    case i::WASM_ARRAY_TYPE:
+    case i::WASM_STRUCT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case i::JS_PROXY_TYPE:
+      return true;
+    // These types are known not to freeze.
+    case i::JS_MAP_KEY_ITERATOR_TYPE:
+    case i::JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case i::JS_MAP_VALUE_ITERATOR_TYPE:
+    case i::JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case i::JS_SET_VALUE_ITERATOR_TYPE:
+    case i::JS_GENERATOR_OBJECT_TYPE:
+    case i::JS_ASYNC_FUNCTION_OBJECT_TYPE:
+    case i::JS_ASYNC_GENERATOR_OBJECT_TYPE:
+    case i::JS_ARRAY_ITERATOR_TYPE: {
+      return false;
+    }
+    default:
+      // TODO(behamilton): Handle any types that fall through here.
+      return false;
+  }
+}
+
+class ObjectVisitorDeepFreezer : i::ObjectVisitor {
+ public:
+  explicit ObjectVisitorDeepFreezer(i::Isolate* isolate) : isolate_(isolate) {}
+
+  bool DeepFreeze(i::Handle<i::Context> context) {
+    bool success = VisitObject(*i::Handle<i::HeapObject>::cast(context));
+    DCHECK_EQ(success, !error_.has_value());
+    if (!success) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate_, NewTypeError(error_->msg_id, error_->name), false);
+    }
+
+    for (const auto& obj : objects_to_freeze_) {
+      MAYBE_RETURN_ON_EXCEPTION_VALUE(
+          isolate_,
+          i::JSReceiver::SetIntegrityLevel(isolate_, obj, i::FROZEN,
+                                           i::kThrowOnError),
+          false);
+    }
+    return true;
+  }
+
+  void VisitPointers(i::HeapObject host, i::ObjectSlot start,
+                     i::ObjectSlot end) final {
+    VisitPointersImpl(start, end);
+  }
+  void VisitPointers(i::HeapObject host, i::MaybeObjectSlot start,
+                     i::MaybeObjectSlot end) final {
+    VisitPointersImpl(start, end);
+  }
+  void VisitMapPointer(i::HeapObject host) final {
+    VisitPointer(host, host.map_slot());
+  }
+  void VisitCodePointer(i::HeapObject host, i::CodeObjectSlot slot) final {}
+  void VisitCodeTarget(i::InstructionStream host, i::RelocInfo* rinfo) final {}
+  void VisitEmbeddedPointer(i::InstructionStream host,
+                            i::RelocInfo* rinfo) final {}
+  void VisitCustomWeakPointers(i::HeapObject host, i::ObjectSlot start,
+                               i::ObjectSlot end) final {}
+
+ private:
+  struct ErrorInfo {
+    i::MessageTemplate msg_id;
+    i::Handle<i::String> name;
+  };
+
+  template <typename TSlot>
+  void VisitPointersImpl(TSlot start, TSlot end) {
+    for (TSlot current = start; current < end; ++current) {
+      typename TSlot::TObject object = current.load(isolate_);
+      i::HeapObject heap_object;
+      if (object.GetHeapObjectIfStrong(&heap_object)) {
+        if (!VisitObject(heap_object)) {
+          return;
+        }
+      }
+    }
+  }
+
+  bool VisitObject(i::HeapObject obj) {
+    DCHECK(!error_.has_value());
+    DCHECK(!obj.is_null());
+
+    i::DisallowGarbageCollection no_gc;
+    i::InstanceType obj_type = obj.map().instance_type();
+
+    // Skip common types that can't contain items to freeze.
+    if (!MayContainObjectsToFreeze(obj_type)) {
+      return true;
+    }
+
+    if (!done_list_.insert(obj).second) {
+      // If we couldn't insert (because it is already in the set) then we're
+      // done.
+      return true;
+    }
+
+    // For contexts we need to ensure that all accessible locals are const.
+    // If not they could be replaced to bypass freezing.
+    if (i::InstanceTypeChecker::IsContext(obj_type)) {
+      i::ScopeInfo scope_info = i::Context::cast(obj).scope_info();
+      for (auto it : i::ScopeInfo::IterateLocalNames(&scope_info, no_gc)) {
+        if (scope_info.ContextLocalMode(it->index()) !=
+            i::VariableMode::kConst) {
+          DCHECK(!error_.has_value());
+          error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeValue,
+                             i::handle(it->name(), isolate_)};
+          return false;
+        }
+      }
+    } else if (i::InstanceTypeChecker::IsJSReceiver(obj_type)) {
+      i::Handle<i::JSReceiver> receiver =
+          i::handle(i::JSReceiver::cast(obj), isolate_);
+      if (!IsJSReceiverSafeToFreeze(obj_type)) {
+        DCHECK(!error_.has_value());
+        error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
+                           i::handle(receiver->class_name(), isolate_)};
+        return false;
+      }
+
+      // Save this to freeze after we are done. Freezing triggers garbage
+      // collection which doesn't work well with this visitor pattern, so we
+      // delay it until after.
+      objects_to_freeze_.push_back(receiver);
+
+    } else {
+      DCHECK(!i::InstanceTypeChecker::IsContext(obj_type) &&
+             !i::InstanceTypeChecker::IsJSReceiver(obj_type));
+    }
+
+    DCHECK(!error_.has_value());
+    obj.Iterate(isolate_, this);
+    // Iterate sets error_ on failure. We should propagate errors.
+    return !error_.has_value();
+  }
+
+  i::Isolate* isolate_;
+  std::unordered_set<i::Object, i::Object::Hasher> done_list_;
+  std::vector<i::Handle<i::JSReceiver>> objects_to_freeze_;
+  base::Optional<ErrorInfo> error_;
+};
+
+}  // namespace
+
+Maybe<void> Context::DeepFreeze() {
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = env->GetIsolate();
+
+  // TODO(behamilton): Incorporate compatibility improvements similar to NodeJS:
+  // https://github.com/nodejs/node/blob/main/lib/internal/freeze_intrinsics.js
+  // These need to be done before freezing.
+
+  Local<Context> context = Utils::ToLocal(env);
+  ENTER_V8_NO_SCRIPT(i_isolate, context, Context, DeepFreeze, Nothing<void>(),
+                     i::HandleScope);
+  ObjectVisitorDeepFreezer vfreezer(i_isolate);
+  has_pending_exception = !vfreezer.DeepFreeze(env);
+
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(void);
+  return JustVoid();
 }
 
 v8::Isolate* Context::GetIsolate() {

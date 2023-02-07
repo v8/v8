@@ -144,6 +144,7 @@ class RuntimeCallTimer final {
   V(BigUint64Array_New)                                    \
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
+  V(Context_DeepFreeze)                                    \
   V(Context_New)                                           \
   V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
