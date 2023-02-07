@@ -1580,31 +1580,27 @@ void MacroAssembler::Ftintrz_uw_d(Register rd, FPURegister fj,
   DCHECK(rd != t7);
 
   {
-    // Load 2^31 into scratch as its float representation.
+    // Load 2^32 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x41E00000);
-    movgr2fr_w(scratch, zero_reg);
-    movgr2frh_w(scratch, scratch1);
+    li(scratch1, 0x41F0000000000000);
+    movgr2fr_d(scratch, scratch1);
   }
   // Test if scratch > fd.
-  // If fd < 2^31 we can convert it normally.
+  // If fd < 2^32 we can convert it normally.
   Label simple_convert;
-  CompareF64(fj, scratch, CLT);
+  CompareF64(fj, scratch, CULT);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fd, then trunc it to rs
-  // and add 2^31 to rj.
-  fsub_d(scratch, fj, scratch);
-  ftintrz_w_d(scratch, scratch);
-  movfr2gr_s(rd, scratch);
-  Or(rd, rd, 1 << 31);
+  // If fd > 2^32, the result should be UINT_32_MAX;
+  Add_w(rd, zero_reg, -1);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  ftintrz_w_d(scratch, fj);
+  // Double -> Int64 -> Uint32;
+  ftintrz_l_d(scratch, fj);
   movfr2gr_s(rd, scratch);
 
   bind(&done);
@@ -1615,30 +1611,27 @@ void MacroAssembler::Ftintrz_uw_s(Register rd, FPURegister fj,
   DCHECK(fj != scratch);
   DCHECK(rd != t7);
   {
-    // Load 2^31 into scratch as its float representation.
+    // Load 2^32 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x4F000000);
+    li(scratch1, 0x4F800000);
     movgr2fr_w(scratch, scratch1);
   }
   // Test if scratch > fs.
-  // If fs < 2^31 we can convert it normally.
+  // If fs < 2^32 we can convert it normally.
   Label simple_convert;
-  CompareF32(fj, scratch, CLT);
+  CompareF32(fj, scratch, CULT);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fs, then trunc it to rd
-  // and add 2^31 to rd.
-  fsub_s(scratch, fj, scratch);
-  ftintrz_w_s(scratch, scratch);
-  movfr2gr_s(rd, scratch);
-  Or(rd, rd, 1 << 31);
+  // If fd > 2^32, the result should be UINT_32_MAX;
+  Add_w(rd, zero_reg, -1);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  ftintrz_w_s(scratch, fj);
+  // Float -> Int64 -> Uint32;
+  ftintrz_l_s(scratch, fj);
   movfr2gr_s(rd, scratch);
 
   bind(&done);
@@ -1654,9 +1647,7 @@ void MacroAssembler::Ftintrz_ul_d(Register rd, FPURegister fj,
     mov(result, zero_reg);
     Move(scratch, -1.0);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF64(fj, scratch, CLE);
-    BranchTrueShortF(&fail);
-    CompareIsNanF64(fj, scratch);
+    CompareF64(fj, scratch, CULE);
     BranchTrueShortF(&fail);
   }
 
@@ -1665,8 +1656,8 @@ void MacroAssembler::Ftintrz_ul_d(Register rd, FPURegister fj,
   movgr2fr_d(scratch, t7);
 
   // Test if scratch > fs.
-  // If fs < 2^63 we can convert it normally.
-  CompareF64(fj, scratch, CLT);
+  // If fs < 2^63 or unordered we can convert it normally.
+  CompareF64(fj, scratch, CULT);
   BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fs, then trunc it to rd
@@ -1709,9 +1700,7 @@ void MacroAssembler::Ftintrz_ul_s(Register rd, FPURegister fj,
     mov(result, zero_reg);
     Move(scratch, -1.0f);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF32(fj, scratch, CLE);
-    BranchTrueShortF(&fail);
-    CompareIsNanF32(fj, scratch);
+    CompareF32(fj, scratch, CULE);
     BranchTrueShortF(&fail);
   }
 
@@ -1724,8 +1713,8 @@ void MacroAssembler::Ftintrz_ul_s(Register rd, FPURegister fj,
   }
 
   // Test if scratch > fs.
-  // If fs < 2^63 we can convert it normally.
-  CompareF32(fj, scratch, CLT);
+  // If fs < 2^63 or unordered, we can convert it normally.
+  CompareF32(fj, scratch, CULT);
   BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fs, then trunc it to rd

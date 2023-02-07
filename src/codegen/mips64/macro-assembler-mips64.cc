@@ -2310,31 +2310,28 @@ void MacroAssembler::Trunc_uw_d(Register rd, FPURegister fs,
   DCHECK(rd != at);
 
   {
-    // Load 2^31 into scratch as its float representation.
+    // Load 2^32 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x41E00000);
+    li(scratch1, 0x41F00000);
     mtc1(zero_reg, scratch);
     mthc1(scratch1, scratch);
   }
   // Test if scratch > fd.
-  // If fd < 2^31 we can convert it normally.
+  // If fd < 2^32 we can convert it normally.
   Label simple_convert;
-  CompareF64(OLT, fs, scratch);
+  CompareF64(ULT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fd, then trunc it to rs
-  // and add 2^31 to rs.
-  sub_d(scratch, fs, scratch);
-  trunc_w_d(scratch, scratch);
-  mfc1(rd, scratch);
-  Or(rd, rd, 1 << 31);
+  // If fd > 2^32, the result should be UINT_32_MAX;
+  Addu(rd, zero_reg, -1);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_d(scratch, fs);
+  // Double -> Int64 -> Uint32;
+  trunc_l_d(scratch, fs);
   mfc1(rd, scratch);
 
   bind(&done);
@@ -2346,30 +2343,27 @@ void MacroAssembler::Trunc_uw_s(Register rd, FPURegister fs,
   DCHECK(rd != at);
 
   {
-    // Load 2^31 into scratch as its float representation.
+    // Load 2^32 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x4F000000);
+    li(scratch1, 0x4F800000);
     mtc1(scratch1, scratch);
   }
   // Test if scratch > fs.
-  // If fs < 2^31 we can convert it normally.
+  // If fs < 2^32 we can convert it normally.
   Label simple_convert;
-  CompareF32(OLT, fs, scratch);
+  CompareF32(ULT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fs, then trunc it to rd
-  // and add 2^31 to rd.
-  sub_s(scratch, fs, scratch);
-  trunc_w_s(scratch, scratch);
-  mfc1(rd, scratch);
-  Or(rd, rd, 1 << 31);
+  // If fd > 2^32, the result should be UINT_32_MAX;
+  Addu(rd, zero_reg, -1);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_s(scratch, fs);
+  // Float -> Int64 -> Uint32;
+  trunc_l_s(scratch, fs);
   mfc1(rd, scratch);
 
   bind(&done);
@@ -2385,9 +2379,7 @@ void MacroAssembler::Trunc_ul_d(Register rd, FPURegister fs,
     mov(result, zero_reg);
     Move(scratch, -1.0);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF64(OLE, fs, scratch);
-    BranchTrueShortF(&fail);
-    CompareIsNanF64(fs, scratch);
+    CompareF64(ULE, fs, scratch);
     BranchTrueShortF(&fail);
   }
 
@@ -2396,8 +2388,8 @@ void MacroAssembler::Trunc_ul_d(Register rd, FPURegister fs,
   dmtc1(at, scratch);
 
   // Test if scratch > fs.
-  // If fs < 2^63 we can convert it normally.
-  CompareF64(OLT, fs, scratch);
+  // If fs < 2^63 or unordered, we can convert it normally.
+  CompareF64(ULT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fs, then trunc it to rd
@@ -2440,9 +2432,7 @@ void MacroAssembler::Trunc_ul_s(Register rd, FPURegister fs,
     mov(result, zero_reg);
     Move(scratch, -1.0f);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF32(OLE, fs, scratch);
-    BranchTrueShortF(&fail);
-    CompareIsNanF32(fs, scratch);
+    CompareF32(ULE, fs, scratch);
     BranchTrueShortF(&fail);
   }
 
@@ -2455,8 +2445,8 @@ void MacroAssembler::Trunc_ul_s(Register rd, FPURegister fs,
   }
 
   // Test if scratch > fs.
-  // If fs < 2^63 we can convert it normally.
-  CompareF32(OLT, fs, scratch);
+  // If fs < 2^63 or unordered, we can convert it normally.
+  CompareF32(ULT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fs, then trunc it to rd
