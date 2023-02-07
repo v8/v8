@@ -53,6 +53,24 @@ links {
   }
 }
 links {
+  name: "Extended Win7/8/8.1/2012R2"
+  links {
+    text: "extwin"
+    url: "/p/v8/g/br.extwin"
+    alt: "Extended Win Main"
+  }
+  links {
+    text: "extwin.memory"
+    url: "/p/v8/g/br.extwin.memory"
+    alt: "Extended Win Memory"
+  }
+  links {
+    text: "extwin.ports"
+    url: "/p/v8/g/br.extwin.ports"
+    alt: "Extended Win Ports"
+  }
+}
+links {
   name: "README"
   links {
     text: "readme"
@@ -71,4 +89,7 @@ console_groups {
   console_ids: "v8/br.extended"
   console_ids: "v8/br.extended.memory"
   console_ids: "v8/br.extended.ports"
+  console_ids: "v8/br.extwin"
+  console_ids: "v8/br.extwin.memory"
+  console_ids: "v8/br.extwin.ports"
 }

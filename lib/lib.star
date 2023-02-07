@@ -7,17 +7,21 @@ load("//lib/description.star", "to_html")
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
+def _to_int_tuple(version_str):
+    return [int(n) for n in version_str.split(".")]
+
 def branch_descriptor(
         bucket,
         poller_name,
         refs,
         version_tag = None,
         priority = None,
-        has_console_name_prefix = True):
-    version = None
+        has_console_name_prefix = True,
+        version = None):
     if version_tag:
-        version = versions[version_tag].replace(".", "\\.")
-        refs = [ref % version for ref in refs]
+        version = _to_int_tuple(versions.get(version_tag, version))
+        version_str = "%s\\.%s" % (version[0], version[1])
+        refs = [ref % version_str for ref in refs]
     return struct(
         bucket = bucket,
         version = version,
@@ -92,6 +96,14 @@ branch_descriptors = [
         ["refs/branch-heads/%s"],
         version_tag = "extended",
         priority = 50,
+    ),
+    branch_descriptor(
+        "ci.br.extwin",
+        "v8-trigger-br-extwin",
+        ["refs/branch-heads/%s"],
+        version_tag = "extwin",
+        priority = 50,
+        version = "10.9",
     ),
 ]
 
@@ -185,6 +197,7 @@ defaults_dict = {
     "ci.br.beta": defaults_ci_br,
     "ci.br.stable": defaults_ci_br,
     "ci.br.extended": defaults_ci_br,
+    "ci.br.extwin": defaults_ci_br,
 }
 
 GOMA = struct(
@@ -475,14 +488,10 @@ def resolve_parent_triggering(args, bucket_name, parent_builder):
 def _builder_is_not_supported(bucket_name, first_branch_version):
     # do we need to skip the builder in this bucket?
     if first_branch_version:
-        branch_id = bucket_name.split(".")[2]
-        branch_version = _to_int_tuple(versions[branch_id])
+        branch_version = branch_by_name(bucket_name).version
         builder_first_version = _to_int_tuple(first_branch_version)
         return branch_version < builder_first_version
     return False
-
-def _to_int_tuple(version_str):
-    return [int(n) for n in version_str.split(".")]
 
 def fix_args(defaults, **kwargs):
     args = dict(kwargs)
