@@ -1915,6 +1915,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // other registers.
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
                          InstanceType type);
+  // Variant of the above, which only guarantees to set the correct eq/ne flag.
+  // Neither map, nor type_reg might be set to any particular value.
+  void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
+                    InstanceType type);
 
   // Compare object type for heap object, and branch if equal (or not.)
   // heap_object contains a non-Smi whose object type should be compared with

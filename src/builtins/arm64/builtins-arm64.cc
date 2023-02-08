@@ -531,7 +531,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ LoadTaggedField(
         x3, FieldMemOperand(x3, SharedFunctionInfo::kFunctionDataOffset));
     GetSharedFunctionInfoBytecodeOrBaseline(masm, x3, x0, &is_baseline);
-    __ CompareObjectType(x3, x3, x3, BYTECODE_ARRAY_TYPE);
+    __ IsObjectType(x3, x3, x3, BYTECODE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
     __ bind(&is_baseline);
   }
@@ -1281,8 +1281,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label compile_lazy;
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x4, x4,
-                       BYTECODE_ARRAY_TYPE);
+  __ IsObjectType(kInterpreterBytecodeArrayRegister, x4, x4,
+                  BYTECODE_ARRAY_TYPE);
   __ B(ne, &compile_lazy);
 
   // Load the feedback vector from the closure.
@@ -1677,8 +1677,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     __ AssertNotSmi(
         kInterpreterBytecodeArrayRegister,
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-    __ CompareObjectType(kInterpreterBytecodeArrayRegister, x1, x1,
-                         BYTECODE_ARRAY_TYPE);
+    __ IsObjectType(kInterpreterBytecodeArrayRegister, x1, x1,
+                    BYTECODE_ARRAY_TYPE);
     __ Assert(
         eq, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
@@ -1733,9 +1733,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedField(
       x1, FieldMemOperand(x1, SharedFunctionInfo::kFunctionDataOffset));
-  __ CompareObjectType(x1, kInterpreterDispatchTableRegister,
-                       kInterpreterDispatchTableRegister,
-                       INTERPRETER_DATA_TYPE);
+  __ IsObjectType(x1, kInterpreterDispatchTableRegister,
+                  kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
 
   __ LoadTaggedField(
@@ -5699,7 +5698,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CompareObjectType(code_obj, x3, x3, CODE_TYPE);
+    __ IsObjectType(code_obj, x3, x3, CODE_TYPE);
     __ B(eq, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -5712,7 +5711,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (v8_flags.debug_code) {
-    __ CompareObjectType(code_obj, x3, x3, CODE_TYPE);
+    __ IsObjectType(code_obj, x3, x3, CODE_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
@@ -5731,7 +5730,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.
-  __ CompareObjectType(feedback_vector, x3, x3, FEEDBACK_VECTOR_TYPE);
+  __ IsObjectType(feedback_vector, x3, x3, FEEDBACK_VECTOR_TYPE);
   __ B(ne, &install_baseline_code);
 
   // Save BytecodeOffset from the stack frame.

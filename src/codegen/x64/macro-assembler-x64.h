@@ -791,6 +791,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Incoming register is heap_object and outgoing register is map.
   // They may be the same register, and may be kScratchRegister.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
+  // Variant of the above, which only guarantees to set the correct
+  // equal/not_equal flag. Map might not be loaded.
+  void IsObjectType(Register heap_object, InstanceType type, Register map);
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.

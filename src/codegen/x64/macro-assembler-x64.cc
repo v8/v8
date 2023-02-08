@@ -819,7 +819,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackVector(Register object) {
   if (v8_flags.debug_code) {
-    CmpObjectType(object, FEEDBACK_VECTOR_TYPE, kScratchRegister);
+    IsObjectType(object, FEEDBACK_VECTOR_TYPE, kScratchRegister);
     Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
 }
@@ -2533,6 +2533,19 @@ void MacroAssembler::IncsspqIfSupported(Register number_of_words,
   bind(&not_supported);
 }
 
+void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
+                                  Register map) {
+  if (V8_STATIC_ROOTS_BOOL) {
+    if (base::Optional<RootIndex> expected =
+            InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
+      mov_tagged(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+      cmp_tagged(map, Immediate(ReadOnlyRootPtr(*expected)));
+      return;
+    }
+  }
+  CmpObjectType(heap_object, type, map);
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
   LoadMap(map, heap_object);
@@ -2670,7 +2683,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   testb(object, Immediate(kSmiTagMask));
   Check(not_equal, AbortReason::kOperandIsASmiAndNotABoundFunction);
   Push(object);
-  CmpObjectType(object, JS_BOUND_FUNCTION_TYPE, object);
+  IsObjectType(object, JS_BOUND_FUNCTION_TYPE, object);
   Pop(object);
   Check(equal, AbortReason::kOperandIsNotABoundFunction);
 }

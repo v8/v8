@@ -111,6 +111,14 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
   __ cmp(lhs, Operand(rhs));
   __ b(cc, target);
 }
+void BaselineAssembler::JumpIfObjectTypeFast(Condition cc, Register object,
+                                             InstanceType instance_type,
+                                             Label* target,
+                                             Label::Distance distance) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  JumpIfObjectType(cc, object, instance_type, scratch, target, distance);
+}
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
                                          Register map, Label* target,
