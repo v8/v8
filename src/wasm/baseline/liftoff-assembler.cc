@@ -1245,28 +1245,41 @@ void LiftoffAssembler::ParallelRegisterMove(
 
 void LiftoffAssembler::MoveToReturnLocations(
     const FunctionSig* sig, compiler::CallDescriptor* descriptor) {
-  StackTransferRecipe stack_transfers(this);
-  if (sig->return_count() == 1) {
-    ValueKind return_kind = sig->GetReturn(0).kind();
-    // Defaults to a gp reg, will be set below if return kind is not gp.
-    LiftoffRegister return_reg = LiftoffRegister(kGpReturnRegisters[0]);
-
-    if (needs_gp_reg_pair(return_kind)) {
-      return_reg = LiftoffRegister::ForPair(kGpReturnRegisters[0],
-                                            kGpReturnRegisters[1]);
-    } else if (needs_fp_reg_pair(return_kind)) {
-      return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
-    } else if (reg_class_for(return_kind) == kFpReg) {
-      return_reg = LiftoffRegister(kFpReturnRegisters[0]);
-    } else {
-      DCHECK_EQ(kGpReg, reg_class_for(return_kind));
-    }
-    stack_transfers.LoadIntoRegister(return_reg,
-                                     cache_state_.stack_state.back());
+  DCHECK_LT(0, sig->return_count());
+  if (V8_UNLIKELY(sig->return_count() > 1)) {
+    MoveToReturnLocationsMultiReturn(sig, descriptor);
     return;
   }
 
-  // Slow path for multi-return.
+  ValueKind return_kind = sig->GetReturn(0).kind();
+  // Defaults to a gp reg, will be set below if return kind is not gp.
+  LiftoffRegister return_reg = LiftoffRegister(kGpReturnRegisters[0]);
+
+  if (needs_gp_reg_pair(return_kind)) {
+    return_reg =
+        LiftoffRegister::ForPair(kGpReturnRegisters[0], kGpReturnRegisters[1]);
+  } else if (needs_fp_reg_pair(return_kind)) {
+    return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
+  } else if (reg_class_for(return_kind) == kFpReg) {
+    return_reg = LiftoffRegister(kFpReturnRegisters[0]);
+  } else {
+    DCHECK_EQ(kGpReg, reg_class_for(return_kind));
+  }
+  VarState& slot = cache_state_.stack_state.back();
+  if (V8_LIKELY(slot.is_reg())) {
+    if (slot.reg() != return_reg) {
+      Move(return_reg, slot.reg(), slot.kind());
+    }
+  } else {
+    LoadToFixedRegister(cache_state_.stack_state.back(), return_reg);
+  }
+}
+
+void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
+    const FunctionSig* sig, compiler::CallDescriptor* descriptor) {
+  DCHECK_LT(1, sig->return_count());
+  StackTransferRecipe stack_transfers(this);
+
   // We sometimes allocate a register to perform stack-to-stack moves, which can
   // cause a spill in the cache state. Conservatively save and restore the
   // original state in case it is needed after the current instruction

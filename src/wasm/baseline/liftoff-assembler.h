@@ -751,8 +751,12 @@ class LiftoffAssembler : public MacroAssembler {
     ParallelRegisterMove(base::VectorOf(moves));
   }
 
-  void MoveToReturnLocations(const FunctionSig*,
-                             compiler::CallDescriptor* descriptor);
+  // Move the top stack values into the expected return locations specified by
+  // the given call descriptor.
+  void MoveToReturnLocations(const FunctionSig*, compiler::CallDescriptor*);
+  // Slow path for multi-return, called from {MoveToReturnLocations}.
+  V8_NOINLINE V8_PRESERVE_MOST void MoveToReturnLocationsMultiReturn(
+      const FunctionSig*, compiler::CallDescriptor*);
 #if DEBUG
   void SetCacheStateFrozen() { cache_state_.frozen++; }
   void UnfreezeCacheState() {
