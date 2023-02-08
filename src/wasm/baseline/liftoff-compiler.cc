@@ -844,7 +844,7 @@ class LiftoffCompiler {
     return false;
   }
 
-  void TraceFunctionEntry(FullDecoder* decoder) {
+  V8_NOINLINE V8_PRESERVE_MOST void TraceFunctionEntry(FullDecoder* decoder) {
     CODE_COMMENT("trace function entry");
     __ SpillAllRegisters();
     source_position_table_builder_.AddPosition(
@@ -970,7 +970,7 @@ class LiftoffCompiler {
       CheckMaxSteps(decoder, 16 + __ num_locals());
     }
 
-    if (v8_flags.trace_wasm) TraceFunctionEntry(decoder);
+    if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -2338,7 +2338,7 @@ class LiftoffCompiler {
 
   void Drop(FullDecoder* decoder) { __ DropValues(1); }
 
-  void TraceFunctionExit(FullDecoder* decoder) {
+  V8_NOINLINE V8_PRESERVE_MOST void TraceFunctionExit(FullDecoder* decoder) {
     CODE_COMMENT("trace function exit");
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
@@ -2386,7 +2386,7 @@ class LiftoffCompiler {
   }
 
   void ReturnImpl(FullDecoder* decoder, Register tmp1, Register tmp2) {
-    if (v8_flags.trace_wasm) TraceFunctionExit(decoder);
+    if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionExit(decoder);
     if (dynamic_tiering()) {
       TierupCheck(decoder, decoder->position(), __ pc_offset(), tmp1, tmp2);
     }
