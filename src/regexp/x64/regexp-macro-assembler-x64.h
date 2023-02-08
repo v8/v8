@@ -186,6 +186,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Initial size of code buffer.
   static constexpr int kRegExpCodeSize = 1024;
 
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
+
   void PushCallerSavedRegisters();
   void PopCallerSavedRegisters();
 

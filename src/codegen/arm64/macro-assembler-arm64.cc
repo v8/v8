@@ -1973,72 +1973,80 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_of_reg_args) {
-  CallCFunction(function, num_of_reg_args, 0);
+                                   int num_of_reg_args,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_of_reg_args, 0, set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_of_reg_args,
-                                   int num_of_double_args) {
+                                   int num_of_reg_args, int num_of_double_args,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   Mov(temp, function);
-  CallCFunction(temp, num_of_reg_args, num_of_double_args);
+  CallCFunction(temp, num_of_reg_args, num_of_double_args,
+                set_isolate_data_slots);
 }
 
 static const int kRegisterPassedArguments = 8;
 static const int kFPRegisterPassedArguments = 8;
 
 void MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
-                                   int num_of_double_args) {
+                                   int num_of_double_args,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_of_reg_args + num_of_double_args, kMaxCParameters);
   DCHECK(has_frame());
 
-  // Save the frame pointer and PC so that the stack layout remains iterable,
-  // even without an ExitFrame which normally exists between JS and C frames.
-  Register pc_scratch = x4;
-  Register addr_scratch = x5;
-  Push(pc_scratch, addr_scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // Save the frame pointer and PC so that the stack layout remains iterable,
+    // even without an ExitFrame which normally exists between JS and C frames.
+    Register pc_scratch = x4;
+    Register addr_scratch = x5;
+    Push(pc_scratch, addr_scratch);
 
-  Label get_pc;
-  Bind(&get_pc);
-  Adr(pc_scratch, &get_pc);
+    Label get_pc;
+    Bind(&get_pc);
+    Adr(pc_scratch, &get_pc);
 
-  // See x64 code for reasoning about how to address the isolate data fields.
-  if (root_array_available()) {
-    Str(pc_scratch,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()));
-    Str(fp,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Mov(addr_scratch,
-        ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    Str(pc_scratch, MemOperand(addr_scratch));
-    Mov(addr_scratch,
-        ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    Str(fp, MemOperand(addr_scratch));
+    // See x64 code for reasoning about how to address the isolate data fields.
+    if (root_array_available()) {
+      Str(pc_scratch, MemOperand(kRootRegister,
+                                 IsolateData::fast_c_call_caller_pc_offset()));
+      Str(fp, MemOperand(kRootRegister,
+                         IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Mov(addr_scratch,
+          ExternalReference::fast_c_call_caller_pc_address(isolate()));
+      Str(pc_scratch, MemOperand(addr_scratch));
+      Mov(addr_scratch,
+          ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      Str(fp, MemOperand(addr_scratch));
+    }
+
+    Pop(addr_scratch, pc_scratch);
   }
-
-  Pop(addr_scratch, pc_scratch);
 
   // Call directly. The function called cannot cause a GC, or allow preemption,
   // so the return address in the link register stays correct.
   Call(function);
 
-  // We don't unset the PC; the FP is the source of truth.
-  if (root_array_available()) {
-    Str(xzr,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Push(addr_scratch, xzr);
-    Mov(addr_scratch,
-        ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    Str(xzr, MemOperand(addr_scratch));
-    Pop(xzr, addr_scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    if (root_array_available()) {
+      Str(xzr, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Register addr_scratch = x5;
+      Push(addr_scratch, xzr);
+      Mov(addr_scratch,
+          ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      Str(xzr, MemOperand(addr_scratch));
+      Pop(xzr, addr_scratch);
+    }
   }
 
   if (num_of_reg_args > kRegisterPassedArguments) {

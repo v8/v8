@@ -165,6 +165,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // 16 registers.
   static constexpr int kNumCachedRegisters = 16;
 
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
+
   // Check whether preemption has been requested.
   void CheckPreemption();
 

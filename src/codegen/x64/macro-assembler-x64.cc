@@ -3258,13 +3258,15 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   LoadAddress(rax, function);
-  CallCFunction(rax, num_arguments);
+  CallCFunction(rax, num_arguments, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -3280,55 +3282,60 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   leaq(kScratchRegister, Operand(&get_pc, 0));
   bind(&get_pc);
 
-  // Addressing the following external references is tricky because we need
-  // this to work in three situations:
-  // 1. In wasm compilation, the isolate is nullptr and thus no
-  //    ExternalReference can be created, but we can construct the address
-  //    directly using the root register and a static offset.
-  // 2. In normal JIT (and builtin) compilation, the external reference is
-  //    usually addressed through the root register, so we can use the direct
-  //    offset directly in most cases.
-  // 3. In regexp compilation, the external reference is embedded into the reloc
-  //    info.
-  // The solution here is to use root register offsets wherever possible in
-  // which case we can construct it directly. When falling back to external
-  // references we need to ensure that the scratch register does not get
-  // accidentally overwritten. If we run into more such cases in the future, we
-  // should implement a more general solution.
-  if (root_array_available()) {
-    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()),
-         kScratchRegister);
-    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
-         rbp);
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    // Use alternative scratch register in order not to overwrite
-    // kScratchRegister.
-    Register scratch = r12;
-    pushq(scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // Addressing the following external references is tricky because we need
+    // this to work in three situations:
+    // 1. In wasm compilation, the isolate is nullptr and thus no
+    //    ExternalReference can be created, but we can construct the address
+    //    directly using the root register and a static offset.
+    // 2. In normal JIT (and builtin) compilation, the external reference is
+    //    usually addressed through the root register, so we can use the direct
+    //    offset directly in most cases.
+    // 3. In regexp compilation, the external reference is embedded into the
+    // reloc
+    //    info.
+    // The solution here is to use root register offsets wherever possible in
+    // which case we can construct it directly. When falling back to external
+    // references we need to ensure that the scratch register does not get
+    // accidentally overwritten. If we run into more such cases in the future,
+    // we should implement a more general solution.
+    if (root_array_available()) {
+      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()),
+           kScratchRegister);
+      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
+           rbp);
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      // Use alternative scratch register in order not to overwrite
+      // kScratchRegister.
+      Register scratch = r12;
+      pushq(scratch);
 
-    movq(ExternalReferenceAsOperand(
-             ExternalReference::fast_c_call_caller_pc_address(isolate()),
-             scratch),
-         kScratchRegister);
-    movq(ExternalReferenceAsOperand(
-             ExternalReference::fast_c_call_caller_fp_address(isolate())),
-         rbp);
+      movq(ExternalReferenceAsOperand(
+               ExternalReference::fast_c_call_caller_pc_address(isolate()),
+               scratch),
+           kScratchRegister);
+      movq(ExternalReferenceAsOperand(
+               ExternalReference::fast_c_call_caller_fp_address(isolate())),
+           rbp);
 
-    popq(scratch);
+      popq(scratch);
+    }
   }
 
   call(function);
 
-  // We don't unset the PC; the FP is the source of truth.
-  if (root_array_available()) {
-    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
-         Immediate(0));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    movq(ExternalReferenceAsOperand(
-             ExternalReference::fast_c_call_caller_fp_address(isolate())),
-         Immediate(0));
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    if (root_array_available()) {
+      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
+           Immediate(0));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      movq(ExternalReferenceAsOperand(
+               ExternalReference::fast_c_call_caller_fp_address(isolate())),
+           Immediate(0));
+    }
   }
 
   DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);

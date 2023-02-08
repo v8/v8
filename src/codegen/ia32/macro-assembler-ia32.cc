@@ -1899,13 +1899,15 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   // Trashing eax is ok as it will be the return value.
   Move(eax, Immediate(function));
   CallCFunction(eax, num_arguments);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -1914,40 +1916,48 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
     CheckStackAlignment();
   }
 
-  // Save the frame pointer and PC so that the stack layout remains iterable,
-  // even without an ExitFrame which normally exists between JS and C frames.
-  // Find two caller-saved scratch registers.
-  Register pc_scratch = eax;
-  Register scratch = ecx;
-  if (function == eax) pc_scratch = edx;
-  if (function == ecx) scratch = edx;
-  PushPC();
-  pop(pc_scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // Save the frame pointer and PC so that the stack layout remains iterable,
+    // even without an ExitFrame which normally exists between JS and C frames.
+    // Find two caller-saved scratch registers.
+    Register pc_scratch = eax;
+    Register scratch = ecx;
+    if (function == eax) pc_scratch = edx;
+    if (function == ecx) scratch = edx;
+    PushPC();
+    pop(pc_scratch);
 
-  // See x64 code for reasoning about how to address the isolate data fields.
-  DCHECK_IMPLIES(!root_array_available(), isolate() != nullptr);
-  mov(root_array_available()
-          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset())
-          : ExternalReferenceAsOperand(
-                ExternalReference::fast_c_call_caller_pc_address(isolate()),
-                scratch),
-      pc_scratch);
-  mov(root_array_available()
-          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset())
-          : ExternalReferenceAsOperand(
-                ExternalReference::fast_c_call_caller_fp_address(isolate()),
-                scratch),
-      ebp);
+    // See x64 code for reasoning about how to address the isolate data fields.
+    DCHECK_IMPLIES(!root_array_available(), isolate() != nullptr);
+    mov(root_array_available()
+            ? Operand(kRootRegister,
+                      IsolateData::fast_c_call_caller_pc_offset())
+            : ExternalReferenceAsOperand(
+                  ExternalReference::fast_c_call_caller_pc_address(isolate()),
+                  scratch),
+        pc_scratch);
+    mov(root_array_available()
+            ? Operand(kRootRegister,
+                      IsolateData::fast_c_call_caller_fp_offset())
+            : ExternalReferenceAsOperand(
+                  ExternalReference::fast_c_call_caller_fp_address(isolate()),
+                  scratch),
+        ebp);
+  }
 
   call(function);
 
-  // We don't unset the PC; the FP is the source of truth.
-  mov(root_array_available()
-          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset())
-          : ExternalReferenceAsOperand(
-                ExternalReference::fast_c_call_caller_fp_address(isolate()),
-                scratch),
-      Immediate(0));
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch = ecx;
+    mov(root_array_available()
+            ? Operand(kRootRegister,
+                      IsolateData::fast_c_call_caller_fp_offset())
+            : ExternalReferenceAsOperand(
+                  ExternalReference::fast_c_call_caller_fp_address(isolate()),
+                  scratch),
+        Immediate(0));
+  }
 
   if (base::OS::ActivationFrameAlignment() != 0) {
     mov(esp, Operand(esp, num_arguments * kSystemPointerSize));

@@ -207,6 +207,22 @@ void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
   __ bind(&fallthrough);
 }
 
+void RegExpMacroAssemblerIA32::CallCFunctionFromIrregexpCode(
+    ExternalReference function, int num_arguments) {
+  // Irregexp code must not set fast_c_call_caller_fp and fast_c_call_caller_pc
+  // since
+  //
+  // 1. it may itself have been called using CallCFunction and nested calls are
+  //    unsupported, and
+  // 2. it may itself have been called directly from C where the frame pointer
+  //    might not be set (-fomit-frame-pointer), and thus frame iteration would
+  //    fail.
+  //
+  // See also: crbug.com/v8/12670#c17.
+  __ CallCFunction(function, num_arguments,
+                   MacroAssembler::SetIsolateDataSlots::kNo);
+}
+
 void RegExpMacroAssemblerIA32::PushCallerSavedRegisters() {
   static_assert(backtrack_stackpointer() == ecx);
   static_assert(current_character() == edx);
@@ -353,7 +369,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
           unicode
               ? ExternalReference::re_case_insensitive_compare_unicode()
               : ExternalReference::re_case_insensitive_compare_non_unicode();
-      __ CallCFunction(compare, argument_count);
+      CallCFunctionFromIrregexpCode(compare, argument_count);
     }
     // Pop original values before reacting on result value.
     __ pop(ebx);
@@ -531,8 +547,8 @@ void RegExpMacroAssemblerIA32::CallIsCharacterInRangeArray(
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
     FrameScope scope(masm_.get(), StackFrame::MANUAL);
-    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
-                     kNumArguments);
+    CallCFunctionFromIrregexpCode(
+        ExternalReference::re_is_character_in_range_array(), kNumArguments);
   }
 
   PopCallerSavedRegisters();
@@ -1025,7 +1041,8 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ PrepareCallCFunction(kNumArguments, ebx);
     __ mov(Operand(esp, 0 * kSystemPointerSize),
            Immediate(ExternalReference::isolate_address(isolate())));
-    __ CallCFunction(ExternalReference::re_grow_stack(), kNumArguments);
+    CallCFunctionFromIrregexpCode(ExternalReference::re_grow_stack(),
+                                  kNumArguments);
     // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ or_(eax, eax);
@@ -1204,7 +1221,7 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   __ mov(Operand(esp, 0 * kSystemPointerSize), eax);
   ExternalReference check_stack_guard =
       ExternalReference::re_check_stack_guard_state();
-  __ CallCFunction(check_stack_guard, num_arguments);
+  CallCFunctionFromIrregexpCode(check_stack_guard, num_arguments);
 }
 
 Operand RegExpMacroAssemblerIA32::StaticVariable(const ExternalReference& ext) {

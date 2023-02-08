@@ -2600,30 +2600,36 @@ void MacroAssembler::MovToFloatParameters(DwVfpRegister src1,
 
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
-                                   int num_double_arguments) {
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Move(scratch, function);
-  CallCFunctionHelper(scratch, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(scratch, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunctionHelper(Register function,
-                                         int num_reg_arguments,
-                                         int num_double_arguments) {
+void MacroAssembler::CallCFunctionHelper(
+    Register function, int num_reg_arguments, int num_double_arguments,
+    SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -2648,27 +2654,29 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
-  // Save the frame pointer and PC so that the stack layout remains iterable,
-  // even without an ExitFrame which normally exists between JS and C frames.
-  Register addr_scratch = r4;
-  // See x64 code for reasoning about how to address the isolate data fields.
-  if (root_array_available()) {
-    str(pc,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()));
-    str(fp,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Push(addr_scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // Save the frame pointer and PC so that the stack layout remains iterable,
+    // even without an ExitFrame which normally exists between JS and C frames.
+    // See x64 code for reasoning about how to address the isolate data fields.
+    if (root_array_available()) {
+      str(pc, MemOperand(kRootRegister,
+                         IsolateData::fast_c_call_caller_pc_offset()));
+      str(fp, MemOperand(kRootRegister,
+                         IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Register addr_scratch = r4;
+      Push(addr_scratch);
 
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    str(pc, MemOperand(addr_scratch));
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    str(fp, MemOperand(addr_scratch));
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_pc_address(isolate()));
+      str(pc, MemOperand(addr_scratch));
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      str(fp, MemOperand(addr_scratch));
 
-    Pop(addr_scratch);
+      Pop(addr_scratch);
+    }
   }
 
   // Just call directly. The function called cannot cause a GC, or
@@ -2676,24 +2684,28 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // stays correct.
   Call(function);
 
-  // We don't unset the PC; the FP is the source of truth.
-  Register zero_scratch = r5;
-  Push(zero_scratch);
-  mov(zero_scratch, Operand::Zero());
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register zero_scratch = r5;
+    Push(zero_scratch);
+    mov(zero_scratch, Operand::Zero());
 
-  if (root_array_available()) {
-    str(zero_scratch,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Push(addr_scratch);
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    str(zero_scratch, MemOperand(addr_scratch));
-    Pop(addr_scratch);
+    if (root_array_available()) {
+      str(zero_scratch,
+          MemOperand(kRootRegister,
+                     IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Register addr_scratch = r4;
+      Push(addr_scratch);
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      str(zero_scratch, MemOperand(addr_scratch));
+      Pop(addr_scratch);
+    }
+
+    Pop(zero_scratch);
   }
-
-  Pop(zero_scratch);
 
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
