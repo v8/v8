@@ -5258,6 +5258,18 @@ bool Is32BitOperand(InstructionOperand* operand) {
          mr == MachineRepresentation::kCompressedPointer;
 }
 
+// When we need only 32 bits, move only 32 bits. Benefits:
+// - Save a byte here and there (depending on the destination
+//   register; "movl eax, ..." is smaller than "movq rax, ...").
+// - Safeguard against accidental decompression of compressed slots.
+// We must check both {source} and {destination} to be 32-bit values,
+// because treating 32-bit sources as 64-bit values can be perfectly
+// fine as a result of virtual register renaming (to avoid redundant
+// explicit zero-extensions that also happen implicitly).
+bool Use32BitMove(InstructionOperand* source, InstructionOperand* destination) {
+  return Is32BitOperand(source) && Is32BitOperand(destination);
+}
+
 }  // namespace
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
@@ -5347,13 +5359,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   switch (MoveType::InferMove(source, destination)) {
     case MoveType::kRegisterToRegister:
       if (source->IsRegister()) {
-        MachineRepresentation src_rep =
-            LocationOperand::cast(source)->representation();
-        MachineRepresentation dest_rep =
-            LocationOperand::cast(destination)->representation();
-        if (dest_rep == MachineRepresentation::kWord32 &&
-            src_rep == MachineRepresentation::kWord32) {
-          DCHECK(destination->IsRegister());
+        DCHECK(destination->IsRegister());
+        if (Use32BitMove(source, destination)) {
           __ movl(g.ToRegister(destination), g.ToRegister(source));
         } else {
           __ movq(g.ToRegister(destination), g.ToRegister(source));
@@ -5383,15 +5390,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kStackToRegister: {
       Operand src = g.ToOperand(source);
       if (source->IsStackSlot()) {
-        if (Is32BitOperand(source) && Is32BitOperand(destination)) {
-          // When we need only 32 bits, move only 32 bits. Benefits:
-          // - Save a byte here and there (depending on the destination
-          //   register; "movl eax, ..." is smaller than "movq rax, ...").
-          // - Safeguard against accidental decompression of compressed slots.
-          // We must check both {source} and {destination} to be 32-bit values,
-          // because treating 32-bit sources as 64-bit values can be perfectly
-          // fine as a result of virtual register renaming (to avoid redundant
-          // explicit zero-extensions that also happen implicitly).
+        if (Use32BitMove(source, destination)) {
           __ movl(g.ToRegister(destination), src);
         } else {
           __ movq(g.ToRegister(destination), src);
