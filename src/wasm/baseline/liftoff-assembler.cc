@@ -81,60 +81,62 @@ class StackTransferRecipe {
   explicit StackTransferRecipe(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
   StackTransferRecipe(const StackTransferRecipe&) = delete;
   StackTransferRecipe& operator=(const StackTransferRecipe&) = delete;
-  ~StackTransferRecipe() { Execute(); }
+  V8_INLINE ~StackTransferRecipe() { Execute(); }
 
-  void Execute() {
+  V8_INLINE void Execute() {
     // First, execute register moves. Then load constants and stack values into
     // registers.
-    ExecuteMoves();
+    if (!move_dst_regs_.is_empty()) ExecuteMoves();
     DCHECK(move_dst_regs_.is_empty());
-    ExecuteLoads();
+    if (!load_dst_regs_.is_empty()) ExecuteLoads();
     DCHECK(load_dst_regs_.is_empty());
+    // Tell the compiler that the StackTransferRecipe is empty after this, so it
+    // can eliminate a second {Execute} in the destructor.
+    bool all_done = move_dst_regs_.is_empty() && load_dst_regs_.is_empty();
+    V8_ASSUME(all_done);
+    USE(all_done);
   }
 
-  V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
+  V8_INLINE void Transfer(const VarState& dst, const VarState& src) {
     DCHECK(CompatibleStackSlotTypes(dst.kind(), src.kind()));
-    if (dst.is_reg()) {
+    if (dst.is_stack()) {
+      if (V8_UNLIKELY(!(src.is_stack() && src.offset() == dst.offset()))) {
+        TransferToStack(dst.offset(), src);
+      }
+    } else if (dst.is_reg()) {
       LoadIntoRegister(dst.reg(), src);
-      return;
-    }
-    if (dst.is_const()) {
+    } else {
+      DCHECK(dst.is_const());
       DCHECK_EQ(dst.i32_const(), src.i32_const());
-      return;
     }
-    TransferToStackSlot(dst, src);
   }
 
-  void TransferToStackSlot(const VarState& dst, const VarState& src) {
-    DCHECK(dst.is_stack());
+  void TransferToStack(int dst_offset, const VarState& src) {
     switch (src.loc()) {
       case VarState::kStack:
-        if (src.offset() != dst.offset()) {
-          asm_->MoveStackValue(dst.offset(), src.offset(), src.kind());
+        if (src.offset() != dst_offset) {
+          asm_->MoveStackValue(dst_offset, src.offset(), src.kind());
         }
         break;
       case VarState::kRegister:
-        asm_->Spill(dst.offset(), src.reg(), src.kind());
+        asm_->Spill(dst_offset, src.reg(), src.kind());
         break;
       case VarState::kIntConst:
-        asm_->Spill(dst.offset(), src.constant());
+        asm_->Spill(dst_offset, src.constant());
         break;
     }
   }
 
   V8_INLINE void LoadIntoRegister(LiftoffRegister dst,
                                   const LiftoffAssembler::VarState& src) {
-    switch (src.loc()) {
-      case VarState::kStack:
-        LoadStackSlot(dst, src.offset(), src.kind());
-        break;
-      case VarState::kRegister:
-        DCHECK_EQ(dst.reg_class(), src.reg_class());
-        if (dst != src.reg()) MoveRegister(dst, src.reg(), src.kind());
-        break;
-      case VarState::kIntConst:
-        LoadConstant(dst, src.constant());
-        break;
+    if (src.is_reg()) {
+      DCHECK_EQ(dst.reg_class(), src.reg_class());
+      if (dst != src.reg()) MoveRegister(dst, src.reg(), src.kind());
+    } else if (src.is_stack()) {
+      LoadStackSlot(dst, src.offset(), src.kind());
+    } else {
+      DCHECK(src.is_const());
+      LoadConstant(dst, src.constant());
     }
   }
 
@@ -299,7 +301,7 @@ class StackTransferRecipe {
     ExecuteMove(move->src);
   }
 
-  void ExecuteMoves() {
+  V8_NOINLINE V8_PRESERVE_MOST void ExecuteMoves() {
     // Execute all moves whose {dst} is not being used as src in another move.
     // If any src count drops to zero, also (transitively) execute the
     // corresponding move to that register.
@@ -326,7 +328,7 @@ class StackTransferRecipe {
     }
   }
 
-  void ExecuteLoads() {
+  V8_NOINLINE V8_PRESERVE_MOST void ExecuteLoads() {
     for (LiftoffRegister dst : load_dst_regs_) {
       RegisterLoad* load = register_load(dst);
       switch (load->load_kind) {
@@ -427,7 +429,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
             LiftoffAssembler::NextSpillOffset(source->kind(), new_stack_offset);
         if (new_stack_offset != source->offset()) {
           target->set_offset(new_stack_offset);
-          transfers.TransferToStackSlot(*target, *source);
+          transfers.TransferToStack(new_stack_offset, *source);
         }
       }
       continue;
@@ -471,7 +473,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
     } else {
       // No free register; make this a stack slot.
       *target = VarState(source->kind(), target_offset);
-      transfers.TransferToStackSlot(*target, *source);
+      transfers.TransferToStack(target_offset, *source);
     }
   }
 }
@@ -848,8 +850,7 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
   // allocations.
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
-    transfers.TransferStackSlot(target.stack_state[i],
-                                cache_state_.stack_state[i]);
+    transfers.Transfer(target.stack_state[i], cache_state_.stack_state[i]);
     DCHECK(!SlotInterference(target.stack_state[i],
                              base::VectorOf(cache_state_.stack_state) + i + 1));
   }
@@ -879,8 +880,7 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   uint32_t target_stack_base = target_stack_height - arity;
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0; i < target_stack_base; ++i) {
-    transfers.TransferStackSlot(target.stack_state[i],
-                                cache_state_.stack_state[i]);
+    transfers.Transfer(target.stack_state[i], cache_state_.stack_state[i]);
     DCHECK(!SlotInterference(
         target.stack_state[i],
         base::VectorOf(cache_state_.stack_state.data() + i + 1,
@@ -890,8 +890,8 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
         base::VectorOf(cache_state_.stack_state.data() + stack_base, arity)));
   }
   for (uint32_t i = 0; i < arity; ++i) {
-    transfers.TransferStackSlot(target.stack_state[target_stack_base + i],
-                                cache_state_.stack_state[stack_base + i]);
+    transfers.Transfer(target.stack_state[target_stack_base + i],
+                       cache_state_.stack_state[stack_base + i]);
     DCHECK(!SlotInterference(
         target.stack_state[target_stack_base + i],
         base::VectorOf(cache_state_.stack_state.data() + stack_base + i + 1,
