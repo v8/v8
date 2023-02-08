@@ -116,8 +116,10 @@ SharedArrayBufferPrototypeGetMaxByteLength(
   // 5. Else,
   //   a. Let length be O.[[ArrayBufferByteLength]].
   // 6. Return F(length);
-  dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
-  return Convert<Number>(o.max_byte_length);
+  if (IsResizableArrayBuffer(o)) {
+    return Convert<Number>(o.max_byte_length);
+  }
+  return Convert<Number>(o.byte_length);
 }
 
 // #sec-get-sharedarraybuffer.prototype.growable
