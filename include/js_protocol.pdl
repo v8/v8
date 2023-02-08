@@ -511,6 +511,7 @@ domain Debugger
         CompileError
         BlockedByActiveGenerator
         BlockedByActiveFunction
+        BlockedByTopLevelEsModuleChange
       # Exception details if any. Only present when `status` is `CompileError`.
       optional Runtime.ExceptionDetails exceptionDetails
 

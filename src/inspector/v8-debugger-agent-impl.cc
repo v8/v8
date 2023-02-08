@@ -1081,6 +1081,9 @@ const char* buildStatus(v8::debug::LiveEditResult::Status status) {
     case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
       return protocol::Debugger::SetScriptSource::StatusEnum::
           BlockedByActiveGenerator;
+    case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
+      return protocol::Debugger::SetScriptSource::StatusEnum::
+          BlockedByTopLevelEsModuleChange;
   }
 }
 }  // namespace

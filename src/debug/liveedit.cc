@@ -701,6 +701,11 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
     Handle<SharedFunctionInfo> sfi;
     if (!data->shared.ToHandle(&sfi)) {
       continue;
+    } else if (IsModule(sfi->kind())) {
+      DCHECK(script->origin_options().IsModule() && sfi->is_toplevel());
+      result->status =
+          debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE;
+      return false;
     } else if (data->stack_position == FunctionData::ON_STACK) {
       result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
       return false;

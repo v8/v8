@@ -158,7 +158,8 @@ struct LiveEditResult {
     OK,
     COMPILE_ERROR,
     BLOCKED_BY_RUNNING_GENERATOR,
-    BLOCKED_BY_ACTIVE_FUNCTION
+    BLOCKED_BY_ACTIVE_FUNCTION,
+    BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE,
   };
   Status status = OK;
   bool stack_changed = false;
