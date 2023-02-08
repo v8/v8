@@ -25,6 +25,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os):
             name = recipe_path,
             cipd_package = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
         ),
+        service_account = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     )
 
     # Add the builder to the "crossbench" list in milo
