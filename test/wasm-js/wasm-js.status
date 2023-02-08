@@ -33,6 +33,9 @@
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
+
+  # Slow tests:
+  'limits': [PASS, SLOW],
 }], # ALWAYS
 
 ['system == android', {
