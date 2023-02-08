@@ -3106,6 +3106,11 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     std::cout << "  inlining " << function.shared() << std::endl;
   }
 
+  graph()->inlined_functions().push_back(
+      OptimizedCompilationInfo::InlinedFunctionHolder(
+          function.shared().object(), bytecode.object(),
+          current_source_position_));
+
   // Create a new compilation unit and graph builder for the inlined
   // function.
   MaglevCompilationUnit* inner_unit =

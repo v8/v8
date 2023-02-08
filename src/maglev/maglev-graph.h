@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/zone/zone-allocator.h"
@@ -35,7 +36,8 @@ class Graph final : public ZoneObject {
         external_references_(zone),
         parameters_(zone),
         register_inputs_(),
-        constants_(zone) {}
+        constants_(zone),
+        inlined_functions_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -88,6 +90,10 @@ class Graph final : public ZoneObject {
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
   }
+  ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>&
+  inlined_functions() {
+    return inlined_functions_;
+  }
   Float64Constant* nan() const { return nan_; }
   void set_nan(Float64Constant* nan) {
     DCHECK_NULL(nan_);
@@ -108,6 +114,8 @@ class Graph final : public ZoneObject {
   ZoneVector<InitialValue*> parameters_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
+  ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
+      inlined_functions_;
   Float64Constant* nan_ = nullptr;
 };
 

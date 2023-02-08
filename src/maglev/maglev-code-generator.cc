@@ -1238,12 +1238,29 @@ void MaglevCodeGenerator::EmitCode() {
                                     MaglevCodeGeneratingNodeProcessor>>
       processor(SafepointingNodeProcessor{local_isolate_},
                 MaglevCodeGeneratingNodeProcessor{masm()});
+  RecordInlinedFunctions();
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
   EmitDeopts();
   if (code_gen_failed_) return;
   EmitExceptionHandlerTrampolines();
   __ FinishCode();
+}
+
+void MaglevCodeGenerator::RecordInlinedFunctions() {
+  // The inlined functions should be the first literals.
+  DCHECK_EQ(0u, deopt_literals_.size());
+  for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
+       graph_->inlined_functions()) {
+    IdentityMapFindResult<int> res =
+        deopt_literals_.FindOrInsert(inlined.shared_info);
+    if (!res.already_exists) {
+      DCHECK_EQ(0, *res.entry);
+      *res.entry = deopt_literals_.size() - 1;
+    }
+    inlined.RegisterInlinedFunctionId(*res.entry);
+  }
+  inlined_function_count_ = static_cast<int>(deopt_literals_.size());
 }
 
 void MaglevCodeGenerator::EmitDeferredCode() {
@@ -1390,10 +1407,8 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     auto raw_data = *data;
 
     raw_data.SetTranslationByteArray(*translation_array);
-    // TODO(leszeks): Fix with the real inlined function count.
-    raw_data.SetInlinedFunctionCount(Smi::zero());
-    // TODO(leszeks): Support optimization IDs
-    raw_data.SetOptimizationId(Smi::zero());
+    raw_data.SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
+    raw_data.SetOptimizationId(Smi::FromInt(isolate->NextOptimizationId()));
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
     raw_data.SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
@@ -1409,9 +1424,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   Handle<DeoptimizationLiteralArray> literals =
       isolate->factory()->NewDeoptimizationLiteralArray(deopt_literals_.size() +
                                                         1);
-  // TODO(leszeks): Fix with the real inlining positions.
+  int inlined_functions_size =
+      static_cast<int>(graph_->inlined_functions().size());
   Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(isolate, 0);
+      PodArray<InliningPosition>::New(isolate, inlined_functions_size);
+  for (int i = 0; i < inlined_functions_size; ++i) {
+    inlining_positions->set(i, graph_->inlined_functions()[i].position);
+  }
+
   DisallowGarbageCollection no_gc;
 
   auto raw_literals = *literals;
@@ -1428,8 +1448,6 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
                                                 ->bytecode()
                                                 .object());
   raw_data.SetLiteralArray(raw_literals);
-
-  // TODO(leszeks): Fix with the real inlining positions.
   raw_data.SetInliningPositions(*inlining_positions);
 
   // TODO(leszeks): Fix once we have OSR.
