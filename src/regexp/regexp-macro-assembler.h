@@ -6,6 +6,7 @@
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
 #include "src/base/strings.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"

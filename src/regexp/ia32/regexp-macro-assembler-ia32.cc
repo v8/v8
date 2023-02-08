@@ -49,6 +49,7 @@ namespace internal {
  *       --- frame alignment (if applicable) ---
  *       - return address
  * ebp-> - old ebp
+ *       - frame marker
  *       - backup of caller esi
  *       - backup of caller edi
  *       - backup of caller ebx
@@ -140,8 +141,8 @@ void RegExpMacroAssemblerIA32::Backtrack() {
   CheckPreemption();
   if (has_backtrack_limit()) {
     Label next;
-    __ inc(Operand(ebp, kBacktrackCount));
-    __ cmp(Operand(ebp, kBacktrackCount), Immediate(backtrack_limit()));
+    __ inc(Operand(ebp, kBacktrackCountOffset));
+    __ cmp(Operand(ebp, kBacktrackCountOffset), Immediate(backtrack_limit()));
     __ j(not_equal, &next);
 
     // Backtrack limit exceeded.
@@ -180,14 +181,14 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(base::uc16 limit,
 
 void RegExpMacroAssemblerIA32::CheckAtStart(int cp_offset, Label* on_at_start) {
   __ lea(eax, Operand(edi, -char_size() + cp_offset * char_size()));
-  __ cmp(eax, Operand(ebp, kStringStartMinusOne));
+  __ cmp(eax, Operand(ebp, kStringStartMinusOneOffset));
   BranchOrBacktrack(equal, on_at_start);
 }
 
 void RegExpMacroAssemblerIA32::CheckNotAtStart(int cp_offset,
                                                Label* on_not_at_start) {
   __ lea(eax, Operand(edi, -char_size() + cp_offset * char_size()));
-  __ cmp(eax, Operand(ebp, kStringStartMinusOne));
+  __ cmp(eax, Operand(ebp, kStringStartMinusOneOffset));
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
 
@@ -232,7 +233,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
 
   // Check that there are sufficient characters left in the input.
   if (read_backward) {
-    __ mov(eax, Operand(ebp, kStringStartMinusOne));
+    __ mov(eax, Operand(ebp, kStringStartMinusOneOffset));
     __ add(eax, ebx);
     __ cmp(edi, eax);
     BranchOrBacktrack(less_equal, on_no_match);
@@ -392,7 +393,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(int start_reg,
 
   // Check that there are sufficient characters left in the input.
   if (read_backward) {
-    __ mov(ebx, Operand(ebp, kStringStartMinusOne));
+    __ mov(ebx, Operand(ebp, kStringStartMinusOneOffset));
     __ add(ebx, eax);
     __ cmp(edi, ebx);
     BranchOrBacktrack(less_equal, on_no_match);
@@ -716,14 +717,14 @@ void RegExpMacroAssemblerIA32::PushRegExpBasePointer(Register stack_pointer,
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ mov(scratch, __ ExternalReferenceAsOperand(ref, scratch));
   __ sub(scratch, stack_pointer);
-  __ mov(Operand(ebp, kRegExpStackBasePointer), scratch);
+  __ mov(Operand(ebp, kRegExpStackBasePointerOffset), scratch);
 }
 
 void RegExpMacroAssemblerIA32::PopRegExpBasePointer(Register stack_pointer_out,
                                                     Register scratch) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(scratch, Operand(ebp, kRegExpStackBasePointer));
+  __ mov(scratch, Operand(ebp, kRegExpStackBasePointerOffset));
   __ mov(stack_pointer_out,
          __ ExternalReferenceAsOperand(ref, stack_pointer_out));
   __ sub(stack_pointer_out, scratch);
@@ -742,26 +743,29 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // code is generated.
   FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
-  // Actually emit code to start a new stack frame.
-  __ push(ebp);
-  __ mov(ebp, esp);
+  // Actually emit code to start a new stack frame. This pushes the frame type
+  // marker into the stack slot at kFrameTypeOffset.
+  static_assert(kFrameTypeOffset == -1 * kSystemPointerSize);
+  __ EnterFrame(StackFrame::IRREGEXP);
+
   // Save callee-save registers. Order here should correspond to order of
-  // kBackup_ebx etc.
+  // kBackupEbxOffset etc.
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
-  static_assert(kLastCalleeSaveRegister == kBackup_ebx);
+  static_assert(kLastCalleeSaveRegisterOffset == kBackupEbxOffset);
 
-  static_assert(kSuccessfulCaptures ==
-                kLastCalleeSaveRegister - kSystemPointerSize);
+  static_assert(kSuccessfulCapturesOffset ==
+                kLastCalleeSaveRegisterOffset - kSystemPointerSize);
   __ push(Immediate(0));  // Number of successful matches in a global regexp.
-  static_assert(kStringStartMinusOne ==
-                kSuccessfulCaptures - kSystemPointerSize);
+  static_assert(kStringStartMinusOneOffset ==
+                kSuccessfulCapturesOffset - kSystemPointerSize);
   __ push(Immediate(0));  // Make room for "string start - 1" constant.
-  static_assert(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  static_assert(kBacktrackCountOffset ==
+                kStringStartMinusOneOffset - kSystemPointerSize);
   __ push(Immediate(0));  // The backtrack counter.
-  static_assert(kRegExpStackBasePointer ==
-                kBacktrackCount - kSystemPointerSize);
+  static_assert(kRegExpStackBasePointerOffset ==
+                kBacktrackCountOffset - kSystemPointerSize);
   __ push(Immediate(0));  // The regexp stack base ptr.
 
   // Initialize backtrack stack pointer. It must not be clobbered from here on.
@@ -804,14 +808,14 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   }
 
   // Load start index for later use.
-  __ mov(ebx, Operand(ebp, kStartIndex));
+  __ mov(ebx, Operand(ebp, kStartIndexOffset));
 
   // Allocate space on stack for registers.
   __ AllocateStackSpace(num_registers_ * kSystemPointerSize);
   // Load string length.
-  __ mov(esi, Operand(ebp, kInputEnd));
+  __ mov(esi, Operand(ebp, kInputEndOffset));
   // Load input position.
-  __ mov(edi, Operand(ebp, kInputStart));
+  __ mov(edi, Operand(ebp, kInputStartOffset));
   // Set up edi to be negative offset from string end.
   __ sub(edi, esi);
 
@@ -825,14 +829,14 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   }
   // Store this value in a local variable, for use when clearing
   // position registers.
-  __ mov(Operand(ebp, kStringStartMinusOne), eax);
+  __ mov(Operand(ebp, kStringStartMinusOneOffset), eax);
 
   Label load_char_start_regexp;
   {
     Label start_regexp;
 
     // Load newline if index is at start, previous character otherwise.
-    __ cmp(Operand(ebp, kStartIndex), Immediate(0));
+    __ cmp(Operand(ebp, kStartIndexOffset), Immediate(0));
     __ j(not_equal, &load_char_start_regexp, Label::kNear);
     __ mov(current_character(), '\n');
     __ jmp(&start_regexp, Label::kNear);
@@ -852,12 +856,13 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     if (num_saved_registers_ > 8) {
       DCHECK_EQ(ecx, backtrack_stackpointer());
       __ push(ecx);
-      __ mov(ecx, kRegisterZero);
+      __ mov(ecx, kRegisterZeroOffset);
       Label init_loop;
       __ bind(&init_loop);
       __ mov(Operand(ebp, ecx, times_1, 0), eax);
       __ sub(ecx, Immediate(kSystemPointerSize));
-      __ cmp(ecx, kRegisterZero - num_saved_registers_ * kSystemPointerSize);
+      __ cmp(ecx,
+             kRegisterZeroOffset - num_saved_registers_ * kSystemPointerSize);
       __ j(greater, &init_loop);
       __ pop(ecx);
     } else {  // Unroll the loop.
@@ -875,10 +880,10 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ bind(&success_label_);
     if (num_saved_registers_ > 0) {
       // copy captures to output
-      __ mov(ebx, Operand(ebp, kRegisterOutput));
-      __ mov(ecx, Operand(ebp, kInputEnd));
-      __ mov(edx, Operand(ebp, kStartIndex));
-      __ sub(ecx, Operand(ebp, kInputStart));
+      __ mov(ebx, Operand(ebp, kRegisterOutputOffset));
+      __ mov(ecx, Operand(ebp, kInputEndOffset));
+      __ mov(edx, Operand(ebp, kStartIndexOffset));
+      __ sub(ecx, Operand(ebp, kInputStartOffset));
       if (mode_ == UC16) {
         __ lea(ecx, Operand(ecx, edx, times_2, 0));
       } else {
@@ -902,22 +907,22 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     if (global()) {
       // Restart matching if the regular expression is flagged as global.
       // Increment success counter.
-      __ inc(Operand(ebp, kSuccessfulCaptures));
+      __ inc(Operand(ebp, kSuccessfulCapturesOffset));
       // Capture results have been stored, so the number of remaining global
       // output registers is reduced by the number of stored captures.
-      __ mov(ecx, Operand(ebp, kNumOutputRegisters));
+      __ mov(ecx, Operand(ebp, kNumOutputRegistersOffset));
       __ sub(ecx, Immediate(num_saved_registers_));
       // Check whether we have enough room for another set of capture results.
       __ cmp(ecx, Immediate(num_saved_registers_));
       __ j(less, &exit_label_);
 
-      __ mov(Operand(ebp, kNumOutputRegisters), ecx);
+      __ mov(Operand(ebp, kNumOutputRegistersOffset), ecx);
       // Advance the location for output.
-      __ add(Operand(ebp, kRegisterOutput),
+      __ add(Operand(ebp, kRegisterOutputOffset),
              Immediate(num_saved_registers_ * kSystemPointerSize));
 
       // Prepare eax to initialize registers with its value in the next run.
-      __ mov(eax, Operand(ebp, kStringStartMinusOne));
+      __ mov(eax, Operand(ebp, kStringStartMinusOneOffset));
 
       // Restore the original regexp stack pointer value (effectively, pop the
       // stored base pointer).
@@ -951,7 +956,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ bind(&exit_label_);
   if (global()) {
     // Return the number of successful captures.
-    __ mov(eax, Operand(ebp, kSuccessfulCaptures));
+    __ mov(eax, Operand(ebp, kSuccessfulCapturesOffset));
   }
 
   __ bind(&return_eax);
@@ -960,13 +965,17 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   PopRegExpBasePointer(backtrack_stackpointer(), ebx);
 
   // Skip esp past regexp registers.
-  __ lea(esp, Operand(ebp, kLastCalleeSaveRegister));
+  __ lea(esp, Operand(ebp, kLastCalleeSaveRegisterOffset));
   // Restore callee-save registers.
+  static_assert(kNumCalleeSaveRegisters == 3);
+  static_assert(kBackupEsiOffset == -2 * kSystemPointerSize);
+  static_assert(kBackupEdiOffset == -3 * kSystemPointerSize);
+  static_assert(kBackupEbxOffset == -4 * kSystemPointerSize);
   __ pop(ebx);
   __ pop(edi);
   __ pop(esi);
-  // Exit function frame, restore previous one.
-  __ pop(ebp);
+
+  __ LeaveFrame(StackFrame::IRREGEXP);
   __ ret(0);
 
   // Backtrack code (branch target for conditional backtracks).
@@ -996,7 +1005,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     // String might have moved: Reload esi from frame.
-    __ mov(esi, Operand(ebp, kInputEnd));
+    __ mov(esi, Operand(ebp, kInputEndOffset));
     SafeReturn();
   }
 
@@ -1175,7 +1184,7 @@ void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
 
 void RegExpMacroAssemblerIA32::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
-  __ mov(eax, Operand(ebp, kStringStartMinusOne));
+  __ mov(eax, Operand(ebp, kStringStartMinusOneOffset));
   for (int reg = reg_from; reg <= reg_to; reg++) {
     __ mov(register_location(reg), eax);
   }
@@ -1219,13 +1228,14 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Address re_frame) {
   InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
-      frame_entry<Isolate*>(re_frame, kIsolate),
-      frame_entry<int>(re_frame, kStartIndex),
-      static_cast<RegExp::CallOrigin>(frame_entry<int>(re_frame, kDirectCall)),
+      frame_entry<Isolate*>(re_frame, kIsolateOffset),
+      frame_entry<int>(re_frame, kStartIndexOffset),
+      static_cast<RegExp::CallOrigin>(
+          frame_entry<int>(re_frame, kDirectCallOffset)),
       return_address, re_code,
-      frame_entry_address<Address>(re_frame, kInputString),
-      frame_entry_address<const byte*>(re_frame, kInputStart),
-      frame_entry_address<const byte*>(re_frame, kInputEnd));
+      frame_entry_address<Address>(re_frame, kInputStringOffset),
+      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
+      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
 }
 
 
@@ -1234,7 +1244,8 @@ Operand RegExpMacroAssemblerIA32::register_location(int register_index) {
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
-  return Operand(ebp, kRegisterZero - register_index * kSystemPointerSize);
+  return Operand(ebp,
+                 kRegisterZeroOffset - register_index * kSystemPointerSize);
 }
 
 
@@ -1245,7 +1256,7 @@ void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
     BranchOrBacktrack(greater_equal, on_outside_input);
   } else {
     __ lea(eax, Operand(edi, cp_offset * char_size()));
-    __ cmp(eax, Operand(ebp, kStringStartMinusOne));
+    __ cmp(eax, Operand(ebp, kStringStartMinusOneOffset));
     BranchOrBacktrack(less_equal, on_outside_input);
   }
 }

@@ -652,6 +652,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::ENTRY:
     case StackFrame::EXIT:
     case StackFrame::INTERNAL:
+    case StackFrame::IRREGEXP:
     case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
     case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
     case StackFrame::STUB:

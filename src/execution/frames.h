@@ -46,7 +46,7 @@
 //       - WasmToJsFrame
 //     - WasmDebugBreakFrame
 //     - WasmLiftoffSetupFrame
-//
+//     - IrregexpFrame
 
 namespace v8 {
 namespace internal {
@@ -126,7 +126,8 @@ class StackHandler {
   V(CONSTRUCT, ConstructFrame)                                            \
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
-  V(NATIVE, NativeFrame)
+  V(NATIVE, NativeFrame)                                                  \
+  V(IRREGEXP, IrregexpFrame)
 
 // Abstract base class for all stack frames.
 class StackFrame {
@@ -254,6 +255,7 @@ class StackFrame {
   }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
+  bool is_irregexp() const { return type() == IRREGEXP; }
 
   static bool IsJavaScript(Type t) {
     static_assert(INTERPRETED + 1 == BASELINE);
@@ -1260,6 +1262,29 @@ class JavaScriptBuiltinContinuationWithCatchFrame
  protected:
   inline explicit JavaScriptBuiltinContinuationWithCatchFrame(
       StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class IrregexpFrame : public TypedFrame {
+ public:
+  Type type() const override { return IRREGEXP; }
+
+  void Iterate(RootVisitor* v) const override {
+    // Irregexp frames should not be visited by GC because they are not visible
+    // to any stack iterator except StackFrameIteratorForProfiler, which is not
+    // used by GC.
+    UNREACHABLE();
+  }
+
+  static IrregexpFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_irregexp());
+    return static_cast<IrregexpFrame*>(frame);
+  }
+
+ protected:
+  inline explicit IrregexpFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

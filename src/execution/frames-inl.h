@@ -285,6 +285,9 @@ inline JavaScriptBuiltinContinuationWithCatchFrame::
         StackFrameIteratorBase* iterator)
     : JavaScriptBuiltinContinuationFrame(iterator) {}
 
+inline IrregexpFrame::IrregexpFrame(StackFrameIteratorBase* iterator)
+    : TypedFrame(iterator) {}
+
 inline CommonFrame* DebuggableStackFrameIterator::frame() const {
   StackFrame* frame = iterator_.frame();
 #if V8_ENABLE_WEBASSEMBLY

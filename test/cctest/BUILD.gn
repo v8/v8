@@ -147,6 +147,7 @@ v8_source_set("cctest_sources") {
     "test-property-details.cc",
     "test-ptr-compr-cage.cc",
     "test-random-number-generator.cc",
+    "test-regexp.cc",
     "test-sampler-api.cc",
     "test-shared-strings.cc",
     "test-smi-lexicographic-compare.cc",
