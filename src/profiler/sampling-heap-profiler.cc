@@ -150,7 +150,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   AllocationNode* node = &profile_root_;
 
   std::vector<SharedFunctionInfo> stack;
-  JavaScriptFrameIterator frame_it(isolate_);
+  JavaScriptStackFrameIterator frame_it(isolate_);
   int frames_captured = 0;
   bool found_arguments_marker_frames = false;
   while (!frame_it.done() && frames_captured < stack_depth_) {

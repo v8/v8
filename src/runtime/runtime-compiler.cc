@@ -385,7 +385,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
-  JavaScriptFrameIterator top_it(isolate);
+  JavaScriptStackFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
@@ -458,7 +458,7 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   DCHECK(function->is_null());
 
   // Determine the frame that triggered the OSR request.
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   DCHECK_IMPLIES(frame->is_interpreted(),
                  frame->LookupCode().is_interpreter_trampoline_builtin());
@@ -544,7 +544,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
 
   const BytecodeOffset osr_offset(args.positive_smi_value_at(0));
 
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
   DCHECK_EQ(frame->LookupCode().kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);

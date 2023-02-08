@@ -138,7 +138,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     return;
   }
 
-  JavaScriptFrameIterator it(isolate());
+  JavaScriptStackFrameIterator it(isolate());
   JavaScriptFrame* frame = it.frame();
 
   DisallowGarbageCollection no_gc;

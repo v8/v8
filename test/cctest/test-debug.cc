@@ -5939,8 +5939,8 @@ class ScopeListener : public v8::debug::DebugDelegate {
                              const std::vector<v8::debug::BreakpointId>&,
                              v8::debug::BreakReasons break_reasons) override {
     i::Isolate* isolate = CcTest::i_isolate();
-    i::StackTraceFrameIterator iterator_(isolate,
-                                         isolate->debug()->break_frame_id());
+    i::DebuggableStackFrameIterator iterator_(
+        isolate, isolate->debug()->break_frame_id());
     // Go up one frame so we are on the script level.
     iterator_.Advance();
 

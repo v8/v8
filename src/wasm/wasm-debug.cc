@@ -173,7 +173,7 @@ class DebugInfoImpl {
   // is in the function of the given index.
   int DeadBreakpoint(int func_index, base::Vector<const int> breakpoints,
                      Isolate* isolate) {
-    StackTraceFrameIterator it(isolate);
+    DebuggableStackFrameIterator it(isolate);
     if (it.done() || !it.is_wasm()) return 0;
     auto* wasm_frame = WasmFrame::cast(it.frame());
     if (static_cast<int>(wasm_frame->function_index()) != func_index) return 0;
@@ -621,7 +621,7 @@ class DebugInfoImpl {
     // The first return location is after the breakpoint, others are after wasm
     // calls.
     ReturnLocation return_location = kAfterBreakpoint;
-    for (StackTraceFrameIterator it(isolate); !it.done();
+    for (DebuggableStackFrameIterator it(isolate); !it.done();
          it.Advance(), return_location = kAfterWasmCall) {
       // We still need the flooded function for stepping.
       if (it.frame()->id() == stepping_frame) continue;

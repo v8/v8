@@ -131,7 +131,7 @@ int WasmStackSize(Isolate* isolate) {
   // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
   // --trace-wasm.
   int n = 0;
-  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+  for (DebuggableStackFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (it.is_wasm()) n++;
   }
   return n;
@@ -146,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -407,7 +407,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());

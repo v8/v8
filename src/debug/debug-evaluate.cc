@@ -96,7 +96,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   DisableBreak disable_break_scope(isolate->debug());
 
   // Get the frame where the debugging is performed.
-  StackTraceFrameIterator it(isolate, frame_id);
+  DebuggableStackFrameIterator it(isolate, frame_id);
 #if V8_ENABLE_WEBASSEMBLY
   if (it.is_wasm()) {
     WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -137,7 +137,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
   Factory* factory = isolate->factory();
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
 
   // Get context and receiver.
   Handle<Context> native_context(

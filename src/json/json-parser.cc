@@ -429,7 +429,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
     Script::InitLineEnds(isolate(), script);
   }
 
-  StackTraceFrameIterator it(isolate_);
+  DebuggableStackFrameIterator it(isolate_);
   if (!it.done() && it.is_javascript()) {
     FrameSummary summary = it.GetTopValidFrame();
     script->set_eval_from_shared(summary.AsJavaScript().function()->shared());

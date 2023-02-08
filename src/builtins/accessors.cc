@@ -458,7 +458,7 @@ int FindFunctionInFrame(JavaScriptFrame* frame, Handle<JSFunction> function) {
 }
 
 Handle<JSObject> GetFrameArguments(Isolate* isolate,
-                                   JavaScriptFrameIterator* it,
+                                   JavaScriptStackFrameIterator* it,
                                    int function_index) {
   JavaScriptFrame* frame = it->frame();
 
@@ -504,7 +504,7 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
   Address requested_frame_fp = frame->fp();
   // Forward a frame iterator to the requested frame. This is needed because we
   // potentially need for advance it to the arguments adaptor frame later.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+  for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (it.frame()->fp() != requested_frame_fp) continue;
     return GetFrameArguments(isolate, &it, inlined_jsframe_index);
   }
@@ -521,7 +521,7 @@ void Accessors::FunctionArgumentsGetter(
   Handle<Object> result = isolate->factory()->null_value();
   if (!function->shared().native()) {
     // Find the top invocation of the function by traversing frames.
-    for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
       int function_index = FindFunctionInFrame(frame, function);
       if (function_index >= 0) {
@@ -641,7 +641,7 @@ class FrameFunctionIterator {
   }
   Isolate* isolate_;
   Handle<JSFunction> function_;
-  JavaScriptFrameIterator frame_iterator_;
+  JavaScriptStackFrameIterator frame_iterator_;
   std::vector<FrameSummary> frames_;
   int inlined_frame_index_;
 };

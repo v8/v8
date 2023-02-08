@@ -2996,6 +2996,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   pushq(rbp);
   movq(rbp, rsp);
   if (!StackFrame::IsJavaScript(type)) {
+    static_assert(CommonFrameConstants::kContextOrFrameTypeOffset ==
+                  -kSystemPointerSize);
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
 #if V8_ENABLE_WEBASSEMBLY

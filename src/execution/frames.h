@@ -210,11 +210,10 @@ class StackFrame {
 
   // Copy constructor; it breaks the connection to host iterator
   // (as an iterator usually lives on stack).
-  StackFrame(const StackFrame& original) V8_NOEXCEPT {
-    this->state_ = original.state_;
-    this->iterator_ = nullptr;
-    this->isolate_ = original.isolate_;
-  }
+  StackFrame(const StackFrame& original) V8_NOEXCEPT
+      : iterator_(nullptr),
+        isolate_(original.isolate_),
+        state_(original.state_) {}
 
   // Type testers.
   bool is_entry() const { return type() == ENTRY; }
@@ -276,6 +275,7 @@ class StackFrame {
   // in certain corner-cases we do not use an address on the stack, which would
   // be signed, as the PC of the frame.
   inline Address unauthenticated_pc() const;
+  static inline Address unauthenticated_pc(Address* pc_address);
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
@@ -339,16 +339,10 @@ class StackFrame {
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;
 
-  // Compute the stack frame type for the given state.
-  static Type ComputeType(const StackFrameIteratorBase* iterator, State* state);
-
-#ifdef DEBUG
-  bool can_access_heap_objects() const;
-#endif
+  const StackFrameIteratorBase* const iterator_;
 
  private:
-  const StackFrameIteratorBase* iterator_;
-  Isolate* isolate_;
+  Isolate* const isolate_;
   State state_;
 
   static ReturnAddressLocationResolver return_address_location_resolver_;
@@ -364,7 +358,7 @@ class StackFrame {
   friend class StackFrameIterator;
   friend class StackFrameIteratorBase;
   friend class StackHandlerIterator;
-  friend class SafeStackFrameIterator;
+  friend class StackFrameIteratorForProfiler;
 };
 
 class CommonFrame;
@@ -532,14 +526,6 @@ class CommonFrame : public StackFrame {
   inline Address caller_fp() const;
   inline Address caller_pc() const;
 
-  // Computes the address of the PC field in the standard frame given
-  // by the provided frame pointer.
-  static inline Address ComputePCAddress(Address fp);
-
-  // Computes the address of the constant pool  field in the standard
-  // frame given by the provided frame pointer.
-  static inline Address ComputeConstantPoolAddress(Address fp);
-
   // Iterate over expression stack including stack handlers, locals,
   // and parts of the fixed part including context and code fields.
   void IterateExpressions(RootVisitor* v) const;
@@ -548,10 +534,6 @@ class CommonFrame : public StackFrame {
 
   // Returns the address of the n'th expression stack element.
   virtual Address GetExpressionAddress(int n) const;
-
- private:
-  friend class StackFrame;
-  friend class SafeStackFrameIterator;
 };
 
 // This frame is used for TF-optimized code without JS linkage, but
@@ -1292,17 +1274,25 @@ class StackFrameIteratorBase {
 
   bool done() const { return frame_ == nullptr; }
 
+#ifdef DEBUG
+  // The StackFrameIteratorForProfiler is limited in functionality because it
+  // may run at an arbitrary point in time where stack contents are not
+  // guaranteed to be in a consistent state and heap accesses may be limited.
+  virtual bool IsStackFrameIteratorForProfiler() const = 0;
+#endif  // DEBUG
+  virtual StackFrame::Type ComputeStackFrameType(
+      StackFrame::State* state) const = 0;
+
  protected:
   // An iterator that iterates over a given thread's stack.
-  StackFrameIteratorBase(Isolate* isolate, bool can_access_heap_objects);
+  explicit StackFrameIteratorBase(Isolate* isolate);
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
 #define DECLARE_SINGLETON(ignore, type) type type##_;
   STACK_FRAME_TYPE_LIST(DECLARE_SINGLETON)
 #undef DECLARE_SINGLETON
   StackFrame* frame_;
   StackHandler* handler_;
-  const bool can_access_heap_objects_;
 
   StackHandler* handler() const {
     DCHECK(!done());
@@ -1345,36 +1335,50 @@ class StackFrameIterator : public StackFrameIteratorBase {
   void Reset(ThreadLocalTop* top, wasm::StackMemory* stack);
 #endif
 
+#ifdef DEBUG
+  bool IsStackFrameIteratorForProfiler() const override { return false; }
+#endif  // DEBUG
+  StackFrame::Type ComputeStackFrameType(
+      StackFrame::State* state) const override;
+
  private:
   // Go back to the first frame.
   void Reset(ThreadLocalTop* top);
 };
 
-// Iterator that supports iterating through all JavaScript frames.
-class JavaScriptFrameIterator {
+// A wrapper around StackFrameIterator that skips over all non-JS frames.
+class JavaScriptStackFrameIterator final {
  public:
-  inline explicit JavaScriptFrameIterator(Isolate* isolate);
-  inline JavaScriptFrameIterator(Isolate* isolate, ThreadLocalTop* top);
+  explicit JavaScriptStackFrameIterator(Isolate* isolate) : iterator_(isolate) {
+    if (!done()) Advance();
+  }
+  JavaScriptStackFrameIterator(Isolate* isolate, ThreadLocalTop* top)
+      : iterator_(isolate, top) {
+    if (!done()) Advance();
+  }
 
-  inline JavaScriptFrame* frame() const;
-
+  JavaScriptFrame* frame() const {
+    return JavaScriptFrame::cast(iterator_.frame());
+  }
+  JavaScriptFrame* Reframe() {
+    return JavaScriptFrame::cast(iterator_.Reframe());
+  }
   bool done() const { return iterator_.done(); }
+
   V8_EXPORT_PRIVATE void Advance();
-  void AdvanceOneFrame() { iterator_.Advance(); }
-  inline JavaScriptFrame* Reframe();
 
  private:
   StackFrameIterator iterator_;
 };
 
-// NOTE: The stack trace frame iterator is an iterator that only traverse proper
-// JavaScript frames that have proper JavaScript functions and WebAssembly
-// frames.
-class V8_EXPORT_PRIVATE StackTraceFrameIterator {
+// A wrapper around StackFrameIterator that skips over all non-debuggable
+// frames (i.e. it iterates over Wasm and debuggable JS frames).
+class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
  public:
-  explicit StackTraceFrameIterator(Isolate* isolate);
+  explicit DebuggableStackFrameIterator(Isolate* isolate);
   // Skip frames until the frame with the given id is reached.
-  StackTraceFrameIterator(Isolate* isolate, StackFrameId id);
+  DebuggableStackFrameIterator(Isolate* isolate, StackFrameId id);
+
   bool done() const { return iterator_.done(); }
   void Advance();
   void AdvanceOneFrame() { iterator_.Advance(); }
@@ -1390,25 +1394,34 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
   inline JavaScriptFrame* javascript_frame() const;
 
   // Use this instead of FrameSummary::GetTop(javascript_frame) to keep
-  // filtering behavior consistent with the rest of StackTraceFrameIterator.
+  // filtering behavior consistent with the rest of
+  // DebuggableStackFrameIterator.
   FrameSummary GetTopValidFrame() const;
 
  private:
   StackFrameIterator iterator_;
   static bool IsValidFrame(StackFrame* frame);
-  static bool IsValidJSFunction(JSFunction f);
 };
 
-class SafeStackFrameIterator : public StackFrameIteratorBase {
+// Similar to StackFrameIterator, but can be created and used at any time and
+// any stack state. Currently, the only user is the profiler; if this ever
+// changes, find another name for this class.
+class V8_EXPORT_PRIVATE StackFrameIteratorForProfiler
+    : public StackFrameIteratorBase {
  public:
-  SafeStackFrameIterator(Isolate* isolate, Address pc, Address fp, Address sp,
-                         Address lr, Address js_entry_sp);
+  StackFrameIteratorForProfiler(Isolate* isolate, Address pc, Address fp,
+                                Address sp, Address lr, Address js_entry_sp);
 
   inline StackFrame* frame() const;
   void Advance();
 
   StackFrame::Type top_frame_type() const { return top_frame_type_; }
-  Address top_context_address() const { return top_context_address_; }
+
+#ifdef DEBUG
+  bool IsStackFrameIteratorForProfiler() const override { return true; }
+#endif  // DEBUG
+  StackFrame::Type ComputeStackFrameType(
+      StackFrame::State* state) const override;
 
  private:
   void AdvanceOneFrame();
@@ -1420,6 +1433,7 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   bool IsValidCaller(StackFrame* frame);
   bool IsValidExitFrame(Address fp) const;
   bool IsValidTop(ThreadLocalTop* top) const;
+  static bool IsValidFrameType(StackFrame::Type type);
 
   // Returns true if the pc points to a bytecode handler and the frame pointer
   // doesn't seem to be a bytecode handler's frame, which implies that the
@@ -1432,7 +1446,6 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
-  Address top_context_address_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 };

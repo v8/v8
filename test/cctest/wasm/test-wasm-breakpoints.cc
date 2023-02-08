@@ -116,7 +116,7 @@ class BreakHandler : public debug::DebugDelegate {
     CHECK_GT(expected_breaks_.size(), count_);
 
     // Check the current position.
-    StackTraceFrameIterator frame_it(isolate_);
+    DebuggableStackFrameIterator frame_it(isolate_);
     auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasm();
     CHECK_EQ(expected_breaks_[count_].position, summ.byte_offset());
 
@@ -231,7 +231,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
 
     HandleScope handles(isolate_);
 
-    StackTraceFrameIterator frame_it(isolate_);
+    DebuggableStackFrameIterator frame_it(isolate_);
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 

@@ -654,7 +654,8 @@ class FunctionDataMap : public ThreadVisitor {
   }
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
+         it.Advance()) {
       std::vector<Handle<SharedFunctionInfo>> sfis;
       it.frame()->GetFunctions(&sfis);
       for (auto& sfi : sfis) {
