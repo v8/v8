@@ -1399,8 +1399,15 @@ bool LiftoffAssembler::ValidateCacheState() const {
 
 void LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                         LiftoffRegister* spilled_reg) {
-  *spilled_reg = cache_state_.GetNextSpillReg(candidates);
-  SpillRegister(*spilled_reg);
+  // Before spilling a regular stack slot, try to drop a "volatile" register
+  // (used for caching the memory start or the instance itself). Those can be
+  // reloaded without requiring a spill here.
+  if (cache_state_.has_volatile_register(candidates)) {
+    *spilled_reg = cache_state_.take_volatile_register(candidates);
+  } else {
+    *spilled_reg = cache_state_.GetNextSpillReg(candidates);
+    SpillRegister(*spilled_reg);
+  }
 }
 
 LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(

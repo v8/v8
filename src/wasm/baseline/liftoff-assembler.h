@@ -649,9 +649,6 @@ class LiftoffAssembler : public MacroAssembler {
     if (V8_LIKELY(cache_state_.has_unused_register(candidates))) {
       return cache_state_.unused_register(candidates);
     }
-    if (cache_state_.has_volatile_register(candidates)) {
-      return cache_state_.take_volatile_register(candidates);
-    }
     // TODO(clemensb): Remove this hack once https://reviews.llvm.org/D141020 is
     // available.
     std::aligned_storage_t<sizeof(LiftoffRegister), alignof(LiftoffRegister)>
