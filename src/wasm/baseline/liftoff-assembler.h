@@ -258,7 +258,6 @@ class LiftoffAssembler : public MacroAssembler {
             kFpCacheRegList.MaskOut(used_registers).MaskOut(pinned);
         return available_regs.HasAdjacentFpRegsSet();
       }
-      DCHECK(rc == kGpReg || rc == kFpReg);
       LiftoffRegList candidates = GetCacheRegList(rc);
       return has_unused_register(candidates.MaskOut(pinned));
     }
@@ -282,7 +281,6 @@ class LiftoffAssembler : public MacroAssembler {
         DCHECK(is_free(LiftoffRegister::ForFpPair(low)));
         return LiftoffRegister::ForFpPair(low);
       }
-      DCHECK(rc == kGpReg || rc == kFpReg);
       LiftoffRegList candidates = GetCacheRegList(rc);
       return unused_register(candidates, pinned);
     }
@@ -640,7 +638,6 @@ class LiftoffAssembler : public MacroAssembler {
       DoubleRegister low_fp = SpillAdjacentFpRegisters(pinned).fp();
       return LiftoffRegister::ForFpPair(low_fp);
     }
-    DCHECK(rc == kGpReg || rc == kFpReg);
     LiftoffRegList candidates = GetCacheRegList(rc).MaskOut(pinned);
     return GetUnusedRegister(candidates);
   }
