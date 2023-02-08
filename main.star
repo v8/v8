@@ -146,7 +146,13 @@ def led_users(*, pool_realm, builder_realms, groups):
 
 led_users(
     pool_realm = "pools/ci",
-    builder_realms = ["ci", "ci.br.beta", "ci.br.stable"],
+    builder_realms = [
+        "ci",
+        "ci.br.beta",
+        "ci.br.stable",
+        "ci.br.extended",
+        "ci.br.extwin",
+    ],
     groups = "project-v8-led-users",
 )
 
