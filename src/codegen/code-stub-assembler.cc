@@ -12261,6 +12261,10 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     BIND(&loop);
     {
       loop_body();
+      CSA_DCHECK(
+          this, increment > 0
+                    ? IntPtrOrSmiLessThanOrEqual(var_index.value(), end_index)
+                    : IntPtrOrSmiLessThanOrEqual(end_index, var_index.value()));
       Branch(IntPtrOrSmiNotEqual(var_index.value(), end_index), &loop, &done);
     }
     BIND(&done);
@@ -12271,11 +12275,11 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     CSA_DCHECK(this, increment > 0
                          ? IntPtrOrSmiLessThanOrEqual(start_index, end_index)
                          : IntPtrOrSmiLessThanOrEqual(end_index, start_index));
-    TNode<TIndex> next_index =
-        IntPtrOrSmiAdd(start_index, IntPtrOrSmiConstant<TIndex>(increment));
+    TNode<TIndex> last_index =
+        IntPtrOrSmiSub(end_index, IntPtrOrSmiConstant<TIndex>(increment));
     TNode<BoolT> first_check =
-        increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
-                      : IntPtrOrSmiGreaterThan(next_index, end_index);
+        increment > 0 ? IntPtrOrSmiLessThan(start_index, last_index)
+                      : IntPtrOrSmiGreaterThan(start_index, last_index);
     int32_t first_check_val;
     if (TryToInt32Constant(first_check, &first_check_val)) {
       if (first_check_val) {
@@ -12292,18 +12296,14 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
       Comment("Unrolled Loop");
       loop_body();
       loop_body();
-      TNode<TIndex> next_index = IntPtrOrSmiAdd(
-          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
       TNode<BoolT> loop_check =
-          increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
-                        : IntPtrOrSmiGreaterThan(next_index, end_index);
+          increment > 0 ? IntPtrOrSmiLessThan(var_index.value(), last_index)
+                        : IntPtrOrSmiGreaterThan(var_index.value(), last_index);
       Branch(loop_check, &loop, &after_loop);
     }
     BIND(&after_loop);
     {
-      TNode<TIndex> next_index = IntPtrOrSmiAdd(
-          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
-      GotoIfNot(IntPtrOrSmiEqual(next_index, end_index), &done);
+      GotoIfNot(IntPtrOrSmiEqual(var_index.value(), last_index), &done);
       // Iteration count is odd.
       loop_body();
       Goto(&done);
