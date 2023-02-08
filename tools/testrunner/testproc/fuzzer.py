@@ -50,6 +50,7 @@ EXTRA_FLAGS = [
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
     (0.1, '--stress-wasm-code-gc'),
+    (0.2, '--turboshaft'),
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--turbo-force-mid-tier-regalloc'),
