@@ -38,15 +38,23 @@ extern class JSArrayIterator extends JSObject {
 // Perform CreateArrayIterator (ES #sec-createarrayiterator).
 @export
 macro CreateArrayIterator(implicit context: NativeContext)(
-    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+    array: JSReceiver, kind: constexpr IterationKind, nextIndex: Number):
+    JSArrayIterator {
   return new JSArrayIterator{
     map: *NativeContextSlot(ContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX),
     properties_or_hash: kEmptyFixedArray,
     elements: kEmptyFixedArray,
     iterated_object: array,
-    next_index: 0,
+    next_index: nextIndex,
     kind: SmiTag<IterationKind>(kind)
   };
+}
+
+// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+@export
+macro CreateArrayIterator(implicit context: NativeContext)(
+    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+  return CreateArrayIterator(array, kind, 0);
 }
 
 extern class JSArray extends JSObject {
