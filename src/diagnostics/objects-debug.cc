@@ -589,8 +589,8 @@ void Map::MapVerify(Isolate* isolate) {
                     IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
-    DCHECK(prototype_info() == Smi::zero() ||
-           prototype_info().IsPrototypeInfo());
+    CHECK(prototype_info() == Smi::zero() ||
+          prototype_info().IsPrototypeInfo());
   }
 }
 

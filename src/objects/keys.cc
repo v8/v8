@@ -5,6 +5,7 @@
 #include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
@@ -17,6 +18,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/prototype-info.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/utils/identity-map.h"
@@ -659,19 +661,19 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
       !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
     return false;
   }
-  HeapObject prototype = receiver->map().prototype();
+  DisallowGarbageCollection no_gc;
+  HeapObject prototype = receiver->map(isolate_).prototype();
   if (prototype.is_null()) return false;
-  if (!prototype.map().is_prototype_map() ||
-      !prototype.map().prototype_info().IsPrototypeInfo()) {
-    return false;
-  }
+  Map maybe_proto_map = prototype.map(isolate_);
+  if (!maybe_proto_map.is_prototype_map()) return false;
+  PrototypeInfo prototype_info;
+  if (!maybe_proto_map.TryGetPrototypeInfo(&prototype_info)) return false;
+
   first_prototype_ = handle(JSReceiver::cast(prototype), isolate_);
-  Handle<Map> map(prototype.map(), isolate_);
-  first_prototype_map_ = map;
-  has_prototype_info_cache_ = map->IsPrototypeValidityCellValid() &&
-                              PrototypeInfo::cast(map->prototype_info())
-                                  .prototype_chain_enum_cache()
-                                  .IsFixedArray();
+  first_prototype_map_ = handle(maybe_proto_map, isolate_);
+  has_prototype_info_cache_ =
+      maybe_proto_map.IsPrototypeValidityCellValid() &&
+      prototype_info.prototype_chain_enum_cache().IsFixedArray();
   return true;
 }
 

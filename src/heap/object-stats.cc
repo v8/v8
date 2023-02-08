@@ -22,6 +22,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/prototype-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
 #include "src/objects/visitors.h"
@@ -908,9 +909,9 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   }
 
   if (map.is_prototype_map()) {
-    if (map.prototype_info().IsPrototypeInfo(cage_base())) {
-      PrototypeInfo info = PrototypeInfo::cast(map.prototype_info());
-      Object users = info.prototype_users();
+    PrototypeInfo prototype_info;
+    if (map.TryGetPrototypeInfo(&prototype_info)) {
+      Object users = prototype_info.prototype_users();
       if (users.IsWeakFixedArray(cage_base())) {
         RecordSimpleVirtualObjectStats(map, WeakArrayList::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);

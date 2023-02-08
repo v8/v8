@@ -17,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
+#include "src/objects/prototype-info.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -564,8 +565,22 @@ bool Map::is_abandoned_prototype_map() const {
 }
 
 bool Map::should_be_fast_prototype_map() const {
-  if (!prototype_info().IsPrototypeInfo()) return false;
+  DCHECK(is_prototype_map());
+  if (!has_prototype_info()) return false;
   return PrototypeInfo::cast(prototype_info()).should_be_fast_map();
+}
+
+bool Map::has_prototype_info() const {
+  DCHECK(is_prototype_map());
+  return PrototypeInfo::IsPrototypeInfoFast(prototype_info());
+}
+
+bool Map::TryGetPrototypeInfo(PrototypeInfo* result) const {
+  DCHECK(is_prototype_map());
+  Object maybe_proto_info = prototype_info();
+  if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
+  *result = PrototypeInfo::cast(maybe_proto_info);
+  return true;
 }
 
 void Map::set_elements_kind(ElementsKind elements_kind) {

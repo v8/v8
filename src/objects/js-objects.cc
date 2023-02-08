@@ -10,6 +10,7 @@
 #include "src/date/date.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
+#include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles.h"
@@ -3049,7 +3050,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
            reinterpret_cast<void*>(new_map->ptr()));
   }
   if (was_registered) {
-    if (new_map->prototype_info().IsPrototypeInfo()) {
+    if (new_map->has_prototype_info()) {
       // The new map isn't registered with its prototype yet; reflect this fact
       // in the PrototypeInfo it just inherited from the old map.
       PrototypeInfo::cast(new_map->prototype_info())
@@ -4815,15 +4816,15 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
   }
 }
 
-static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
+static bool PrototypeBenefitsFromNormalization(JSObject object) {
   DisallowGarbageCollection no_gc;
-  if (!object->HasFastProperties()) return false;
-  if (object->IsJSGlobalProxy()) return false;
+  if (!object.HasFastProperties()) return false;
+  if (object.IsJSGlobalProxy()) return false;
   // TODO(v8:11248) make bootstrapper create dict mode prototypes, too?
-  if (object->GetIsolate()->bootstrapper()->IsActive()) return false;
+  if (object.GetIsolate()->bootstrapper()->IsActive()) return false;
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return true;
-  return !object->map().is_prototype_map() ||
-         !object->map().should_be_fast_prototype_map();
+  return !object.map().is_prototype_map() ||
+         !object.map().should_be_fast_prototype_map();
 }
 
 // static
@@ -4832,23 +4833,23 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
   DCHECK(object->IsJSObjectThatCanBeTrackedAsPrototype());
   if (object->IsJSGlobalObject()) return;
   Isolate* isolate = object->GetIsolate();
-  if (object->map(isolate).is_prototype_map()) {
-    if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
+  if (object->map().is_prototype_map()) {
+    if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
-      DCHECK(!object->map(isolate).should_be_fast_prototype_map());
+      DCHECK(!object->map().should_be_fast_prototype_map());
       // First normalize to ensure all JSFunctions are DATA_CONSTANT.
       constexpr bool kUseCache = true;
       JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
                                     0, kUseCache, "NormalizeAsPrototype");
     }
     if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
-        object->map(isolate).should_be_fast_prototype_map() &&
+        object->map().should_be_fast_prototype_map() &&
         !object->HasFastProperties()) {
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
     Handle<Map> new_map;
-    if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
+    if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
 #if DEBUG
       Handle<Map> old_map = handle(object->map(isolate), isolate);
 #endif  // DEBUG
@@ -4915,8 +4916,11 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
 
 // static
 void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
-  if (!object->map().is_prototype_map()) return;
-  if (!object->map().should_be_fast_prototype_map()) return;
+  {
+    Map map = object->map();
+    if (!map.is_prototype_map()) return;
+    if (!map.should_be_fast_prototype_map()) return;
+  }
   OptimizeAsPrototype(object);
 }
 
@@ -4979,7 +4983,8 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
 bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   DCHECK(user->is_prototype_map());
   // If it doesn't have a PrototypeInfo, it was never registered.
-  if (!user->prototype_info().IsPrototypeInfo()) return false;
+  if (!user->has_prototype_info()) return false;
+  DCHECK(user->prototype_info().IsPrototypeInfo());
   // If it had no prototype before, see if it had users that might expect
   // registration.
   if (!user->prototype().IsJSObject()) {
@@ -5030,14 +5035,13 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
       cell.set_value(invalid_value);
     }
   }
-  Object maybe_prototype_info = map.prototype_info();
-  if (maybe_prototype_info.IsPrototypeInfo()) {
-    PrototypeInfo prototype_info = PrototypeInfo::cast(maybe_prototype_info);
+  PrototypeInfo prototype_info;
+  if (map.TryGetPrototypeInfo(&prototype_info)) {
     prototype_info.set_prototype_chain_enum_cache(Object());
   }
 
-  // We may inline accesses to constants stored in dictionary mode protoypes in
-  // optimized code. When doing so, we install depenendies of group
+  // We may inline accesses to constants stored in dictionary mode prototypes in
+  // optimized code. When doing so, we install dependencies of group
   // |kPrototypeCheckGroup| on each prototype between the receiver's immediate
   // prototype and the holder of the constant property. This dependency is used
   // both to detect changes to the constant value itself, and other changes to
@@ -5064,9 +5068,8 @@ void InvalidatePrototypeChainsInternal(Map map) {
   for (; !map.is_null(); map = next_map, next_map = Map()) {
     InvalidateOnePrototypeValidityCellInternal(map);
 
-    Object maybe_proto_info = map.prototype_info();
-    if (!maybe_proto_info.IsPrototypeInfo()) return;
-    PrototypeInfo proto_info = PrototypeInfo::cast(maybe_proto_info);
+    PrototypeInfo proto_info;
+    if (!map.TryGetPrototypeInfo(&proto_info)) return;
     if (!proto_info.prototype_users().IsWeakArrayList()) {
       return;
     }
