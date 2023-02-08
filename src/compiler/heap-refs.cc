@@ -2297,14 +2297,13 @@ unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
 
 unsigned CodeRef::GetInlinedBytecodeSize() const {
   Code code = *object();
-  if (!code.has_instruction_stream()) {
-    return 0;
-  }
+  Object maybe_istream = code.raw_instruction_stream(kRelaxedLoad);
+  if (maybe_istream == Smi::zero()) return 0;
 
   // Safe to do a relaxed conversion to InstructionStream here since
-  // Code::instruction_stream field is modified only by GC and the
-  // Code was acquire-loaded.
-  return GetInlinedBytecodeSizeImpl(code.instruction_stream(kRelaxedLoad));
+  // Code::instruction_stream field is modified only by GC and the Code was
+  // acquire-loaded.
+  return GetInlinedBytecodeSizeImpl(InstructionStream::cast(maybe_istream));
 }
 
 #undef BIMODAL_ACCESSOR

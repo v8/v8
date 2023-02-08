@@ -1184,8 +1184,7 @@ Object Code::raw_instruction_stream(RelaxedLoadTag tag) const {
 
 Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
                                     RelaxedLoadTag tag) const {
-  DCHECK(has_instruction_stream());
-  return ExternalCodeField<HeapObject>::Relaxed_Load(cage_base, *this);
+  return ExternalCodeField<Object>::Relaxed_Load(cage_base, *this);
 }
 
 DEF_GETTER(Code, code_entry_point, Address) {
