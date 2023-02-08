@@ -598,6 +598,40 @@ TEST(RISCV0) {
   }
 }
 
+TEST(RISCVLi) {
+  CcTest::InitializeVM();
+
+  FOR_INT64_INPUTS(i) {
+    auto fn = [i](MacroAssembler& assm) { __ RecursiveLi(a0, i); };
+    auto res = GenAndRunTest(fn);
+    CHECK_EQ(i, res);
+  }
+  for (int i = 0; i < 64; i++) {
+    auto fn = [i](MacroAssembler& assm) { __ RecursiveLi(a0, 1 << i); };
+    auto res = GenAndRunTest(fn);
+    CHECK_EQ(1 << i, res);
+  }
+}
+
+TEST(RISCVLiEstimate) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  FOR_INT64_INPUTS(i) {
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    Label a, b;
+    assm.bind(&a);
+    assm.RecordComment("V8 RV_li");
+    assm.RV_li(a0, i);
+    int count_a = assm.InstructionsGeneratedSince(&a);
+    assm.bind(&b);
+    assm.RecordComment("LLVM li");
+    assm.RecursiveLi(a0, i);
+    int count_b = assm.InstructionsGeneratedSince(&b);
+    CHECK_LE(count_a, count_b);
+  }
+}
+
 TEST(RISCV1) {
   CcTest::InitializeVM();
 
@@ -1961,7 +1995,7 @@ TEST(li_estimate) {
   std::vector<int64_t> immediates = {
       -256,      -255,          0,         255,        8192,      0x7FFFFFFF,
       INT32_MIN, INT32_MAX / 2, INT32_MAX, UINT32_MAX, INT64_MAX, INT64_MAX / 2,
-      INT64_MIN};
+      INT64_MIN, 12312874234};
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1970,7 +2004,7 @@ TEST(li_estimate) {
     Label a;
     assm.bind(&a);
     assm.RV_li(t0, p);
-    int expected_count = assm.li_estimate(p, true);
+    int expected_count = assm.RV_li_count(p, true);
     int count = assm.InstructionsGeneratedSince(&a);
     CHECK_EQ(count, expected_count);
   }

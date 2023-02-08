@@ -2127,7 +2127,7 @@ int MacroAssembler::InstrCountForLi64Bit(int64_t value) {
   if (is_int32(value + 0x800)) {
     return InstrCountForLiLower32Bit(value);
   } else {
-    return li_estimate(value);
+    return RV_li_count(value);
   }
   UNREACHABLE();
   return INT_MAX;
@@ -2145,8 +2145,8 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
     UseScratchRegisterScope temps(this);
-    int count = li_estimate(j.immediate(), temps.hasAvailable());
-    int reverse_count = li_estimate(~j.immediate(), temps.hasAvailable());
+    int count = RV_li_count(j.immediate(), temps.hasAvailable());
+    int reverse_count = RV_li_count(~j.immediate(), temps.hasAvailable());
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw a Address from a constant pool.
       RecordEntry((uintptr_t)j.immediate(), j.rmode());

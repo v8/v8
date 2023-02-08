@@ -1705,7 +1705,7 @@ TEST(li_estimate) {
     Label a;
     assm.bind(&a);
     assm.RV_li(t0, p);
-    int expected_count = assm.li_estimate(p, true);
+    int expected_count = assm.RV_li_count(p, true);
     int count = assm.InstructionsGeneratedSince(&a);
     CHECK_EQ(count, expected_count);
   }

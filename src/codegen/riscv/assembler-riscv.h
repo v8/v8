@@ -371,9 +371,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void nop();
+#if defined(V8_TARGET_ARCH_RISCV64)
+  void RecursiveLiImpl(Register rd, intptr_t imm);
+  void RecursiveLi(Register rd, intptr_t imm);
+  static int RecursiveLiCount(intptr_t imm);
+  static int RecursiveLiImplCount(intptr_t imm);
   void RV_li(Register rd, intptr_t imm);
+  static int RV_li_count(int64_t imm, bool is_get_temp_reg = false);
   // Returns the number of instructions required to load the immediate
-  static int li_estimate(intptr_t imm, bool is_get_temp_reg = false);
+  void GeneralLi(Register rd, int64_t imm);
+  static int GeneralLiCount(intptr_t imm, bool is_get_temp_reg = false);
+#endif
+#if defined(V8_TARGET_ARCH_RISCV32)
+  void RV_li(Register rd, int32_t imm);
+  static int RV_li_count(int32_t imm, bool is_get_temp_reg = false);
+#endif
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
   void li_constant(Register rd, intptr_t imm);
