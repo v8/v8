@@ -178,6 +178,7 @@ bool operator==(LoadLaneParameters lhs, LoadLaneParameters rhs) {
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
          IrOpcode::kProtectedLoad == op->opcode() ||
+         IrOpcode::kLoadTrapOnNull == op->opcode() ||
          IrOpcode::kUnalignedLoad == op->opcode() ||
          IrOpcode::kLoadImmutable == op->opcode());
   return OpParameter<LoadRepresentation>(op);
@@ -991,6 +992,14 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1,  \
               1, 1, 1, 0, MachineType::Type()) {}                              \
   };                                                                           \
+  struct LoadTrapOnNull##Type##Operator final                                  \
+      : public Operator1<LoadRepresentation> {                                 \
+    LoadTrapOnNull##Type##Operator()                                           \
+        : Operator1<LoadRepresentation>(                                       \
+              IrOpcode::kLoadTrapOnNull,                                       \
+              Operator::kNoDeopt | Operator::kNoThrow, "LoadTrapOnNull", 2, 1, \
+              1, 1, 1, 0, MachineType::Type()) {}                              \
+  };                                                                           \
   struct LoadImmutable##Type##Operator final                                   \
       : public Operator1<LoadRepresentation> {                                 \
     LoadImmutable##Type##Operator()                                            \
@@ -1001,6 +1010,7 @@ struct MachineOperatorGlobalCache {
   Load##Type##Operator kLoad##Type;                                            \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;                          \
+  LoadTrapOnNull##Type##Operator kLoadTrapOnNull##Type;                        \
   LoadImmutable##Type##Operator kLoadImmutable##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -1554,6 +1564,16 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
 #define LOAD(Type)                       \
   if (rep == MachineType::Type()) {      \
     return &cache_.kProtectedLoad##Type; \
+  }
+  MACHINE_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::LoadTrapOnNull(LoadRepresentation rep) {
+#define LOAD(Type)                        \
+  if (rep == MachineType::Type()) {       \
+    return &cache_.kLoadTrapOnNull##Type; \
   }
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD

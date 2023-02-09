@@ -259,7 +259,7 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* WasmExternExternalize(Node* object);
 
   Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
-                  bool is_signed);
+                  bool is_signed, bool null_check);
 
   void StructSet(Node* object, Node* value, const wasm::StructType* type,
                  int field_index);

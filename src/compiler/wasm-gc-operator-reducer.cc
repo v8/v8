@@ -25,6 +25,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kStart:
       return ReduceStart(node);
+    case IrOpcode::kWasmStructGet:
+      return ReduceWasmStructGet(node);
     case IrOpcode::kAssertNotNull:
       return ReduceAssertNotNull(node);
     case IrOpcode::kIsNull:
@@ -117,6 +119,29 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
   return type_from_state.IsSet()
              ? wasm::Intersection(type_from_node, type_from_state.type)
              : type_from_node;
+}
+
+Reduction WasmGCOperatorReducer::ReduceWasmStructGet(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!IsReduced(control)) return NoChange();
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
+  if (object_type.type.is_bottom()) return NoChange();
+
+  if (object_type.type.is_non_nullable()) {
+    // If the object is known to be non-nullable in the context, remove
+    auto op_params = OpParameter<WasmFieldInfo>(node->op());
+    NodeProperties::ChangeOp(
+        node, simplified()->WasmStructGet(op_params.type, op_params.field_index,
+                                          op_params.is_signed, false));
+  }
+
+  object_type.type = object_type.type.AsNonNull();
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), object, object_type,
+                                   false);
 }
 
 // If the condition of this node's branch is a type check or a null check,

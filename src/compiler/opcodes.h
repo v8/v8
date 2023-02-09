@@ -830,6 +830,7 @@
   V(Word32PairSar)                       \
   V(ProtectedLoad)                       \
   V(ProtectedStore)                      \
+  V(LoadTrapOnNull)                      \
   V(MemoryBarrier)                       \
   V(SignExtendWord8ToInt32)              \
   V(SignExtendWord16ToInt32)             \

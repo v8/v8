@@ -1032,7 +1032,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kLoad:
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull: {
       Node* input0 = node->InputAt(0);
       Node* input1 = node->InputAt(1);
       if (input0->opcode() == IrOpcode::kInt64Add) {

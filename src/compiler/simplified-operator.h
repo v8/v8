@@ -71,6 +71,7 @@ struct WasmFieldInfo {
   const wasm::StructType* type;
   int field_index;
   bool is_signed;
+  bool null_check;
 };
 
 V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const&, WasmFieldInfo const&);
@@ -1171,7 +1172,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmExternInternalize();
   const Operator* WasmExternExternalize();
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
-                                bool is_signed);
+                                bool is_signed, bool null_check);
   const Operator* WasmStructSet(const wasm::StructType* type, int field_index);
   const Operator* WasmArrayGet(const wasm::ArrayType* type, bool is_signed);
   const Operator* WasmArraySet(const wasm::ArrayType* type);

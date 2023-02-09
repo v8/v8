@@ -413,6 +413,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* ProtectedStore(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
   Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
+  Node* LoadTrapOnNull(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* IntPtrAdd(Node* a, Node* b);

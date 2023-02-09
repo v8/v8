@@ -986,6 +986,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
+  const Operator* LoadTrapOnNull(LoadRepresentation rep);
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);

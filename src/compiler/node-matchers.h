@@ -762,6 +762,7 @@ struct BaseWithIndexAndDisplacementMatcher {
         case IrOpcode::kLoad:
         case IrOpcode::kLoadImmutable:
         case IrOpcode::kProtectedLoad:
+        case IrOpcode::kLoadTrapOnNull:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:
           // Skip addressing uses.

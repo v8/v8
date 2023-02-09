@@ -250,6 +250,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Word32PairSar)
       DECLARE_IMPOSSIBLE_CASE(ProtectedLoad)
       DECLARE_IMPOSSIBLE_CASE(ProtectedStore)
+      DECLARE_IMPOSSIBLE_CASE(LoadTrapOnNull)
       DECLARE_IMPOSSIBLE_CASE(MemoryBarrier)
       DECLARE_IMPOSSIBLE_CASE(SignExtendWord8ToInt32)
       DECLARE_IMPOSSIBLE_CASE(SignExtendWord16ToInt32)

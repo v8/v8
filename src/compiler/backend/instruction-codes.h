@@ -263,7 +263,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 enum MemoryAccessMode {
   kMemoryAccessDirect = 0,
-  kMemoryAccessProtected = 1,
+  kMemoryAccessProtectedMemOutOfBounds = 1,
+  kMemoryAccessProtectedNullDereference = 2,
 };
 
 enum class AtomicWidth { kWord32, kWord64 };
@@ -307,7 +308,7 @@ using MiscField = base::BitField<int, 22, 10>;
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
 using LaneSizeField = base::BitField<int, 22, 8>;
-using AccessModeField = base::BitField<MemoryAccessMode, 30, 1>;
+using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 // TODO(turbofan): {HasMemoryAccessMode} is currently only used to guard
 // decoding (in CodeGenerator and InstructionScheduler). Encoding (in
 // InstructionSelector) is not yet guarded. There are in fact instructions for

@@ -26,6 +26,10 @@ namespace compiler {
 WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
                                const wasm::WasmModule* module)
     : AdvancedReducer(editor),
+      null_check_strategy_(trap_handler::IsTrapHandlerEnabled() &&
+                                   V8_STATIC_ROOTS_BOOL
+                               ? kTrapHandler
+                               : kExplicitNullChecks),
       gasm_(mcgraph, mcgraph->zone()),
       module_(module),
       dead_(mcgraph->Dead()),
@@ -435,6 +439,8 @@ Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
   WasmFieldInfo info = OpParameter<WasmFieldInfo>(node->op());
 
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
@@ -442,13 +448,21 @@ Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
       info.type->field(info.field_index).machine_representation(),
       info.is_signed);
 
-  Node* load =
-      info.type->mutability(info.field_index)
-          ? gasm_.LoadFromObject(type, NodeProperties::GetValueInput(node, 0),
-                                 gasm_.FieldOffset(info.type, info.field_index))
-          : gasm_.LoadImmutableFromObject(
-                type, NodeProperties::GetValueInput(node, 0),
-                gasm_.FieldOffset(info.type, info.field_index));
+  Node* offset = gasm_.FieldOffset(info.type, info.field_index);
+
+  if (null_check_strategy_ == kExplicitNullChecks && info.null_check) {
+    gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
+                 TrapId::kTrapNullDereference);
+  }
+
+  Node* load = null_check_strategy_ == kTrapHandler && info.null_check
+                   ? gasm_.LoadTrapOnNull(type, object, offset)
+               : info.type->mutability(info.field_index)
+                   ? gasm_.LoadFromObject(type, object, offset)
+                   : gasm_.LoadImmutableFromObject(type, object, offset);
+
+  ReplaceWithValue(node, load, gasm_.effect(), gasm_.control());
+  node->Kill();
   return Replace(load);
 }
 

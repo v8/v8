@@ -32,6 +32,7 @@ bool IsCompressed(Node* const node) {
   if (node == nullptr) return false;
   const IrOpcode::Value opcode = node->opcode();
   if (opcode == IrOpcode::kLoad || opcode == IrOpcode::kProtectedLoad ||
+      opcode == IrOpcode::kLoadTrapOnNull ||
       opcode == IrOpcode::kUnalignedLoad ||
       opcode == IrOpcode::kLoadImmutable) {
     LoadRepresentation load_rep = LoadRepresentationOf(node->op());
@@ -465,7 +466,7 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   // x64 supports unaligned loads.
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }
@@ -524,7 +525,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   InstructionCode code = opcode;
   if (params.kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   VisitLoad(node, node, code);
 }
@@ -555,7 +556,9 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
         node->opcode() == IrOpcode::kWord64AtomicLoad) &&
        (AtomicLoadParametersOf(node->op()).kind() ==
         MemoryAccessKind::kProtected))) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  } else if (node->opcode() == IrOpcode::kLoadTrapOnNull) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
@@ -586,7 +589,7 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
@@ -610,9 +613,10 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  const auto access_mode = acs_kind == MemoryAccessKind::kProtected
-    ? MemoryAccessMode::kMemoryAccessProtected
-    : MemoryAccessMode::kMemoryAccessDirect;
+  const auto access_mode =
+      acs_kind == MemoryAccessKind::kProtected
+          ? MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds
+          : MemoryAccessMode::kMemoryAccessDirect;
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
@@ -722,8 +726,9 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
                                          : g.UseRegister(value, reg_kind);
   inputs[input_count++] = value_operand;
   ArchOpcode opcode = GetStoreOpcode(store_rep);
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AccessModeField::encode(kMemoryAccessProtected);
+  InstructionCode code =
+      opcode | AddressingModeField::encode(addressing_mode) |
+      AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs,
        temp_count, temps);
 }
@@ -758,7 +763,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   opcode |= AddressingModeField::encode(addressing_mode);
 
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   InstructionOperand value_operand = g.UseRegister(node->InputAt(2));
@@ -1747,7 +1752,8 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
     }
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull: {
       // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
       // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
@@ -2697,7 +2703,7 @@ void VisitAtomicBinop(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -2721,7 +2727,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
@@ -4352,7 +4358,7 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
 
   if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
     if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
-      code |= AccessModeField::encode(kMemoryAccessProtected);
+      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
     // LoadTransforms cannot be eliminated, so they are visited even if
     // unused. Mark it as defined so that we don't visit it.

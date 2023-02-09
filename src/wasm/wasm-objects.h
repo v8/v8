@@ -1072,6 +1072,9 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
   // Any wasm struct offset should fit in the object.
   static_assert(kSize >= WasmStruct::kHeaderSize +
                              wasm::kV8MaxWasmStructFields * kSimd128Size);
+
+  Address payload() { return ptr() + kHeaderSize - kHeapObjectTag; }
+
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmNull)

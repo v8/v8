@@ -405,10 +405,11 @@ Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
 }
 
 Node* WasmGraphAssembler::StructGet(Node* object, const wasm::StructType* type,
-                                    int field_index, bool is_signed) {
-  return AddNode(
-      graph()->NewNode(simplified_.WasmStructGet(type, field_index, is_signed),
-                       object, effect(), control()));
+                                    int field_index, bool is_signed,
+                                    bool null_check) {
+  return AddNode(graph()->NewNode(
+      simplified_.WasmStructGet(type, field_index, is_signed, null_check),
+      object, effect(), control()));
 }
 
 void WasmGraphAssembler::StructSet(Node* object, Node* value,

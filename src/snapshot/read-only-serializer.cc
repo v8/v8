@@ -103,8 +103,19 @@ void ReadOnlySerializer::FinalizeSerialization() {
       __msan_check_mem_is_initialized(reinterpret_cast<void*>(p->area_start()),
                                       static_cast<int>(page_content_bytes));
 #endif
+#if defined(V8_STATIC_ROOTS) && defined(V8_ENABLE_WEBASSEMBLY)
+      // Unprotect and reprotect the payload of wasm null.
+      Address wasm_null_payload = isolate()->factory()->wasm_null()->payload();
+      SetPermissions(isolate()->page_allocator(), wasm_null_payload,
+                     WasmNull::kSize - kTaggedSize, PageAllocator::kRead);
       sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
                    static_cast<int>(page_content_bytes), "page");
+      SetPermissions(isolate()->page_allocator(), wasm_null_payload,
+                     WasmNull::kSize - kTaggedSize, PageAllocator::kNoAccess);
+#else
+      sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
+                   static_cast<int>(page_content_bytes), "page");
+#endif
     }
   } else {
     // This comes right after serialization of the other snapshots, where we

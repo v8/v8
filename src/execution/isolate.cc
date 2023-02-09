@@ -4582,6 +4582,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         .slot(RootIndex::kActiveContinuation)
         .store(*continuation);
   }
+  if (!create_heap_objects && V8_STATIC_ROOTS_BOOL) {
+    // Protect the payload of wasm null.
+    SetPermissions(page_allocator(), factory()->wasm_null()->payload(),
+                   WasmNull::kSize - kTaggedSize, PageAllocator::kNoAccess);
+  }
 #endif
 
   heap()->AddGCPrologueCallback(ResetBeforeGC, kGCTypeMarkSweepCompact,

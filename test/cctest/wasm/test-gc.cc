@@ -319,6 +319,10 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
                        WASM_LOCAL_GET(j_local_index)),
        kExprEnd});
 
+  const byte kNullDereference = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_STRUCT_GET(type_index, 0, WASM_REF_NULL(type_index)), kExprEnd});
+
   tester.CompileModule();
 
   tester.CheckResult(kGet1, 42);
@@ -331,6 +335,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
             .ToHandleChecked()
             ->IsWasmStruct());
   tester.CheckResult(kSet, -99);
+  tester.CheckHasThrown(kNullDereference);
 }
 
 // Test struct.get, ref.as_non_null and ref-typed globals.

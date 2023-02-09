@@ -5831,11 +5831,10 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   uint32_t field_index, CheckForNull null_check,
                                   bool is_signed,
                                   wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
-    struct_object =
-        AssertNotNull(struct_object, wasm::kWasmStructRef, position);
-  }
-  return gasm_->StructGet(struct_object, struct_type, field_index, is_signed);
+  Node* result = gasm_->StructGet(struct_object, struct_type, field_index,
+                                  is_signed, null_check == kWithNullCheck);
+  SetSourcePosition(result, position);
+  return result;
 }
 
 void WasmGraphBuilder::StructSet(Node* struct_object,

@@ -25,7 +25,7 @@ namespace compiler {
 namespace {
 
 // Currently, only Load/ProtectedLoad/LoadTransfrom are supported.
-// TODO(jiepan): add support for UnalignedLoad, LoadLane
+// TODO(jiepan): add support for UnalignedLoad, LoadLane, LoadTrapOnNull
 bool IsSupportedLoad(const Node* node) {
   if (node->opcode() == IrOpcode::kProtectedLoad ||
       node->opcode() == IrOpcode::kLoad ||

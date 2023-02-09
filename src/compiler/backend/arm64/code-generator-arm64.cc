@@ -430,30 +430,36 @@ class WasmOutOfLineTrap : public OutOfLineCode {
 
 class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
  public:
-  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr)
-      : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr,
+                               TrapId trap_id)
+      : WasmOutOfLineTrap(gen, instr), pc_(pc), trap_id_(trap_id) {}
 
   void Generate() override {
     DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
-    GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
+    GenerateWithTrapId(trap_id_);
   }
 
  private:
   int pc_;
+  TrapId trap_id_;
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr, int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessProtected) {
-    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr);
+  if (access_mode == kMemoryAccessProtectedMemOutOfBounds) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapMemOutOfBounds);
+  } else if (access_mode == kMemoryAccessProtectedNullDereference) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapNullDereference);
   }
 }
 #else
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr, int pc) {
-  DCHECK_NE(kMemoryAccessProtected, AccessModeField::decode(opcode));
+  DCHECK_EQ(kMemoryAccessDirect, AccessModeField::decode(opcode));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

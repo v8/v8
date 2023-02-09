@@ -931,6 +931,12 @@ Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
                                   offset, effect(), control()));
 }
 
+Node* GraphAssembler::LoadTrapOnNull(MachineType type, Node* object,
+                                     Node* offset) {
+  return AddNode(graph()->NewNode(machine()->LoadTrapOnNull(type), object,
+                                  offset, effect(), control()));
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }

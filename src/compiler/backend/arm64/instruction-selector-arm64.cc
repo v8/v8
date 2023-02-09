@@ -680,7 +680,7 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   InstructionCode opcode = kArm64LoadLane;
   opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   Arm64OperandGenerator g(this);
@@ -698,7 +698,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   opcode |=
       LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   Arm64OperandGenerator g(this);
@@ -788,7 +788,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
@@ -870,7 +870,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
   }
   if (node->opcode() == IrOpcode::kProtectedLoad) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  } else if (node->opcode() == IrOpcode::kLoadTrapOnNull) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
   }
 
   EmitLoad(this, node, opcode, immediate_mode, rep);
@@ -1016,7 +1018,7 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     if (node->opcode() == IrOpcode::kProtectedStore) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtected);
+      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
 
     Emit(opcode, 0, nullptr, input_count, inputs);
@@ -2707,7 +2709,7 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -2729,7 +2731,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -2796,7 +2798,7 @@ void VisitAtomicLoad(InstructionSelector* selector, Node* node,
   }
 
   if (atomic_load_params.kind() == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   code |=
@@ -2872,7 +2874,7 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
   }
 
   if (store_params.kind() == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   code |= AddressingModeField::encode(kMode_MRR);
@@ -2896,7 +2898,7 @@ void VisitAtomicBinop(InstructionSelector* selector, Node* node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtected) {
-    code |= AccessModeField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);

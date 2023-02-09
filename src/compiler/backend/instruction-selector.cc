@@ -1154,7 +1154,8 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
           node->opcode() == IrOpcode::kTrapIf ||
           node->opcode() == IrOpcode::kTrapUnless ||
           node->opcode() == IrOpcode::kProtectedLoad ||
-          node->opcode() == IrOpcode::kProtectedStore);
+          node->opcode() == IrOpcode::kProtectedStore ||
+          node->opcode() == IrOpcode::kLoadTrapOnNull);
 }
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
@@ -1925,7 +1926,8 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Exchange)
       ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitProtectedLoad(node);

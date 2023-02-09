@@ -158,17 +158,19 @@ std::ostream& operator<<(std::ostream& os, ObjectAccess const& access) {
 V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const& lhs,
                                   WasmFieldInfo const& rhs) {
   return lhs.field_index == rhs.field_index && lhs.type == rhs.type &&
-         lhs.is_signed == rhs.is_signed;
+         lhs.is_signed == rhs.is_signed && lhs.null_check == rhs.null_check;
 }
 
 size_t hash_value(WasmFieldInfo const& info) {
-  return base::hash_combine(info.field_index, info.type, info.is_signed);
+  return base::hash_combine(info.field_index, info.type, info.is_signed,
+                            info.null_check);
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            WasmFieldInfo const& info) {
   return os << info.field_index << ", "
-            << (info.is_signed ? "signed" : "unsigned");
+            << (info.is_signed ? "signed" : "unsigned")
+            << (info.null_check ? "null check" : "no null check");
 }
 
 V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const& lhs,
@@ -1564,10 +1566,11 @@ const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmStructGet(
-    const wasm::StructType* type, int field_index, bool is_signed) {
+    const wasm::StructType* type, int field_index, bool is_signed,
+    bool null_check) {
   return zone()->New<Operator1<WasmFieldInfo>>(
       IrOpcode::kWasmStructGet, Operator::kEliminatable, "WasmStructGet", 1, 1,
-      1, 1, 1, 0, WasmFieldInfo{type, field_index, is_signed});
+      1, 1, 1, 1, WasmFieldInfo{type, field_index, is_signed, null_check});
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmStructSet(
@@ -1576,7 +1579,7 @@ const Operator* SimplifiedOperatorBuilder::WasmStructSet(
       IrOpcode::kWasmStructSet,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
       "WasmStructSet", 2, 1, 1, 0, 1, 0,
-      WasmFieldInfo{type, field_index, true /* unused */});
+      WasmFieldInfo{type, field_index, true /* unused */, false /* unused */});
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmArrayGet(

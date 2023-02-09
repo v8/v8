@@ -1743,6 +1743,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadImmutable:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kStore:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:

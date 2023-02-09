@@ -151,7 +151,8 @@ Reduction WasmTyper::Reduce(Node* node) {
       if (!NodeProperties::IsTyped(object)) return NoChange();
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
       // This can happen in unreachable branches.
-      if (object_type.type.is_bottom() || object_type.type.is_uninhabited()) {
+      if (object_type.type.is_bottom() || object_type.type.is_uninhabited() ||
+          object_type.type == wasm::kWasmNullRef) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }
