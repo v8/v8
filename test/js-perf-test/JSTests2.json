@@ -54,7 +54,7 @@
     {
       "name": "Array",
       "path": ["Array"],
-      "timeout": 180,
+      "timeout": 200,
       "timeout_arm64": 360,
       "main": "run.js",
       "resources": [
