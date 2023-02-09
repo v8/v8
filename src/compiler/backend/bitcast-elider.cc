@@ -21,6 +21,9 @@ bool IsBitcast(Node* node) {
 }
 
 bool OwnedByWord32Op(Node* node) {
+#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
+  return false;
+#else
   for (Node* const use : node->uses()) {
     switch (use->opcode()) {
       case IrOpcode::kWord32Equal:
@@ -38,6 +41,7 @@ bool OwnedByWord32Op(Node* node) {
     }
   }
   return true;
+#endif
 }
 
 void Replace(Node* node, Node* replacement) {
