@@ -1100,12 +1100,10 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
             // this is a HeapNumber -- otherwise the load is fine and we don't
             // need to copy anything anyway.
             __ JumpIfSmi(result_reg, *done);
-            // index is no longer needed and is clobbered by this node, so
-            // reuse it as a scratch reg storing the map.
-            Register map = index;
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            Register map = temps.Acquire();
             __ LoadMap(map, result_reg);
             __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, *done);
-            MaglevAssembler::ScratchRegisterScope temps(masm);
             DoubleRegister double_value = temps.AcquireDouble();
             __ LoadHeapNumberValue(double_value, result_reg);
             __ AllocateHeapNumber(register_snapshot, result_reg, double_value);
