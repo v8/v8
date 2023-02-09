@@ -66,7 +66,6 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -294,8 +293,7 @@ class FullMarkingVerifier : public MarkingVerifier {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
-    CHECK(heap_object.InReadOnlySpace() ||
-          marking_state_->IsBlack(heap_object));
+    CHECK(marking_state_->IsBlack(heap_object));
   }
 
   V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
@@ -628,6 +626,14 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 #ifdef VERIFY_HEAP
+void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
+  ReadOnlyHeapObjectIterator iterator(space);
+  for (HeapObject object = iterator.Next(); !object.is_null();
+       object = iterator.Next()) {
+    CHECK(non_atomic_marking_state()->IsBlack(object));
+  }
+}
+
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
   for (Page* p : *space) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
@@ -661,6 +667,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_space());
   VerifyMarkbitsAreClean(heap_->code_space());
   VerifyMarkbitsAreClean(heap_->new_space());
+  // Read-only space should always be black since we never collect any objects
+  // in it or linked from it.
+  VerifyMarkbitsAreDirty(heap_->read_only_space());
   VerifyMarkbitsAreClean(heap_->lo_space());
   VerifyMarkbitsAreClean(heap_->code_lo_space());
   VerifyMarkbitsAreClean(heap_->new_lo_space());
@@ -1329,8 +1338,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
       if (o.IsHeapObject()) {
         HeapObject heap_object = HeapObject::cast(o);
         DCHECK(!Heap::InYoungGeneration(heap_object));
-        if (!heap_object.InReadOnlySpace() &&
-            marking_state->IsWhite(heap_object)) {
+        if (marking_state->IsWhite(heap_object)) {
           pointers_removed_++;
           // Set the entry to the_hole_value (as deleted).
           p.store(StringTable::deleted_element());
@@ -2074,7 +2082,6 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   Object o = *p;
   if (!o.IsHeapObject()) return false;
   HeapObject heap_object = HeapObject::cast(o);
-  if (heap_object.InReadOnlySpace()) return false;
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (V8_UNLIKELY(collector->uses_shared_heap_) &&
       !collector->is_shared_heap_isolate_) {
@@ -2722,8 +2729,7 @@ bool ShouldRetainMap(MarkingState* marking_state, Map map, int age) {
   }
   Object constructor = map.GetConstructor();
   if (!constructor.IsHeapObject() ||
-      (!HeapObject::cast(constructor).InReadOnlySpace() &&
-       marking_state->IsWhite(HeapObject::cast(constructor)))) {
+      marking_state->IsWhite(HeapObject::cast(constructor))) {
     // The constructor is dead, no new objects with this map can
     // be created. Do not retain this map.
     return false;
@@ -2762,8 +2768,7 @@ void MarkCompactCollector::RetainMaps() {
         }
         Object prototype = map.prototype();
         if (age > 0 && prototype.IsHeapObject() &&
-            (!HeapObject::cast(prototype).InReadOnlySpace() &&
-             marking_state()->IsWhite(HeapObject::cast(prototype)))) {
+            marking_state()->IsWhite(HeapObject::cast(prototype))) {
           // The prototype is not marked, age the map.
           new_age = age - 1;
         } else {
@@ -2975,10 +2980,7 @@ class StringForwardingTableCleaner final {
     String original_string = String::cast(original);
     if (marking_state_->IsBlack(original_string)) {
       Object forward = record->ForwardStringObjectOrHash(isolate_);
-      if (!forward.IsHeapObject() ||
-          HeapObject::cast(forward).InReadOnlySpace()) {
-        return;
-      }
+      if (!forward.IsHeapObject()) return;
       marking_state_->WhiteToBlack(HeapObject::cast(forward));
     } else {
       DisposeExternalResource(record);
@@ -3034,15 +3036,11 @@ class StringForwardingTableCleaner final {
                       StringForwardingTable::Record* record) {
     if (original_string.IsInternalizedString()) return;
     Object forward = record->ForwardStringObjectOrHash(isolate_);
-    if (!forward.IsHeapObject()) {
-      return;
-    }
+    if (!forward.IsHeapObject()) return;
     String forward_string = String::cast(forward);
 
     // Mark the forwarded string to keep it alive.
-    if (!forward_string.InReadOnlySpace()) {
-      marking_state_->WhiteToBlack(forward_string);
-    }
+    marking_state_->WhiteToBlack(forward_string);
     // Transition the original string to a ThinString and override the
     // forwarding index with the correct hash.
     original_string.MakeThin(isolate_, forward_string);
@@ -3663,8 +3661,7 @@ void MarkCompactCollector::ClearWeakReferences() {
     MaybeObjectSlot location(slot.second);
     if ((*location)->GetHeapObjectIfWeak(&value)) {
       DCHECK(!value.IsCell());
-      if (value.InReadOnlySpace() ||
-          non_atomic_marking_state()->IsBlackOrGrey(value)) {
+      if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
@@ -3682,8 +3679,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   JSWeakRef weak_ref;
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
     HeapObject target = HeapObject::cast(weak_ref.target());
-    if (!target.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(target)) {
+    if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       weak_ref.set_target(ReadOnlyRoots(isolate()).undefined_value());
     } else {
       // The value of the JSWeakRef is alive.
@@ -3700,8 +3696,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       }
     };
     HeapObject target = HeapObject::cast(weak_cell.target());
-    if (!target.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(target)) {
+    if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       DCHECK(target.CanBeHeldWeakly());
       // The value of the WeakCell is dead.
       JSFinalizationRegistry finalization_registry =
@@ -3723,8 +3718,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     }
 
     HeapObject unregister_token = weak_cell.unregister_token();
-    if (!unregister_token.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(unregister_token)) {
+    if (!non_atomic_marking_state()->IsBlackOrGrey(unregister_token)) {
       DCHECK(unregister_token.CanBeHeldWeakly());
       // The unregister token is dead. Remove any corresponding entries in the
       // key map. Multiple WeakCell with the same token will have all their

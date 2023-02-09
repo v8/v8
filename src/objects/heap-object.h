@@ -95,8 +95,6 @@ class HeapObject : public Object {
 
   V8_INLINE bool InSharedWritableHeap() const;
 
-  V8_INLINE bool InReadOnlySpace() const;
-
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
   V8_INLINE bool Is##Type(PtrComprCageBase cage_base) const;
