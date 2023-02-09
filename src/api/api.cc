@@ -1131,10 +1131,7 @@ void Context::Enter() {
   i::DisallowGarbageCollection no_gc;
   i::Context env = *Utils::OpenHandle(this);
   i::Isolate* i_isolate = env.GetIsolate();
-  // TODO(cbruni): Use ENTER_V8_NO_SCRIPT_NO_EXCEPTION which also checks
-  // Isolate::is_execution_terminating
-  // ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  ENTER_V8_MAYBE_TEARDOWN(i_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
   impl->EnterContext(env);
   impl->SaveContext(i_isolate->context());
@@ -1144,7 +1141,7 @@ void Context::Enter() {
 void Context::Exit() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* i_isolate = env->GetIsolate();
-  ENTER_V8_MAYBE_TEARDOWN(i_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
   if (!Utils::ApiCheck(impl->LastEnteredContextWas(*env), "v8::Context::Exit()",
                        "Cannot exit non-entered context")) {
@@ -1187,7 +1184,7 @@ static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
                                                        const char* location) {
   i::Handle<i::Context> env = Utils::OpenHandle(context);
   i::Isolate* i_isolate = env->GetIsolate();
-  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   bool ok = Utils::ApiCheck(env->IsNativeContext(), location,
                             "Not a native context") &&
             Utils::ApiCheck(index >= 0, location, "Negative index");
@@ -2402,7 +2399,7 @@ Local<Value> Module::GetException() const {
                   "Module status must be kErrored");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
-  ENTER_V8_MAYBE_TEARDOWN(i_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return ToApiHandle<Value>(i::handle(self->GetException(), i_isolate));
 }
 
@@ -6981,7 +6978,7 @@ v8::Local<v8::Object> Context::Global() {
 void Context::DetachGlobal() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* i_isolate = context->GetIsolate();
-  ENTER_V8_MAYBE_TEARDOWN(i_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->DetachGlobal(context);
 }
 

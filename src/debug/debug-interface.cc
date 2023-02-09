@@ -41,25 +41,24 @@ void SetContextId(Local<Context> context, int id) {
 
 int GetContextId(Local<Context> context) {
   auto v8_context = Utils::OpenHandle(*context);
-  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(v8_context->GetIsolate());
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(v8_context->GetIsolate());
   i::Object value = v8_context->debug_context_id();
   return (value.IsSmi()) ? i::Smi::ToInt(value) : 0;
 }
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (inspector == nullptr) {
-    DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate);
     i_isolate->set_inspector(nullptr);
   } else {
-    DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     i_isolate->set_inspector(inspector);
   }
 }
 
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return i_isolate->inspector();
 }
 
@@ -1054,11 +1053,10 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
 
 void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (delegate == nullptr) {
-    DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(isolate);
     isolate->set_console_delegate(nullptr);
   } else {
-    DCHECK_NO_SCRIPT_NO_EXCEPTION(isolate);
     isolate->set_console_delegate(delegate);
   }
 }
