@@ -1247,7 +1247,8 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   // Run two times to test that everything is reset correctly during GC.
   for (int run = 0; run < 2; run++) {
     Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
-        i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, run == 0);
+        i_isolate, factory, kStrings - kLOStrings, kLOStrings,
+        ExternalString::kUncachedSize, run == 0);
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
