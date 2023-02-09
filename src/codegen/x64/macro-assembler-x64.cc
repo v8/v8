@@ -3068,8 +3068,14 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFramePrologue(Register saved_rax_reg,
-                                            StackFrame::Type frame_type) {
+#ifdef V8_TARGET_OS_WIN
+static const int kRegisterPassedArguments = 4;
+#else
+static const int kRegisterPassedArguments = 6;
+#endif
+
+void MacroAssembler::EnterExitFrame(int arg_stack_space,
+                                    StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -3083,39 +3089,18 @@ void MacroAssembler::EnterExitFramePrologue(Register saved_rax_reg,
   pushq(rbp);
   movq(rbp, rsp);
 
-  // Reserve room for entry stack pointer.
   Push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
-  Push(Immediate(0));  // Saved entry sp, patched before call.
+  Push(Immediate(0));  // Saved entry sp, patched below.
 
-  // Save the frame pointer and the context in top.
-  if (saved_rax_reg != no_reg) {
-    movq(saved_rax_reg, rax);  // Backup rax in callee-save register.
-  }
-
-  Store(
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()),
-      rbp);
-  Store(ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()),
-        rsi);
-  Store(
-      ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate()),
-      rbx);
-}
-
-#ifdef V8_TARGET_OS_WIN
-static const int kRegisterPassedArguments = 4;
-#else
-static const int kRegisterPassedArguments = 6;
-#endif
-
-void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space) {
-  ASM_CODE_COMMENT(this);
+  using ER = ExternalReference;
+  Store(ER::Create(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
+  Store(ER::Create(IsolateAddressId::kContextAddress, isolate()), rsi);
+  Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
 
 #ifdef V8_TARGET_OS_WIN
   arg_stack_space += kRegisterPassedArguments;
 #endif
-
   AllocateStackSpace(arg_stack_space * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
@@ -3130,59 +3115,12 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space) {
   movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
 }
 
-void MacroAssembler::EnterExitFrame(int arg_stack_space,
-                                    StackFrame::Type frame_type) {
+void MacroAssembler::LeaveExitFrame() {
   ASM_CODE_COMMENT(this);
-  Register saved_rax_reg = r12;
-  EnterExitFramePrologue(saved_rax_reg, frame_type);
 
-  // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
-  // so it must be retained across the C-call.
-  int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
-  leaq(r15, Operand(rbp, saved_rax_reg, times_system_pointer_size, offset));
+  leave();
 
-  EnterExitFrameEpilogue(arg_stack_space);
-}
-
-void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
-  ASM_CODE_COMMENT(this);
-  EnterExitFramePrologue(no_reg, StackFrame::EXIT);
-  EnterExitFrameEpilogue(arg_stack_space);
-}
-
-void MacroAssembler::LeaveExitFrame(bool pop_arguments) {
-  ASM_CODE_COMMENT(this);
-  // Registers:
-  // r15 : argv
-  if (pop_arguments) {
-    // Get the return address from the stack and restore the frame pointer.
-    movq(rcx, Operand(rbp, kFPOnStackSize));
-    movq(rbp, Operand(rbp, 0 * kSystemPointerSize));
-
-    // Drop everything up to and including the arguments and the receiver
-    // from the caller stack.
-    leaq(rsp, Operand(r15, 1 * kSystemPointerSize));
-
-    PushReturnAddressFrom(rcx);
-  } else {
-    // Otherwise just leave the exit frame.
-    leave();
-  }
-
-  LeaveExitFrameEpilogue();
-}
-
-void MacroAssembler::LeaveApiExitFrame() {
-  ASM_CODE_COMMENT(this);
-  movq(rsp, rbp);
-  popq(rbp);
-
-  LeaveExitFrameEpilogue();
-}
-
-void MacroAssembler::LeaveExitFrameEpilogue() {
-  ASM_CODE_COMMENT(this);
-  // Restore current context from top and clear it in debug mode.
+  // Restore the current context from top and clear it in debug mode.
   ExternalReference context_address =
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
   Operand context_operand = ExternalReferenceAsOperand(context_address);

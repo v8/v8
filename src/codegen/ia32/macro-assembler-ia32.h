@@ -467,21 +467,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SmiCheck smi_check = SmiCheck::kInline);
 
   // Enter specific kind of exit frame. Expects the number of
-  // arguments in register eax and sets up the number of arguments in
-  // register edi and the pointer to the first argument in register
-  // esi.
-  void EnterExitFrame(int argc, StackFrame::Type frame_type);
-
-  void EnterApiExitFrame(int argc, Register scratch);
+  // arguments in register eax.
+  void EnterExitFrame(int argc, StackFrame::Type frame_type, Register scratch);
 
   // Leave the current exit frame. Expects the return value in
-  // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi (if pop_arguments == true).
-  void LeaveExitFrame(bool pop_arguments);
-
-  // Leave the current exit frame. Expects the return value in
-  // register eax (untouched).
-  void LeaveApiExitFrame();
+  // register eax:edx (untouched).
+  void LeaveExitFrame(Register scratch);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
@@ -678,11 +669,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeType type);
-
-  void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
-  void EnterExitFrameEpilogue(int argc);
-
-  void LeaveExitFrameEpilogue();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

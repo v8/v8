@@ -1126,8 +1126,8 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
-                                            Register scratch) {
+void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type,
+                                    Register scratch) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -1139,30 +1139,21 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   push(ebp);
   mov(ebp, esp);
 
-  // Reserve room for entry stack pointer.
   push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
-  push(Immediate(0));  // Saved entry sp, patched before call.
-
-  static_assert(edx == kRuntimeCallFunctionRegister);
-  static_assert(esi == kContextRegister);
+  push(Immediate(0));  // Saved entry sp, patched below.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  ExternalReference c_function_address =
-      ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate());
-
   DCHECK(!AreAliased(scratch, ebp, esi, edx));
-  mov(ExternalReferenceAsOperand(c_entry_fp_address, scratch), ebp);
-  mov(ExternalReferenceAsOperand(context_address, scratch), esi);
-  mov(ExternalReferenceAsOperand(c_function_address, scratch), edx);
-}
-
-void MacroAssembler::EnterExitFrameEpilogue(int argc) {
-  ASM_CODE_COMMENT(this);
+  using ER = ExternalReference;
+  ER r0 = ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  mov(ExternalReferenceAsOperand(r0, scratch), ebp);
+  static_assert(esi == kContextRegister);
+  ER r1 = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  mov(ExternalReferenceAsOperand(r1, scratch), esi);
+  static_assert(edx == kRuntimeCallFunctionRegister);
+  ER r2 = ER::Create(IsolateAddressId::kCFunctionAddress, isolate());
+  mov(ExternalReferenceAsOperand(r2, scratch), edx);
 
   AllocateStackSpace(argc * kSystemPointerSize);
 
@@ -1177,69 +1168,27 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
 }
 
-void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type) {
+void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
-  EnterExitFramePrologue(frame_type, edi);
 
-  // Set up argc and argv in callee-saved registers.
-  int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
-  mov(edi, eax);
-  lea(esi, Operand(ebp, eax, times_system_pointer_size, offset));
+  leave();
 
-  // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(argc);
-}
-
-void MacroAssembler::EnterApiExitFrame(int argc, Register scratch) {
-  EnterExitFramePrologue(StackFrame::EXIT, scratch);
-  EnterExitFrameEpilogue(argc);
-}
-
-void MacroAssembler::LeaveExitFrame(bool pop_arguments) {
-  ASM_CODE_COMMENT(this);
-  if (pop_arguments) {
-    // Get the return address from the stack and restore the frame pointer.
-    mov(ecx, Operand(ebp, 1 * kSystemPointerSize));
-    mov(ebp, Operand(ebp, 0 * kSystemPointerSize));
-
-    // Pop the arguments and the receiver from the caller stack.
-    lea(esp, Operand(esi, 1 * kSystemPointerSize));
-
-    // Push the return address to get ready to return.
-    push(ecx);
-  } else {
-    // Otherwise just leave the exit frame.
-    leave();
-  }
-
-  LeaveExitFrameEpilogue();
-}
-
-void MacroAssembler::LeaveExitFrameEpilogue() {
-  ASM_CODE_COMMENT(this);
   // Clear the top frame.
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(ExternalReferenceAsOperand(c_entry_fp_address, esi), Immediate(0));
+  mov(ExternalReferenceAsOperand(c_entry_fp_address, scratch), Immediate(0));
 
-  // Restore current context from top and clear it in debug mode.
+  // Restore the current context from top and clear it in debug mode.
   ExternalReference context_address =
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(esi, ExternalReferenceAsOperand(context_address, esi));
+  mov(esi, ExternalReferenceAsOperand(context_address, scratch));
+
 #ifdef DEBUG
   push(eax);
   mov(ExternalReferenceAsOperand(context_address, eax),
       Immediate(Context::kInvalidContext));
   pop(eax);
 #endif
-}
-
-void MacroAssembler::LeaveApiExitFrame() {
-  ASM_CODE_COMMENT(this);
-  mov(esp, ebp);
-  pop(ebp);
-
-  LeaveExitFrameEpilogue();
 }
 
 void MacroAssembler::PushStackHandler(Register scratch) {

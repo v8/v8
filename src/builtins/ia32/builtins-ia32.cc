@@ -45,6 +45,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 
 namespace {
 
+constexpr int kReceiverOnStackSize = kSystemPointerSize;
+
 enum class ArgumentsElementType {
   kRaw,    // Push arguments as they are.
   kHandle  // Dereference arguments before pushing.
@@ -99,7 +101,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // InvokeFunction.
 
     // Set up pointer to first argument (skip receiver).
-    __ lea(esi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+    __ lea(esi, Operand(ebp, StandardFrameConstants::kFixedFrameSizeAboveFp +
                                  kSystemPointerSize));
     // Copy arguments to the expression stack.
     // esi: Pointer to start of arguments.
@@ -215,7 +217,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movd(xmm0, eax);
 
   // Set up pointer to first argument (skip receiver).
-  __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+  __ lea(edi, Operand(ebp, StandardFrameConstants::kFixedFrameSizeAboveFp +
                                kSystemPointerSize));
 
   // Restore argument count.
@@ -3035,27 +3037,27 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // result size is greater than can be returned in registers, also reserve
   // space for the hidden argument for the result location, and space for the
   // result itself.
-  int arg_stack_space = 3;
+  const int arg_stack_space = 3;
+  __ EnterExitFrame(
+      arg_stack_space,
+      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT, edi);
 
-  // Enter the exit frame that transitions from JavaScript to C++.
+  // Set up argv in a callee-saved register. It is reused below so it must be
+  // retained across the C call.
+  static constexpr Register kArgvRegister = edi;
   if (argv_mode == ArgvMode::kRegister) {
-    DCHECK(!builtin_exit_frame);
-    __ EnterApiExitFrame(arg_stack_space, edi);
-
-    // Move argc and argv into the correct registers.
-    __ mov(esi, ecx);
-    __ mov(edi, eax);
+    __ mov(kArgvRegister, ecx);
   } else {
-    __ EnterExitFrame(arg_stack_space, builtin_exit_frame
-                                           ? StackFrame::BUILTIN_EXIT
-                                           : StackFrame::EXIT);
+    int offset =
+        StandardFrameConstants::kFixedFrameSizeAboveFp - kReceiverOnStackSize;
+    __ lea(kArgvRegister, Operand(ebp, eax, times_system_pointer_size, offset));
   }
 
   // edx: pointer to C function
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
-  // edi: number of arguments including receiver  (C callee-saved)
-  // esi: pointer to the first argument (C callee-saved)
+  // eax: number of arguments including receiver
+  // edi: pointer to the first argument (C callee-saved)
 
   // Result returned in eax, or eax+edx if result size is 2.
 
@@ -3064,8 +3066,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CheckStackAlignment();
   }
   // Call C function.
-  __ mov(Operand(esp, 0 * kSystemPointerSize), edi);  // argc.
-  __ mov(Operand(esp, 1 * kSystemPointerSize), esi);  // argv.
+  __ mov(Operand(esp, 0 * kSystemPointerSize), eax);            // argc.
+  __ mov(Operand(esp, 1 * kSystemPointerSize), kArgvRegister);  // argv.
   __ Move(ecx, Immediate(ExternalReference::isolate_address(masm->isolate())));
   __ mov(Operand(esp, 2 * kSystemPointerSize), ecx);
   __ call(kRuntimeCallFunctionRegister);
@@ -3093,8 +3095,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ pop(edx);
   }
 
-  // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(argv_mode == ArgvMode::kStack);
+  __ LeaveExitFrame(esi);
+  if (argv_mode == ArgvMode::kStack) {
+    // Drop arguments and the receiver from the caller stack.
+    DCHECK(!AreAliased(esi, kArgvRegister));
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(kArgvRegister, kReceiverOnStackSize));
+    __ PushReturnAddressFrom(ecx);
+  }
   __ ret(0);
 
   // Handling of exception.
@@ -3259,7 +3267,7 @@ Operand ApiParameterOperand(int index) {
 // stores the pointer to the reserved slot into esi.
 void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
   ASM_CODE_COMMENT(masm);
-  __ EnterApiExitFrame(argc, scratch);
+  __ EnterExitFrame(argc, StackFrame::EXIT, scratch);
   if (v8_flags.debug_code) {
     __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
@@ -3325,7 +3333,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     DCHECK_EQ(stack_space, 0);
     __ mov(edx, *stack_space_operand);
   }
-  __ LeaveApiExitFrame();
+  __ LeaveExitFrame(esi);
 
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
@@ -3514,7 +3522,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
   // There are two stack slots above the arguments we constructed on the stack:
-  // the stored ebp (pushed by EnterApiExitFrame), and the return address.
+  // the stored ebp (pushed by EnterExitFrame), and the return address.
   static constexpr int kStackSlotsAboveFCA = 2;
   Operand return_value_operand(
       ebp,

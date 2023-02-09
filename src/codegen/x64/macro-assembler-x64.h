@@ -710,27 +710,15 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SmiCheck smi_check = SmiCheck::kInline);
 
   // Enter specific kind of exit frame; either in normal or
-  // debug mode. Expects the number of arguments in register rax and
-  // sets up the number of arguments in register rdi and the pointer
-  // to the first argument in register rsi.
+  // debug mode.
   //
   // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
   // stack accessible via StackSpaceOperand.
   void EnterExitFrame(int arg_stack_space, StackFrame::Type frame_type);
 
-  // Enter specific kind of exit frame. Allocates
-  // (arg_stack_space * kSystemPointerSize) memory (not GCed) on the stack
-  // accessible via StackSpaceOperand.
-  void EnterApiExitFrame(int arg_stack_space);
-
   // Leave the current exit frame. Expects/provides the return value in
-  // register rax:rdx (untouched) and the pointer to the first
-  // argument in register rsi (if pop_arguments == true).
-  void LeaveExitFrame(bool pop_arguments);
-
-  // Leave the current exit frame. Expects/provides the return value in
-  // register rax (untouched).
-  void LeaveApiExitFrame();
+  // register rax:rdx (untouched).
+  void LeaveExitFrame();
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -938,15 +926,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, InvokeType type);
-
-  void EnterExitFramePrologue(Register saved_rax_reg,
-                              StackFrame::Type frame_type);
-
-  // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
-  // stack accessible via StackSpaceOperand.
-  void EnterExitFrameEpilogue(int arg_stack_space);
-
-  void LeaveExitFrameEpilogue();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

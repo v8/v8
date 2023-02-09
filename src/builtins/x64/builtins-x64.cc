@@ -51,6 +51,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 
 namespace {
 
+constexpr int kReceiverOnStackSize = kSystemPointerSize;
+
 enum class ArgumentsElementType {
   kRaw,    // Push arguments as they are.
   kHandle  // Dereference arguments before pushing.
@@ -102,7 +104,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // InvokeFunction.
 
     // Set up pointer to first argument (skip receiver).
-    __ leaq(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
+    __ leaq(rbx, Operand(rbp, StandardFrameConstants::kFixedFrameSizeAboveFp +
                                   kSystemPointerSize));
     // Copy arguments to the expression stack.
     // rbx: Pointer to start of arguments.
@@ -216,7 +218,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movq(r8, rax);
 
   // Set up pointer to first argument (skip receiver).
-  __ leaq(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
+  __ leaq(rbx, Operand(rbp, StandardFrameConstants::kFixedFrameSizeAboveFp +
                                 kSystemPointerSize));
 
   // Restore constructor function and argument count.
@@ -3394,7 +3396,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register current_param = rbx;
   Register param_limit = rdx;
-  constexpr int kReceiverOnStackSize = kSystemPointerSize;
   __ Move(current_param,
           kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize);
   __ movq(param_limit, param_count);
@@ -4328,24 +4329,28 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 #endif  // V8_TARGET_OS_WIN
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  int arg_stack_space =
+  const int arg_stack_space =
       kArgExtraStackSpace +
       (result_size <= kMaxRegisterResultSize ? 0 : result_size);
-  if (argv_mode == ArgvMode::kRegister) {
-    DCHECK(!builtin_exit_frame);
-    __ EnterApiExitFrame(arg_stack_space);
-    // Move argc into r12 (argv is already in r15).
-    __ movq(r12, rax);
-  } else {
-    __ EnterExitFrame(arg_stack_space, builtin_exit_frame
-                                           ? StackFrame::BUILTIN_EXIT
-                                           : StackFrame::EXIT);
+  __ EnterExitFrame(arg_stack_space, builtin_exit_frame
+                                         ? StackFrame::BUILTIN_EXIT
+                                         : StackFrame::EXIT);
+
+  // Set up argv in a callee-saved register. It is reused below so it must be
+  // retained across the C call. In case of ArgvMode::kRegister, r15 has
+  // already been set by the caller.
+  static constexpr Register kArgvRegister = r15;
+  if (argv_mode == ArgvMode::kStack) {
+    int offset =
+        StandardFrameConstants::kFixedFrameSizeAboveFp - kReceiverOnStackSize;
+    __ leaq(kArgvRegister,
+            Operand(rbp, rax, times_system_pointer_size, offset));
   }
 
   // rbx: pointer to builtin function  (C callee-saved).
   // rbp: frame pointer of exit frame  (restored after C call).
   // rsp: stack pointer (restored after C call).
-  // r12: number of arguments including receiver (C callee-saved).
+  // rax: number of arguments including receiver
   // r15: argv pointer (C callee-saved).
 
   // Check stack alignment.
@@ -4358,16 +4363,16 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (result_size <= kMaxRegisterResultSize) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax), or a register pair (rax, rdx).
-    __ movq(kCCallArg0, r12);  // argc.
-    __ movq(kCCallArg1, r15);  // argv.
+    __ movq(kCCallArg0, rax);            // argc.
+    __ movq(kCCallArg1, kArgvRegister);  // argv.
     __ Move(kCCallArg2, ExternalReference::isolate_address(masm->isolate()));
   } else {
     DCHECK_LE(result_size, 2);
     // Pass a pointer to the result location as the first argument.
     __ leaq(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movq(kCCallArg1, r12);  // argc.
-    __ movq(kCCallArg2, r15);  // argv.
+    __ movq(kCCallArg1, rax);            // argc.
+    __ movq(kCCallArg2, kArgvRegister);  // argv.
     __ Move(kCCallArg3, ExternalReference::isolate_address(masm->isolate()));
   }
   __ call(rbx);
@@ -4401,8 +4406,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ bind(&okay);
   }
 
-  // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(argv_mode == ArgvMode::kStack);
+  __ LeaveExitFrame();
+  if (argv_mode == ArgvMode::kStack) {
+    // Drop arguments and the receiver from the caller stack.
+    __ PopReturnAddressTo(rcx);
+    __ leaq(rsp, Operand(kArgvRegister, kReceiverOnStackSize));
+    __ PushReturnAddressFrom(rcx);
+  }
   __ ret(0);
 
   // Handling of exception.
@@ -4610,7 +4620,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     DCHECK_EQ(stack_space, 0);
     __ movq(rbx, *stack_space_operand);
   }
-  __ LeaveApiExitFrame();
+  __ LeaveExitFrame();
 
   // Check if the function scheduled an exception.
   __ Move(rdi, scheduled_exception_address);
@@ -4765,7 +4775,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
   static constexpr int kApiStackSpace = 4;
-  __ EnterApiExitFrame(kApiStackSpace);
+  __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
   __ movq(StackSpaceOperand(0), scratch);
@@ -4860,7 +4870,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // Load address of v8::PropertyAccessorInfo::args_ array.
   __ leaq(scratch, Operand(rsp, 2 * kSystemPointerSize));
 
-  __ EnterApiExitFrame(kArgStackSpace);
+  __ EnterExitFrame(kArgStackSpace, StackFrame::EXIT);
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
