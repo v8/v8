@@ -77,7 +77,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
           case kVoid:
             return kNoReg;  // unsupported kind
         }
-        UNREACHABLE();
+        CONSTEXPR_UNREACHABLE();
       });
   V8_ASSUME(kind < kNumValueKinds);
   RegClass rc = kRegClasses[kind];
