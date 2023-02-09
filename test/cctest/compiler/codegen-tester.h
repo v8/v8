@@ -91,7 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
           &info, main_isolate(), call_descriptor(), graph(),
           AssemblerOptions::Default(main_isolate()), schedule);
     }
-    return code_.ToHandleChecked()->entry();
+    return code_.ToHandleChecked()->code_entry_point();
   }
 
  private:

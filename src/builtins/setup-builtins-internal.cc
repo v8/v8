@@ -256,7 +256,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
                        Builtins::IsIsolateIndependent(target.builtin_id()));
         if (!target.is_builtin()) continue;
         Code new_target = builtins->code(target.builtin_id());
-        rinfo->set_target_address(new_target.raw_instruction_start(),
+        rinfo->set_target_address(new_target.InstructionStart(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));

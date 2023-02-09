@@ -67,31 +67,23 @@ class Register;
 //  |                          |  <-- MS + code_comments_offset()
 //  |                          |  <-- MS + unwinding_info_offset()
 //  +--------------------------+  <-- MetadataEnd()
+//
+// TODO(jgruber): Code currently contains many aliases for InstructionStream
+// functions. These will eventually move to the Code object. Once done, put all
+// these declarations in a decent order and move over comments from the current
+// declarations in InstructionStream.
 class Code : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
-
-  //
-  // A collection of getters and predicates that are used by respective methods
-  // on InstructionStream object. They are defined here mostly because they
-  // operate on the writable state of the respective InstructionStream object.
-  //
-
-  DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
-  DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
-
-  // [is_promise_rejection]: For kind BUILTIN tells whether the
-  // exception thrown by the code will lead to promise rejection or
-  // uncaught if both this and is_exception_caught is set.
-  // Use GetBuiltinCatchPrediction to access this.
-  DECL_PRIMITIVE_ACCESSORS(is_promise_rejection, bool)
-
-  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
+  // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
+  // allocated in a separate pointer compression cage instead of the cage where
+  // all the other objects are allocated. This helper method returns code cage
+  // base value which is used for decompressing the reference to the respective
+  // InstructionStream. It loads the Isolate from the page header (since the
+  // Code objects are always writable) and then the code cage base value from
+  // there.
+  inline PtrComprCageBase code_cage_base() const;
 
   // Back-reference to the InstructionStream object.
   DECL_GETTER(instruction_stream, InstructionStream)
@@ -110,17 +102,11 @@ class Code : public HeapObject {
   inline bool has_instruction_stream() const;
   inline bool has_instruction_stream(RelaxedLoadTag) const;
 
-  // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
-  // allocated in a separate pointer compression cage instead of the cage where
-  // all the other objects are allocated. This helper method returns code cage
-  // base value which is used for decompressing the reference to respective
-  // InstructionStream. It loads the Isolate from the page header (since the
-  // Code objects are always writable) and then the code cage base
-  // value from there.
-  inline PtrComprCageBase code_cage_base() const;
-
   // Cached value of instruction_stream().InstructionStart().
   DECL_GETTER(code_entry_point, Address)
+
+  // Aliases for code_entry_point for API compatibility with InstructionStream.
+  inline Address InstructionStart() const;
 
   inline void SetInstructionStreamAndEntryPoint(
       Isolate* isolate_for_sandbox, InstructionStream code,
@@ -132,34 +118,29 @@ class Code : public HeapObject {
   inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
                                    InstructionStream code);
 
+  DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
+
   // Initializes internal flags field which stores cached values of some
   // properties of the respective InstructionStream object.
   inline void initialize_flags(CodeKind kind, Builtin builtin_id,
                                bool is_turbofanned);
 
-  // Alias for code_entry_point to make it API compatible with
-  // InstructionStream.
-  inline Address InstructionStart() const;
+  inline Address body_size() const;
 
-  // Alias for code_entry_point to make it API compatible with
-  // InstructionStream.
-  inline Address raw_instruction_start() const;
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  inline void clear_padding();
 
-  // More aliases for InstructionStream functions.
-  // TODO(jgruber): Once all are migrated, put these declarations in a decent
-  // order.
-  inline Address raw_instruction_end() const;
-  inline int raw_instruction_size() const;
-  inline Address raw_body_size() const;
+  DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
+  DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
 
-  // Alias for code_entry_point to make it API compatible with
-  // InstructionStream.
-  inline Address entry() const;
+  // [is_promise_rejection]: For kind BUILTIN tells whether the
+  // exception thrown by the code will lead to promise rejection or
+  // uncaught if both this and is_exception_caught is set.
+  // Use GetBuiltinCatchPrediction to access this.
+  DECL_PRIMITIVE_ACCESSORS(is_promise_rejection, bool)
 
-  //
-  // A collection of getters and predicates that forward queries to associated
-  // InstructionStream object.
-  //
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   inline CodeKind kind() const;
   inline Builtin builtin_id() const;
@@ -168,15 +149,12 @@ class Code : public HeapObject {
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
-  // Testers for interpreter builtins.
   inline bool is_interpreter_trampoline_builtin() const;
-
-  // Testers for baseline builtins.
   inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
 
-  // Tells whether the code checks the tiering state in the function's
-  // feedback vector.
+  // Tells whether the code checks the tiering state in the function's feedback
+  // vector.
   inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.
@@ -244,7 +222,7 @@ class Code : public HeapObject {
   // Thus for off-heap trampoline InstructionStream objects the result might be
   // the instruction start/end of the embedded code stream or of un-embedded
   // one. For normal InstructionStream objects these functions just return the
-  // raw_instruction_start/end() values.
+  // instruction_start/end() values.
   // TODO(11527): remove these versions once the full solution is ready.
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
@@ -260,10 +238,7 @@ class Code : public HeapObject {
   inline Address InstructionEnd() const;
   inline int InstructionSize() const;
 
-  // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-
-  // Get the maglev safepoint entry for the given pc.
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
@@ -401,7 +376,6 @@ class GcSafeCode : public HeapObject {
   inline bool has_tagged_outgoing_params() const;
   inline bool marked_for_deoptimization() const;
   inline Object raw_instruction_stream() const;
-  inline Address raw_instruction_start() const;
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionStart(Isolate* isolate, Address pc) const;

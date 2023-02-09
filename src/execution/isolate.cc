@@ -2113,7 +2113,7 @@ Object Isolate::UnwindAndFindHandler() {
           // If the target code is lazy deoptimized, we jump to the original
           // return address, but we make a note that we are throwing, so
           // that the deoptimizer can do the right thing.
-          offset = static_cast<int>(frame->pc() - code.entry());
+          offset = static_cast<int>(frame->pc() - code.InstructionStart());
           set_deoptimizer_lazy_throw(true);
         }
 

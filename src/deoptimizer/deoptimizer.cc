@@ -263,7 +263,7 @@ class ActivationsFinder : public ThreadVisitor {
           // Replace the current pc on the stack with the trampoline.
           // TODO(v8:10026): avoid replacing a signed pointer.
           Address* pc_addr = it.frame()->pc_address();
-          Address new_pc = code.raw_instruction_start() + trampoline_pc;
+          Address new_pc = code.InstructionStart() + trampoline_pc;
           PointerAuthentication::ReplacePC(pc_addr, new_pc, kSystemPointerSize);
         }
       }

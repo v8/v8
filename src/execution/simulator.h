@@ -111,7 +111,7 @@ class GeneratedCode {
   }
 
   static GeneratedCode FromCode(Code code) {
-    return FromAddress(code.GetIsolate(), code.entry());
+    return FromAddress(code.GetIsolate(), code.InstructionStart());
   }
 
 #ifdef USE_SIMULATOR

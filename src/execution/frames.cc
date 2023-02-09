@@ -568,8 +568,8 @@ base::Optional<GcSafeCode> GetContainingCode(Isolate* isolate, Address pc) {
 
 GcSafeCode StackFrame::GcSafeLookupCode() const {
   base::Optional<GcSafeCode> result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result->UnsafeCastToCode().InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), result->UnsafeCastToCode().InstructionEnd(isolate(), pc()));
+  DCHECK_GE(pc(), result->InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), result->InstructionEnd(isolate(), pc()));
   return result.value();
 }
 
@@ -587,10 +587,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
   // Keep the old pc offset before visiting the code since we need it to
   // calculate the new pc after a potential InstructionStream move.
-  // It's okay to use raw_instruction_start() here since `pc_offset_from_start`
-  // will only be used if `holder` is not a builtin.
-  const uintptr_t pc_offset_from_start =
-      old_pc - holder.raw_instruction_start();
+  const uintptr_t pc_offset_from_start = old_pc - holder.InstructionStart();
 
   // Visit.
   GcSafeCode visited_holder = holder;

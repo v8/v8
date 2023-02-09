@@ -514,9 +514,9 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     return {};
   }
 
-  LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
-                                code->raw_instruction_start(),
-                                *source_positions, JitCodeEvent::JIT_CODE));
+  LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(code->InstructionStart(),
+                                                       *source_positions,
+                                                       JitCodeEvent::JIT_CODE));
 
   return code;
 }
