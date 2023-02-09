@@ -317,8 +317,22 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
   DCHECK_EQ(1, args.length());
   Handle<Object> object = args.at(0);
   Handle<String> type = Object::TypeOf(isolate, object);
+  Handle<String> msg;
+  if (object->IsNull()) {
+    // "which is null"
+    msg = isolate->factory()->NewStringFromAsciiChecked("null");
+  } else if (isolate->factory()->object_string()->Equals(*type)) {
+    // "which is an object"
+    msg = isolate->factory()->NewStringFromAsciiChecked("an object");
+  } else {
+    // "which is a typeof arg"
+    msg = isolate->factory()
+              ->NewConsString(
+                  isolate->factory()->NewStringFromAsciiChecked("a "), type)
+              .ToHandleChecked();
+  }
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
+      isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, msg));
 }
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {
