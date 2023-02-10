@@ -641,6 +641,19 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         ENQUEUE_USES(use, true)
         break;
       }
+      case IrOpcode::kWasmStructGet: {
+        // When a chained load occurs in the loop, assume that peeling might
+        // help.
+        // Extending this idea to array.get/array.len has been found to hurt
+        // more than it helps (tested on Sheets, Feb 2023).
+        Node* object = node->InputAt(0);
+        if (object->opcode() == IrOpcode::kWasmStructGet &&
+            visited->find(object) != visited->end()) {
+          has_instruction_worth_peeling = true;
+        }
+        ENQUEUE_USES(use, true);
+        break;
+      }
       case IrOpcode::kStringPrepareForGetCodeunit:
         has_instruction_worth_peeling = true;
         V8_FALLTHROUGH;

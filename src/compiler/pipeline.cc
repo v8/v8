@@ -1759,6 +1759,12 @@ struct WasmLoopPeelingPhase {
                 v8_flags.wasm_loop_peeling_max_size,
                 LoopFinder::Purpose::kLoopPeeling);
         if (loop == nullptr) continue;
+        if (v8_flags.trace_wasm_loop_peeling) {
+          CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+          auto& os = tracing_scope.stream();
+          os << "Peeling loop at " << loop_info.header->id() << ", size "
+             << loop->size() << std::endl;
+        }
         PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),
                      temp_zone, data->source_positions(), data->node_origins());
       }
