@@ -242,16 +242,18 @@ void ArrayBufferSweeper::Append(JSArrayBuffer object,
 
 void ArrayBufferSweeper::Detach(JSArrayBuffer object,
                                 ArrayBufferExtension* extension) {
+  // Finish sweeping here first such that the code below is guaranteed to
+  // observe the same sweeping state.
+  FinishIfDone();
+
   size_t bytes = extension->ClearAccountingLength();
 
   // We cannot free the extension eagerly here, since extensions are tracked in
   // a singly linked list. The next GC will remove it automatically.
 
-  FinishIfDone();
-
   if (!sweeping_in_progress()) {
     // If concurrent sweeping isn't running at the moment, we can also adjust
-    // the respective bytes in the corresponding ArraybufferLists as they are
+    // the respective bytes in the corresponding ArrayBufferLists as they are
     // only approximate.
     if (Heap::InYoungGeneration(object)) {
       DCHECK_GE(young_.bytes_, bytes);
