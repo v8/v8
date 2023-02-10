@@ -257,6 +257,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
+      DCHECK(ShouldMarkObject(object));
       local_marking_worklists_->Push(object);
     }
   }
@@ -373,7 +374,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
     DCHECK(!key.InSharedWritableHeap());
-    if (concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
+    if (key.InReadOnlySpace() ||
+        concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
       VisitPointer(table, value_slot);
     } else {
       Object value_obj = table.ValueAt(i);
@@ -406,7 +408,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
   if (weak_ref.target().IsHeapObject()) {
     HeapObject target = HeapObject::cast(weak_ref.target());
     SynchronizePageAccess(target);
-    if (concrete_visitor()->marking_state()->IsBlackOrGrey(target)) {
+    if (target.InReadOnlySpace() ||
+        concrete_visitor()->marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
       ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
@@ -433,8 +436,10 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   HeapObject unregister_token = weak_cell.relaxed_unregister_token();
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
-  if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
-      concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token)) {
+  if ((target.InReadOnlySpace() ||
+       concrete_visitor()->marking_state()->IsBlackOrGrey(target)) &&
+      (unregister_token.InReadOnlySpace() ||
+       concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token))) {
     // Record the slots inside the WeakCell, since the IterateBody above
     // didn't visit it.
     ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
@@ -459,6 +464,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
     DescriptorArray descriptors) {
+  if (descriptors.InReadOnlySpace()) return 0;
   concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
   if (concrete_visitor()->marking_state()->GreyToBlack(descriptors)) {
     VisitMapPointer(descriptors);

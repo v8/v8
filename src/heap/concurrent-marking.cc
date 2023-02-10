@@ -263,7 +263,7 @@ class YoungGenerationConcurrentMarkingVisitor final
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
   bool ShouldMarkObject(HeapObject object) const {
-    return !object.InSharedHeap();
+    return !object.InSharedHeap() && !object.InReadOnlySpace();
   }
 
   void SynchronizePageAccess(HeapObject heap_object) {
@@ -788,6 +788,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
+        DCHECK(!object.InReadOnlySpace());
         objects_processed++;
 
         Address new_space_top = kNullAddress;

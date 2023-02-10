@@ -236,7 +236,7 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
     DCHECK(!MapWord::IsPacked(object.ptr()));
     HeapObject heap_object = HeapObject::cast(object);
 
-    if (heap_object.InSharedHeap()) return;
+    if (heap_object.InSharedHeap() || heap_object.InReadOnlySpace()) return;
 
     if (incremental_marking_->IsMajorMarking()) {
       if (incremental_marking_->WhiteToGreyAndPush(heap_object)) {
