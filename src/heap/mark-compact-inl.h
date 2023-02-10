@@ -103,17 +103,6 @@ int MainMarkingVisitor<MarkingState>::VisitJSObjectSubclass(Map map, T object) {
 }
 
 template <typename MarkingState>
-template <typename T>
-int MainMarkingVisitor<MarkingState>::VisitLeftTrimmableArray(Map map,
-                                                              T object) {
-  if (!this->ShouldVisit(object)) return 0;
-  int size = T::SizeFor(object.length());
-  this->VisitMapPointer(object);
-  T::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-template <typename MarkingState>
 template <typename TSlot>
 void MainMarkingVisitor<MarkingState>::RecordSlot(HeapObject object, TSlot slot,
                                                   HeapObject target) {

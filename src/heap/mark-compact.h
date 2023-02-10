@@ -212,9 +212,6 @@ class MainMarkingVisitor final
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitJSObjectSubclass(Map map, T object);
 
-  template <typename T>
-  int VisitLeftTrimmableArray(Map map, T object);
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
 

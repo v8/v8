@@ -82,36 +82,6 @@ void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
   IncrementLiveBytesBackground(chunk, static_cast<intptr_t>(object_size));
 }
 
-void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
-  if (!IsMarking()) return;
-
-  DCHECK(MemoryChunk::FromHeapObject(from)->SweepingDone());
-  DCHECK_EQ(MemoryChunk::FromHeapObject(from), MemoryChunk::FromHeapObject(to));
-  DCHECK_NE(from, to);
-
-  MarkBit new_mark_bit = marking_state()->MarkBitFrom(to);
-
-  if (black_allocation() &&
-      Marking::IsBlack<AccessMode::ATOMIC>(new_mark_bit)) {
-    // Nothing to do if the object is in black area.
-    return;
-  }
-  MarkBlackAndVisitObjectDueToLayoutChange(from);
-  DCHECK(marking_state()->IsBlack(from));
-  // Mark the new address as black.
-  if (from.address() + kTaggedSize == to.address()) {
-    // The old and the new markbits overlap. The |to| object has the
-    // grey color. To make it black, we need to set the second bit.
-    DCHECK(new_mark_bit.Get<AccessMode::ATOMIC>());
-    new_mark_bit.Next().Set<AccessMode::ATOMIC>();
-  } else {
-    bool success = Marking::WhiteToBlack<AccessMode::ATOMIC>(new_mark_bit);
-    DCHECK(success);
-    USE(success);
-  }
-  DCHECK(marking_state()->IsBlack(to));
-}
-
 bool IncrementalMarking::CanBeStarted() const {
   // Only start incremental marking in a safe state:
   //   1) when incremental marking is turned on

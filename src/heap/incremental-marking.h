@@ -86,8 +86,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
-  void NotifyLeftTrimming(HeapObject from, HeapObject to);
-
   bool IsStopped() const { return !IsMarking(); }
   bool IsMarking() const { return is_marking_; }
   bool IsMajorMarkingComplete() const {

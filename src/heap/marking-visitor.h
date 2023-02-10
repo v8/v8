@@ -31,11 +31,9 @@ struct EphemeronMarking {
 // - ConcreteVisitor::RecordSlot method,
 // - ConcreteVisitor::RecordRelocSlot method,
 // - ConcreteVisitor::VisitJSObjectSubclass method,
-// - ConcreteVisitor::VisitLeftTrimmableArray method.
 // These methods capture the difference between the concurrent and main thread
 // marking visitors. For example, the concurrent visitor has to use the
 // snapshotting protocol to visit JSObject and left-trimmable FixedArrays.
-
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
@@ -67,7 +65,6 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray object);
-  V8_INLINE int VisitFixedDoubleArray(Map map, FixedDoubleArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
   V8_INLINE int VisitJSDataViewOrRabGsabDataView(
@@ -166,6 +163,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
                                                ProgressBar& progress_bar);
+  V8_INLINE int VisitFixedArrayRegularly(Map map, FixedArray object);
   // Marks the descriptor array black without pushing it on the marking work
   // list and visits its header. Returns the size of the descriptor array
   // if it was successully marked as black.

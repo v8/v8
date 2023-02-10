@@ -3207,8 +3207,18 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
     return false;
   }
 
-  // We can move the object start if the page was already swept.
-  return Page::FromHeapObject(object)->SweepingDone();
+  // Concurrent marking does not support moving object starts without snapshot
+  // protocol.
+  //
+  // TODO(v8:13726): This can be improved via concurrently reading the contents
+  // in the marker at the cost of some complexity.
+  if (incremental_marking()->IsMarking()) return false;
+
+  // Concurrent sweeper does not support moving object starts. It assumes that
+  // markbits (black regions) and object starts are matching up.
+  if (!Page::FromHeapObject(object)->SweepingDone()) return false;
+
+  return true;
 }
 
 bool Heap::IsImmovable(HeapObject object) {
@@ -3331,9 +3341,6 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Calculate location of new array start.
   Address old_start = object.address();
   Address new_start = old_start + bytes_to_trim;
-
-  incremental_marking()->NotifyLeftTrimming(object,
-                                            HeapObject::FromAddress(new_start));
 
 #ifdef DEBUG
   if (MayContainRecordedSlots(object)) {

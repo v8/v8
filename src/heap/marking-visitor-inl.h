@@ -265,21 +265,26 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
+    Map map, FixedArray object) {
+  if (!concrete_visitor()->ShouldVisit(object)) return 0;
+  int size = FixedArray::BodyDescriptor::SizeOf(map, object);
+  if (concrete_visitor()->ShouldVisitMapPointer()) {
+    VisitMapPointer(object);
+  }
+  FixedArray::BodyDescriptor::IterateBody(map, object, size,
+                                          concrete_visitor());
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArray(
     Map map, FixedArray object) {
-  // Arrays with the progress bar are not left-trimmable because they reside
-  // in the large object space.
   ProgressBar& progress_bar =
       MemoryChunk::FromHeapObject(object)->ProgressBar();
   return CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
-             : concrete_visitor()->VisitLeftTrimmableArray(map, object);
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedDoubleArray(
-    Map map, FixedDoubleArray object) {
-  return concrete_visitor()->VisitLeftTrimmableArray(map, object);
+             : VisitFixedArrayRegularly(map, object);
 }
 
 // ===========================================================================
