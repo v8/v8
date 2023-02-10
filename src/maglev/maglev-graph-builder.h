@@ -1089,6 +1089,17 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(target1, second_value);
   }
 
+  DeoptFrame* GetParentDeoptFrame() {
+    if (parent_ == nullptr) return nullptr;
+    if (parent_deopt_frame_ == nullptr) {
+      // Force parent to create a fresh deopt frame.
+      parent_->latest_checkpointed_frame_.reset();
+      parent_deopt_frame_ =
+          zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame());
+    }
+    return parent_deopt_frame_;
+  }
+
   InterpretedDeoptFrame GetLatestCheckpointedFrame() {
     if (!latest_checkpointed_frame_) {
       latest_checkpointed_frame_.emplace(
@@ -1096,11 +1107,7 @@ class MaglevGraphBuilder {
           zone()->New<CompactInterpreterFrameState>(
               *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
           BytecodeOffset(iterator_.current_offset()), current_source_position_,
-          // TODO(leszeks): Don't always allocate for the parent state,
-          // maybe cache it on the graph builder?
-          parent_
-              ? zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame())
-              : nullptr);
+          GetParentDeoptFrame());
     }
     return *latest_checkpointed_frame_;
   }
@@ -1111,10 +1118,7 @@ class MaglevGraphBuilder {
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
         BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        // TODO(leszeks): Don't always allocate for the parent state,
-        // maybe cache it on the graph builder?
-        parent_ ? zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame())
-                : nullptr);
+        GetParentDeoptFrame());
   }
 
   void MarkPossibleMapMigration() {
@@ -1587,6 +1591,8 @@ class MaglevGraphBuilder {
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
+  DeoptFrame* parent_deopt_frame_ = nullptr;
+
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;
   interpreter::BytecodeArrayIterator iterator_;
