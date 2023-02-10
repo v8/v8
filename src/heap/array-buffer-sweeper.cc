@@ -95,7 +95,7 @@ struct ArrayBufferSweeper::SweepingJob final {
   ArrayBufferList young_;
   ArrayBufferList old_;
   const SweepingType type_;
-  std::atomic<size_t> freed_bytes_{0};
+  size_t freed_bytes_{0};
 
   friend class ArrayBufferSweeper;
 };
@@ -207,9 +207,7 @@ void ArrayBufferSweeper::Finalize() {
   CHECK_EQ(job_->state_, SweepingState::kDone);
   young_.Append(&job_->young_);
   old_.Append(&job_->old_);
-  const size_t freed_bytes =
-      job_->freed_bytes_.exchange(0, std::memory_order_relaxed);
-  DecrementExternalMemoryCounters(freed_bytes);
+  DecrementExternalMemoryCounters(job_->freed_bytes_);
 
   local_sweeper_.Finalize();
 
@@ -317,7 +315,7 @@ ArrayBufferList ArrayBufferSweeper::SweepingJob::SweepListFull(
     if (!current->IsMarked()) {
       const size_t bytes = current->accounting_length();
       delete current;
-      if (bytes) freed_bytes_.fetch_add(bytes, std::memory_order_relaxed);
+      if (bytes) freed_bytes_ += bytes;
     } else {
       current->Unmark();
       survivor_list.Append(current);
@@ -343,7 +341,7 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
     if (!current->IsYoungMarked()) {
       size_t bytes = current->accounting_length();
       delete current;
-      if (bytes) freed_bytes_.fetch_add(bytes, std::memory_order_relaxed);
+      if (bytes) freed_bytes_ += bytes;
     } else if (current->IsYoungPromoted()) {
       current->YoungUnmark();
       new_old.Append(current);
