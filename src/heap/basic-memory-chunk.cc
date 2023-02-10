@@ -64,7 +64,9 @@ BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
       high_water_mark_(area_start - reinterpret_cast<Address>(this)),
       owner_(space),
       reservation_(std::move(reservation)) {
-  marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
+  if (space->identity() != RO_SPACE) {
+    marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
+  }
 }
 
 bool BasicMemoryChunk::InOldSpace() const {
