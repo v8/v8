@@ -51,7 +51,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
     const compiler::BytecodeLivenessState* liveness) {
   MergePointInterpreterFrameState* merge_state =
       info.zone()->New<MergePointInterpreterFrameState>(
-          info, predecessor_count, 1,
+          info, merge_offset, predecessor_count, 1,
           info.zone()->NewArray<BasicBlock*>(predecessor_count),
           BasicBlockType::kDefault, liveness);
   int i = 0;
@@ -81,7 +81,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
     const compiler::LoopInfo* loop_info) {
   MergePointInterpreterFrameState* state =
       info.zone()->New<MergePointInterpreterFrameState>(
-          info, predecessor_count, 0,
+          info, merge_offset, predecessor_count, 0,
           info.zone()->NewArray<BasicBlock*>(predecessor_count),
           BasicBlockType::kLoopHeader, liveness);
   if (loop_info->resumable()) {
@@ -96,7 +96,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
       info, [&](ValueNode*& entry, interpreter::Register reg) {
         entry = nullptr;
         if (assignments.ContainsParameter(reg.ToParameterIndex())) {
-          entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
+          entry = state->NewLoopPhi(info.zone(), reg);
         } else if (state->is_resumable_loop()) {
           // Copy initial values out of the start state.
           entry = start_state.get(reg);
@@ -112,13 +112,13 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
     // do have different nodes to set the context across resume points. Create a
     // phi for them.
     frame_state.context(info) = state->NewLoopPhi(
-        info.zone(), interpreter::Register::current_context(), merge_offset);
+        info.zone(), interpreter::Register::current_context());
   }
   frame_state.ForEachLocal(
       info, [&](ValueNode*& entry, interpreter::Register reg) {
         entry = nullptr;
         if (assignments.ContainsLocal(reg.index())) {
-          entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
+          entry = state->NewLoopPhi(info.zone(), reg);
         }
       });
   DCHECK(!frame_state.liveness()->AccumulatorIsLive());
@@ -134,8 +134,8 @@ MergePointInterpreterFrameState::NewForCatchBlock(
   Zone* const zone = unit.zone();
   MergePointInterpreterFrameState* state =
       zone->New<MergePointInterpreterFrameState>(
-          unit, 0, 0, nullptr, BasicBlockType::kExceptionHandlerStart,
-          liveness);
+          unit, handler_offset, 0, 0, nullptr,
+          BasicBlockType::kExceptionHandlerStart, liveness);
   auto& frame_state = state->frame_state_;
   // If the accumulator is live, the ExceptionPhi associated to it is the
   // first one in the block. That ensures it gets kReturnValue0 in the
@@ -143,27 +143,27 @@ MergePointInterpreterFrameState::NewForCatchBlock(
   // StraightForwardRegisterAllocator::AllocateRegisters.
   if (frame_state.liveness()->AccumulatorIsLive()) {
     frame_state.accumulator(unit) = state->NewExceptionPhi(
-        zone, interpreter::Register::virtual_accumulator(), handler_offset);
+        zone, interpreter::Register::virtual_accumulator());
   }
   frame_state.ForEachParameter(
       unit, [&](ValueNode*& entry, interpreter::Register reg) {
-        entry = state->NewExceptionPhi(zone, reg, handler_offset);
+        entry = state->NewExceptionPhi(zone, reg);
       });
-  frame_state.context(unit) =
-      state->NewExceptionPhi(zone, context_register, handler_offset);
-  frame_state.ForEachLocal(
-      unit, [&](ValueNode*& entry, interpreter::Register reg) {
-        entry = state->NewExceptionPhi(zone, reg, handler_offset);
-      });
+  frame_state.context(unit) = state->NewExceptionPhi(zone, context_register);
+  frame_state.ForEachLocal(unit,
+                           [&](ValueNode*& entry, interpreter::Register reg) {
+                             entry = state->NewExceptionPhi(zone, reg);
+                           });
   state->known_node_aspects_ = zone->New<KnownNodeAspects>(zone);
   return state;
 }
 
 MergePointInterpreterFrameState::MergePointInterpreterFrameState(
-    const MaglevCompilationUnit& info, int predecessor_count,
+    const MaglevCompilationUnit& info, int merge_offset, int predecessor_count,
     int predecessors_so_far, BasicBlock** predecessors, BasicBlockType type,
     const compiler::BytecodeLivenessState* liveness)
-    : predecessor_count_(predecessor_count),
+    : merge_offset_(merge_offset),
+      predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
       predecessors_(predecessors),
       basic_block_type_(type),
@@ -174,7 +174,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
 void MergePointInterpreterFrameState::Merge(
     MaglevCompilationUnit& compilation_unit,
     ZoneMap<int, SmiConstant*>& smi_constants, InterpreterFrameState& unmerged,
-    BasicBlock* predecessor, int merge_offset) {
+    BasicBlock* predecessor) {
   DCHECK_GT(predecessor_count_, 1);
   DCHECK_LT(predecessors_so_far_, predecessor_count_);
   predecessors_[predecessors_so_far_] = predecessor;
@@ -194,7 +194,7 @@ void MergePointInterpreterFrameState::Merge(
     }
     value = MergeValue(compilation_unit, smi_constants, reg,
                        unmerged.known_node_aspects(), value, unmerged.get(reg),
-                       per_predecessor_alternatives_[i], merge_offset);
+                       per_predecessor_alternatives_[i]);
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << " => "
                 << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -221,8 +221,7 @@ void MergePointInterpreterFrameState::Merge(
 void MergePointInterpreterFrameState::MergeLoop(
     MaglevCompilationUnit& compilation_unit,
     ZoneMap<int, SmiConstant*>& smi_constants,
-    InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block,
-    int merge_offset) {
+    InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block) {
   // This should be the last predecessor we try to merge.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
@@ -242,7 +241,7 @@ void MergePointInterpreterFrameState::MergeLoop(
     }
     MergeLoopValue(compilation_unit, smi_constants, reg,
                    loop_end_state.known_node_aspects(), value,
-                   loop_end_state.get(reg), merge_offset);
+                   loop_end_state.get(reg));
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << " => "
                 << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -382,8 +381,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     MaglevCompilationUnit& compilation_unit,
     ZoneMap<int, SmiConstant*>& smi_constants, interpreter::Register owner,
     const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-    ValueNode* unmerged, Alternatives::List& per_predecessor_alternatives,
-    int merge_offset) {
+    ValueNode* unmerged, Alternatives::List& per_predecessor_alternatives) {
   // If the merged node is null, this is a pre-created loop header merge
   // frame will null values for anything that isn't a loop Phi.
   if (merged == nullptr) {
@@ -398,7 +396,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   }
 
   Phi* result = merged->TryCast<Phi>();
-  if (result != nullptr && result->merge_offset() == merge_offset) {
+  if (result != nullptr && result->merge_state() == this) {
     // It's possible that merged == unmerged at this point since loop-phis are
     // not dropped if they are only assigned to themselves in the loop.
     DCHECK_EQ(result->owner(), owner);
@@ -425,8 +423,8 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   // the frame slot. In that case we only need the inputs for representation
   // selection, and hence could remove duplicate inputs. We'd likely need to
   // attach the interpreter register to the phi in that case?
-  result = Node::New<Phi>(compilation_unit.zone(), predecessor_count_, owner,
-                          merge_offset);
+  result =
+      Node::New<Phi>(compilation_unit.zone(), predecessor_count_, this, owner);
   if (v8_flags.trace_maglev_graph_building) {
     for (int i = 0; i < predecessor_count_; i++) {
       result->set_input(i, nullptr);
@@ -466,10 +464,10 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 void MergePointInterpreterFrameState::MergeLoopValue(
     MaglevCompilationUnit& compilation_unit,
     ZoneMap<int, SmiConstant*>& smi_constants, interpreter::Register owner,
-    KnownNodeAspects& unmerged_aspects, ValueNode* merged, ValueNode* unmerged,
-    int merge_offset) {
+    KnownNodeAspects& unmerged_aspects, ValueNode* merged,
+    ValueNode* unmerged) {
   Phi* result = merged->TryCast<Phi>();
-  if (result == nullptr || result->merge_offset() != merge_offset) {
+  if (result == nullptr || result->merge_state() != this) {
     // Not a loop phi, we don't have to do anything.
     return;
   }
@@ -480,10 +478,10 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 }
 
 ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
-    Zone* zone, interpreter::Register reg, int merge_offset) {
+    Zone* zone, interpreter::Register reg) {
   DCHECK_EQ(predecessors_so_far_, 0);
   // Create a new loop phi, which for now is empty.
-  Phi* result = Node::New<Phi>(zone, predecessor_count_, reg, merge_offset);
+  Phi* result = Node::New<Phi>(zone, predecessor_count_, this, reg);
   if (v8_flags.trace_maglev_graph_building) {
     for (int i = 0; i < predecessor_count_; i++) {
       result->set_input(i, nullptr);
@@ -494,7 +492,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
 }
 
 void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
-    interpreter::Register owner, ValueNode* merged, int merge_offset) {
+    interpreter::Register owner, ValueNode* merged) {
   // If the merged node is null, this is a pre-created loop header merge
   // frame with null values for anything that isn't a loop Phi.
   if (merged == nullptr) {
@@ -504,7 +502,7 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
   }
 
   Phi* result = merged->TryCast<Phi>();
-  if (result != nullptr && result->merge_offset() == merge_offset) {
+  if (result != nullptr && result->merge_state() == this) {
     // It's possible that merged == unmerged at this point since loop-phis are
     // not dropped if they are only assigned to themselves in the loop.
     DCHECK_EQ(result->owner(), owner);

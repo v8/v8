@@ -364,7 +364,7 @@ class MaglevGraphBuilder {
         // DCHECK(!current_block_->nodes().is_empty());
         BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
         merge_state->Merge(*compilation_unit_, graph_->smi(),
-                           current_interpreter_frame_, predecessor, offset);
+                           current_interpreter_frame_, predecessor);
       }
       if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"

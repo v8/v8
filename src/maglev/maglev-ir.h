@@ -49,6 +49,7 @@ class MaglevCompilationUnit;
 class MaglevGraphLabeller;
 class MaglevVregAllocationState;
 class CompactInterpreterFrameState;
+class MergePointInterpreterFrameState;
 
 // Nodes are either
 // 1. side-effecting or value-holding SSA nodes in the body of basic blocks, or
@@ -5124,11 +5125,16 @@ class Phi : public ValueNodeT<Phi> {
   using List = base::ThreadedList<Phi>;
 
   // TODO(jgruber): More intuitive constructors, if possible.
-  Phi(uint64_t bitfield, interpreter::Register owner, int merge_offset)
-      : Base(bitfield), owner_(owner), merge_offset_(merge_offset) {}
+  Phi(uint64_t bitfield, MergePointInterpreterFrameState* merge_state,
+      interpreter::Register owner)
+      : Base(bitfield), owner_(owner), merge_state_(merge_state) {
+    DCHECK_NOT_NULL(merge_state);
+  }
 
   interpreter::Register owner() const { return owner_; }
-  int merge_offset() const { return merge_offset_; }
+  const MergePointInterpreterFrameState* merge_state() const {
+    return merge_state_;
+  }
 
   using Node::reduce_input_count;
   using Node::set_input;
@@ -5145,7 +5151,7 @@ class Phi : public ValueNodeT<Phi> {
 
   const interpreter::Register owner_;
   Phi* next_ = nullptr;
-  const int merge_offset_;
+  MergePointInterpreterFrameState* const merge_state_;
   friend base::ThreadedListTraits<Phi>;
 };
 

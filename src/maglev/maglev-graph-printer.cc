@@ -520,7 +520,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
     // No phis in the block.
     return;
   }
-  int handler_offset = first_phi->merge_offset();
+  int handler_offset = first_phi->merge_state()->merge_offset();
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();

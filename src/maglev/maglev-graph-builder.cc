@@ -3470,8 +3470,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(
     EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     return ReduceResult::DoneWithAbort();
   }
-  // TODO: Add CheckValue support for numbers (incl. conversion between Smi and
-  // HeapNumber).
+  // TODO(v8:7700): Add CheckValue support for numbers (incl. conversion between
+  // Smi and HeapNumber).
   DCHECK(!ref.IsSmi());
   DCHECK(!ref.IsHeapNumber());
   if (ref.IsString()) {
@@ -4539,7 +4539,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
   merge_states_[target]->MergeLoop(*compilation_unit_, graph_->smi(),
-                                   current_interpreter_frame_, block, target);
+                                   current_interpreter_frame_, block);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
 }
 void MaglevGraphBuilder::VisitJump() {
@@ -4589,8 +4589,7 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
   } else {
     // If there already is a frame state, merge.
     merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
-                                 current_interpreter_frame_, predecessor,
-                                 target);
+                                 current_interpreter_frame_, predecessor);
   }
 }
 
@@ -4600,7 +4599,7 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
   predecessors_[target]--;
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
-    merge_states_[target]->MergeDead(*compilation_unit_, target);
+    merge_states_[target]->MergeDead(*compilation_unit_);
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
     if (merge_states_[target]->is_unreachable_loop()) {
@@ -4618,7 +4617,7 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
   predecessors_[target]--;
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
-    merge_states_[target]->MergeDeadLoop(*compilation_unit_, target);
+    merge_states_[target]->MergeDeadLoop(*compilation_unit_);
   }
 }
 
@@ -4641,8 +4640,7 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     DCHECK(GetInLiveness()->Equals(
         *merge_states_[target]->frame_state().liveness()));
     merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
-                                 current_interpreter_frame_, predecessor,
-                                 target);
+                                 current_interpreter_frame_, predecessor);
   }
 }
 
