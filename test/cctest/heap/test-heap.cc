@@ -505,6 +505,8 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
   LocalContext context;
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   WeakPointerCleared = false;
 
@@ -1985,6 +1987,7 @@ TEST(TestSizeOfRegExpCode) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
   HandleScope scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   LocalContext context;
 
@@ -2350,6 +2353,8 @@ static int NumberOfGlobalObjects() {
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
 TEST(LeakNativeContextViaMap) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
@@ -2400,6 +2405,8 @@ TEST(LeakNativeContextViaMap) {
 // Test that we don't embed functions from foreign contexts into
 // optimized code.
 TEST(LeakNativeContextViaFunction) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
@@ -2448,6 +2455,8 @@ TEST(LeakNativeContextViaFunction) {
 
 
 TEST(LeakNativeContextViaMapKeyed) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
@@ -2496,6 +2505,8 @@ TEST(LeakNativeContextViaMapKeyed) {
 
 
 TEST(LeakNativeContextViaMapProto) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
@@ -3156,13 +3167,15 @@ TEST(Regress1465) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
   static const int transitions_count = 256;
 
   CompileRun("function F() {}");
   {
-    AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     for (int i = 0; i < transitions_count; i++) {
       base::EmbeddedVector<char, 64> buffer;
       base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
@@ -3180,7 +3193,7 @@ TEST(Regress1465) {
   CompileRun("%DebugPrint(root);");
   CHECK_EQ(transitions_count, transitions_before);
 
-  heap::SimulateIncrementalMarking(CcTest::heap());
+  heap::SimulateIncrementalMarking(heap);
   CcTest::CollectAllGarbage();
 
   // Count number of live transitions after marking.  Note that one transition
@@ -4319,6 +4332,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
@@ -4566,6 +4580,8 @@ TEST(WeakFunctionInConstructor) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::HandleScope scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   CompileRun(
       "function createObj(obj) {"
       "  return new obj();"
@@ -4627,6 +4643,8 @@ void CheckWeakness(const char* source) {
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   LocalContext env;
   v8::HandleScope scope(isolate);
   v8::Persistent<v8::Object> garbage;

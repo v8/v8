@@ -13396,6 +13396,8 @@ static void WeakApiCallback(
 
 
 TEST(WeakCallbackApi) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   i::GlobalHandles* globals =
@@ -17174,6 +17176,9 @@ TEST(Regress528) {
   v8::HandleScope scope(isolate);
   v8::Local<Context> other_context;
   int gc_count;
+
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Create a context used to keep the code from aging in the compilation
   // cache.
@@ -28975,6 +28980,9 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
   i::v8_flags.stress_concurrent_allocation = false;
+
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
