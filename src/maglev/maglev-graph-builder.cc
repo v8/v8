@@ -208,6 +208,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
       parent_(parent),
+      inline_depth_(parent_ == nullptr ? 0 : parent_->inline_depth_ + 1),
       graph_(graph),
       bytecode_analysis_(bytecode().object(), zone(), BytecodeOffset::None(),
                          true),
@@ -3082,16 +3083,16 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't try to inline if the target function hasn't been compiled yet.
   // TODO(verwaest): Soft deopt instead?
-  if (!function.shared().HasBytecodeArray()) {
+  if (function.code().object()->kind() == CodeKind::TURBOFAN) {
     return ReduceResult::Fail();
   }
   if (!function.feedback_vector(broker()->dependencies()).has_value()) {
     return ReduceResult::Fail();
   }
-  if (function.code().object()->kind() == CodeKind::TURBOFAN) {
+  if (function.shared().GetInlineability() !=
+      SharedFunctionInfo::Inlineability::kIsInlineable) {
     return ReduceResult::Fail();
   }
-
   // TODO(victorgomes): Support NewTarget/RegisterInput in inlined functions.
   compiler::BytecodeArrayRef bytecode = function.shared().GetBytecodeArray();
   if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
@@ -3099,6 +3100,10 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   }
   // TODO(victorgomes): Support exception handler inside inlined functions.
   if (bytecode.handler_table_size() > 0) {
+    return ReduceResult::Fail();
+  }
+  // TODO(victorgomes): Improve inline heuristics.
+  if (inline_depth_ > v8_flags.max_maglev_inline_depth) {
     return ReduceResult::Fail();
   }
 

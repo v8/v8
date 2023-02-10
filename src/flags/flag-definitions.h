@@ -485,6 +485,8 @@ DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(future, maglev)
 DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
                             "enable inlining in the maglev optimizing compiler")
+DEFINE_INT(max_maglev_inline_depth, 5,
+           "max depth of functions that Maglev will inline")
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 

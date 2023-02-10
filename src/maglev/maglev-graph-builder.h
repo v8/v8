@@ -1592,6 +1592,7 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   DeoptFrame* parent_deopt_frame_ = nullptr;
+  int inline_depth_;
 
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;
