@@ -14,6 +14,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -54,6 +55,17 @@ class X64OperandConverter : public InstructionOperandConverter {
 
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
+    if (constant.type() == Constant::kCompressedHeapObject) {
+      CHECK(COMPRESS_POINTERS_BOOL);
+      CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
+#if DEBUG
+      RootIndex root_index;
+      CHECK(gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
+                                                        &root_index));
+#endif
+      return Immediate(V8HeapCompressionScheme::CompressTagged(
+          constant.ToHeapObject()->ptr()));
+    }
     if (constant.type() == Constant::kFloat64) {
       DCHECK_EQ(0, constant.ToFloat64().AsUint64());
       return Immediate(0);

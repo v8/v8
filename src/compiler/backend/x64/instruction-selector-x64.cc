@@ -55,6 +55,21 @@ class X64OperandGenerator final : public OperandGenerator {
 
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
+      case IrOpcode::kCompressedHeapConstant: {
+        if (!COMPRESS_POINTERS_BOOL) return false;
+        // For builtin code we need static roots
+        if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+          return false;
+        }
+        const RootsTable& roots_table = selector()->isolate()->roots_table();
+        RootIndex root_index;
+        CompressedHeapObjectMatcher m(node);
+        if (m.HasResolvedValue() &&
+            roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+          return RootsTable::IsReadOnly(root_index);
+        }
+        return false;
+      }
       case IrOpcode::kInt32Constant:
       case IrOpcode::kRelocatableInt32Constant: {
         const int32_t value = OpParameter<int32_t>(node->op());
@@ -2575,6 +2590,14 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
     }
     if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
       DCHECK_NE(left, nullptr);
+      if (RootsTable::IsReadOnly(root_index) &&
+          (V8_STATIC_ROOTS_BOOL || !selector->isolate()->bootstrapper())) {
+        return VisitCompare(
+            selector, kX64Cmp32, g.UseRegister(left),
+            g.TempImmediate(V8HeapCompressionScheme::CompressTagged(
+                selector->isolate()->root(root_index).ptr())),
+            cont);
+      }
       InstructionCode opcode =
           kX64Cmp32 | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
