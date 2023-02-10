@@ -1581,6 +1581,7 @@ class MaglevGraphBuilder {
   // True when this graph builder is building the subgraph of an inlined
   // function.
   bool is_inline() const { return parent_ != nullptr; }
+  int inlining_depth() const { return compilation_unit_->inlining_depth(); }
 
   // The fake offset used as a target for all exits of an inlined function.
   int inline_exit_offset() const {
@@ -1592,7 +1593,6 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   DeoptFrame* parent_deopt_frame_ = nullptr;
-  int inline_depth_;
 
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;

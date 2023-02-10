@@ -208,7 +208,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
       parent_(parent),
-      inline_depth_(parent_ == nullptr ? 0 : parent_->inline_depth_ + 1),
       graph_(graph),
       bytecode_analysis_(bytecode().object(), zone(), BytecodeOffset::None(),
                          true),
@@ -3093,7 +3092,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     return ReduceResult::Fail();
   }
   // TODO(victorgomes): Improve inline heuristics.
-  if (inline_depth_ > v8_flags.max_maglev_inline_depth) {
+  if (inlining_depth() > v8_flags.max_maglev_inline_depth) {
     return ReduceResult::Fail();
   }
 
