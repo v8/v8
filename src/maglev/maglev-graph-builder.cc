@@ -618,17 +618,7 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
 
   using OpNodeT = Int32NodeFor<kOperation>;
 
-  OpNodeT* result = AddNewNode<OpNodeT>({left, right});
-  known_node_aspects().GetOrCreateInfoFor(result)->type = NodeType::kSmi;
-  if constexpr (OpNodeT::kProperties.value_representation() ==
-                ValueRepresentation::kInt32) {
-    AddNewNode<CheckInt32IsSmi>({result});
-  } else {
-    static_assert(OpNodeT::kProperties.value_representation() ==
-                  ValueRepresentation::kUint32);
-    AddNewNode<CheckUint32IsSmi>({result});
-  }
-  SetAccumulator(result);
+  SetAccumulator(AddNewNode<OpNodeT>({left, right}));
 }
 
 template <Operation kOperation>
