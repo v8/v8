@@ -3892,8 +3892,10 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
                           original_fp);
   // Truncate float64 to float32.
   __ Fcvt(s1, kFPReturnRegister0);
-  __ Str(s1, MemOperand(current_float_param_slot, -kSystemPointerSize,
-                        PostIndex));
+  // Store the full 64 bits to silence a spurious msan error (see
+  // crbug.com/1414270).
+  __ Str(d1,
+         MemOperand(current_float_param_slot, -kSystemPointerSize, PostIndex));
   __ jmp(&param_conversion_done);
 
   __ bind(&param_kWasmF64);
