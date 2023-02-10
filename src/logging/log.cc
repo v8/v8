@@ -2208,6 +2208,9 @@ void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
     etw_jit_logger_ = std::make_unique<ETWJitLogger>(isolate_);
     AddLogEventListener(etw_jit_logger_.get());
     CHECK(isolate_->logger()->is_listening_to_code_events());
+    // Generate builtins for new isolates always. Otherwise it will not
+    // traverse the builtins.
+    options |= kJitCodeEventEnumExisting;
   }
 
   if (options & kJitCodeEventEnumExisting) {
