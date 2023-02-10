@@ -1003,10 +1003,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         MacroAssembler::SetIsolateDataSlots::kYes,
                          has_function_descriptor);
       } else {
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         MacroAssembler::SetIsolateDataSlots::kYes,
                          has_function_descriptor);
       }
 #if V8_ENABLE_WEBASSEMBLY

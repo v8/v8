@@ -2467,65 +2467,72 @@ void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
   Move(ip, function);
   CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments,
-                      has_function_descriptor);
+                      set_isolate_data_slots, has_function_descriptor);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                    int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
   CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      has_function_descriptor);
+                      set_isolate_data_slots, has_function_descriptor);
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, has_function_descriptor);
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                has_function_descriptor);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, has_function_descriptor);
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                has_function_descriptor);
 }
 
-void MacroAssembler::CallCFunctionHelper(Register function,
-                                         int num_reg_arguments,
-                                         int num_double_arguments,
-                                         bool has_function_descriptor) {
+void MacroAssembler::CallCFunctionHelper(
+    Register function, int num_reg_arguments, int num_double_arguments,
+    SetIsolateDataSlots set_isolate_data_slots, bool has_function_descriptor) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
-  // Save the frame pointer and PC so that the stack layout remains iterable,
-  // even without an ExitFrame which normally exists between JS and C frames.
-  Register addr_scratch = r7;
-  Register scratch = r8;
-  Push(scratch);
-  mflr(scratch);
-  // See x64 code for reasoning about how to address the isolate data fields.
-  if (root_array_available()) {
-    LoadPC(r0);
-    StoreU64(r0, MemOperand(kRootRegister,
-                            IsolateData::fast_c_call_caller_pc_offset()));
-    StoreU64(fp, MemOperand(kRootRegister,
-                            IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Push(addr_scratch);
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // Save the frame pointer and PC so that the stack layout remains iterable,
+    // even without an ExitFrame which normally exists between JS and C frames.
+    Register scratch = r8;
+    Push(scratch);
+    mflr(scratch);
+    // See x64 code for reasoning about how to address the isolate data fields.
+    if (root_array_available()) {
+      LoadPC(r0);
+      StoreU64(r0, MemOperand(kRootRegister,
+                              IsolateData::fast_c_call_caller_pc_offset()));
+      StoreU64(fp, MemOperand(kRootRegister,
+                              IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Register addr_scratch = r7;
+      Push(addr_scratch);
 
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    LoadPC(r0);
-    StoreU64(r0, MemOperand(addr_scratch));
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreU64(fp, MemOperand(addr_scratch));
-    Pop(addr_scratch);
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_pc_address(isolate()));
+      LoadPC(r0);
+      StoreU64(r0, MemOperand(addr_scratch));
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      StoreU64(fp, MemOperand(addr_scratch));
+      Pop(addr_scratch);
+    }
+    mtlr(scratch);
+    Pop(scratch);
   }
-  mtlr(scratch);
-  Pop(scratch);
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
@@ -2546,21 +2553,24 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
   Call(dest);
 
-  // We don't unset the PC; the FP is the source of truth.
-  Register zero_scratch = r0;
-  mov(zero_scratch, Operand::Zero());
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register zero_scratch = r0;
+    mov(zero_scratch, Operand::Zero());
 
-  if (root_array_available()) {
-    StoreU64(
-        zero_scratch,
-        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
-  } else {
-    DCHECK_NOT_NULL(isolate());
-    Push(addr_scratch);
-    Move(addr_scratch,
-         ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreU64(zero_scratch, MemOperand(addr_scratch));
-    Pop(addr_scratch);
+    if (root_array_available()) {
+      StoreU64(zero_scratch,
+               MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      Register addr_scratch = r7;
+      Push(addr_scratch);
+      Move(addr_scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      StoreU64(zero_scratch, MemOperand(addr_scratch));
+      Pop(addr_scratch);
+    }
   }
 
   // Remove frame bought in PrepareCallCFunction

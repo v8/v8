@@ -136,6 +136,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
 
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
+
   // Check whether preemption has been requested.
   void CheckPreemption();
 
