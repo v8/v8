@@ -176,11 +176,17 @@
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
+      'V8 Arm - builder - pgo - perf': 'official_arm',
       'V8 Android Arm - builder - perf': 'official_android_arm',
+      'V8 Android Arm - builder - pgo - perf': 'official_android_arm',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
+      'V8 Android Arm64 - builder - pgo - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
+      'V8 Linux - builder - pgo - perf': 'official_x86',
       'V8 Linux64 - builder - perf': 'official_x64',
+      'V8 Linux64 - builder - pgo - perf': 'official_x64',
       'V8 Mac Arm64 - builder - perf': 'official_mac_arm64',
+      'V8 Mac Arm64 - builder - pgo - perf': 'official_mac_arm64',
     },
     'client.v8.ports': {
       # Arm.
