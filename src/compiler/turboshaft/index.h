@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/fast-hash.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 // Operations are stored in possibly muliple sequential storage slots.
@@ -67,13 +68,34 @@ class OpIndex {
   bool operator<=(OpIndex other) const { return offset_ <= other.offset_; }
   bool operator>=(OpIndex other) const { return offset_ >= other.offset_; }
 
- private:
   uint32_t offset_;
 
   static constexpr uint32_t kTurbofanNodeIdFlag = 1;
 };
 
 std::ostream& operator<<(std::ostream& os, OpIndex idx);
+
+// V<> represents an SSA-value that is parameterized with the values
+// representation (see `representations.h` for the different classes to pass as
+// the `Rep` argument). Prefer using V<> instead of a plain OpIndex where
+// possible.
+template <typename Rep>
+class V : public OpIndex {
+  static_assert(std::is_base_of_v<Any, Rep>,
+                "V<> requires a representation tag");
+
+ public:
+  constexpr V() : OpIndex() {}
+
+  // V<Rep> is implicitly constructible from plain OpIndex.
+  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
+  V(T index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+
+  // V<Rep> is implicitly constructible from V<R> iff R == Rep or R is a
+  // subclass of Rep.
+  template <typename R, typename = std::enable_if_t<std::is_base_of_v<Rep, R>>>
+  V(V<R> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+};
 
 template <>
 struct fast_hash<OpIndex> {

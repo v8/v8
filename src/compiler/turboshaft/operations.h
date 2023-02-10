@@ -112,7 +112,7 @@ class Graph;
   V(Projection)                      \
   V(StaticAssert)                    \
   V(CheckTurboshaftTypeOf)           \
-  V(Check)                           \
+  V(IsObject)                        \
   V(IsSmiTagged)                     \
   V(ConvertToObject)
 
@@ -2118,28 +2118,33 @@ struct CheckTurboshaftTypeOfOp
   auto options() const { return std::tuple{rep, type, successful}; }
 };
 
-struct CheckOp : FixedArityOperationT<2, CheckOp> {
-  enum class Kind {
-    kCheckBigInt,       // Checks if a tagged input is a BigInt object
-    kBigIntIsBigInt64,  // Checks if a BigInt input is in BigInt64 range
+struct IsObjectOp : FixedArityOperationT<1, IsObjectOp> {
+  enum class Kind : uint8_t {
+    kBigInt,
+    kBigInt64,
+  };
+  enum class InputAssumptions : uint8_t {
+    kNone,
+    kHeapObject,
+    kBigInt,
   };
   Kind kind;
-  FeedbackSource feedback;
+  InputAssumptions input_assumptions;
 
-  static constexpr OpProperties properties = OpProperties::CanAbort();
+  static constexpr OpProperties properties = OpProperties::Reading();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
+    return RepVector<RegisterRepresentation::Word32()>();
   }
 
   OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
 
-  CheckOp(OpIndex input, OpIndex frame_state, Kind kind,
-          FeedbackSource feedback)
-      : Base(input, frame_state), kind(kind), feedback(feedback) {}
-  auto options() const { return std::tuple{kind, feedback}; }
+  IsObjectOp(OpIndex input, Kind kind, InputAssumptions input_assumptions)
+      : Base(input), kind(kind), input_assumptions(input_assumptions) {}
+  auto options() const { return std::tuple{kind, input_assumptions}; }
 };
-std::ostream& operator<<(std::ostream& os, CheckOp::Kind kind);
+std::ostream& operator<<(std::ostream& os, IsObjectOp::Kind kind);
+std::ostream& operator<<(std::ostream& os,
+                         IsObjectOp::InputAssumptions input_assumptions);
 
 struct IsSmiTaggedOp : FixedArityOperationT<1, IsSmiTaggedOp> {
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();

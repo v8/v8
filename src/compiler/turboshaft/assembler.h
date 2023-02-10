@@ -33,6 +33,76 @@ enum class Builtin : int32_t;
 
 namespace v8::internal::compiler::turboshaft {
 
+template <typename A, typename Vars, typename Vals, size_t... indices>
+void SetVariablesHelper(A& assembler, Vars& vars, const Vals& vals,
+                        std::index_sequence<indices...>) {
+  static_assert(std::tuple_size_v<Vars> == std::tuple_size_v<Vals>);
+
+  (void)std::initializer_list<int>{
+      (assembler.Set(std::get<indices>(vars), std::get<indices>(vals)), 0)...};
+}
+
+template <typename A, typename Vars, typename Vals, size_t... indices>
+void GetVariablesHelper(A& assembler, Vars& vars, Vals& vals,
+                        std::index_sequence<indices...>) {
+  static_assert(std::tuple_size_v<Vars> == std::tuple_size_v<Vals>);
+
+  (void)std::initializer_list<int>{
+      ((vals = assembler.Get(std::get<indices>(vars))), 0)...};
+}
+
+template <typename... Reps>
+class Label {
+  using variables_t = std::tuple<std::conditional_t<true, Variable, Reps>...>;
+  using values_t = std::tuple<V<Reps>...>;
+  static constexpr size_t size = sizeof...(Reps);
+
+ public:
+  template <typename Reducer>
+  explicit Label(Reducer* reducer)
+      : Label(reducer->Asm().NewBlock(),
+              std::tuple{NewFreshVariable<Reps>(reducer->Asm())...}) {}
+
+  Block* block() { return block_; }
+
+  template <typename A>
+  void Set(A& assembler, const values_t& values) {
+    SetVariablesHelper(assembler, vars_, values,
+                       std::make_index_sequence<size>());
+  }
+
+  template <size_t I, typename A>
+  OpIndex Get(A& assembler) {
+    return assembler.Get(std::get<I>(vars_));
+  }
+
+  template <typename A>
+  auto GetAll(A& assembler) {
+    values_t values;
+    GetVariablesHelper(assembler, vars_, values,
+                       std::make_index_sequence<size>());
+    // C++17 does not allow structured binding of empty tuples, so we pass
+    // a dummy nullptr value here in order to prevent empty bindings.
+    return std::tuple_cat(std::tuple<std::nullptr_t>{}, values);
+  }
+
+ private:
+  Label(Block* block, variables_t vars)
+      : block_(block), vars_(std::move(vars)) {}
+
+  template <typename T, typename A, RegisterRepresentation::Enum rep = T::Rep>
+  static Variable NewFreshVariable(A& assembler) {
+    return assembler.NewFreshVariable(RegisterRepresentation{rep});
+  }
+  template <typename T, typename A>
+  static Variable NewFreshVaribale(A& assembler) {
+    return assembler.NewFreshVariable();
+  }
+
+  Block* block_;
+  variables_t vars_;
+};
+
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
 
 // Forward declarations
@@ -235,17 +305,26 @@ class AssemblerOpInterface {
 // reducer stack.
 #define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)            \
   OpIndex name(OpIndex left, OpIndex right, rep_type rep) {              \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {      \
+      return OpIndex::Invalid();                                         \
+    }                                                                    \
     return stack().Reduce##operation(left, right,                        \
                                      operation##Op::Kind::k##kind, rep); \
   }
 #define DECL_SINGLE_REP_BINOP(name, operation, kind, rep)                \
   OpIndex name(OpIndex left, OpIndex right) {                            \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {      \
+      return OpIndex::Invalid();                                         \
+    }                                                                    \
     return stack().Reduce##operation(left, right,                        \
                                      operation##Op::Kind::k##kind, rep); \
   }
-#define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep) \
-  OpIndex name(OpIndex left, OpIndex right) {               \
-    return stack().Reduce##operation(left, right, rep);     \
+#define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep)         \
+  OpIndex name(OpIndex left, OpIndex right) {                       \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().Reduce##operation(left, right, rep);             \
   }
   DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
   DECL_SINGLE_REP_BINOP(Word32Add, WordBinop, Add, WordRepresentation::Word32())
@@ -374,6 +453,9 @@ class AssemblerOpInterface {
 
   OpIndex Shift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
                 WordRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceShift(left, right, kind, rep);
   }
 
@@ -417,16 +499,25 @@ class AssemblerOpInterface {
                             WordRepresentation rep) {
     DCHECK_GE(right, 0);
     DCHECK_LT(right, rep.bit_width());
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return ShiftRightLogical(left, this->Word32Constant(right), rep);
   }
   OpIndex ShiftRightArithmetic(OpIndex left, uint32_t right,
                                WordRepresentation rep) {
     DCHECK_GE(right, 0);
     DCHECK_LT(right, rep.bit_width());
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
   }
   OpIndex ShiftLeft(OpIndex left, uint32_t right, WordRepresentation rep) {
     DCHECK_LT(right, rep.bit_width());
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return ShiftLeft(left, this->Word32Constant(right), rep);
   }
 
@@ -441,6 +532,9 @@ class AssemblerOpInterface {
   DECL_SINGLE_REP_BINOP_NO_KIND(TaggedEqual, Equal,
                                 RegisterRepresentation::Tagged())
   OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceEqual(left, right, rep);
   }
 
@@ -488,6 +582,9 @@ class AssemblerOpInterface {
                         SignedLessThanOrEqual, FloatRepresentation::Float64())
   OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
                      RegisterRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceComparison(left, right, kind, rep);
   }
 
@@ -497,11 +594,17 @@ class AssemblerOpInterface {
 
 #define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)             \
   OpIndex name(OpIndex input, rep_type rep) {                             \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {       \
+      return OpIndex::Invalid();                                          \
+    }                                                                     \
     return stack().Reduce##operation(input, operation##Op::Kind::k##kind, \
                                      rep);                                \
   }
 #define DECL_SINGLE_REP_UNARY(name, operation, kind, rep)                 \
   OpIndex name(OpIndex input) {                                           \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {       \
+      return OpIndex::Invalid();                                          \
+    }                                                                     \
     return stack().Reduce##operation(input, operation##Op::Kind::k##kind, \
                                      rep);                                \
   }
@@ -625,11 +728,17 @@ class AssemblerOpInterface {
 
   OpIndex Float64InsertWord32(OpIndex float64, OpIndex word32,
                               Float64InsertWord32Op::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceFloat64InsertWord32(float64, word32, kind);
   }
 
   OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
                         RegisterRepresentation to) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceTaggedBitcast(input, from, to);
   }
   OpIndex BitcastTaggedToWord(OpIndex tagged) {
@@ -641,26 +750,41 @@ class AssemblerOpInterface {
                          RegisterRepresentation::Tagged());
   }
 
-  OpIndex Check(OpIndex input, OpIndex frame_state, CheckOp::Kind kind,
-                FeedbackSource feedback) {
-    return stack().ReduceCheck(input, frame_state, kind, feedback);
+  OpIndex IsObject(OpIndex input, IsObjectOp::Kind kind,
+                   IsObjectOp::InputAssumptions input_assumptions) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceIsObject(input, kind, input_assumptions);
   }
 
   OpIndex IsSmiTagged(OpIndex input) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceIsSmiTagged(input);
   }
 
   OpIndex ConvertToObject(OpIndex input, ConvertToObjectOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConvertToObject(input, kind);
   }
 
   OpIndex Word32Constant(uint32_t value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kWord32, uint64_t{value});
   }
   OpIndex Word32Constant(int32_t value) {
     return Word32Constant(static_cast<uint32_t>(value));
   }
   OpIndex Word64Constant(uint64_t value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kWord64, value);
   }
   OpIndex Word64Constant(int64_t value) {
@@ -682,9 +806,15 @@ class AssemblerOpInterface {
                         WordRepresentation::PointerSized());
   }
   OpIndex Float32Constant(float value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kFloat32, value);
   }
   OpIndex Float64Constant(double value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kFloat64, value);
   }
   OpIndex FloatConstant(double value, FloatRepresentation rep) {
@@ -696,26 +826,44 @@ class AssemblerOpInterface {
     }
   }
   OpIndex NumberConstant(double value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kNumber, value);
   }
   OpIndex TaggedIndexConstant(int32_t value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kTaggedIndex,
                                   uint64_t{static_cast<uint32_t>(value)});
   }
   OpIndex HeapConstant(Handle<HeapObject> value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kHeapObject, value);
   }
   OpIndex BuiltinCode(Builtin builtin, Isolate* isolate) {
     return HeapConstant(BuiltinCodeHandle(builtin, isolate));
   }
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kHeapObject, value);
   }
   OpIndex ExternalConstant(ExternalReference value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(ConstantOp::Kind::kExternal, value);
   }
   OpIndex RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
     DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceConstant(
         mode == RelocInfo::WASM_CALL
             ? ConstantOp::Kind::kRelocatableWasmCall
@@ -725,15 +873,21 @@ class AssemblerOpInterface {
 
 #define DECL_CHANGE(name, kind, assumption, from, to)                  \
   OpIndex name(OpIndex input) {                                        \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {    \
+      return OpIndex::Invalid();                                       \
+    }                                                                  \
     return stack().ReduceChange(                                       \
         input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
         RegisterRepresentation::from(), RegisterRepresentation::to()); \
   }
-#define DECL_TRY_CHANGE(name, kind, from, to)                      \
-  OpIndex name(OpIndex input) {                                    \
-    return stack().ReduceTryChange(input, TryChangeOp::Kind::kind, \
-                                   FloatRepresentation::from(),    \
-                                   WordRepresentation::to());      \
+#define DECL_TRY_CHANGE(name, kind, from, to)                       \
+  OpIndex name(OpIndex input) {                                     \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().ReduceTryChange(input, TryChangeOp::Kind::kind,  \
+                                   FloatRepresentation::from(),     \
+                                   WordRepresentation::to());       \
   }
 
   DECL_CHANGE(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
@@ -822,6 +976,9 @@ class AssemblerOpInterface {
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep, int32_t offset = 0,
                uint8_t element_size_log2 = 0) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceLoad(base, index, kind, loaded_rep,
                               loaded_rep.ToRegisterRepresentation(), offset,
                               element_size_log2);
@@ -846,6 +1003,9 @@ class AssemblerOpInterface {
   void Store(OpIndex base, OpIndex index, OpIndex value, StoreOp::Kind kind,
              MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
              int32_t offset = 0, uint8_t element_size_log2 = 0) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceStore(base, index, value, kind, stored_rep, write_barrier,
                         offset, element_size_log2);
   }
@@ -868,58 +1028,114 @@ class AssemblerOpInterface {
 
   OpIndex Allocate(OpIndex size, AllocationType type,
                    AllowLargeObjects allow_large_objects) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceAllocate(size, type, allow_large_objects);
   }
 
   OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceDecodeExternalPointer(handle, tag);
   }
 
-  void Retain(OpIndex value) { stack().ReduceRetain(value); }
+  void Retain(OpIndex value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceRetain(value);
+  }
 
   OpIndex StackPointerGreaterThan(OpIndex limit, StackCheckKind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceStackPointerGreaterThan(limit, kind);
   }
 
   OpIndex StackCheckOffset() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceFrameConstant(
         FrameConstantOp::Kind::kStackCheckOffset);
   }
   OpIndex FramePointer() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceFrameConstant(FrameConstantOp::Kind::kFramePointer);
   }
   OpIndex ParentFramePointer() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceFrameConstant(
         FrameConstantOp::Kind::kParentFramePointer);
   }
 
   OpIndex StackSlot(int size, int alignment) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceStackSlot(size, alignment);
   }
 
-  void Goto(Block* destination) { stack().ReduceGoto(destination); }
+  void Goto(Block* destination) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceGoto(destination);
+  }
   void Branch(OpIndex condition, Block* if_true, Block* if_false,
               BranchHint hint = BranchHint::kNone) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceBranch(condition, if_true, if_false, hint);
   }
   OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                  RegisterRepresentation rep, BranchHint hint,
                  SelectOp::Implementation implem) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
   }
   void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
               Block* default_case,
               BranchHint default_hint = BranchHint::kNone) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceSwitch(input, cases, default_case, default_hint);
   }
-  void Unreachable() { stack().ReduceUnreachable(); }
+  void Unreachable() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceUnreachable();
+  }
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
                     const char* debug_name = nullptr) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceParameter(index, rep, debug_name);
   }
-  OpIndex OsrValue(int index) { return stack().ReduceOsrValue(index); }
+  OpIndex OsrValue(int index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceOsrValue(index);
+  }
   void Return(OpIndex pop_count, base::Vector<OpIndex> return_values) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceReturn(pop_count, return_values);
   }
   void Return(OpIndex result) {
@@ -929,10 +1145,16 @@ class AssemblerOpInterface {
   OpIndex Call(OpIndex callee, OpIndex frame_state,
                base::Vector<const OpIndex> arguments,
                const TSCallDescriptor* descriptor) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceCall(callee, frame_state, arguments, descriptor);
   }
   OpIndex Call(OpIndex callee, std::initializer_list<OpIndex> arguments,
                const TSCallDescriptor* descriptor) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return Call(callee, OpIndex::Invalid(), base::VectorOf(arguments),
                 descriptor);
   }
@@ -940,28 +1162,46 @@ class AssemblerOpInterface {
                                 base::Vector<const OpIndex> arguments,
                                 Block* if_success, Block* if_exception,
                                 const TSCallDescriptor* descriptor) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceCallAndCatchException(
         callee, frame_state, arguments, if_success, if_exception, descriptor);
   }
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceTailCall(callee, arguments, descriptor);
   }
 
   OpIndex FrameState(base::Vector<const OpIndex> inputs, bool inlined,
                      const FrameStateData* data) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceFrameState(inputs, inlined, data);
   }
   void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
                     const DeoptimizeParameters* parameters) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceDeoptimizeIf(condition, frame_state, false, parameters);
   }
   void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
                        const DeoptimizeParameters* parameters) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceDeoptimizeIf(condition, frame_state, true, parameters);
   }
   void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     Zone* zone = stack().output_graph().graph_zone();
     const DeoptimizeParameters* params =
         zone->New<DeoptimizeParameters>(reason, feedback);
@@ -970,27 +1210,45 @@ class AssemblerOpInterface {
   void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
                        DeoptimizeReason reason,
                        const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     Zone* zone = stack().output_graph().graph_zone();
     const DeoptimizeParameters* params =
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIfNot(condition, frame_state, params);
   }
   void Deoptimize(OpIndex frame_state, const DeoptimizeParameters* parameters) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceDeoptimize(frame_state, parameters);
   }
 
   void TrapIf(OpIndex condition, TrapId trap_id) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceTrapIf(condition, false, trap_id);
   }
   void TrapIfNot(OpIndex condition, TrapId trap_id) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceTrapIf(condition, true, trap_id);
   }
 
   void StaticAssert(OpIndex condition, const char* source) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
     stack().ReduceStaticAssert(condition, source);
   }
 
   OpIndex Phi(base::Vector<const OpIndex> inputs, RegisterRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReducePhi(inputs, rep);
   }
   OpIndex Phi(std::initializer_list<OpIndex> inputs,
@@ -999,41 +1257,70 @@ class AssemblerOpInterface {
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          OpIndex old_backedge_index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          Node* old_backedge_index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
   }
 
   OpIndex Tuple(base::Vector<OpIndex> indices) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceTuple(indices);
   }
   OpIndex Tuple(OpIndex a, OpIndex b) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceTuple(base::VectorOf({a, b}));
   }
   OpIndex Projection(OpIndex tuple, uint16_t index,
                      RegisterRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceProjection(tuple, index, rep);
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return stack().ReduceCheckTurboshaftTypeOf(input, rep, expected_type,
                                                successful);
   }
 
-  OpIndex LoadException() { return stack().ReduceLoadException(); }
+  OpIndex LoadException() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadException();
+  }
 
   // Return `true` if the control flow after the conditional jump is reachable.
-  V8_WARN_UNUSED_RESULT bool GotoIf(OpIndex condition, Block* if_true,
-                                    BranchHint hint = BranchHint::kNone) {
+  bool GotoIf(OpIndex condition, Block* if_true,
+              BranchHint hint = BranchHint::kNone) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return false;
+    }
     Block* if_false = stack().NewBlock();
     stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_false);
   }
   // Return `true` if the control flow after the conditional jump is reachable.
-  V8_WARN_UNUSED_RESULT bool GotoIfNot(OpIndex condition, Block* if_false,
-                                       BranchHint hint = BranchHint::kNone) {
+  bool GotoIfNot(OpIndex condition, Block* if_false,
+                 BranchHint hint = BranchHint::kNone) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return false;
+    }
     Block* if_true = stack().NewBlock();
     stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_true);
@@ -1042,6 +1329,9 @@ class AssemblerOpInterface {
   OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
                       const base::Vector<OpIndex>& arguments,
                       Isolate* isolate) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     Callable const callable = Builtins::CallableFor(isolate, builtin);
     Zone* graph_zone = stack().output_graph().graph_zone();
 
@@ -1059,8 +1349,98 @@ class AssemblerOpInterface {
     return stack().Call(callee, frame_state, arguments, ts_call_descriptor);
   }
 
+  template <typename... Reps>
+  Label<Reps...> CreateLabel() {
+    return Label<Reps...>::Create(stack());
+  }
+
+  // These methods are used by the assembler macros (IF, ELSE, ELSE_IF, END_IF).
+  template <typename... Reps, typename... Vals>
+  void ControlFlowHelper_Goto(Label<Reps...>& label, Vals... values) {
+    label.Set(stack(), std::tuple{values...});
+    Goto(label.block());
+  }
+
+  template <typename... Reps, typename... Vals>
+  void ControlFlowHelper_GotoIf(OpIndex condition, Label<Reps...>& label,
+                                Vals... values) {
+    label.Set(stack(), std::tuple{values...});
+    GotoIf(condition, label.block());
+  }
+
+  template <typename... Reps, typename... Vals>
+  void ControlFlowHelper_GotoIfNot(OpIndex condition, Label<Reps...>& label,
+                                   Vals... values) {
+    label.Set(stack(), std::tuple{values...});
+    GotoIfNot(condition, label.block());
+  }
+
+  bool ControlFlowHelper_If(OpIndex condition, BranchHint hint) {
+    Block* then_block = stack().NewBlock();
+    Block* else_block = stack().NewBlock();
+    Block* end_block = stack().NewBlock();
+    this->Branch(condition, then_block, else_block, hint);
+    if_scope_stack_.emplace_back(else_block, end_block);
+    return stack().Bind(then_block);
+  }
+
+  bool ControlFlowHelper_ElseIf(OpIndex condition) {
+    DCHECK_LT(0, if_scope_stack_.size());
+    auto& info = if_scope_stack_.back();
+    Block* else_block = info.else_block;
+    DCHECK_NOT_NULL(else_block);
+    if (!stack().Bind(else_block)) return false;
+    Block* then_block = stack().NewBlock();
+    info.else_block = stack().NewBlock();
+    stack().Branch(condition, then_block, info.else_block);
+    return stack().Bind(then_block);
+  }
+
+  bool ControlFlowHelper_Else() {
+    DCHECK_LT(0, if_scope_stack_.size());
+    auto& info = if_scope_stack_.back();
+    Block* else_block = info.else_block;
+    DCHECK_NOT_NULL(else_block);
+    info.else_block = nullptr;
+    return stack().Bind(else_block);
+  }
+
+  void ControlFlowHelper_EndIf() {
+    DCHECK_LT(0, if_scope_stack_.size());
+    auto& info = if_scope_stack_.back();
+    // Do we still have to place an else block (aka we had if's without else).
+    if (info.else_block) {
+      if (stack().Bind(info.else_block)) {
+        stack().Goto(info.end_block);
+      }
+    }
+    stack().Bind(info.end_block);
+    if_scope_stack_.pop_back();
+  }
+
+  void ControlFlowHelper_GotoEnd() {
+    DCHECK_LT(0, if_scope_stack_.size());
+    auto& info = if_scope_stack_.back();
+
+    if (!stack().current_block()) {
+      // We had an unconditional goto inside the block, so we don't need to add
+      // a jump to the end block.
+      return;
+    }
+    // Generate a jump to the end block.
+    stack().Goto(info.end_block);
+  }
+
  private:
   Assembler& stack() { return *static_cast<Assembler*>(this); }
+  struct IfScopeInfo {
+    Block* else_block;
+    Block* end_block;
+
+    IfScopeInfo(Block* else_block, Block* end_block)
+        : else_block(else_block), end_block(end_block) {}
+  };
+  base::SmallVector<IfScopeInfo, 16> if_scope_stack_;
 };
 
 template <class Reducers>
@@ -1088,17 +1468,21 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   using OperationMatching<Assembler<Reducers>>::Get;
   using Stack::Get;
 
-  V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block,
-                                            const Block* origin = nullptr) {
-    if (!this->output_graph().Add(block)) return false;
+  V8_INLINE bool Bind(Block* block, const Block* origin = nullptr) {
+    if (!this->output_graph().Add(block)) {
+      generating_unreachable_operations_ = true;
+      return false;
+    }
     DCHECK_NULL(current_block_);
     current_block_ = block;
+    generating_unreachable_operations_ = false;
     if (origin == nullptr) origin = this->current_input_block();
     if (origin != nullptr) block->SetOrigin(origin);
     Stack::Bind(block, origin);
     return true;
   }
 
+  // TODO(nicohartmann@): Remove this.
   V8_INLINE void BindReachable(Block* block, const Block* origin = nullptr) {
     bool bound = Bind(block, origin);
     DCHECK(bound);
@@ -1110,6 +1494,11 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   }
 
   Block* current_block() const { return current_block_; }
+  bool generating_unreachable_operations() const {
+    DCHECK_IMPLIES(generating_unreachable_operations_,
+                   current_block_ == nullptr);
+    return generating_unreachable_operations_;
+  }
   OpIndex current_operation_origin() const { return current_operation_origin_; }
 
   // ReduceProjection eliminates projections to tuples and returns instead the
@@ -1287,6 +1676,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   }
 
   Block* current_block_ = nullptr;
+  bool generating_unreachable_operations_ = false;
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();

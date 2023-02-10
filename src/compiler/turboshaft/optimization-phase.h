@@ -643,10 +643,9 @@ class GraphVisitor {
     return assembler().ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from,
                                            op.to);
   }
-  OpIndex AssembleOutputGraphCheck(const CheckOp& op) {
-    return assembler().ReduceCheck(MapToNewGraph(op.input()),
-                                   MapToNewGraph(op.frame_state()), op.kind,
-                                   op.feedback);
+  OpIndex AssembleOutputGraphIsObject(const IsObjectOp& op) {
+    return assembler().ReduceIsObject(MapToNewGraph(op.input()), op.kind,
+                                      op.input_assumptions);
   }
   OpIndex AssembleOutputGraphIsSmiTagged(const IsSmiTaggedOp& op) {
     return assembler().ReduceIsSmiTagged(MapToNewGraph(op.input()));

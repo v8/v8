@@ -843,7 +843,7 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const CheckOp& op) {
+Node* ScheduleBuilder::ProcessOperation(const IsObjectOp& op) {
   // This should have been lowered before already.
   UNREACHABLE();
 }

@@ -83,7 +83,7 @@ class RegisterRepresentation {
     }
   }
 
-  bool IsFloat() {
+  constexpr bool IsFloat() {
     switch (*this) {
       case Enum::kFloat32:
       case Enum::kFloat64:
@@ -180,10 +180,12 @@ class RegisterRepresentation {
   static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
-V8_INLINE bool operator==(RegisterRepresentation a, RegisterRepresentation b) {
+V8_INLINE constexpr bool operator==(RegisterRepresentation a,
+                                    RegisterRepresentation b) {
   return a.value() == b.value();
 }
-V8_INLINE bool operator!=(RegisterRepresentation a, RegisterRepresentation b) {
+V8_INLINE constexpr bool operator!=(RegisterRepresentation a,
+                                    RegisterRepresentation b) {
   return a.value() != b.value();
 }
 
@@ -613,6 +615,91 @@ V8_INLINE size_t hash_value(MemoryRepresentation rep) {
 }
 
 std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep);
+
+// Tag classes for V<>.
+struct Any {
+  static constexpr const char* short_name() { return "A"; }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return true;
+  }
+};
+class WordAny : public Any {
+  static constexpr const char* short_name() { return "W"; }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep.IsWord();
+  }
+};
+
+template <size_t Bits>
+struct WordWithBits : public WordAny {
+  static_assert(Bits == 32 || Bits == 64);
+  static constexpr RegisterRepresentation Rep =
+      Bits == 32 ? RegisterRepresentation::Word32()
+                 : RegisterRepresentation::Word64();
+  operator RegisterRepresentation() const { return Rep; }
+  static constexpr const char* short_name() {
+    if constexpr (Bits == 32) {
+      return "W32";
+    } else {
+      return "W64";
+    }
+  }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == Rep;
+  }
+};
+
+using Word32 = WordWithBits<32>;
+using Word64 = WordWithBits<64>;
+
+struct FloatAny : public Any {
+  static constexpr const char* short_name() { return "F"; }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep.IsFloat();
+  }
+};
+
+template <size_t Bits>
+struct FloatWithBits : public FloatAny {
+  static_assert(Bits == 32 || Bits == 64);
+  static constexpr RegisterRepresentation Rep =
+      Bits == 32 ? RegisterRepresentation::Float32()
+                 : RegisterRepresentation::Float64();
+  operator RegisterRepresentation() const { return Rep; }
+  static constexpr const char* short_name() {
+    if constexpr (Bits == 32) {
+      return "F32";
+    } else {
+      return "F64";
+    }
+  }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == Rep;
+  }
+};
+
+using Float32 = FloatWithBits<32>;
+using Float64 = FloatWithBits<64>;
+
+struct Tagged : public Any {
+  static constexpr RegisterRepresentation Rep =
+      RegisterRepresentation::Tagged();
+  operator RegisterRepresentation() const { return Rep; }
+  static constexpr const char* short_name() { return "T"; }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Tagged();
+  }
+};
+
+struct Compressed : public Any {
+  static constexpr RegisterRepresentation Rep =
+      RegisterRepresentation::Compressed();
+  operator RegisterRepresentation() const { return Rep; }
+  static constexpr const char* short_name() { return "C"; }
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Compressed();
+  }
+};
 
 }  // namespace v8::internal::compiler::turboshaft
 

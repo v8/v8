@@ -668,15 +668,28 @@ OpIndex GraphBuilder::Process(
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
 
-    case IrOpcode::kCheckBigInt:
+    case IrOpcode::kCheckBigInt: {
       DCHECK(dominating_frame_state.valid());
-      return assembler.Check(Map(node->InputAt(0)), dominating_frame_state,
-                             CheckOp::Kind::kCheckBigInt,
-                             CheckParametersOf(op).feedback());
-    case IrOpcode::kCheckedBigIntToBigInt64:
-      return assembler.Check(Map(node->InputAt(0)), dominating_frame_state,
-                             CheckOp::Kind::kBigIntIsBigInt64,
-                             CheckParametersOf(op).feedback());
+      OpIndex input = Map(node->InputAt(0));
+      OpIndex check = assembler.IsObject(input, IsObjectOp::Kind::kBigInt,
+                                         IsObjectOp::InputAssumptions::kNone);
+      assembler.DeoptimizeIfNot(check, dominating_frame_state,
+                                DeoptimizeReason::kNotABigInt,
+                                CheckParametersOf(op).feedback());
+      return input;
+    }
+    case IrOpcode::kCheckedBigIntToBigInt64: {
+      DCHECK(dominating_frame_state.valid());
+      OpIndex input = Map(node->InputAt(0));
+      OpIndex check =
+          assembler.IsObject(Map(node->InputAt(0)), IsObjectOp::Kind::kBigInt64,
+                             IsObjectOp::InputAssumptions::kBigInt);
+      assembler.DeoptimizeIfNot(check, dominating_frame_state,
+                                DeoptimizeReason::kNotABigInt64,
+                                CheckParametersOf(op).feedback());
+      return input;
+    }
+
     case IrOpcode::kChangeInt64ToBigInt:
       return assembler.ConvertToObject(
           Map(node->InputAt(0)), ConvertToObjectOp::Kind::kInt64ToBigInt64);
