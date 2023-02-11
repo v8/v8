@@ -774,7 +774,7 @@ class SimulatorHelper {
     state->sp = reinterpret_cast<void*>(simulator_->sp());
     state->fp = reinterpret_cast<void*>(simulator_->fp());
     state->lr = reinterpret_cast<void*>(simulator_->lr());
-#elif V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
