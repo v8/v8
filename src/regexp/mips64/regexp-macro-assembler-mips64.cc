@@ -372,7 +372,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
           unicode
               ? ExternalReference::re_case_insensitive_compare_unicode()
               : ExternalReference::re_case_insensitive_compare_non_unicode();
-      __ CallCFunction(function, argument_count);
+      CallCFunctionFromIrregexpCode(function, argument_count);
     }
 
     // Check if function returned non-zero for success or zero for failure.
@@ -508,8 +508,8 @@ void RegExpMacroAssemblerMIPS::CallIsCharacterInRangeArray(
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
     FrameScope scope(masm_.get(), StackFrame::MANUAL);
-    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
-                     kNumArguments);
+    CallCFunctionFromIrregexpCode(
+        ExternalReference::re_is_character_in_range_array(), kNumArguments);
   }
 
   __ li(code_pointer(), Operand(masm_->CodeObject()));
@@ -994,7 +994,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ PrepareCallCFunction(kNumArguments, a0);
       __ li(a0, Operand(ExternalReference::isolate_address(masm_->isolate())));
       ExternalReference grow_stack = ExternalReference::re_grow_stack();
-      __ CallCFunction(grow_stack, kNumArguments);
+      CallCFunctionFromIrregexpCode(grow_stack, kNumArguments);
       // If nullptr is returned, we have failed to grow the stack, and must exit
       // with a stack-overflow exception.
       __ Branch(&exit_with_exception, eq, v0, Operand(zero_reg));
@@ -1030,7 +1030,6 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
   return Handle<HeapObject>::cast(istream);
 }
 
-
 void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
   if (to == nullptr) {
     Backtrack();
@@ -1040,14 +1039,12 @@ void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
   return;
 }
 
-
 void RegExpMacroAssemblerMIPS::IfRegisterGE(int reg,
                                             int comparand,
                                             Label* if_ge) {
   __ Ld(a0, register_location(reg));
   BranchOrBacktrack(if_ge, ge, a0, Operand(comparand));
 }
-
 
 void RegExpMacroAssemblerMIPS::IfRegisterLT(int reg,
                                             int comparand,
@@ -1056,30 +1053,25 @@ void RegExpMacroAssemblerMIPS::IfRegisterLT(int reg,
   BranchOrBacktrack(if_lt, lt, a0, Operand(comparand));
 }
 
-
 void RegExpMacroAssemblerMIPS::IfRegisterEqPos(int reg,
                                                Label* if_eq) {
   __ Ld(a0, register_location(reg));
   BranchOrBacktrack(if_eq, eq, a0, Operand(current_input_offset()));
 }
 
-
 RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerMIPS::Implementation() {
   return kMIPSImplementation;
 }
 
-
 void RegExpMacroAssemblerMIPS::PopCurrentPosition() {
   Pop(current_input_offset());
 }
-
 
 void RegExpMacroAssemblerMIPS::PopRegister(int register_index) {
   Pop(a0);
   __ Sd(a0, register_location(register_index));
 }
-
 
 void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
   if (label->is_bound()) {
@@ -1106,11 +1098,9 @@ void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
   CheckStackLimit();
 }
 
-
 void RegExpMacroAssemblerMIPS::PushCurrentPosition() {
   Push(current_input_offset());
 }
-
 
 void RegExpMacroAssemblerMIPS::PushRegister(int register_index,
                                             StackCheckFlag check_stack_limit) {
@@ -1118,7 +1108,6 @@ void RegExpMacroAssemblerMIPS::PushRegister(int register_index,
   Push(a0);
   if (check_stack_limit) CheckStackLimit();
 }
-
 
 void RegExpMacroAssemblerMIPS::ReadCurrentPositionFromRegister(int reg) {
   __ Ld(current_input_offset(), register_location(reg));
@@ -1156,19 +1145,16 @@ void RegExpMacroAssemblerMIPS::SetCurrentPositionFromEnd(int by) {
   __ bind(&after_position);
 }
 
-
 void RegExpMacroAssemblerMIPS::SetRegister(int register_index, int to) {
   DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ li(a0, Operand(to));
   __ Sd(a0, register_location(register_index));
 }
 
-
 bool RegExpMacroAssemblerMIPS::Succeed() {
   __ jmp(&success_label_);
   return global();
 }
-
 
 void RegExpMacroAssemblerMIPS::WriteCurrentPositionToRegister(int reg,
                                                               int cp_offset) {
@@ -1179,7 +1165,6 @@ void RegExpMacroAssemblerMIPS::WriteCurrentPositionToRegister(int reg,
     __ Sd(a0, register_location(reg));
   }
 }
-
 
 void RegExpMacroAssemblerMIPS::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
@@ -1253,13 +1238,11 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   __ li(code_pointer(), Operand(masm_->CodeObject()));
 }
 
-
 // Helper function for reading a value out of a stack frame.
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
   return reinterpret_cast<T&>(Memory<int32_t>(re_frame + frame_offset));
 }
-
 
 template <typename T>
 static T* frame_entry_address(Address re_frame, int frame_offset) {
@@ -1281,7 +1264,6 @@ int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
       frame_entry_address<const byte*>(re_frame, kInputEndOffset));
 }
 
-
 MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {
   DCHECK(register_index < (1<<30));
   if (num_registers_ <= register_index) {
@@ -1290,7 +1272,6 @@ MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {
   return MemOperand(frame_pointer(),
                     kRegisterZeroOffset - register_index * kPointerSize);
 }
-
 
 void RegExpMacroAssemblerMIPS::CheckPosition(int cp_offset,
                                              Label* on_outside_input) {
@@ -1303,7 +1284,6 @@ void RegExpMacroAssemblerMIPS::CheckPosition(int cp_offset,
     BranchOrBacktrack(on_outside_input, le, a0, Operand(a1));
   }
 }
-
 
 void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to,
                                                  Condition condition,
@@ -1324,7 +1304,6 @@ void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to,
   __ Branch(to, condition, rs, rt);
 }
 
-
 void RegExpMacroAssemblerMIPS::SafeCall(Label* to,
                                         Condition cond,
                                         Register rs,
@@ -1332,20 +1311,17 @@ void RegExpMacroAssemblerMIPS::SafeCall(Label* to,
   __ BranchAndLink(to, cond, rs, rt);
 }
 
-
 void RegExpMacroAssemblerMIPS::SafeReturn() {
   __ pop(ra);
   __ Daddu(t1, ra, Operand(masm_->CodeObject()));
   __ Jump(t1);
 }
 
-
 void RegExpMacroAssemblerMIPS::SafeCallTarget(Label* name) {
   __ bind(name);
   __ Dsubu(ra, ra, Operand(masm_->CodeObject()));
   __ push(ra);
 }
-
 
 void RegExpMacroAssemblerMIPS::Push(Register source) {
   DCHECK(source != backtrack_stackpointer());
@@ -1355,13 +1331,27 @@ void RegExpMacroAssemblerMIPS::Push(Register source) {
   __ Sw(source, MemOperand(backtrack_stackpointer()));
 }
 
-
 void RegExpMacroAssemblerMIPS::Pop(Register target) {
   DCHECK(target != backtrack_stackpointer());
   __ Lw(target, MemOperand(backtrack_stackpointer()));
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(), kIntSize);
 }
 
+void RegExpMacroAssemblerMIPS::CallCFunctionFromIrregexpCode(
+    ExternalReference function, int num_arguments) {
+  // Irregexp code must not set fast_c_call_caller_fp and fast_c_call_caller_pc
+  // since
+  //
+  // 1. it may itself have been called using CallCFunction and nested calls are
+  //    unsupported, and
+  // 2. it may itself have been called directly from C where the frame pointer
+  //    might not be set (-fomit-frame-pointer), and thus frame iteration would
+  //    fail.
+  //
+  // See also: crbug.com/v8/12670#c17.
+  __ CallCFunction(function, num_arguments,
+                   MacroAssembler::SetIsolateDataSlots::kNo);
+}
 
 void RegExpMacroAssemblerMIPS::CheckPreemption() {
   // Check for preemption.
@@ -1372,7 +1362,6 @@ void RegExpMacroAssemblerMIPS::CheckPreemption() {
   SafeCall(&check_preempt_label_, ls, sp, Operand(a0));
 }
 
-
 void RegExpMacroAssemblerMIPS::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit_address(
@@ -1382,7 +1371,6 @@ void RegExpMacroAssemblerMIPS::CheckStackLimit() {
   __ Ld(a0, MemOperand(a0));
   SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(), Operand(a0));
 }
-
 
 void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {

@@ -6002,31 +6002,37 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
-                                   int num_double_arguments) {
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t9, function);
-  CallCFunctionHelper(t9, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(t9, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments) {
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunctionHelper(Register function,
-                                         int num_reg_arguments,
-                                         int num_double_arguments) {
+void MacroAssembler::CallCFunctionHelper(
+    Register function, int num_reg_arguments, int num_double_arguments,
+    SetIsolateDataSlots set_isolate_data_slots) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
   // Make sure that the stack is aligned before calling a C function unless
@@ -6061,47 +6067,57 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // stays correct.
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (function != t9) {
-      mov(t9, function);
-      function = t9;
-    }
+    if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+      if (function != t9) {
+        mov(t9, function);
+        function = t9;
+      }
 
-    // Save the frame pointer and PC so that the stack layout remains iterable,
-    // even without an ExitFrame which normally exists between JS and C frames.
-    // 't' registers are caller-saved so this is safe as a scratch register.
-    Register pc_scratch = t1;
-    Register scratch = t2;
-    DCHECK(!AreAliased(pc_scratch, scratch, function));
+      // Save the frame pointer and PC so that the stack layout remains
+      // iterable, even without an ExitFrame which normally exists between JS
+      // and C frames. 't' registers are caller-saved so this is safe as a
+      // scratch register.
+      Register pc_scratch = t1;
+      Register scratch = t2;
+      DCHECK(!AreAliased(pc_scratch, scratch, function));
 
-    mov(scratch, ra);
-    nal();
-    mov(pc_scratch, ra);
-    mov(ra, scratch);
+      mov(scratch, ra);
+      nal();
+      mov(pc_scratch, ra);
+      mov(ra, scratch);
 
-    // See x64 code for reasoning about how to address the isolate data fields.
-    if (root_array_available()) {
-      Sd(pc_scratch, MemOperand(kRootRegister,
-                                IsolateData::fast_c_call_caller_pc_offset()));
-      Sd(fp, MemOperand(kRootRegister,
-                        IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      li(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      Sd(pc_scratch, MemOperand(scratch));
-      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      Sd(fp, MemOperand(scratch));
+      // See x64 code for reasoning about how to address the isolate data
+      // fields.
+      if (root_array_available()) {
+        Sd(pc_scratch, MemOperand(kRootRegister,
+                                  IsolateData::fast_c_call_caller_pc_offset()));
+        Sd(fp, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+      } else {
+        DCHECK_NOT_NULL(isolate());
+        li(scratch,
+           ExternalReference::fast_c_call_caller_pc_address(isolate()));
+        Sd(pc_scratch, MemOperand(scratch));
+        li(scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+        Sd(fp, MemOperand(scratch));
+      }
     }
 
     Call(function);
 
-    // We don't unset the PC; the FP is the source of truth.
-    if (root_array_available()) {
-      Sd(zero_reg, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      Sd(zero_reg, MemOperand(scratch));
+    if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+      // We don't unset the PC; the FP is the source of truth.
+      if (root_array_available()) {
+        Sd(zero_reg, MemOperand(kRootRegister,
+                                IsolateData::fast_c_call_caller_fp_offset()));
+      } else {
+        DCHECK_NOT_NULL(isolate());
+        Register scratch = t2;
+        li(scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+        Sd(zero_reg, MemOperand(scratch));
+      }
     }
 
     int stack_passed_arguments =

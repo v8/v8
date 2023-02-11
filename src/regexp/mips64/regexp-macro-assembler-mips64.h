@@ -152,6 +152,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   void PushCallerSavedRegisters();
   void PopCallerSavedRegisters();
 
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
+
   // Check whether preemption has been requested.
   void CheckPreemption();
 
