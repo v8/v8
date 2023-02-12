@@ -68,7 +68,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:11.20230210.1.1',
+  'fuchsia_version': 'version:11.20230211.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -108,9 +108,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '05a225a3e0bbd6fb6a9cac02d482ab784194411d',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '91402b7f995b3bb808b6196bd075ad6d8b2f1b89',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '456ee8266045210d3135fe2dea21f753807a2fad',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '808381ad6fed34d02fd82cbf2b03680ba191055f',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'dbaf3c47d529d3d5c268c188464e91fa104aa494',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'f97059df7f8b205064625cdb5f97b56668a125ef',
   'buildtools/linux64': {
@@ -134,7 +134,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7f648d9b44c2876dfc4329256a6c0750e1e77c7f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'fb27d308b0e01b3da652471458020c48be85edf0',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b74d7716111d7eda5c03cb8f5dfc940e1c2c0030',
   'buildtools/third_party/libunwind/trunk':
@@ -220,7 +220,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '10369890bb0452c44ab2bfc1240aeb61db3b345c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e636a2585321c6e02b3bf8af9de2d51a5145f2a1',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
