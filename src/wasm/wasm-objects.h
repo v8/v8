@@ -306,6 +306,7 @@ class WasmGlobalObject
   inline int64_t GetI64();
   inline float GetF32();
   inline double GetF64();
+  inline byte* GetS128RawBytes();
   inline Handle<Object> GetRef();
 
   inline void SetI32(int32_t value);

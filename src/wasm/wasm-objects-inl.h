@@ -145,6 +145,10 @@ double WasmGlobalObject::GetF64() {
   return base::ReadUnalignedValue<double>(address());
 }
 
+byte* WasmGlobalObject::GetS128RawBytes() {
+  return reinterpret_cast<byte*>(address());
+}
+
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref, funcref, and stringref.
   DCHECK(type().is_reference());

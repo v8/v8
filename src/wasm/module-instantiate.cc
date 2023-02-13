@@ -1456,14 +1456,16 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     case kF64:
       value = WasmValue(global_object->GetF64());
       break;
-    case kRtt:
+    case kS128:
+      value = WasmValue(global_object->GetS128RawBytes(), kWasmS128);
+      break;
     case kRef:
     case kRefNull:
       value = WasmValue(global_object->GetRef(), global_object->type());
       break;
     case kVoid:
-    case kS128:
     case kBottom:
+    case kRtt:
     case kI8:
     case kI16:
       UNREACHABLE();
