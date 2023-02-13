@@ -5156,10 +5156,6 @@ UNINITIALIZED_TEST(SharedStrings) {
 
   v8_flags.shared_string_table = true;
 
-  if (!v8_flags.shared_space) {
-    TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
-  }
-
   v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
   v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
@@ -5184,10 +5180,6 @@ UNINITIALIZED_TEST(SharedStrings) {
     isolate2->Dispose();
   }
   isolate1->Dispose();
-
-  if (!v8_flags.shared_space) {
-    TestSerializer::DeleteProcessWideSharedIsolate();
-  }
 
   blobs.Dispose();
   FreeCurrentEmbeddedBlob();

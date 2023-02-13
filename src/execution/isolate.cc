@@ -3316,13 +3316,6 @@ void Isolate::DeleteProcessWideSharedIsolate() {
 // static
 Isolate* Isolate::New() {
   Isolate* isolate = Allocate(false);
-  if (HasFlagThatRequiresSharedHeap() && !v8_flags.shared_space) {
-    // The Isolate that creates the shared Isolate, which is usually the main
-    // thread Isolate, owns the lifetime of shared heap.
-    bool created;
-    isolate->set_shared_isolate(GetProcessWideSharedIsolate(&created));
-    isolate->owns_shared_isolate_ = created;
-  }
   return isolate;
 }
 
@@ -4186,7 +4179,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   Isolate* attach_to_shared_space_isolate = nullptr;
 
-  if (HasFlagThatRequiresSharedHeap() && v8_flags.shared_space) {
+  if (HasFlagThatRequiresSharedHeap()) {
     if (process_wide_shared_space_isolate_) {
       owns_shareable_data_ = false;
     } else {
@@ -6066,7 +6059,6 @@ void Isolate::AttachToSharedIsolate() {
 
   if (shared_isolate_) {
     DCHECK(shared_isolate_->is_shared());
-    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->AppendClient(this);
   }
 
@@ -6079,7 +6071,6 @@ void Isolate::DetachFromSharedIsolate() {
   DCHECK(attached_to_shared_isolate_);
 
   if (shared_isolate_) {
-    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->RemoveClient(this);
     shared_isolate_ = nullptr;
   }
@@ -6093,7 +6084,6 @@ void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
   DCHECK(!shared_space_isolate_.has_value());
   shared_space_isolate_ = shared_space_isolate;
   if (shared_space_isolate) {
-    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 }
@@ -6102,7 +6092,6 @@ void Isolate::DetachFromSharedSpaceIsolate() {
   DCHECK(shared_space_isolate_.has_value());
   Isolate* shared_space_isolate = shared_space_isolate_.value();
   if (shared_space_isolate) {
-    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->RemoveClient(this);
   }
   shared_space_isolate_.reset();

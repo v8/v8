@@ -88,12 +88,8 @@ void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
 bool MarkCompactCollector::ShouldMarkObject(HeapObject object) const {
   if (object.InReadOnlySpace()) return false;
   if (V8_LIKELY(!uses_shared_heap_)) return true;
-  if (v8_flags.shared_space) {
-    if (is_shared_heap_isolate_) return true;
-    return !object.InSharedHeap();
-  } else {
-    return is_shared_heap_isolate_ == object.InSharedHeap();
-  }
+  if (is_shared_heap_isolate_) return true;
+  return !object.InSharedHeap();
 }
 
 template <typename MarkingState>

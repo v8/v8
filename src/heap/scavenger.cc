@@ -146,9 +146,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                      !MemoryChunk::FromHeapObject(target)->IsFlagSet(
                          MemoryChunk::IS_EXECUTABLE));
-      // Shared heap pages do not have evacuation candidates outside an atomic
-      // shared GC pause.
-      DCHECK_IMPLIES(!v8_flags.shared_space, !target.InSharedWritableHeap());
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
@@ -614,8 +611,7 @@ ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
 // This returns true if the scavenger runs in a client isolate and incremental
 // marking is enabled in the shared space isolate.
 bool IsSharedIncrementalMarking(Isolate* isolate) {
-  return isolate->has_shared_heap() && v8_flags.shared_space &&
-         !isolate->is_shared_space_isolate() &&
+  return isolate->has_shared_heap() && !isolate->is_shared_space_isolate() &&
          isolate->shared_space_isolate()
              ->heap()
              ->incremental_marking()

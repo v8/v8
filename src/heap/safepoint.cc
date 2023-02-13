@@ -333,18 +333,9 @@ void GlobalSafepoint::RemoveClient(Isolate* client) {
 }
 
 void GlobalSafepoint::AssertNoClientsOnTearDown() {
-  if (v8_flags.shared_space) {
-    DCHECK_EQ(clients_head_, shared_heap_isolate_);
-    DCHECK_NULL(shared_heap_isolate_->global_safepoint_prev_client_isolate_);
-    DCHECK_NULL(shared_heap_isolate_->global_safepoint_next_client_isolate_);
-  } else {
-    DCHECK_WITH_MSG(
-        clients_head_ == nullptr,
-        "Shared heap must not have clients at teardown. The first isolate that "
-        "is created (in a process that has no isolates) owns the lifetime of "
-        "the shared heap and is considered the main isolate. The main isolate "
-        "must outlive all other isolates.");
-  }
+  DCHECK_EQ(clients_head_, shared_heap_isolate_);
+  DCHECK_NULL(shared_heap_isolate_->global_safepoint_prev_client_isolate_);
+  DCHECK_NULL(shared_heap_isolate_->global_safepoint_next_client_isolate_);
 }
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {

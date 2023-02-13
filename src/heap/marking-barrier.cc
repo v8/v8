@@ -408,7 +408,6 @@ Isolate* MarkingBarrier::isolate() const { return heap_->isolate(); }
 void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
-  DCHECK(v8_flags.shared_space);
   DCHECK(shared_heap_worklist_.has_value());
 }
 #endif  // DEBUG

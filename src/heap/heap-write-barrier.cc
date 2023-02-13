@@ -104,8 +104,6 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   }
 #endif
 
-  DCHECK_IMPLIES(host.InSharedWritableHeap(), v8_flags.shared_space);
-
 #if DEBUG
   Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
   DCHECK(heap->incremental_marking()->IsMarking());
@@ -131,7 +129,6 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   MaybeObject value(raw_value);
 
   DCHECK(host.InSharedWritableHeap());
-  DCHECK(v8_flags.shared_space);
 
 #if DEBUG
   Heap* heap = MemoryChunk::FromHeapObject(host)->heap();

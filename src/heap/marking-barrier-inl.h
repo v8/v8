@@ -61,7 +61,6 @@ void MarkingBarrier::MarkValueShared(HeapObject value) {
   DCHECK(value.InSharedHeap());
 
   // We should only reach this on client isolates (= worker isolates).
-  DCHECK(v8_flags.shared_space);
   DCHECK(!is_shared_space_isolate_);
   DCHECK(shared_heap_worklist_.has_value());
 

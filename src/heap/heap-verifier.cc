@@ -286,10 +286,9 @@ void HeapVerification::Verify() {
   CHECK(heap()->HasBeenSetUp());
   AllowGarbageCollection allow_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
-  SafepointKind safepoint_kind =
-      v8_flags.shared_space && isolate()->is_shared_heap_isolate()
-          ? SafepointKind::kGlobal
-          : SafepointKind::kIsolate;
+  SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+                                     ? SafepointKind::kGlobal
+                                     : SafepointKind::kIsolate;
   SafepointScope safepoint_scope(isolate(), safepoint_kind);
   HandleScope scope(isolate());
 

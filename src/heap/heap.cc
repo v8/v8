@@ -2212,10 +2212,9 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
 
-    SafepointKind safepoint_kind =
-        v8_flags.shared_space && isolate()->is_shared_heap_isolate()
-            ? SafepointKind::kGlobal
-            : SafepointKind::kIsolate;
+    SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+                                       ? SafepointKind::kGlobal
+                                       : SafepointKind::kIsolate;
     safepoint_scope.emplace(isolate(), safepoint_kind);
   }
 
@@ -2332,18 +2331,9 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
   CHECK(deserialization_complete());
   DCHECK(isolate()->has_shared_heap());
 
-  if (v8_flags.shared_space) {
-    Isolate* shared_space_isolate = isolate()->shared_space_isolate();
-    return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
-                                                                     gc_reason);
-  } else {
-    DCHECK(!IsShared());
-    DCHECK_NOT_NULL(isolate()->shared_isolate());
-
-    isolate()->shared_isolate()->heap()->PerformSharedGarbageCollection(
-        isolate(), gc_reason);
-    return true;
-  }
+  Isolate* shared_space_isolate = isolate()->shared_space_isolate();
+  return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
+                                                                   gc_reason);
 }
 
 bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
@@ -3549,7 +3539,7 @@ void Heap::MakeHeapIterable() {
     space->MakeLinearAllocationAreaIterable();
   }
 
-  if (v8_flags.shared_space && shared_space_allocator_) {
+  if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();
   }
   if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
@@ -3571,7 +3561,7 @@ void Heap::FreeLinearAllocationAreas() {
     space->FreeLinearAllocationArea();
   }
 
-  if (v8_flags.shared_space && shared_space_allocator_) {
+  if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
   }
   if (new_space()) new_space()->FreeLinearAllocationArea();
@@ -3598,7 +3588,7 @@ void Heap::MakeSharedLinearAllocationAreasIterable() {
     local_heap->MakeSharedLinearAllocationAreaIterable();
   });
 
-  if (v8_flags.shared_space && shared_space_allocator_) {
+  if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();
   }
 
@@ -3606,7 +3596,6 @@ void Heap::MakeSharedLinearAllocationAreasIterable() {
 }
 
 void Heap::MarkSharedLinearAllocationAreasBlack() {
-  DCHECK(v8_flags.shared_space);
   if (shared_space_allocator_) {
     shared_space_allocator_->MarkLinearAllocationAreaBlack();
   }
@@ -3617,7 +3606,6 @@ void Heap::MarkSharedLinearAllocationAreasBlack() {
 }
 
 void Heap::UnmarkSharedLinearAllocationAreas() {
-  DCHECK(v8_flags.shared_space);
   if (shared_space_allocator_) {
     shared_space_allocator_->UnmarkLinearAllocationArea();
   }

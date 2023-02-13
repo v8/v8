@@ -826,7 +826,6 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK_IMPLIES(!v8_flags.shared_space, !heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
   }
 }
@@ -2039,9 +2038,7 @@ class WorkerIsolateThread : public v8::base::Thread {
       // DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       //     i_client->shared_heap_isolate()->heap());
 
-      Isolate* gc_isolate = v8_flags.shared_space
-                                ? i_client->shared_space_isolate()
-                                : i_client->shared_heap_isolate();
+      Isolate* gc_isolate = i_client->shared_space_isolate();
       gc_isolate->heap()->ForceSharedGCWithEmptyStackForTesting();
       i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
                                              GarbageCollectionReason::kTesting);
