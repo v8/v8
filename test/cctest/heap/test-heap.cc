@@ -3666,6 +3666,9 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   // resource's callback is fired when the external string is GC'ed.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
+
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
     v8::HandleScope new_scope(isolate);
