@@ -357,6 +357,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForDictionaryNextEnumerationIndex();
   static FieldAccess ForDictionaryObjectHashIndex();
 
+  // Provides access to NameDictionary fields.
+  static FieldAccess ForNameDictionaryFlagsIndex();
+
   // Provides access to FeedbackCell fields.
   static FieldAccess ForFeedbackCellInterruptBudget();
 

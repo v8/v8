@@ -456,7 +456,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
       source_length = JSGlobalObject::cast(*from)
                           .global_dictionary(kAcquireLoad)
                           .NumberOfEnumerableProperties();
-    } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       source_length =
           from->property_dictionary_swiss().NumberOfEnumerableProperties();
     } else {
@@ -800,7 +800,7 @@ Object SetHashAndUpdateProperties(HeapObject properties, int hash) {
     return properties;
   }
 
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     DCHECK(properties.IsSwissNameDictionary());
     SwissNameDictionary::cast(properties).SetHash(hash);
   } else {
@@ -820,9 +820,10 @@ int GetIdentityHashHelper(JSReceiver object) {
   if (properties.IsPropertyArray()) {
     return PropertyArray::cast(properties).Hash();
   }
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL &&
-      properties.IsSwissNameDictionary()) {
-    return SwissNameDictionary::cast(properties).Hash();
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if (properties.IsSwissNameDictionary()) {
+      return SwissNameDictionary::cast(properties).Hash();
+    }
   }
 
   if (properties.IsNameDictionary()) {
@@ -925,7 +926,7 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
 
     cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
   } else {
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> dictionary(
           object->property_dictionary_swiss(), isolate);
 
@@ -2381,9 +2382,9 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
-  int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                             ? SwissNameDictionary::kInitialCapacity
-                             : NameDictionary::kInitialCapacity;
+  constexpr int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+                                       ? SwissNameDictionary::kInitialCapacity
+                                       : NameDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
       initial_map, initial_capacity, AllocationType::kYoung, site);
   return result;
@@ -2789,7 +2790,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       DCHECK_EQ(dictionary->CellAt(entry).value(), *value);
     }
   } else {
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> dictionary(
           object->property_dictionary_swiss(), isolate);
       InternalIndex entry = dictionary->FindEntry(isolate, *name);
@@ -2818,6 +2819,10 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
         DCHECK_GT(enumeration_index, 0);
         details = details.set_index(enumeration_index);
         dictionary->SetEntry(entry, *name, *value, details);
+      }
+      // TODO(pthier): Add flags to swiss dictionaries.
+      if (name->IsInterestingSymbol()) {
+        dictionary->set_may_have_interesting_symbols(true);
       }
     }
   }
@@ -3316,15 +3321,15 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     property_count += expected_additional_properties;
   } else {
     // Make space for two more properties.
-    int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                               ? SwissNameDictionary::kInitialCapacity
-                               : NameDictionary::kInitialCapacity;
+    constexpr int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+                                         ? SwissNameDictionary::kInitialCapacity
+                                         : NameDictionary::kInitialCapacity;
     property_count += initial_capacity;
   }
 
   Handle<NameDictionary> dictionary;
   Handle<SwissNameDictionary> ord_dictionary;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     ord_dictionary = isolate->factory()->NewSwissNameDictionary(property_count);
   } else {
     dictionary = isolate->factory()->NewNameDictionary(property_count);
@@ -3359,7 +3364,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
                                       : PropertyConstness::kMutable;
     PropertyDetails d(details.kind(), details.attributes(), constness);
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       ord_dictionary =
           SwissNameDictionary::Add(isolate, ord_dictionary, key, value, d);
     } else {
@@ -3367,9 +3372,12 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     }
   }
 
-  if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // Copy the next enumeration index from instance descriptor.
     dictionary->set_next_enumeration_index(real_size + 1);
+    // TODO(pthier): Add flags to swiss dictionaries.
+    dictionary->set_may_have_interesting_symbols(
+        map->may_have_interesting_symbols());
   }
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -3392,7 +3400,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // the left-over space to avoid races with the sweeper thread.
   object->set_map(*new_map, kReleaseStore);
 
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     object->SetProperties(*ord_dictionary);
   } else {
     object->SetProperties(*dictionary);
@@ -3793,7 +3801,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   Handle<NameDictionary> dictionary;
   Handle<SwissNameDictionary> swiss_dictionary;
   int number_of_elements;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     swiss_dictionary = handle(object->property_dictionary_swiss(), isolate);
     number_of_elements = swiss_dictionary->NumberOfElements();
   } else {
@@ -3807,7 +3815,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   Handle<FixedArray> iteration_order;
   int iteration_length;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // |iteration_order| remains empty handle, we don't need it.
     iteration_length = swiss_dictionary->UsedCapacity();
   } else {
@@ -3821,7 +3829,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   ReadOnlyRoots roots(isolate);
   for (int i = 0; i < iteration_length; i++) {
     PropertyKind kind;
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       InternalIndex index(swiss_dictionary->EntryForEnumerationIndex(i));
       Object key = swiss_dictionary->KeyAt(index);
       if (!SwissNameDictionary::IsKey(roots, key)) {
@@ -3896,7 +3904,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     Object value;
     PropertyDetails details = PropertyDetails::Empty();
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       InternalIndex index(swiss_dictionary->EntryForEnumerationIndex(i));
       Object key_obj = swiss_dictionary->KeyAt(index);
       if (!SwissNameDictionary::IsKey(roots, key_obj)) {
@@ -4159,7 +4167,7 @@ bool TestPropertiesIntegrityLevel(JSObject object, PropertyAttributes level) {
     return TestFastPropertiesIntegrityLevel(object.map(), level);
   }
 
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     return TestDictionaryPropertiesIntegrityLevel(
         object.property_dictionary_swiss(), object.GetReadOnlyRoots(), level);
   } else {
@@ -4489,7 +4497,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
             isolate);
         JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
                                               attrs);
-      } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         Handle<SwissNameDictionary> dictionary(
             object->property_dictionary_swiss(), isolate);
         JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
@@ -4561,7 +4569,7 @@ Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
                                               Handle<JSObject> object,
                                               InternalIndex dict_index) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     SwissNameDictionary dict = object->property_dictionary_swiss();
     return handle(dict.ValueAt(dict_index), isolate);
   } else {
@@ -4579,7 +4587,7 @@ base::Optional<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
   if (heap->IsPendingAllocation(HeapObject::cast(backing_store))) return {};
 
   base::Optional<Object> maybe_obj;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     if (!backing_store.IsSwissNameDictionary()) return {};
     maybe_obj = SwissNameDictionary::cast(backing_store).TryValueAt(dict_index);
   } else {
@@ -4789,7 +4797,7 @@ Object JSObject::SlowReverseLookup(Object value) {
     return JSGlobalObject::cast(*this)
         .global_dictionary(kAcquireLoad)
         .SlowReverseLookup(value);
-  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     return property_dictionary_swiss().SlowReverseLookup(GetIsolate(), value);
   } else {
     return property_dictionary().SlowReverseLookup(value);
@@ -4912,7 +4920,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
           dict.DetailsAtPut(index, details);
         }
       };
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         make_constant(object->property_dictionary_swiss());
       } else {
         make_constant(object->property_dictionary());

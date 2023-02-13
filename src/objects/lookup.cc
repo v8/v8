@@ -397,7 +397,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
         // that's only for the case that the existing map is a fast mode map.
         // Therefore, we need to perform the necessary updates to the property
         // details and the prototype validity cell directly.
-        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           SwissNameDictionary dict = holder->property_dictionary_swiss();
           dict.DetailsAtPut(dictionary_entry(), property_details_);
         } else {
@@ -449,7 +449,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     property_details_ =
         property_details_.CopyWithConstness(PropertyConstness::kMutable);
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dict = holder_obj->property_dictionary_swiss();
       dict.DetailsAtPut(dictionary_entry(), property_details_);
     } else {
@@ -530,7 +530,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     } else {
       PropertyDetails details(PropertyKind::kData, attributes,
                               PropertyConstness::kMutable);
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         Handle<SwissNameDictionary> dictionary(
             holder_obj->property_dictionary_swiss(isolate_), isolate());
         dictionary->ValueAtPut(dictionary_entry(), *value);
@@ -680,7 +680,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
         receiver->IsJSObject(isolate_)) {
       JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
     }
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> dictionary(
           receiver->property_dictionary_swiss(isolate_), isolate_);
 
@@ -698,6 +698,10 @@ void LookupIterator::ApplyTransitionToDataProperty(
                               isolate_->factory()->uninitialized_value(),
                               property_details_, &number_);
       receiver->SetProperties(*dictionary);
+      // TODO(pthier): Add flags to swiss dictionaries.
+      if (name()->IsInterestingSymbol()) {
+        dictionary->set_may_have_interesting_symbols(true);
+      }
       // Reload details containing proper enumeration index value.
       property_details_ = dictionary->DetailsAt(number_);
     }
@@ -887,7 +891,7 @@ Handle<Object> LookupIterator::FetchValue(
     result = holder->global_dictionary(isolate_, kAcquireLoad)
                  .ValueAt(isolate_, dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       result = holder_->property_dictionary_swiss(isolate_).ValueAt(
           dictionary_entry());
     } else {
@@ -963,7 +967,7 @@ bool LookupIterator::DictCanStayConst(Object value) const {
   }
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   Object current_value;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     SwissNameDictionary dict = holder->property_dictionary_swiss();
     current_value = dict.ValueAt(dictionary_entry());
   } else {
@@ -1084,7 +1088,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
             property_details_.constness() == PropertyConstness::kConst,
         holder->IsJSProxy(isolate_) || DictCanStayConst(*value));
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dictionary =
           holder->property_dictionary_swiss(isolate_);
       dictionary.ValueAtPut(dictionary_entry(), *value);
@@ -1283,7 +1287,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     property_details_ = descriptors.GetDetails(number_);
   } else {
     DCHECK_IMPLIES(holder.IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dict = holder.property_dictionary_swiss(isolate_);
       number_ = dict.FindEntry(isolate(), *name_);
       if (number_.is_not_found()) return NotFound(holder);

@@ -3204,6 +3204,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            next_enum_index_smi, SKIP_WRITE_BARRIER);
   }
 
+  TNode<Smi> GetNameDictionaryFlags(TNode<NameDictionary> dictionary) {
+    return CAST(LoadFixedArrayElement(dictionary, NameDictionary::kFlagsIndex));
+  }
+
   // Looks up an entry in a NameDictionaryBase successor. If the entry is found
   // control goes to {if_found} and {var_name_index} contains an index of the
   // key field of the entry found. If the key is not found control goes to

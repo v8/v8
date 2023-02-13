@@ -1381,10 +1381,13 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
             jsgraph()->SmiConstant(PropertyDetails::kInitialIndex));
     a.Store(AccessBuilder::ForDictionaryObjectHashIndex(),
             jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
+    // Initialize NameDictionary fields.
+    a.Store(AccessBuilder::ForNameDictionaryFlagsIndex(),
+            jsgraph()->SmiConstant(NameDictionary::kFlagsDefault));
     // Initialize the Properties fields.
     Node* undefined = jsgraph()->UndefinedConstant();
     static_assert(NameDictionary::kElementsStartIndex ==
-                  NameDictionary::kObjectHashIndex + 1);
+                  NameDictionary::kFlagsIndex + 1);
     for (int index = NameDictionary::kElementsStartIndex; index < length;
          index++) {
       a.Store(AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier),

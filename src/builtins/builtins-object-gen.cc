@@ -715,18 +715,19 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
+  TVARIABLE(String, var_default);
+  TVARIABLE(HeapObject, var_holder);
+  TVARIABLE(Map, var_holder_map);
+
   Label checkstringtag(this), if_arguments(this), if_array(this),
       if_boolean(this), if_date(this), if_error(this), if_function(this),
       if_number(this, Label::kDeferred), if_object(this), if_primitive(this),
-      if_proxy(this, Label::kDeferred), if_regexp(this), if_string(this),
-      if_symbol(this, Label::kDeferred), if_value(this),
-      if_bigint(this, Label::kDeferred), if_wasm(this);
+      if_proxy(this, {&var_holder, &var_holder_map}, Label::kDeferred),
+      if_regexp(this), if_string(this), if_symbol(this, Label::kDeferred),
+      if_value(this), if_bigint(this, Label::kDeferred), if_wasm(this);
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto context = Parameter<Context>(Descriptor::kContext);
-
-  TVARIABLE(String, var_default);
-  TVARIABLE(HeapObject, var_holder);
 
   // This is arranged to check the likely cases first.
   GotoIf(TaggedIsSmi(receiver), &if_number);
@@ -734,6 +735,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   TNode<HeapObject> receiver_heap_object = CAST(receiver);
   TNode<Map> receiver_map = LoadMap(receiver_heap_object);
   var_holder = receiver_heap_object;
+  var_holder_map = receiver_map;
   TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
   GotoIf(IsFunctionInstanceType(receiver_instance_type), &if_function);
@@ -789,6 +791,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadObjectField<HeapObject>(boolean_initial_map, Map::kPrototypeOffset);
     var_default = BooleanToStringConstant();
     var_holder = boolean_prototype;
+    var_holder_map = LoadMap(boolean_prototype);
     Goto(&checkstringtag);
   }
 
@@ -821,6 +824,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadObjectField<HeapObject>(number_initial_map, Map::kPrototypeOffset);
     var_default = NumberToStringConstant();
     var_holder = number_prototype;
+    var_holder_map = LoadMap(number_prototype);
     Goto(&checkstringtag);
   }
 
@@ -848,54 +852,6 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     Return(UndefinedToStringConstant());
   }
 
-  BIND(&if_proxy);
-  {
-    // Check if the proxy has been revoked.
-    Label throw_proxy_handler_revoked(this, Label::kDeferred);
-    TNode<HeapObject> handler = CAST(LoadObjectField(
-        TNode<JSProxy>::UncheckedCast(receiver), JSProxy::kHandlerOffset));
-    CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-    GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
-
-    // If {receiver} is a proxy for a JSArray, we default to "[object Array]",
-    // otherwise we default to "[object Object]" or "[object Function]" here,
-    // depending on whether the {receiver} is callable. The order matters here,
-    // i.e. we need to execute the %ArrayIsArray check before the [[Get]] below,
-    // as the exception is observable.
-    TNode<Object> receiver_is_array =
-        CallRuntime(Runtime::kArrayIsArray, context, receiver);
-    TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
-        [=] {
-          return Select<String>(
-              IsCallableMap(receiver_map),
-              [=] { return FunctionStringConstant(); },
-              [=] { return ObjectStringConstant(); });
-        });
-
-    // Lookup the @@toStringTag property on the {receiver}.
-    TVARIABLE(Object, var_tag,
-              GetProperty(context, receiver,
-                          isolate()->factory()->to_string_tag_symbol()));
-    Label if_tagisnotstring(this), if_tagisstring(this);
-    GotoIf(TaggedIsSmi(var_tag.value()), &if_tagisnotstring);
-    Branch(IsString(CAST(var_tag.value())), &if_tagisstring,
-           &if_tagisnotstring);
-    BIND(&if_tagisnotstring);
-    {
-      var_tag = builtin_tag;
-      Goto(&if_tagisstring);
-    }
-    BIND(&if_tagisstring);
-    ReturnToStringFormat(context, CAST(var_tag.value()));
-
-    BIND(&throw_proxy_handler_revoked);
-    {
-      ThrowTypeError(context, MessageTemplate::kProxyRevoked,
-                     "Object.prototype.toString");
-    }
-  }
-
   BIND(&if_regexp);
   {
     var_default = RegexpToStringConstant();
@@ -913,6 +869,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadObjectField<HeapObject>(string_initial_map, Map::kPrototypeOffset);
     var_default = StringToStringConstant();
     var_holder = string_prototype;
+    var_holder_map = LoadMap(string_prototype);
     Goto(&checkstringtag);
   }
 
@@ -927,6 +884,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadObjectField<HeapObject>(symbol_initial_map, Map::kPrototypeOffset);
     var_default = ObjectToStringConstant();
     var_holder = symbol_prototype;
+    var_holder_map = LoadMap(symbol_prototype);
     Goto(&checkstringtag);
   }
 
@@ -941,6 +899,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadObjectField<HeapObject>(bigint_initial_map, Map::kPrototypeOffset);
     var_default = ObjectToStringConstant();
     var_holder = bigint_prototype;
+    var_holder_map = LoadMap(bigint_prototype);
     Goto(&checkstringtag);
   }
 
@@ -956,7 +915,6 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadJSPrimitiveWrapperValue(CAST(receiver_heap_object));
     // We need to start with the object to see if the value was a subclass
     // which might have interesting properties.
-    var_holder = receiver_heap_object;
     GotoIf(TaggedIsSmi(receiver_value), &if_value_is_number);
     TNode<Map> receiver_value_map = LoadMap(CAST(receiver_value));
     GotoIf(IsHeapNumberMap(receiver_value_map), &if_value_is_number);
@@ -1005,20 +963,45 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     // Check if all relevant maps (including the prototype maps) don't
     // have any interesting symbols (i.e. that none of them have the
     // @@toStringTag property).
-    Label loop(this, &var_holder), return_default(this),
+    Label loop(this, {&var_holder, &var_holder_map}), return_default(this),
         return_generic(this, Label::kDeferred);
     Goto(&loop);
     BIND(&loop);
     {
+      Label interesting_symbols(this);
       TNode<HeapObject> holder = var_holder.value();
+      TNode<Map> holder_map = var_holder_map.value();
       GotoIf(IsNull(holder), &return_default);
-      TNode<Map> holder_map = LoadMap(holder);
       TNode<Uint32T> holder_bit_field3 = LoadMapBitField3(holder_map);
       GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingSymbolsBit>(
                  holder_bit_field3),
-             &return_generic);
+             &interesting_symbols);
       var_holder = LoadMapPrototype(holder_map);
+      var_holder_map = LoadMap(var_holder.value());
       Goto(&loop);
+      BIND(&interesting_symbols);
+      {
+        // Check flags for dictionary objects.
+        GotoIf(IsClearWord32<Map::Bits3::IsDictionaryMapBit>(holder_bit_field3),
+               &return_generic);
+        GotoIf(
+            InstanceTypeEqual(LoadMapInstanceType(holder_map), JS_PROXY_TYPE),
+            &if_proxy);
+        TNode<Object> properties =
+            LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
+        CSA_DCHECK(this, TaggedIsNotSmi(properties));
+        // TODO(pthier): Support swiss dictionaries.
+        if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
+          TNode<Smi> flags = GetNameDictionaryFlags(CAST(properties));
+          GotoIf(IsSetSmi(flags,
+                          NameDictionary::MayHaveInterestingSymbolsBit::kMask),
+                 &return_generic);
+          var_holder = LoadMapPrototype(holder_map);
+          var_holder_map = LoadMap(var_holder.value());
+        }
+        Goto(&loop);
+      }
     }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1037,6 +1020,57 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
     BIND(&return_default);
     Return(var_default.value());
+  }
+
+  BIND(&if_proxy);
+  {
+    receiver_heap_object = var_holder.value();
+    receiver_map = var_holder_map.value();
+    // Check if the proxy has been revoked.
+    Label throw_proxy_handler_revoked(this, Label::kDeferred);
+    TNode<HeapObject> handler =
+        CAST(LoadObjectField(receiver_heap_object, JSProxy::kHandlerOffset));
+    CSA_DCHECK(this, IsNullOrJSReceiver(handler));
+    GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+
+    // If {receiver_heap_object} is a proxy for a JSArray, we default to
+    // "[object Array]", otherwise we default to "[object Object]" or "[object
+    // Function]" here, depending on whether the {receiver_heap_object} is
+    // callable. The order matters here, i.e. we need to execute the
+    // %ArrayIsArray check before the [[Get]] below, as the exception is
+    // observable.
+    TNode<Object> receiver_is_array =
+        CallRuntime(Runtime::kArrayIsArray, context, receiver_heap_object);
+    TNode<String> builtin_tag = Select<String>(
+        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
+        [=] {
+          return Select<String>(
+              IsCallableMap(receiver_map),
+              [=] { return FunctionStringConstant(); },
+              [=] { return ObjectStringConstant(); });
+        });
+
+    // Lookup the @@toStringTag property on the {receiver_heap_object}.
+    TVARIABLE(Object, var_tag,
+              GetProperty(context, receiver_heap_object,
+                          isolate()->factory()->to_string_tag_symbol()));
+    Label if_tagisnotstring(this), if_tagisstring(this);
+    GotoIf(TaggedIsSmi(var_tag.value()), &if_tagisnotstring);
+    Branch(IsString(CAST(var_tag.value())), &if_tagisstring,
+           &if_tagisnotstring);
+    BIND(&if_tagisnotstring);
+    {
+      var_tag = builtin_tag;
+      Goto(&if_tagisstring);
+    }
+    BIND(&if_tagisstring);
+    ReturnToStringFormat(context, CAST(var_tag.value()));
+
+    BIND(&throw_proxy_handler_revoked);
+    {
+      ThrowTypeError(context, MessageTemplate::kProxyRevoked,
+                     "Object.prototype.toString");
+    }
   }
 }
 
@@ -1095,7 +1129,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         new_properties =
             AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
       } else {

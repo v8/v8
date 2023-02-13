@@ -347,7 +347,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
   } else if (IsJSGlobalObject()) {
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
-  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
     PrintDictionaryContents(os, property_dictionary());
@@ -920,6 +920,12 @@ void PrintTableContentsGeneric(std::ostream& os, T dict,
   }
 }
 
+void PrintNameDictionaryFlags(std::ostream& os, NameDictionary dict) {
+  if (dict.may_have_interesting_symbols()) {
+    os << "\n - may_have_interesting_symbols";
+  }
+}
+
 // Used for ordered and unordered dictionaries.
 template <typename T>
 void PrintDictionaryContentsFull(std::ostream& os, T dict) {
@@ -1010,6 +1016,7 @@ void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
 
 void NameDictionary::NameDictionaryPrint(std::ostream& os) {
   PrintHashTableHeader(os, *this, "NameDictionary");
+  PrintNameDictionaryFlags(os, *this);
   PrintDictionaryContentsFull(os, *this);
 }
 

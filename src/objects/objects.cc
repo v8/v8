@@ -3618,7 +3618,7 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
 
   PropertyDetails details(PropertyKind::kData, DONT_ENUM,
                           PropertyConstness::kMutable);
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dict(proxy->property_dictionary_swiss(),
                                      isolate);
     Handle<SwissNameDictionary> result =
@@ -6040,6 +6040,17 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
   return dict;
 }
 
+template <typename IsolateT>
+Handle<NameDictionary> NameDictionary::New(IsolateT* isolate,
+                                           int at_least_space_for,
+                                           AllocationType allocation,
+                                           MinimumCapacity capacity_option) {
+  auto dict = BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
+      isolate, at_least_space_for, allocation, capacity_option);
+  dict->set_flags(kFlagsDefault);
+  return dict;
+}
+
 template <typename Derived, typename Shape>
 int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
     Isolate* isolate, Handle<Derived> dictionary) {
@@ -6949,6 +6960,11 @@ EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 
 EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
+template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(
+    Isolate*, int, AllocationType, MinimumCapacity);
+template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(
+    LocalIsolate*, int, AllocationType, MinimumCapacity);
+
 EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 
 #undef EXTERN_DEFINE_HASH_TABLE

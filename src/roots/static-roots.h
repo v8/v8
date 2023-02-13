@@ -756,17 +756,17 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kspecies_symbol = 0x81e5;
   static constexpr Tagged_t kis_concat_spreadable_symbol = 0x81f5;
   static constexpr Tagged_t kEmptyPropertyDictionary = 0x8205;
-  static constexpr Tagged_t kEmptySymbolTable = 0x822d;
-  static constexpr Tagged_t kEmptySlowElementDictionary = 0x8249;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x826d;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x8281;
-  static constexpr Tagged_t kEmptyOrderedPropertyDictionary = 0x8295;
-  static constexpr Tagged_t kEmptySwissPropertyDictionary = 0x82b9;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x82d9;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x82e5;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x8305;
-  static constexpr Tagged_t kNativeScopeInfo = 0x8329;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x8341;
+  static constexpr Tagged_t kEmptySymbolTable = 0x8231;
+  static constexpr Tagged_t kEmptySlowElementDictionary = 0x824d;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x8271;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x8285;
+  static constexpr Tagged_t kEmptyOrderedPropertyDictionary = 0x8299;
+  static constexpr Tagged_t kEmptySwissPropertyDictionary = 0x82bd;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x82dd;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x82e9;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x8309;
+  static constexpr Tagged_t kNativeScopeInfo = 0x832d;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x8345;
   static constexpr Tagged_t kWasmNull = 0xfffd;
 };
 

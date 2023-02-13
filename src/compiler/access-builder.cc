@@ -1334,6 +1334,20 @@ FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
 }
 
 // static
+FieldAccess AccessBuilder::ForNameDictionaryFlagsIndex() {
+  FieldAccess access = {
+      kTaggedBase,
+      FixedArray::OffsetOfElementAt(NameDictionary::kFlagsIndex),
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::SignedSmall(),
+      MachineType::TaggedSigned(),
+      kNoWriteBarrier,
+      "NameDictionaryFlagsIndex"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
   FieldAccess access = {kTaggedBase,
                         FeedbackCell::kInterruptBudgetOffset,
