@@ -1489,19 +1489,6 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
                 maglev_safepoint_entry.num_tagged_slots() +
                 maglev_safepoint_entry.num_untagged_slots());
 
-  // Check if we are calling the stack guard in the prologue.
-  if (maglev_safepoint_entry.is_stack_guard_call()) {
-    // We don't have a complete frame in this case.
-    uint32_t register_input_count =
-        maglev_safepoint_entry.register_input_count();
-    // DCHECK the frame setup under the above assumption.
-    DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
-              MaglevFrame::StackGuardFrameSize(register_input_count));
-    spill_slot_count = 0;
-    // We visit the saved register inputs as if they were tagged slots.
-    tagged_slot_count = register_input_count;
-  }
-
   // Visit the outgoing parameters if they are tagged.
   DCHECK(code.has_tagged_outgoing_params());
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
@@ -1515,8 +1502,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   // a call. These are distinct from normal spill slots and live between the
   // normal spill slots and the pushed parameters. Some of these are tagged,
   // as indicated by the tagged register indexes, and should be visited too.
-  if (!maglev_safepoint_entry.is_stack_guard_call() &&
-      maglev_safepoint_entry.num_pushed_registers() > 0) {
+  if (maglev_safepoint_entry.num_pushed_registers() > 0) {
     FullObjectSlot pushed_register_base =
         frame_header_base - spill_slot_count - 1;
     uint32_t tagged_register_indexes =

@@ -342,51 +342,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
   Push(kJavaScriptCallArgCountRegister, xzr);
   int remaining_stack_slots = code_gen_state()->stack_slots() - 1;
   DCHECK_GE(remaining_stack_slots, 0);
-  {
-    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
-    // Stack check. This folds the checks for both the interrupt stack limit
-    // check and the real stack limit into one by just checking for the
-    // interrupt limit. The interrupt limit is either equal to the real
-    // stack limit or tighter. By ensuring we have space until that limit
-    // after building the frame we can quickly precheck both at once.
-    ScratchRegisterScope temps(this);
-    Register stack_slots_size = temps.Acquire();
-    Mov(stack_slots_size, fp);
-    // Round up the stack slots and max call args separately, since both will be
-    // padded by their respective uses.
-    const int max_stack_slots_used = RoundUp<2>(remaining_stack_slots) +
-                                     RoundUp<2>(graph->max_call_stack_args());
-    const int max_stack_size =
-        std::max(static_cast<int>(graph->max_deopted_stack_size()),
-                 max_stack_slots_used * kSystemPointerSize);
-    Sub(stack_slots_size, stack_slots_size, Immediate(max_stack_size));
-    Register interrupt_stack_limit = temps.Acquire();
-    LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
-    Cmp(stack_slots_size, interrupt_stack_limit);
-
-    ZoneLabelRef deferred_call_stack_guard_return(this);
-    JumpToDeferredIf(
-        lo,
-        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
-           int max_stack_size) {
-          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          __ PushAll(register_inputs);
-          ScratchRegisterScope temps(masm);
-          Register scratch = temps.Acquire();
-          __ Mov(scratch, Smi::FromInt(max_stack_size * kSystemPointerSize));
-          __ PushArgument(scratch);
-          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-          auto safepoint =
-              masm->safepoint_table_builder()->DefineSafepoint(masm);
-          safepoint.DefineStackGuardSafepoint(
-              RoundUp<2>(register_inputs.Count()));
-          __ PopAll(register_inputs);
-          __ B(*done);
-        },
-        deferred_call_stack_guard_return, graph->register_inputs(),
-        max_stack_size);
-    bind(*deferred_call_stack_guard_return);
-  }
 
   // Initialize stack slots.
   if (graph->tagged_stack_slots() > 0) {
@@ -432,6 +387,46 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // Extend sp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
     Sub(sp, sp, Immediate(remaining_stack_slots * kSystemPointerSize));
+  }
+
+  {
+    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
+    // Stack check. This folds the checks for both the interrupt stack limit
+    // check and the real stack limit into one by just checking for the
+    // interrupt limit. The interrupt limit is either equal to the real
+    // stack limit or tighter. By ensuring we have space until that limit
+    // after building the frame we can quickly precheck both at once.
+    ScratchRegisterScope temps(this);
+    const int stack_check_offset = graph->stack_check_offset();
+    Register stack_cmp_reg = sp;
+    if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+      stack_cmp_reg = temps.Acquire();
+      Sub(stack_cmp_reg, sp, stack_check_offset);
+    }
+    Register interrupt_stack_limit = temps.Acquire();
+    LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
+    Cmp(stack_cmp_reg, interrupt_stack_limit);
+
+    ZoneLabelRef deferred_call_stack_guard_return(this);
+    JumpToDeferredIf(
+        lo,
+        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
+           int stack_check_offset) {
+          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+          __ PushAll(register_inputs);
+          ScratchRegisterScope temps(masm);
+          Register scratch = temps.Acquire();
+          __ Mov(scratch,
+                 Smi::FromInt(stack_check_offset * kSystemPointerSize));
+          __ PushArgument(scratch);
+          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          masm->safepoint_table_builder()->DefineSafepoint(masm);
+          __ PopAll(register_inputs);
+          __ B(*done);
+        },
+        deferred_call_stack_guard_return, graph->register_inputs(),
+        stack_check_offset);
+    bind(*deferred_call_stack_guard_return);
   }
 }
 

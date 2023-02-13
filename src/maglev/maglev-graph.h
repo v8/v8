@@ -78,6 +78,24 @@ class Graph final : public ZoneObject {
     max_deopted_stack_size_ = size;
   }
 
+  uint32_t stack_check_offset() {
+    uint32_t stack_slots = tagged_stack_slots_ + untagged_stack_slots_;
+    DCHECK(is_int32(stack_slots));
+    int32_t optimized_frame_height = stack_slots * kSystemPointerSize;
+    DCHECK(is_int32(max_deopted_stack_size_));
+    int32_t signed_max_unoptimized_frame_height =
+        static_cast<int32_t>(max_deopted_stack_size_);
+
+    // The offset is either the delta between the optimized frames and the
+    // interpreted frame, or the maximal number of bytes pushed to the stack
+    // while preparing for function calls, whichever is bigger.
+    uint32_t frame_height_delta = static_cast<uint32_t>(std::max(
+        signed_max_unoptimized_frame_height - optimized_frame_height, 0));
+    uint32_t max_pushed_argument_bytes =
+        static_cast<uint32_t>(max_call_stack_args_ * kSystemPointerSize);
+    return std::max(frame_height_delta, max_pushed_argument_bytes);
+  }
+
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }

@@ -524,44 +524,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
   Push(kJSFunctionRegister);              // Callee's JS function.
   Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
-  {
-    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
-    // Stack check. This folds the checks for both the interrupt stack limit
-    // check and the real stack limit into one by just checking for the
-    // interrupt limit. The interrupt limit is either equal to the real
-    // stack limit or tighter. By ensuring we have space until that limit
-    // after building the frame we can quickly precheck both at once.
-    Move(kScratchRegister, rsp);
-    const int max_stack_slots_used =
-        code_gen_state()->stack_slots() + graph->max_call_stack_args();
-    const int max_stack_size =
-        std::max(static_cast<int>(graph->max_deopted_stack_size()),
-                 max_stack_slots_used * kSystemPointerSize);
-    subq(kScratchRegister, Immediate(max_stack_size));
-    cmpq(kScratchRegister,
-         StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
-
-    ZoneLabelRef deferred_call_stack_guard_return(this);
-    JumpToDeferredIf(
-        below_equal,
-        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
-           int max_stack_size) {
-          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          __ PushAll(register_inputs);
-          // Push the frame size
-          __ Push(Immediate(Smi::FromInt(max_stack_size)));
-          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-          auto safepoint =
-              masm->safepoint_table_builder()->DefineSafepoint(masm);
-          safepoint.DefineStackGuardSafepoint(register_inputs.Count());
-          __ PopAll(register_inputs);
-          __ jmp(*done);
-        },
-        deferred_call_stack_guard_return, graph->register_inputs(),
-        max_stack_size);
-    bind(*deferred_call_stack_guard_return);
-  }
-
   // Initialize stack slots.
   if (graph->tagged_stack_slots() > 0) {
     ASM_CODE_COMMENT_STRING(this, "Initializing stack slots");
@@ -601,6 +563,41 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // Extend rsp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
     subq(rsp, Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+  }
+
+  {
+    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
+    // Stack check. This folds the checks for both the interrupt stack limit
+    // check and the real stack limit into one by just checking for the
+    // interrupt limit. The interrupt limit is either equal to the real
+    // stack limit or tighter. By ensuring we have space until that limit
+    // after building the frame we can quickly precheck both at once.
+    const int stack_check_offset = graph->stack_check_offset();
+    Register stack_cmp_reg = rsp;
+    if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+      stack_cmp_reg = kScratchRegister;
+      leaq(stack_cmp_reg, Operand(rsp, stack_check_offset));
+    }
+    cmpq(stack_cmp_reg,
+         StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+
+    ZoneLabelRef deferred_call_stack_guard_return(this);
+    JumpToDeferredIf(
+        below_equal,
+        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
+           int stack_check_offset) {
+          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+          __ PushAll(register_inputs);
+          // Push the frame size
+          __ Push(Immediate(Smi::FromInt(stack_check_offset)));
+          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          masm->safepoint_table_builder()->DefineSafepoint(masm);
+          __ PopAll(register_inputs);
+          __ jmp(*done);
+        },
+        deferred_call_stack_guard_return, graph->register_inputs(),
+        stack_check_offset);
+    bind(*deferred_call_stack_guard_return);
   }
 }
 
