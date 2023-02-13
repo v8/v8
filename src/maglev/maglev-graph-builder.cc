@@ -3096,6 +3096,23 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     return ReduceResult::Fail();
   }
 
+  {
+    // TODO(victorgomes): Support arguments object.
+    // We currently do not materialize the arguments object correctly, bailout
+    // if we have any bytecode that create the arguments object.
+    interpreter::BytecodeArrayIterator iterator(bytecode.object());
+    for (; !iterator.done(); iterator.Advance()) {
+      switch (iterator.current_bytecode()) {
+        case interpreter::Bytecode::kCreateMappedArguments:
+        case interpreter::Bytecode::kCreateUnmappedArguments:
+        case interpreter::Bytecode::kCreateRestParameter:
+          return ReduceResult::Fail();
+        default:
+          break;
+      }
+    }
+  }
+
   if (v8_flags.trace_maglev_inlining) {
     std::cout << "  inlining " << function.shared() << std::endl;
   }
