@@ -3068,13 +3068,7 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-#ifdef V8_TARGET_OS_WIN
-static const int kRegisterPassedArguments = 4;
-#else
-static const int kRegisterPassedArguments = 6;
-#endif
-
-void MacroAssembler::EnterExitFrame(int arg_stack_space,
+void MacroAssembler::EnterExitFrame(int reserved_stack_slots,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -3099,9 +3093,14 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space,
   Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
 
 #ifdef V8_TARGET_OS_WIN
-  arg_stack_space += kRegisterPassedArguments;
+  // Note this is only correct under the assumption that the caller hasn't
+  // considered home stack slots already.
+  // TODO(jgruber): This is a bit hacky since the caller in most cases still
+  // needs to know about the home stack slots in order to address reserved
+  // slots. Consider moving this fully into caller code.
+  reserved_stack_slots += kWindowsHomeStackSlots;
 #endif
-  AllocateStackSpace(arg_stack_space * kSystemPointerSize);
+  AllocateStackSpace(reserved_stack_slots * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -3174,20 +3173,11 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
 }
 
 int MacroAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
-  // On Windows 64 stack slots are reserved by the caller for all arguments
-  // including the ones passed in registers, and space is always allocated for
-  // the four register arguments even if the function takes fewer than four
-  // arguments.
-  // On AMD64 ABI (Linux/Mac) the first six arguments are passed in registers
-  // and the caller does not reserve stack slots for them.
   DCHECK_GE(num_arguments, 0);
 #ifdef V8_TARGET_OS_WIN
-  const int kMinimumStackSlots = kRegisterPassedArguments;
-  if (num_arguments < kMinimumStackSlots) return kMinimumStackSlots;
-  return num_arguments;
+  return std::max(num_arguments, kWindowsHomeStackSlots);
 #else
-  if (num_arguments < kRegisterPassedArguments) return 0;
-  return num_arguments - kRegisterPassedArguments;
+  return std::max(num_arguments - kRegisterPassedArguments, 0);
 #endif
 }
 

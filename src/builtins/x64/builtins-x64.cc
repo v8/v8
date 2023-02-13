@@ -139,6 +139,15 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 }
 
+// Provides access to exit frame stack space (not GCed).
+Operand ExitFrameStackSlotOperand(int index) {
+#ifdef V8_TARGET_OS_WIN
+  return Operand(rsp, (index + kWindowsHomeStackSlots) * kSystemPointerSize);
+#else
+  return Operand(rsp, index * kSystemPointerSize);
+#endif
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -2597,10 +2606,9 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
-  // Overwrite the return address on the stack.
-  __ movq(StackOperandForReturnAddress(0), entry_address);
-
-  // And "return" to the OSR entry point of the function.
+  // Overwrite the return address on the stack and "return" to the OSR entry
+  // point of the function.
+  __ movq(Operand(rsp, 0), entry_address);
   __ ret(0);
 }
 
@@ -4295,6 +4303,10 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                                ArgvMode argv_mode, bool builtin_exit_frame) {
+  CHECK(result_size == 1 || result_size == 2);
+
+  using ER = ExternalReference;
+
   // rax: number of arguments including receiver
   // rbx: pointer to C function  (C callee-saved)
   // rbp: frame pointer of calling JS frame (restored after C call)
@@ -4305,36 +4317,23 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // r15: pointer to the first argument
 
 #ifdef V8_TARGET_OS_WIN
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the
-  // stack to be aligned to 16 bytes. It only allows a single-word to be
-  // returned in register rax. Larger return sizes must be written to an address
-  // passed as a hidden first argument.
-  const Register kCCallArg0 = rcx;
-  const Register kCCallArg1 = rdx;
-  const Register kCCallArg2 = r8;
-  const Register kCCallArg3 = r9;
-  const int kArgExtraStackSpace = 2;
-  const int kMaxRegisterResultSize = 1;
+  // Windows 64-bit ABI only allows a single-word to be returned in register
+  // rax. Larger return sizes must be written to an address passed as a hidden
+  // first argument.
+  static constexpr int kMaxRegisterResultSize = 1;
+  const int kReservedStackSlots =
+      result_size <= kMaxRegisterResultSize ? 0 : result_size;
 #else
-  // GCC / Clang passes arguments in rdi, rsi, rdx, rcx, r8, r9. Simple results
-  // are returned in rax, and a struct of two pointers are returned in rax+rdx.
-  // Larger return sizes must be written to an address passed as a hidden first
-  // argument.
-  const Register kCCallArg0 = rdi;
-  const Register kCCallArg1 = rsi;
-  const Register kCCallArg2 = rdx;
-  const Register kCCallArg3 = rcx;
-  const int kArgExtraStackSpace = 0;
-  const int kMaxRegisterResultSize = 2;
+  // Simple results are returned in rax, and a struct of two pointers are
+  // returned in rax+rdx.
+  static constexpr int kMaxRegisterResultSize = 2;
+  static constexpr int kReservedStackSlots = 0;
+  CHECK_LE(result_size, kMaxRegisterResultSize);
 #endif  // V8_TARGET_OS_WIN
 
-  // Enter the exit frame that transitions from JavaScript to C++.
-  const int arg_stack_space =
-      kArgExtraStackSpace +
-      (result_size <= kMaxRegisterResultSize ? 0 : result_size);
-  __ EnterExitFrame(arg_stack_space, builtin_exit_frame
-                                         ? StackFrame::BUILTIN_EXIT
-                                         : StackFrame::EXIT);
+  __ EnterExitFrame(kReservedStackSlots, builtin_exit_frame
+                                             ? StackFrame::BUILTIN_EXIT
+                                             : StackFrame::EXIT);
 
   // Set up argv in a callee-saved register. It is reused below so it must be
   // retained across the C call. In case of ArgvMode::kRegister, r15 has
@@ -4363,27 +4362,33 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (result_size <= kMaxRegisterResultSize) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax), or a register pair (rax, rdx).
-    __ movq(kCCallArg0, rax);            // argc.
-    __ movq(kCCallArg1, kArgvRegister);  // argv.
-    __ Move(kCCallArg2, ExternalReference::isolate_address(masm->isolate()));
+    __ movq(arg_reg_1, rax);            // argc.
+    __ movq(arg_reg_2, kArgvRegister);  // argv.
+    __ Move(arg_reg_3, ER::isolate_address(masm->isolate()));
   } else {
+#ifdef V8_TARGET_OS_WIN
     DCHECK_LE(result_size, 2);
     // Pass a pointer to the result location as the first argument.
-    __ leaq(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
+    __ leaq(arg_reg_1, ExitFrameStackSlotOperand(0));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movq(kCCallArg1, rax);            // argc.
-    __ movq(kCCallArg2, kArgvRegister);  // argv.
-    __ Move(kCCallArg3, ExternalReference::isolate_address(masm->isolate()));
+    __ movq(arg_reg_2, rax);            // argc.
+    __ movq(arg_reg_3, kArgvRegister);  // argv.
+    __ Move(arg_reg_4, ER::isolate_address(masm->isolate()));
+#else
+    UNREACHABLE();
+#endif  // V8_TARGET_OS_WIN
   }
   __ call(rbx);
 
+#ifdef V8_TARGET_OS_WIN
   if (result_size > kMaxRegisterResultSize) {
-    // Read result values stored on stack. Result is stored
-    // above the the two Arguments object slots on Win64.
-    DCHECK_LE(result_size, 2);
-    __ movq(kReturnRegister0, StackSpaceOperand(kArgExtraStackSpace + 0));
-    __ movq(kReturnRegister1, StackSpaceOperand(kArgExtraStackSpace + 1));
+    // Read result values stored on stack.
+    DCHECK_EQ(result_size, 2);
+    __ movq(kReturnRegister0, ExitFrameStackSlotOperand(0));
+    __ movq(kReturnRegister1, ExitFrameStackSlotOperand(1));
   }
+#endif  // V8_TARGET_OS_WIN
+
   // Result is in rax or rdx:rax - do not destroy these registers!
 
   // Check result for exception sentinel.
@@ -4396,11 +4401,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (v8_flags.debug_code) {
     Label okay;
     __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
-    ExternalReference pending_exception_address = ExternalReference::Create(
-        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-    Operand pending_exception_operand =
-        masm->ExternalReferenceAsOperand(pending_exception_address);
-    __ cmp_tagged(kScratchRegister, pending_exception_operand);
+    ER pending_exception_address =
+        ER::Create(IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+    __ cmp_tagged(kScratchRegister,
+                  masm->ExternalReferenceAsOperand(pending_exception_address));
     __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
@@ -4418,35 +4422,31 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Handling of exception.
   __ bind(&exception_returned);
 
-  ExternalReference pending_handler_context_address = ExternalReference::Create(
+  ER pending_handler_context_address = ER::Create(
       IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ExternalReference pending_handler_entrypoint_address =
-      ExternalReference::Create(
-          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ExternalReference pending_handler_fp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ExternalReference pending_handler_sp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
+  ER pending_handler_entrypoint_address = ER::Create(
+      IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
+  ER pending_handler_fp_address =
+      ER::Create(IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
+  ER pending_handler_sp_address =
+      ER::Create(IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
   // Ask the runtime for help to determine the handler. This will set rax to
   // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler =
-      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
+  ER find_handler = ER::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Move(arg_reg_1, 0);  // argc.
     __ Move(arg_reg_2, 0);  // argv.
-    __ Move(arg_reg_3, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(arg_reg_3, ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(3);
     __ CallCFunction(find_handler, 3);
   }
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   // Drop frames from the shadow stack.
-  ExternalReference num_frames_above_pending_handler_address =
-      ExternalReference::Create(
-          IsolateAddressId::kNumFramesAbovePendingHandlerAddress,
-          masm->isolate());
+  ER num_frames_above_pending_handler_address = ER::Create(
+      IsolateAddressId::kNumFramesAbovePendingHandlerAddress, masm->isolate());
   __ movq(rcx, masm->ExternalReferenceAsOperand(
                    num_frames_above_pending_handler_address));
   __ IncsspqIfSupported(rcx, kScratchRegister);
@@ -4467,8 +4467,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ bind(&skip);
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
-  ExternalReference c_entry_fp_address = ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, masm->isolate());
   Operand c_entry_fp_operand =
       masm->ExternalReferenceAsOperand(c_entry_fp_address);
   __ movq(c_entry_fp_operand, Immediate(0));
@@ -4772,53 +4772,59 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   Register scratch = rbx;
   __ leaq(scratch, Operand(rsp, 1 * kSystemPointerSize));
 
-  // Allocate the v8::Arguments structure in the arguments' space since
-  // it's not controlled by GC.
+  // Allocate the v8::Arguments structure in the arguments' space since it's
+  // not controlled by GC.
   static constexpr int kApiStackSpace = 4;
+
+  // We reserve stack space for the FunctionCallbackInfo, and an extra slot (see
+  // below).
+  static_assert(kApiStackSpace ==
+                sizeof(FunctionCallbackInfo<v8::Value>) / kSystemPointerSize +
+                    1);
+
   __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
-  __ movq(StackSpaceOperand(0), scratch);
+  __ movq(ExitFrameStackSlotOperand(0), scratch);
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
   __ leaq(scratch,
           Operand(scratch, (FCA::kArgsLength + 1) * kSystemPointerSize));
-  __ movq(StackSpaceOperand(1), scratch);
+  __ movq(ExitFrameStackSlotOperand(1), scratch);
 
   // FunctionCallbackInfo::length_.
-  __ movq(StackSpaceOperand(2), argc);
+  __ movq(ExitFrameStackSlotOperand(2), argc);
 
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
-  __ leaq(kScratchRegister,
-          Operand(argc, times_system_pointer_size,
-                  (FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
-  __ movq(StackSpaceOperand(3), kScratchRegister);
+  __ leaq(kScratchRegister, Operand(argc, times_system_pointer_size,
+                                    FCA::kArgsLength * kSystemPointerSize +
+                                        kReceiverOnStackSize));
+  __ movq(ExitFrameStackSlotOperand(3), kScratchRegister);
 
   Register arguments_arg = arg_reg_1;
   Register callback_arg = arg_reg_2;
 
-  // It's okay if api_function_address == callback_arg
-  // but not arguments_arg
+  // It's okay if api_function_address == callback_arg, but not arguments_arg.
   DCHECK(api_function_address != arguments_arg);
 
   // v8::InvocationCallback's argument.
-  __ leaq(arguments_arg, StackSpaceOperand(0));
+  __ leaq(arguments_arg, ExitFrameStackSlotOperand(0));
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
   // There are two stack slots above the arguments we constructed on the stack:
-  // the stored ebp (pushed by EnterApiExitFrame), and the return address.
+  // the stored ebp (pushed by EnterExitFrame), and the return address.
   static constexpr int kStackSlotsAboveFCA = 2;
   Operand return_value_operand(
       rbp,
       (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
 
-  static constexpr int kUseStackSpaceOperand = 0;
-  Operand stack_space_operand = StackSpaceOperand(3);
+  static constexpr int kUseExitFrameStackSlotOperand = 0;
+  Operand stack_space_operand = ExitFrameStackSlotOperand(3);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, callback_arg,
-                           kUseStackSpaceOperand, &stack_space_operand,
+                           kUseExitFrameStackSlotOperand, &stack_space_operand,
                            return_value_operand);
 }
 
@@ -4862,19 +4868,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ PushReturnAddressFrom(scratch);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
-
-  // Allocate v8::PropertyCallbackInfo in non-GCed stack space.
-  const int kArgStackSpace = 1;
+  static constexpr int kStackUnwindSpace =
+      PropertyCallbackArguments::kArgsLength + 1;
 
   // Load address of v8::PropertyAccessorInfo::args_ array.
   __ leaq(scratch, Operand(rsp, 2 * kSystemPointerSize));
 
+  // Allocate v8::PropertyCallbackInfo in non-GCed stack space.
+  static constexpr int kArgStackSpace = 1;
+  static_assert(kArgStackSpace ==
+                sizeof(PropertyCallbackInfo<v8::Value>) / kSystemPointerSize);
+
   __ EnterExitFrame(kArgStackSpace, StackFrame::EXIT);
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
-  // it's args_ field.
-  Operand info_object = StackSpaceOperand(0);
+  // its args_ field.
+  Operand info_object = ExitFrameStackSlotOperand(0);
   __ movq(info_object, scratch);
 
   __ leaq(name_arg, Operand(scratch, -kSystemPointerSize));
@@ -4885,8 +4894,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
 
-  // It's okay if api_function_address == getter_arg
-  // but not accessor_info_arg or name_arg
+  // It's okay if api_function_address == getter_arg, but not accessor_info_arg
+  // or name_arg.
   DCHECK(api_function_address != accessor_info_arg);
   DCHECK(api_function_address != name_arg);
   __ LoadExternalPointerField(

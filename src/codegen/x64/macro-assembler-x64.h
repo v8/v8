@@ -709,15 +709,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  // Enter specific kind of exit frame; either in normal or
-  // debug mode.
-  //
-  // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
-  // stack accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space, StackFrame::Type frame_type);
-
-  // Leave the current exit frame. Expects/provides the return value in
-  // register rax:rdx (untouched).
+  void EnterExitFrame(int reserved_stack_slots, StackFrame::Type frame_type);
   void LeaveExitFrame();
 
   // ---------------------------------------------------------------------------
@@ -958,20 +950,6 @@ inline Operand FieldOperand(TaggedRegister object, int offset) {
 inline Operand FieldOperand(Register object, Register index, ScaleFactor scale,
                             int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
-}
-
-// Provides access to exit frame stack space (not GCed).
-inline Operand StackSpaceOperand(int index) {
-#ifdef V8_TARGET_OS_WIN
-  const int kShaddowSpace = 4;
-  return Operand(rsp, (index + kShaddowSpace) * kSystemPointerSize);
-#else
-  return Operand(rsp, index * kSystemPointerSize);
-#endif
-}
-
-inline Operand StackOperandForReturnAddress(int32_t disp) {
-  return Operand(rsp, disp);
 }
 
 struct MoveCycleState {

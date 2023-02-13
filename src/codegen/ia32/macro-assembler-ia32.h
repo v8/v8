@@ -466,12 +466,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  // Enter specific kind of exit frame. Expects the number of
-  // arguments in register eax.
   void EnterExitFrame(int argc, StackFrame::Type frame_type, Register scratch);
-
-  // Leave the current exit frame. Expects the return value in
-  // register eax:edx (untouched).
   void LeaveExitFrame(Register scratch);
 
   // Load the global proxy from the current context.
