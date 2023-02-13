@@ -1822,6 +1822,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     if (!can_define.FromJust()) {
       return isolate()->factory()->undefined_value();
     }
+    // Restart the lookup iterator updated by CheckIfCanDefine() for
+    // UpdateCaches() to handle access checks.
+    if (use_ic && object->IsAccessCheckNeeded()) {
+      it.Restart();
+    }
   }
 
   if (use_ic) {
