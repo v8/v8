@@ -5508,13 +5508,12 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
 
 void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
                                Callbacks callbacks, bool null_succeeds) {
-  // TODO(7748): Is the extra null check actually beneficial for performance?
   if (object_can_be_null) {
     if (null_succeeds) {
       callbacks.succeed_if(IsNull(object, wasm::kWasmAnyRef),
                            BranchHint::kFalse);
     } else {
-      callbacks.fail_if(IsNull(object, wasm::kWasmAnyRef), BranchHint::kFalse);
+      // The {IsDataRefMap} check below will fail for {null} anyway.
     }
   }
   callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
@@ -5532,7 +5531,7 @@ void WasmGraphBuilder::ManagedObjectInstanceCheck(Node* object,
       callbacks.succeed_if(IsNull(object, wasm::kWasmAnyRef),
                            BranchHint::kFalse);
     } else {
-      callbacks.fail_if(IsNull(object, wasm::kWasmAnyRef), BranchHint::kFalse);
+      // The {IsDataRefMap} check below will fail for {null} anyway.
     }
   }
   callbacks.fail_if(gasm_->IsSmi(object), BranchHint::kFalse);
@@ -5692,8 +5691,7 @@ void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
                     callbacks.succeed_if(gasm_->IsNull(object, config.from),
                                          BranchHint::kFalse);
                   } else {
-                    callbacks.fail_if(gasm_->IsNull(object, config.from),
-                                      BranchHint::kFalse);
+                    // The {IsDataRefMap} check below will fail for {null}.
                   }
                 }
                 callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
@@ -5811,8 +5809,7 @@ void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
             callbacks.succeed_if(gasm_->IsNull(object, config.from),
                                  BranchHint::kFalse);
           } else {
-            callbacks.fail_if(gasm_->IsNull(object, config.from),
-                              BranchHint::kFalse);
+            // Covered by the {IsSmi} check below.
           }
         }
         callbacks.fail_if_not(gasm_->IsSmi(object), BranchHint::kTrue);
@@ -6740,11 +6737,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildCheckString(Node* input, Node* js_context, wasm::ValueType type) {
     auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
-    auto type_error = gasm_->MakeLabel();
+    auto type_error = gasm_->MakeDeferredLabel();
     gasm_->GotoIf(IsSmi(input), &type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
-      gasm_->GotoIf(IsNull(input, wasm::kWasmExternRef), &done,
-                    LOAD_ROOT(WasmNull, wasm_null));
+      auto not_null = gasm_->MakeLabel();
+      gasm_->GotoIfNot(IsNull(input, wasm::kWasmExternRef), &not_null);
+      gasm_->Goto(&done, LOAD_ROOT(WasmNull, wasm_null));
+      gasm_->Bind(&not_null);
     }
     Node* map = gasm_->LoadMap(input);
     Node* instance_type = gasm_->LoadInstanceType(map);
