@@ -6002,29 +6002,35 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
-                                   int num_double_arguments) {
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t6, function);
-  CallCFunctionHelper(t6, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(t6, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+                                   int num_double_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                      set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
-void MacroAssembler::CallCFunctionHelper(Register function,
-                                         int num_reg_arguments,
-                                         int num_double_arguments) {
+void MacroAssembler::CallCFunctionHelper(
+    Register function, int num_reg_arguments, int num_double_arguments,
+    SetIsolateDataSlots set_isolate_data_slots) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
   ASM_CODE_COMMENT(this);
@@ -6059,42 +6065,49 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // allow preemption, so the return address in the link register
   // stays correct.
   {
-    if (function != t6) {
-      Mv(t6, function);
-      function = t6;
-    }
+    if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+      if (function != t6) {
+        Mv(t6, function);
+        function = t6;
+      }
 
-    // Save the frame pointer and PC so that the stack layout remains
-    // iterable, even without an ExitFrame which normally exists between JS
-    // and C frames.
-    // 't' registers are caller-saved so this is safe as a scratch register.
-    Register pc_scratch = t1;
-    Register scratch = t2;
+      // Save the frame pointer and PC so that the stack layout remains
+      // iterable, even without an ExitFrame which normally exists between JS
+      // and C frames.
+      // 't' registers are caller-saved so this is safe as a scratch register.
+      Register pc_scratch = t1;
+      Register scratch = t2;
 
-    auipc(pc_scratch, 0);
-    // See x64 code for reasoning about how to address the isolate data fields.
-    if (root_array_available()) {
-      StoreWord(pc_scratch,
-                MemOperand(kRootRegister,
-                           IsolateData::fast_c_call_caller_pc_offset()));
-      StoreWord(fp, MemOperand(kRootRegister,
-                               IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      li(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      StoreWord(pc_scratch, MemOperand(scratch));
-      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreWord(fp, MemOperand(scratch));
+      auipc(pc_scratch, 0);
+      // See x64 code for reasoning about how to address the isolate data
+      // fields.
+      if (root_array_available()) {
+        StoreWord(pc_scratch,
+                  MemOperand(kRootRegister,
+                             IsolateData::fast_c_call_caller_pc_offset()));
+        StoreWord(fp, MemOperand(kRootRegister,
+                                 IsolateData::fast_c_call_caller_fp_offset()));
+      } else {
+        DCHECK_NOT_NULL(isolate());
+        li(scratch,
+           ExternalReference::fast_c_call_caller_pc_address(isolate()));
+        StoreWord(pc_scratch, MemOperand(scratch));
+        li(scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+        StoreWord(fp, MemOperand(scratch));
+      }
     }
 
     Call(function);
-
-    if (isolate() != nullptr) {
-      // We don't unset the PC; the FP is the source of truth.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreWord(zero_reg, MemOperand(scratch));
+    if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+      if (isolate() != nullptr) {
+        // We don't unset the PC; the FP is the source of truth.
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.Acquire();
+        li(scratch,
+           ExternalReference::fast_c_call_caller_fp_address(isolate()));
+        StoreWord(zero_reg, MemOperand(scratch));
+      }
     }
   }
 
