@@ -524,6 +524,13 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   Ldrb(dst, src);
 }
 
+inline void MaglevAssembler::IsObjectType(Register heap_object,
+                                          InstanceType type) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MacroAssembler::IsObjectType(heap_object, scratch, scratch, type);
+}
+
 inline void MaglevAssembler::CompareObjectType(Register heap_object,
                                                InstanceType type) {
   ScratchRegisterScope temps(this);

@@ -939,6 +939,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
   void LoadMap(Register dst, Register object);
+  void LoadCompressedMap(Register dst, Register object);
 
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);

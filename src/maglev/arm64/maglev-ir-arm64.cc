@@ -221,13 +221,13 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
   __ AssertNotSmi(object);
 
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-
   if (v8_flags.debug_code) {
-    __ CompareObjectType(object, JS_ARRAY_TYPE, scratch);
+    __ IsObjectType(object, JS_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   __ SmiUntagField(scratch, FieldMemOperand(object, JSArray::kLengthOffset));
   __ Cmp(index, scratch);
@@ -1207,7 +1207,7 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
 
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
-    __ CompareObjectType(object, JS_TYPED_ARRAY_TYPE);
+    __ IsObjectType(object, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -1237,17 +1237,16 @@ void CheckJSDataViewBounds::SetValueLocationConstraints() {
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
-  Register byte_length = scratch;
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
-    __ CompareObjectType(object, JS_DATA_VIEW_TYPE, scratch);
+    __ IsObjectType(object, JS_DATA_VIEW_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
+  Register byte_length = temps.Acquire();
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
 
@@ -1667,7 +1666,7 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     MaglevAssembler::ScratchRegisterScope temps(masm);
-    __ CompareObjectType(object, JS_TYPED_ARRAY_TYPE);
+    __ IsObjectType(object, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
@@ -1763,7 +1762,7 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
     __ AssertNotSmi(elements);
-    __ CompareObjectType(elements, FIXED_ARRAY_TYPE);
+    __ IsObjectType(elements, FIXED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
   Register result_reg = ToRegister(result());
@@ -1783,7 +1782,7 @@ void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
     __ AssertNotSmi(elements);
-    __ CompareObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
+    __ IsObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));

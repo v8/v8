@@ -301,6 +301,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 #endif
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register destination, Register object);
 
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
@@ -773,7 +774,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
   // Variant of the above, which only guarantees to set the correct
   // equal/not_equal flag. Map might not be loaded.
-  void IsObjectType(Register heap_object, InstanceType type, Register map);
+  void IsObjectType(Register heap_object, InstanceType type, Register scratch);
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.

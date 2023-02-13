@@ -3017,8 +3017,7 @@ void MacroAssembler::IsObjectType(Register object, Register scratch1,
       UseScratchRegisterScope temps(this);
       Tagged_t ptr = ReadOnlyRootPtr(*expected);
       if (IsImmAddSub(ptr) || scratch1 != scratch2 || temps.CanAcquire()) {
-        // Load without decompression.
-        Ldr(scratch1.W(), FieldMemOperand(object, HeapObject::kMapOffset));
+        LoadCompressedMap(scratch1, object);
         if (!IsImmAddSub(ptr) && scratch1 != scratch2) {
           Operand imm_operand =
               MoveImmediateForShiftedOp(scratch2, ptr, kAnyShift);
@@ -3040,6 +3039,11 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
   ASM_CODE_COMMENT(this);
   LoadMap(map, object);
   CompareInstanceType(map, type_reg, type);
+}
+
+void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
+  ASM_CODE_COMMENT(this);
+  Ldr(dst.W(), FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 void MacroAssembler::LoadMap(Register dst, Register object) {

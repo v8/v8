@@ -407,6 +407,11 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   movzxbl(dst, src);
 }
 
+inline void MaglevAssembler::IsObjectType(Register heap_object,
+                                          InstanceType type) {
+  MacroAssembler::IsObjectType(heap_object, type, kScratchRegister);
+}
+
 inline void MaglevAssembler::CompareObjectType(Register heap_object,
                                                InstanceType type) {
   LoadMap(kScratchRegister, heap_object);

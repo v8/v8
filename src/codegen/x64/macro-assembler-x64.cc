@@ -219,6 +219,11 @@ void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
   }
 }
 
+void MacroAssembler::LoadCompressedMap(Register destination, Register object) {
+  CHECK(COMPRESS_POINTERS_BOOL);
+  mov_tagged(destination, FieldOperand(object, HeapObject::kMapOffset));
+}
+
 void MacroAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedField(destination, FieldOperand(object, HeapObject::kMapOffset));
 #ifdef V8_MAP_PACKING
@@ -2538,7 +2543,7 @@ void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
   if (V8_STATIC_ROOTS_BOOL) {
     if (base::Optional<RootIndex> expected =
             InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
-      mov_tagged(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+      LoadCompressedMap(map, heap_object);
       cmp_tagged(map, Immediate(ReadOnlyRootPtr(*expected)));
       return;
     }

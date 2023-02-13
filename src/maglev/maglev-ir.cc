@@ -1514,7 +1514,7 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
   }
-  __ CompareObjectType(object, SYMBOL_TYPE);
+  __ IsObjectType(object, SYMBOL_TYPE);
   __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotASymbol, this);
 }
 
@@ -1530,7 +1530,7 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
   }
-  __ CompareObjectType(object, instance_type());
+  __ IsObjectType(object, instance_type());
   __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongInstanceType, this);
 }
 
