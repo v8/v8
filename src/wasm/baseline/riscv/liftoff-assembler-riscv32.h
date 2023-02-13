@@ -1001,25 +1001,23 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
+  UseScratchRegisterScope assembler_temps(this);
+  Register tmp = assembler_temps.Acquire();
   switch (value.type().kind()) {
     case kI32:
     case kRef:
     case kRefNull: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      MacroAssembler::li(tmp.gp(), Operand(value.to_i32()));
-      Sw(tmp.gp(), dst);
+      MacroAssembler::li(tmp, Operand(value.to_i32()));
+      Sw(tmp, dst);
       break;
     }
     case kI64: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpRegPair, {});
-
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      MacroAssembler::li(tmp.low_gp(), Operand(low_word));
-      MacroAssembler::li(tmp.high_gp(), Operand(high_word));
-
-      Sw(tmp.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
-      Sw(tmp.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
+      MacroAssembler::li(tmp, Operand(low_word));
+      Sw(tmp, liftoff::GetHalfStackSlot(offset, kLowWord));
+      MacroAssembler::li(tmp, Operand(high_word));
+      Sw(tmp, liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
       break;
     }
