@@ -25,6 +25,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
@@ -1830,6 +1831,12 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
 }
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
+  if (V8_STATIC_ROOTS_BOOL) {
+    if (base::Optional<RootIndex> unique =
+            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
+      return TNode<Map>::UncheckedCast(LoadRoot(*unique));
+    }
+  }
   Handle<Map> map_handle(
       Map::GetInstanceTypeMap(ReadOnlyRoots(isolate()), instance_type),
       isolate());
@@ -1854,11 +1861,25 @@ TNode<Uint16T> CodeStubAssembler::LoadInstanceType(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::HasInstanceType(TNode<HeapObject> object,
                                                 InstanceType instance_type) {
+  if (V8_STATIC_ROOTS_BOOL) {
+    if (base::Optional<RootIndex> expected_map =
+            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
+      TNode<Map> map = LoadMap(object);
+      return TaggedEqual(map, LoadRoot(*expected_map));
+    }
+  }
   return InstanceTypeEqual(LoadInstanceType(object), instance_type);
 }
 
 TNode<BoolT> CodeStubAssembler::DoesntHaveInstanceType(
     TNode<HeapObject> object, InstanceType instance_type) {
+  if (V8_STATIC_ROOTS_BOOL) {
+    if (base::Optional<RootIndex> expected_map =
+            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
+      TNode<Map> map = LoadMap(object);
+      return TaggedNotEqual(map, LoadRoot(*expected_map));
+    }
+  }
   return Word32NotEqual(LoadInstanceType(object), Int32Constant(instance_type));
 }
 
