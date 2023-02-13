@@ -3127,6 +3127,16 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   }
   DCHECK(result.HasValue());
 
+  // Reset checkpoint after an inlined call, otherwise we might deopt before the
+  // call and visible side effects from the inlined function could happen twice.
+  // TODO(victorgomes): Re-use checkpoint sometimes, since this can only happen
+  // if the inlined function has a side effect.
+  // Clear unstable maps and constant properties cache, since the inlined function
+  // could have invalidate those.
+  // TODO(victorgomes): Share known_node_aspects with the inlined function, then
+  // we wouldn't need to clear the cache.
+  MarkPossibleSideEffect();
+
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will
   // have already been processed on entry to this visitor.
