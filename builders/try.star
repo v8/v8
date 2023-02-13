@@ -271,6 +271,17 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_win_msvc_light_compile_dbg",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    execution_timeout = 3600,
+    properties = {"default_targets": ["d8"], "use_goma": False},
+    use_goma = GOMA.NO,
+)
+
+try_builder(
     name = "v8_win64_msvc_light_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,

@@ -211,6 +211,14 @@ in_category(
         parent_builder = "V8 Win32 - debug builder",
         close_tree = False,
     ),
+    main_multibranch_builder(
+        name = "V8 Win32 - msvc - debug builder",
+        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+        properties = {"use_goma": False},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
+        close_tree = False,
+    ),
     main_multibranch_builder_pair(
         name = "V8 Win64",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
