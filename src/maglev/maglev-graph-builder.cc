@@ -3112,6 +3112,9 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
                                          this);
 
+  // Propagate catch block.
+  inner_graph_builder.parent_catch_block_ = GetCurrentTryCatchBlockOffset();
+
   // Finish the current block with a jump to the inlined function.
   BasicBlockRef start_ref, end_ref;
   BasicBlock* block = FinishBlock<JumpToInlined>({}, &start_ref, inner_unit);

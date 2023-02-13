@@ -506,15 +506,27 @@ class MaglevGraphBuilder {
     }
   }
 
+  BasicBlockRef* GetCurrentTryCatchBlockOffset() {
+    if (catch_block_stack_.size() > 0) {
+      // Inside a try-block.
+      return &jump_targets_[catch_block_stack_.top().handler];
+    }
+    // Function is inlined and the call is inside a catch block.
+    if (parent_catch_block_) {
+      DCHECK(is_inline());
+      return parent_catch_block_;
+    }
+    return nullptr;
+  }
+
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNode(Args&&... args) {
     NodeT* node = CreateNewNodeHelper<NodeT>(std::forward<Args>(args)...);
     if constexpr (NodeT::kProperties.can_throw()) {
-      if (catch_block_stack_.size() > 0) {
-        // Inside a try-block.
-        int handler_offset = catch_block_stack_.top().handler;
+      BasicBlockRef* catch_block_ref = GetCurrentTryCatchBlockOffset();
+      if (catch_block_ref) {
         new (node->exception_handler_info())
-            ExceptionHandlerInfo(&jump_targets_[handler_offset]);
+            ExceptionHandlerInfo(catch_block_ref);
       } else {
         // Patch no exception handler marker.
         // TODO(victorgomes): Avoid allocating exception handler data in this
@@ -1593,6 +1605,7 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   DeoptFrame* parent_deopt_frame_ = nullptr;
+  BasicBlockRef* parent_catch_block_ = nullptr;
 
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;
