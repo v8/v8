@@ -3208,6 +3208,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(LoadFixedArrayElement(dictionary, NameDictionary::kFlagsIndex));
   }
 
+  void SetNameDictionaryFlags(TNode<NameDictionary> dictionary,
+                              TNode<Smi> flags) {
+    StoreFixedArrayElement(dictionary, NameDictionary::kFlagsIndex, flags,
+                           SKIP_WRITE_BARRIER);
+  }
+
   // Looks up an entry in a NameDictionaryBase successor. If the entry is found
   // control goes to {if_found} and {var_name_index} contains an index of the
   // key field of the entry found. If the key is not found control goes to

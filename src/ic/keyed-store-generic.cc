@@ -164,6 +164,10 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                                       TNode<Name> name,
                                                       Label* slow);
 
+  // Updates flags on |dict| if |name| is an interesting symbol.
+  void UpdateMayHaveInterestingSymbol(TNode<PropertyDictionary> dict,
+                                      TNode<Name> name);
+
   bool IsSet() const { return mode_ == StoreMode::kSet; }
   bool IsDefineKeyedOwnInLiteral() const {
     return mode_ == StoreMode::kDefineKeyedOwnInLiteral;
@@ -835,6 +839,28 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
   return var_transition_map.value();
 }
 
+void KeyedStoreGenericAssembler::UpdateMayHaveInterestingSymbol(
+    TNode<NameDictionary> dict, TNode<Name> name) {
+  Label done(this);
+
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    // TODO(pthier): Add flags to swiss dictionaries.
+    Goto(&done);
+  } else {
+    GotoIfNot(IsSymbol(name), &done);
+    TNode<Uint32T> symbol_flags =
+        LoadObjectField<Uint32T>(name, Symbol::kFlagsOffset);
+    GotoIfNot(IsSetWord32<Symbol::IsInterestingSymbolBit>(symbol_flags), &done);
+    TNode<Smi> flags = GetNameDictionaryFlags(dict);
+    flags = SmiOr(
+        flags, SmiConstant(
+                   NameDictionary::MayHaveInterestingSymbolsBit::encode(true)));
+    SetNameDictionaryFlags(dict, flags);
+    Goto(&done);
+  }
+  BIND(&done);
+}
+
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TNode<JSReceiver> receiver, TNode<Map> receiver_map,
     TNode<Uint16T> instance_type, const StoreICParameters* p,
@@ -1017,6 +1043,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
+      UpdateMayHaveInterestingSymbol(properties, name);
       Add<PropertyDictionary>(properties, name, p->value(),
                               &add_dictionary_property_slow);
       exit_point->Return(p->value());
