@@ -5835,16 +5835,10 @@ SaveContext::SaveContext(Isolate* isolate) : isolate_(isolate) {
   if (!isolate->context().is_null()) {
     context_ = Handle<Context>(isolate->context(), isolate);
   }
-
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
 
 SaveContext::~SaveContext() {
   isolate_->set_context(context_.is_null() ? Context() : *context_);
-}
-
-bool SaveContext::IsBelowFrame(CommonFrame* frame) {
-  return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
 }
 
 SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,

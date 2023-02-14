@@ -7,6 +7,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
@@ -151,12 +152,13 @@ class V8_NODISCARD CallDepthScope {
     isolate_->thread_local_top()->IncrementCallDepth(this);
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
-      i::Handle<i::Context> env = Utils::OpenHandle(*context);
+      i::DisallowGarbageCollection no_gc;
+      i::Context env = *Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
       if (isolate->context().is_null() ||
-          isolate->context().native_context() != env->native_context()) {
+          isolate->context().native_context() != env.native_context()) {
         impl->SaveContext(isolate->context());
-        isolate->set_context(*env);
+        isolate->set_context(env);
         did_enter_context_ = true;
       }
     }

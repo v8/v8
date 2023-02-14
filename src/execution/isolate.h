@@ -2569,15 +2569,9 @@ class V8_EXPORT_PRIVATE SaveContext {
 
   ~SaveContext();
 
-  Handle<Context> context() { return context_; }
-
-  // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(CommonFrame* frame);
-
  private:
   Isolate* const isolate_;
   Handle<Context> context_;
-  Address c_entry_fp_;
 };
 
 // Like SaveContext, but also switches the Context to a new one in the
