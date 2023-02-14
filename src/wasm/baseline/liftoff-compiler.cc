@@ -3168,19 +3168,26 @@ class LiftoffCompiler {
     return true;
   }
 
-  Register GetMemoryStart(LiftoffRegList pinned) {
+  V8_INLINE Register GetMemoryStart(LiftoffRegList pinned) {
     Register memory_start = __ cache_state()->cached_mem_start;
-    if (memory_start == no_reg) {
-      SCOPED_CODE_COMMENT("load memory start");
-      memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
-      LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize,
-                          pinned);
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(memory_start);
-#endif
-      __ cache_state()->SetMemStartCacheRegister(memory_start);
+    if (V8_UNLIKELY(memory_start == no_reg)) {
+      GetMemoryStart_Slow(pinned, &memory_start);
     }
     return memory_start;
+  }
+
+  // TODO(13742): Switch to a return parameter.
+  V8_NOINLINE V8_PRESERVE_MOST void GetMemoryStart_Slow(LiftoffRegList pinned,
+                                                        Register* reg_out) {
+    DCHECK_EQ(no_reg, __ cache_state()->cached_mem_start);
+    SCOPED_CODE_COMMENT("load memory start");
+    Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
+    LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize, pinned);
+#ifdef V8_ENABLE_SANDBOX
+    __ DecodeSandboxedPointer(memory_start);
+#endif
+    __ cache_state()->SetMemStartCacheRegister(memory_start);
+    *reg_out = memory_start;
   }
 
   void LoadMem(FullDecoder* decoder, LoadType type,
@@ -7984,16 +7991,29 @@ class LiftoffCompiler {
     __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
   }
 
-  Register LoadInstanceIntoRegister(LiftoffRegList pinned, Register fallback) {
+  // Return a register holding the instance, populating the "cached instance"
+  // register if possible. If no free register is available, the cache is not
+  // set and we use {fallback} instead. This can be freely overwritten by the
+  // caller then.
+  V8_INLINE Register LoadInstanceIntoRegister(LiftoffRegList pinned,
+                                              Register fallback) {
     Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      SCOPED_CODE_COMMENT("load instance");
-      instance = __ cache_state()->TrySetCachedInstanceRegister(
-          pinned | LiftoffRegList{fallback});
-      if (instance == no_reg) instance = fallback;
-      __ LoadInstanceFromFrame(instance);
+    if (V8_UNLIKELY(instance == no_reg)) {
+      LoadInstanceIntoRegister_Slow(pinned, fallback, &instance);
     }
     return instance;
+  }
+
+  // TODO(13742): Switch to a return parameter.
+  V8_NOINLINE V8_PRESERVE_MOST void LoadInstanceIntoRegister_Slow(
+      LiftoffRegList pinned, Register fallback, Register* reg_out) {
+    DCHECK_EQ(no_reg, __ cache_state()->cached_instance);
+    SCOPED_CODE_COMMENT("load instance");
+    Register instance = __ cache_state()->TrySetCachedInstanceRegister(
+        pinned | LiftoffRegList{fallback});
+    if (instance == no_reg) instance = fallback;
+    __ LoadInstanceFromFrame(instance);
+    *reg_out = instance;
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
