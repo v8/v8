@@ -53,6 +53,8 @@ struct GraphBuilder {
   struct BlockData {
     Block* block;
     OpIndex exit_frame_state;
+    OpIndex loop_dominating_frame_state;
+    uint8_t use_count_at_loop_entry;
   };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
@@ -178,10 +180,10 @@ struct GraphBuilder {
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
-    block_mapping[block->rpo_number()] = {block->IsLoopHeader()
-                                              ? assembler.NewLoopHeader()
-                                              : assembler.NewBlock(),
-                                          OpIndex::Invalid()};
+    block_mapping[block->rpo_number()] = {
+        block->IsLoopHeader() ? assembler.NewLoopHeader()
+                              : assembler.NewBlock(),
+        OpIndex::Invalid(), OpIndex::Invalid(), 0};
   }
 
   for (BasicBlock* block : *schedule.rpo_order()) {
@@ -207,9 +209,26 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
     // operation that needs a FrameState.
     OpIndex dominating_frame_state = OpIndex::Invalid();
     if (!predecessors.empty()) {
+      // Predecessor[0] cannot be a backedge.
+      DCHECK_LT(predecessors[0]->rpo_number(), block->rpo_number());
       dominating_frame_state =
           block_mapping[predecessors[0]->rpo_number()].exit_frame_state;
       for (size_t i = 1; i < predecessors.size(); ++i) {
+        if (predecessors[i]->rpo_number() > block->rpo_number() &&
+            dominating_frame_state.valid()) {
+          // This is a backedge, so we do not have an exit_frame_state yet.
+          // We record this and later verify that the backedge provides this, if
+          // this FrameState has a use inside the loop.
+          DCHECK(target_block->IsLoop());
+          DCHECK_EQ(i, PhiOp::kLoopPhiBackEdgeIndex);
+          auto& mapping = block_mapping[block->rpo_number()];
+          mapping.loop_dominating_frame_state = dominating_frame_state;
+          mapping.use_count_at_loop_entry = assembler.output_graph()
+                                                .Get(dominating_frame_state)
+                                                .saturated_use_count;
+          DCHECK_EQ(i, predecessors.size() - 1);
+          break;
+        }
         if (dominating_frame_state !=
             block_mapping[predecessors[i]->rpo_number()].exit_frame_state) {
           dominating_frame_state = OpIndex::Invalid();
@@ -249,6 +268,17 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         if (destination->IsBound()) {
           DCHECK(destination->IsLoop());
           FixLoopPhis(destination, target_block);
+          auto& mapping = block_mapping[block->SuccessorAt(0)->rpo_number()];
+          if (mapping.loop_dominating_frame_state.valid()) {
+            uint8_t final_use_count =
+                assembler.output_graph()
+                    .Get(mapping.loop_dominating_frame_state)
+                    .saturated_use_count;
+            if (final_use_count > mapping.use_count_at_loop_entry) {
+              DCHECK_EQ(dominating_frame_state,
+                        mapping.loop_dominating_frame_state);
+            }
+          }
         }
         break;
       }
