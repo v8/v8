@@ -1368,6 +1368,11 @@ class MaglevGraphBuilder {
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
 
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
+  void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);
+  void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
+                                           int offset);
+
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
     return GetInt32ElementIndex(index_object);

@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-graph-builder.h"
 
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
@@ -1059,17 +1060,15 @@ void MaglevGraphBuilder::VisitStaContextSlot() {
         kImmutable);
   }
 
-  AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-      {context, GetAccumulatorTagged()},
-      Context::OffsetOfElementAt(slot_index));
+  BuildStoreTaggedField(context, GetAccumulatorTagged(),
+                        Context::OffsetOfElementAt(slot_index));
 }
 void MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
 
-  AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-      {context, GetAccumulatorTagged()},
-      Context::OffsetOfElementAt(slot_index));
+  BuildStoreTaggedField(context, GetAccumulatorTagged(),
+                        Context::OffsetOfElementAt(slot_index));
 }
 
 void MaglevGraphBuilder::VisitStar() {
@@ -1637,6 +1636,34 @@ void MaglevGraphBuilder::BuildCheckMaps(
   known_info->type = merger.node_type();
 }
 
+bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
+                                              ValueNode* value) {
+  if (value->Is<RootConstant>()) return true;
+  if (value->Is<SmiConstant>()) return true;
+
+  const NodeInfo* known_info = known_node_aspects().TryGetInfoFor(value);
+  auto type = known_info ? known_info->type : StaticTypeForNode(value);
+  if (NodeTypeIsSmi(type)) return true;
+
+  return false;
+}
+
+void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
+                                               ValueNode* value, int offset) {
+  if (CanElideWriteBarrier(object, value)) {
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset);
+  } else {
+    AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset);
+  }
+}
+
+void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
+                                                             ValueNode* value,
+                                                             int offset) {
+  DCHECK(CanElideWriteBarrier(object, value));
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset);
+}
+
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
     ZoneVector<compiler::MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
@@ -1873,8 +1900,8 @@ bool MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsSmi()) {
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value},
-                                               field_index.offset());
+    BuildStoreTaggedFieldNoWriteBarrier(store_target, value,
+                                        field_index.offset());
   } else if (value->use_double_register()) {
     DCHECK(field_representation.IsDouble());
     DCHECK(!access_info.HasTransitionMap());
@@ -1883,8 +1910,7 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     DCHECK(field_representation.IsHeapObject() ||
            field_representation.IsTagged() ||
            (field_representation.IsDouble() && access_info.HasTransitionMap()));
-    AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value},
-                                                 field_index.offset());
+    BuildStoreTaggedField(store_target, value, field_index.offset());
   }
 
   if (access_info.HasTransitionMap()) {
@@ -2678,8 +2704,7 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   ValueNode* cell = BuildLoadFixedArrayElement(exports, cell_index);
-  AddNewNode<StoreTaggedFieldWithWriteBarrier>({cell, GetAccumulatorTagged()},
-                                               Cell::kValueOffset);
+  BuildStoreTaggedField(cell, GetAccumulatorTagged(), Cell::kValueOffset);
 }
 
 void MaglevGraphBuilder::BuildLoadGlobal(
@@ -3837,8 +3862,8 @@ void MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
   DCHECK_EQ(args.register_count(), 1);
   ValueNode* generator = GetTaggedValue(args[0]);
   ValueNode* value = GetSmiConstant(JSGeneratorObject::kGeneratorClosed);
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-      {generator, value}, JSGeneratorObject::kContinuationOffset);
+  BuildStoreTaggedFieldNoWriteBarrier(generator, value,
+                                      JSGeneratorObject::kContinuationOffset);
   SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
 }
 
@@ -5086,8 +5111,8 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   ValueNode* state = AddNewNode<LoadTaggedField>(
       {generator}, JSGeneratorObject::kContinuationOffset);
   ValueNode* new_state = GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-      {generator, new_state}, JSGeneratorObject::kContinuationOffset);
+  BuildStoreTaggedFieldNoWriteBarrier(generator, new_state,
+                                      JSGeneratorObject::kContinuationOffset);
   ValueNode* context = AddNewNode<LoadTaggedField>(
       {generator}, JSGeneratorObject::kContextOffset);
   SetContext(context);
