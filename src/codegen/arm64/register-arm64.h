@@ -191,6 +191,16 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
+  constexpr bool IsEven() const { return (code() % 2) == 0; }
+
+  int MaxCode() const {
+    if (IsVRegister()) {
+      return kNumberOfVRegisters - 1;
+    }
+    DCHECK(IsRegister());
+    return kNumberOfRegisters - 1;
+  }
+
  protected:
   uint8_t reg_size_;
   RegisterType reg_type_;
@@ -536,6 +546,8 @@ V8_EXPORT_PRIVATE bool AreSameSizeAndType(
 // AreSameFormat returns true if all of the specified VRegisters have the same
 // vector format. Arguments set to NoVReg are ignored, as are any subsequent
 // arguments. At least one argument (reg1) must be valid (not NoVReg).
+bool AreSameFormat(const Register& reg1, const Register& reg2,
+                   const Register& reg3 = NoReg, const Register& reg4 = NoReg);
 bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
                    const VRegister& reg3 = NoVReg,
                    const VRegister& reg4 = NoVReg);
@@ -544,10 +556,15 @@ bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
 // consecutive in the register file. Arguments may be set to NoVReg, and if so,
 // subsequent arguments must also be NoVReg. At least one argument (reg1) must
 // be valid (not NoVReg).
-V8_EXPORT_PRIVATE bool AreConsecutive(const VRegister& reg1,
-                                      const VRegister& reg2,
-                                      const VRegister& reg3 = NoVReg,
-                                      const VRegister& reg4 = NoVReg);
+V8_EXPORT_PRIVATE bool AreConsecutive(const CPURegister& reg1,
+                                      const CPURegister& reg2,
+                                      const CPURegister& reg3 = NoReg,
+                                      const CPURegister& reg4 = NoReg);
+
+bool AreEven(const CPURegister& reg1, const CPURegister& reg2,
+             const CPURegister& reg3 = NoReg, const CPURegister& reg4 = NoReg,
+             const CPURegister& reg5 = NoReg, const CPURegister& reg6 = NoReg,
+             const CPURegister& reg7 = NoReg, const CPURegister& reg8 = NoReg);
 
 using FloatRegister = VRegister;
 using DoubleRegister = VRegister;

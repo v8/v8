@@ -253,22 +253,67 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
-#define DECLARE_FUNCTION(FN, OP)                                    \
+#define DEFINE_FUNCTION(FN, OP)                                     \
   void MacroAssembler::FN(const Register& rt, const Register& rn) { \
     DCHECK(allow_macro_instructions());                             \
     OP(rt, rn);                                                     \
   }
-LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
-#undef DECLARE_FUNCTION
+LDA_STL_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
 
-#define DECLARE_FUNCTION(FN, OP)                                  \
+#define DEFINE_FUNCTION(FN, OP)                                   \
   void MacroAssembler::FN(const Register& rs, const Register& rt, \
                           const Register& rn) {                   \
     DCHECK(allow_macro_instructions());                           \
     OP(rs, rt, rn);                                               \
   }
-STLX_MACRO_LIST(DECLARE_FUNCTION)
-#undef DECLARE_FUNCTION
+STLX_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+#define DEFINE_FUNCTION(FN, OP)                                   \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions());                           \
+    OP(rs, rt, src);                                              \
+  }
+CAS_SINGLE_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+#define DEFINE_FUNCTION(FN, OP)                                    \
+  void MacroAssembler::FN(const Register& rs, const Register& rs2, \
+                          const Register& rt, const Register& rt2, \
+                          const MemOperand& src) {                 \
+    DCHECK(allow_macro_instructions());                            \
+    OP(rs, rs2, rt, rt2, src);                                     \
+  }
+CAS_PAIR_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+#define DEFINE_LOAD_FUNCTION(FN, OP)                              \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, src);                                              \
+  }
+#define DEFINE_STORE_FUNCTION(FN, OP)                                  \
+  void MacroAssembler::FN(const Register& rs, const MemOperand& src) { \
+    DCHECK(allow_macro_instructions_);                                 \
+    OP(rs, src);                                                       \
+  }
+
+ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_LOAD_MACRO_MODES,
+                                DEFINE_LOAD_FUNCTION, Ld, ld)
+ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_STORE_MACRO_MODES,
+                                DEFINE_STORE_FUNCTION, St, st)
+
+#define DEFINE_SWP_FUNCTION(FN, OP)                               \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, src);                                              \
+  }
+
+ATOMIC_MEMORY_LOAD_MACRO_MODES(DEFINE_SWP_FUNCTION, Swp, swp)
 
 void MacroAssembler::Asr(const Register& rd, const Register& rn,
                          unsigned shift) {

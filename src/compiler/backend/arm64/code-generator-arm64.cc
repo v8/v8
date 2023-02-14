@@ -504,43 +504,113 @@ void EmitFpOrNeonUnop(MacroAssembler* masm, Fn fn, Instruction* instr,
     __ asm_instr(i.Input##reg(2), i.TempRegister(0));                  \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr, reg)       \
-  do {                                                                       \
-    Label exchange;                                                          \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ Bind(&exchange);                                                      \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
-    __ load_instr(i.Output##reg(), i.TempRegister(0));                       \
-    __ store_instr(i.TempRegister32(1), i.Input##reg(2), i.TempRegister(0)); \
-    __ Cbnz(i.TempRegister32(1), &exchange);                                 \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(suffix, reg)                   \
+  do {                                                                  \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));  \
+    if (CpuFeatures::IsSupported(LSE)) {                                \
+      CpuFeatureScope scope(masm(), LSE);                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ Swpal##suffix(i.Input##reg(2), i.Output##reg(),                \
+                       MemOperand(i.TempRegister(0)));                  \
+    } else {                                                            \
+      Label exchange;                                                   \
+      __ Bind(&exchange);                                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));             \
+      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(2),            \
+                       i.TempRegister(0));                              \
+      __ Cbnz(i.TempRegister32(1), &exchange);                          \
+    }                                                                   \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr, ext, \
-                                                 reg)                          \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(suffix, ext, reg)      \
+  do {                                                                  \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));  \
+    if (CpuFeatures::IsSupported(LSE)) {                                \
+      DCHECK_EQ(i.OutputRegister(), i.InputRegister(2));                \
+      CpuFeatureScope scope(masm(), LSE);                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ Casal##suffix(i.Output##reg(), i.Input##reg(3),                \
+                       MemOperand(i.TempRegister(0)));                  \
+    } else {                                                            \
+      Label compareExchange;                                            \
+      Label exit;                                                       \
+      __ Bind(&compareExchange);                                        \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));             \
+      __ Cmp(i.Output##reg(), Operand(i.Input##reg(2), ext));           \
+      __ B(ne, &exit);                                                  \
+      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(3),            \
+                       i.TempRegister(0));                              \
+      __ Cbnz(i.TempRegister32(1), &compareExchange);                   \
+      __ Bind(&exit);                                                   \
+    }                                                                   \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_SUB(suffix, reg)                                 \
+  do {                                                                   \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
+    if (CpuFeatures::IsSupported(LSE)) {                                 \
+      CpuFeatureScope scope(masm(), LSE);                                \
+      UseScratchRegisterScope temps(masm());                             \
+      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));       \
+      __ Neg(scratch, i.Input##reg(2));                                  \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ Ldaddal##suffix(scratch, i.Output##reg(),                       \
+                         MemOperand(i.TempRegister(0)));                 \
+    } else {                                                             \
+      Label binop;                                                       \
+      __ Bind(&binop);                                                   \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));              \
+      __ Sub(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
+      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),              \
+                       i.TempRegister(0));                               \
+      __ Cbnz(i.TempRegister32(2), &binop);                              \
+    }                                                                    \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_AND(suffix, reg)                                 \
+  do {                                                                   \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
+    if (CpuFeatures::IsSupported(LSE)) {                                 \
+      CpuFeatureScope scope(masm(), LSE);                                \
+      UseScratchRegisterScope temps(masm());                             \
+      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));       \
+      __ Mvn(scratch, i.Input##reg(2));                                  \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ Ldclral##suffix(scratch, i.Output##reg(),                       \
+                         MemOperand(i.TempRegister(0)));                 \
+    } else {                                                             \
+      Label binop;                                                       \
+      __ Bind(&binop);                                                   \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));              \
+      __ And(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
+      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),              \
+                       i.TempRegister(0));                               \
+      __ Cbnz(i.TempRegister32(2), &binop);                              \
+    }                                                                    \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_BINOP(suffix, bin_instr, lse_instr, reg)               \
   do {                                                                         \
-    Label compareExchange;                                                     \
-    Label exit;                                                                \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));         \
-    __ Bind(&compareExchange);                                                 \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
-    __ load_instr(i.Output##reg(), i.TempRegister(0));                         \
-    __ Cmp(i.Output##reg(), Operand(i.Input##reg(2), ext));                    \
-    __ B(ne, &exit);                                                           \
-    __ store_instr(i.TempRegister32(1), i.Input##reg(3), i.TempRegister(0));   \
-    __ Cbnz(i.TempRegister32(1), &compareExchange);                            \
-    __ Bind(&exit);                                                            \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr, reg)       \
-  do {                                                                       \
-    Label binop;                                                             \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ Bind(&binop);                                                         \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
-    __ load_instr(i.Output##reg(), i.TempRegister(0));                       \
-    __ bin_instr(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
-    __ store_instr(i.TempRegister32(2), i.Temp##reg(1), i.TempRegister(0));  \
-    __ Cbnz(i.TempRegister32(2), &binop);                                    \
+    if (CpuFeatures::IsSupported(LSE)) {                                       \
+      CpuFeatureScope scope(masm(), LSE);                                      \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
+      __ lse_instr##suffix(i.Input##reg(2), i.Output##reg(),                   \
+                           MemOperand(i.TempRegister(0)));                     \
+    } else {                                                                   \
+      Label binop;                                                             \
+      __ Bind(&binop);                                                         \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                    \
+      __ bin_instr(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
+      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),                    \
+                       i.TempRegister(0));                                     \
+      __ Cbnz(i.TempRegister32(2), &binop);                                    \
+    }                                                                          \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
@@ -1992,75 +2062,109 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(Stlr, Register);
       break;
     case kAtomicExchangeInt8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb, Register32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(b, Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb, Register32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(b, Register32);
       break;
     case kAtomicExchangeInt16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh, Register32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(h, Register32);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh, Register32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(h, Register32);
       break;
     case kAtomicExchangeWord32:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr, Register32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register32);
       break;
     case kArm64Word64AtomicExchangeUint64:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr, Register);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register);
       break;
     case kAtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB,
-                                               Register32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(b, UXTB, Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB,
-                                               Register32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(b, UXTB, Register32);
       break;
     case kAtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH,
-                                               Register32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(h, UXTH, Register32);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH,
-                                               Register32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(h, UXTH, Register32);
       break;
     case kAtomicCompareExchangeWord32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTW, Register32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(, UXTW, Register32);
       break;
     case kArm64Word64AtomicCompareExchangeUint64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTX, Register);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(, UXTX, Register);
       break;
-#define ATOMIC_BINOP_CASE(op, inst)                          \
-  case kAtomic##op##Int8:                                    \
-    ASSEMBLE_ATOMIC_BINOP(ldaxrb, stlxrb, inst, Register32); \
-    __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));       \
-    break;                                                   \
-  case kAtomic##op##Uint8:                                   \
-    ASSEMBLE_ATOMIC_BINOP(ldaxrb, stlxrb, inst, Register32); \
-    break;                                                   \
-  case kAtomic##op##Int16:                                   \
-    ASSEMBLE_ATOMIC_BINOP(ldaxrh, stlxrh, inst, Register32); \
-    __ Sxth(i.OutputRegister(0), i.OutputRegister(0));       \
-    break;                                                   \
-  case kAtomic##op##Uint16:                                  \
-    ASSEMBLE_ATOMIC_BINOP(ldaxrh, stlxrh, inst, Register32); \
-    break;                                                   \
-  case kAtomic##op##Word32:                                  \
-    ASSEMBLE_ATOMIC_BINOP(ldaxr, stlxr, inst, Register32);   \
-    break;                                                   \
-  case kArm64Word64Atomic##op##Uint64:                       \
-    ASSEMBLE_ATOMIC_BINOP(ldaxr, stlxr, inst, Register);     \
+    case kAtomicSubInt8:
+      ASSEMBLE_ATOMIC_SUB(b, Register32);
+      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicSubUint8:
+      ASSEMBLE_ATOMIC_SUB(b, Register32);
+      break;
+    case kAtomicSubInt16:
+      ASSEMBLE_ATOMIC_SUB(h, Register32);
+      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicSubUint16:
+      ASSEMBLE_ATOMIC_SUB(h, Register32);
+      break;
+    case kAtomicSubWord32:
+      ASSEMBLE_ATOMIC_SUB(, Register32);
+      break;
+    case kArm64Word64AtomicSubUint64:
+      ASSEMBLE_ATOMIC_SUB(, Register);
+      break;
+    case kAtomicAndInt8:
+      ASSEMBLE_ATOMIC_AND(b, Register32);
+      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicAndUint8:
+      ASSEMBLE_ATOMIC_AND(b, Register32);
+      break;
+    case kAtomicAndInt16:
+      ASSEMBLE_ATOMIC_AND(h, Register32);
+      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicAndUint16:
+      ASSEMBLE_ATOMIC_AND(h, Register32);
+      break;
+    case kAtomicAndWord32:
+      ASSEMBLE_ATOMIC_AND(, Register32);
+      break;
+    case kArm64Word64AtomicAndUint64:
+      ASSEMBLE_ATOMIC_AND(, Register);
+      break;
+#define ATOMIC_BINOP_CASE(op, inst, lse_instr)             \
+  case kAtomic##op##Int8:                                  \
+    ASSEMBLE_ATOMIC_BINOP(b, inst, lse_instr, Register32); \
+    __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));     \
+    break;                                                 \
+  case kAtomic##op##Uint8:                                 \
+    ASSEMBLE_ATOMIC_BINOP(b, inst, lse_instr, Register32); \
+    break;                                                 \
+  case kAtomic##op##Int16:                                 \
+    ASSEMBLE_ATOMIC_BINOP(h, inst, lse_instr, Register32); \
+    __ Sxth(i.OutputRegister(0), i.OutputRegister(0));     \
+    break;                                                 \
+  case kAtomic##op##Uint16:                                \
+    ASSEMBLE_ATOMIC_BINOP(h, inst, lse_instr, Register32); \
+    break;                                                 \
+  case kAtomic##op##Word32:                                \
+    ASSEMBLE_ATOMIC_BINOP(, inst, lse_instr, Register32);  \
+    break;                                                 \
+  case kArm64Word64Atomic##op##Uint64:                     \
+    ASSEMBLE_ATOMIC_BINOP(, inst, lse_instr, Register);    \
     break;
-      ATOMIC_BINOP_CASE(Add, Add)
-      ATOMIC_BINOP_CASE(Sub, Sub)
-      ATOMIC_BINOP_CASE(And, And)
-      ATOMIC_BINOP_CASE(Or, Orr)
-      ATOMIC_BINOP_CASE(Xor, Eor)
+      ATOMIC_BINOP_CASE(Add, Add, Ldaddal)
+      ATOMIC_BINOP_CASE(Or, Orr, Ldsetal)
+      ATOMIC_BINOP_CASE(Xor, Eor, Ldeoral)
 #undef ATOMIC_BINOP_CASE
 #undef ASSEMBLE_SHIFT
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER

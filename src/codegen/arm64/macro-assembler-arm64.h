@@ -65,6 +65,56 @@ namespace internal {
   V(Stlxrh, stlxrh)        \
   V(Stlxr, stlxr)
 
+#define CAS_SINGLE_MACRO_LIST(V) \
+  V(Cas, cas)                    \
+  V(Casa, casa)                  \
+  V(Casl, casl)                  \
+  V(Casal, casal)                \
+  V(Casb, casb)                  \
+  V(Casab, casab)                \
+  V(Caslb, caslb)                \
+  V(Casalb, casalb)              \
+  V(Cash, cash)                  \
+  V(Casah, casah)                \
+  V(Caslh, caslh)                \
+  V(Casalh, casalh)
+
+#define CAS_PAIR_MACRO_LIST(V) \
+  V(Casp, casp)                \
+  V(Caspa, caspa)              \
+  V(Caspl, caspl)              \
+  V(Caspal, caspal)
+
+// These macros generate all the variations of the atomic memory operations,
+// e.g. ldadd, ldadda, ldaddb, staddl, etc.
+
+#define ATOMIC_MEMORY_SIMPLE_MACRO_LIST(V, DEF, MASM_PRE, ASM_PRE) \
+  V(DEF, MASM_PRE##add, ASM_PRE##add)                              \
+  V(DEF, MASM_PRE##clr, ASM_PRE##clr)                              \
+  V(DEF, MASM_PRE##eor, ASM_PRE##eor)                              \
+  V(DEF, MASM_PRE##set, ASM_PRE##set)                              \
+  V(DEF, MASM_PRE##smax, ASM_PRE##smax)                            \
+  V(DEF, MASM_PRE##smin, ASM_PRE##smin)                            \
+  V(DEF, MASM_PRE##umax, ASM_PRE##umax)                            \
+  V(DEF, MASM_PRE##umin, ASM_PRE##umin)
+
+#define ATOMIC_MEMORY_STORE_MACRO_MODES(V, MASM, ASM) \
+  V(MASM, ASM)                                        \
+  V(MASM##l, ASM##l)                                  \
+  V(MASM##b, ASM##b)                                  \
+  V(MASM##lb, ASM##lb)                                \
+  V(MASM##h, ASM##h)                                  \
+  V(MASM##lh, ASM##lh)
+
+#define ATOMIC_MEMORY_LOAD_MACRO_MODES(V, MASM, ASM) \
+  ATOMIC_MEMORY_STORE_MACRO_MODES(V, MASM, ASM)      \
+  V(MASM##a, ASM##a)                                 \
+  V(MASM##al, ASM##al)                               \
+  V(MASM##ab, ASM##ab)                               \
+  V(MASM##alb, ASM##alb)                             \
+  V(MASM##ah, ASM##ah)                               \
+  V(MASM##alh, ASM##alh)
+
 // ----------------------------------------------------------------------------
 // Static helper functions
 
@@ -1332,6 +1382,36 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void FN(const Register& rt, const Register& rn);
   LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
+
+#define DECLARE_FUNCTION(FN, OP) \
+  inline void FN(const Register& rs, const Register& rt, const MemOperand& src);
+  CAS_SINGLE_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+#define DECLARE_FUNCTION(FN, OP)                                              \
+  inline void FN(const Register& rs, const Register& rs2, const Register& rt, \
+                 const Register& rt2, const MemOperand& src);
+  CAS_PAIR_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+#define DECLARE_LOAD_FUNCTION(FN, OP) \
+  inline void FN(const Register& rs, const Register& rt, const MemOperand& src);
+#define DECLARE_STORE_FUNCTION(FN, OP) \
+  inline void FN(const Register& rs, const MemOperand& src);
+
+  ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_LOAD_MACRO_MODES,
+                                  DECLARE_LOAD_FUNCTION, Ld, ld)
+  ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_STORE_MACRO_MODES,
+                                  DECLARE_STORE_FUNCTION, St, st)
+
+#define DECLARE_SWP_FUNCTION(FN, OP) \
+  inline void FN(const Register& rs, const Register& rt, const MemOperand& src);
+
+  ATOMIC_MEMORY_LOAD_MACRO_MODES(DECLARE_SWP_FUNCTION, Swp, swp)
+
+#undef DECLARE_LOAD_FUNCTION
+#undef DECLARE_STORE_FUNCTION
+#undef DECLARE_SWP_FUNCTION
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
