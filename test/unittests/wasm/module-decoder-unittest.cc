@@ -3368,11 +3368,24 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kRefCode, true)))};
+  static const byte data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_STRUCT_DEF(FIELD_COUNT(1),
+                      STRUCT_FIELD(WASM_REF_TYPE(ValueType::Ref(1)), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
+}
+
+TEST_F(WasmModuleVerifyTest, RecursiveTypeOutsideRecursiveGroup) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_STRUCT_DEF(
+                  FIELD_COUNT(1),
+                  STRUCT_FIELD(WASM_REF_TYPE(ValueType::RefNull(0)), true)))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
 }
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsSupertype) {

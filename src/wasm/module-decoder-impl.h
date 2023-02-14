@@ -648,10 +648,10 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < types_count; ++i) {
       TRACE("DecodeType[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
+      size_t initial_size = module_->types.size();
       if (kind == kWasmRecursiveTypeGroupCode) {
         consume_bytes(1, "rec. group definition", tracer_);
         if (tracer_) tracer_->NextLine();
-        size_t initial_size = module_->types.size();
         uint32_t group_size =
             consume_count("recursive group size", kV8MaxWasmTypes);
         if (initial_size + group_size > kV8MaxWasmTypes) {
@@ -659,6 +659,8 @@ class ModuleDecoderImpl : public Decoder {
                  kV8MaxWasmTypes);
           return;
         }
+        // We need to resize types before decoding the type definitions in this
+        // group, so that the correct type size is visible to type definitions.
         module_->types.resize(initial_size + group_size);
         module_->isorecursive_canonical_type_ids.resize(initial_size +
                                                         group_size);
@@ -673,9 +675,12 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else {
         if (tracer_) tracer_->TypeOffset(pc_offset());
+        // Similarly to above, we need to resize types for a group of size 1.
+        module_->types.resize(initial_size + 1);
+        module_->isorecursive_canonical_type_ids.resize(initial_size + 1);
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
-          module_->add_type(type);
+          module_->types[initial_size] = type;
           type_canon->AddRecursiveGroup(module_.get(), 1);
         }
       }
