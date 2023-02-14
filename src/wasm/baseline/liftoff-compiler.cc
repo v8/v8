@@ -356,10 +356,10 @@ class LiftoffCompiler {
   };
 
   struct Control : public ControlBase<Value, ValidationTag> {
-    std::unique_ptr<ElseState> else_state;
+    ElseState* else_state = nullptr;
     LiftoffAssembler::CacheState label_state;
     MovableLabel label;
-    std::unique_ptr<TryInfo> try_info;
+    TryInfo* try_info = nullptr;
     // Number of exceptions on the stack below this control.
     int num_exceptions = 0;
 
@@ -1284,7 +1284,7 @@ class LiftoffCompiler {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->try_info = std::make_unique<TryInfo>();
+    block->try_info = compilation_zone_->New<TryInfo>();
     PushControl(block);
   }
 
@@ -1479,7 +1479,7 @@ class LiftoffCompiler {
     DCHECK(if_block->is_if());
 
     // Allocate the else state.
-    if_block->else_state = std::make_unique<ElseState>(compilation_zone_);
+    if_block->else_state = compilation_zone_->New<ElseState>(compilation_zone_);
 
     // Test the condition on the value stack, jump to else if zero.
     std::unique_ptr<FreezeCacheState> frozen;
