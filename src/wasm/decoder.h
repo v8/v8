@@ -530,8 +530,7 @@ class Decoder {
     IntType result;
     // Do not pass {length} to the slow path, because clang assumes that the
     // pointer might be stored and the value clobbered later.
-    // TODO(clemensb): Return value+length from the slow path once
-    // https://reviews.llvm.org/D141020 is available.
+    // TODO(13742): Return value+length from the slow path.
     uint32_t unaliased_length;
     read_leb_slowpath<IntType, ValidationTag, trace, size_in_bits>(
         pc, &unaliased_length, name, &result);
@@ -539,10 +538,7 @@ class Decoder {
     return result;
   }
 
-  // {read_leb_slowpath} returns the result via an output parameter, because the
-  // "preserve_most" attribute currently does not support return values (see
-  // https://reviews.llvm.org/D141020).
-  // TODO(clemensb): Fix this once our clang version is new enough.
+  // TODO(13742): Return length and result instead of using out-parameters..
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits = 8 * sizeof(IntType)>
   V8_NOINLINE V8_PRESERVE_MOST void read_leb_slowpath(const byte* pc,
