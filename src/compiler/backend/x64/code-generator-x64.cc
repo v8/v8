@@ -5426,7 +5426,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (source->IsStackSlot()) {
         // Spill on demand to use a temporary register for memory-to-memory
         // moves.
-        __ movq(kScratchRegister, src);
+        if (Use32BitMove(source, destination)) {
+          __ movl(kScratchRegister, src);
+        } else {
+          __ movq(kScratchRegister, src);
+        }
+        // Always write the full 64-bit to avoid leaving stale bits in the upper
+        // 32-bit on the stack.
         __ movq(dst, kScratchRegister);
       } else {
         MachineRepresentation rep =
