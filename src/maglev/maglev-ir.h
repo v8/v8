@@ -4624,7 +4624,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   using Base = FixedInputNodeT<1, StoreMap>;
 
  public:
-  explicit StoreMap(uint64_t bitfield, compiler::MapRef& map)
+  explicit StoreMap(uint64_t bitfield, compiler::MapRef map)
       : Base(bitfield), map_(map) {}
 
   static constexpr OpProperties kProperties =

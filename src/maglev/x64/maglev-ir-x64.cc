@@ -176,8 +176,7 @@ void CreateEmptyObjectLiteral::SetValueLocationConstraints() {
 void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
   Register object = ToRegister(result());
-  RegisterSnapshot save_registers = register_snapshot();
-  __ Allocate(save_registers, object, map().instance_size());
+  __ Allocate(register_snapshot(), object, map().instance_size());
   __ Move(kScratchRegister, map().object());
   __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
                       kScratchRegister);

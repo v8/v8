@@ -68,7 +68,7 @@ class MaglevAssembler : public MacroAssembler {
   template <typename Dest, typename Source>
   inline void MoveRepr(MachineRepresentation repr, Dest dst, Source src);
 
-  void Allocate(RegisterSnapshot& register_snapshot, Register result,
+  void Allocate(RegisterSnapshot register_snapshot, Register result,
                 int size_in_bytes,
                 AllocationType alloc_type = AllocationType::kYoung,
                 AllocationAlignment alignment = kTaggedAligned);
