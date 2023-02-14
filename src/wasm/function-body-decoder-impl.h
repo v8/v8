@@ -924,7 +924,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ControlBase);
 
-  ControlBase(ControlKind kind, uint32_t stack_depth, uint32_t init_stack_depth,
+  ControlBase(Zone* /* unused in the base class */, ControlKind kind,
+              uint32_t stack_depth, uint32_t init_stack_depth,
               const uint8_t* pc, Reachability reachability)
       : PcForErrors<ValidationTag::full_validation>(pc),
         kind(kind),
@@ -2824,8 +2825,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       constexpr uint32_t kStackDepth = 0;
       constexpr uint32_t kInitStackDepth = 0;
       control_.EnsureMoreCapacity(1, this->compilation_zone_);
-      control_.emplace_back(kControlBlock, kStackDepth, kInitStackDepth,
-                            this->pc_, kReachable);
+      control_.emplace_back(this->compilation_zone_, kControlBlock, kStackDepth,
+                            kInitStackDepth, this->pc_, kReachable);
       Control* c = &control_.back();
       if constexpr (decoding_mode == kFunctionBody) {
         InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
@@ -4162,8 +4163,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     stack_depth = std::max(stack_depth, control_.back().stack_depth);
     uint32_t init_stack_depth = this->locals_initialization_stack_depth();
     control_.EnsureMoreCapacity(1, this->compilation_zone_);
-    control_.emplace_back(kind, stack_depth, init_stack_depth, this->pc_,
-                          reachability);
+    control_.emplace_back(this->compilation_zone_, kind, stack_depth,
+                          init_stack_depth, this->pc_, reachability);
     current_code_reachable_and_ok_ =
         VALIDATE(this->ok()) && reachability == kReachable;
     return &control_.back();
