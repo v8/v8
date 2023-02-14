@@ -2126,10 +2126,13 @@ Handle<T> TinyRef<T>::object() const {
   return Handle<T>::cast(data_->object());
 }
 
-#define V(Name)                                  \
-  template class TinyRef<Name>;                  \
-  /* TinyRef should contain only one pointer. */ \
-  static_assert(sizeof(TinyRef<Name>) == kSystemPointerSize);
+#define V(Name)                                               \
+  template class TinyRef<Name>;                               \
+  template class TinyMaybeRef<Name>;                          \
+  /* TinyRef should contain only one pointer. */              \
+  static_assert(sizeof(TinyRef<Name>) == kSystemPointerSize); \
+  static_assert(sizeof(TinyMaybeRef<Name>) == kSystemPointerSize);
+V(Object)
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 

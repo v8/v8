@@ -191,6 +191,7 @@ class TinyRef {
 
  public:
   explicit TinyRef(const RefType& ref) : TinyRef(ref.data_) {}
+  explicit TinyRef(RefType&& ref) : TinyRef(ref.data_) {}
   RefType AsRef(JSHeapBroker* broker) const;
   static base::Optional<RefType> AsOptionalRef(JSHeapBroker* broker,
                                                base::Optional<TinyRef<T>> ref) {
@@ -200,11 +201,46 @@ class TinyRef {
   Handle<T> object() const;
 
  private:
+  template <class U>
+  friend class TinyMaybeRef;
   explicit TinyRef(ObjectData* data) : data_(data) { DCHECK_NOT_NULL(data); }
-  ObjectData* const data_;
+  ObjectData* data_;
 };
 
-#define V(Name) using Name##TinyRef = TinyRef<Name>;
+// A ref without the broker_ field, used when storage size is important, and
+// optionally nullable.
+template <class T>
+class TinyMaybeRef {
+ private:
+  using RefType = typename ref_traits<T>::ref_type;
+
+ public:
+  explicit TinyMaybeRef() : TinyMaybeRef(nullptr) {}
+  explicit TinyMaybeRef(const RefType& ref) : TinyMaybeRef(ref.data_) {}
+  explicit TinyMaybeRef(RefType&& ref) : TinyMaybeRef(ref.data_) {}
+  // NOLINTNEXTLINE
+  TinyMaybeRef(const TinyRef<T>& ref) : TinyMaybeRef(ref.data_) {}
+  // NOLINTNEXTLINE
+  TinyMaybeRef(TinyRef<T>&& ref) : TinyMaybeRef(ref.data_) {}
+  bool has_value() const { return data_ != nullptr; }
+  RefType AsRef(JSHeapBroker* broker) const {
+    return AsTinyRef().AsRef(broker);
+  }
+  TinyRef<T> AsTinyRef() const {
+    DCHECK(has_value());
+    return TinyRef<T>(data_);
+  }
+  Handle<T> object() const { return AsTinyRef().object(); }
+
+ private:
+  explicit TinyMaybeRef(ObjectData* data) : data_(data) {}
+  ObjectData* data_;
+};
+
+#define V(Name)                        \
+  using Name##TinyRef = TinyRef<Name>; \
+  using Name##TinyMaybeRef = TinyMaybeRef<Name>;
+V(Object)
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
@@ -263,6 +299,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class StringData;
   template <class T>
   friend class TinyRef;
+  template <class T>
+  friend class TinyMaybeRef;
 
   friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
   friend bool operator<(const ObjectRef& lhs, const ObjectRef& rhs);
