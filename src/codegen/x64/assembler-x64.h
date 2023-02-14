@@ -176,24 +176,45 @@ enum ScaleFactor : int8_t {
 
 class V8_EXPORT_PRIVATE Operand {
  public:
-  struct Data {
-    union {
-      // {label} is set if {is_label_operand} is true.
-      Label* label;
+  struct LabelOperand {
+    // The first two fields are shared in {LabelOperand} and {MemoryOperand},
+    // but cannot be pulled out of the union, because otherwise the compiler
+    // introduces additional padding between them and the union, increasing the
+    // size unnecessarily.
+    bool is_label_operand = true;
+    byte rex = 0;  // REX prefix, always zero for label operands.
 
-      // Buffer for encoded memory operand:
-      // Register (1 byte) + SIB (0 or 1 byte) + displacement (0, 1, or 4 byte).
-      byte buf[6] = {0};
-    };
-
-    byte len = 1;  // Number of bytes of buf in use.
-    bool is_label_operand = false;
-    byte rex = 0;       // Rex prefix, only for memory operands.
-    int8_t addend = 0;  // For label-relative operand: rip + offset + addend.
+    int8_t addend;  // Used for rip + offset + addend operands.
+    Label* label;
   };
-  // {Data::len} is 8-byte aligned, which makes it fast to access.
-  static_assert(offsetof(Data, len) % kSystemPointerSize == 0);
-  static_assert(sizeof(Data) == 2 * kSystemPointerSize);
+
+  struct MemoryOperand {
+    bool is_label_operand = false;
+    byte rex = 0;  // REX prefix.
+
+    // Register (1 byte) + SIB (0 or 1 byte) + displacement (0, 1, or 4 byte).
+    byte buf[6] = {0};
+    // Number of bytes of buf in use.
+    // We must keep {len} and {buf} together for the compiler to elide the
+    // stack canary protection code.
+    size_t len = 1;
+  };
+
+  // Assert that the shared {is_label_operand} and {rex} fields have the same
+  // type and offset in both union variants.
+  static_assert(std::is_same<decltype(LabelOperand::is_label_operand),
+                             decltype(MemoryOperand::is_label_operand)>::value);
+  static_assert(offsetof(LabelOperand, is_label_operand) ==
+                offsetof(MemoryOperand, is_label_operand));
+  static_assert(std::is_same<decltype(LabelOperand::rex),
+                             decltype(MemoryOperand::rex)>::value);
+  static_assert(offsetof(LabelOperand, rex) == offsetof(MemoryOperand, rex));
+
+  static_assert(sizeof(MemoryOperand::len) == kSystemPointerSize,
+                "Length must have native word size to avoid spurious reloads "
+                "after writing it.");
+  static_assert(offsetof(MemoryOperand, len) % kSystemPointerSize == 0,
+                "Length must be aligned for fast access.");
 
   // [base + disp/r]
   V8_INLINE constexpr Operand(Register base, int32_t disp) {
@@ -246,17 +267,39 @@ class V8_EXPORT_PRIVATE Operand {
 
   // [rip + disp/r]
   V8_INLINE explicit Operand(Label* label, int addend = 0) {
-    data_.addend = addend;
     DCHECK_NOT_NULL(label);
     DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
-    data_.is_label_operand = true;
-    data_.label = label;
+    label_ = {};
+    label_.label = label;
+    label_.addend = addend;
   }
 
   Operand(const Operand&) V8_NOEXCEPT = default;
   Operand& operator=(const Operand&) V8_NOEXCEPT = default;
 
-  const Data& data() const { return data_; }
+  V8_INLINE constexpr bool is_label_operand() const {
+    // Since this field is in the common initial sequence of {label_} and
+    // {memory_}, the access is valid regardless of the active union member.
+    return memory_.is_label_operand;
+  }
+
+  V8_INLINE constexpr byte rex() const {
+    // Since both fields are in the common initial sequence of {label_} and
+    // {memory_}, the access is valid regardless of the active union member.
+    // Label operands always have a REX prefix of zero.
+    V8_ASSUME(!memory_.is_label_operand || memory_.rex == 0);
+    return memory_.rex;
+  }
+
+  V8_INLINE const MemoryOperand& memory() const {
+    DCHECK(!is_label_operand());
+    return memory_;
+  }
+
+  V8_INLINE const LabelOperand& label() const {
+    DCHECK(is_label_operand());
+    return label_;
+  }
 
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
@@ -264,39 +307,43 @@ class V8_EXPORT_PRIVATE Operand {
 
  private:
   V8_INLINE constexpr void set_modrm(int mod, Register rm_reg) {
+    DCHECK(!is_label_operand());
     DCHECK(is_uint2(mod));
-    data_.buf[0] = mod << 6 | rm_reg.low_bits();
+    memory_.buf[0] = mod << 6 | rm_reg.low_bits();
     // Set REX.B to the high bit of rm.code().
-    data_.rex |= rm_reg.high_bit();
+    memory_.rex |= rm_reg.high_bit();
   }
 
   V8_INLINE constexpr void set_sib(ScaleFactor scale, Register index,
                                    Register base) {
-    DCHECK_EQ(data_.len, 1);
+    V8_ASSUME(memory_.len == 1);
     DCHECK(is_uint2(scale));
     // Use SIB with no index register only for base rsp or r12. Otherwise we
     // would skip the SIB byte entirely.
     DCHECK(index != rsp || base == rsp || base == r12);
-    data_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
-    data_.rex |= index.high_bit() << 1 | base.high_bit();
-    data_.len = 2;
+    memory_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
+    memory_.rex |= index.high_bit() << 1 | base.high_bit();
+    memory_.len = 2;
   }
 
   V8_INLINE constexpr void set_disp8(int disp) {
+    V8_ASSUME(memory_.len == 1 || memory_.len == 2);
     DCHECK(is_int8(disp));
-    DCHECK(data_.len == 1 || data_.len == 2);
-    data_.buf[data_.len] = disp;
-    data_.len += sizeof(int8_t);
+    memory_.buf[memory_.len] = disp;
+    memory_.len += sizeof(int8_t);
   }
 
   V8_INLINE void set_disp32(int disp) {
-    DCHECK(data_.len == 1 || data_.len == 2);
-    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
+    V8_ASSUME(memory_.len == 1 || memory_.len == 2);
+    Address p = reinterpret_cast<Address>(&memory_.buf[memory_.len]);
     WriteUnalignedValue(p, disp);
-    data_.len += sizeof(int32_t);
+    memory_.len += sizeof(int32_t);
   }
 
-  Data data_;
+  union {
+    LabelOperand label_;
+    MemoryOperand memory_ = {};
+  };
 };
 
 class V8_EXPORT_PRIVATE Operand256 : public Operand {
