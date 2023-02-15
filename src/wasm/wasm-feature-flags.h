@@ -80,12 +80,6 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Tail call / return call proposal. */                                      \
-  /* https://github.com/webassembly/tail-call */                               \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.7 * */                                                       \
-  V(return_call, "return call opcodes", false)                                 \
-                                                                               \
   /* Type reflection proposal. */                                              \
   /* https://github.com/webassembly/js-types */                                \
   /* V8 side owner: ahaas */                                                   \
@@ -100,7 +94,15 @@
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
-#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */
+#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
+  /* Tail call / return call proposal. */                                      \
+  /* https://github.com/webassembly/tail-call */                               \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.7 * */                                                       \
+  /* Shipped in v11.2 * */                                                     \
+  /* ITS: https://groups.google.com/a/chromium.org/g/blink-dev/c/6VEOK4WZ7Wk   \
+   */                                                                          \
+  V(return_call, "return call opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
