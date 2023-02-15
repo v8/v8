@@ -1190,6 +1190,12 @@ DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
+// Experimental Wasm features imply --experimental.
+#define WASM_IMPLY_EXPERIMENTAL(name, ...) \
+  DEFINE_IMPLICATION(experimental_wasm_##name, experimental)
+FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(WASM_IMPLY_EXPERIMENTAL)
+#undef WASM_IMPLY_EXPERIMENTAL
+
 DEFINE_BOOL(wasm_opt, true, "enable wasm optimization")
 DEFINE_BOOL(
     wasm_bounds_checks, true,
