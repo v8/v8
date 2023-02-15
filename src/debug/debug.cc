@@ -759,13 +759,26 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
                              condition, throw_on_side_effect);
   }
 
-  if (!maybe_result.ToHandle(&result)) {
-    if (isolate_->has_pending_exception()) {
-      isolate_->clear_pending_exception();
-    }
-    return false;
+  Handle<Object> maybe_exception;
+  bool exception_thrown = true;
+  if (maybe_result.ToHandle(&result)) {
+    exception_thrown = false;
+  } else if (isolate_->has_pending_exception()) {
+    maybe_exception = handle(isolate_->pending_exception(), isolate_);
+    isolate_->clear_pending_exception();
   }
-  return result->BooleanValue(isolate_);
+
+  CHECK(in_debug_scope());
+  DisableBreak no_recursive_break(this);
+
+  {
+    RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
+    debug_delegate_->BreakpointConditionEvaluated(
+        break_point->id(), exception_thrown,
+        v8::Utils::ToLocal(maybe_exception));
+  }
+
+  return !result.is_null() ? result->BooleanValue(isolate_) : false;
 }
 
 bool Debug::SetBreakpoint(Handle<SharedFunctionInfo> shared,

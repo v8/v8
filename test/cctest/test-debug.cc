@@ -6023,3 +6023,70 @@ TEST(DebugEvaluateInWrappedScript) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
+
+namespace {
+
+class ConditionListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakpointConditionEvaluated(
+      v8::debug::BreakpointId breakpoint_id_arg, bool exception_thrown_arg,
+      v8::Local<v8::Value> exception_arg) override {
+    breakpoint_id = breakpoint_id_arg;
+    exception_thrown = exception_thrown_arg;
+    exception = exception_arg;
+  }
+
+  void BreakProgramRequested(v8::Local<v8::Context> context,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
+    break_point_hit_count++;
+  }
+
+  v8::debug::BreakpointId breakpoint_id;
+  bool exception_thrown = false;
+  v8::Local<v8::Value> exception;
+};
+
+}  // namespace
+
+TEST(SuccessfulBreakpointConditionEvaluationEvent) {
+  break_point_hit_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  ConditionListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo() { const x = 5; }", "foo");
+
+  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0, "true");
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(bp->id(), delegate.breakpoint_id);
+  CHECK(!delegate.exception_thrown);
+  CHECK(delegate.exception.IsEmpty());
+}
+
+// Checks that SyntaxErrors in breakpoint conditions are reported to the
+// DebugDelegate.
+TEST(FailedBreakpointConditoinEvaluationEvent) {
+  break_point_hit_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  ConditionListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo() { const x = 5; }", "foo");
+
+  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0, "bar().");
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+  CHECK_EQ(0, break_point_hit_count);
+  CHECK_EQ(bp->id(), delegate.breakpoint_id);
+  CHECK(delegate.exception_thrown);
+  CHECK(!delegate.exception.IsEmpty());
+}

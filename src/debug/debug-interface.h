@@ -311,6 +311,12 @@ class DebugDelegate {
                                int column) {
     return false;
   }
+
+  // Called every time a breakpoint condition is evaluated. This method is
+  // called before `BreakProgramRequested` if the condition is truthy.
+  virtual void BreakpointConditionEvaluated(debug::BreakpointId breakpoint_id,
+                                            bool exception_thrown,
+                                            v8::Local<v8::Value> exception) {}
 };
 
 V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
