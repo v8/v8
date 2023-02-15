@@ -39,7 +39,9 @@ class TypeInferenceAnalysis {
  public:
   explicit TypeInferenceAnalysis(Graph& graph, Zone* phase_zone)
       : graph_(graph),
-        types_(graph.op_id_count(), Type{}, phase_zone),
+        // TODO(nicohartmann@): Might put types back into phase_zone once we
+        // don't store them in the graph anymore.
+        types_(graph.op_id_count(), Type{}, graph.graph_zone()),
         table_(phase_zone),
         op_to_key_mapping_(phase_zone),
         block_to_snapshot_mapping_(graph.block_count(), base::nullopt,
