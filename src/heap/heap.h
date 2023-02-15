@@ -2200,7 +2200,7 @@ class Heap {
 
   // Starts marking when stress_marking_percentage_% of the marking start limit
   // is reached.
-  std::atomic<int> stress_marking_percentage_{0};
+  int stress_marking_percentage_ = 0;
 
   // Observer that causes more frequent checks for reached incremental
   // marking limit.

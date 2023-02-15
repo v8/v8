@@ -1232,6 +1232,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     memory_pressure_level_.store(MemoryPressureLevel::kNone,
                                  std::memory_order_relaxed);
+
+    if (v8_flags.stress_marking > 0) {
+      stress_marking_percentage_ = NextStressMarkingLimit();
+    }
   }
 
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
@@ -5305,10 +5309,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
           max_marking_limit_reached_ =
               std::max<double>(max_marking_limit_reached_, current_percent);
         }
-      } else if (current_percent >=
-                 stress_marking_percentage_.load(std::memory_order_relaxed)) {
-        stress_marking_percentage_.store(NextStressMarkingLimit(),
-                                         std::memory_order_relaxed);
+      } else if (current_percent >= stress_marking_percentage_) {
         return IncrementalMarkingLimit::kHardLimit;
       }
     }
@@ -5625,7 +5626,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (v8_flags.stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
-    stress_marking_observer_ = new StressMarkingObserver(this);
+    stress_marking_observer_ = new StressMarkingObserver();
     AddAllocationObserversToAllSpaces(stress_marking_observer_,
                                       stress_marking_observer_);
   }
@@ -5703,9 +5704,6 @@ void Heap::PrintMaxNewSpaceSizeReached() {
 }
 
 int Heap::NextStressMarkingLimit() {
-  // Reuse Heap-global mutex as this getter is called from different threads on
-  // allocation slow paths.
-  base::MutexGuard guard(relocation_mutex());
   return isolate()->fuzzer_rng()->NextInt(v8_flags.stress_marking + 1);
 }
 
