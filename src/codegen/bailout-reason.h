@@ -94,19 +94,20 @@ namespace internal {
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")
 
-#define BAILOUT_MESSAGES_LIST(V)                                            \
-  V(kNoReason, "no reason")                                                 \
-                                                                            \
-  V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change") \
-  V(kCodeGenerationFailed, "Code generation failed")                        \
-  V(kFunctionBeingDebugged, "Function is being debugged")                   \
-  V(kGraphBuildingFailed, "Optimized graph construction failed")            \
-  V(kFunctionTooBig, "Function is too big to be optimized")                 \
-  V(kTooManyArguments, "Function contains a call with too many arguments")  \
-  V(kLiveEdit, "LiveEdit")                                                  \
-  V(kNativeFunctionLiteral, "Native function literal")                      \
-  V(kOptimizationDisabled, "Optimization disabled")                         \
-  V(kHigherTierAvailable, "A higher tier is already available")             \
+#define BAILOUT_MESSAGES_LIST(V)                                             \
+  V(kNoReason, "no reason")                                                  \
+                                                                             \
+  V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
+  V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
+  V(kCodeGenerationFailed, "Code generation failed")                         \
+  V(kFunctionBeingDebugged, "Function is being debugged")                    \
+  V(kGraphBuildingFailed, "Optimized graph construction failed")             \
+  V(kFunctionTooBig, "Function is too big to be optimized")                  \
+  V(kTooManyArguments, "Function contains a call with too many arguments")   \
+  V(kLiveEdit, "LiveEdit")                                                   \
+  V(kNativeFunctionLiteral, "Native function literal")                       \
+  V(kOptimizationDisabled, "Optimization disabled")                          \
+  V(kHigherTierAvailable, "A higher tier is already available")              \
   V(kNeverOptimize, "Optimization is always disabled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
