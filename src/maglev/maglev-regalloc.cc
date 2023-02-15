@@ -529,11 +529,15 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       Node* node = *node_it_;
       if (node->is_dead()) continue;
 
-      if (node->properties().is_conversion()) {
+      if (node->properties().is_conversion() &&
+          !node->properties().can_eager_deopt()) {
         if (!static_cast<ValueNode*>(node)->next_use()) {
           // We kill conversion nodes with no uses. Those are probably left
           // overs nodes to tag Phi inputs, that became dead in the phi
           // untagging phase.
+          // Note that we don't do this for deopting conversions (like
+          // CheckedSmiTag) because they might have a purpose despite not being
+          // used.
           node->kill();
           continue;
         }
