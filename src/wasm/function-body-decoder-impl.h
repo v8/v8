@@ -6185,7 +6185,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringFromCodePoint: {
         NON_CONST_ONLY
         Value code_point = Peek(0, 0, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringFromCodePoint, code_point,
                                            &result);
         Drop(1);

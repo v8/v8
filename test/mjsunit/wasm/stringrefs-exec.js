@@ -1280,7 +1280,8 @@ function makeWtf16TestDataSegment() {
 (function TestStringFromCodePoint() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addFunction("asString", kSig_w_i)
+  builder.addFunction("asString",
+                      makeSig([kWasmI32], [wasmRefType(kWasmStringRef)]))
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
