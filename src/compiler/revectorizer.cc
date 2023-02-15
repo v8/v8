@@ -569,7 +569,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       return pnode;
     }
 
-    // TODO(jiepan): UnalignedStore,
+    // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore: {
       TRACE("Added a vector of stores.\n");

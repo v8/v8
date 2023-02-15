@@ -1256,12 +1256,13 @@ struct SimplifiedOperatorGlobalCache final {
   LoadStackArgumentOperator kLoadStackArgument;
 
 #if V8_ENABLE_WEBASSEMBLY
-  struct WasmArrayLengthOperator final : public Operator {
-    WasmArrayLengthOperator()
-        : Operator(IrOpcode::kWasmArrayLength, Operator::kEliminatable,
-                   "WasmArrayLength", 1, 1, 1, 1, 1, 0) {}
+  struct WasmArrayLengthOperator final : public Operator1<bool> {
+    explicit WasmArrayLengthOperator(bool null_check)
+        : Operator1<bool>(IrOpcode::kWasmArrayLength, Operator::kEliminatable,
+                          "WasmArrayLength", 1, 1, 1, 1, 1, 1, null_check) {}
   };
-  WasmArrayLengthOperator kWasmArrayLength;
+  WasmArrayLengthOperator kWasmArrayLengthNullCheck{true};
+  WasmArrayLengthOperator kWasmArrayLengthNoNullCheck{false};
 
   struct WasmArrayInitializeLengthOperator final : public Operator {
     WasmArrayInitializeLengthOperator()
@@ -1574,12 +1575,12 @@ const Operator* SimplifiedOperatorBuilder::WasmStructGet(
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmStructSet(
-    const wasm::StructType* type, int field_index) {
+    const wasm::StructType* type, int field_index, bool null_check) {
   return zone()->New<Operator1<WasmFieldInfo>>(
       IrOpcode::kWasmStructSet,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
-      "WasmStructSet", 2, 1, 1, 0, 1, 0,
-      WasmFieldInfo{type, field_index, true /* unused */, false /* unused */});
+      "WasmStructSet", 2, 1, 1, 0, 1, 1,
+      WasmFieldInfo{type, field_index, true /* unused */, null_check});
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmArrayGet(
@@ -1597,8 +1598,9 @@ const Operator* SimplifiedOperatorBuilder::WasmArraySet(
       "WasmArraySet", 3, 1, 1, 0, 1, 0, type);
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmArrayLength() {
-  return &cache_.kWasmArrayLength;
+const Operator* SimplifiedOperatorBuilder::WasmArrayLength(bool null_check) {
+  return null_check ? &cache_.kWasmArrayLengthNullCheck
+                    : &cache_.kWasmArrayLengthNoNullCheck;
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmArrayInitializeLength() {

@@ -1155,7 +1155,8 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
           node->opcode() == IrOpcode::kTrapUnless ||
           node->opcode() == IrOpcode::kProtectedLoad ||
           node->opcode() == IrOpcode::kProtectedStore ||
-          node->opcode() == IrOpcode::kLoadTrapOnNull);
+          node->opcode() == IrOpcode::kLoadTrapOnNull ||
+          node->opcode() == IrOpcode::kStoreTrapOnNull);
 }
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
@@ -1175,6 +1176,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCall ||
         node->opcode() == IrOpcode::kProtectedStore ||
+        node->opcode() == IrOpcode::kStoreTrapOnNull ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) \
   node->opcode() == IrOpcode::k##Opcode ||
         MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)
@@ -1482,6 +1484,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStore:
       return VisitStore(node);
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
       return VisitProtectedStore(node);
     case IrOpcode::kStoreLane: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);

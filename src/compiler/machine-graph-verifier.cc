@@ -158,6 +158,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
+          case IrOpcode::kStoreTrapOnNull:
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
             break;

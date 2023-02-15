@@ -940,6 +940,12 @@ Node* GraphAssembler::LoadTrapOnNull(MachineType type, Node* object,
                                   offset, effect(), control()));
 }
 
+Node* GraphAssembler::StoreTrapOnNull(StoreRepresentation rep, Node* object,
+                                      Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->StoreTrapOnNull(rep), object,
+                                  offset, value, effect(), control()));
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }

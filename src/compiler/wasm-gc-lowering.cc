@@ -289,7 +289,31 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
   auto op_parameter = OpParameter<AssertNotNullParameters>(node->op());
-  if (!v8_flags.experimental_wasm_skip_null_checks) {
+  // When able, implement a non-null assertion by loading from the object just
+  // after the map word. This will trap for null and be handled by the trap
+  // handler.
+  if (op_parameter.trap_id == TrapId::kTrapNullDereference) {
+    if (!v8_flags.experimental_wasm_skip_null_checks) {
+      // For supertypes of i31ref, we would need to check for i31ref anyway
+      // before loading from the object, so we might as well just check directly
+      // for null.
+      // For subtypes of externref, we use JS null, so we have to check
+      // explicitly.
+      if (null_check_strategy_ == kExplicitNullChecks ||
+          wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
+                            module_) ||
+          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_)) {
+        gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
+      } else {
+        static_assert(WasmStruct::kHeaderSize > kTaggedSize);
+        static_assert(WasmArray::kHeaderSize > kTaggedSize);
+        // TODO(manoskouk): JSFunction::kHeaderSize also has to be >kTaggedSize.
+        gasm_.LoadTrapOnNull(
+            MachineType::Int32(), object,
+            gasm_.IntPtrConstant(wasm::ObjectAccess::ToTagged(kTaggedSize)));
+      }
+    }
+  } else {
     gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
   }
 
@@ -476,14 +500,27 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
 
+  if (null_check_strategy_ == kExplicitNullChecks && info.null_check) {
+    gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
+                 TrapId::kTrapNullDereference);
+  }
+
+  wasm::ValueType field_type = info.type->field(info.field_index);
+  Node* offset = gasm_.FieldOffset(info.type, info.field_index);
+
   Node* store =
-      info.type->mutability(info.field_index)
-          ? gasm_.StoreToObject(
-                ObjectAccessForGCStores(info.type->field(info.field_index)),
-                object, gasm_.FieldOffset(info.type, info.field_index), value)
+      null_check_strategy_ == kTrapHandler && info.null_check
+          ? gasm_.StoreTrapOnNull({field_type.machine_representation(),
+                                   field_type.is_reference() ? kFullWriteBarrier
+                                                             : kNoWriteBarrier},
+                                  object, offset, value)
+      : info.type->mutability(info.field_index)
+          ? gasm_.StoreToObject(ObjectAccessForGCStores(field_type), object,
+                                offset, value)
           : gasm_.InitializeImmutableInObject(
-                ObjectAccessForGCStores(info.type->field(info.field_index)),
-                object, gasm_.FieldOffset(info.type, info.field_index), value);
+                ObjectAccessForGCStores(field_type), object, offset, value);
+  ReplaceWithValue(node, store, gasm_.effect(), gasm_.control());
+  node->Kill();
   return Replace(store);
 }
 
@@ -539,10 +576,25 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
-  Node* length = gasm_.LoadImmutableFromObject(
-      MachineType::Uint32(), object,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
+  bool null_check = OpParameter<bool>(node->op());
 
+  if (null_check_strategy_ == kExplicitNullChecks && null_check) {
+    gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
+                 TrapId::kTrapNullDereference);
+  }
+
+  Node* length =
+      null_check_strategy_ == kTrapHandler && null_check
+          ? gasm_.LoadTrapOnNull(
+                MachineType::Uint32(), object,
+                gasm_.IntPtrConstant(
+                    wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset)))
+          : gasm_.LoadImmutableFromObject(
+                MachineType::Uint32(), object,
+                wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
+
+  ReplaceWithValue(node, length, gasm_.effect(), gasm_.control());
+  node->Kill();
   return Replace(length);
 }
 

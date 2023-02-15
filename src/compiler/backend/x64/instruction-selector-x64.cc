@@ -630,7 +630,9 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
 
   const auto access_mode =
       acs_kind == MemoryAccessKind::kProtected
-          ? MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds
+          ? (node->opcode() == IrOpcode::kStoreTrapOnNull
+                 ? kMemoryAccessProtectedNullDereference
+                 : MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds)
           : MemoryAccessMode::kMemoryAccessDirect;
 
   if (write_barrier_kind != kNoWriteBarrier &&
@@ -715,37 +717,8 @@ void InstructionSelector::VisitStore(Node* node) {
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) {
-  X64OperandGenerator g(this);
-  Node* value = node->InputAt(2);
-  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
-
-#ifdef V8_IS_TSAN
-  // On TSAN builds we require two scratch registers. Because of this we also
-  // have to modify the inputs to take into account possible aliasing and use
-  // UseUniqueRegister which is not required for non-TSAN builds.
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-  size_t temp_count = arraysize(temps);
-  auto reg_kind = OperandGenerator::RegisterUseKind::kUseUniqueRegister;
-#else
-  InstructionOperand* temps = nullptr;
-  size_t temp_count = 0;
-  auto reg_kind = OperandGenerator::RegisterUseKind::kUseRegister;
-#endif  // V8_IS_TSAN
-
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  AddressingMode addressing_mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count, reg_kind);
-  InstructionOperand value_operand = g.CanBeImmediate(value)
-                                         ? g.UseImmediate(value)
-                                         : g.UseRegister(value, reg_kind);
-  inputs[input_count++] = value_operand;
-  ArchOpcode opcode = GetStoreOpcode(store_rep);
-  InstructionCode code =
-      opcode | AddressingModeField::encode(addressing_mode) |
-      AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-  Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs,
-       temp_count, temps);
+  return VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
+                          base::nullopt, MemoryAccessKind::kProtected);
 }
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
@@ -3161,7 +3134,7 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 4);
   VisitStoreCommon(this, node, params.store_representation(), params.order(),
-                    params.kind());
+                   params.kind());
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
@@ -3169,7 +3142,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 8);
   VisitStoreCommon(this, node, params.store_representation(), params.order(),
-                    params.kind());
+                   params.kind());
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {

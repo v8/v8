@@ -779,6 +779,7 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
+        case IrOpcode::kStoreTrapOnNull:
           // If the stored value is this node, it is not an addressing use.
           if (from->InputAt(2) == node) return false;
           // Otherwise it is used as an address and skipped.

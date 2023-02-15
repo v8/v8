@@ -54,7 +54,8 @@ class WasmGCOperatorReducer final
  private:
   using ControlPathTypes = ControlPathState<NodeWithType, kMultipleInstances>;
 
-  Reduction ReduceWasmStructGet(Node* node);
+  Reduction ReduceWasmStructOperation(Node* node);
+  Reduction ReduceWasmArrayLength(Node* node);
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceCheckNull(Node* node);
   Reduction ReduceWasmTypeCheck(Node* node);

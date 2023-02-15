@@ -26,7 +26,10 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kStart:
       return ReduceStart(node);
     case IrOpcode::kWasmStructGet:
-      return ReduceWasmStructGet(node);
+    case IrOpcode::kWasmStructSet:
+      return ReduceWasmStructOperation(node);
+    case IrOpcode::kWasmArrayLength:
+      return ReduceWasmArrayLength(node);
     case IrOpcode::kAssertNotNull:
       return ReduceAssertNotNull(node);
     case IrOpcode::kIsNull:
@@ -121,8 +124,9 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
              : type_from_node;
 }
 
-Reduction WasmGCOperatorReducer::ReduceWasmStructGet(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
+Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kWasmStructGet ||
+         node->opcode() == IrOpcode::kWasmStructSet);
   Node* control = NodeProperties::GetControlInput(node);
   if (!IsReduced(control)) return NoChange();
   Node* object = NodeProperties::GetValueInput(node, 0);
@@ -131,11 +135,38 @@ Reduction WasmGCOperatorReducer::ReduceWasmStructGet(Node* node) {
   if (object_type.type.is_bottom()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
-    // If the object is known to be non-nullable in the context, remove
+    // If the object is known to be non-nullable in the context, remove the null
+    // check.
     auto op_params = OpParameter<WasmFieldInfo>(node->op());
-    NodeProperties::ChangeOp(
-        node, simplified()->WasmStructGet(op_params.type, op_params.field_index,
-                                          op_params.is_signed, false));
+    const Operator* new_op =
+        node->opcode() == IrOpcode::kWasmStructGet
+            ? simplified()->WasmStructGet(op_params.type, op_params.field_index,
+                                          op_params.is_signed, false)
+            : simplified()->WasmStructSet(op_params.type, op_params.field_index,
+                                          false);
+    NodeProperties::ChangeOp(node, new_op);
+  }
+
+  object_type.type = object_type.type.AsNonNull();
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), object, object_type,
+                                   false);
+}
+
+Reduction WasmGCOperatorReducer::ReduceWasmArrayLength(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayLength);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!IsReduced(control)) return NoChange();
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
+  if (object_type.type.is_bottom()) return NoChange();
+
+  if (object_type.type.is_non_nullable()) {
+    // If the object is known to be non-nullable in the context, remove the null
+    // check.
+    const Operator* new_op = simplified()->WasmArrayLength(false);
+    NodeProperties::ChangeOp(node, new_op);
   }
 
   object_type.type = object_type.type.AsNonNull();

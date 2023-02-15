@@ -998,6 +998,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
   const Operator* ProtectedStore(MachineRepresentation rep);
+  const Operator* StoreTrapOnNull(StoreRepresentation rep);
 
   // SIMD store: store a specified lane of value into [base + index].
   const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,

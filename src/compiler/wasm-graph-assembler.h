@@ -262,7 +262,7 @@ class WasmGraphAssembler : public GraphAssembler {
                   bool is_signed, bool null_check);
 
   void StructSet(Node* object, Node* value, const wasm::StructType* type,
-                 int field_index);
+                 int field_index, bool null_check);
 
   Node* ArrayGet(Node* array, Node* index, const wasm::ArrayType* type,
                  bool is_signed);
@@ -270,7 +270,7 @@ class WasmGraphAssembler : public GraphAssembler {
   void ArraySet(Node* array, Node* index, Node* value,
                 const wasm::ArrayType* type);
 
-  Node* ArrayLength(Node* array);
+  Node* ArrayLength(Node* array, bool null_check);
 
   void ArrayInitializeLength(Node* array, Node* length);
 

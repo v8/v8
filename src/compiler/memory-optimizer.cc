@@ -43,6 +43,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
     case IrOpcode::kStaticAssert:

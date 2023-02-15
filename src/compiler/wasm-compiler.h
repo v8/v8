@@ -793,7 +793,7 @@ class WasmGraphBuilder {
   void BrOnCastAbs(Node** match_control, Node** match_effect,
                    Node** no_match_control, Node** no_match_effect,
                    std::function<void(Callbacks)> type_checker);
-  void BoundsCheckArray(Node* array, Node* index,
+  void BoundsCheckArray(Node* array, Node* index, CheckForNull null_check,
                         wasm::WasmCodePosition position);
   void BoundsCheckArrayCopy(Node* array, Node* index, Node* length,
                             wasm::WasmCodePosition position);

@@ -5278,7 +5278,7 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    gasm_->StructSet(s, fields[i], type, i);
+    gasm_->StructSet(s, fields[i], type, i, false);
   }
   // If this assert fails then initialization of padding field might be
   // necessary.
@@ -5839,26 +5839,30 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
                                  uint32_t field_index, Node* field_value,
                                  CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
-    struct_object =
-        AssertNotNull(struct_object, wasm::kWasmStructRef, position);
-  }
-  gasm_->StructSet(struct_object, field_value, struct_type, field_index);
+  gasm_->StructSet(struct_object, field_value, struct_type, field_index,
+                   null_check == kWithNullCheck);
+  SetSourcePosition(effect(), position);
 }
 
 void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
+                                        CheckForNull null_check,
                                         wasm::WasmCodePosition position) {
-  if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* length = gasm_->ArrayLength(array);
-  TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
-              position);
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+    if (null_check == kWithNullCheck) {
+      AssertNotNull(array, wasm::kWasmArrayRef, position);
+    }
+  } else {
+    Node* length = gasm_->ArrayLength(array, null_check == kWithNullCheck);
+    TrapIfFalse(wasm::kTrapArrayOutOfBounds,
+                gasm_->Uint32LessThan(index, length), position);
+  }
 }
 
 void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
                                             Node* length,
                                             wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* array_length = gasm_->ArrayLength(array);
+  Node* array_length = gasm_->ArrayLength(array, false);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
       gasm_->Uint32LessThanOrEqual(range_end, array_length),
@@ -5870,10 +5874,7 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
                                  const wasm::ArrayType* type, Node* index,
                                  CheckForNull null_check, bool is_signed,
                                  wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
-    array_object = AssertNotNull(array_object, wasm::kWasmArrayRef, position);
-  }
-  BoundsCheckArray(array_object, index, position);
+  BoundsCheckArray(array_object, index, null_check, position);
   return gasm_->ArrayGet(array_object, index, type, is_signed);
 }
 
@@ -5881,19 +5882,15 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
                                 Node* index, Node* value,
                                 CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
-    array_object = AssertNotNull(array_object, wasm::kWasmArrayRef, position);
-  }
-  BoundsCheckArray(array_object, index, position);
+  BoundsCheckArray(array_object, index, null_check, position);
   gasm_->ArraySet(array_object, index, value, type);
 }
 
 Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
-    array_object = AssertNotNull(array_object, wasm::kWasmArrayRef, position);
-  }
-  return gasm_->ArrayLength(array_object);
+  Node* result = gasm_->ArrayLength(array_object, null_check == kWithNullCheck);
+  SetSourcePosition(result, position);
+  return result;
 }
 
 // TODO(7748): Add an option to copy in a loop for small array sizes. To find

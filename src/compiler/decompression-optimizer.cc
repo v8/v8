@@ -121,6 +121,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // SPECIAL CASES - Store.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kUnalignedStore: {
       DCHECK_EQ(node->op()->ValueInputCount(), 3);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),

@@ -1171,12 +1171,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmExternInternalize();
   const Operator* WasmExternExternalize();
+  // TODO(manoskouk): Use {CheckForNull} over bool.
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
                                 bool is_signed, bool null_check);
-  const Operator* WasmStructSet(const wasm::StructType* type, int field_index);
+  const Operator* WasmStructSet(const wasm::StructType* type, int field_index,
+                                bool null_check);
   const Operator* WasmArrayGet(const wasm::ArrayType* type, bool is_signed);
   const Operator* WasmArraySet(const wasm::ArrayType* type);
-  const Operator* WasmArrayLength();
+  const Operator* WasmArrayLength(bool null_check);
   const Operator* WasmArrayInitializeLength();
   const Operator* StringAsWtf16();
   const Operator* StringPrepareForGetCodeunit();

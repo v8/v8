@@ -831,6 +831,7 @@
   V(ProtectedLoad)                       \
   V(ProtectedStore)                      \
   V(LoadTrapOnNull)                      \
+  V(StoreTrapOnNull)                     \
   V(MemoryBarrier)                       \
   V(SignExtendWord8ToInt32)              \
   V(SignExtendWord16ToInt32)             \

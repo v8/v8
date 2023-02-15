@@ -1019,6 +1019,8 @@ void InstructionSelector::VisitStore(Node* node) {
 
     if (node->opcode() == IrOpcode::kProtectedStore) {
       opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    } else if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
+      opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
 
     Emit(opcode, 0, nullptr, input_count, inputs);

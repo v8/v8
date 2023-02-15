@@ -414,9 +414,10 @@ Node* WasmGraphAssembler::StructGet(Node* object, const wasm::StructType* type,
 
 void WasmGraphAssembler::StructSet(Node* object, Node* value,
                                    const wasm::StructType* type,
-                                   int field_index) {
-  AddNode(graph()->NewNode(simplified_.WasmStructSet(type, field_index), object,
-                           value, effect(), control()));
+                                   int field_index, bool null_check) {
+  AddNode(
+      graph()->NewNode(simplified_.WasmStructSet(type, field_index, null_check),
+                       object, value, effect(), control()));
 }
 
 Node* WasmGraphAssembler::ArrayGet(Node* array, Node* index,
@@ -432,9 +433,9 @@ void WasmGraphAssembler::ArraySet(Node* array, Node* index, Node* value,
                            effect(), control()));
 }
 
-Node* WasmGraphAssembler::ArrayLength(Node* array) {
-  return AddNode(graph()->NewNode(simplified_.WasmArrayLength(), array,
-                                  effect(), control()));
+Node* WasmGraphAssembler::ArrayLength(Node* array, bool null_check) {
+  return AddNode(graph()->NewNode(simplified_.WasmArrayLength(null_check),
+                                  array, effect(), control()));
 }
 
 void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {

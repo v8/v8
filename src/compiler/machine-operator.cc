@@ -197,7 +197,8 @@ AtomicOpParameters AtomicOpParametersOf(Operator const* op) {
 
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
-         IrOpcode::kProtectedStore == op->opcode());
+         IrOpcode::kProtectedStore == op->opcode() ||
+         IrOpcode::kStoreTrapOnNull == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -970,6 +971,8 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
+// ProtectedLoad and LoadTrapOnNull are not marked kNoWrite, so potentially
+// trapping loads are not eliminated if their result is unused.
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
     Load##Type##Operator()                                                     \
@@ -1109,6 +1112,26 @@ struct MachineOperatorGlobalCache {
               StoreRepresentation(MachineRepresentation::Type,             \
                                   kNoWriteBarrier)) {}                     \
   };                                                                       \
+  struct StoreTrapOnNull##Type##FullWriteBarrier##Operator                 \
+      : public Operator1<StoreRepresentation> {                            \
+    explicit StoreTrapOnNull##Type##FullWriteBarrier##Operator()           \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kStoreTrapOnNull,                                  \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "StoreTrapOnNull", 3, 1, 1, 0, 1, 0,                         \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  kFullWriteBarrier)) {}                   \
+  };                                                                       \
+  struct StoreTrapOnNull##Type##NoWriteBarrier##Operator                   \
+      : public Operator1<StoreRepresentation> {                            \
+    explicit StoreTrapOnNull##Type##NoWriteBarrier##Operator()             \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kStoreTrapOnNull,                                  \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "StoreTrapOnNull", 3, 1, 1, 0, 1, 0,                         \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  kNoWriteBarrier)) {}                     \
+  };                                                                       \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;      \
   Store##Type##AssertNoWriteBarrier##Operator                              \
       kStore##Type##AssertNoWriteBarrier;                                  \
@@ -1119,7 +1142,11 @@ struct MachineOperatorGlobalCache {
       kStore##Type##EphemeronKeyWriteBarrier;                              \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
   UnalignedStore##Type##Operator kUnalignedStore##Type;                    \
-  ProtectedStore##Type##Operator kProtectedStore##Type;
+  ProtectedStore##Type##Operator kProtectedStore##Type;                    \
+  StoreTrapOnNull##Type##FullWriteBarrier##Operator                        \
+      kStoreTrapOnNull##Type##FullWriteBarrier;                            \
+  StoreTrapOnNull##Type##NoWriteBarrier##Operator                          \
+      kStoreTrapOnNull##Type##NoWriteBarrier;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
@@ -1728,6 +1755,26 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
 #define STORE(kRep)                       \
   case MachineRepresentation::kRep:       \
     return &cache_.kProtectedStore##kRep; \
+    break;
+    MACHINE_REPRESENTATION_LIST(STORE)
+#undef STORE
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
+      break;
+  }
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::StoreTrapOnNull(
+    StoreRepresentation rep) {
+  switch (rep.representation()) {
+#define STORE(kRep)                                             \
+  case MachineRepresentation::kRep:                             \
+    if (rep.write_barrier_kind() == kNoWriteBarrier) {          \
+      return &cache_.kStoreTrapOnNull##kRep##NoWriteBarrier;    \
+    } else if (rep.write_barrier_kind() == kFullWriteBarrier) { \
+      return &cache_.kStoreTrapOnNull##kRep##FullWriteBarrier;  \
+    }                                                           \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
