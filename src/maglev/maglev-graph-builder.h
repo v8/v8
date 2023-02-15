@@ -174,7 +174,47 @@ class MaglevGraphBuilder {
     }
   }
 
+  Int32Constant* GetInt32Constant(int constant) {
+    // The constant must fit in a Smi, since it could be later tagged in a Phi.
+    DCHECK(Smi::IsValid(constant));
+    auto it = graph_->int32().find(constant);
+    if (it == graph_->int32().end()) {
+      Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->int32().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  Float64Constant* GetFloat64Constant(double constant) {
+    if (std::isnan(constant)) {
+      if (graph_->nan() == nullptr) {
+        graph_->set_nan(CreateNewNode<Float64Constant>(
+            0, std::numeric_limits<double>::quiet_NaN()));
+      }
+      return graph_->nan();
+    }
+    auto it = graph_->float64().find(constant);
+    if (it == graph_->float64().end()) {
+      Float64Constant* node = CreateNewNode<Float64Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->float64().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   Graph* graph() const { return graph_; }
+  Zone* zone() const { return compilation_unit_->zone(); }
+  MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
+
+  bool has_graph_labeller() const {
+    return compilation_unit_->has_graph_labeller();
+  }
+  MaglevGraphLabeller* graph_labeller() const {
+    return compilation_unit_->graph_labeller();
+  }
 
  private:
   class CallSpeculationScope;
@@ -699,36 +739,6 @@ class MaglevGraphBuilder {
   RootConstant* GetBooleanConstant(bool value) {
     return GetRootConstant(value ? RootIndex::kTrueValue
                                  : RootIndex::kFalseValue);
-  }
-
-  Int32Constant* GetInt32Constant(int constant) {
-    // The constant must fit in a Smi, since it could be later tagged in a Phi.
-    DCHECK(Smi::IsValid(constant));
-    auto it = graph_->int32().find(constant);
-    if (it == graph_->int32().end()) {
-      Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-      graph_->int32().emplace(constant, node);
-      return node;
-    }
-    return it->second;
-  }
-
-  Float64Constant* GetFloat64Constant(double constant) {
-    if (std::isnan(constant)) {
-      if (graph_->nan() == nullptr) {
-        graph_->set_nan(CreateNewNode<Float64Constant>(0, constant));
-      }
-      return graph_->nan();
-    }
-    auto it = graph_->float64().find(constant);
-    if (it == graph_->float64().end()) {
-      Float64Constant* node = CreateNewNode<Float64Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-      graph_->float64().emplace(constant, node);
-      return node;
-    }
-    return it->second;
   }
 
   ValueNode* GetConstant(const compiler::ObjectRef& ref) {
@@ -1581,16 +1591,9 @@ class MaglevGraphBuilder {
     return bytecode_analysis_;
   }
   LocalIsolate* local_isolate() const { return local_isolate_; }
-  Zone* zone() const { return compilation_unit_->zone(); }
   int parameter_count() const { return compilation_unit_->parameter_count(); }
   int parameter_count_without_receiver() { return parameter_count() - 1; }
   int register_count() const { return compilation_unit_->register_count(); }
-  bool has_graph_labeller() const {
-    return compilation_unit_->has_graph_labeller();
-  }
-  MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
-  }
   KnownNodeAspects& known_node_aspects() {
     return current_interpreter_frame_.known_node_aspects();
   }

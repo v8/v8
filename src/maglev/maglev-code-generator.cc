@@ -96,7 +96,7 @@ class ParallelMoveResolver {
 
   void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
                   compiler::AllocatedOperand target) {
-    if (target.IsRegister()) {
+    if (target.IsAnyRegister()) {
       RecordMoveToRegister(source_node, source, ToRegisterT<RegisterT>(target));
     } else {
       RecordMoveToStackSlot(source_node, source,
@@ -177,7 +177,7 @@ class ParallelMoveResolver {
   }
 
   void CheckNoExistingMoveToStackSlot(int32_t target_slot) {
-    for (Register reg : kAllocatableRegistersT) {
+    for (RegisterT reg : kAllocatableRegistersT) {
       auto& stack_slots = moves_from_register_[reg.code()].stack_slots;
       if (std::any_of(stack_slots.begin(), stack_slots.end(),
                       [&](int32_t slot) { return slot == target_slot; })) {
@@ -643,8 +643,12 @@ class MaglevCodeGeneratingNodeProcessor {
                            state);
     }
 
-    if (v8_flags.debug_code) {
-      // Check that all int32/uint32 inputs are zero extended
+    if (v8_flags.debug_code && !std::is_same_v<NodeT, Phi>) {
+      // Check that all int32/uint32 inputs are zero extended.
+      // Note that we don't do this for Phis, since they are virtual operations
+      // whose inputs aren't actual inputs but are injected on incoming
+      // branches. There's thus nothing to verify for the inputs we see for the
+      // phi.
       for (Input& input : *node) {
         ValueRepresentation rep =
             input.node()->properties().value_representation();
@@ -721,6 +725,7 @@ class MaglevCodeGeneratingNodeProcessor {
     // Remember what registers were assigned to by a Phi, to avoid clobbering
     // them with RegisterMoves.
     RegList registers_set_by_phis;
+    DoubleRegList double_registers_set_by_phis;
 
     __ RecordComment("--   Gap moves:");
 
@@ -752,9 +757,17 @@ class MaglevCodeGeneratingNodeProcessor {
              << graph_labeller()->NodeId(phi) << ")";
           __ RecordComment(ss.str());
         }
-        register_moves.RecordMove(node, source, target);
+        if (phi->value_representation() == ValueRepresentation::kFloat64) {
+          double_register_moves.RecordMove(node, source, target);
+        } else {
+          register_moves.RecordMove(node, source, target);
+        }
         if (target.IsAnyRegister()) {
-          registers_set_by_phis.set(target.GetRegister());
+          if (phi->value_representation() == ValueRepresentation::kFloat64) {
+            double_registers_set_by_phis.set(target.GetDoubleRegister());
+          } else {
+            registers_set_by_phis.set(target.GetRegister());
+          }
         }
       }
     }
@@ -784,6 +797,9 @@ class MaglevCodeGeneratingNodeProcessor {
 
     target->state()->register_state().ForEachDoubleRegister(
         [&](DoubleRegister reg, RegisterState& state) {
+          // Don't clobber registers set by a Phi.
+          if (double_registers_set_by_phis.has(reg)) return;
+
           ValueNode* node;
           RegisterMerge* merge;
           if (LoadMergeState(state, &node, &merge)) {

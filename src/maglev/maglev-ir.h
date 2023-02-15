@@ -704,6 +704,15 @@ class OpProperties {
   constexpr explicit OpProperties(uint32_t bitfield) : bitfield_(bitfield) {}
   operator uint32_t() const { return bitfield_; }
 
+  OpProperties WithNewValueRepresentation(ValueRepresentation new_repr) const {
+    return OpProperties(kValueRepresentationBits::update(bitfield_, new_repr));
+  }
+
+  OpProperties WithoutDeopt() const {
+    return OpProperties(kCanLazyDeoptBit::update(
+        kCanEagerDeoptBit::update(bitfield_, false), false));
+  }
+
  private:
   using kIsCallBit = base::BitField<bool, 0, 1>;
   using kCanEagerDeoptBit = kIsCallBit::Next<bool, 1>;
@@ -1044,9 +1053,8 @@ class NodeBase : public ZoneObject {
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
-  // Align input count to 32-bit.
-  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
-  using InputCountField = UnusedField::Next<size_t, 17>;
+  using IsDeadField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
+  using InputCountField = IsDeadField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
  protected:
@@ -1106,6 +1114,9 @@ class NodeBase : public ZoneObject {
   constexpr Opcode opcode() const { return OpcodeField::decode(bitfield_); }
   constexpr OpProperties properties() const {
     return OpPropertiesField::decode(bitfield_);
+  }
+  void set_properties(OpProperties properties) {
+    bitfield_ = OpPropertiesField::update(bitfield_, properties);
   }
 
   template <class T>
@@ -1223,6 +1234,26 @@ class NodeBase : public ZoneObject {
     *reinterpret_cast<RegisterSnapshot*>(register_snapshot_address()) =
         snapshot;
   }
+
+  void change_input(int index, ValueNode* node) { set_input(index, node); }
+
+  void change_representation(ValueRepresentation new_repr) {
+    DCHECK_EQ(opcode(), Opcode::kPhi);
+    bitfield_ = OpPropertiesField::update(
+        bitfield_, properties().WithNewValueRepresentation(new_repr));
+  }
+
+  void set_opcode(Opcode new_opcode) {
+    bitfield_ = OpcodeField::update(bitfield_, new_opcode);
+  }
+
+  void set_cannot_deopt() {
+    bitfield_ =
+        OpPropertiesField::update(bitfield_, properties().WithoutDeopt());
+  }
+
+  bool is_dead() const { return IsDeadField::decode(bitfield_); }
+  void kill() { bitfield_ = IsDeadField::update(bitfield_, 1); }
 
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
@@ -1493,6 +1524,10 @@ class ValueNode : public Node {
   constexpr bool is_tagged() const {
     return (properties().value_representation() ==
             ValueRepresentation::kTagged);
+  }
+
+  constexpr ValueRepresentation value_representation() const {
+    return properties().value_representation();
   }
 
   constexpr MachineRepresentation GetMachineRepresentation() const {
@@ -5115,6 +5150,8 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
   compiler::AllocatedOperand target_;
 };
 
+class MergePointInterpreterFrameState;
+
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
 // can generate correctly-sized phis.
@@ -5146,6 +5183,8 @@ class Phi : public ValueNodeT<Phi> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  BasicBlock* predecessor_at(int i);
+
  private:
   Phi** next() { return &next_; }
 
@@ -5160,7 +5199,6 @@ class Call : public ValueNodeT<Call> {
 
  public:
   enum class TargetType { kJSFunction, kAny };
-
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
   static constexpr int kContextIndex = 1;
@@ -6249,6 +6287,16 @@ class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
  private:
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
+
+constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode) {
+  switch (opcode) {
+#define CASE(op)      \
+  case Opcode::k##op: \
+    return op::kProperties;
+    NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+}
 
 }  // namespace maglev
 }  // namespace internal

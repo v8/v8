@@ -38,6 +38,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
 #include "src/objects/code-inl.h"
@@ -376,6 +377,15 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
     if (v8_flags.print_maglev_graph) {
       std::cout << "\nAfter graph buiding" << std::endl;
+      PrintGraph(std::cout, compilation_info, graph);
+    }
+
+    GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
+        &graph_builder);
+    representation_selector.ProcessGraph(graph);
+
+    if (v8_flags.print_maglev_graph) {
+      std::cout << "\nAfter Phi untagging" << std::endl;
       PrintGraph(std::cout, compilation_info, graph);
     }
   }

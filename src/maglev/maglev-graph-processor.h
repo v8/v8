@@ -40,7 +40,7 @@ namespace maglev {
 //   // overloading as appropriate to group node processing.
 //   void Process(FooNode* node, const ProcessingState& state) {}
 //
-template <typename NodeProcessor>
+template <typename NodeProcessor, bool visit_dead_nodes = false>
 class GraphProcessor;
 
 class ProcessingState {
@@ -58,7 +58,7 @@ class ProcessingState {
   BlockConstIterator block_it_;
 };
 
-template <typename NodeProcessor>
+template <typename NodeProcessor, bool visit_dead_nodes>
 class GraphProcessor {
  public:
   template <typename... Args>
@@ -128,6 +128,7 @@ class GraphProcessor {
   ProcessingState GetCurrentState() { return ProcessingState(block_it_); }
 
   void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
+    if (!visit_dead_nodes && node->is_dead()) return;
     switch (node->opcode()) {
 #define CASE(OPCODE)                                      \
   case Opcode::k##OPCODE:                                 \

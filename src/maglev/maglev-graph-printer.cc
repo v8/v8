@@ -50,6 +50,7 @@ void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
     os << node->id() << "/";
   }
   os << graph_labeller->NodeId(node) << ": ";
+  if (node->is_dead()) os << "☠ ";
 }
 
 void PrintPadding(std::ostream& os, int size) {
@@ -581,10 +582,27 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, phi);
+  os_ << "φ";
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      os_ << "ᵀ";
+      break;
+    case ValueRepresentation::kInt32:
+      os_ << "ᴵ";
+      break;
+    case ValueRepresentation::kUint32:
+      os_ << "ᵁ";
+      break;
+    case ValueRepresentation::kFloat64:
+      os_ << "ᶠ";
+      break;
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
   if (phi->input_count() == 0) {
-    os_ << "φₑ " << phi->owner().ToString();
+    os_ << "ₑ " << phi->owner().ToString();
   } else {
-    os_ << "φ (";
+    os_ << " (";
     // Manually walk Phi inputs to print just the node labels, without
     // input locations (which are shown in the predecessor block's gap
     // moves).
@@ -698,8 +716,24 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << (has_fallthrough ? "│" : " ");
         os_ << "    - ";
         graph_labeller_->PrintInput(os_, phi->input(pid));
-        os_ << " → " << graph_labeller_->NodeId(phi) << ": φ "
-            << phi->result().operand() << "\n";
+        os_ << " → " << graph_labeller_->NodeId(phi) << ": φ";
+        switch (phi->value_representation()) {
+          case ValueRepresentation::kTagged:
+            os_ << "ᵀ";
+            break;
+          case ValueRepresentation::kInt32:
+            os_ << "ᴵ";
+            break;
+          case ValueRepresentation::kUint32:
+            os_ << "ᵁ";
+            break;
+          case ValueRepresentation::kFloat64:
+            os_ << "ᶠ";
+            break;
+          case ValueRepresentation::kWord64:
+            UNREACHABLE();
+        }
+        os_ << " " << phi->result().operand() << "\n";
       }
       if (target->state()->register_state().is_initialized()) {
         PrintVerticalArrows(os_, targets_);
@@ -744,7 +778,7 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph) {
-  GraphProcessor<MaglevPrintingVisitor> printer(
+  GraphProcessor<MaglevPrintingVisitor, /*visit_dead_nodes*/ true> printer(
       compilation_info->graph_labeller(), os);
   printer.ProcessGraph(graph);
 }

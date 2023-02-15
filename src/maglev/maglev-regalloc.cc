@@ -471,16 +471,29 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // a DCHECK.
         if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
-        // We assume that Phis are always tagged, and so are always allocated
-        // in a general register.
-        if (!general_registers_.UnblockedFreeIsEmpty()) {
-          compiler::AllocatedOperand allocation =
-              general_registers_.AllocateRegister(phi);
-          phi->result().SetAllocated(allocation);
-          if (v8_flags.trace_maglev_regalloc) {
-            printing_visitor_->Process(phi, ProcessingState(block_it_));
-            printing_visitor_->os()
-                << "phi (new reg) " << phi->result().operand() << std::endl;
+        if (phi->value_representation() == ValueRepresentation::kFloat64) {
+          // We'll use a double register.
+          if (!double_registers_.UnblockedFreeIsEmpty()) {
+            compiler::AllocatedOperand allocation =
+                double_registers_.AllocateRegister(phi);
+            phi->result().SetAllocated(allocation);
+            if (v8_flags.trace_maglev_regalloc) {
+              printing_visitor_->Process(phi, ProcessingState(block_it_));
+              printing_visitor_->os()
+                  << "phi (new reg) " << phi->result().operand() << std::endl;
+            }
+          }
+        } else {
+          // We'll use a general purpose register for this Phi.
+          if (!general_registers_.UnblockedFreeIsEmpty()) {
+            compiler::AllocatedOperand allocation =
+                general_registers_.AllocateRegister(phi);
+            phi->result().SetAllocated(allocation);
+            if (v8_flags.trace_maglev_regalloc) {
+              printing_visitor_->Process(phi, ProcessingState(block_it_));
+              printing_visitor_->os()
+                  << "phi (new reg) " << phi->result().operand() << std::endl;
+            }
           }
         }
       }
@@ -513,7 +526,20 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
 
     node_it_ = block->nodes().begin();
     for (; node_it_ != block->nodes().end(); ++node_it_) {
-      AllocateNode(*node_it_);
+      Node* node = *node_it_;
+      if (node->is_dead()) continue;
+
+      if (node->properties().is_conversion()) {
+        if (!static_cast<ValueNode*>(node)->next_use()) {
+          // We kill conversion nodes with no uses. Those are probably left
+          // overs nodes to tag Phi inputs, that became dead in the phi
+          // untagging phase.
+          node->kill();
+          continue;
+        }
+      }
+
+      AllocateNode(node);
     }
     AllocateControlNode(block->control_node(), block);
   }

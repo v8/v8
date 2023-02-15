@@ -29,6 +29,10 @@ const char* OpcodeToString(Opcode opcode) {
   return names[static_cast<int>(opcode)];
 }
 
+BasicBlock* Phi::predecessor_at(int i) {
+  return merge_state_->predecessor_at(i);
+}
+
 namespace {
 
 // ---
@@ -330,8 +334,22 @@ void UnsafeSmiTag::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
 }
 
 void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  switch (value_representation()) {
+#define CASE_REPR(repr)                                        \
+  case ValueRepresentation::k##repr:                           \
+    for (int i = 0; i < input_count(); i++) {                  \
+      CheckValueInputIs(this, i, ValueRepresentation::k##repr, \
+                        graph_labeller);                       \
+    }                                                          \
+    break;
+
+    CASE_REPR(Tagged)
+    CASE_REPR(Int32)
+    CASE_REPR(Uint32)
+    CASE_REPR(Float64)
+#undef CASE_REPR
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
   }
 }
 

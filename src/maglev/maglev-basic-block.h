@@ -27,7 +27,14 @@ class BasicBlock {
 
   uint32_t first_id() const {
     if (has_phi()) return phis()->first()->id();
-    return nodes_.is_empty() ? control_node()->id() : nodes_.first()->id();
+    if (nodes_.is_empty()) {
+      return control_node()->id();
+    }
+    auto node = nodes_.first();
+    while (node && node->is_dead()) {
+      node = node->NextNode();
+    }
+    return node ? node->id() : control_node()->id();
   }
 
   uint32_t FirstNonGapMoveId() const {
@@ -35,6 +42,7 @@ class BasicBlock {
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
         if (IsGapMoveNode(node->opcode())) continue;
+        if (node->is_dead()) continue;
         return node->id();
       }
     }
@@ -52,6 +60,8 @@ class BasicBlock {
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
   bool is_edge_split_block() const { return is_edge_split_block_; }
+
+  bool is_loop() const { return has_state() && state()->is_loop(); }
 
   MergePointRegisterState& edge_split_block_register_state() {
     DCHECK(is_edge_split_block());
