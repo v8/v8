@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --experimental-wasm-stringref
-// Flags: --no-wasm-gc-structref-as-dataref
+
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Test type checks when creating a global with a value imported from a global

@@ -1608,7 +1608,6 @@ Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
   return tag_wrapper;
 }
 
-// TODO(7748): Integrate this with type canonicalization.
 bool WasmTagObject::MatchesSignature(uint32_t expected_canonical_type_index) {
   return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
       this->canonical_type_index(), expected_canonical_type_index);
@@ -1891,8 +1890,6 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   // call target (which is an address pointing into the C++ binary).
   call_target = ExternalReference::Create(call_target).address();
 
-  // TODO(7748): Support proper typing for external functions. That requires
-  // global (cross-module) canonicalization of signatures/RTTs.
   Handle<Map> rtt = isolate->factory()->wasm_internal_function_map();
   Handle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
@@ -2065,8 +2062,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
 
   Factory* factory = isolate->factory();
-  // TODO(7748): Support proper typing for external functions. That requires
-  // global (cross-module) canonicalization of signatures/RTTs.
   Handle<Map> rtt = factory->wasm_internal_function_map();
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       call_target, callable, return_count, parameter_count, serialized_sig,

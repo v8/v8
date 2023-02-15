@@ -334,9 +334,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
               kExprI32Mul])
     .exportFunc();
   let instance = builder.instantiate();
-  // TODO(manoskouk): Add this when we allow arrays at the boundary.
-  // assertEquals(10 * 11,
-  //              instance.exports.tester(instance.exports.producer(10)));
+  assertEquals(10 * 11,
+               instance.exports.tester(instance.exports.producer(10)));
 })();
 
 (function WasmLoadEliminationUnrelatedTypes() {

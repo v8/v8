@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --experimental-wasm-stringref
-// Flags: --no-wasm-gc-structref-as-dataref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
