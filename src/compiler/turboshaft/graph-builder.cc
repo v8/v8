@@ -701,8 +701,8 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCheckBigInt: {
       DCHECK(dominating_frame_state.valid());
       OpIndex input = Map(node->InputAt(0));
-      OpIndex check = assembler.IsObject(input, IsObjectOp::Kind::kBigInt,
-                                         IsObjectOp::InputAssumptions::kNone);
+      OpIndex check = assembler.ObjectIs(input, ObjectIsOp::Kind::kBigInt,
+                                         ObjectIsOp::InputAssumptions::kNone);
       assembler.DeoptimizeIfNot(check, dominating_frame_state,
                                 DeoptimizeReason::kNotABigInt,
                                 CheckParametersOf(op).feedback());
@@ -712,8 +712,8 @@ OpIndex GraphBuilder::Process(
       DCHECK(dominating_frame_state.valid());
       OpIndex input = Map(node->InputAt(0));
       OpIndex check =
-          assembler.IsObject(Map(node->InputAt(0)), IsObjectOp::Kind::kBigInt64,
-                             IsObjectOp::InputAssumptions::kBigInt);
+          assembler.ObjectIs(Map(node->InputAt(0)), ObjectIsOp::Kind::kBigInt64,
+                             ObjectIsOp::InputAssumptions::kBigInt);
       assembler.DeoptimizeIfNot(check, dominating_frame_state,
                                 DeoptimizeReason::kNotABigInt64,
                                 CheckParametersOf(op).feedback());

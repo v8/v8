@@ -112,8 +112,7 @@ class Graph;
   V(Projection)                      \
   V(StaticAssert)                    \
   V(CheckTurboshaftTypeOf)           \
-  V(IsObject)                        \
-  V(IsSmiTagged)                     \
+  V(ObjectIs)                        \
   V(ConvertToObject)
 
 enum class Opcode : uint8_t {
@@ -2116,7 +2115,7 @@ struct CheckTurboshaftTypeOfOp
   auto options() const { return std::tuple{rep, type, successful}; }
 };
 
-struct IsObjectOp : FixedArityOperationT<1, IsObjectOp> {
+struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
   enum class Kind : uint8_t {
     kBigInt,
     kBigInt64,
@@ -2136,25 +2135,13 @@ struct IsObjectOp : FixedArityOperationT<1, IsObjectOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  IsObjectOp(OpIndex input, Kind kind, InputAssumptions input_assumptions)
+  ObjectIsOp(OpIndex input, Kind kind, InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
-std::ostream& operator<<(std::ostream& os, IsObjectOp::Kind kind);
+std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind);
 std::ostream& operator<<(std::ostream& os,
-                         IsObjectOp::InputAssumptions input_assumptions);
-
-struct IsSmiTaggedOp : FixedArityOperationT<1, IsSmiTaggedOp> {
-  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32()>();
-  }
-
-  OpIndex input() const { return Base::input(0); }
-
-  explicit IsSmiTaggedOp(OpIndex input) : Base(input) {}
-  auto options() const { return std::tuple{}; }
-};
+                         ObjectIsOp::InputAssumptions input_assumptions);
 
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   enum class Kind {

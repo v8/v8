@@ -177,6 +177,18 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   }
 }
 
+// These operations should have been lowered in previous reducers already.
+#define SHOULD_HAVE_BEEN_LOWERED_OPS(V) \
+  V(Allocate)                           \
+  V(ConvertToObject)                    \
+  V(DecodeExternalPointer)              \
+  V(ObjectIs)
+#define PROCESS_OPERATION_UNREACHABLE(op) \
+  Node* ScheduleBuilder::ProcessOperation(const op##Op&) { UNREACHABLE(); }
+SHOULD_HAVE_BEEN_LOWERED_OPS(PROCESS_OPERATION_UNREACHABLE)
+#undef PROCESS_OPERATION_UNREACHABLE
+#undef SHOULD_HAVE_BEEN_LOWERED_OPS
+
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
   using Kind = WordBinopOp::Kind;
   const Operator* o;
@@ -843,21 +855,6 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const IsObjectOp& op) {
-  // This should have been lowered before already.
-  UNREACHABLE();
-}
-Node* ScheduleBuilder::ProcessOperation(const ConvertToObjectOp& op) {
-  // This should have been lowered before already.
-  UNREACHABLE();
-}
-Node* ScheduleBuilder::ProcessOperation(const IsSmiTaggedOp& op) {
-  return AddNode(machine.Word32Equal(),
-                 {AddNode(machine.Word32And(),
-                          {GetNode(op.input()),
-                           AddNode(common.Int32Constant(kSmiTagMask), {})}),
-                  AddNode(common.Int32Constant(kSmiTag), {})});
-}
 Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
   // If there is a Select, then it should only be one that is supported by the
   // machine, and it should be meant to be implementation with cmove.
@@ -875,14 +872,6 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
       o, {GetNode(op.cond()), GetNode(op.vtrue()), GetNode(op.vfalse())});
 }
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
-  UNREACHABLE();
-}
-Node* ScheduleBuilder::ProcessOperation(const DecodeExternalPointerOp& op) {
-  // This should have been lowered before already.
-  UNREACHABLE();
-}
-Node* ScheduleBuilder::ProcessOperation(const AllocateOp& op) {
-  // This should have been lowered before already.
   UNREACHABLE();
 }
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {

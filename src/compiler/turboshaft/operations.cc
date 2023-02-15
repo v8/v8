@@ -595,23 +595,23 @@ void SwitchOp::PrintOptions(std::ostream& os) const {
   os << " default: " << default_case << "]";
 }
 
-std::ostream& operator<<(std::ostream& os, IsObjectOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
   switch (kind) {
-    case IsObjectOp::Kind::kBigInt:
+    case ObjectIsOp::Kind::kBigInt:
       return os << "BigInt";
-    case IsObjectOp::Kind::kBigInt64:
+    case ObjectIsOp::Kind::kBigInt64:
       return os << "BigInt64";
   }
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         IsObjectOp::InputAssumptions input_assumptions) {
+                         ObjectIsOp::InputAssumptions input_assumptions) {
   switch (input_assumptions) {
-    case IsObjectOp::InputAssumptions::kNone:
+    case ObjectIsOp::InputAssumptions::kNone:
       return os << "None";
-    case IsObjectOp::InputAssumptions::kHeapObject:
+    case ObjectIsOp::InputAssumptions::kHeapObject:
       return os << "HeapObject";
-    case IsObjectOp::InputAssumptions::kBigInt:
+    case ObjectIsOp::InputAssumptions::kBigInt:
       return os << "BigInt";
   }
 }

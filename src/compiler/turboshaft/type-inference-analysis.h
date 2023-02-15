@@ -213,8 +213,7 @@ class TypeInferenceAnalysis {
         case Opcode::kCallAndCatchException:
         case Opcode::kLoadException:
         case Opcode::kTailCall:
-        case Opcode::kIsObject:
-        case Opcode::kIsSmiTagged:
+        case Opcode::kObjectIs:
         case Opcode::kConvertToObject:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

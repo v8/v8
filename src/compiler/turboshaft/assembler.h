@@ -750,19 +750,12 @@ class AssemblerOpInterface {
                          RegisterRepresentation::Tagged());
   }
 
-  OpIndex IsObject(OpIndex input, IsObjectOp::Kind kind,
-                   IsObjectOp::InputAssumptions input_assumptions) {
+  OpIndex ObjectIs(OpIndex input, ObjectIsOp::Kind kind,
+                   ObjectIsOp::InputAssumptions input_assumptions) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceIsObject(input, kind, input_assumptions);
-  }
-
-  OpIndex IsSmiTagged(OpIndex input) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    return stack().ReduceIsSmiTagged(input);
+    return stack().ReduceObjectIs(input, kind, input_assumptions);
   }
 
   OpIndex ConvertToObject(OpIndex input, ConvertToObjectOp::Kind kind) {

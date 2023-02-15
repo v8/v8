@@ -40,30 +40,30 @@ class MachineLoweringReducer : public Next {
       : Next(args),
         factory_(std::get<MachineLoweringReducerArgs>(args).factory) {}
 
-  bool NeedsHeapObjectCheck(IsObjectOp::InputAssumptions input_assumptions) {
+  bool NeedsHeapObjectCheck(ObjectIsOp::InputAssumptions input_assumptions) {
     // TODO(nicohartmann@): Consider type information once we have that.
     switch (input_assumptions) {
-      case IsObjectOp::InputAssumptions::kNone:
+      case ObjectIsOp::InputAssumptions::kNone:
         return true;
-      case IsObjectOp::InputAssumptions::kHeapObject:
-      case IsObjectOp::InputAssumptions::kBigInt:
+      case ObjectIsOp::InputAssumptions::kHeapObject:
+      case ObjectIsOp::InputAssumptions::kBigInt:
         return false;
     }
   }
 
-  V<Word32> ReduceIsObject(V<Tagged> input, IsObjectOp::Kind kind,
-                           IsObjectOp::InputAssumptions input_assumptions) {
+  V<Word32> ReduceObjectIs(V<Tagged> input, ObjectIsOp::Kind kind,
+                           ObjectIsOp::InputAssumptions input_assumptions) {
     switch (kind) {
-      case IsObjectOp::Kind::kBigInt:
-      case IsObjectOp::Kind::kBigInt64: {
-        DCHECK_IMPLIES(kind == IsObjectOp::Kind::kBigInt64, __ Is64());
+      case ObjectIsOp::Kind::kBigInt:
+      case ObjectIsOp::Kind::kBigInt64: {
+        DCHECK_IMPLIES(kind == ObjectIsOp::Kind::kBigInt64, __ Is64());
 
         Label<Word32> done(this);
 
-        if (input_assumptions != IsObjectOp::InputAssumptions::kBigInt) {
+        if (input_assumptions != ObjectIsOp::InputAssumptions::kBigInt) {
           if (NeedsHeapObjectCheck(input_assumptions)) {
             // Check for Smi.
-            GOTO_IF(__ IsSmiTagged(input), done, __ Word32Constant(0));
+            GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
           }
 
           // Check for BigInt.
@@ -73,10 +73,10 @@ class MachineLoweringReducer : public Next {
           GOTO_IF_NOT(is_bigint_map, done, __ Word32Constant(0));
         }
 
-        if (kind == IsObjectOp::Kind::kBigInt) {
+        if (kind == ObjectIsOp::Kind::kBigInt) {
           GOTO(done, __ Word32Constant(1));
         } else {
-          DCHECK_EQ(kind, IsObjectOp::Kind::kBigInt64);
+          DCHECK_EQ(kind, ObjectIsOp::Kind::kBigInt64);
           // We have to perform check for BigInt64 range.
           V<Word32> bitfield =
               LoadField<Word32>(input, AccessBuilder::ForBigIntBitfield());
@@ -269,6 +269,13 @@ class MachineLoweringReducer : public Next {
                  digit);
     }
     return bigint;
+  }
+
+  V<Word32> IsSmi(V<Tagged> input) {
+    return __ Word32Equal(
+        __ Word32BitwiseAnd(
+            input, __ Word32Constant(static_cast<uint32_t>(kSmiTagMask))),
+        __ Word32Constant(static_cast<uint32_t>(kSmiTag)));
   }
 
   Factory* factory_;
