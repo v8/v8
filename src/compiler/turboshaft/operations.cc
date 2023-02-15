@@ -597,10 +597,32 @@ void SwitchOp::PrintOptions(std::ostream& os) const {
 
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
   switch (kind) {
+    case ObjectIsOp::Kind::kArrayBufferView:
+      return os << "ArrayBufferView";
     case ObjectIsOp::Kind::kBigInt:
       return os << "BigInt";
     case ObjectIsOp::Kind::kBigInt64:
       return os << "BigInt64";
+    case ObjectIsOp::Kind::kCallable:
+      return os << "Callable";
+    case ObjectIsOp::Kind::kConstructor:
+      return os << "Constructor";
+    case ObjectIsOp::Kind::kDetectableCallable:
+      return os << "DetectableCallable";
+    case ObjectIsOp::Kind::kNonCallable:
+      return os << "NonCallable";
+    case ObjectIsOp::Kind::kNumber:
+      return os << "Number";
+    case ObjectIsOp::Kind::kReceiver:
+      return os << "Receiver";
+    case ObjectIsOp::Kind::kSmi:
+      return os << "Smi";
+    case ObjectIsOp::Kind::kString:
+      return os << "String";
+    case ObjectIsOp::Kind::kSymbol:
+      return os << "Symbol";
+    case ObjectIsOp::Kind::kUndetectable:
+      return os << "Undetectable";
   }
 }
 

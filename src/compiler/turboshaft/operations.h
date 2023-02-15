@@ -2117,8 +2117,19 @@ struct CheckTurboshaftTypeOfOp
 
 struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
   enum class Kind : uint8_t {
+    kArrayBufferView,
     kBigInt,
     kBigInt64,
+    kCallable,
+    kConstructor,
+    kDetectableCallable,
+    kNonCallable,
+    kNumber,
+    kReceiver,
+    kSmi,
+    kString,
+    kSymbol,
+    kUndetectable,
   };
   enum class InputAssumptions : uint8_t {
     kNone,

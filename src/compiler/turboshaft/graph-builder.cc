@@ -698,6 +698,26 @@ OpIndex GraphBuilder::Process(
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
 
+#define OBJECT_IS(kind)                                             \
+  case IrOpcode::kObjectIs##kind: {                                 \
+    return assembler.ObjectIs(Map(node->InputAt(0)),                \
+                              ObjectIsOp::Kind::k##kind,            \
+                              ObjectIsOp::InputAssumptions::kNone); \
+  }
+      OBJECT_IS(ArrayBufferView)
+      OBJECT_IS(BigInt)
+      OBJECT_IS(Callable)
+      OBJECT_IS(Constructor)
+      OBJECT_IS(DetectableCallable)
+      OBJECT_IS(NonCallable)
+      OBJECT_IS(Number)
+      OBJECT_IS(Receiver)
+      OBJECT_IS(Smi)
+      OBJECT_IS(String)
+      OBJECT_IS(Symbol)
+      OBJECT_IS(Undetectable)
+#undef OBJECT_IS
+
     case IrOpcode::kCheckBigInt: {
       DCHECK(dominating_frame_state.valid());
       OpIndex input = Map(node->InputAt(0));

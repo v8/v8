@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 
+#include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
@@ -113,6 +114,143 @@ class MachineLoweringReducer : public Next {
 
           GOTO(done, __ Word32Constant(0));
         }
+
+        BIND(done, result);
+        return result;
+      }
+      case ObjectIsOp::Kind::kCallable:
+      case ObjectIsOp::Kind::kConstructor:
+      case ObjectIsOp::Kind::kDetectableCallable:
+      case ObjectIsOp::Kind::kNonCallable:
+      case ObjectIsOp::Kind::kReceiver:
+      case ObjectIsOp::Kind::kUndetectable: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
+        }
+
+        // Load bitfield from map.
+        V<Tagged> map = LoadField<Tagged>(input, AccessBuilder::ForMap());
+        V<Word32> bitfield =
+            LoadField<Word32>(map, AccessBuilder::ForMapBitField());
+
+        V<Word32> check;
+        switch (kind) {
+          case ObjectIsOp::Kind::kCallable:
+            check = __ Word32Equal(
+                __ Word32Constant(Map::Bits1::IsCallableBit::kMask),
+                __ Word32BitwiseAnd(
+                    bitfield,
+                    __ Word32Constant(Map::Bits1::IsCallableBit::kMask)));
+            break;
+          case ObjectIsOp::Kind::kConstructor:
+            check = __ Word32Equal(
+                __ Word32Constant(Map::Bits1::IsConstructorBit::kMask),
+                __ Word32BitwiseAnd(
+                    bitfield,
+                    __ Word32Constant(Map::Bits1::IsConstructorBit::kMask)));
+            break;
+          case ObjectIsOp::Kind::kDetectableCallable:
+            check = __ Word32Equal(
+                __ Word32Constant(Map::Bits1::IsCallableBit::kMask),
+                __ Word32BitwiseAnd(
+                    bitfield,
+                    __ Word32Constant((Map::Bits1::IsCallableBit::kMask) |
+                                      (Map::Bits1::IsUndetectableBit::kMask))));
+            break;
+          case ObjectIsOp::Kind::kNonCallable:
+            check = __ Word32Equal(
+                __ Word32Constant(0),
+                __ Word32BitwiseAnd(
+                    bitfield,
+                    __ Word32Constant(Map::Bits1::IsCallableBit::kMask)));
+            GOTO_IF_NOT(check, done, __ Word32Constant(0));
+            // Fallthrough into receiver check.
+            V8_FALLTHROUGH;
+          case ObjectIsOp::Kind::kReceiver: {
+            static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            V<Word32> instance_type =
+                LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
+            check = __ Uint32LessThanOrEqual(
+                __ Word32Constant(FIRST_JS_RECEIVER_TYPE), instance_type);
+            break;
+          }
+          case ObjectIsOp::Kind::kUndetectable:
+            check = __ Word32Equal(
+                __ Word32Constant(Map::Bits1::IsUndetectableBit::kMask),
+                __ Word32BitwiseAnd(
+                    bitfield,
+                    __ Word32Constant(Map::Bits1::IsUndetectableBit::kMask)));
+            break;
+          default:
+            UNREACHABLE();
+        }
+        GOTO(done, check);
+
+        BIND(done, result);
+        return result;
+      }
+      case ObjectIsOp::Kind::kSmi: {
+        // If we statically know that this is a heap object, it cannot be a Smi.
+        if (!NeedsHeapObjectCheck(input_assumptions)) {
+          return __ Word32Constant(0);
+        }
+        return IsSmi(input);
+      }
+      case ObjectIsOp::Kind::kNumber: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(IsSmi(input), done, __ Word32Constant(1));
+        }
+
+        V<Tagged> map = LoadField<Tagged>(input, AccessBuilder::ForMap());
+        GOTO(done,
+             __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())));
+
+        BIND(done, result);
+        return result;
+      }
+      case ObjectIsOp::Kind::kSymbol:
+      case ObjectIsOp::Kind::kString:
+      case ObjectIsOp::Kind::kArrayBufferView: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
+        }
+
+        // Load instance type from map.
+        V<Tagged> map = LoadField<Tagged>(input, AccessBuilder::ForMap());
+        V<Word32> instance_type =
+            LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
+
+        V<Word32> check;
+        switch (kind) {
+          case ObjectIsOp::Kind::kSymbol:
+            check =
+                __ Word32Equal(instance_type, __ Word32Constant(SYMBOL_TYPE));
+            break;
+          case ObjectIsOp::Kind::kString:
+            check = __ Uint32LessThan(instance_type,
+                                      __ Word32Constant(FIRST_NONSTRING_TYPE));
+            break;
+          case ObjectIsOp::Kind::kArrayBufferView:
+            check = __ Uint32LessThan(
+                __ Word32Sub(
+                    instance_type,
+                    __ Word32Constant(FIRST_JS_ARRAY_BUFFER_VIEW_TYPE)),
+                __ Word32Constant(LAST_JS_ARRAY_BUFFER_VIEW_TYPE -
+                                  FIRST_JS_ARRAY_BUFFER_VIEW_TYPE + 1));
+            break;
+          default:
+            UNREACHABLE();
+        }
+        GOTO(done, check);
 
         BIND(done, result);
         return result;

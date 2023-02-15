@@ -1169,18 +1169,23 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberToString(node);
       break;
     case IrOpcode::kObjectIsArrayBufferView:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsArrayBufferView(node);
       break;
     case IrOpcode::kObjectIsBigInt:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsBigInt(node);
       break;
     case IrOpcode::kObjectIsCallable:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsCallable(node);
       break;
     case IrOpcode::kObjectIsConstructor:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsConstructor(node);
       break;
     case IrOpcode::kObjectIsDetectableCallable:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsDetectableCallable(node);
       break;
     case IrOpcode::kObjectIsMinusZero:
@@ -1196,24 +1201,31 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsNaN(node);
       break;
     case IrOpcode::kObjectIsNonCallable:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsNonCallable(node);
       break;
     case IrOpcode::kObjectIsNumber:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsNumber(node);
       break;
     case IrOpcode::kObjectIsReceiver:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsReceiver(node);
       break;
     case IrOpcode::kObjectIsSmi:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsSmi(node);
       break;
     case IrOpcode::kObjectIsString:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsString(node);
       break;
     case IrOpcode::kObjectIsSymbol:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsSymbol(node);
       break;
     case IrOpcode::kObjectIsUndetectable:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsUndetectable(node);
       break;
     case IrOpcode::kArgumentsLength:
@@ -3308,13 +3320,13 @@ Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
@@ -3326,40 +3338,35 @@ Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
                        FIRST_JS_ARRAY_BUFFER_VIEW_TYPE + 1));
   __ Goto(&done, vfalse);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsBigInt(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
+
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* vfalse = __ TaggedEqual(value_map, __ BigIntMapConstant());
   __ Goto(&done, vfalse);
-
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
@@ -3370,21 +3377,18 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
                    __ Int32Constant(Map::Bits1::IsCallableBit::kMask)));
   __ Goto(&done, vfalse);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
@@ -3395,14 +3399,12 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
                    __ Int32Constant(Map::Bits1::IsConstructorBit::kMask)));
   __ Goto(&done, vfalse);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3644,6 +3646,7 @@ Node* EffectControlLinearizer::LowerNumberIsNaN(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_primitive = __ MakeDeferredLabel();
@@ -3676,6 +3679,7 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNumber(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeLabel();
@@ -3693,12 +3697,12 @@ Node* EffectControlLinearizer::LowerObjectIsNumber(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
-  __ GotoIf(ObjectIsSmi(value), &if_smi);
+  __ GotoIf(ObjectIsSmi(value), &done, __ Int32Constant(0));
 
   static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -3708,26 +3712,25 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ Goto(&done, result);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsSmi(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ObjectIsSmi(value);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
+
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -3735,21 +3738,19 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
                                    __ Uint32Constant(FIRST_NONSTRING_TYPE));
   __ Goto(&done, vfalse);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
+
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -3757,35 +3758,27 @@ Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
       __ Word32Equal(value_instance_type, __ Uint32Constant(SYMBOL_TYPE));
   __ Goto(&done, vfalse);
 
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
-
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &if_smi);
+  __ GotoIf(check, &done, __ Int32Constant(0));
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   Node* vfalse = __ Word32Equal(
-      __ Word32Equal(
-          __ Int32Constant(0),
-          __ Word32And(value_bit_field,
-                       __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask))),
-      __ Int32Constant(0));
+      __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask),
+      __ Word32And(value_bit_field,
+                   __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask)));
   __ Goto(&done, vfalse);
-
-  __ Bind(&if_smi);
-  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
