@@ -728,7 +728,10 @@ class PipelineImpl final {
   // Step D. Run the code finalization pass.
   MaybeHandle<Code> FinalizeCode(bool retire_broker = true);
 
-  // Step E. Install any code dependencies.
+  // Step E. Ensure all embedded maps are non-deprecated.
+  bool CheckNoDeprecatedMaps(Handle<Code> code);
+
+  // Step F. Install any code dependencies.
   bool CommitDependencies(Handle<Code> code);
 
   void VerifyGeneratedCodeIsIdempotent();
@@ -1271,6 +1274,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
       return AbortOptimization(BailoutReason::kCodeGenerationFailed);
     }
     return FAILED;
+  }
+  if (!pipeline_.CheckNoDeprecatedMaps(code)) {
+    return RetryOptimization(BailoutReason::kConcurrentMapDeprecation);
   }
   if (!pipeline_.CommitDependencies(code)) {
     return RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
@@ -3959,6 +3965,20 @@ MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
     return MaybeHandle<Code>();
   }
   return FinalizeCode();
+}
+
+// We must not embed deprecated maps, as we rely in the compiler on all explicit
+// maps not being deprecated.
+bool PipelineImpl::CheckNoDeprecatedMaps(Handle<Code> code) {
+  int mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    HeapObject obj = it.rinfo()->target_object(data_->isolate());
+    if (obj.IsMap() && Map::cast(obj).is_deprecated()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool PipelineImpl::CommitDependencies(Handle<Code> code) {
