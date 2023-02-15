@@ -472,10 +472,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   return hash;
 }
 
-base::LazyMutex Isolate::process_wide_shared_isolate_mutex_ =
-    LAZY_MUTEX_INITIALIZER;
-Isolate* Isolate::process_wide_shared_isolate_{nullptr};
-
 Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
 
 thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
@@ -3259,61 +3255,6 @@ bool HasFlagThatRequiresSharedHeap() {
 }  // namespace
 
 // static
-Isolate* Isolate::GetProcessWideSharedIsolate(bool* created_shared_isolate) {
-  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) {
-    DCHECK(HasFlagThatRequiresSharedHeap());
-    FATAL(
-        "Build configuration does not support creating shared heap. The RO "
-        "heap must be shared, pointer compression must either be off or "
-        "use a shared cage, and write barriers must not be disabled. V8 is "
-        "compiled with RO heap %s, pointers %s and write barriers %s.",
-        V8_SHARED_RO_HEAP_BOOL ? "SHARED" : "NOT SHARED",
-        !COMPRESS_POINTERS_BOOL ? "NOT COMPRESSED"
-                                : (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-                                       ? "COMPRESSED IN SHARED CAGE"
-                                       : "COMPRESSED IN PER-ISOLATE CAGE"),
-        V8_DISABLE_WRITE_BARRIERS_BOOL ? "DISABLED" : "ENABLED");
-  }
-
-  base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
-  if (process_wide_shared_isolate_ == nullptr) {
-    process_wide_shared_isolate_ = Allocate(true);
-    // TODO(v8:12547): Make shared heap constraints programmatically
-    // configurable and tailored for the shared heap.
-    v8::Isolate::CreateParams params;
-    size_t initial_shared_heap_size =
-        static_cast<size_t>(v8_flags.initial_shared_heap_size) * MB;
-    size_t max_shared_heap_size =
-        static_cast<size_t>(v8_flags.max_shared_heap_size) * MB;
-    if (initial_shared_heap_size != 0 && max_shared_heap_size != 0) {
-      params.constraints.ConfigureDefaultsFromHeapSize(initial_shared_heap_size,
-                                                       max_shared_heap_size);
-    } else {
-      params.constraints.ConfigureDefaults(
-          base::SysInfo::AmountOfPhysicalMemory(),
-          base::SysInfo::AmountOfVirtualMemory());
-    }
-    params.array_buffer_allocator =
-        v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-    v8::Isolate::Initialize(
-        reinterpret_cast<v8::Isolate*>(process_wide_shared_isolate_), params);
-    *created_shared_isolate = true;
-  } else {
-    *created_shared_isolate = false;
-  }
-  return process_wide_shared_isolate_;
-}
-
-// static
-void Isolate::DeleteProcessWideSharedIsolate() {
-  base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
-  DCHECK_NOT_NULL(process_wide_shared_isolate_);
-  delete process_wide_shared_isolate_->array_buffer_allocator();
-  Delete(process_wide_shared_isolate_);
-  process_wide_shared_isolate_ = nullptr;
-}
-
-// static
 Isolate* Isolate::New() {
   Isolate* isolate = Allocate(false);
   return isolate;
@@ -3358,9 +3299,6 @@ void Isolate::Delete(Isolate* isolate) {
   isolate->set_thread_id(ThreadId::Current());
   isolate->heap()->SetStackStart(base::Stack::GetStackStart());
 
-  bool owns_shared_isolate = isolate->owns_shared_isolate_;
-  Isolate* maybe_shared_isolate = isolate->shared_isolate_;
-
   isolate->Deinit();
 
 #ifdef DEBUG
@@ -3377,14 +3315,6 @@ void Isolate::Delete(Isolate* isolate) {
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
-
-  // The first isolate, which is usually the main thread isolate, owns the
-  // lifetime of the shared isolate.
-  if (owns_shared_isolate) {
-    DCHECK_NOT_NULL(maybe_shared_isolate);
-    USE(maybe_shared_isolate);
-    DeleteProcessWideSharedIsolate();
-  }
 }
 
 void Isolate::SetUpFromReadOnlyArtifacts(
@@ -3408,7 +3338,6 @@ v8::PageAllocator* Isolate::page_allocator() const {
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
                  bool is_shared)
     : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
-      is_shared_(is_shared),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
@@ -3436,8 +3365,6 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
   thread_manager_ = new ThreadManager(this);
 
   handle_scope_data_.Initialize();
-
-  CHECK_IMPLIES(is_shared_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value) \
   name##_ = (initial_value);
@@ -3617,7 +3544,6 @@ void Isolate::Deinit() {
   // Detach from the shared heap isolate and then unlock the mutex.
   if (has_shared_heap()) {
     Isolate* shared_heap_isolate = this->shared_heap_isolate();
-    DetachFromSharedIsolate();
     DetachFromSharedSpaceIsolate();
     shared_heap_isolate->global_safepoint()->clients_mutex_.Unlock();
   }
@@ -4226,7 +4152,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
-  if (is_shared_ || is_shared_space_isolate_) {
+  if (is_shared_space_isolate_) {
     global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
   }
 
@@ -4271,15 +4197,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   base::Optional<base::RecursiveMutexGuard> clients_guard;
 
-  if (Isolate* isolate =
-          shared_isolate_ ? shared_isolate_ : attach_to_shared_space_isolate) {
-    clients_guard.emplace(&isolate->global_safepoint()->clients_mutex_);
+  if (attach_to_shared_space_isolate) {
+    clients_guard.emplace(
+        &attach_to_shared_space_isolate->global_safepoint()->clients_mutex_);
   }
 
-  // The main thread LocalHeap needs to be set up when attaching to the shared
-  // isolate. Otherwise a global safepoint would find an isolate without
-  // LocalHeaps and not wait until this thread is ready for a GC.
-  AttachToSharedIsolate();
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
   // Ensure that we use at most one of shared_isolate() and
@@ -6046,32 +5968,6 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   // It is safe to return the address of std::map values.
   // Only iterators and references to the erased elements are invalidated.
   return reinterpret_cast<Address>(&map[name].second);
-}
-
-void Isolate::AttachToSharedIsolate() {
-  DCHECK(!attached_to_shared_isolate_);
-
-  if (shared_isolate_) {
-    DCHECK(shared_isolate_->is_shared());
-    shared_isolate_->global_safepoint()->AppendClient(this);
-  }
-
-#if DEBUG
-  attached_to_shared_isolate_ = true;
-#endif  // DEBUG
-}
-
-void Isolate::DetachFromSharedIsolate() {
-  DCHECK(attached_to_shared_isolate_);
-
-  if (shared_isolate_) {
-    shared_isolate_->global_safepoint()->RemoveClient(this);
-    shared_isolate_ = nullptr;
-  }
-
-#if DEBUG
-  attached_to_shared_isolate_ = false;
-#endif  // DEBUG
 }
 
 void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {

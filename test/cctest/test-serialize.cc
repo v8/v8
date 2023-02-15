@@ -125,29 +125,6 @@ class TestSerializer {
     return v8_isolate;
   }
 
-  static void InitializeProcessWideSharedIsolateFromBlob(
-      const StartupBlobs& blobs) {
-    base::MutexGuard guard(
-        i::Isolate::process_wide_shared_isolate_mutex_.Pointer());
-    CHECK_NULL(i::Isolate::process_wide_shared_isolate_);
-
-    SnapshotData startup_snapshot(blobs.startup);
-    SnapshotData read_only_snapshot(blobs.read_only);
-    SnapshotData shared_space_snapshot(blobs.shared_space);
-    const bool kEnableSerializer = false;
-    const bool kIsShared = true;
-    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->InitWithSnapshot(&startup_snapshot, &read_only_snapshot,
-                              &shared_space_snapshot, false);
-    i::Isolate::process_wide_shared_isolate_ = isolate;
-  }
-
-  static void DeleteProcessWideSharedIsolate() {
-    i::Isolate::DeleteProcessWideSharedIsolate();
-  }
-
  private:
   // Creates an Isolate instance configured for testing.
   static v8::Isolate* NewIsolate(bool with_serializer, bool is_shared) {

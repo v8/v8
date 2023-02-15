@@ -328,8 +328,6 @@ void GlobalSafepoint::RemoveClient(Isolate* client) {
     DCHECK_EQ(clients_head_, client);
     clients_head_ = client->global_safepoint_next_client_isolate_;
   }
-
-  client->shared_isolate_ = nullptr;
 }
 
 void GlobalSafepoint::AssertNoClientsOnTearDown() {
