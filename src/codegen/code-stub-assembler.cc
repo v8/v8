@@ -15768,7 +15768,11 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     TNode<Smi> length;
     TNode<HeapObject> properties = LoadSlowProperties(receiver);
 
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    // g++ version 8 has a bug when using `if constexpr(false)` with a lambda:
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85149
+    // TODO(miladfarca): Use `if constexpr` once all compilers handle this
+    // properly.
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(properties),
                                 IsGlobalDictionary(properties)));
 
