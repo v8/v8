@@ -49,6 +49,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/visitors-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/roots/static-roots.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
@@ -129,6 +130,24 @@ FixedArray Heap::single_character_string_table() {
       Object(roots_table()[RootIndex::kSingleCharacterStringTable]));
 }
 
+#define STATIC_ROOTS_FAILED_MSG                                            \
+  "Read-only heap layout changed. Run `tools/dev/gen-static-roots.py` to " \
+  "update static-roots.h."
+#if V8_STATIC_ROOTS_BOOL
+// Check all read only roots are allocated where we expect it. Skip `Exception`
+// which changes during setup-heap-internal.
+#define CHECK_STATIC_ROOT(obj, name)                                         \
+  if (RootsTable::IsReadOnly(RootIndex::k##name) &&                          \
+      RootIndex::k##name != RootIndex::kException) {                         \
+    DCHECK_WITH_MSG(V8HeapCompressionScheme::CompressTagged(obj.ptr()) ==    \
+                        StaticReadOnlyRootsPointerTable[static_cast<size_t>( \
+                            RootIndex::k##name)],                            \
+                    STATIC_ROOTS_FAILED_MSG);                                \
+  }
+#else
+#define CHECK_STATIC_ROOT(obj, name)
+#endif
+
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
   void Heap::set_##name(type value) {                                          \
     /* The deserializer makes use of the fact that these common roots are */   \
@@ -137,10 +156,13 @@ FixedArray Heap::single_character_string_table() {
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
     DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
                    IsImmovable(HeapObject::cast(value)));                      \
+    CHECK_STATIC_ROOT(value, CamelName);                                       \
     roots_table()[RootIndex::k##CamelName] = value.ptr();                      \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+#undef CHECK_STATIC_ROOT
+#undef STATIC_ROOTS_FAILED_MSG
 
 void Heap::SetRootMaterializedObjects(FixedArray objects) {
   roots_table()[RootIndex::kMaterializedObjects] = objects.ptr();
