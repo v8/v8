@@ -34,7 +34,6 @@ def crossbench_cbb_builder(builder_name, recipe_path, os):
         builder = builder_name,
     )
 
-# TODO(crbug/1410350): Once verified, add this builder to CQ
 crossbench_cbb_builder("Crossbench CBB Mac Try", "perf/crossbench", "Mac")
 
 luci.cq_group(
@@ -55,6 +54,9 @@ luci.cq_group(
         luci.cq_tryjob_verifier(
             builder = "crossbench_presubmit",
             disable_reuse = True,
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench CBB Mac Try",
         ),
     ],
 )
