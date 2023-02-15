@@ -1842,11 +1842,14 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
-  // TODO(v8:13466, olivf): With static roots we could use
-  // DecompressTagged here. However, currently all roots have addresses
-  // that are too large to fit into addition immediate operands. Evidence
-  // suggests that the extra instruction for decompression costs us more than
-  // the load.
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
+      IsImmAddSub(ReadOnlyRootPtr(index))) {
+    DecompressTagged(destination, ReadOnlyRootPtr(index));
+    return;
+  }
+  // Many roots have addresses that are too large to fit into addition immediate
+  // operands. Evidence suggests that the extra instruction for decompression
+  // costs us more than the load.
   Ldr(destination,
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
@@ -3083,13 +3086,13 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
 void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    CmpTagged(obj, Immediate(ReadOnlyRootPtr(index)));
+    return;
+  }
   Register temp = temps.AcquireX();
   DCHECK(!AreAliased(obj, temp));
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    LoadTaggedRoot(temp, index);
-  } else {
-    LoadRoot(temp, index);
-  }
+  LoadRoot(temp, index);
   CmpTagged(obj, temp);
 }
 

@@ -247,7 +247,8 @@ void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
 
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t chunk_size, size_t area_size, size_t alignment,
-    Executability executable, void* hint, VirtualMemory* controller) {
+    AllocationSpace space, Executability executable, void* hint,
+    VirtualMemory* controller) {
   v8::PageAllocator* page_allocator = this->page_allocator(executable);
   DCHECK_LT(area_size, chunk_size);
 
@@ -278,9 +279,9 @@ Address MemoryAllocator::AllocateAlignedMemory(
   } else {
     // No guard page between page header and object area. This allows us to make
     // all OS pages for both regions readable+writable at once.
-    const size_t commit_size =
-        ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
-                  GetCommitPageSize());
+    const size_t commit_size = ::RoundUp(
+        MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space) + area_size,
+        GetCommitPageSize());
 
     if (reservation.SetPermissions(base, commit_size,
                                    PageAllocator::kReadWrite)) {
@@ -306,6 +307,7 @@ Address MemoryAllocator::HandleAllocationFailure(Executability executable) {
 }
 
 size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
+                                         AllocationSpace space,
                                          Executability executable) {
   if (executable == EXECUTABLE) {
     //
@@ -340,8 +342,9 @@ size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
   //
   DCHECK_EQ(executable, NOT_EXECUTABLE);
 
-  return ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
-                   GetCommitPageSize());
+  return ::RoundUp(
+      MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space) + area_size,
+      GetCommitPageSize());
 }
 
 base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
@@ -361,12 +364,13 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
 #endif
 
   VirtualMemory reservation;
-  size_t chunk_size = ComputeChunkSize(area_size, executable);
+  size_t chunk_size =
+      ComputeChunkSize(area_size, space->identity(), executable);
   DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
   Address base = AllocateAlignedMemory(
-      chunk_size, area_size, MemoryChunk::kAlignment, executable,
-      reinterpret_cast<void*>(hint), &reservation);
+      chunk_size, area_size, MemoryChunk::kAlignment, space->identity(),
+      executable, reinterpret_cast<void*>(hint), &reservation);
   if (base == kNullAddress) return {};
 
   size_ += reservation.size();
@@ -387,9 +391,11 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
     } else {
       DCHECK_EQ(executable, NOT_EXECUTABLE);
       // Zap both page header and object area at once. No guard page in-between.
-      ZapBlock(base,
-               MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
-               kZapValue);
+      ZapBlock(
+          base,
+          MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity()) +
+              area_size,
+          kZapValue);
     }
   }
 
