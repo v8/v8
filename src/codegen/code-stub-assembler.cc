@@ -9282,6 +9282,34 @@ template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
 template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
     TNode<GlobalDictionary> dictionary);
 
+template <>
+TNode<Smi> CodeStubAssembler::GetNameDictionaryFlags(
+    TNode<NameDictionary> dictionary) {
+  return CAST(LoadFixedArrayElement(dictionary, NameDictionary::kFlagsIndex));
+}
+
+template <>
+void CodeStubAssembler::SetNameDictionaryFlags(TNode<NameDictionary> dictionary,
+                                               TNode<Smi> flags) {
+  StoreFixedArrayElement(dictionary, NameDictionary::kFlagsIndex, flags,
+                         SKIP_WRITE_BARRIER);
+}
+
+template <>
+TNode<Smi> CodeStubAssembler::GetNameDictionaryFlags(
+    TNode<SwissNameDictionary> dictionary) {
+  // TODO(pthier): Add flags to swiss dictionaries.
+  Unreachable();
+  return SmiConstant(0);
+}
+
+template <>
+void CodeStubAssembler::SetNameDictionaryFlags(
+    TNode<SwissNameDictionary> dictionary, TNode<Smi> flags) {
+  // TODO(pthier): Add flags to swiss dictionaries.
+  Unreachable();
+}
+
 template <typename Array>
 void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
                                      TNode<Array> array,

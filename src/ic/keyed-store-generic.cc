@@ -840,7 +840,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
 }
 
 void KeyedStoreGenericAssembler::UpdateMayHaveInterestingSymbol(
-    TNode<NameDictionary> dict, TNode<Name> name) {
+    TNode<PropertyDictionary> dict, TNode<Name> name) {
   Label done(this);
 
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {

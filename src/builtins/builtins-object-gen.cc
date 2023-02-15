@@ -993,7 +993,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         // TODO(pthier): Support swiss dictionaries.
         if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
-          TNode<Smi> flags = GetNameDictionaryFlags(CAST(properties));
+          TNode<Smi> flags =
+              GetNameDictionaryFlags<NameDictionary>(CAST(properties));
           GotoIf(IsSetSmi(flags,
                           NameDictionary::MayHaveInterestingSymbolsBit::kMask),
                  &return_generic);
