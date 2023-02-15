@@ -1427,17 +1427,19 @@ class LiftoffCompiler {
     }
   }
 
+  // Before emitting the conditional branch, {will_freeze} will be initialized
+  // to prevent cache state changes in conditionally executed code.
   void JumpIfFalse(FullDecoder* decoder, Label* false_dst,
-                   std::unique_ptr<FreezeCacheState>& will_freeze) {
+                   base::Optional<FreezeCacheState>& will_freeze) {
+    DCHECK(!will_freeze.has_value());
     Condition cond =
         test_and_reset_outstanding_op(kExprI32Eqz) ? kNotZero : kZero;
 
     if (!has_outstanding_op()) {
       // Unary comparison.
       Register value = __ PopToRegister().gp();
-      will_freeze.reset(new FreezeCacheState(asm_));
-      __ emit_cond_jump(cond, false_dst, kI32, value, no_reg,
-                        *will_freeze.get());
+      will_freeze.emplace(asm_);
+      __ emit_cond_jump(cond, false_dst, kI32, value, no_reg, *will_freeze);
       return;
     }
 
@@ -1450,8 +1452,8 @@ class LiftoffCompiler {
       int32_t rhs_imm = rhs_slot.i32_const();
       __ cache_state()->stack_state.pop_back();
       Register lhs = __ PopToRegister().gp();
-      will_freeze.reset(new FreezeCacheState(asm_));
-      __ emit_i32_cond_jumpi(cond, false_dst, lhs, rhs_imm, *will_freeze.get());
+      will_freeze.emplace(asm_);
+      __ emit_i32_cond_jumpi(cond, false_dst, lhs, rhs_imm, *will_freeze);
       return;
     }
 
@@ -1462,16 +1464,15 @@ class LiftoffCompiler {
       int32_t lhs_imm = lhs_slot.i32_const();
       __ cache_state()->stack_state.pop_back();
       // Flip the condition, because {lhs} and {rhs} are swapped.
-      will_freeze.reset(new FreezeCacheState(asm_));
-      __ emit_i32_cond_jumpi(Flip(cond), false_dst, rhs, lhs_imm,
-                             *will_freeze.get());
+      will_freeze.emplace(asm_);
+      __ emit_i32_cond_jumpi(Flip(cond), false_dst, rhs, lhs_imm, *will_freeze);
       return;
     }
 
     // Compare two arbitrary values.
     Register lhs = __ PopToRegister(LiftoffRegList{rhs}).gp();
-    will_freeze.reset(new FreezeCacheState(asm_));
-    __ emit_cond_jump(cond, false_dst, kI32, lhs, rhs, *will_freeze.get());
+    will_freeze.emplace(asm_);
+    __ emit_cond_jump(cond, false_dst, kI32, lhs, rhs, *will_freeze);
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -1482,7 +1483,7 @@ class LiftoffCompiler {
     if_block->else_state = compilation_zone_->New<ElseState>(compilation_zone_);
 
     // Test the condition on the value stack, jump to else if zero.
-    std::unique_ptr<FreezeCacheState> frozen;
+    base::Optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, if_block->else_state->label.get(), frozen);
     frozen.reset();
 
@@ -2819,7 +2820,7 @@ class LiftoffCompiler {
     if (NeedsTierupCheck(decoder, depth)) AllocateTempRegisters(temps);
 
     // Test the condition on the value stack, jump to {cont_false} if zero.
-    std::unique_ptr<FreezeCacheState> frozen;
+    base::Optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, &cont_false, frozen);
 
     BrOrRetImpl(decoder, depth, temps.tmp1, temps.tmp2);
