@@ -1590,7 +1590,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       GotoIfNot(SmiEqual(match_to, last_matched_until), &next);
 
       const TNode<BoolT> is_unicode =
-          FastFlagGetter(regexp, JSRegExp::kUnicode);
+          Word32Or(FastFlagGetter(regexp, JSRegExp::kUnicode),
+                   FastFlagGetter(regexp, JSRegExp::kUnicodeSets));
       const TNode<Number> new_next_search_from =
           AdvanceStringIndex(string, next_search_from, is_unicode, true);
       var_next_search_from = CAST(new_next_search_from);
