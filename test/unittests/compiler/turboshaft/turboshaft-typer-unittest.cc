@@ -187,7 +187,7 @@ TYPED_TEST(WordTyperTest, Add) {
 TYPED_TEST(WordTyperTest, WidenExponential) {
   DEFINE_TEST_HELPERS()
 
-  auto SizeOf = [](const T& type) -> word_t {
+  auto SizeOf = [&](const T& type) -> word_t {
     DCHECK(!type.is_any());
     if (type.is_set()) return type.set_size();
     if (type.is_wrapping()) {
