@@ -6029,8 +6029,8 @@ namespace {
 class ConditionListener : public v8::debug::DebugDelegate {
  public:
   void BreakpointConditionEvaluated(
-      v8::debug::BreakpointId breakpoint_id_arg, bool exception_thrown_arg,
-      v8::Local<v8::Value> exception_arg) override {
+      v8::Local<v8::Context> context, v8::debug::BreakpointId breakpoint_id_arg,
+      bool exception_thrown_arg, v8::Local<v8::Value> exception_arg) override {
     breakpoint_id = breakpoint_id_arg;
     exception_thrown = exception_thrown_arg;
     exception = exception_arg;
