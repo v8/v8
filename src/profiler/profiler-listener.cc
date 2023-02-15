@@ -74,9 +74,6 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name) {
   PtrComprCageBase cage_base(isolate_);
-  DCHECK(code->IsBytecodeArray(cage_base) ||
-         Builtins::IsBuiltinId(code->builtin_id(cage_base)) ||
-         code->kind(cage_base) == CodeKind::BASELINE);
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart(cage_base);
