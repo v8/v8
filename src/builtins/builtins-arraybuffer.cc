@@ -471,8 +471,9 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
   // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
   CHECK_SHARED(true, array_buffer, kMethodName);
 
-  DCHECK_EQ(array_buffer->max_byte_length(),
-            array_buffer->GetBackingStore()->max_byte_length());
+  DCHECK_IMPLIES(!array_buffer->GetBackingStore()->is_wasm_memory(),
+                 array_buffer->max_byte_length() ==
+                     array_buffer->GetBackingStore()->max_byte_length());
 
   // 4. Let length be ArrayBufferByteLength(O, SeqCst).
   size_t byte_length = array_buffer->GetByteLength();
