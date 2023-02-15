@@ -1905,7 +1905,7 @@ struct LoadExceptionOp : FixedArityOperationT<0, LoadExceptionOp> {
     return RepVector<RegisterRepresentation::Tagged()>();
   }
 
-  explicit LoadExceptionOp() : Base() {}
+  LoadExceptionOp() : Base() {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -2106,9 +2106,7 @@ struct CheckTurboshaftTypeOfOp
   bool successful;
 
   static constexpr OpProperties properties = OpProperties::AnySideEffects();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex input() const { return Base::input(0); }
 

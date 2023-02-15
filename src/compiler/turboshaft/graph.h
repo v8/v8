@@ -433,7 +433,13 @@ class Graph {
         graph_zone_(graph_zone),
         source_positions_(graph_zone),
         operation_origins_(graph_zone),
-        operation_types_(graph_zone) {}
+        operation_types_(graph_zone)
+#ifdef DEBUG
+        ,
+        block_type_refinement_(graph_zone)
+#endif
+  {
+  }
 
   // Reset the graph to recycle its memory.
   void Reset() {
@@ -444,6 +450,9 @@ class Graph {
     operation_types_.Reset();
     next_block_ = 0;
     dominator_tree_depth_ = 0;
+#ifdef DEBUG
+    block_type_refinement_.Reset();
+#endif
   }
 
   V8_INLINE const Operation& Get(OpIndex i) const {
@@ -742,6 +751,19 @@ class Graph {
     return operation_types_;
   }
   GrowingSidetable<Type>& operation_types() { return operation_types_; }
+#ifdef DEBUG
+  // Store refined types per block here for --trace-turbo printing.
+  // TODO(nicohartmann@): Remove this once we have a proper way to print
+  // type information inside the reducers.
+  const GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>&
+  block_type_refinement() const {
+    return block_type_refinement_;
+  }
+  GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>&
+  block_type_refinement() {
+    return block_type_refinement_;
+  }
+#endif  // DEBUG
 
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
@@ -766,6 +788,7 @@ class Graph {
     std::swap(operation_origins_, companion.operation_origins_);
     std::swap(operation_types_, companion.operation_types_);
 #ifdef DEBUG
+    std::swap(block_type_refinement_, companion.block_type_refinement_);
     // Update generation index.
     DCHECK_EQ(generation_ + 1, companion.generation_);
     generation_ = companion.generation_++;
@@ -836,6 +859,10 @@ class Graph {
   GrowingSidetable<OpIndex> operation_origins_;
   uint32_t dominator_tree_depth_ = 0;
   GrowingSidetable<Type> operation_types_;
+#ifdef DEBUG
+  GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>
+      block_type_refinement_;
+#endif
 
   std::unique_ptr<Graph> companion_ = {};
 #ifdef DEBUG

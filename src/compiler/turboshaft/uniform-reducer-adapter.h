@@ -117,6 +117,16 @@ class UniformReducerAdapter : public Next {
   explicit UniformReducerAdapter(const std::tuple<Args...>& args)
       : Next(args) {}
 
+  template <Opcode opcode, typename Continuation, typename... Args>
+  OpIndex ReduceOperation(Args... args) {
+    return Continuation{this}.Reduce(args...);
+  }
+
+  template <typename Op, typename Continuation>
+  OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
+    return Continuation{this}.ReduceInputGraph(ig_index, operation);
+  }
+
 #define REDUCE(op)                                                           \
   struct Reduce##op##Continuation final {                                    \
     explicit Reduce##op##Continuation(Next* _this) : this_(_this) {}         \

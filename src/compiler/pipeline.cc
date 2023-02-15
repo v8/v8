@@ -2156,11 +2156,22 @@ struct TurboshaftTypedOptimizationsPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     DCHECK(data->HasTurboshaftGraph());
-    turboshaft::OptimizationPhase<turboshaft::TypedOptimizationsReducer,
-                                  turboshaft::TypeInferenceReducer>::
-        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
-            data->node_origins(),
-            std::tuple{turboshaft::TypeInferenceReducerArgs{data->isolate()}});
+#ifdef DEBUG
+    UnparkedScopeIfNeeded scope(data->broker(),
+                                v8_flags.turboshaft_trace_typing);
+#endif
+
+    turboshaft::TypeInferenceReducerArgs typing_args{
+        data->isolate(),
+        turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
+        turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::kNone};
+
+    turboshaft::OptimizationPhase<
+        turboshaft::TypedOptimizationsReducer,
+        turboshaft::TypeInferenceReducer>::Run(data->isolate(),
+                                               &data->turboshaft_graph(),
+                                               temp_zone, data->node_origins(),
+                                               {typing_args});
   }
 };
 
@@ -2171,12 +2182,18 @@ struct TurboshaftTypeAssertionsPhase {
     DCHECK(data->HasTurboshaftGraph());
     UnparkedScopeIfNeeded scope(data->broker());
 
+    turboshaft::TypeInferenceReducerArgs typing_args{
+        data->isolate(),
+        turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
+        turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::
+            kPreserveFromInputGraph};
+
     turboshaft::OptimizationPhase<turboshaft::AssertTypesReducer,
                                   turboshaft::ValueNumberingReducer,
                                   turboshaft::TypeInferenceReducer>::
         Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
             data->node_origins(),
-            std::tuple{turboshaft::TypeInferenceReducerArgs{data->isolate()},
+            std::tuple{typing_args,
                        turboshaft::AssertTypesReducerArgs{data->isolate()}});
   }
 };
@@ -2186,6 +2203,7 @@ struct TurboshaftDeadCodeEliminationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     DCHECK(data->HasTurboshaftGraph());
+    UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
 
     turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer>::Run(
         data->isolate(), &data->turboshaft_graph(), temp_zone,
@@ -2805,6 +2823,21 @@ struct PrintTurboshaftGraphPhase {
             stream << static_cast<int>(graph.Get(index).saturated_use_count);
             return true;
           });
+#ifdef DEBUG
+      PrintTurboshaftCustomDataPerBlock(
+          data->info(), "Type Refinements", data->turboshaft_graph(),
+          [](std::ostream& stream, const turboshaft::Graph& graph,
+             turboshaft::BlockIndex index) -> bool {
+            const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
+                refinements = graph.block_type_refinement()[index];
+            if (refinements.empty()) return false;
+            stream << "\\n";
+            for (const auto& [op, type] : refinements) {
+              stream << op << " : " << type << "\\n";
+            }
+            return true;
+          });
+#endif  // DEBUG
     }
 
     if (data->info()->trace_turbo_graph()) {

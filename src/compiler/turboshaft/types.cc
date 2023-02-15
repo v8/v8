@@ -40,6 +40,8 @@ bool Type::Equals(const Type& other) const {
       return AsFloat32().Equals(other.AsFloat32());
     case Kind::kFloat64:
       return AsFloat64().Equals(other.AsFloat64());
+    case Kind::kTuple:
+      return AsTuple().Equals(other.AsTuple());
     case Kind::kAny:
       return true;
   }
@@ -64,6 +66,8 @@ bool Type::IsSubtypeOf(const Type& other) const {
       return AsFloat32().IsSubtypeOf(other.AsFloat32());
     case Kind::kFloat64:
       return AsFloat64().IsSubtypeOf(other.AsFloat64());
+    case Kind::kTuple:
+      return AsTuple().IsSubtypeOf(other.AsTuple());
     case Kind::kAny:
       UNREACHABLE();
   }
@@ -92,6 +96,10 @@ void Type::PrintTo(std::ostream& stream) const {
       AsFloat64().PrintTo(stream);
       break;
     }
+    case Kind::kTuple: {
+      AsTuple().PrintTo(stream);
+      break;
+    }
     case Kind::kAny: {
       stream << "Any";
       break;
@@ -103,6 +111,36 @@ void Type::Print() const {
   StdoutStream os;
   PrintTo(os);
   os << std::endl;
+}
+
+// static
+Type Type::LeastUpperBound(const Type& lhs, const Type& rhs, Zone* zone) {
+  if (lhs.IsAny() || rhs.IsAny()) return Type::Any();
+  if (lhs.IsNone()) return rhs;
+  if (rhs.IsNone()) return lhs;
+
+  // TODO(nicohartmann@): We might use more precise types here but currently
+  // there is not much benefit in that.
+  if (lhs.kind() != rhs.kind()) return Type::Any();
+
+  switch (lhs.kind()) {
+    case Type::Kind::kInvalid:
+    case Type::Kind::kNone:
+    case Type::Kind::kAny:
+      UNREACHABLE();
+    case Type::Kind::kWord32:
+      return Word32Type::LeastUpperBound(lhs.AsWord32(), rhs.AsWord32(), zone);
+    case Type::Kind::kWord64:
+      return Word64Type::LeastUpperBound(lhs.AsWord64(), rhs.AsWord64(), zone);
+    case Type::Kind::kFloat32:
+      return Float32Type::LeastUpperBound(lhs.AsFloat32(), rhs.AsFloat32(),
+                                          zone);
+    case Type::Kind::kFloat64:
+      return Float64Type::LeastUpperBound(lhs.AsFloat64(), rhs.AsFloat64(),
+                                          zone);
+    case Type::Kind::kTuple:
+      return TupleType::LeastUpperBound(lhs.AsTuple(), rhs.AsTuple(), zone);
+  }
 }
 
 base::Optional<Type> Type::ParseFromString(const std::string_view& str,
@@ -126,6 +164,8 @@ Handle<TurboshaftType> Type::AllocateOnHeap(Factory* factory) const {
       return AsFloat32().AllocateOnHeap(factory);
     case Kind::kFloat64:
       return AsFloat64().AllocateOnHeap(factory);
+    case Kind::kTuple:
+      UNIMPLEMENTED();
     case Kind::kAny:
       UNIMPLEMENTED();
   }
@@ -230,7 +270,6 @@ WordType<Bits> LeastUpperBoundFromRanges(word_t l_from, word_t l_to,
     if (r_to >= l_from) return WordType<Bits>::Any();         // ex3
     auto result = WordType<Bits>::Range(l_from, r_to, zone);  // ex 1
     DCHECK(result.is_wrapping());
-    DCHECK(!result.is_any());
     return result;
   } else if (r_to >= l_from) {
     if (r_from >= l_from)
@@ -238,7 +277,6 @@ WordType<Bits> LeastUpperBoundFromRanges(word_t l_from, word_t l_to,
     DCHECK_GT(r_from, l_to);                                  // handled above
     auto result = WordType<Bits>::Range(r_from, l_to, zone);  // ex 2
     DCHECK(result.is_wrapping());
-    DCHECK(!result.is_any());
     return result;
   } else {
     const auto df = r_from - l_to;
@@ -247,7 +285,6 @@ WordType<Bits> LeastUpperBoundFromRanges(word_t l_from, word_t l_to,
         df > dt ? WordType<Bits>::Range(r_from, l_to, zone)  // ex 4
                 : WordType<Bits>::Range(l_from, r_to, zone);
     DCHECK(result.is_wrapping());
-    DCHECK(!result.is_any());
     return result;
   }
 }
@@ -264,7 +301,6 @@ WordType<Bits> WordType<Bits>::LeastUpperBound(const WordType<Bits>& lhs,
         if (rhs.is_wrapping()) {
           // If {rhs} already contains e, {rhs} is the upper bound.
           if (e <= rhs.range_to() || rhs.range_from() <= e) return rhs;
-          if (lhs.Contains(e)) return lhs;
           return (e - rhs.range_to() < rhs.range_from() - e)
                      ? Range(rhs.range_from(), e, zone)
                      : Range(e, rhs.range_to(), zone);
@@ -376,15 +412,16 @@ void WordType<Bits>::PrintTo(std::ostream& stream) const {
   stream << (Bits == 32 ? "Word32" : "Word64");
   switch (sub_kind()) {
     case SubKind::kRange:
-      stream << "[" << range_from() << ", " << range_to() << "]";
+      stream << "[0x" << std::hex << range_from() << ", 0x" << range_to()
+             << std::dec << "]";
       break;
     case SubKind::kSet:
-      stream << "{";
+      stream << "{" << std::hex;
       for (int i = 0; i < set_size(); ++i) {
-        if (i != 0) stream << ", ";
+        stream << (i == 0 ? "0x" : ", 0x");
         stream << set_element(i);
       }
-      stream << "}";
+      stream << std::dec << "}";
       break;
   }
 }
@@ -523,11 +560,15 @@ FloatType<Bits> FloatType<Bits>::LeastUpperBound(const FloatType<Bits>& lhs,
     }
     return Range(result_elements.front(), result_elements.back(),
                  special_values, zone);
+  } else if (lhs.is_only_special_values()) {
+    return ReplacedSpecialValues(rhs, special_values);
+  } else if (rhs.is_only_special_values()) {
+    return ReplacedSpecialValues(lhs, special_values);
   }
 
   // We need to construct a range.
-  float_t result_min = std::min(lhs.min(), rhs.min());
-  float_t result_max = std::max(lhs.max(), rhs.max());
+  float_t result_min = std::min(lhs.range_or_set_min(), rhs.range_or_set_min());
+  float_t result_max = std::max(lhs.range_or_set_max(), rhs.range_or_set_max());
   return Range(result_min, result_max, special_values, zone);
 }
 
@@ -535,16 +576,9 @@ template <size_t Bits>
 // static
 Type FloatType<Bits>::Intersect(const FloatType<Bits>& lhs,
                                 const FloatType<Bits>& rhs, Zone* zone) {
-  auto UpdateSpecials = [](const FloatType& t, uint32_t special_values) {
-    auto result = t;
-    result.bitfield_ = special_values;
-    DCHECK_EQ(result.bitfield_, result.special_values());
-    return result;
-  };
-
   const uint32_t special_values = lhs.special_values() & rhs.special_values();
-  if (lhs.is_any()) return UpdateSpecials(rhs, special_values);
-  if (rhs.is_any()) return UpdateSpecials(lhs, special_values);
+  if (lhs.is_any()) return ReplacedSpecialValues(rhs, special_values);
+  if (rhs.is_any()) return ReplacedSpecialValues(lhs, special_values);
   if (lhs.is_only_special_values() || rhs.is_only_special_values()) {
     return special_values ? OnlySpecialValues(special_values) : Type::None();
   }
@@ -564,8 +598,8 @@ Type FloatType<Bits>::Intersect(const FloatType<Bits>& lhs,
   }
 
   DCHECK(lhs.is_range() && rhs.is_range());
-  const float_t result_min = std::min(lhs.min(), rhs.min());
-  const float_t result_max = std::max(lhs.max(), rhs.max());
+  const float_t result_min = std::max(lhs.min(), rhs.min());
+  const float_t result_max = std::min(lhs.max(), rhs.max());
   if (result_min < result_max) {
     return Range(result_min, result_max, special_values, zone);
   } else if (result_min == result_max) {
@@ -634,6 +668,43 @@ Handle<TurboshaftType> FloatType<Bits>::AllocateOnHeap(Factory* factory) const {
     }
     return result;
   }
+}
+
+bool TupleType::Equals(const TupleType& other) const {
+  if (size() != other.size()) return false;
+  for (int i = 0; i < size(); ++i) {
+    if (!element(i).Equals(other.element(i))) return false;
+  }
+  return true;
+}
+
+bool TupleType::IsSubtypeOf(const TupleType& other) const {
+  if (size() != other.size()) return false;
+  for (int i = 0; i < size(); ++i) {
+    if (!element(i).IsSubtypeOf(other.element(i))) return false;
+  }
+  return true;
+}
+
+// static
+Type TupleType::LeastUpperBound(const TupleType& lhs, const TupleType& rhs,
+                                Zone* zone) {
+  if (lhs.size() != rhs.size()) return Type::Any();
+  Payload p;
+  p.array = zone->NewArray<Type>(lhs.size());
+  for (int i = 0; i < lhs.size(); ++i) {
+    p.array[i] = Type::LeastUpperBound(lhs.element(i), rhs.element(i), zone);
+  }
+  return TupleType{static_cast<uint8_t>(lhs.size()), p};
+}
+
+void TupleType::PrintTo(std::ostream& stream) const {
+  stream << "(";
+  for (int i = 0; i < size(); ++i) {
+    if (i != 0) stream << ", ";
+    element(i).PrintTo(stream);
+  }
+  stream << ")";
 }
 
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) WordType<32>;

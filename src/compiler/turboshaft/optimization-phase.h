@@ -26,8 +26,23 @@ namespace v8::internal::compiler::turboshaft {
 
 template <typename>
 class TypeInferenceReducer;
+
 struct TypeInferenceReducerArgs {
+  enum class InputGraphTyping {
+    kNone,     // Do not compute types for the input graph.
+    kPrecise,  // Run a complete fixpoint analysis on the input graph.
+  };
+  enum class OutputGraphTyping {
+    kNone,                    // Do not compute types for the output graph.
+    kPreserveFromInputGraph,  // Reuse types of the input graph where
+                              // possible.
+    kRefineFromInputGraph,  // Reuse types of the input graph and compute types
+                            // for new nodes and more precise types where
+                            // possible.
+  };
   Isolate* isolate;
+  InputGraphTyping input_graph_typing;
+  OutputGraphTyping output_graph_typing;
 };
 
 using Variable =
@@ -112,8 +127,12 @@ class OptimizationPhase {
     if constexpr (has_type_inference) {
       return args;
     } else {
-      return std::tuple_cat(std::make_tuple(TypeInferenceReducerArgs{isolate}),
-                            args);
+      return std::tuple_cat(
+          std::make_tuple(TypeInferenceReducerArgs{
+              isolate, TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
+              TypeInferenceReducerArgs::OutputGraphTyping::
+                  kRefineFromInputGraph}),
+          args);
     }
   }
 #endif

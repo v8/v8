@@ -18,17 +18,29 @@ function add1(x) {
 }
 
 function loop1(x) {
-  let result = 0;
-  for(let i = 0; i < 10; ++i) {
-    result += i;
+  let a = x ? 3 : 7;
+  let result = 1;
+  for(let i = 0; result < 1000; ++i) {
+    result += a;
   }
-  // TODO(nicohartmann@): When we have a platform independent way to do that,
-  // add a %CheckTurboshaftTypeOf to verify the type.
-  return result;
+  return result > 500;
+}
+
+function loop2(x) {
+  let a = x ? 3 : 7;
+  let result = 0;
+  for(let i = 0; i < a; ++i) {
+    result = i + i;
+  }
+  return result < 100;
 }
 
 
-let targets = [ add1, loop1 ];
+let targets = [
+  add1,
+  loop1,
+  loop2,
+];
 for(let f of targets) {
   %PrepareFunctionForOptimization(f);
   const expected_true = f(true);
