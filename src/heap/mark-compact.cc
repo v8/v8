@@ -476,7 +476,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      uses_shared_heap_(isolate()->has_shared_heap() || isolate()->is_shared()),
+      uses_shared_heap_(isolate()->has_shared_heap()),
       is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()),
       sweeper_(heap_->sweeper()) {
 }
@@ -4165,7 +4165,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
     if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
-        id == NEW_LO_SPACE || heap->isolate()->is_shared()) {
+        id == NEW_LO_SPACE) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
     }

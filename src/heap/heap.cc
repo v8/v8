@@ -4341,12 +4341,6 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
   UNREACHABLE();
 }
 
-bool Heap::IsShared() const { return isolate()->is_shared(); }
-
-bool Heap::ShouldMarkSharedHeap() const {
-  return isolate()->is_shared() || isolate()->is_shared_space_isolate();
-}
-
 bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
     return false;

@@ -1237,10 +1237,6 @@ class Heap {
   // Currently used by tests, serialization and heap verification only.
   V8_EXPORT_PRIVATE bool InSpace(HeapObject value, AllocationSpace space) const;
 
-  // Returns true when this heap is shared.
-  V8_EXPORT_PRIVATE bool IsShared() const;
-  V8_EXPORT_PRIVATE bool ShouldMarkSharedHeap() const;
-
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
   V8_EXPORT_PRIVATE bool InSpaceSlow(Address addr, AllocationSpace space) const;

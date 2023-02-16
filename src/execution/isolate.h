@@ -1970,9 +1970,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
-  bool is_shared() const { return false; }
-  Isolate* shared_isolate() const { return nullptr; }
-
   bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
   Isolate* shared_space_isolate() const {
     return shared_space_isolate_.value();
@@ -2133,6 +2130,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the Exception sentinel.
   Object ThrowInternal(Object exception, MessageLocation* location);
 
+  // These methods add/remove the isolate to/from the list of clients in the
+  // shared space isolate. Isolates in the client list need to participate in a
+  // global safepoint.
   void AttachToSharedSpaceIsolate(Isolate* shared_space_isolate);
   void DetachFromSharedSpaceIsolate();
 
