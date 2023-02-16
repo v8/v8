@@ -39,8 +39,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
-    JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, broker(),
-                             zone());
+    JSCreateLowering reducer(&graph_reducer, &jsgraph, broker(), zone());
     return reducer.Reduce(node);
   }
 

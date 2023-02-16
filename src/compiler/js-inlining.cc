@@ -301,7 +301,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
 
     // The function might have not been called yet.
-    if (!function.feedback_vector(broker()->dependencies()).has_value()) {
+    if (!function.feedback_vector(broker()).has_value()) {
       return base::nullopt;
     }
 
@@ -313,11 +313,12 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (!function.native_context().equals(broker()->target_native_context())) {
+    if (!function.native_context(broker()).equals(
+            broker()->target_native_context())) {
       return base::nullopt;
     }
 
-    return function.shared();
+    return function.shared(broker());
   }
 
   // This reducer can also handle calls where the target is statically known to
@@ -328,10 +329,10 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   if (match.IsJSCreateClosure()) {
     JSCreateClosureNode n(target);
     FeedbackCellRef cell = n.GetFeedbackCellRefChecked(broker());
-    return cell.shared_function_info();
+    return cell.shared_function_info(broker());
   } else if (match.IsCheckClosure()) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(match.op()));
-    return cell.shared_function_info();
+    return cell.shared_function_info(broker());
   }
 
   return base::nullopt;
@@ -351,11 +352,11 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
   if (match.HasResolvedValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
     // This was already ensured by DetermineCallTarget
-    CHECK(function.feedback_vector(broker()->dependencies()).has_value());
+    CHECK(function.feedback_vector(broker()).has_value());
 
     // The inlinee specializes to the context from the JSFunction object.
-    *context_out = jsgraph()->Constant(function.context());
-    return function.raw_feedback_cell(broker()->dependencies());
+    *context_out = jsgraph()->Constant(function.context(broker()), broker());
+    return function.raw_feedback_cell(broker());
   }
 
   if (match.IsJSCreateClosure()) {
@@ -471,7 +472,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       MakeRef(broker(), info_->shared_info());
 
   SharedFunctionInfo::Inlineability inlineability =
-      shared_info->GetInlineability();
+      shared_info->GetInlineability(broker());
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     // The function is no longer inlineable. The only way this can happen is if
     // the function had its optimization disabled in the meantime, e.g. because
@@ -552,7 +553,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  BytecodeArrayRef bytecode_array = shared_info->GetBytecodeArray();
+  BytecodeArrayRef bytecode_array = shared_info->GetBytecodeArray(broker());
 
   // Remember that we inlined this function.
   int inlining_id =
@@ -697,7 +698,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     if (NodeProperties::CanBePrimitive(broker(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
       Node* global_proxy = jsgraph()->Constant(
-          broker()->target_native_context().global_proxy_object());
+          broker()->target_native_context().global_proxy_object(broker()),
+          broker());
       Node* receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                            call.receiver(), global_proxy, effect, start);

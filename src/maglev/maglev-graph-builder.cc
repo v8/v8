@@ -77,13 +77,13 @@ class FunctionContextSpecialization final : public AllStatic {
     base::Optional<compiler::ContextRef> ref;
     if (InitialValue* n = context->TryCast<InitialValue>()) {
       if (n->source().is_current_context()) {
-        ref = unit->function().context();
+        ref = unit->function().context(unit->broker());
       }
     } else if (Constant* n = context->TryCast<Constant>()) {
       ref = n->ref().AsContext();
     }
     if (!ref.has_value()) return {};
-    return ref->previous(depth);
+    return ref->previous(unit->broker(), depth);
   }
 };
 
@@ -213,7 +213,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       bytecode_analysis_(bytecode().object(), zone(), BytecodeOffset::None(),
                          true),
       iterator_(bytecode().object()),
-      source_position_iterator_(bytecode().SourcePositionTable()),
+      source_position_iterator_(bytecode().SourcePositionTable(broker())),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length() +
                                                     (is_inline() ? 1 : 0))),
@@ -940,7 +940,7 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
   }
 
   base::Optional<compiler::ObjectRef> maybe_slot_value =
-      context_ref.get(slot_index);
+      context_ref.get(broker(), slot_index);
   if (!maybe_slot_value.has_value()) {
     *depth = new_depth;
     *context = GetConstant(context_ref);
@@ -957,7 +957,7 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     //
     // See also: JSContextSpecialization::ReduceJSLoadContext.
     compiler::OddballType oddball_type =
-        slot_value.AsHeapObject().map().oddball_type();
+        slot_value.AsHeapObject().map(broker()).oddball_type(broker());
     if (oddball_type == compiler::OddballType::kUndefined ||
         oddball_type == compiler::OddballType::kHole) {
       *depth = new_depth;
@@ -1161,7 +1161,7 @@ bool MaglevGraphBuilder::TryBuildScriptContextConstantAccess(
 
   base::Optional<compiler::ObjectRef> maybe_slot_value =
       global_access_feedback.script_context().get(
-          global_access_feedback.slot_index());
+          broker(), global_access_feedback.slot_index());
   if (!maybe_slot_value) return false;
 
   SetAccumulator(GetConstant(maybe_slot_value.value()));
@@ -1191,10 +1191,10 @@ bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
   compiler::PropertyCellRef property_cell =
       global_access_feedback.property_cell();
 
-  if (!property_cell.Cache()) return false;
+  if (!property_cell.Cache(broker())) return false;
 
-  compiler::ObjectRef property_cell_value = property_cell.value();
-  if (property_cell_value.IsTheHole()) {
+  compiler::ObjectRef property_cell_value = property_cell.value(broker());
+  if (property_cell_value.IsTheHole(broker())) {
     // The property cell is no longer valid.
     EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -1592,7 +1592,8 @@ void MaglevGraphBuilder::BuildCheckMaps(
     // don't need to emit a map check, and can use the dependency -- we
     // can't do this for unstable maps because the constant could migrate
     // during compilation.
-    compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
+    compiler::MapRef constant_map =
+        object->Cast<Constant>()->object().map(broker());
     if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
       if (constant_map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(constant_map);
@@ -1670,7 +1671,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (compiler::MapRef receiver_map : receiver_maps) {
-    compiler::ObjectRef receiver_prototype = receiver_map.prototype();
+    compiler::ObjectRef receiver_prototype = receiver_map.prototype(broker());
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
       return false;
@@ -1690,7 +1691,7 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
 
   base::Optional<compiler::ObjectRef> constant =
       access_info.holder()->GetOwnDictionaryProperty(
-          access_info.dictionary_index(), broker()->dependencies());
+          broker(), access_info.dictionary_index(), broker()->dependencies());
   if (!constant.has_value()) return {};
 
   for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
@@ -1730,7 +1731,7 @@ MaglevGraphBuilder::TryFoldLoadConstantDataField(
     return {};
   }
   return source.value().GetOwnFastDataProperty(
-      access_info.field_representation(), access_info.field_index(),
+      broker(), access_info.field_representation(), access_info.field_index(),
       broker()->dependencies());
 }
 
@@ -1765,15 +1766,16 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
                                 ? GetConstant(access_info.api_holder().value())
                                 : receiver;
     compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
-    if (!templ.call_code().has_value()) return false;
+    if (!templ.call_code(broker()).has_value()) return false;
 
-    compiler::CallHandlerInfoRef call_handler_info = templ.call_code().value();
+    compiler::CallHandlerInfoRef call_handler_info =
+        templ.call_code(broker()).value();
     ApiFunction function(call_handler_info.callback());
     ExternalReference reference = ExternalReference::Create(
         &function, ExternalReference::DIRECT_API_CALL);
     SetAccumulator(BuildCallBuiltin<Builtin::kCallApiCallback>(
         {GetExternalConstant(reference), GetInt32Constant(0),
-         GetConstant(call_handler_info.data()), api_holder, receiver}));
+         GetConstant(call_handler_info.data(broker())), api_holder, receiver}));
   }
   return true;
 }
@@ -1856,7 +1858,7 @@ bool MaglevGraphBuilder::TryBuildStoreField(
 
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
-    compiler::MapRef original_map = transition.GetBackPointer().AsMap();
+    compiler::MapRef original_map = transition.GetBackPointer(broker()).AsMap();
     // TODO(verwaest): Support growing backing stores.
     if (original_map.UnusedPropertyFields() == 0) {
       return false;
@@ -2051,24 +2053,21 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
     if (Constant* n = lookup_start_object->TryCast<Constant>()) {
-      compiler::MapRef constant_map = n->object().map();
+      compiler::MapRef constant_map = n->object().map(broker());
       compiler::PropertyAccessInfo access_info =
           broker()->GetPropertyAccessInfo(constant_map, feedback.name(),
-                                          access_mode,
-                                          broker()->dependencies());
+                                          access_mode);
       access_infos_for_feedback.push_back(access_info);
     } else {
       for (const compiler::MapRef& map : feedback.maps()) {
         if (map.is_deprecated()) continue;
         compiler::PropertyAccessInfo access_info =
-            broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode,
-                                            broker()->dependencies());
+            broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
         access_infos_for_feedback.push_back(access_info);
       }
     }
 
-    compiler::AccessInfoFactory access_info_factory(
-        broker(), broker()->dependencies(), zone());
+    compiler::AccessInfoFactory access_info_factory(broker(), zone());
     if (!access_info_factory.FinalizePropertyAccessInfos(
             access_infos_for_feedback, access_mode, &access_infos)) {
       return false;
@@ -2108,7 +2107,8 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       if (access_info.IsDictionaryProtoDataConstant()) {
         base::Optional<compiler::ObjectRef> constant =
             access_info.holder()->GetOwnDictionaryProperty(
-                access_info.dictionary_index(), broker()->dependencies());
+                broker(), access_info.dictionary_index(),
+                broker()->dependencies());
         if (!constant.has_value()) {
           return false;
         }
@@ -2294,8 +2294,7 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
                                          feedback.keyed_mode());
   }
 
-  compiler::AccessInfoFactory access_info_factory(
-      broker(), broker()->dependencies(), zone());
+  compiler::AccessInfoFactory access_info_factory(broker(), zone());
   ZoneVector<compiler::ElementAccessInfo> access_infos(zone());
   if (!access_info_factory.ComputeElementAccessInfos(feedback, &access_infos) ||
       access_infos.empty()) {
@@ -3055,7 +3054,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
     if (arg_value == nullptr) arg_value = undefined_constant;
     SetArgument(i, arg_value);
   }
-  BuildRegisterFrameInitialization(GetConstant(function().context()),
+  BuildRegisterFrameInitialization(GetConstant(function().context(broker())),
                                    GetConstant(function()));
   BuildMergeStates();
   BasicBlock* inlined_prologue = EndPrologue();
@@ -3097,18 +3096,19 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't try to inline if the target function hasn't been compiled yet.
   // TODO(verwaest): Soft deopt instead?
-  if (function.code().object()->kind() == CodeKind::TURBOFAN) {
+  if (function.code(broker()).object()->kind() == CodeKind::TURBOFAN) {
     return ReduceResult::Fail();
   }
-  if (!function.feedback_vector(broker()->dependencies()).has_value()) {
+  if (!function.feedback_vector(broker()).has_value()) {
     return ReduceResult::Fail();
   }
-  if (function.shared().GetInlineability() !=
+  if (function.shared(broker()).GetInlineability(broker()) !=
       SharedFunctionInfo::Inlineability::kIsInlineable) {
     return ReduceResult::Fail();
   }
   // TODO(victorgomes): Support NewTarget/RegisterInput in inlined functions.
-  compiler::BytecodeArrayRef bytecode = function.shared().GetBytecodeArray();
+  compiler::BytecodeArrayRef bytecode =
+      function.shared(broker()).GetBytecodeArray(broker());
   if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
     return ReduceResult::Fail();
   }
@@ -3139,12 +3139,12 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   }
 
   if (v8_flags.trace_maglev_inlining) {
-    std::cout << "  inlining " << function.shared() << std::endl;
+    std::cout << "  inlining " << function.shared(broker()) << std::endl;
   }
 
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
-          function.shared().object(), bytecode.object(),
+          function.shared(broker()).object(), bytecode.object(),
           current_source_position_));
 
   // Create a new compilation unit and graph builder for the inlined
@@ -3328,7 +3328,7 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   }
   // Use Function.prototype.call context, to ensure any exception is thrown in
   // the correct context.
-  ValueNode* context = GetConstant(target.context());
+  ValueNode* context = GetConstant(target.context(broker()));
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
   return BuildGenericCall(receiver, context, Call::TargetType::kAny, args);
@@ -3417,10 +3417,10 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     return ReduceResult::Fail();
   }
   CallSpeculationScope speculate(this, feedback_source);
-  if (!target.shared().HasBuiltinId()) {
+  if (!target.shared(broker()).HasBuiltinId()) {
     return ReduceResult::Fail();
   }
-  switch (target.shared().builtin_id()) {
+  switch (target.shared(broker()).builtin_id()) {
 #define CASE(Name)       \
   case Builtin::k##Name: \
     return TryReduce##Name(target, args);
@@ -3434,7 +3434,7 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
     compiler::JSFunctionRef function, const CallArguments& args) {
-  compiler::SharedFunctionInfoRef shared = function.shared();
+  compiler::SharedFunctionInfoRef shared = function.shared(broker());
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -3443,14 +3443,16 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
     }
   }
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    return GetConstant(function.native_context().global_proxy_object());
+    return GetConstant(
+        function.native_context(broker()).global_proxy_object(broker()));
   }
   ValueNode* receiver = GetTaggedValue(args.receiver());
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
   if (Constant* constant = receiver->TryCast<Constant>()) {
     const Handle<HeapObject> object = constant->object().object();
     if (object->IsUndefined() || object->IsNull()) {
-      return GetConstant(function.native_context().global_proxy_object());
+      return GetConstant(
+          function.native_context(broker()).global_proxy_object(broker()));
     } else if (object->IsJSReceiver()) {
       return constant;
     }
@@ -3495,7 +3497,7 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
-  if (function.native_context() != broker()->target_native_context()) {
+  if (function.native_context(broker()) != broker()->target_native_context()) {
     return ReduceResult::Fail();
   }
   if (args.mode() != CallArguments::kDefault) {
@@ -3508,8 +3510,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
-  CallKnownJSFunction* call =
-      CreateNewNode<CallKnownJSFunction>(input_count, function, receiver);
+  CallKnownJSFunction* call = CreateNewNode<CallKnownJSFunction>(
+      input_count, broker(), function, receiver);
   for (int i = 0; i < static_cast<int>(args.count()); i++) {
     call->set_arg(i, GetTaggedValue(args[i]));
   }
@@ -3546,7 +3548,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
   }
   compiler::JSFunctionRef target = object.AsJSFunction();
   // Do not reduce calls to functions with break points.
-  if (!target.shared().HasBreakInfo()) {
+  if (!target.shared(broker()).HasBreakInfo()) {
     if (target.object()->IsJSClassConstructor()) {
       // If we have a class constructor, we should raise an exception.
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
@@ -3576,8 +3578,8 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
     CallArguments& args, const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
   compiler::NativeContextRef native_context = broker()->target_native_context();
-  RETURN_IF_ABORT(
-      BuildCheckValue(target_node, native_context.function_prototype_apply()));
+  RETURN_IF_ABORT(BuildCheckValue(
+      target_node, native_context.function_prototype_apply(broker())));
   ValueNode* receiver_node = GetTaggedOrUndefined(args.receiver());
   RETURN_IF_ABORT(BuildCheckValue(receiver_node, receiver));
   ReduceResult call;
@@ -3607,7 +3609,7 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
       call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
     } else {
       args.Truncate(2);
-      call = ReduceCall(native_context.function_prototype_apply(), args,
+      call = ReduceCall(native_context.function_prototype_apply(broker()), args,
                         feedback_source, speculation_mode);
     }
   }
@@ -4039,17 +4041,17 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
           all = false;
           break;
         }
-        compiler::HeapObjectRef map_prototype = map.prototype();
+        compiler::HeapObjectRef map_prototype = map.prototype(broker());
         if (map_prototype.equals(prototype)) {
           none = false;
           break;
         }
-        map = map_prototype.map();
+        map = map_prototype.map(broker());
         // TODO(v8:11457) Support dictionary mode protoypes here.
         if (!map.is_stable() || map.is_dictionary_map()) {
           return kMayBeInPrototypeChain;
         }
-        if (map.oddball_type() == compiler::OddballType::kNull) {
+        if (map.oddball_type(broker()) == compiler::OddballType::kNull) {
           all = false;
           break;
         }
@@ -4068,7 +4070,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
       // might be a different object each time, so it's much simpler to include
       // {prototype}. That does, however, mean that we must check {prototype}'s
       // map stability.
-      if (!prototype.map().is_stable()) return kMayBeInPrototypeChain;
+      if (!prototype.map(broker()).is_stable()) return kMayBeInPrototypeChain;
       last_prototype = prototype.AsJSObject();
     }
     broker()->dependencies()->DependOnStablePrototypeChains(
@@ -4109,7 +4111,7 @@ bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
     // invocation of the instanceof operator again.
     compiler::JSBoundFunctionRef function = callable.AsJSBoundFunction();
     compiler::JSReceiverRef bound_target_function =
-        function.bound_target_function();
+        function.bound_target_function(broker());
 
     if (!bound_target_function.IsJSObject() ||
         !TryBuildFastInstanceOf(object, bound_target_function.AsJSObject(),
@@ -4128,9 +4130,9 @@ bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
 
     // TODO(v8:7700): Remove the has_prototype_slot condition once the broker
     // is always enabled.
-    if (!function.map().has_prototype_slot() ||
-        !function.has_instance_prototype(broker()->dependencies()) ||
-        function.PrototypeRequiresRuntimeLookup(broker()->dependencies())) {
+    if (!function.map(broker()).has_prototype_slot() ||
+        !function.has_instance_prototype(broker()) ||
+        function.PrototypeRequiresRuntimeLookup(broker())) {
       return false;
     }
 
@@ -4158,12 +4160,11 @@ void MaglevGraphBuilder::BuildOrdinaryHasInstance(
 bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* object, compiler::JSObjectRef callable,
     ValueNode* callable_node_if_not_constant) {
-  compiler::MapRef receiver_map = callable.map();
+  compiler::MapRef receiver_map = callable.map(broker());
   compiler::NameRef name =
       MakeRef(broker(), local_isolate()->factory()->has_instance_symbol());
   compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-      receiver_map, name, compiler::AccessMode::kLoad,
-      broker()->dependencies());
+      receiver_map, name, compiler::AccessMode::kLoad);
 
   // TODO(v8:11457) Support dictionary mode holders here.
   if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
@@ -4197,12 +4198,12 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     compiler::JSObjectRef holder_ref =
         found_on_proto ? holder.value() : callable;
     base::Optional<compiler::ObjectRef> has_instance_field =
-        holder_ref.GetOwnFastDataProperty(access_info.field_representation(),
-                                          access_info.field_index(),
-                                          broker()->dependencies());
+        holder_ref.GetOwnFastDataProperty(
+            broker(), access_info.field_representation(),
+            access_info.field_index(), broker()->dependencies());
     if (!has_instance_field.has_value() ||
         !has_instance_field->IsHeapObject() ||
-        !has_instance_field->AsHeapObject().map().is_callable()) {
+        !has_instance_field->AsHeapObject().map(broker()).is_callable()) {
       return false;
     }
 
@@ -4447,7 +4448,7 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
 void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
   compiler::NativeContextRef native_context = broker()->target_native_context();
   compiler::MapRef map =
-      native_context.object_function().initial_map(broker()->dependencies());
+      native_context.object_function(broker()).initial_map(broker());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   SetAccumulator(AddNewNode<CreateEmptyObjectLiteral>({}, map));
@@ -4487,7 +4488,7 @@ void MaglevGraphBuilder::VisitCreateClosure() {
   compiler::SharedFunctionInfoRef shared_function_info =
       GetRefOperand<SharedFunctionInfo>(0);
   compiler::FeedbackCellRef feedback_cell =
-      feedback().GetClosureFeedbackCell(iterator_.GetIndexOperand(1));
+      feedback().GetClosureFeedbackCell(broker(), iterator_.GetIndexOperand(1));
   uint32_t flags = GetFlag8Operand(2);
 
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {

@@ -111,7 +111,7 @@ base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
                                                   Type object_type) {
   if (object_type.IsHeapConstant()) {
     HeapObjectRef object = object_type.AsHeapConstant()->Ref();
-    MapRef object_map = object.map();
+    MapRef object_map = object.map(broker);
     if (object_map.is_stable()) return object_map;
   }
   return {};
@@ -299,7 +299,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
         GetStableMapFromObjectType(broker(), object_type);
     if (object_map.has_value()) {
       dependencies()->DependOnStableMap(*object_map);
-      Node* const value = jsgraph()->Constant(*object_map);
+      Node* const value = jsgraph()->Constant(*object_map, broker());
       ReplaceWithValue(node, value);
       return Replace(value);
     }
@@ -411,7 +411,7 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
   if (rhs_type.Is(Type::Boolean()) && rhs_type.IsHeapConstant() &&
       lhs_type.Is(Type::Boolean())) {
     base::Optional<bool> maybe_result =
-        rhs_type.AsHeapConstant()->Ref().TryGetBooleanValue();
+        rhs_type.AsHeapConstant()->Ref().TryGetBooleanValue(broker());
     if (maybe_result.has_value()) {
       if (maybe_result.value()) {
         return Replace(node->InputAt(0));
@@ -494,8 +494,9 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
         simplified()->NumberBitwiseAnd(), from_char_code_repl,
         jsgraph()->Constant(std::numeric_limits<uint16_t>::max()));
   }
-  if (!string.GetFirstChar().has_value()) return NoChange();
-  Node* constant_repl = jsgraph()->Constant(string.GetFirstChar().value());
+  if (!string.GetFirstChar(broker()).has_value()) return NoChange();
+  Node* constant_repl =
+      jsgraph()->Constant(string.GetFirstChar(broker()).value());
 
   Node* number_comparison = nullptr;
   if (inverted) {
@@ -695,23 +696,29 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   Type const type = NodeProperties::GetType(input);
   Factory* const f = factory();
   if (type.Is(Type::Boolean())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->boolean_string())));
-  } else if (type.Is(Type::Number())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->number_string())));
-  } else if (type.Is(Type::String())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->string_string())));
-  } else if (type.Is(Type::BigInt())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->bigint_string())));
-  } else if (type.Is(Type::Symbol())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->symbol_string())));
-  } else if (type.Is(Type::OtherUndetectableOrUndefined())) {
     return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->undefined_string())));
+        jsgraph()->Constant(MakeRef(broker(), f->boolean_string()), broker()));
+  } else if (type.Is(Type::Number())) {
+    return Replace(
+        jsgraph()->Constant(MakeRef(broker(), f->number_string()), broker()));
+  } else if (type.Is(Type::String())) {
+    return Replace(
+        jsgraph()->Constant(MakeRef(broker(), f->string_string()), broker()));
+  } else if (type.Is(Type::BigInt())) {
+    return Replace(
+        jsgraph()->Constant(MakeRef(broker(), f->bigint_string()), broker()));
+  } else if (type.Is(Type::Symbol())) {
+    return Replace(
+        jsgraph()->Constant(MakeRef(broker(), f->symbol_string()), broker()));
+  } else if (type.Is(Type::OtherUndetectableOrUndefined())) {
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->undefined_string()),
+                                       broker()));
   } else if (type.Is(Type::NonCallableOrNull())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->object_string())));
+    return Replace(
+        jsgraph()->Constant(MakeRef(broker(), f->object_string()), broker()));
   } else if (type.Is(Type::Function())) {
     return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->function_string())));
+        jsgraph()->Constant(MakeRef(broker(), f->function_string()), broker()));
   }
   return NoChange();
 }
@@ -829,7 +836,7 @@ Reduction TypedOptimization::ReduceJSToNumberInput(Node* input) {
     HeapObjectMatcher m(input);
     if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
       StringRef input_value = m.Ref(broker()).AsString();
-      base::Optional<double> number = input_value.ToNumber();
+      base::Optional<double> number = input_value.ToNumber(broker());
       if (!number.has_value()) return NoChange();
       return Replace(jsgraph()->Constant(number.value()));
     }
@@ -837,7 +844,7 @@ Reduction TypedOptimization::ReduceJSToNumberInput(Node* input) {
   if (input_type.IsHeapConstant()) {
     HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
     double value;
-    if (input_value.OddballToNumber().To(&value)) {
+    if (input_value.OddballToNumber(broker()).To(&value)) {
       return Replace(jsgraph()->Constant(value));
     }
   }

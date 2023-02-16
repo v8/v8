@@ -141,7 +141,7 @@ Type::bitset Type::BitsetLub() const {
 // TODO(neis): Once the broker mode kDisabled is gone, change the input type to
 // MapRef and get rid of the HeapObjectType class.
 template <typename MapRefLike>
-Type::bitset BitsetType::Lub(const MapRefLike& map) {
+Type::bitset BitsetType::Lub(const MapRefLike& map, JSHeapBroker* broker) {
   switch (map.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
@@ -167,7 +167,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE:
-      switch (map.oddball_type()) {
+      switch (map.oddball_type(broker)) {
         case OddballType::kNone:
           break;
         case OddballType::kHole:
@@ -393,7 +393,8 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 }
 
 // Explicit instantiation.
-template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
+template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map,
+                                              JSHeapBroker* broker);
 
 Type::bitset BitsetType::Lub(double value) {
   DisallowGarbageCollection no_gc;
@@ -898,7 +899,7 @@ Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(ref.AsHeapObject(), zone);
+  return HeapConstant(ref.AsHeapObject(), broker, zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1136,10 +1137,12 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
+Type Type::HeapConstant(const HeapObjectRef& value, JSHeapBroker* broker,
+                        Zone* zone) {
   DCHECK(!value.IsHeapNumber());
   DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
-  BitsetType::bitset bitset = BitsetType::Lub(value.GetHeapObjectType());
+  BitsetType::bitset bitset =
+      BitsetType::Lub(value.GetHeapObjectType(broker), broker);
   if (Type(bitset).IsSingleton()) return Type(bitset);
   return HeapConstantType::New(value, bitset, zone);
 }

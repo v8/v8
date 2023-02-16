@@ -619,9 +619,9 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     PropertyCellRef string_length_protector =
         MakeRef(broker(), factory()->string_length_protector());
-    string_length_protector.CacheAsProtector();
+    string_length_protector.CacheAsProtector(broker());
 
-    if (string_length_protector.value().AsSmi() ==
+    if (string_length_protector.value(broker()).AsSmi() ==
         Protectors::kProtectorValid) {
       // We can just deoptimize if the {length} is out-of-bounds. Besides
       // generating a shorter code sequence than the version below, this
@@ -868,7 +868,8 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
     //    then ObjectIsUndetectable(left)
     // else ReferenceEqual(left, right)
 #define __ gasm.
-    JSGraphAssembler gasm(jsgraph(), jsgraph()->zone(), BranchSemantics::kJS);
+    JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                          BranchSemantics::kJS);
     gasm.InitializeEffectControl(r.effect(), r.control());
 
     auto lhs = TNode<Object>::UncheckedCast(r.left());
@@ -1027,7 +1028,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     HeapObjectMatcher m(input);
     if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
       StringRef input_value = m.Ref(broker()).AsString();
-      base::Optional<double> number = input_value.ToNumber();
+      base::Optional<double> number = input_value.ToNumber(broker());
       if (!number.has_value()) return NoChange();
       return Replace(jsgraph()->Constant(number.value()));
     }
@@ -1035,7 +1036,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   if (input_type.IsHeapConstant()) {
     HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
     double value;
-    if (input_value.OddballToNumber().To(&value)) {
+    if (input_value.OddballToNumber(broker()).To(&value)) {
       return Replace(jsgraph()->Constant(value));
     }
   }
@@ -1234,7 +1235,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   Node* receiver = n.object();
   Type receiver_type = NodeProperties::GetType(receiver);
-  NameRef name = NamedAccessOf(node->op()).name(broker());
+  NameRef name = NamedAccessOf(node->op()).name();
   NameRef length_str = MakeRef(broker(), factory()->length_string());
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
@@ -1501,8 +1502,10 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   if (module_type.IsHeapConstant()) {
     SourceTextModuleRef module_constant =
         module_type.AsHeapConstant()->Ref().AsSourceTextModule();
-    base::Optional<CellRef> cell_constant = module_constant.GetCell(cell_index);
-    if (cell_constant.has_value()) return jsgraph()->Constant(*cell_constant);
+    base::Optional<CellRef> cell_constant =
+        module_constant.GetCell(broker(), cell_index);
+    if (cell_constant.has_value())
+      return jsgraph()->Constant(*cell_constant, broker());
   }
 
   FieldAccess field_access;
@@ -1651,7 +1654,7 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     // Only optimize [[Construct]] here if {function} is a Constructor.
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    if (!function.map().is_constructor()) return NoChange();
+    if (!function.map(broker()).is_constructor()) return NoChange();
     // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
@@ -1683,11 +1686,11 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
-    if (!function.map().is_constructor()) return NoChange();
+    if (!function.map(broker()).is_constructor()) return NoChange();
 
     // Patch {node} to an indirect call via the {function}s construct stub.
     Callable callable = Builtins::CallableFor(
-        isolate(), function.shared().construct_as_builtin()
+        isolate(), function.shared(broker()).construct_as_builtin()
                        ? Builtin::kJSBuiltinsConstructStub
                        : Builtin::kJSConstructStubGeneric);
     static_assert(JSConstructNode::TargetIndex() == 0);
@@ -1763,14 +1766,14 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    shared = function->shared();
+    shared = function->shared(broker());
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& ccp =
         JSCreateClosureNode{target}.Parameters();
-    shared = ccp.shared_info(broker());
+    shared = ccp.shared_info();
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
-    shared = cell.shared_function_info();
+    shared = cell.shared_function_info(broker());
   }
 
   if (shared.has_value()) {
@@ -1790,12 +1793,13 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // require data from a foreign native context.
     if (is_sloppy(shared->language_mode()) && !shared->native() &&
         !receiver_type.Is(Type::Receiver())) {
-      if (!function.has_value() || !function->native_context().equals(
+      if (!function.has_value() || !function->native_context(broker()).equals(
                                        broker()->target_native_context())) {
         return NoChange();
       }
-      Node* global_proxy =
-          jsgraph()->Constant(function->native_context().global_proxy_object());
+      Node* global_proxy = jsgraph()->Constant(
+          function->native_context(broker()).global_proxy_object(broker()),
+          broker());
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);

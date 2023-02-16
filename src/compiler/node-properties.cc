@@ -378,12 +378,12 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
       mnewtarget.Ref(broker).IsJSFunction()) {
     ObjectRef target = mtarget.Ref(broker);
     JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
-    if (newtarget.map().has_prototype_slot() &&
-        newtarget.has_initial_map(broker->dependencies())) {
-      MapRef initial_map = newtarget.initial_map(broker->dependencies());
-      if (initial_map.GetConstructor().equals(target)) {
-        DCHECK(target.AsJSFunction().map().is_constructor());
-        DCHECK(newtarget.map().is_constructor());
+    if (newtarget.map(broker).has_prototype_slot() &&
+        newtarget.has_initial_map(broker)) {
+      MapRef initial_map = newtarget.initial_map(broker);
+      if (initial_map.GetConstructor(broker).equals(target)) {
+        DCHECK(target.AsJSFunction().map(broker).is_constructor());
+        DCHECK(newtarget.map(broker).is_constructor());
         return initial_map;
       }
     }
@@ -429,10 +429,10 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     // Object.prototype have NO_ELEMENTS elements kind.
     if (!ref.IsJSObject() ||
         !broker->IsArrayOrObjectPrototype(ref.AsJSObject())) {
-      if (ref.map().is_stable()) {
+      if (ref.map(broker).is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_out = RefSetOf(broker, ref.map());
+        *maps_out = RefSetOf(broker, ref.map(broker));
         return kUnreliableMaps;
       }
     }
@@ -472,10 +472,9 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       }
       case IrOpcode::kJSCreatePromise: {
         if (IsSame(receiver, effect)) {
-          *maps_out = RefSetOf(
-              broker,
-              broker->target_native_context().promise_function().initial_map(
-                  broker->dependencies()));
+          *maps_out = RefSetOf(broker, broker->target_native_context()
+                                           .promise_function(broker)
+                                           .initial_map(broker));
           return result;
         }
         break;
@@ -582,7 +581,7 @@ bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
       return false;
     case IrOpcode::kHeapConstant: {
       HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
-      return value.map().IsPrimitiveMap();
+      return value.map(broker).IsPrimitiveMap();
     }
     default: {
       MapInference inference(broker, receiver, effect);
@@ -612,7 +611,7 @@ bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
         return false;
       case IrOpcode::kHeapConstant: {
         HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
-        OddballType type = value.map().oddball_type();
+        OddballType type = value.map(broker).oddball_type(broker);
         return type == OddballType::kNull || type == OddballType::kUndefined;
       }
       default:

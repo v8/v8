@@ -89,7 +89,7 @@ class GlobalAccessFeedback : public ProcessedFeedback {
   int slot_index() const;
   bool immutable() const;
 
-  base::Optional<ObjectRef> GetConstantHint() const;
+  base::Optional<ObjectRef> GetConstantHint(JSHeapBroker* broker) const;
 
  private:
   base::Optional<ObjectRef> const cell_or_context_;

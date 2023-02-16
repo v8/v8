@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "src/base/overflowing-math.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
@@ -23,6 +24,7 @@ class TyperTest : public TypedGraphTest {
   TyperTest()
       : TypedGraphTest(3),
         broker_(isolate(), zone()),
+        current_broker_(&broker_),
         operation_typer_(&broker_, zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),
@@ -57,6 +59,7 @@ class TyperTest : public TypedGraphTest {
   const int kRepetitions = 50;
 
   JSHeapBroker broker_;
+  CurrentHeapBrokerScope current_broker_;
   OperationTyper operation_typer_;
   Types types_;
   JSOperatorBuilder javascript_;

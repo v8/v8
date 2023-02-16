@@ -1056,9 +1056,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       jsgraph_(jsgraph),
       native_context_(native_context),
       shared_info_(shared_info),
-      bytecode_array_(shared_info.GetBytecodeArray()),
+      bytecode_array_(shared_info.GetBytecodeArray(broker)),
       feedback_cell_(feedback_cell),
-      feedback_vector_(feedback_cell.feedback_vector().value()),
+      feedback_vector_(feedback_cell.feedback_vector(broker).value()),
       invocation_frequency_(invocation_frequency),
       type_hint_lowering_(
           broker, jsgraph, feedback_vector_,
@@ -1070,7 +1070,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array().parameter_count(), bytecode_array().register_count(),
           shared_info.object())),
       source_position_iterator_(std::make_unique<SourcePositionTableIterator>(
-          bytecode_array().SourcePositionTable())),
+          bytecode_array().SourcePositionTable(broker))),
       bytecode_iterator_(bytecode_array().object()),
       bytecode_analysis_(
           bytecode_array().object(), local_zone, osr_offset,
@@ -1131,16 +1131,17 @@ Node* BytecodeGraphBuilder::GetParameter(int parameter_index,
 
 void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
   DCHECK_NULL(feedback_vector_node_);
-  feedback_vector_node_ = jsgraph()->Constant(feedback_vector());
+  feedback_vector_node_ = jsgraph()->Constant(feedback_vector(), broker());
 }
 
 Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
-  return jsgraph()->Constant(feedback_vector().GetClosureFeedbackCell(index));
+  return jsgraph()->Constant(
+      feedback_vector().GetClosureFeedbackCell(broker(), index), broker());
 }
 
 void BytecodeGraphBuilder::CreateNativeContextNode() {
   DCHECK_NULL(native_context_node_);
-  native_context_node_ = jsgraph()->Constant(native_context());
+  native_context_node_ = jsgraph()->Constant(native_context(), broker());
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -1517,7 +1518,7 @@ void BytecodeGraphBuilder::VisitLdaSmi() {
 
 void BytecodeGraphBuilder::VisitLdaConstant() {
   ObjectRef object = MakeRefForConstantForIndexOperand(0);
-  Node* node = jsgraph()->Constant(object);
+  Node* node = jsgraph()->Constant(object, broker());
   environment()->BindAccumulator(node);
 }
 
@@ -1728,7 +1729,8 @@ void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
 
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {
   PrepareEagerCheckpoint();
-  Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
+  Node* name =
+      jsgraph()->Constant(MakeRefForConstantForIndexOperand(0), broker());
   const Operator* op =
       javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
                                     ? Runtime::kLoadLookupSlot
@@ -1778,16 +1780,15 @@ base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
   Node* context = environment()->Context();
   switch (context->opcode()) {
     case IrOpcode::kJSCreateFunctionContext:
-      return CreateFunctionContextParametersOf(context->op())
-          .scope_info(broker());
+      return CreateFunctionContextParametersOf(context->op()).scope_info();
     case IrOpcode::kJSCreateBlockContext:
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
-      return ScopeInfoOf(broker(), context->op());
+      return ScopeInfoOf(context->op());
     case IrOpcode::kParameter: {
-      ScopeInfoRef scope_info = shared_info_.scope_info();
+      ScopeInfoRef scope_info = shared_info_.scope_info(broker());
       if (scope_info.HasOuterScopeInfo()) {
-        scope_info = scope_info.OuterScopeInfo();
+        scope_info = scope_info.OuterScopeInfo(broker());
       }
       return scope_info;
     }
@@ -1813,7 +1814,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     }
     DCHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
     if (scope_info.HasOuterScopeInfo()) {
-      scope_info = scope_info.OuterScopeInfo();
+      scope_info = scope_info.OuterScopeInfo(broker());
     }
   }
 
@@ -1877,7 +1878,8 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
   // Slow path, do a runtime load lookup.
   set_environment(slow_environment);
   {
-    Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
+    Node* name =
+        jsgraph()->Constant(MakeRefForConstantForIndexOperand(0), broker());
 
     const Operator* op =
         javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
@@ -1924,8 +1926,8 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
   // Slow path, do a runtime load lookup.
   set_environment(slow_environment);
   {
-    Node* name =
-        jsgraph()->Constant(MakeRefForConstantForIndexOperand<Name>(0));
+    Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand<Name>(0),
+                                     broker());
 
     const Operator* op =
         javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
@@ -1953,7 +1955,8 @@ void BytecodeGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
 void BytecodeGraphBuilder::VisitStaLookupSlot() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
-  Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
+  Node* name =
+      jsgraph()->Constant(MakeRefForConstantForIndexOperand(0), broker());
   int bytecode_flags = bytecode_iterator().GetFlag8Operand(1);
   LanguageMode language_mode = static_cast<LanguageMode>(
       interpreter::StoreLookupSlotFlags::LanguageModeBit::decode(
@@ -2838,7 +2841,8 @@ void BytecodeGraphBuilder::VisitThrowReferenceErrorIfHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
                                  jsgraph()->TheHoleConstant());
-  Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
+  Node* name =
+      jsgraph()->Constant(MakeRefForConstantForIndexOperand(0), broker());
   BuildHoleCheckAndThrow(check_for_hole,
                          Runtime::kThrowAccessedUninitializedVariable, name);
 }

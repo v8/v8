@@ -1440,51 +1440,51 @@ const Operator* JSOperatorBuilder::CreateFunctionContext(
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(
+  return zone()->New<Operator1<ScopeInfoRef>>(
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
-      ScopeInfoTinyRef{scope_info});                             // parameter
+      ScopeInfoRef{scope_info});                                 // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateWithContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(
+  return zone()->New<Operator1<ScopeInfoRef>>(
       IrOpcode::kJSCreateWithContext, Operator::kNoProperties,  // opcode
       "JSCreateWithContext",                                    // name
       1, 1, 1, 1, 1, 2,                                         // counts
-      ScopeInfoTinyRef{scope_info});                            // parameter
+      ScopeInfoRef{scope_info});                                // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateBlockContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(               // --
+  return zone()->New<Operator1<ScopeInfoRef>>(                   // --
       IrOpcode::kJSCreateBlockContext, Operator::kNoProperties,  // opcode
       "JSCreateBlockContext",                                    // name
       0, 1, 1, 1, 1, 2,                                          // counts
-      ScopeInfoTinyRef{scope_info});                             // parameter
+      ScopeInfoRef{scope_info});                                 // parameter
 }
 
-ScopeInfoRef ScopeInfoOf(JSHeapBroker* broker, const Operator* op) {
+ScopeInfoRef ScopeInfoOf(const Operator* op) {
   DCHECK(IrOpcode::kJSCreateBlockContext == op->opcode() ||
          IrOpcode::kJSCreateWithContext == op->opcode() ||
          IrOpcode::kJSCreateCatchContext == op->opcode());
-  return OpParameter<ScopeInfoTinyRef>(op).AsRef(broker);
+  return OpParameter<ScopeInfoRef>(op);
 }
 
-bool operator==(ScopeInfoTinyRef const& lhs, ScopeInfoTinyRef const& rhs) {
+bool operator==(ScopeInfoRef const& lhs, ScopeInfoRef const& rhs) {
   return lhs.object().location() == rhs.object().location();
 }
 
-bool operator!=(ScopeInfoTinyRef const& lhs, ScopeInfoTinyRef const& rhs) {
+bool operator!=(ScopeInfoRef const& lhs, ScopeInfoRef const& rhs) {
   return !(lhs == rhs);
 }
 
-size_t hash_value(ScopeInfoTinyRef const& ref) {
+size_t hash_value(ScopeInfoRef const& ref) {
   return reinterpret_cast<size_t>(ref.object().location());
 }
 
-std::ostream& operator<<(std::ostream& os, ScopeInfoTinyRef const& ref) {
+std::ostream& operator<<(std::ostream& os, ScopeInfoRef const& ref) {
   return os << Brief(*ref.object());
 }
 

@@ -346,6 +346,7 @@ class UseMarkingProcessor {
 // static
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
+  compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info->zone());
 
   // Build graph.
@@ -439,6 +440,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 // static
 MaybeHandle<Code> MaglevCompiler::GenerateCode(
     Isolate* isolate, MaglevCompilationInfo* compilation_info) {
+  compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   MaglevCodeGenerator* const code_generator =
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);

@@ -7363,7 +7363,7 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone,
+  JSGraphAssembler graph_assembler_(broker, graph, temp_zone,
                                     BranchSemantics::kMachine);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,

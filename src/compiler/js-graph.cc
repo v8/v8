@@ -44,13 +44,13 @@ Node* JSGraph::CEntryStubConstant(int result_size, ArgvMode argv_mode,
                                           builtin_exit_frame));
 }
 
-Node* JSGraph::Constant(const ObjectRef& ref) {
+Node* JSGraph::Constant(const ObjectRef& ref, JSHeapBroker* broker) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
   }
   OddballType oddball_type =
-      ref.AsHeapObject().GetHeapObjectType().oddball_type();
+      ref.AsHeapObject().GetHeapObjectType(broker).oddball_type();
   if (oddball_type == OddballType::kUndefined) {
     DCHECK(ref.object().equals(isolate()->factory()->undefined_value()));
     return UndefinedConstant();

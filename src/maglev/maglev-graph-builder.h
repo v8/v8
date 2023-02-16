@@ -1568,7 +1568,7 @@ class MaglevGraphBuilder {
 
   int NumPredecessors(int offset) { return predecessors_[offset]; }
 
-  compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
+  compiler::JSHeapBroker* broker() const { return broker_; }
   const compiler::FeedbackVectorRef& feedback() const {
     return compilation_unit_->feedback();
   }
@@ -1614,6 +1614,8 @@ class MaglevGraphBuilder {
   MaglevGraphBuilder* const parent_;
   DeoptFrame* parent_deopt_frame_ = nullptr;
   BasicBlockRef* parent_catch_block_ = nullptr;
+  // Cache the heap broker since we access it a bunch.
+  compiler::JSHeapBroker* broker_ = compilation_unit_->broker();
 
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;

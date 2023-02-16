@@ -1190,7 +1190,8 @@ namespace {
 // is running on a background or foreground thread.
 class V8_NODISCARD PipelineJobScope {
  public:
-  PipelineJobScope(PipelineData* data, RuntimeCallStats* stats) : data_(data) {
+  PipelineJobScope(PipelineData* data, RuntimeCallStats* stats)
+      : data_(data), current_broker_(data_->broker()) {
     data_->set_runtime_call_stats(stats);
   }
 
@@ -1200,6 +1201,7 @@ class V8_NODISCARD PipelineJobScope {
   HighAllocationThroughputScope high_throughput_scope_{
       V8::GetCurrentPlatform()};
   PipelineData* data_;
+  CurrentHeapBrokerScope current_broker_;
 };
 }  // namespace
 
@@ -1377,18 +1379,18 @@ struct GraphBuilderPhase {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
 
-    UnparkedScopeIfNeeded scope(data->broker());
-    JSFunctionRef closure = MakeRef(data->broker(), data->info()->closure());
+    JSHeapBroker* broker = data->broker();
+    UnparkedScopeIfNeeded scope(broker);
+    JSFunctionRef closure = MakeRef(broker, data->info()->closure());
     CallFrequency frequency(1.0f);
-    BuildGraphFromBytecode(data->broker(), temp_zone, closure.shared(),
-                           closure.raw_feedback_cell(data->dependencies()),
-                           data->info()->osr_offset(), data->jsgraph(),
-                           frequency, data->source_positions(),
-                           data->node_origins(), SourcePosition::kNotInlined,
-                           data->info()->code_kind(), flags,
-                           &data->info()->tick_counter(),
-                           ObserveNodeInfo{data->observe_node_manager(),
-                                           data->info()->node_observer()});
+    BuildGraphFromBytecode(
+        broker, temp_zone, closure.shared(broker),
+        closure.raw_feedback_cell(broker), data->info()->osr_offset(),
+        data->jsgraph(), frequency, data->source_positions(),
+        data->node_origins(), SourcePosition::kNotInlined,
+        data->info()->code_kind(), flags, &data->info()->tick_counter(),
+        ObserveNodeInfo{data->observe_node_manager(),
+                        data->info()->node_observer()});
   }
 };
 
@@ -1430,8 +1432,8 @@ struct InliningPhase {
     // JSNativeContextSpecialization allocates out-of-heap objects
     // that need to live until code generation.
     JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, data->jsgraph(), data->broker(), flags,
-        data->dependencies(), temp_zone, info->zone());
+        &graph_reducer, data->jsgraph(), data->broker(), flags, temp_zone,
+        info->zone());
     JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
                                  data->jsgraph(), data->broker(),
                                  data->source_positions(), data->node_origins(),
@@ -1566,9 +1568,8 @@ struct TypedLoweringPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
-    JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
-                                     data->jsgraph(), data->broker(),
-                                     temp_zone);
+    JSCreateLowering create_lowering(&graph_reducer, data->jsgraph(),
+                                     data->broker(), temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
                                    data->broker(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(
@@ -1985,7 +1986,7 @@ struct MemoryOptimizationPhase {
 
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
-        data->jsgraph(), temp_zone,
+        data->broker(), data->jsgraph(), temp_zone,
         data->info()->allocation_folding()
             ? MemoryLowering::AllocationFolding::kDoAllocationFolding
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
@@ -2026,8 +2027,8 @@ struct LateOptimizationPhase {
       CommonOperatorReducer common_reducer(
           &graph_reducer, data->graph(), data->broker(), data->common(),
           data->machine(), temp_zone, BranchSemantics::kMachine);
-      JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone,
-                                       BranchSemantics::kMachine);
+      JSGraphAssembler graph_assembler(data->broker(), data->jsgraph(),
+                                       temp_zone, BranchSemantics::kMachine);
       SelectLowering select_lowering(&graph_assembler, data->graph());
       if (!v8_flags.turboshaft) {
         AddReducer(data, &graph_reducer, &escape_analysis);
@@ -3820,6 +3821,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
                                &zone_stats));
 
   PipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
+  PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
@@ -3870,6 +3872,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   PipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
                     nullptr, schedule, nullptr, node_positions, nullptr,
                     options, nullptr);
+  PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(

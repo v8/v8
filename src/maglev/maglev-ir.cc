@@ -6,6 +6,7 @@
 
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/compiler/heap-refs.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
@@ -1610,6 +1611,7 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ CompareObjectType(receiver, FIRST_JS_RECEIVER_TYPE);
   __ JumpIf(kUnsignedGreaterThanEqual, &done);
 
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
     Label convert_global_proxy;
     __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy,
@@ -1618,14 +1620,15 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
                      Label::Distance::kNear);
     __ bind(&convert_global_proxy);
     // Patch receiver to global proxy.
-    __ Move(ToRegister(result()),
-            target_.native_context().global_proxy_object().object());
+    __ Move(
+        ToRegister(result()),
+        target_.native_context(broker).global_proxy_object(broker).object());
     __ Jump(&done);
   }
 
   __ bind(&convert_to_object);
   // ToObject needs to be ran with the target context installed.
-  __ Move(kContextRegister, target_.context().object());
+  __ Move(kContextRegister, target_.context(broker).object());
   __ CallBuiltin(Builtin::kToObject);
   __ bind(&done);
 }
@@ -2634,12 +2637,13 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     __ PushReverse(receiver(),
                    base::make_iterator_range(args_begin(), args_end()));
   }
-  __ Move(kContextRegister, function_.context().object());
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
+  __ Move(kContextRegister, function_.context(broker).object());
   __ Move(kJavaScriptCallTargetRegister, function_.object());
   __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
-  if (shared_function_info().HasBuiltinId()) {
-    __ CallBuiltin(shared_function_info().builtin_id());
+  if (shared_function_info(broker).HasBuiltinId()) {
+    __ CallBuiltin(shared_function_info(broker).builtin_id());
   } else {
     __ AssertCallableFunction(kJavaScriptCallTargetRegister);
     __ LoadTaggedField(kJavaScriptCallCodeStartRegister,

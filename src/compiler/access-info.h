@@ -71,7 +71,7 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo NotFound(Zone* zone, MapRef receiver_map,
                                      base::Optional<JSObjectRef> holder);
   static PropertyAccessInfo DataField(
-      Zone* zone, MapRef receiver_map,
+      JSHeapBroker* broker, Zone* zone, MapRef receiver_map,
       ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
       Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
@@ -227,8 +227,7 @@ class PropertyAccessInfo final {
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
 class AccessInfoFactory final {
  public:
-  AccessInfoFactory(JSHeapBroker* broker, CompilationDependencies* dependencies,
-                    Zone* zone);
+  AccessInfoFactory(JSHeapBroker* broker, Zone* zone);
 
   base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
       MapRef map, AccessMode access_mode) const;
@@ -287,13 +286,12 @@ class AccessInfoFactory final {
                               NameRef name, InternalIndex* index_out,
                               PropertyDetails* details_out) const;
 
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Zone* zone() const { return zone_; }
 
   JSHeapBroker* const broker_;
-  CompilationDependencies* const dependencies_;
   TypeCache const* const type_cache_;
   Zone* const zone_;
 

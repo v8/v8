@@ -3190,7 +3190,9 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
     return object_.object()->BooleanValue(local_isolate);
   }
 
-  bool IsTheHole() const { return object_.IsTheHole(); }
+  bool IsTheHole(compiler::JSHeapBroker* broker) const {
+    return object_.IsTheHole(broker);
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5545,12 +5547,14 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallKnownJSFunction(uint64_t bitfield, const compiler::JSFunctionRef function,
+  CallKnownJSFunction(uint64_t bitfield, compiler::JSHeapBroker* broker,
+                      const compiler::JSFunctionRef function,
                       ValueNode* receiver)
       : Base(bitfield),
         function_(function),
         expected_parameter_count_(
-            function.shared().internal_formal_parameter_count_with_receiver()) {
+            function.shared(broker)
+                .internal_formal_parameter_count_with_receiver()) {
     set_input(kReceiverIndex, receiver);
   }
 
@@ -5566,8 +5570,9 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
 
-  compiler::SharedFunctionInfoRef shared_function_info() const {
-    return function_.shared();
+  compiler::SharedFunctionInfoRef shared_function_info(
+      compiler::JSHeapBroker* broker) const {
+    return function_.shared(broker);
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;

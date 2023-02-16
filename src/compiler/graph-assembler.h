@@ -941,11 +941,13 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   // Constructs a JSGraphAssembler. If {schedule} is not null, the graph
   // assembler will maintain the schedule as it updates blocks.
   JSGraphAssembler(
-      JSGraph* jsgraph, Zone* zone, BranchSemantics branch_semantics,
+      JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
+      BranchSemantics branch_semantics,
       base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
       bool mark_loop_exits = false)
       : GraphAssembler(jsgraph, zone, branch_semantics, node_changed_callback,
                        mark_loop_exits),
+        broker_(broker),
         jsgraph_(jsgraph),
         outermost_catch_scope_(CatchScope::Outermost(zone)),
         catch_scope_(&outermost_catch_scope_) {
@@ -1054,6 +1056,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                                TNode<Context> context, FrameState frame_state);
   Node* Chained(const Operator* op, Node* input);
 
+  JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return jsgraph()->isolate(); }
   SimplifiedOperatorBuilder* simplified() override {
@@ -1375,6 +1378,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   Operator const* PlainPrimitiveToNumberOperator();
 
  private:
+  JSHeapBroker* broker_;
   JSGraph* jsgraph_;
   SetOncePointer<Operator const> to_number_operator_;
 

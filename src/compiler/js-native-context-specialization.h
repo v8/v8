@@ -51,9 +51,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   using Flags = base::Flags<Flag>;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                                JSHeapBroker* broker, Flags flags,
-                                CompilationDependencies* dependencies,
-                                Zone* zone, Zone* shared_zone);
+                                JSHeapBroker* broker, Flags flags, Zone* zone,
+                                Zone* shared_zone);
   JSNativeContextSpecialization(const JSNativeContextSpecialization&) = delete;
   JSNativeContextSpecialization& operator=(
       const JSNativeContextSpecialization&) = delete;
@@ -272,7 +271,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const {
+    return broker()->dependencies();
+  }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
 
@@ -281,7 +282,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;
-  CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;

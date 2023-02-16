@@ -6,6 +6,7 @@
 #define V8_COMPILER_JS_HEAP_BROKER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -143,6 +144,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void Retire();
   bool SerializingAllowed() const;
 
+#ifdef DEBUG
+  // Get the current heap broker for this thread. Only to be used for DCHECKs.
+  static JSHeapBroker* Current();
+#endif
+
   // Remember the local isolate and initialize its local heap with the
   // persistent and canonical handles provided by {info}.
   void AttachLocalIsolate(OptimizedCompilationInfo* info,
@@ -227,9 +233,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
-  PropertyAccessInfo GetPropertyAccessInfo(
-      MapRef map, NameRef name, AccessMode access_mode,
-      CompilationDependencies* dependencies);
+  PropertyAccessInfo GetPropertyAccessInfo(MapRef map, NameRef name,
+                                           AccessMode access_mode);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
@@ -396,7 +401,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForForIn(
       FeedbackSource const& source) const;
   ProcessedFeedback const& ReadFeedbackForGlobalAccess(
-      FeedbackSource const& source);
+      JSHeapBroker* broker, FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForInstanceOf(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
@@ -479,6 +484,25 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 
+#ifdef DEBUG
+// In debug builds, store the current heap broker on a thread local, for
+// DCHECKs to access it via JSHeapBroker::Current();
+class V8_NODISCARD V8_EXPORT_PRIVATE CurrentHeapBrokerScope {
+ public:
+  explicit CurrentHeapBrokerScope(JSHeapBroker* broker);
+  ~CurrentHeapBrokerScope();
+
+ private:
+  JSHeapBroker* const prev_broker_;
+};
+#else
+class V8_NODISCARD V8_EXPORT_PRIVATE CurrentHeapBrokerScope {
+ public:
+  explicit CurrentHeapBrokerScope(JSHeapBroker* broker) {}
+  ~CurrentHeapBrokerScope() {}
+};
+#endif
+
 class V8_NODISCARD TraceScope {
  public:
   TraceScope(JSHeapBroker* broker, const char* label)
@@ -527,7 +551,7 @@ template <class T,
 base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, ObjectData* data) {
   if (data == nullptr) return {};
-  return {typename ref_traits<T>::ref_type(broker, data)};
+  return {typename ref_traits<T>::ref_type(data)};
 }
 
 // Usage:

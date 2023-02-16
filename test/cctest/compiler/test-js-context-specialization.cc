@@ -36,6 +36,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
                  &machine_),
         reducer_(main_zone(), graph(), &tick_counter_, &js_heap_broker_),
         js_heap_broker_(main_isolate(), main_zone()),
+        current_broker_(&js_heap_broker_),
         spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
               MaybeHandle<JSFunction>()) {}
 
@@ -68,6 +69,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
   JSGraph jsgraph_;
   GraphReducer reducer_;
   JSHeapBroker js_heap_broker_;
+  CurrentHeapBrokerScope current_broker_;
   JSContextSpecialization spec_;
 };
 
@@ -138,9 +140,10 @@ TEST(ReduceJSLoadContext0) {
   const int slot = 5;
   native->set(slot, *expected);
 
-  Node* const_context = t.jsgraph()->Constant(MakeRef(t.broker(), native));
+  Node* const_context =
+      t.jsgraph()->Constant(MakeRef(t.broker(), native), t.broker());
   Node* deep_const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2));
+      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2), t.broker());
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
 
   {
@@ -285,7 +288,8 @@ TEST(ReduceJSLoadContext2) {
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 = t.jsgraph()->Constant(MakeRef(t.broker(), context_object1));
+  Node* context0 =
+      t.jsgraph()->Constant(MakeRef(t.broker(), context_object1), t.broker());
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =
@@ -441,9 +445,10 @@ TEST(ReduceJSStoreContext0) {
   const int slot = 5;
   native->set(slot, *expected);
 
-  Node* const_context = t.jsgraph()->Constant(MakeRef(t.broker(), native));
+  Node* const_context =
+      t.jsgraph()->Constant(MakeRef(t.broker(), native), t.broker());
   Node* deep_const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2));
+      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2), t.broker());
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
 
   {
@@ -553,7 +558,8 @@ TEST(ReduceJSStoreContext2) {
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 = t.jsgraph()->Constant(MakeRef(t.broker(), context_object1));
+  Node* context0 =
+      t.jsgraph()->Constant(MakeRef(t.broker(), context_object1), t.broker());
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =

@@ -82,6 +82,24 @@ std::string JSHeapBroker::Trace() const {
   return oss.str();
 }
 
+#ifdef DEBUG
+static thread_local JSHeapBroker* current_broker = nullptr;
+
+CurrentHeapBrokerScope::CurrentHeapBrokerScope(JSHeapBroker* broker)
+    : prev_broker_(current_broker) {
+  current_broker = broker;
+}
+CurrentHeapBrokerScope::~CurrentHeapBrokerScope() {
+  current_broker = prev_broker_;
+}
+
+// static
+JSHeapBroker* JSHeapBroker::Current() {
+  DCHECK_NOT_NULL(current_broker);
+  return current_broker;
+}
+#endif
+
 void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
                                       LocalIsolate* local_isolate) {
   set_canonical_handles(info->DetachCanonicalHandles());
@@ -312,13 +330,14 @@ bool GlobalAccessFeedback::immutable() const {
   return FeedbackNexus::ImmutabilityBit::decode(index_and_immutable_);
 }
 
-base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint() const {
+base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint(
+    JSHeapBroker* broker) const {
   if (IsPropertyCell()) {
-    bool cell_cached = property_cell().Cache();
+    bool cell_cached = property_cell().Cache(broker);
     CHECK(cell_cached);  // Can't fail on the main thread.
-    return property_cell().value();
+    return property_cell().value(broker);
   } else if (IsScriptContextSlot() && immutable()) {
-    return script_context().get(slot_index());
+    return script_context().get(broker, slot_index());
   } else {
     return base::nullopt;
   }
@@ -539,7 +558,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
-    FeedbackSource const& source) {
+    JSHeapBroker* broker, FeedbackSource const& source) {
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
          nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof ||
@@ -562,12 +581,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     ContextRef context = MakeRefAssumeMemoryFence(
-        this,
-        target_native_context().script_context_table().object()->get_context(
-            script_context_index, kAcquireLoad));
+        this, target_native_context()
+                  .script_context_table(broker)
+                  .object()
+                  ->get_context(script_context_index, kAcquireLoad));
 
-    base::Optional<ObjectRef> contents = context.get(context_slot_index);
-    if (contents.has_value()) CHECK(!contents->IsTheHole());
+    base::Optional<ObjectRef> contents =
+        context.get(broker, context_slot_index);
+    if (contents.has_value()) CHECK(!contents->IsTheHole(broker));
 
     return *zone()->New<GlobalAccessFeedback>(
         context, context_slot_index,
@@ -790,7 +811,7 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
-  ProcessedFeedback const& feedback = ReadFeedbackForGlobalAccess(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForGlobalAccess(this, source);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -876,16 +897,15 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
-PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
-    MapRef map, NameRef name, AccessMode access_mode,
-    CompilationDependencies* dependencies) {
-  DCHECK_NOT_NULL(dependencies);
+PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
+                                                       AccessMode access_mode) {
+  DCHECK_NOT_NULL(dependencies_);
 
   PropertyAccessTarget target({map, name, access_mode});
   auto it = property_access_infos_.find(target);
   if (it != property_access_infos_.end()) return it->second;
 
-  AccessInfoFactory factory(this, dependencies, zone());
+  AccessInfoFactory factory(this, zone());
   PropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(map, name, access_mode);
   TRACE(this, "Storing PropertyAccessInfo for "
