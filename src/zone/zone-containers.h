@@ -78,9 +78,13 @@ class ZoneVector {
   // initializer list.
   ZoneVector(std::initializer_list<T> list, Zone* zone) : zone_(zone) {
     size_t size = list.size();
-    data_ = size > 0 ? zone->NewArray<T>(size) : nullptr;
+    if (size > 0) {
+      data_ = zone->NewArray<T>(size);
+      CopyToNewStorage(data_, list.begin(), list.end());
+    } else {
+      data_ = nullptr;
+    }
     end_ = capacity_ = data_ + size;
-    CopyToNewStorage(data_, list.begin(), list.end());
   }
 
   // Constructs a new vector and fills it with the contents of the range
@@ -139,9 +143,13 @@ class ZoneVector {
       for (T* p = data_; p < end_; p++) p->~T();
       if (data_) zone_->DeleteArray(data_, capacity());
       size_t new_cap = other.capacity();
-      data_ = new_cap > 0 ? zone_->NewArray<T>(new_cap) : nullptr;
+      if (new_cap > 0) {
+        data_ = zone_->NewArray<T>(new_cap);
+        CopyToNewStorage(data_, other.data_, other.end_);
+      } else {
+        data_ = nullptr;
+      }
       capacity_ = data_ + new_cap;
-      CopyToNewStorage(data_, other.data_, other.end_);
       end_ = data_ + other.size();
     }
     return *this;
@@ -317,7 +325,7 @@ class ZoneVector {
       size_t assignable;
       position = PrepareForInsertion(pos, count, &assignable);
       if constexpr (std::is_trivially_copyable_v<T>) {
-        memcpy(position, first, count * sizeof(T));
+        if (count > 0) memcpy(position, first, count * sizeof(T));
       } else {
         CopyingOverwrite(position, first, first + assignable);
         CopyToNewStorage(position + assignable, first + assignable, last);
@@ -513,7 +521,9 @@ class ZoneVector {
       size_t assignable_slots = std::min(to_shift, count);
       *assignable = assignable_slots;
       if constexpr (std::is_trivially_copyable_v<T>) {
-        memmove(const_cast<T*>(pos + count), pos, to_shift * sizeof(T));
+        if (to_shift > 0) {
+          memmove(const_cast<T*>(pos + count), pos, to_shift * sizeof(T));
+        }
         end_ += count;
         return data_ + index;
       }
