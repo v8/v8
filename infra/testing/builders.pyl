@@ -526,7 +526,7 @@
   },
   'v8_linux64_msan_rel': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-20.04',
     },
     'tests': [
       {'name': 'test262', 'variant': 'default', 'shards': 2},
@@ -1113,7 +1113,7 @@
   },
   'V8 Linux - arm64 - sim - MSAN': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-20.04',
     },
     'tests': [
       {'name': 'test262', 'variant': 'default', 'shards': 3},
