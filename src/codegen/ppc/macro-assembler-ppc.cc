@@ -3551,13 +3551,17 @@ MEM_OP_PREFIXED_LIST(MEM_OP_PREFIXED_FUNCTION)
 #undef MEM_OP_PREFIXED_LIST
 #undef MEM_OP_PREFIXED_FUNCTION
 
-#define MEM_OP_SIMD_LIST(V)     \
-  V(LoadSimd128, lxvx)          \
-  V(StoreSimd128, stxvx)        \
-  V(LoadSimd128Uint64, lxsdx)   \
-  V(LoadSimd128Uint32, lxsiwzx) \
-  V(LoadSimd128Uint16, lxsihzx) \
-  V(LoadSimd128Uint8, lxsibzx)
+#define MEM_OP_SIMD_LIST(V)      \
+  V(LoadSimd128, lxvx)           \
+  V(StoreSimd128, stxvx)         \
+  V(LoadSimd128Uint64, lxsdx)    \
+  V(LoadSimd128Uint32, lxsiwzx)  \
+  V(LoadSimd128Uint16, lxsihzx)  \
+  V(LoadSimd128Uint8, lxsibzx)   \
+  V(StoreSimd128Uint64, stxsdx)  \
+  V(StoreSimd128Uint32, stxsiwx) \
+  V(StoreSimd128Uint16, stxsihx) \
+  V(StoreSimd128Uint8, stxsibx)
 
 #define MEM_OP_SIMD_FUNCTION(name, rr_op)                               \
   void MacroAssembler::name(Simd128Register reg, const MemOperand& mem, \
@@ -4636,6 +4640,7 @@ void MacroAssembler::LoadLane64LE(Simd128Register dst, const MemOperand& mem,
   MAYBE_REVERSE_BYTES(scratch2, xxbrd)
   vinsertd(dst, scratch2, Operand((1 - lane) * lane_width_in_bytes));
 }
+
 void MacroAssembler::LoadLane32LE(Simd128Register dst, const MemOperand& mem,
                                   int lane, Register scratch1,
                                   Simd128Register scratch2) {
@@ -4644,6 +4649,7 @@ void MacroAssembler::LoadLane32LE(Simd128Register dst, const MemOperand& mem,
   MAYBE_REVERSE_BYTES(scratch2, xxbrw)
   vinsertw(dst, scratch2, Operand((3 - lane) * lane_width_in_bytes));
 }
+
 void MacroAssembler::LoadLane16LE(Simd128Register dst, const MemOperand& mem,
                                   int lane, Register scratch1,
                                   Simd128Register scratch2) {
@@ -4652,11 +4658,46 @@ void MacroAssembler::LoadLane16LE(Simd128Register dst, const MemOperand& mem,
   MAYBE_REVERSE_BYTES(scratch2, xxbrh)
   vinserth(dst, scratch2, Operand((7 - lane) * lane_width_in_bytes));
 }
+
 void MacroAssembler::LoadLane8LE(Simd128Register dst, const MemOperand& mem,
                                  int lane, Register scratch1,
                                  Simd128Register scratch2) {
   LoadSimd128Uint8(scratch2, mem, scratch1);
   vinsertb(dst, scratch2, Operand((15 - lane)));
+}
+
+void MacroAssembler::StoreLane64LE(Simd128Register src, const MemOperand& mem,
+                                   int lane, Register scratch1,
+                                   Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 8;
+  vextractd(scratch2, src, Operand((1 - lane) * lane_width_in_bytes));
+  MAYBE_REVERSE_BYTES(scratch2, xxbrd)
+  StoreSimd128Uint64(scratch2, mem, scratch1);
+}
+
+void MacroAssembler::StoreLane32LE(Simd128Register src, const MemOperand& mem,
+                                   int lane, Register scratch1,
+                                   Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 4;
+  vextractuw(scratch2, src, Operand((3 - lane) * lane_width_in_bytes));
+  MAYBE_REVERSE_BYTES(scratch2, xxbrw)
+  StoreSimd128Uint32(scratch2, mem, scratch1);
+}
+
+void MacroAssembler::StoreLane16LE(Simd128Register src, const MemOperand& mem,
+                                   int lane, Register scratch1,
+                                   Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 2;
+  vextractuh(scratch2, src, Operand((7 - lane) * lane_width_in_bytes));
+  MAYBE_REVERSE_BYTES(scratch2, xxbrh)
+  StoreSimd128Uint16(scratch2, mem, scratch1);
+}
+
+void MacroAssembler::StoreLane8LE(Simd128Register src, const MemOperand& mem,
+                                  int lane, Register scratch1,
+                                  Simd128Register scratch2) {
+  vextractub(scratch2, src, Operand(15 - lane));
+  StoreSimd128Uint8(scratch2, mem, scratch1);
 }
 #undef MAYBE_REVERSE_BYTES
 

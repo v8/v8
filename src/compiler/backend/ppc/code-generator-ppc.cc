@@ -2476,6 +2476,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_LOAD_LANE
 #undef SIMD_LOAD_LANE_LIST
 
+#define SIMD_STORE_LANE_LIST(V)     \
+  V(S128Store64Lane, StoreLane64LE) \
+  V(S128Store32Lane, StoreLane32LE) \
+  V(S128Store16Lane, StoreLane16LE) \
+  V(S128Store8Lane, StoreLane8LE)
+
+#define EMIT_SIMD_STORE_LANE(name, op)                                      \
+  case kPPC_##name: {                                                       \
+    AddressingMode mode = kMode_None;                                       \
+    size_t index = 1;                                                       \
+    MemOperand operand = i.MemoryOperand(&mode, &index);                    \
+    DCHECK_EQ(mode, kMode_MRR);                                             \
+    __ op(i.InputSimd128Register(0), operand, i.InputUint8(3), kScratchReg, \
+          kScratchSimd128Reg);                                              \
+    break;                                                                  \
+  }
+      SIMD_STORE_LANE_LIST(EMIT_SIMD_STORE_LANE)
+#undef EMIT_SIMD_STORE_LANE
+#undef SIMD_STORE_LANE_LIST
+
     case kPPC_F64x2Splat: {
       __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
                     kScratchReg);
@@ -2818,52 +2838,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef ASSEMBLE_LOAD_TRANSFORM
-    case kPPC_S128Store8Lane: {
-      AddressingMode mode = kMode_None;
-      size_t index = 1;
-      MemOperand operand = i.MemoryOperand(&mode, &index);
-      DCHECK_EQ(mode, kMode_MRR);
-      __ vextractub(kScratchSimd128Reg, i.InputSimd128Register(0),
-                    Operand(15 - i.InputUint8(3)));
-      __ stxsibx(kScratchSimd128Reg, operand);
-      break;
-    }
-    case kPPC_S128Store16Lane: {
-      AddressingMode mode = kMode_None;
-      constexpr int lane_width_in_bytes = 2;
-      size_t index = 1;
-      MemOperand operand = i.MemoryOperand(&mode, &index);
-      DCHECK_EQ(mode, kMode_MRR);
-      __ vextractuh(kScratchSimd128Reg, i.InputSimd128Register(0),
-                    Operand((7 - i.InputUint8(3)) * lane_width_in_bytes));
-      MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrh)
-      __ stxsihx(kScratchSimd128Reg, operand);
-      break;
-    }
-    case kPPC_S128Store32Lane: {
-      AddressingMode mode = kMode_None;
-      constexpr int lane_width_in_bytes = 4;
-      size_t index = 1;
-      MemOperand operand = i.MemoryOperand(&mode, &index);
-      DCHECK_EQ(mode, kMode_MRR);
-      __ vextractuw(kScratchSimd128Reg, i.InputSimd128Register(0),
-                    Operand((3 - i.InputUint8(3)) * lane_width_in_bytes));
-      MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrw)
-      __ stxsiwx(kScratchSimd128Reg, operand);
-      break;
-    }
-    case kPPC_S128Store64Lane: {
-      AddressingMode mode = kMode_None;
-      constexpr int lane_width_in_bytes = 8;
-      size_t index = 1;
-      MemOperand operand = i.MemoryOperand(&mode, &index);
-      DCHECK_EQ(mode, kMode_MRR);
-      __ vextractd(kScratchSimd128Reg, i.InputSimd128Register(0),
-                   Operand((1 - i.InputUint8(3)) * lane_width_in_bytes));
-      MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrd)
-      __ stxsdx(kScratchSimd128Reg, operand);
-      break;
-    }
 #undef MAYBE_REVERSE_BYTES
     case kPPC_StoreCompressTagged: {
       size_t index = 0;
