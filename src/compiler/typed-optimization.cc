@@ -107,8 +107,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
 
 namespace {
 
-base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
-                                                  Type object_type) {
+OptionalMapRef GetStableMapFromObjectType(JSHeapBroker* broker,
+                                          Type object_type) {
   if (object_type.IsHeapConstant()) {
     HeapObjectRef object = object_type.AsHeapConstant()->Ref();
     MapRef object_map = object.map(broker);
@@ -224,8 +224,7 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Type const object_type = NodeProperties::GetType(object);
   Node* const effect = NodeProperties::GetEffectInput(node);
-  base::Optional<MapRef> object_map =
-      GetStableMapFromObjectType(broker(), object_type);
+  OptionalMapRef object_map = GetStableMapFromObjectType(broker(), object_type);
   if (object_map.has_value()) {
     for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
       Node* const map = NodeProperties::GetValueInput(node, i);
@@ -295,7 +294,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
     //  (1) map cannot transition further, or
     //  (2) deoptimization is enabled and we can add a code dependency on the
     //      stability of map (to guard the Constant type information).
-    base::Optional<MapRef> object_map =
+    OptionalMapRef object_map =
         GetStableMapFromObjectType(broker(), object_type);
     if (object_map.has_value()) {
       dependencies()->DependOnStableMap(*object_map);

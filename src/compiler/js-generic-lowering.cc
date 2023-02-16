@@ -238,7 +238,7 @@ namespace {
 // some cases - unlike the full builtin, the megamorphic builtin does fewer
 // checks and does not collect feedback.
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
-                                     base::Optional<NameRef> name,
+                                     OptionalNameRef name,
                                      JSHeapBroker* broker) {
   ProcessedFeedback const& feedback =
       broker->GetFeedbackForPropertyAccess(source, AccessMode::kLoad, name);
@@ -615,7 +615,7 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   DCHECK_EQ(interface_descriptor.GetStackParameterCount(), 0);
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arity));
-  base::Optional<AllocationSiteRef> const site = p.site();
+  OptionalAllocationSiteRef const site = p.site();
   Node* type_info = site.has_value()
                         ? jsgraph()->Constant(site.value(), broker())
                         : jsgraph()->UndefinedConstant();

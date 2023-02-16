@@ -220,7 +220,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
+      OptionalNameRef static_name);
 
   ProcessedFeedback const& ProcessFeedbackForBinaryOperation(
       FeedbackSource const& source);
@@ -231,7 +231,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
-  base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
+  OptionalNameRef GetNameFeedback(FeedbackNexus const& nexus);
 
   PropertyAccessInfo GetPropertyAccessInfo(MapRef map, NameRef name,
                                            AccessMode access_mode);
@@ -406,7 +406,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
+      OptionalNameRef static_name);
   ProcessedFeedback const& ReadFeedbackForRegExpLiteral(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
@@ -446,7 +446,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   const PtrComprCageBase cage_base_;
 #endif  // V8_COMPRESS_POINTERS
   Zone* const zone_;
-  base::Optional<NativeContextRef> target_native_context_;
+  OptionalNativeContextRef target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
   ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
@@ -548,15 +548,15 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
-base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
-    JSHeapBroker* broker, ObjectData* data) {
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
+                                                         ObjectData* data) {
   if (data == nullptr) return {};
   return {typename ref_traits<T>::ref_type(data)};
 }
 
 // Usage:
 //
-//  base::Optional<FooRef> ref = TryMakeRef(broker, o);
+//  OptionalFooRef ref = TryMakeRef(broker, o);
 //  if (!ref.has_value()) return {};  // bailout
 //
 // or
@@ -564,7 +564,7 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
 //  FooRef ref = MakeRef(broker, o);
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
-base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, T object, GetOrCreateDataFlags flags = {}) {
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
@@ -575,7 +575,7 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
-base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {}) {
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {

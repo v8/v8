@@ -1298,7 +1298,7 @@ DEPENDENCY_LIST(V)
 
 void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
-    base::Optional<JSObjectRef> last_prototype) {
+    OptionalJSObjectRef last_prototype) {
   for (MapRef receiver_map : receiver_maps) {
     DependOnStablePrototypeChain(receiver_map, start, last_prototype);
   }
@@ -1306,12 +1306,12 @@ void CompilationDependencies::DependOnStablePrototypeChains(
 
 void CompilationDependencies::DependOnStablePrototypeChain(
     MapRef receiver_map, WhereToStart start,
-    base::Optional<JSObjectRef> last_prototype) {
+    OptionalJSObjectRef last_prototype) {
   if (receiver_map.IsPrimitiveMap()) {
     // Perform the implicit ToObject for primitives here.
     // Implemented according to ES6 section 7.3.2 GetV (V, P).
     // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
-    base::Optional<JSFunctionRef> constructor =
+    OptionalJSFunctionRef constructor =
         broker_->target_native_context().GetConstructorFunction(broker_,
                                                                 receiver_map);
     receiver_map = constructor.value().initial_map(broker_);

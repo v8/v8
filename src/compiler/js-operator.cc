@@ -29,7 +29,7 @@ constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
 }
 
 template <class T>
-Address AddressOrNull(base::Optional<T> ref) {
+Address AddressOrNull(OptionalRef<T> ref) {
   if (!ref.has_value()) return kNullAddress;
   return ref->object().address();
 }
@@ -1261,8 +1261,8 @@ const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
       type);                                                  // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateArray(
-    size_t arity, base::Optional<AllocationSiteRef> site) {
+const Operator* JSOperatorBuilder::CreateArray(size_t arity,
+                                               OptionalAllocationSiteRef site) {
   // constructor, new_target, arg1, ..., argN
   int const value_input_count = static_cast<int>(arity) + 2;
   CreateArrayParameters parameters(arity, site);

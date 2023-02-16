@@ -226,8 +226,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
                                          ZoneRefUnorderedSet<MapRef>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
-  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
-                                               Node* receiver);
+  static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join

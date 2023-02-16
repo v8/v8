@@ -97,9 +97,9 @@ bool IsContextParameter(Node* node) {
 // context (which we want to read from or store to), try to return a
 // specialization context.  If successful, update {distance} to whatever
 // distance remains from the specialization context.
-base::Optional<ContextRef> GetSpecializationContext(
-    JSHeapBroker* broker, Node* node, size_t* distance,
-    Maybe<OuterContext> maybe_outer) {
+OptionalContextRef GetSpecializationContext(JSHeapBroker* broker, Node* node,
+                                            size_t* distance,
+                                            Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
       // TODO(jgruber,chromium:1209798): Using kAssumeMemoryFence works around
@@ -127,7 +127,7 @@ base::Optional<ContextRef> GetSpecializationContext(
     default:
       break;
   }
-  return base::Optional<ContextRef>();
+  return OptionalContextRef();
 }
 
 }  // anonymous namespace
@@ -141,7 +141,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // First walk up the context chain in the graph as far as possible.
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  base::Optional<ContextRef> maybe_concrete =
+  OptionalContextRef maybe_concrete =
       GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
@@ -166,7 +166,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   // This will hold the final value, if we can figure it out.
-  base::Optional<ObjectRef> maybe_value;
+  OptionalObjectRef maybe_value;
   maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
 
   if (!maybe_value.has_value()) {
@@ -209,7 +209,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   // or hit a node that does not have a CreateXYZContext operator.
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  base::Optional<ContextRef> maybe_concrete =
+  OptionalContextRef maybe_concrete =
       GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
@@ -230,8 +230,8 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
                                 depth);
 }
 
-base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
-                                            Maybe<OuterContext> maybe_context) {
+OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,
+                                    Maybe<OuterContext> maybe_context) {
   size_t depth = std::numeric_limits<size_t>::max();
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
@@ -272,19 +272,17 @@ base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
       break;
   }
 
-  return base::Optional<ContextRef>();
+  return OptionalContextRef();
 }
 
 Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
-  base::Optional<ContextRef> maybe_context =
-      GetModuleContext(broker(), node, outer());
+  OptionalContextRef maybe_context = GetModuleContext(broker(), node, outer());
   if (!maybe_context.has_value()) return NoChange();
 
   ContextRef context = maybe_context.value();
-  base::Optional<ObjectRef> module =
-      context.get(broker(), Context::EXTENSION_INDEX);
+  OptionalObjectRef module = context.get(broker(), Context::EXTENSION_INDEX);
   if (!module.has_value()) return NoChange();
-  base::Optional<ObjectRef> import_meta =
+  OptionalObjectRef import_meta =
       module->AsSourceTextModule().import_meta(broker());
   if (!import_meta.has_value()) return NoChange();
   if (!import_meta->IsJSObject()) {

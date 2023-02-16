@@ -368,8 +368,8 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
 }
 
 // static
-base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
-                                                      Node* receiver) {
+OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
+                                              Node* receiver) {
   DCHECK(receiver->opcode() == IrOpcode::kJSCreate ||
          receiver->opcode() == IrOpcode::kJSCreateArray);
   HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
@@ -459,7 +459,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       }
       case IrOpcode::kJSCreate: {
         if (IsSame(receiver, effect)) {
-          base::Optional<MapRef> initial_map = GetJSCreateMap(broker, receiver);
+          OptionalMapRef initial_map = GetJSCreateMap(broker, receiver);
           if (initial_map.has_value()) {
             *maps_out = RefSetOf(broker, initial_map.value());
             return result;

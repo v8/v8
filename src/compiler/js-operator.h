@@ -563,15 +563,15 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  CreateArrayParameters(size_t arity, base::Optional<AllocationSiteRef> site)
+  CreateArrayParameters(size_t arity, OptionalAllocationSiteRef site)
       : arity_(arity), site_(site) {}
 
   size_t arity() const { return arity_; }
-  base::Optional<AllocationSiteRef> site() const { return site_; }
+  OptionalAllocationSiteRef site() const { return site_; }
 
  private:
   size_t const arity_;
-  base::Optional<AllocationSiteRef> const site_;
+  OptionalAllocationSiteRef const site_;
 
   friend bool operator==(CreateArrayParameters const&,
                          CreateArrayParameters const&);
@@ -929,8 +929,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity,
-                              base::Optional<AllocationSiteRef> site);
+  const Operator* CreateArray(size_t arity, OptionalAllocationSiteRef site);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);

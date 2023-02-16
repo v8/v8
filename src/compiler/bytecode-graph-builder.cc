@@ -293,7 +293,7 @@ class BytecodeGraphBuilder {
   // Slow path taken when we cannot figure out the current scope info.
   Environment* CheckContextExtensionsSlowPath(uint32_t depth);
   // Helper function that tries to get the current scope info.
-  base::Optional<ScopeInfoRef> TryGetScopeInfo();
+  OptionalScopeInfoRef TryGetScopeInfo();
   // Helper function to create a context extension check.
   Environment* CheckContextExtensionAtDepth(Environment* slow_environment,
                                             uint32_t depth);
@@ -1776,7 +1776,7 @@ BytecodeGraphBuilder::CheckContextExtensionAtDepth(
   return slow_environment;
 }
 
-base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
+OptionalScopeInfoRef BytecodeGraphBuilder::TryGetScopeInfo() {
   Node* context = environment()->Context();
   switch (context->opcode()) {
     case IrOpcode::kJSCreateFunctionContext:
@@ -1799,7 +1799,7 @@ base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
 
 BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     uint32_t depth) {
-  base::Optional<ScopeInfoRef> maybe_scope_info = TryGetScopeInfo();
+  OptionalScopeInfoRef maybe_scope_info = TryGetScopeInfo();
   if (!maybe_scope_info.has_value()) {
     return CheckContextExtensionsSlowPath(depth);
   }

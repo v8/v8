@@ -330,7 +330,7 @@ bool GlobalAccessFeedback::immutable() const {
   return FeedbackNexus::ImmutabilityBit::decode(index_and_immutable_);
 }
 
-base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint(
+OptionalObjectRef GlobalAccessFeedback::GetConstantHint(
     JSHeapBroker* broker) const {
   if (IsPropertyCell()) {
     bool cell_cached = property_cell().Cache(broker);
@@ -485,7 +485,7 @@ const ProcessedFeedback& JSHeapBroker::NewInsufficientFeedback(
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
-    base::Optional<NameRef> static_name) {
+    OptionalNameRef static_name) {
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   FeedbackSlotKind kind = nexus.kind();
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
@@ -515,7 +515,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     }
   }
 
-  base::Optional<NameRef> name =
+  OptionalNameRef name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
 
   if (nexus.ic_state() == InlineCacheState::MEGADOM) {
@@ -586,8 +586,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
                   .object()
                   ->get_context(script_context_index, kAcquireLoad));
 
-    base::Optional<ObjectRef> contents =
-        context.get(broker, context_slot_index);
+    OptionalObjectRef contents = context.get(broker, context_slot_index);
     if (contents.has_value()) CHECK(!contents->IsTheHole(broker));
 
     return *zone()->New<GlobalAccessFeedback>(
@@ -636,7 +635,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  base::Optional<JSObjectRef> optional_constructor;
+  OptionalJSObjectRef optional_constructor;
   {
     MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
     Handle<JSObject> constructor;
@@ -696,7 +695,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  base::Optional<HeapObjectRef> target_ref;
+  OptionalHeapObjectRef target_ref;
   {
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
@@ -784,7 +783,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForForIn(
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
-    base::Optional<NameRef> static_name) {
+    OptionalNameRef static_name) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback =
       ReadFeedbackForPropertyAccess(source, mode, static_name);
@@ -890,8 +889,7 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 #endif
 }
 
-base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
-    FeedbackNexus const& nexus) {
+OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
   Name raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
   return MakeRefAssumeMemoryFence(this, raw_name);

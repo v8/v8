@@ -2352,8 +2352,7 @@ Type Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
 
 Type Typer::Visitor::TypeCheckClosure(Node* node) {
   FeedbackCellRef cell = MakeRef(typer_->broker(), FeedbackCellOf(node->op()));
-  base::Optional<SharedFunctionInfoRef> shared =
-      cell.shared_function_info(broker());
+  OptionalSharedFunctionInfoRef shared = cell.shared_function_info(broker());
   if (!shared.has_value()) return Type::Function();
 
   if (IsClassConstructor(shared->kind())) {

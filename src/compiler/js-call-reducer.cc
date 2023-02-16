@@ -2778,9 +2778,9 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     StringRef length_string = MakeRef(broker(), roots.length_string_handle());
     StringRef name_string = MakeRef(broker(), roots.name_string_handle());
 
-    base::Optional<ObjectRef> length_value(
+    OptionalObjectRef length_value(
         receiver_map.GetStrongValue(broker(), kLengthIndex));
-    base::Optional<ObjectRef> name_value(
+    OptionalObjectRef name_value(
         receiver_map.GetStrongValue(broker(), kNameIndex));
     if (!length_value || !name_value) {
       TRACE_BROKER_MISSING(
@@ -4408,8 +4408,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       static constexpr int kInlineSize = 16;  // Arbitrary.
       base::SmallVector<Node*, kInlineSize> args;
       for (int i = 0; i < bound_arguments_length; ++i) {
-        base::Optional<ObjectRef> maybe_arg =
-            bound_arguments.TryGet(broker(), i);
+        OptionalObjectRef maybe_arg = bound_arguments.TryGet(broker(), i);
         if (!maybe_arg.has_value()) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
           return NoChange();
@@ -4459,8 +4458,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return ReduceJSCall(node, params.shared_info());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
-    base::Optional<SharedFunctionInfoRef> shared =
-        cell.shared_function_info(broker());
+    OptionalSharedFunctionInfoRef shared = cell.shared_function_info(broker());
     if (!shared.has_value()) {
       TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
                                          << cell << " has no FeedbackVector");
@@ -4518,7 +4516,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
-  base::Optional<HeapObjectRef> feedback_target;
+  OptionalHeapObjectRef feedback_target;
   if (p.feedback_relation() == CallFeedbackRelation::kTarget) {
     feedback_target = feedback.AsCall().target();
   } else {
@@ -4997,7 +4995,7 @@ namespace {
 // skipping the instance type check.
 bool TargetIsClassConstructor(Node* node, JSHeapBroker* broker) {
   Node* target = NodeProperties::GetValueInput(node, 0);
-  base::Optional<SharedFunctionInfoRef> shared;
+  OptionalSharedFunctionInfoRef shared;
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue()) {
     ObjectRef target_ref = m.Ref(broker);
@@ -5077,7 +5075,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
-    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+    OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
@@ -5215,8 +5213,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       static constexpr int kInlineSize = 16;  // Arbitrary.
       base::SmallVector<Node*, kInlineSize> args;
       for (int i = 0; i < bound_arguments_length; ++i) {
-        base::Optional<ObjectRef> maybe_arg =
-            bound_arguments.TryGet(broker(), i);
+        OptionalObjectRef maybe_arg = bound_arguments.TryGet(broker(), i);
         if (!maybe_arg.has_value()) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
           return NoChange();
@@ -8281,11 +8278,11 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   if (!ai_exec.IsFastDataConstant()) return inference.NoChange();
 
   // Do not reduce if the exec method is not on the prototype chain.
-  base::Optional<JSObjectRef> holder = ai_exec.holder();
+  OptionalJSObjectRef holder = ai_exec.holder();
   if (!holder.has_value()) return inference.NoChange();
 
   // Bail out if the exec method is not the original one.
-  base::Optional<ObjectRef> constant =
+  OptionalObjectRef constant =
       holder->GetOwnFastDataProperty(broker(), ai_exec.field_representation(),
                                      ai_exec.field_index(), dependencies());
   if (!constant.has_value() ||
@@ -8489,7 +8486,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     if (feedback.IsInsufficient()) {
       return base::nullopt;
     }
-    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+    OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() &&
         feedback_target->map(broker()).is_callable()) {
       Node* target_function = jsgraph()->Constant(*feedback_target, broker());

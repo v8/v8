@@ -287,8 +287,7 @@ bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
 // Determines whether the call target of the given call {node} is statically
 // known and can be used as an inlining candidate. The {SharedFunctionInfo} of
 // the call target is provided (the exact closure might be unknown).
-base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
-    Node* node) {
+OptionalSharedFunctionInfoRef JSInliner::DetermineCallTarget(Node* node) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   Node* target = node->InputAt(JSCallOrConstructNode::TargetIndex());
   HeapObjectMatcher match(target);
@@ -465,7 +464,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   JSCallAccessor call(node);
 
   // Determine the call target.
-  base::Optional<SharedFunctionInfoRef> shared_info(DetermineCallTarget(node));
+  OptionalSharedFunctionInfoRef shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();
 
   SharedFunctionInfoRef outer_shared_info =

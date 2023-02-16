@@ -584,7 +584,7 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
   HeapObjectRef current = function_map.prototype(broker());
   // The uppermost JSFunction on the class hierarchy (above it, there can be
   // other JSObjects, e.g., Proxies).
-  base::Optional<JSObjectRef> last_function;
+  OptionalJSObjectRef last_function;
 
   Node* return_value;
   Node* ctor_or_instance;
@@ -703,7 +703,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   // Check if the right hand side is a known {receiver}, or
   // we have feedback from the InstanceOfIC.
-  base::Optional<JSObjectRef> receiver;
+  OptionalJSObjectRef receiver;
   HeapObjectMatcher m(constructor);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSObject()) {
     receiver = m.Ref(broker()).AsJSObject();
@@ -754,10 +754,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   }
 
   if (access_info.IsFastDataConstant()) {
-    base::Optional<JSObjectRef> holder = access_info.holder();
+    OptionalJSObjectRef holder = access_info.holder();
     bool found_on_proto = holder.has_value();
     JSObjectRef holder_ref = found_on_proto ? holder.value() : receiver.value();
-    base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
+    OptionalObjectRef constant = holder_ref.GetOwnFastDataProperty(
         broker(), access_info.field_representation(), access_info.field_index(),
         dependencies());
     if (!constant.has_value() || !constant->IsHeapObject() ||
@@ -870,7 +870,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
   if (!all && !none) return kMayBeInPrototypeChain;
 
   {
-    base::Optional<JSObjectRef> last_prototype;
+    OptionalJSObjectRef last_prototype;
     if (all) {
       // We don't need to protect the full chain if we found the prototype, we
       // can stop at {prototype}.  In fact we could stop at the one before
@@ -1506,7 +1506,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     if (lookup_start_object_map.equals(
             native_context().global_proxy_object(broker()).map(broker()))) {
       if (!native_context().GlobalIsDetached(broker())) {
-        base::Optional<PropertyCellRef> cell =
+        OptionalPropertyCellRef cell =
             native_context().global_object(broker()).GetPropertyCell(
                 broker(), feedback.name());
         if (!cell.has_value()) return NoChange();
@@ -2070,8 +2070,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
 
 namespace {
 
-base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
-                                                      Node* receiver) {
+OptionalJSTypedArrayRef GetTypedArrayConstant(JSHeapBroker* broker,
+                                              Node* receiver) {
   HeapObjectMatcher m(receiver);
   if (!m.HasResolvedValue()) return base::nullopt;
   ObjectRef object = m.Ref(broker);
@@ -2085,7 +2085,7 @@ base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
 
 void JSNativeContextSpecialization::RemoveImpossibleMaps(
     Node* object, ZoneVector<MapRef>* maps) const {
-  base::Optional<MapRef> root_map = InferRootMap(object);
+  OptionalMapRef root_map = InferRootMap(object);
   if (root_map.has_value() && !root_map->is_abandoned_prototype_map()) {
     maps->erase(
         std::remove_if(maps->begin(), maps->end(),
@@ -2383,11 +2383,11 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
       mkey.IsInRange(0.0, static_cast<double>(JSObject::kMaxElementIndex))) {
     static_assert(JSObject::kMaxElementIndex <= kMaxUInt32);
     const uint32_t index = static_cast<uint32_t>(mkey.ResolvedValue());
-    base::Optional<ObjectRef> element;
+    OptionalObjectRef element;
 
     if (receiver_ref.IsJSObject()) {
       JSObjectRef jsobject_ref = receiver_ref.AsJSObject();
-      base::Optional<FixedArrayBaseRef> elements =
+      OptionalFixedArrayBaseRef elements =
           jsobject_ref.elements(broker(), kRelaxedLoad);
       if (elements.has_value()) {
         element = jsobject_ref.GetOwnConstantElement(broker(), *elements, index,
@@ -2446,7 +2446,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
 }
 
 Reduction JSNativeContextSpecialization::ReducePropertyAccess(
-    Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
+    Node* node, Node* key, OptionalNameRef static_name, Node* value,
     FeedbackSource const& source, AccessMode access_mode) {
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -2793,7 +2793,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     Node* effect, Node* control, NameRef const& name,
     ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
   // Determine actual holder and perform prototype chain checks.
-  base::Optional<JSObjectRef> holder = access_info.holder();
+  OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value() && !access_info.HasDictionaryHolder()) {
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
@@ -2849,7 +2849,7 @@ JSNativeContextSpecialization::BuildPropertyTest(
   DCHECK(!access_info.HasDictionaryHolder());
 
   // Determine actual holder and perform prototype chain checks.
-  base::Optional<JSObjectRef> holder = access_info.holder();
+  OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value()) {
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
@@ -2893,7 +2893,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
-  base::Optional<JSObjectRef> holder = access_info.holder();
+  OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value()) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     DCHECK_NE(AccessMode::kDefine, access_mode);
@@ -2997,7 +2997,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
         } else if (field_representation ==
                    MachineRepresentation::kTaggedPointer) {
-          base::Optional<MapRef> field_map = access_info.field_map();
+          OptionalMapRef field_map = access_info.field_map();
           if (field_map.has_value()) {
             // Emit a map check for the value.
             effect =
@@ -3032,7 +3032,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
         UNREACHABLE();
     }
     // Check if we need to perform a transitioning store.
-    base::Optional<MapRef> transition_map = access_info.transition_map();
+    OptionalMapRef transition_map = access_info.transition_map();
     if (transition_map.has_value()) {
       // Check if we need to grow the properties backing store
       // with this transitioning store.
@@ -3520,7 +3520,7 @@ JSNativeContextSpecialization::
 
   // Check if we can constant-fold information about the {receiver} (e.g.
   // for asm.js-like code patterns).
-  base::Optional<JSTypedArrayRef> typed_array =
+  OptionalJSTypedArrayRef typed_array =
       GetTypedArrayConstant(broker(), receiver);
   if (typed_array.has_value() &&
       // TODO(v8:11111): Add support for rab/gsab here.
@@ -3979,14 +3979,13 @@ bool JSNativeContextSpecialization::InferMaps(Node* object, Effect effect,
   return false;
 }
 
-base::Optional<MapRef> JSNativeContextSpecialization::InferRootMap(
-    Node* object) const {
+OptionalMapRef JSNativeContextSpecialization::InferRootMap(Node* object) const {
   HeapObjectMatcher m(object);
   if (m.HasResolvedValue()) {
     MapRef map = m.Ref(broker()).map(broker());
     return map.FindRootMap(broker());
   } else if (m.IsJSCreate()) {
-    base::Optional<MapRef> initial_map =
+    OptionalMapRef initial_map =
         NodeProperties::GetJSCreateMap(broker(), object);
     if (initial_map.has_value()) {
       DCHECK(initial_map->equals(initial_map->FindRootMap(broker())));

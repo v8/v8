@@ -278,9 +278,10 @@ class JSObjectData : public JSReceiverData {
 
 namespace {
 
-base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
-    JSHeapBroker* broker, JSObjectRef holder, Representation representation,
-    FieldIndex field_index) {
+OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
+                                                 JSObjectRef holder,
+                                                 Representation representation,
+                                                 FieldIndex field_index) {
   base::Optional<Object> constant;
   {
     DisallowGarbageCollection no_gc;
@@ -356,8 +357,9 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
 
 // Tries to get the property at {dict_index}. If we are within bounds of the
 // object, we are guaranteed to see valid heap words even if the data is wrong.
-base::Optional<ObjectRef> GetOwnDictionaryPropertyFromHeap(
-    JSHeapBroker* broker, Handle<JSObject> receiver, InternalIndex dict_index) {
+OptionalObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
+                                                   Handle<JSObject> receiver,
+                                                   InternalIndex dict_index) {
   Handle<Object> constant;
   {
     DisallowGarbageCollection no_gc;
@@ -928,8 +930,7 @@ ContextRef ContextRef::previous(JSHeapBroker* broker, size_t* depth) const {
   return MakeRefAssumeMemoryFence(broker, current);
 }
 
-base::Optional<ObjectRef> ContextRef::get(JSHeapBroker* broker,
-                                          int index) const {
+OptionalObjectRef ContextRef::get(JSHeapBroker* broker, int index) const {
   CHECK_LE(0, index);
   // Length is immutable after initialization.
   if (index >= object()->length(kRelaxedLoad)) return {};
@@ -1069,8 +1070,8 @@ bool MapRef::CanInlineElementAccess() const {
   return false;
 }
 
-base::Optional<MapRef> MapRef::AsElementsKind(JSHeapBroker* broker,
-                                              ElementsKind kind) const {
+OptionalMapRef MapRef::AsElementsKind(JSHeapBroker* broker,
+                                      ElementsKind kind) const {
   const ElementsKind current_kind = elements_kind();
   if (kind == current_kind) return *this;
 
@@ -1133,7 +1134,7 @@ void RecordConsistentJSFunctionViewDependencyIfNeeded(
 
 }  // namespace
 
-base::Optional<FeedbackVectorRef> JSFunctionRef::feedback_vector(
+OptionalFeedbackVectorRef JSFunctionRef::feedback_vector(
     JSHeapBroker* broker) const {
   return raw_feedback_cell(broker).feedback_vector(broker);
 }
@@ -1182,13 +1183,13 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(JSHeapBroker* broker,
                                   object()->closure_feedback_cell(index));
 }
 
-base::Optional<ObjectRef> JSObjectRef::raw_properties_or_hash(
+OptionalObjectRef JSObjectRef::raw_properties_or_hash(
     JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->raw_properties_or_hash());
 }
 
-base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
-    JSHeapBroker* broker, FieldIndex index) const {
+OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
+                                                     FieldIndex index) const {
   CHECK(index.is_inobject());
   Handle<Object> value;
   {
@@ -1262,8 +1263,8 @@ MapRef MapRef::FindFieldOwner(JSHeapBroker* broker,
       broker, object()->FindFieldOwner(broker->isolate(), descriptor_index));
 }
 
-base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
-    JSHeapBroker* broker, uint32_t index) const {
+OptionalObjectRef StringRef::GetCharAsStringOrUndefined(JSHeapBroker* broker,
+                                                        uint32_t index) const {
   String maybe_char;
   auto result = ConcurrentLookupIterator::TryGetOwnChar(
       &maybe_char, broker->isolate(), broker->local_isolate(), *object(),
@@ -1350,8 +1351,7 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements().length();
 }
 
-base::Optional<ObjectRef> FixedArrayRef::TryGet(JSHeapBroker* broker,
-                                                int i) const {
+OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker, int i) const {
   Handle<Object> value;
   {
     DisallowGarbageCollection no_gc;
@@ -1523,7 +1523,7 @@ StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {
 
 int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
 
-base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code(
+OptionalCallHandlerInfoRef FunctionTemplateInfoRef::call_code(
     JSHeapBroker* broker) const {
   HeapObject call_code = object()->call_code(kAcquireLoad);
   if (call_code.IsUndefined()) return base::nullopt;
@@ -1617,8 +1617,8 @@ ObjectRef FeedbackCellRef::value(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->value(kAcquireLoad));
 }
 
-base::Optional<ObjectRef> MapRef::GetStrongValue(
-    JSHeapBroker* broker, InternalIndex descriptor_index) const {
+OptionalObjectRef MapRef::GetStrongValue(JSHeapBroker* broker,
+                                         InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   return instance_descriptors(broker).GetStrongValue(broker, descriptor_index);
 }
@@ -1765,7 +1765,7 @@ MapRef NativeContextRef::GetInitialJSArrayMap(JSHeapBroker* broker,
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
 
-base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
+OptionalJSFunctionRef NativeContextRef::GetConstructorFunction(
     JSHeapBroker* broker, const MapRef& map) const {
   CHECK(map.IsPrimitiveMap());
   switch (map.constructor_function_index()) {
@@ -1832,14 +1832,14 @@ bool ObjectRef::should_access_heap() const {
   return data()->should_access_heap();
 }
 
-base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
+OptionalObjectRef JSObjectRef::GetOwnConstantElement(
     JSHeapBroker* broker, const FixedArrayBaseRef& elements_ref, uint32_t index,
     CompilationDependencies* dependencies) const {
   base::Optional<Object> maybe_element = GetOwnConstantElementFromHeap(
       broker, *elements_ref.object(), map(broker).elements_kind(), index);
   if (!maybe_element.has_value()) return {};
 
-  base::Optional<ObjectRef> result = TryMakeRef(broker, maybe_element.value());
+  OptionalObjectRef result = TryMakeRef(broker, maybe_element.value());
   if (result.has_value()) {
     dependencies->DependOnOwnConstantElement(*this, index, *result);
   }
@@ -1896,10 +1896,10 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
   return maybe_element;
 }
 
-base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
+OptionalObjectRef JSObjectRef::GetOwnFastDataProperty(
     JSHeapBroker* broker, Representation field_representation, FieldIndex index,
     CompilationDependencies* dependencies) const {
-  base::Optional<ObjectRef> result = GetOwnFastDataPropertyFromHeap(
+  OptionalObjectRef result = GetOwnFastDataPropertyFromHeap(
       broker, *this, field_representation, index);
   if (result.has_value()) {
     dependencies->DependOnOwnConstantDataProperty(
@@ -1908,11 +1908,11 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
   return result;
 }
 
-base::Optional<ObjectRef> JSObjectRef::GetOwnDictionaryProperty(
+OptionalObjectRef JSObjectRef::GetOwnDictionaryProperty(
     JSHeapBroker* broker, InternalIndex index,
     CompilationDependencies* dependencies) const {
   CHECK(index.is_found());
-  base::Optional<ObjectRef> result =
+  OptionalObjectRef result =
       GetOwnDictionaryPropertyFromHeap(broker, object(), index);
   if (result.has_value()) {
     dependencies->DependOnOwnConstantDictionaryProperty(*this, index, *result);
@@ -1928,14 +1928,13 @@ ObjectRef JSArrayRef::GetBoilerplateLength(JSHeapBroker* broker) const {
   return length_unsafe(broker).value();
 }
 
-base::Optional<ObjectRef> JSArrayRef::length_unsafe(
-    JSHeapBroker* broker) const {
+OptionalObjectRef JSArrayRef::length_unsafe(JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->length(broker->isolate(), kRelaxedLoad));
 }
 
-base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
-    JSHeapBroker* broker, FixedArrayBaseRef elements_ref,
-    uint32_t index) const {
+OptionalObjectRef JSArrayRef::GetOwnCowElement(JSHeapBroker* broker,
+                                               FixedArrayBaseRef elements_ref,
+                                               uint32_t index) const {
   // Note: we'd like to check `elements_ref == elements()` here, but due to
   // concurrency this may not hold. The code below must be able to deal with
   // concurrent `elements` modifications.
@@ -1956,7 +1955,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
   // `elements`. We rely on the invariant that any `length` change will
   // also result in an `elements` change to make this safe. The `elements`
   // consistency check in the caller thus also guards the value of `length`.
-  base::Optional<ObjectRef> length_ref = length_unsafe(broker);
+  OptionalObjectRef length_ref = length_unsafe(broker);
 
   if (!length_ref.has_value()) return {};
 
@@ -1971,18 +1970,16 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
   return TryMakeRef(broker, result.value());
 }
 
-base::Optional<CellRef> SourceTextModuleRef::GetCell(JSHeapBroker* broker,
-                                                     int cell_index) const {
+OptionalCellRef SourceTextModuleRef::GetCell(JSHeapBroker* broker,
+                                             int cell_index) const {
   return TryMakeRef(broker, object()->GetCell(cell_index));
 }
 
-base::Optional<ObjectRef> SourceTextModuleRef::import_meta(
-    JSHeapBroker* broker) const {
+OptionalObjectRef SourceTextModuleRef::import_meta(JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->import_meta(kAcquireLoad));
 }
 
-base::Optional<MapRef> HeapObjectRef::map_direct_read(
-    JSHeapBroker* broker) const {
+OptionalMapRef HeapObjectRef::map_direct_read(JSHeapBroker* broker) const {
   PtrComprCageBase cage_base = broker->cage_base();
   return TryMakeRef(broker, object()->map(cage_base, kAcquireLoad),
                     kAssumeMemoryFence);
@@ -2034,15 +2031,14 @@ HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
                         map(broker).oddball_type(broker));
 }
 
-base::Optional<JSObjectRef> AllocationSiteRef::boilerplate(
-    JSHeapBroker* broker) const {
+OptionalJSObjectRef AllocationSiteRef::boilerplate(JSHeapBroker* broker) const {
   if (!PointsToLiteral()) return {};
   DCHECK(data_->should_access_heap());
   return TryMakeRef(broker, object()->boilerplate(kAcquireLoad));
 }
 
-base::Optional<FixedArrayBaseRef> JSObjectRef::elements(
-    JSHeapBroker* broker, RelaxedLoadTag tag) const {
+OptionalFixedArrayBaseRef JSObjectRef::elements(JSHeapBroker* broker,
+                                                RelaxedLoadTag tag) const {
   return TryMakeRef(broker, object()->elements(tag));
 }
 
@@ -2063,7 +2059,7 @@ NameRef DescriptorArrayRef::GetPropertyKey(
   return result;
 }
 
-base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
+OptionalObjectRef DescriptorArrayRef::GetStrongValue(
     JSHeapBroker* broker, InternalIndex descriptor_index) const {
   HeapObject heap_object;
   if (!object()
@@ -2077,16 +2073,16 @@ base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
   return TryMakeRef(broker, heap_object);
 }
 
-base::Optional<FeedbackVectorRef> FeedbackCellRef::feedback_vector(
+OptionalFeedbackVectorRef FeedbackCellRef::feedback_vector(
     JSHeapBroker* broker) const {
   ObjectRef contents = value(broker);
   if (!contents.IsFeedbackVector()) return {};
   return contents.AsFeedbackVector();
 }
 
-base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info(
+OptionalSharedFunctionInfoRef FeedbackCellRef::shared_function_info(
     JSHeapBroker* broker) const {
-  base::Optional<FeedbackVectorRef> vector = feedback_vector(broker);
+  OptionalFeedbackVectorRef vector = feedback_vector(broker);
   if (!vector.has_value()) return {};
   return vector->shared_function_info(broker);
 }
@@ -2204,8 +2200,8 @@ NativeContextRef JSFunctionRef::native_context(JSHeapBroker* broker) const {
                                   context(broker).object()->native_context());
 }
 
-base::Optional<FunctionTemplateInfoRef>
-SharedFunctionInfoRef::function_template_info(JSHeapBroker* broker) const {
+OptionalFunctionTemplateInfoRef SharedFunctionInfoRef::function_template_info(
+    JSHeapBroker* broker) const {
   if (!object()->IsApiFunction()) return {};
   return TryMakeRef(broker, FunctionTemplateInfo::cast(
                                 object()->function_data(kAcquireLoad)));
@@ -2223,8 +2219,7 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->scope_info(kAcquireLoad));
 }
 
-base::Optional<MapRef> JSObjectRef::GetObjectCreateMap(
-    JSHeapBroker* broker) const {
+OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
   Handle<Map> map_handle = Handle<Map>::cast(map(broker).object());
   // Note: implemented as an acquire-load.
   if (!map_handle->is_prototype_map()) return {};
@@ -2255,7 +2250,7 @@ bool NativeContextRef::GlobalIsDetached(JSHeapBroker* broker) const {
   return !proxy_proto.equals(global_object(broker));
 }
 
-base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
+OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(
     JSHeapBroker* broker, NameRef const& name) const {
   base::Optional<PropertyCell> maybe_cell =
       ConcurrentLookupIterator::TryGetPropertyCell(

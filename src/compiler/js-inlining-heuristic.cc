@@ -27,7 +27,7 @@ bool IsSmall(int const size) {
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
                             FeedbackCellRef const& feedback_cell) {
-  base::Optional<FeedbackVectorRef> feedback_vector =
+  OptionalFeedbackVectorRef feedback_vector =
       feedback_cell.feedback_vector(broker);
   if (!feedback_vector.has_value()) {
     TRACE("Cannot consider " << feedback_cell
@@ -46,7 +46,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
 
   // Read feedback vector again in case it got flushed before we were able to
   // prevent flushing above.
-  base::Optional<FeedbackVectorRef> feedback_vector_again =
+  OptionalFeedbackVectorRef feedback_vector_again =
       feedback_cell.feedback_vector(broker);
   if (!feedback_vector_again.has_value()) {
     TRACE("Cannot consider " << shared << " for inlining (no feedback vector)");

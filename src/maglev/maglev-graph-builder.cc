@@ -71,10 +71,10 @@ void MinimizeContextChainDepth(ValueNode** context, size_t* depth) {
 
 class FunctionContextSpecialization final : public AllStatic {
  public:
-  static base::Optional<compiler::ContextRef> TryToRef(
+  static compiler::OptionalContextRef TryToRef(
       const MaglevCompilationUnit* unit, ValueNode* context, size_t* depth) {
     DCHECK(unit->info()->specialize_to_function_context());
-    base::Optional<compiler::ContextRef> ref;
+    compiler::OptionalContextRef ref;
     if (InitialValue* n = context->TryCast<InitialValue>()) {
       if (n->source().is_current_context()) {
         ref = unit->function().context(unit->broker());
@@ -927,7 +927,7 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
   DCHECK(compilation_unit_->info()->specialize_to_function_context());
 
   size_t new_depth = *depth;
-  base::Optional<compiler::ContextRef> maybe_context_ref =
+  compiler::OptionalContextRef maybe_context_ref =
       FunctionContextSpecialization::TryToRef(compilation_unit_, *context,
                                               &new_depth);
   if (!maybe_context_ref.has_value()) return false;
@@ -939,7 +939,7 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     return false;
   }
 
-  base::Optional<compiler::ObjectRef> maybe_slot_value =
+  compiler::OptionalObjectRef maybe_slot_value =
       context_ref.get(broker(), slot_index);
   if (!maybe_slot_value.has_value()) {
     *depth = new_depth;
@@ -1046,7 +1046,7 @@ void MaglevGraphBuilder::VisitStaContextSlot() {
   MinimizeContextChainDepth(&context, &depth);
 
   if (compilation_unit_->info()->specialize_to_function_context()) {
-    base::Optional<compiler::ContextRef> maybe_ref =
+    compiler::OptionalContextRef maybe_ref =
         FunctionContextSpecialization::TryToRef(compilation_unit_, context,
                                                 &depth);
     if (maybe_ref.has_value()) {
@@ -1159,7 +1159,7 @@ bool MaglevGraphBuilder::TryBuildScriptContextConstantAccess(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
   if (!global_access_feedback.immutable()) return false;
 
-  base::Optional<compiler::ObjectRef> maybe_slot_value =
+  compiler::OptionalObjectRef maybe_slot_value =
       global_access_feedback.script_context().get(
           broker(), global_access_feedback.slot_index());
   if (!maybe_slot_value) return false;
@@ -1525,7 +1525,7 @@ class KnownMapsMerger {
     return it->second;
   }
 
-  base::Optional<compiler::MapRef> GetMapRefFromMaps(Handle<Map> handle) {
+  compiler::OptionalMapRef GetMapRefFromMaps(Handle<Map> handle) {
     auto it =
         std::find_if(maps_.begin(), maps_.end(), [&](compiler::MapRef map_ref) {
           return map_ref.object().is_identical_to(handle);
@@ -1682,14 +1682,14 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   return broker()->dependencies()->DependOnNoElementsProtector();
 }
 
-base::Optional<compiler::ObjectRef>
+compiler::OptionalObjectRef
 MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     compiler::PropertyAccessInfo access_info) {
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
   DCHECK(access_info.holder().has_value());
 
-  base::Optional<compiler::ObjectRef> constant =
+  compiler::OptionalObjectRef constant =
       access_info.holder()->GetOwnDictionaryProperty(
           broker(), access_info.dictionary_index(), broker()->dependencies());
   if (!constant.has_value()) return {};
@@ -1717,11 +1717,10 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
   return constant;
 }
 
-base::Optional<compiler::ObjectRef>
-MaglevGraphBuilder::TryFoldLoadConstantDataField(
+compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return {};
-  base::Optional<compiler::JSObjectRef> source;
+  compiler::OptionalJSObjectRef source;
   if (access_info.holder().has_value()) {
     source = access_info.holder();
   } else if (Constant* n = lookup_start_object->TryCast<Constant>()) {
@@ -1800,7 +1799,7 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
 
 ValueNode* MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  base::Optional<compiler::ObjectRef> constant =
+  compiler::OptionalObjectRef constant =
       TryFoldLoadConstantDataField(access_info, lookup_start_object);
   if (constant.has_value()) {
     return GetConstant(constant.value());
@@ -1961,7 +1960,7 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
                           access_info);
       return true;
     case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
-      base::Optional<compiler::ObjectRef> constant =
+      compiler::OptionalObjectRef constant =
           TryFoldLoadDictPrototypeConstant(access_info);
       if (!constant.has_value()) return false;
       SetAccumulator(GetConstant(constant.value()));
@@ -2105,7 +2104,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
     for (compiler::PropertyAccessInfo access_info : access_infos) {
       DCHECK(!access_info.IsInvalid());
       if (access_info.IsDictionaryProtoDataConstant()) {
-        base::Optional<compiler::ObjectRef> constant =
+        compiler::OptionalObjectRef constant =
             access_info.holder()->GetOwnDictionaryProperty(
                 broker(), access_info.dictionary_index(),
                 broker()->dependencies());
@@ -2149,7 +2148,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
         case compiler::PropertyAccessInfo::kFastDataConstant: {
           field_repr =
               field_repr.generalize(access_info.field_representation());
-          base::Optional<compiler::ObjectRef> constant =
+          compiler::OptionalObjectRef constant =
               TryFoldLoadConstantDataField(access_info, lookup_start_object);
           if (constant.has_value()) {
             poly_access_infos.push_back(
@@ -2164,7 +2163,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
         case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
           field_repr =
               field_repr.generalize(access_info.field_representation());
-          base::Optional<compiler::ObjectRef> constant =
+          compiler::OptionalObjectRef constant =
               TryFoldLoadDictPrototypeConstant(access_info);
           DCHECK(constant.has_value());
           poly_access_infos.push_back(
@@ -2635,7 +2634,7 @@ void MaglevGraphBuilder::VisitLdaModuleVariable() {
   MinimizeContextChainDepth(&context, &depth);
 
   if (compilation_unit_->info()->specialize_to_function_context()) {
-    base::Optional<compiler::ContextRef> maybe_ref =
+    compiler::OptionalContextRef maybe_ref =
         FunctionContextSpecialization::TryToRef(compilation_unit_, context,
                                                 &depth);
     if (maybe_ref.has_value()) {
@@ -2682,7 +2681,7 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
   MinimizeContextChainDepth(&context, &depth);
 
   if (compilation_unit_->info()->specialize_to_function_context()) {
-    base::Optional<compiler::ContextRef> maybe_ref =
+    compiler::OptionalContextRef maybe_ref =
         FunctionContextSpecialization::TryToRef(compilation_unit_, context,
                                                 &depth);
     if (maybe_ref.has_value()) {
@@ -4062,7 +4061,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   if (!all && !none) return kMayBeInPrototypeChain;
 
   {
-    base::Optional<compiler::JSObjectRef> last_prototype;
+    compiler::OptionalJSObjectRef last_prototype;
     if (all) {
       // We don't need to protect the full chain if we found the prototype, we
       // can stop at {prototype}.  In fact we could stop at the one before
@@ -4193,11 +4192,11 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
   }
 
   if (access_info.IsFastDataConstant()) {
-    base::Optional<compiler::JSObjectRef> holder = access_info.holder();
+    compiler::OptionalJSObjectRef holder = access_info.holder();
     bool found_on_proto = holder.has_value();
     compiler::JSObjectRef holder_ref =
         found_on_proto ? holder.value() : callable;
-    base::Optional<compiler::ObjectRef> has_instance_field =
+    compiler::OptionalObjectRef has_instance_field =
         holder_ref.GetOwnFastDataProperty(
             broker(), access_info.field_representation(),
             access_info.field_index(), broker()->dependencies());
@@ -4273,7 +4272,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
     return TryBuildFastInstanceOf(object, callable_ref, nullptr);
   }
   if (feedback_source.IsValid()) {
-    base::Optional<compiler::JSObjectRef> callable_from_feedback =
+    compiler::OptionalJSObjectRef callable_from_feedback =
         feedback.AsInstanceOf().value();
     if (callable_from_feedback) {
       return TryBuildFastInstanceOf(object, *callable_from_feedback, callable);

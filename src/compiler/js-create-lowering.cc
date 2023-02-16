@@ -111,8 +111,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
 
-  base::Optional<MapRef> initial_map =
-      NodeProperties::GetJSCreateMap(broker(), node);
+  OptionalMapRef initial_map = NodeProperties::GetJSCreateMap(broker(), node);
   if (!initial_map.has_value()) return NoChange();
 
   JSFunctionRef original_constructor =
@@ -467,7 +466,7 @@ Reduction JSCreateLowering::ReduceNewArray(
 
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
-  base::Optional<MapRef> maybe_initial_map =
+  OptionalMapRef maybe_initial_map =
       initial_map.AsElementsKind(broker(), GetHoleyElementsKind(elements_kind));
   if (!maybe_initial_map.has_value()) return NoChange();
   initial_map = maybe_initial_map.value();
@@ -528,7 +527,7 @@ Reduction JSCreateLowering::ReduceNewArray(
     elements_kind = GetHoleyElementsKind(elements_kind);
   }
 
-  base::Optional<MapRef> maybe_initial_map =
+  OptionalMapRef maybe_initial_map =
       initial_map.AsElementsKind(broker(), elements_kind);
   if (!maybe_initial_map.has_value()) return NoChange();
   initial_map = maybe_initial_map.value();
@@ -573,7 +572,7 @@ Reduction JSCreateLowering::ReduceNewArray(
   // Determine the appropriate elements kind.
   DCHECK(IsFastElementsKind(elements_kind));
 
-  base::Optional<MapRef> maybe_initial_map =
+  OptionalMapRef maybe_initial_map =
       initial_map.AsElementsKind(broker(), elements_kind);
   if (!maybe_initial_map.has_value()) return NoChange();
   initial_map = maybe_initial_map.value();
@@ -627,11 +626,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  base::Optional<AllocationSiteRef> site_ref = p.site();
+  OptionalAllocationSiteRef site_ref = p.site();
   AllocationType allocation = AllocationType::kYoung;
 
-  base::Optional<MapRef> initial_map =
-      NodeProperties::GetJSCreateMap(broker(), node);
+  OptionalMapRef initial_map = NodeProperties::GetJSCreateMap(broker(), node);
   if (!initial_map.has_value()) return NoChange();
 
   Node* new_target = NodeProperties::GetValueInput(node, 1);
@@ -1326,8 +1324,8 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 
 namespace {
 
-base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
-                                          HeapObjectRef prototype) {
+OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker,
+                                  HeapObjectRef prototype) {
   MapRef standard_map =
       broker->target_native_context().object_function(broker).initial_map(
           broker);
@@ -1341,7 +1339,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   if (prototype.IsJSObject()) {
     return prototype.AsJSObject().GetObjectCreateMap(broker);
   }
-  return base::Optional<MapRef>();
+  return OptionalMapRef();
 }
 
 }  // namespace
@@ -1689,7 +1687,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   dependencies()->DependOnObjectSlotValue(boilerplate, HeapObject::kMapOffset,
                                           boilerplate_map);
   {
-    base::Optional<MapRef> current_boilerplate_map =
+    OptionalMapRef current_boilerplate_map =
         boilerplate.map_direct_read(broker());
     if (!current_boilerplate_map.has_value() ||
         !current_boilerplate_map->equals(boilerplate_map)) {
@@ -1747,7 +1745,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     // Note: the use of RawInobjectPropertyAt (vs. the higher-level
     // GetOwnFastDataProperty) here is necessary, since the underlying value
     // may be `uninitialized`, which the latter explicitly does not support.
-    base::Optional<ObjectRef> maybe_boilerplate_value =
+    OptionalObjectRef maybe_boilerplate_value =
         boilerplate.RawInobjectPropertyAt(broker(), index);
     if (!maybe_boilerplate_value.has_value()) return {};
 
@@ -1850,7 +1848,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
   DCHECK_GT(max_depth, 0);
   DCHECK_GE(*max_properties, 0);
 
-  base::Optional<FixedArrayBaseRef> maybe_boilerplate_elements =
+  OptionalFixedArrayBaseRef maybe_boilerplate_elements =
       boilerplate.elements(broker(), kRelaxedLoad);
   if (!maybe_boilerplate_elements.has_value()) return {};
   FixedArrayBaseRef boilerplate_elements = maybe_boilerplate_elements.value();
@@ -1892,7 +1890,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
     FixedArrayRef elements = boilerplate_elements.AsFixedArray();
     for (int i = 0; i < elements_length; ++i) {
       if ((*max_properties)-- == 0) return {};
-      base::Optional<ObjectRef> element_value = elements.TryGet(broker(), i);
+      OptionalObjectRef element_value = elements.TryGet(broker(), i);
       if (!element_value.has_value()) return {};
       if (element_value->IsJSObject()) {
         base::Optional<Node*> object =

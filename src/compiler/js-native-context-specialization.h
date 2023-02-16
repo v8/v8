@@ -101,8 +101,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // In the case of non-keyed (named) accesses, pass the name as {static_name}
   // and use {nullptr} for {key} (load/store modes are irrelevant).
   Reduction ReducePropertyAccess(Node* node, Node* key,
-                                 base::Optional<NameRef> static_name,
-                                 Node* value, FeedbackSource const& source,
+                                 OptionalNameRef static_name, Node* value,
+                                 FeedbackSource const& source,
                                  AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& feedback,
@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   // Try to infer a root map for the {object} independent of the current program
   // location.
-  base::Optional<MapRef> InferRootMap(Node* object) const;
+  OptionalMapRef InferRootMap(Node* object) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely

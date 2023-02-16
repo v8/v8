@@ -4142,7 +4142,7 @@ class PolymorphicAccessInfo {
   }
   static PolymorphicAccessInfo DataLoad(
       const ZoneVector<compiler::MapRef>& maps, Representation representation,
-      base::Optional<compiler::JSObjectRef> holder, FieldIndex field_index) {
+      compiler::OptionalJSObjectRef holder, FieldIndex field_index) {
     return PolymorphicAccessInfo(kDataLoad, maps, representation, holder,
                                  field_index);
   }
@@ -4170,7 +4170,7 @@ class PolymorphicAccessInfo {
     return constant_.AsCell().object();
   }
 
-  base::Optional<compiler::JSObjectRef> holder() const {
+  compiler::OptionalJSObjectRef holder() const {
     DCHECK_EQ(kind_, kDataLoad);
     return data_load_.holder_;
   }
@@ -4202,7 +4202,7 @@ class PolymorphicAccessInfo {
 
   PolymorphicAccessInfo(Kind kind, const ZoneVector<compiler::MapRef>& maps,
                         Representation representation,
-                        base::Optional<compiler::JSObjectRef> holder,
+                        compiler::OptionalJSObjectRef holder,
                         FieldIndex field_index)
       : kind_(kind),
         maps_(maps),
@@ -4218,7 +4218,7 @@ class PolymorphicAccessInfo {
   union {
     const compiler::ObjectRef constant_;
     struct {
-      const base::Optional<compiler::JSObjectRef> holder_;
+      const compiler::OptionalJSObjectRef holder_;
       const FieldIndex field_index_;
     } data_load_;
   };
