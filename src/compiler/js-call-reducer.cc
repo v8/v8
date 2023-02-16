@@ -1002,6 +1002,13 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith() {
         TypeGuard(Type::UnsignedSmall(), NumberAdd(k, clamped_start)));
     Node* receiver_string_char =
         StringCharCodeAt(receiver_string, receiver_string_position);
+    if (!v8_flags.turbo_loop_variable) {
+      // Without loop variable analysis, Turbofan's typer is unable to derive a
+      // sufficiently precise type here. This is not a soundness problem, but
+      // triggers graph verification errors. So we only insert the TypeGuard if
+      // necessary.
+      k = TypeGuard(Type::Unsigned32(), k);
+    }
     Node* search_string_char = StringCharCodeAt(search_string, k);
     auto is_equal = graph()->NewNode(simplified()->NumberEqual(),
                                      receiver_string_char, search_string_char);
