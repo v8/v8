@@ -47,7 +47,7 @@ intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() {
-  return RoundUp(MemoryChunk::kHeaderSize,
+  return RoundUp(BasicMemoryChunk::kHeaderSize,
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 
