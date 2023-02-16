@@ -127,7 +127,7 @@ void SafepointTable::Print(std::ostream& os) const {
 
 SafepointTableBuilder::Safepoint SafepointTableBuilder::DefineSafepoint(
     Assembler* assembler) {
-  entries_.push_back(EntryBuilder(zone_, assembler->pc_offset_for_safepoint()));
+  entries_.emplace_back(zone_, assembler->pc_offset_for_safepoint());
   return SafepointTableBuilder::Safepoint(&entries_.back(), this);
 }
 
@@ -136,7 +136,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int deopt_index) {
   DCHECK_NE(SafepointEntry::kNoTrampolinePC, trampoline);
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
-  auto it = entries_.Find(start);
+  auto it = entries_.begin() + start;
   DCHECK(std::any_of(it, entries_.end(),
                      [pc](auto& entry) { return entry.pc == pc; }));
   int index = start;
@@ -298,10 +298,9 @@ void SafepointTableBuilder::RemoveDuplicates() {
   };
 
   auto remaining_it = entries_.begin();
-  size_t remaining = 0;
+  auto end = entries_.end();
 
-  for (auto it = entries_.begin(), end = entries_.end(); it != end;
-       ++remaining_it, ++remaining) {
+  for (auto it = entries_.begin(); it != end; ++remaining_it) {
     if (remaining_it != it) *remaining_it = *it;
     // Merge identical entries.
     do {
@@ -309,7 +308,7 @@ void SafepointTableBuilder::RemoveDuplicates() {
     } while (it != end && is_identical_except_for_pc(*it, *remaining_it));
   }
 
-  entries_.Rewind(remaining);
+  entries_.erase(remaining_it, end);
 }
 
 }  // namespace internal

@@ -10,7 +10,7 @@
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
 #include "src/utils/bit-vector.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -262,7 +262,7 @@ class SafepointTableBuilder : public SafepointTableBuilderBase {
 #endif  // DEBUG
   int min_stack_index_ = std::numeric_limits<int>::max();
 
-  ZoneChunkList<EntryBuilder> entries_;
+  ZoneDeque<EntryBuilder> entries_;
   Zone* zone_;
 };
 
