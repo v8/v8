@@ -5,9 +5,11 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>  // For abort.
+
 #include <memory>
 #include <string>
 
@@ -1082,10 +1084,27 @@ class Platform {
   virtual double MonotonicallyIncreasingTime() = 0;
 
   /**
-   * Current wall-clock time in milliseconds since epoch.
-   * This function is expected to return at least millisecond-precision values.
+   * Current wall-clock time in milliseconds since epoch. Use
+   * CurrentClockTimeMillisHighResolution() when higher precision is
+   * required.
+   */
+  virtual int64_t CurrentClockTimeMilliseconds() {
+    return floor(CurrentClockTimeMillis());
+  }
+
+  /**
+   * This function is deprecated and will be deleted. Use either
+   * CurrentClockTimeMilliseconds() or
+   * CurrentClockTimeMillisecondsHighResolution().
    */
   virtual double CurrentClockTimeMillis() = 0;
+
+  /**
+   * Same as CurrentClockTimeMilliseconds(), but with more precision.
+   */
+  virtual double CurrentClockTimeMillisecondsHighResolution() {
+    return CurrentClockTimeMillis();
+  }
 
   typedef void (*StackTracePrinter)();
 

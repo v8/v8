@@ -416,7 +416,7 @@ void InspectorIsolateData::SetCurrentTimeMS(double time) {
 
 double InspectorIsolateData::currentTimeMS() {
   if (current_time_set_) return current_time_;
-  return V8::GetCurrentPlatform()->CurrentClockTimeMillis();
+  return V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
 }
 
 void InspectorIsolateData::SetMemoryInfo(v8::Local<v8::Value> memory_info) {

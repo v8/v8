@@ -1114,8 +1114,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target, double tv);
 
-  // Returns the time value (UTC) identifying the current time.
-  static double CurrentTimeValue(Isolate* isolate);
+  // Returns the time value (UTC) identifying the current time in milliseconds.
+  static int64_t CurrentTimeValue(Isolate* isolate);
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.

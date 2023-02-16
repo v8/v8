@@ -5588,15 +5588,15 @@ MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
 }
 
 // static
-double JSDate::CurrentTimeValue(Isolate* isolate) {
+int64_t JSDate::CurrentTimeValue(Isolate* isolate) {
   if (v8_flags.log_internal_timer_events) LOG(isolate, CurrentTimeEvent());
-  if (v8_flags.correctness_fuzzer_suppressions) return 4.2;
+  if (v8_flags.correctness_fuzzer_suppressions) return 4;
 
   // According to ECMA-262, section 15.9.1, page 117, the precision of
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  return std::floor(V8::GetCurrentPlatform()->CurrentClockTimeMillis());
+  return V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
 }
 
 // static

@@ -355,13 +355,14 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
   void WriteLogRecordedBuffer(uintptr_t address, int size, const char* name,
                               int name_length);
 
+  static base::LazyRecursiveMutex& GetFileMutex();
+
   // Extension added to V8 log file name to get the low-level log name.
   static const char kFilenameFormatString[];
   static const int kFilenameBufferPadding;
 
   // Per-process singleton file. We assume that there is one main isolate
   // to determine when it goes away, we keep the reference count.
-  static base::LazyRecursiveMutex file_mutex_;
   static FILE* perf_output_handle_;
   static uint64_t reference_count_;
 };
@@ -370,16 +371,20 @@ const char LinuxPerfBasicLogger::kFilenameFormatString[] = "/tmp/perf-%d.map";
 // Extra space for the PID in the filename
 const int LinuxPerfBasicLogger::kFilenameBufferPadding = 16;
 
-base::LazyRecursiveMutex LinuxPerfBasicLogger::file_mutex_ =
-    LAZY_RECURSIVE_MUTEX_INITIALIZER;
+// static
+base::LazyRecursiveMutex& LinuxPerfBasicLogger::GetFileMutex() {
+  static base::LazyRecursiveMutex file_mutex = LAZY_RECURSIVE_MUTEX_INITIALIZER;
+  return file_mutex;
+}
+
 // The following static variables are protected by
-// LinuxPerfBasicLogger::file_mutex_.
+// LinuxPerfBasicLogger::GetFileMutext().
 uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
 FILE* LinuxPerfBasicLogger::perf_output_handle_ = nullptr;
 
 LinuxPerfBasicLogger::LinuxPerfBasicLogger(Isolate* isolate)
     : CodeEventLogger(isolate) {
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
   int process_id_ = base::OS::GetCurrentProcessId();
   reference_count_++;
   // If this is the first logger, open the file.
@@ -398,7 +403,7 @@ LinuxPerfBasicLogger::LinuxPerfBasicLogger(Isolate* isolate)
 }
 
 LinuxPerfBasicLogger::~LinuxPerfBasicLogger() {
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
   reference_count_--;
 
   // If this was the last logger, close the file.
@@ -2110,8 +2115,7 @@ static void PrepareLogFileName(std::ostream& os, Isolate* isolate,
           break;
         case 't':
           // %t expands to the current time in milliseconds.
-          os << static_cast<int64_t>(
-              V8::GetCurrentPlatform()->CurrentClockTimeMillis());
+          os << V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
           break;
         case '%':
           // %% expands (contracts really) to %.

@@ -54,6 +54,11 @@
 namespace v8 {
 namespace internal {
 
+base::LazyRecursiveMutex& GetFileMutex() {
+  static base::LazyRecursiveMutex file_mutex;
+  return file_mutex;
+}
+
 struct PerfJitHeader {
   uint32_t magic_;
   uint32_t version_;
@@ -118,9 +123,8 @@ const int LinuxPerfJitLogger::kFilenameBufferPadding = 16;
 
 static const char kStringTerminator[] = {'\0'};
 
-base::LazyRecursiveMutex LinuxPerfJitLogger::file_mutex_;
 // The following static variables are protected by
-// LinuxPerfJitLogger::file_mutex_.
+// GetFileMutex().
 int LinuxPerfJitLogger::process_id_ = 0;
 uint64_t LinuxPerfJitLogger::reference_count_ = 0;
 void* LinuxPerfJitLogger::marker_address_ = nullptr;
@@ -181,7 +185,7 @@ void LinuxPerfJitLogger::CloseMarkerFile(void* marker_address) {
 
 LinuxPerfJitLogger::LinuxPerfJitLogger(Isolate* isolate)
     : CodeEventLogger(isolate) {
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
   process_id_ = base::OS::GetCurrentProcessId();
 
   reference_count_++;
@@ -194,7 +198,7 @@ LinuxPerfJitLogger::LinuxPerfJitLogger(Isolate* isolate)
 }
 
 LinuxPerfJitLogger::~LinuxPerfJitLogger() {
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
 
   reference_count_--;
   // If this was the last logger, close the file.
@@ -225,7 +229,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     }
   }
 
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
 
   if (perf_output_handle_ == nullptr) return;
 
@@ -257,7 +261,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
 #if V8_ENABLE_WEBASSEMBLY
 void LinuxPerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                            const char* name, int length) {
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
 
   if (perf_output_handle_ == nullptr) return;
 
@@ -535,9 +539,9 @@ void LinuxPerfJitLogger::LogWriteHeader() {
   header.elf_mach_target_ = GetElfMach();
   header.reserved_ = 0xDEADBEEF;
   header.process_id_ = process_id_;
-  header.time_stamp_ =
-      static_cast<uint64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis() *
-                            base::Time::kMicrosecondsPerMillisecond);
+  header.time_stamp_ = static_cast<uint64_t>(
+      V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution() *
+      base::Time::kMicrosecondsPerMillisecond);
   header.flags_ = 0;
 
   LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));

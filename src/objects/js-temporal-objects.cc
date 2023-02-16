@@ -608,7 +608,8 @@ Handle<BigInt> SystemUTCEpochNanoseconds(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let ns be the approximate current UTC date and time, in nanoseconds
   // since the epoch.
-  double ms = V8::GetCurrentPlatform()->CurrentClockTimeMillis();
+  double ms =
+      V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
   // 2. Set ns to the result of clamping ns between −8.64 × 10^21 and 8.64 ×
   // 10^21.
 

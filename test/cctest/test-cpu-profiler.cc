@@ -1011,11 +1011,11 @@ class TestApiCallbacks {
   void Wait() {
     if (is_warming_up_) return;
     v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
-    double start = platform->CurrentClockTimeMillis();
-    double duration = 0;
+    int64_t start = platform->CurrentClockTimeMilliseconds();
+    int64_t duration = 0;
     while (duration < min_duration_ms_) {
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
-      duration = platform->CurrentClockTimeMillis() - start;
+      duration = platform->CurrentClockTimeMilliseconds() - start;
     }
   }
 
@@ -3502,11 +3502,11 @@ TEST(FastStopProfiling) {
   profiler->StartProfiling("", {kLeafNodeLineNumbers});
 
   v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
-  double start = platform->CurrentClockTimeMillis();
+  int64_t start = platform->CurrentClockTimeMilliseconds();
   profiler->StopProfiling("");
-  double duration = platform->CurrentClockTimeMillis() - start;
+  int64_t duration = platform->CurrentClockTimeMilliseconds() - start;
 
-  CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
+  CHECK_LT(duration, kWaitThreshold.InMilliseconds());
 }
 
 // Tests that when current_profiles->size() is greater than the max allowable
