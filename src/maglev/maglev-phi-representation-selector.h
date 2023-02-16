@@ -66,8 +66,13 @@ class MaglevPhiRepresentationSelector {
         // need to retag it.
         if (!IsUntagging(n->opcode()) &&
             phi->value_representation() != ValueRepresentation::kTagged) {
-          node->change_input(
-              i, TagPhi(phi, current_block_, NewNodePosition::kStart));
+          // If {n} is a conversion that isn't an untagging, then it has to have
+          // been inserted during this phase, because it knows that {phi} isn't
+          // tagged. As such, we don't do anything in that case.
+          if (!n->properties().is_conversion()) {
+            node->change_input(
+                i, TagPhi(phi, current_block_, NewNodePosition::kStart));
+          }
         }
       }
     }
