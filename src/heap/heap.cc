@@ -5500,8 +5500,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
                        LinearAllocationArea& old_allocation_info) {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
-  const bool has_young_gen = !v8_flags.single_generation && !IsShared();
-  if (has_young_gen) {
+  if (!v8_flags.single_generation) {
     if (v8_flags.minor_mc) {
       space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
           this, initial_semispace_size_, max_semi_space_size_,
@@ -5552,7 +5551,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
-  if (!IsShared()) memory_reducer_.reset(new MemoryReducer(this));
+  memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
@@ -5621,16 +5620,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
     shared_allocation_space_ = heap->shared_space_;
     shared_lo_allocation_space_ = heap->shared_lo_space_;
-
-  } else if (isolate()->shared_isolate()) {
-    Heap* shared_heap = isolate()->shared_isolate()->heap();
-
-    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        main_thread_local_heap(), shared_heap->old_space(),
-        ConcurrentAllocator::Context::kNotGC);
-
-    shared_allocation_space_ = shared_heap->old_space();
-    shared_lo_allocation_space_ = shared_heap->lo_space();
   }
 
   main_thread_local_heap()->SetUpMainThread();

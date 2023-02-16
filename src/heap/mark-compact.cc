@@ -5195,7 +5195,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedOldToSharedPointers() {
     if (chunk_->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()) {
       // Client GCs need to remove invalidated OLD_TO_SHARED slots.
-      DCHECK(!heap_->IsShared());
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
           chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
       RememberedSet<OLD_TO_SHARED>::Iterate(
