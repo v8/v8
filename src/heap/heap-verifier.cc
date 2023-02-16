@@ -702,28 +702,6 @@ void HeapVerifier::VerifyReadOnlyHeap(Heap* heap) {
 }
 
 // static
-void HeapVerifier::VerifySharedHeap(Heap* heap, Isolate* initiator) {
-  DCHECK(heap->IsShared());
-  Isolate* isolate = heap->isolate();
-
-  // Stop all client isolates attached to this isolate.
-  GlobalSafepointScope global_safepoint(initiator);
-
-  // Migrate shared isolate to the main thread of the initiator isolate.
-  v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate));
-  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
-
-  DCHECK_NOT_NULL(isolate->global_safepoint());
-
-  // Free all shared LABs to make the shared heap iterable.
-  isolate->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-    client->heap()->FreeSharedLinearAllocationAreas();
-  });
-
-  HeapVerifier::VerifyHeap(heap);
-}
-
-// static
 void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(Heap* heap,
                                                      HeapObject object) {
   if (object.InSharedWritableHeap()) {

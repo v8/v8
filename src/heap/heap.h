@@ -1784,10 +1784,6 @@ class Heap {
                                 GarbageCollectionReason gc_reason,
                                 const char* collector_reason);
 
-  // Performs garbage collection in the shared heap.
-  void PerformSharedGarbageCollection(Isolate* initiator,
-                                      GarbageCollectionReason gc_reason);
-
   inline void UpdateOldSpaceLimits();
 
   bool CreateInitialReadOnlyMaps();

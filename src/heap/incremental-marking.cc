@@ -119,8 +119,7 @@ bool IncrementalMarking::CanBeStarted() const {
   //   3) when we are currently not serializing or deserializing the heap, and
   //   4) not a shared heap.
   return v8_flags.incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
-         heap_->deserialization_complete() &&
-         !isolate()->serializer_enabled() && !heap_->IsShared();
+         heap_->deserialization_complete() && !isolate()->serializer_enabled();
 }
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
@@ -131,7 +130,6 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 void IncrementalMarking::Start(GarbageCollector garbage_collector,
                                GarbageCollectionReason gc_reason) {
   DCHECK(!heap_->sweeping_in_progress());
-  DCHECK(!heap_->IsShared());
 
   if (v8_flags.trace_incremental_marking) {
     const size_t old_generation_size_mb =

@@ -1989,9 +1989,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate;
   }
 
-  bool is_shared_heap_isolate() const {
-    return is_shared() || is_shared_space_isolate();
-  }
+  bool is_shared_heap_isolate() const { return is_shared_space_isolate(); }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
@@ -2002,8 +2000,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
   bool OwnsStringTables() {
-    return !v8_flags.shared_string_table || is_shared() ||
-           is_shared_space_isolate();
+    return !v8_flags.shared_string_table || is_shared_space_isolate();
   }
 
 #if USE_SIMULATOR
@@ -2032,11 +2029,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void VerifyStaticRoots();
 
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
-                   bool is_shared);
+  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
 
-  static Isolate* Allocate(bool is_shared);
+  static Isolate* Allocate();
 
   bool Init(SnapshotData* startup_snapshot_data,
             SnapshotData* read_only_snapshot_data,

@@ -3255,13 +3255,10 @@ bool HasFlagThatRequiresSharedHeap() {
 }  // namespace
 
 // static
-Isolate* Isolate::New() {
-  Isolate* isolate = Allocate(false);
-  return isolate;
-}
+Isolate* Isolate::New() { return Allocate(); }
 
 // static
-Isolate* Isolate::Allocate(bool is_shared) {
+Isolate* Isolate::Allocate() {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
   // IsolateAllocator allocates the memory for the Isolate object according to
@@ -3270,8 +3267,7 @@ Isolate* Isolate::Allocate(bool is_shared) {
       std::make_unique<IsolateAllocator>();
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
-  Isolate* isolate =
-      new (isolate_ptr) Isolate(std::move(isolate_allocator), is_shared);
+  Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   DCHECK(IsAligned(isolate->isolate_root(), kPtrComprCageBaseAlignment));
   DCHECK_EQ(isolate->isolate_root(), isolate->cage_base());
@@ -3335,8 +3331,7 @@ v8::PageAllocator* Isolate::page_allocator() const {
   return isolate_allocator_->page_allocator();
 }
 
-Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
-                 bool is_shared)
+Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
     : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
@@ -3491,7 +3486,7 @@ void Isolate::Deinit() {
   debug()->Unload();
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (!is_shared()) wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
+  wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
 
   BackingStore::RemoveSharedWasmMemoryObjects(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3593,7 +3588,7 @@ void Isolate::Deinit() {
 #endif  // defined(V8_OS_WIN)
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (!is_shared()) wasm::GetWasmEngine()->RemoveIsolate(this);
+  wasm::GetWasmEngine()->RemoveIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
@@ -4204,11 +4199,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
-  // Ensure that we use at most one of shared_isolate() and
-  // shared_space_isolate().
-  DCHECK_IMPLIES(shared_isolate(), !shared_space_isolate());
-  DCHECK_IMPLIES(shared_space_isolate(), !shared_isolate());
-
   isolate_data_.is_shared_space_isolate_flag_ = is_shared_heap_isolate();
   isolate_data_.uses_shared_heap_flag_ = has_shared_heap();
 
@@ -4237,7 +4227,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK(has_shared_heap());
-    DCHECK(!is_shared());
     DCHECK(!is_shared_space_isolate());
     string_table_ = shared_heap_isolate()->string_table_;
     string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
@@ -4315,7 +4304,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_COMPRESS_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (!is_shared()) wasm::GetWasmEngine()->AddIsolate(this);
+  wasm::GetWasmEngine()->AddIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)

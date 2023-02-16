@@ -43,10 +43,6 @@ class HeapVerifier final {
   // created.
   static void VerifyReadOnlyHeap(Heap* heap);
 
-  // Verify the shared heap, initiating from a client heap. This performs a
-  // global safepoint, then the normal heap verification.
-  static void VerifySharedHeap(Heap* heap, Isolate* initiator);
-
   // Checks that this is a safe map transition.
   V8_EXPORT_PRIVATE static void VerifySafeMapTransition(Heap* heap,
                                                         HeapObject object,

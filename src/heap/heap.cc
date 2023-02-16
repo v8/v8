@@ -2365,38 +2365,6 @@ bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
   }
 }
 
-void Heap::PerformSharedGarbageCollection(Isolate* initiator,
-                                          GarbageCollectionReason gc_reason) {
-  DCHECK(IsShared());
-
-  // Stop all client isolates attached to this isolate
-  GlobalSafepointScope global_safepoint(initiator);
-
-  // Migrate shared isolate to the main thread of the initiator isolate.
-  v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate()));
-  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
-
-  tracer()->StartObservablePause();
-  DCHECK(incremental_marking_->IsStopped());
-  DCHECK_NOT_NULL(isolate()->global_safepoint());
-
-  isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-    client->heap()->FreeSharedLinearAllocationAreas();
-
-    // As long as we need to iterate the client heap to find references into the
-    // shared heap, all client heaps need to be iterable.
-    client->heap()->MakeHeapIterable();
-  });
-
-  const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
-  PerformGarbageCollection(collector, gc_reason, nullptr);
-
-  tracer()->StopAtomicPause();
-  tracer()->StopObservablePause();
-  tracer()->UpdateStatistics(collector);
-  tracer()->StopFullCycleIfNeeded();
-}
-
 void Heap::CompleteSweepingYoung() {
   CompleteArrayBufferSweeping(this);
 

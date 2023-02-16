@@ -53,7 +53,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        should_mark_shared_heap_(heap->ShouldMarkSharedHeap())
+        should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate())
 #ifdef V8_ENABLE_SANDBOX
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),

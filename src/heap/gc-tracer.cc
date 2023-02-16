@@ -730,12 +730,11 @@ void GCTracer::Print() const {
   Output(
       "[%d:%p] "
       "%8.0f ms: "
-      "%s%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
+      "%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
       "%.2f / %.2f ms %s (average mu = %.3f, current mu = %.3f) %s; %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
-      heap_->isolate()->time_millis_since_init(),
-      heap_->IsShared() ? "Shared " : "", current_.TypeName(false),
+      heap_->isolate()->time_millis_since_init(), current_.TypeName(false),
       current_.reduce_memory ? " (reduce)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,

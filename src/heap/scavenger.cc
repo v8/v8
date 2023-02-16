@@ -155,7 +155,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
 
     if (target.InSharedWritableHeap()) {
-      DCHECK(!scavenger_->heap()->IsShared());
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                                slot.address());

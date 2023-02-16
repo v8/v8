@@ -370,7 +370,8 @@ const char LinuxPerfBasicLogger::kFilenameFormatString[] = "/tmp/perf-%d.map";
 // Extra space for the PID in the filename
 const int LinuxPerfBasicLogger::kFilenameBufferPadding = 16;
 
-base::LazyRecursiveMutex LinuxPerfBasicLogger::file_mutex_;
+base::LazyRecursiveMutex LinuxPerfBasicLogger::file_mutex_ =
+    LAZY_RECURSIVE_MUTEX_INITIALIZER;
 // The following static variables are protected by
 // LinuxPerfBasicLogger::file_mutex_.
 uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
@@ -2187,7 +2188,7 @@ void V8FileLogger::LateSetup(Isolate* isolate) {
   if (!isolate->logger()->is_listening_to_code_events()) return;
   Builtins::EmitCodeCreateEvents(isolate);
 #if V8_ENABLE_WEBASSEMBLY
-  if (!isolate->is_shared()) wasm::GetWasmEngine()->EnableCodeLogging(isolate);
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif
 }
 
