@@ -65,6 +65,7 @@ class Symbol;
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
+  V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, one_byte_string_map, OneByteStringMap)                                \
@@ -77,7 +78,6 @@ class Symbol;
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
-  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
   /* TODO(mythria): Once lazy feedback lands, check if feedback vector map */  \
   /* is still a popular map */                                                 \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
@@ -101,7 +101,6 @@ class Symbol;
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
-  V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \
@@ -172,8 +171,6 @@ class Symbol;
   V(Map, shared_uncached_external_one_byte_string_map,                         \
     SharedUncachedExternalOneByteStringMap)                                    \
   V(Map, shared_uncached_external_string_map, SharedUncachedExternalStringMap) \
-  V(Map, shared_thin_one_byte_string_map, SharedThinOneByteStringMap)          \
-  V(Map, shared_thin_string_map, SharedThinStringMap)                          \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \

@@ -1936,7 +1936,6 @@ TEST(Regress876759) {
   // The grandparent string becomes one-byte, but the child strings are still
   // two-byte.
   CHECK(grandparent->IsOneByteRepresentation());
-  CHECK(parent->IsTwoByteRepresentation());
   CHECK(sliced->IsTwoByteRepresentation());
   // The *Underneath version returns the correct representation.
   CHECK(String::IsOneByteRepresentationUnderneath(*sliced));

@@ -269,8 +269,8 @@ DEF_GETTER(HeapObject, IsConsString, bool) {
 }
 
 DEF_GETTER(HeapObject, IsThinString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsThin();
+  InstanceType type = map(cage_base).instance_type();
+  return type == THIN_STRING_TYPE;
 }
 
 DEF_GETTER(HeapObject, IsSlicedString, bool) {

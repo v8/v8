@@ -262,8 +262,7 @@ inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
       return TDispatcher::HandleSlicedString(std::forward<TArgs>(args)...);
-    case kThinStringTag | kOneByteStringTag:
-    case kThinStringTag | kTwoByteStringTag:
+    case kThinStringTag:
       return TDispatcher::HandleThinString(std::forward<TArgs>(args)...);
     default:
       return TDispatcher::HandleInvalidString(std::forward<TArgs>(args)...);
@@ -303,12 +302,14 @@ inline TResult StringShape::DispatchToSpecificType(String str,
 }
 
 DEF_GETTER(String, IsOneByteRepresentation, bool) {
-  uint32_t type = map(cage_base).instance_type();
+  String string = IsThinString() ? ThinString::cast(*this).actual() : *this;
+  uint32_t type = string.map(cage_base).instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
 DEF_GETTER(String, IsTwoByteRepresentation, bool) {
-  uint32_t type = map(cage_base).instance_type();
+  String string = IsThinString() ? ThinString::cast(*this).actual() : *this;
+  uint32_t type = string.map(cage_base).instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
@@ -577,8 +578,7 @@ bool String::IsEqualToImpl(
                                              cage_base, access_guard);
       }
 
-      case kThinStringTag | kOneByteStringTag:
-      case kThinStringTag | kTwoByteStringTag:
+      case kThinStringTag:
         string = ThinString::cast(string).actual(cage_base);
         continue;
 
@@ -953,8 +953,7 @@ ConsString String::VisitFlat(
       case kConsStringTag | kTwoByteStringTag:
         return ConsString::cast(string);
 
-      case kThinStringTag | kOneByteStringTag:
-      case kThinStringTag | kTwoByteStringTag:
+      case kThinStringTag:
         string = ThinString::cast(string).actual(cage_base);
         continue;
 

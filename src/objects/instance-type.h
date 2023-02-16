@@ -143,9 +143,8 @@ enum InstanceType : uint16_t {
       UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
       UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  // Mark thin strings as two-byte just to be on the safe side.
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
-  THIN_ONE_BYTE_STRING_TYPE =
-      kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
   SHARED_STRING_TYPE = STRING_TYPE | kSharedStringTag,
   SHARED_ONE_BYTE_STRING_TYPE = ONE_BYTE_STRING_TYPE | kSharedStringTag,
   SHARED_EXTERNAL_STRING_TYPE = EXTERNAL_STRING_TYPE | kSharedStringTag,
@@ -155,9 +154,6 @@ enum InstanceType : uint16_t {
       UNCACHED_EXTERNAL_STRING_TYPE | kSharedStringTag,
   SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
       UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE | kSharedStringTag,
-  SHARED_THIN_STRING_TYPE = THIN_STRING_TYPE | kSharedStringTag,
-  SHARED_THIN_ONE_BYTE_STRING_TYPE =
-      THIN_ONE_BYTE_STRING_TYPE | kSharedStringTag,
 
 // Most instance types are defined in Torque, with the exception of the string
 // types above. They are ordered by inheritance hierarchy so that we can easily

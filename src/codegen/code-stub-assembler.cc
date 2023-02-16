@@ -8437,9 +8437,6 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
 
       GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),
              &if_thinstring);
-      GotoIf(InstanceTypeEqual(var_instance_type.value(),
-                               THIN_ONE_BYTE_STRING_TYPE),
-             &if_thinstring);
 
       // Check if the hash field encodes an internalized string forwarding
       // index.

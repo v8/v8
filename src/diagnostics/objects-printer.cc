@@ -275,7 +275,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case CONS_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
-    case THIN_ONE_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_STRING_TYPE:
@@ -284,8 +283,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHARED_THIN_STRING_TYPE:
-    case SHARED_THIN_ONE_BYTE_STRING_TYPE:
     case JS_LAST_DUMMY_API_OBJECT_TYPE:
       // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map().instance_type();

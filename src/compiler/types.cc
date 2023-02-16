@@ -146,7 +146,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
-    case THIN_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:

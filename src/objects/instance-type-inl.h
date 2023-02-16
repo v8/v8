@@ -220,7 +220,7 @@ V8_INLINE bool IsExternalString(Map map_object) {
 }
 
 V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
-  return (instance_type & kStringRepresentationMask) == kThinStringTag;
+  return instance_type == THIN_STRING_TYPE;
 }
 
 V8_INLINE bool IsThinString(Map map_object) {

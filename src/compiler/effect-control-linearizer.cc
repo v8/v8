@@ -5008,10 +5008,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
     Node* val_instance_type =
         __ LoadField(AccessBuilder::ForMapInstanceType(), val_map);
 
-    // Check for the common case of ThinString first.
-    __ GotoIf(__ Word32Equal(val_instance_type,
-                             __ Int32Constant(THIN_ONE_BYTE_STRING_TYPE)),
-              &if_thinstring);
+    // ThinString.
     __ Branch(
         __ Word32Equal(val_instance_type, __ Int32Constant(THIN_STRING_TYPE)),
         &if_thinstring, &if_notthinstring);

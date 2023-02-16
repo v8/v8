@@ -1341,10 +1341,6 @@ UNINITIALIZED_TEST(ExternalizeInternalizedString) {
   // Check that API calls return the resource from the forwarding table.
   CheckExternalStringResource(one_byte_intern, one_byte_res);
   CheckExternalStringResource(two_byte_intern, two_byte_res);
-
-  // API calls to the ThinStrings should also return the correct resource.
-  CheckExternalStringResource(one_byte, one_byte_res);
-  CheckExternalStringResource(two_byte, two_byte_res);
 }
 
 UNINITIALIZED_TEST(InternalizeSharedExternalString) {

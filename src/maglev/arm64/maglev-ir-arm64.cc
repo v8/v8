@@ -1289,13 +1289,9 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
          CheckedInternalizedString* node, EagerDeoptInfo* deopt_info,
          Register instance_type) {
         __ RecordComment("Deferred Test IsThinString");
-        static_assert(kThinStringTagBit > 0);
-        // Deopt if this isn't a string.
-        __ Tst(instance_type.W(), Immediate(kIsNotStringMask));
-        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, node);
         // Deopt if this isn't a thin string.
-        __ Tst(instance_type.W(), Immediate(kThinStringTagBit));
-        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kWrongMap, node);
+        __ Cmp(instance_type.W(), Immediate(THIN_STRING_TYPE));
+        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, node);
         __ LoadTaggedField(object,
                            FieldMemOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {
