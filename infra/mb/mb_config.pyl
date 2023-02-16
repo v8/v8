@@ -833,12 +833,12 @@
 
     'msan': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': 'is_msan=true msan_track_origins=2 instrumented_libraries_release="xenial"',
+      'gn_args': 'is_msan=true msan_track_origins=2 instrumented_libraries_release="focal"',
     },
 
     'msan_no_origins': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': 'is_msan=true msan_track_origins=0 instrumented_libraries_release="xenial"',
+      'gn_args': 'is_msan=true msan_track_origins=0 instrumented_libraries_release="focal"',
     },
 
     'msvc': {
