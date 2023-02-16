@@ -175,6 +175,11 @@ void V8Debugger::setBreakpointsActive(bool active) {
   v8::debug::SetBreakPointsActive(m_isolate, m_breakpointsActiveCount);
 }
 
+void V8Debugger::removeBreakpoint(v8::debug::BreakpointId id) {
+  v8::debug::RemoveBreakpoint(m_isolate, id);
+  m_throwingConditionReported.erase(id);
+}
+
 v8::debug::ExceptionBreakState V8Debugger::getPauseOnExceptionsState() {
   DCHECK(enabled());
   return m_pauseOnExceptionsState;
@@ -679,6 +684,47 @@ bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
         allShouldBeSkipped &= skip;
       });
   return hasAgents && allShouldBeSkipped;
+}
+
+void V8Debugger::BreakpointConditionEvaluated(
+    v8::Local<v8::Context> context, v8::debug::BreakpointId breakpoint_id,
+    bool exception_thrown, v8::Local<v8::Value> exception) {
+  auto it = m_throwingConditionReported.find(breakpoint_id);
+
+  if (!exception_thrown) {
+    // Successful evaluation, clear out the bit: we report exceptions should
+    // this breakpoint throw again.
+    if (it != m_throwingConditionReported.end()) {
+      m_throwingConditionReported.erase(it);
+    }
+    return;
+  }
+
+  CHECK(exception_thrown);
+  if (it != m_throwingConditionReported.end() || exception.IsEmpty()) {
+    // Already reported this breakpoint or no exception to report.
+    return;
+  }
+
+  CHECK(!exception.IsEmpty());
+
+  v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(isolate(), exception);
+  v8::ScriptOrigin origin = message->GetScriptOrigin();
+  String16 url;
+  if (origin.ResourceName()->IsString()) {
+    url = toProtocolString(isolate(), origin.ResourceName().As<v8::String>());
+  }
+  // The message text is prepended to the exception text itself so we don't
+  // need to get it from the v8::Message.
+  StringView messageText;
+  StringView detailedMessage;
+  m_inspector->exceptionThrown(
+      context, messageText, exception, detailedMessage, toStringView(url),
+      message->GetLineNumber(context).FromMaybe(0),
+      message->GetStartColumn() + 1, createStackTrace(message->GetStackTrace()),
+      origin.ScriptId());
+  m_throwingConditionReported.insert(breakpoint_id);
 }
 
 void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,

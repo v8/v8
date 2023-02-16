@@ -498,7 +498,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
   for (const auto& it : m_debuggerBreakpointIdToBreakpointId) {
-    v8::debug::RemoveBreakpoint(m_isolate, it.first);
+    m_debugger->removeBreakpoint(it.first);
   }
   m_breakpointIdToDebuggerBreakpointIds.clear();
   m_debuggerBreakpointIdToBreakpointId.clear();
@@ -815,7 +815,7 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(
       script->removeWasmBreakpoint(id);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    v8::debug::RemoveBreakpoint(m_isolate, id);
+    m_debugger->removeBreakpoint(id);
     m_debuggerBreakpointIdToBreakpointId.erase(id);
   }
   m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
