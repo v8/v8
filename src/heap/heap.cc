@@ -4190,7 +4190,7 @@ void Heap::Print() {
 }
 
 void Heap::ReportCodeStatistics(const char* title) {
-  PrintF(">>>>>> Code Stats (%s) >>>>>>\n", title);
+  PrintF("###### Code Stats (%s) ######\n", title);
   CollectCodeStatistics();
   CodeStatistics::ReportCodeStatistics(isolate());
 }
