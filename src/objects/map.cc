@@ -1476,6 +1476,8 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
       is_connected = true;
+    } else if (isolate->bootstrapper()->IsActive()) {
+      result->InitializeDescriptors(isolate, *descriptors);
     } else {
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors);

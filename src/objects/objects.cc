@@ -2453,7 +2453,6 @@ void DescriptorArray::GeneralizeAllFields() {
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == PropertyLocation::kField) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      details = details.CopyWithConstness(PropertyConstness::kMutable);
       SetValue(i, MaybeObject::FromObject(FieldType::Any()));
     }
     SetDetails(i, details);
