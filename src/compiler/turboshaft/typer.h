@@ -982,6 +982,11 @@ struct FloatOperationTyper {
   static std::pair<Type, Type> RestrictionForLessThan_True(const type_t& lhs,
                                                            const type_t& rhs,
                                                            Zone* zone) {
+    // If either side is only NaN, this comparison can never be true.
+    if (lhs.is_only_nan() || rhs.is_only_nan()) {
+      return {Type::None(), Type::None()};
+    }
+
     Type restrict_lhs;
     if (rhs.max() == -inf) {
       // There is no value for lhs that could make (lhs < -inf) true.
@@ -1011,6 +1016,11 @@ struct FloatOperationTyper {
   static std::pair<Type, Type> RestrictionForLessThan_False(const type_t& lhs,
                                                             const type_t& rhs,
                                                             Zone* zone) {
+    // If either side is only NaN, this branch will always be taken.
+    if (lhs.is_only_nan() || rhs.is_only_nan()) {
+      return {type_t::Any(), type_t::Any()};
+    }
+
     uint32_t lhs_sv =
         type_t::kNaN |
         (rhs.min() <= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues);
@@ -1027,6 +1037,11 @@ struct FloatOperationTyper {
   // be NaN.
   static std::pair<Type, Type> RestrictionForLessThanOrEqual_True(
       const type_t& lhs, const type_t& rhs, Zone* zone) {
+    // If either side is only NaN, this comparison can never be true.
+    if (lhs.is_only_nan() || rhs.is_only_nan()) {
+      return {Type::None(), Type::None()};
+    }
+
     uint32_t lhs_sv =
         rhs.max() >= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues;
     uint32_t rhs_sv =
@@ -1040,6 +1055,11 @@ struct FloatOperationTyper {
   // we learn: lhs cannot be <= rhs.min and rhs cannot be >= lhs.max.
   static std::pair<Type, Type> RestrictionForLessThanOrEqual_False(
       const type_t& lhs, const type_t& rhs, Zone* zone) {
+    // If either side is only NaN, this branch will always be taken.
+    if (lhs.is_only_nan() || rhs.is_only_nan()) {
+      return {type_t::Any(), type_t::Any()};
+    }
+
     Type restrict_lhs;
     if (rhs.min() == inf) {
       // The only value for lhs that could make (lhs <= inf) false is NaN.
