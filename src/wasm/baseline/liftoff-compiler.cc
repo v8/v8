@@ -2830,7 +2830,7 @@ class LiftoffCompiler {
   // Generate a branch table case, potentially reusing previously generated
   // stack transfer code.
   void GenerateBrCase(FullDecoder* decoder, uint32_t br_depth,
-                      std::map<uint32_t, MovableLabel>* br_targets,
+                      ZoneMap<uint32_t, MovableLabel>* br_targets,
                       Register tmp1, Register tmp2) {
     auto [iterator, is_new_target] =
         br_targets->emplace(br_depth, compilation_zone_);
@@ -2849,7 +2849,7 @@ class LiftoffCompiler {
   void GenerateBrTable(FullDecoder* decoder, LiftoffRegister tmp,
                        LiftoffRegister value, uint32_t min, uint32_t max,
                        BranchTableIterator<ValidationTag>* table_iterator,
-                       std::map<uint32_t, MovableLabel>* br_targets,
+                       ZoneMap<uint32_t, MovableLabel>* br_targets,
                        Register tmp1, Register tmp2,
                        const FreezeCacheState& frozen) {
     DCHECK_LT(min, max);
@@ -2913,7 +2913,7 @@ class LiftoffCompiler {
     }
 
     BranchTableIterator<ValidationTag> table_iterator(decoder, imm);
-    std::map<uint32_t, MovableLabel> br_targets;
+    ZoneMap<uint32_t, MovableLabel> br_targets(compilation_zone_);
 
     if (imm.table_count > 0) {
       LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
