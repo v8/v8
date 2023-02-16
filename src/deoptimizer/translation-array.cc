@@ -200,7 +200,12 @@ class UnsignedOperand : public OperandBase {
  public:
   explicit UnsignedOperand(uint32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
-    base::VLQEncodeUnsigned(buffer, value());
+    base::VLQEncodeUnsigned(
+        [buffer](byte value) {
+          buffer->push_back(value);
+          return &buffer->back();
+        },
+        value());
   }
   bool IsSigned() const { return false; }
 };
@@ -209,7 +214,12 @@ class SignedOperand : public OperandBase {
  public:
   explicit SignedOperand(int32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
-    base::VLQEncode(buffer, value());
+    base::VLQEncode(
+        [buffer](byte value) {
+          buffer->push_back(value);
+          return &buffer->back();
+        },
+        value());
   }
   bool IsSigned() const { return true; }
 };

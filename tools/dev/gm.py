@@ -276,6 +276,8 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
     if w.startswith("gen/") or w.startswith("snapshot_blob"):
       result += ("%(path)s%(sep)s%(arg)s " %
                  {"path": path, "sep": os.sep, "arg": w})
+    elif w.startswith("../../"):
+      result += "%s " % w[6:]
     else:
       result += "%s " % w
   return result

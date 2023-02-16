@@ -16,11 +16,9 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-using BlockConstIterator =
-    std::vector<BasicBlock*, ZoneAllocator<BasicBlock*>>::const_iterator;
+using BlockConstIterator = ZoneVector<BasicBlock*>::const_iterator;
 using BlockConstReverseIterator =
-    std::vector<BasicBlock*,
-                ZoneAllocator<BasicBlock*>>::const_reverse_iterator;
+    ZoneVector<BasicBlock*>::const_reverse_iterator;
 
 class Graph final : public ZoneObject {
  public:

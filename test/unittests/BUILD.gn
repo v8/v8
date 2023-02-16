@@ -468,6 +468,7 @@ v8_source_set("unittests_sources") {
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
+    "zone/zone-vector-unittest.cc",
   ]
 
   if (v8_enable_turbofan) {

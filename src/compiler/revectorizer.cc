@@ -504,9 +504,9 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       }
       // Sort loads by offset
       ZoneVector<Node*> sorted_node_group(node_group.size(), zone_);
-      partial_sort_copy(begin(node_group), end(node_group),
-                        begin(sorted_node_group), end(sorted_node_group),
-                        MemoryOffsetComparer());
+      std::partial_sort_copy(node_group.begin(), node_group.end(),
+                             sorted_node_group.begin(), sorted_node_group.end(),
+                             MemoryOffsetComparer());
       if (!IsContinuousAccess(sorted_node_group)) {
         TRACE("Failed due to non-continuous load!\n");
         return nullptr;

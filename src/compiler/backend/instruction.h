@@ -820,8 +820,7 @@ class V8_EXPORT_PRIVATE ParallelMove final
 
   MoveOperands* AddMove(const InstructionOperand& from,
                         const InstructionOperand& to) {
-    Zone* zone = get_allocator().zone();
-    return AddMove(from, to, zone);
+    return AddMove(from, to, zone());
   }
 
   MoveOperands* AddMove(const InstructionOperand& from,
