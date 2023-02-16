@@ -9380,23 +9380,18 @@ void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
     Isolate* v8_isolate,
     Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)
-    : on_failure_(on_failure), v8_isolate_(v8_isolate) {
+    : v8_isolate_(v8_isolate), on_failure_(on_failure) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   switch (on_failure_) {
     case CRASH_ON_FAILURE:
-      i::DisallowJavascriptExecution::Open(i_isolate,
-                                           &was_execution_allowed_assert_);
+      i::DisallowJavascriptExecution::Open(i_isolate, &was_execution_allowed_);
       break;
     case THROW_ON_FAILURE:
-      i::ThrowOnJavascriptExecution::Open(i_isolate,
-                                          &was_execution_allowed_throws_);
+      i::ThrowOnJavascriptExecution::Open(i_isolate, &was_execution_allowed_);
       break;
     case DUMP_ON_FAILURE:
-      i::DumpOnJavascriptExecution::Open(i_isolate,
-                                         &was_execution_allowed_dump_);
+      i::DumpOnJavascriptExecution::Open(i_isolate, &was_execution_allowed_);
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -9404,19 +9399,14 @@ Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate_);
   switch (on_failure_) {
     case CRASH_ON_FAILURE:
-      i::DisallowJavascriptExecution::Close(i_isolate,
-                                            was_execution_allowed_assert_);
+      i::DisallowJavascriptExecution::Close(i_isolate, was_execution_allowed_);
       break;
     case THROW_ON_FAILURE:
-      i::ThrowOnJavascriptExecution::Close(i_isolate,
-                                           was_execution_allowed_throws_);
+      i::ThrowOnJavascriptExecution::Close(i_isolate, was_execution_allowed_);
       break;
     case DUMP_ON_FAILURE:
-      i::DumpOnJavascriptExecution::Close(i_isolate,
-                                          was_execution_allowed_dump_);
+      i::DumpOnJavascriptExecution::Close(i_isolate, was_execution_allowed_);
       break;
-    default:
-      UNREACHABLE();
   }
 }
 

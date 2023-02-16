@@ -333,12 +333,9 @@ class V8_EXPORT Isolate {
         const DisallowJavascriptExecutionScope&) = delete;
 
    private:
-    OnFailure on_failure_;
-    v8::Isolate* v8_isolate_;
-
-    bool was_execution_allowed_assert_;
-    bool was_execution_allowed_throws_;
-    bool was_execution_allowed_dump_;
+    v8::Isolate* const v8_isolate_;
+    const OnFailure on_failure_;
+    bool was_execution_allowed_;
   };
 
   /**
@@ -356,7 +353,7 @@ class V8_EXPORT Isolate {
         const AllowJavascriptExecutionScope&) = delete;
 
    private:
-    Isolate* v8_isolate_;
+    Isolate* const v8_isolate_;
     bool was_execution_allowed_assert_;
     bool was_execution_allowed_throws_;
     bool was_execution_allowed_dump_;
