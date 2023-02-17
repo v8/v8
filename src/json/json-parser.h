@@ -113,12 +113,17 @@ class JsonParseInternalizer {
                         Handle<String> source)
       : isolate_(isolate), reviver_(reviver), source_(source) {}
 
+  enum WithOrWithoutSource { kWithoutSource, kWithSource };
+
+  template <WithOrWithoutSource with_source>
   MaybeHandle<Object> InternalizeJsonProperty(Handle<JSReceiver> holder,
                                               Handle<String> key,
-                                              Handle<Object> val_node);
+                                              Handle<Object> val_node,
+                                              Handle<Object> snapshot);
 
+  template <WithOrWithoutSource with_source>
   bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,
-                       Handle<Object> val_node);
+                       Handle<Object> val_node, Handle<Object> snapshot);
 
   Isolate* isolate_;
   Handle<JSReceiver> reviver_;

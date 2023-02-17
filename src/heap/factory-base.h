@@ -119,6 +119,11 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocate a new fixed array with values.
+  Handle<FixedArray> NewFixedArrayTuple(
+      std::initializer_list<Handle<Object>> values,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
