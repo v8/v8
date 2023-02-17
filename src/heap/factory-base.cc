@@ -156,21 +156,6 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
 }
 
 template <typename Impl>
-Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayTuple(
-    std::initializer_list<Handle<Object>> values, AllocationType allocation) {
-  DCHECK_LE(values.size(), std::numeric_limits<int>::max());
-  Handle<FixedArray> tuple =
-      NewFixedArray(static_cast<int>(values.size()), allocation);
-  DisallowGarbageCollection no_gc;
-  FixedArray raw_tuple = *tuple;
-  int i = 0;
-  for (auto value : values) {
-    raw_tuple.set(i++, *value);
-  }
-  return tuple;
-}
-
-template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();

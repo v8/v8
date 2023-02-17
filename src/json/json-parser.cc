@@ -124,30 +124,22 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 
 }  // namespace
 
-MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
-                                                       Handle<Object> result,
-                                                       Handle<Object> reviver,
-                                                       Handle<String> source) {
+MaybeHandle<Object> JsonParseInternalizer::Internalize(
+    Isolate* isolate, Handle<Object> result, Handle<Object> reviver,
+    Handle<String> source, MaybeHandle<Object> val_node) {
   DCHECK(reviver->IsCallable());
   JsonParseInternalizer internalizer(isolate, Handle<JSReceiver>::cast(reviver),
                                      source);
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
+  JSObject::AddProperty(isolate, holder, name, result, NONE);
   if (v8_flags.harmony_json_parse_with_source) {
-    DCHECK(result->IsFixedArray());
-    Handle<FixedArray> array = Handle<FixedArray>::cast(result);
-    DCHECK_EQ(2, array->length());
-    Handle<Object> object(array->get(0), isolate);
-    Handle<Object> val_node(array->get(1), isolate);
-    JSObject::AddProperty(isolate, holder, name, object, NONE);
-    return internalizer.InternalizeJsonProperty<kWithSource>(holder, name,
-                                                             val_node, object);
-  } else {
-    JSObject::AddProperty(isolate, holder, name, result, NONE);
-    return internalizer.InternalizeJsonProperty<kWithoutSource>(
-        holder, name, Handle<Object>(), Handle<Object>());
+    return internalizer.InternalizeJsonProperty<kWithSource>(
+        holder, name, val_node.ToHandleChecked(), result);
   }
+  return internalizer.InternalizeJsonProperty<kWithoutSource>(
+      holder, name, Handle<Object>(), Handle<Object>());
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -1155,8 +1147,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonContinuation::kReturn:
           if (should_track_json_source) {
             DCHECK(!val_node.is_null());
-            return cont.scope.CloseAndEscape(
-                factory()->NewFixedArrayTuple({value, val_node}));
+            auto raw_value = *value;
+            parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
+            return cont.scope.CloseAndEscape(handle(raw_value, isolate_));
           } else {
             return cont.scope.CloseAndEscape(value);
           }
