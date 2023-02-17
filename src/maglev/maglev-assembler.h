@@ -151,6 +151,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
+  void CheckedTruncateDoubleToInt32(Register dst, DoubleRegister src,
+                                    Label* fail);
 
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);

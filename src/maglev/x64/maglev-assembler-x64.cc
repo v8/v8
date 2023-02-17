@@ -484,6 +484,35 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   movl(dst, dst);
 }
 
+void MaglevAssembler::CheckedTruncateDoubleToInt32(Register dst,
+                                                   DoubleRegister src,
+                                                   Label* fail) {
+  DoubleRegister converted_back = kScratchDoubleReg;
+
+  // Convert the input float64 value to int32.
+  Cvttsd2si(dst, src);
+  // Convert that int32 value back to float64.
+  Cvtlsi2sd(converted_back, dst);
+  // Check that the result of the float64->int32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  Ucomisd(src, converted_back);
+  JumpIf(parity_even, fail);
+  JumpIf(not_equal, fail);
+
+  // Check if {input} is -0.
+  Label check_done;
+  cmpl(dst, Immediate(0));
+  j(not_equal, &check_done);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Register high_word32_of_input = kScratchRegister;
+  Pextrd(high_word32_of_input, src, 1);
+  cmpl(high_word32_of_input, Immediate(0));
+  JumpIf(less, fail);
+
+  bind(&check_done);
+}
+
 void MaglevAssembler::Prologue(Graph* graph) {
   BailoutIfDeoptimized(rbx);
 

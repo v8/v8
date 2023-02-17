@@ -701,6 +701,35 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   Mov(dst, Operand(dst.W(), UXTW));
 }
 
+void MaglevAssembler::CheckedTruncateDoubleToInt32(Register dst,
+                                                   DoubleRegister src,
+                                                   Label* fail) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireDouble();
+
+  // Convert the input float64 value to int32.
+  Fcvtzs(dst.W(), src);
+  // Convert that int32 value back to float64.
+  Scvtf(converted_back, dst.W());
+  // Check that the result of the float64->int32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  Fcmp(src, converted_back);
+  JumpIf(ne, fail);
+
+  // Check if {input} is -0.
+  Label check_done;
+  Cmp(dst.W(), wzr);
+  B(&check_done, ne);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Register high_word32_of_input = temps.Acquire().W();
+  Umov(high_word32_of_input, src.V2S(), 1);
+  Cmp(high_word32_of_input, wzr);
+  JumpIf(lt, fail);
+
+  Bind(&check_done);
+}
+
 void MaglevAssembler::StringLength(Register result, Register string) {
   if (v8_flags.debug_code) {
     // Check if {string} is a string.

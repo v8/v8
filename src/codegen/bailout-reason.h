@@ -25,6 +25,8 @@ namespace internal {
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedBaselineData, "Expected baseline data")                           \
+  V(kFloat64IsNotAInt32,                                                       \
+    "Float64 cannot be converted to Int32 without loss of precision")          \
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \
@@ -65,6 +67,8 @@ namespace internal {
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
+  V(kUint32IsNotAInt32,                                                        \
+    "Uint32 cannot be converted to Int32 without loss of precision")           \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")          \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \

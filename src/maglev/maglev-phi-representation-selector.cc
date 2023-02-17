@@ -185,18 +185,32 @@ ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
     return old_conversion->input(0).node();
   }
 
+  if (old_conversion->Is<UnsafeSmiUntag>()) {
+    // UnsafeSmiTag are only inserted when the node is a known Smi. If the
+    // current phi has a Float64/Uint32 representation, then we can safely
+    // truncate it to Int32, because we know that the Float64/Uint32 fits in a
+    // Smi, and therefore in a Int32.
+    if (from_repr == ValueRepresentation::kFloat64) {
+      old_conversion->OverwriteWith(Opcode::kUnsafeTruncateFloat64ToInt32,
+                                    UnsafeTruncateFloat64ToInt32::kProperties);
+      return old_conversion;
+    } else if (from_repr == ValueRepresentation::kUint32) {
+      old_conversion->OverwriteWith(Opcode::kUnsafeTruncateUint32ToInt32,
+                                    UnsafeTruncateUint32ToInt32::kProperties);
+    } else {
+      DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
+      old_conversion->kill();
+      return old_conversion->input(0).node();
+    }
+  }
+
   base::Optional<Opcode> needed_conversion =
       GetOpcodeForCheckedConversion(from_repr, to_repr);
 
   DCHECK(needed_conversion.has_value());
 
   if (*needed_conversion != old_conversion->opcode()) {
-    old_conversion->set_opcode(*needed_conversion);
-    OpProperties new_properties = StaticPropertiesForOpcode(*needed_conversion);
-    DCHECK_IMPLIES(new_properties.can_eager_deopt(),
-                   old_conversion->properties().can_eager_deopt());
-    DCHECK(!new_properties.can_lazy_deopt());
-    old_conversion->set_properties(new_properties);
+    old_conversion->OverwriteWith(*needed_conversion);
   }
 
   return old_conversion;

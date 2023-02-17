@@ -207,6 +207,8 @@ class MergePointInterpreterFrameState;
   V(TruncateNumberToInt32)                   \
   V(TruncateUint32ToInt32)                   \
   V(TruncateFloat64ToInt32)                  \
+  V(UnsafeTruncateUint32ToInt32)             \
+  V(UnsafeTruncateFloat64ToInt32)            \
   V(Int32ToNumber)                           \
   V(Uint32ToNumber)                          \
   V(Float64Box)                              \
@@ -738,6 +740,8 @@ class OpProperties {
   static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
 };
 
+constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode);
+
 class ValueLocation {
  public:
   ValueLocation() = default;
@@ -1247,9 +1251,17 @@ class NodeBase : public ZoneObject {
     bitfield_ = OpcodeField::update(bitfield_, new_opcode);
   }
 
-  void set_cannot_deopt() {
-    bitfield_ =
-        OpPropertiesField::update(bitfield_, properties().WithoutDeopt());
+  void OverwriteWith(
+      Opcode new_opcode,
+      base::Optional<OpProperties> maybe_new_properties = base::nullopt) {
+    OpProperties new_properties = maybe_new_properties.has_value()
+                                      ? maybe_new_properties.value()
+                                      : StaticPropertiesForOpcode(new_opcode);
+#ifdef DEBUG
+    CheckCanOverwriteWith(new_opcode, new_properties);
+#endif
+    set_opcode(new_opcode);
+    set_properties(new_properties);
   }
 
   bool is_dead() const { return IsDeadField::decode(bitfield_); }
@@ -1367,6 +1379,8 @@ class NodeBase : public ZoneObject {
         (properties().can_throw() ? sizeof(ExceptionHandlerInfo) : 0));
     return register_snapshot_address() - extra;
   }
+
+  void CheckCanOverwriteWith(Opcode new_opcode, OpProperties new_properties);
 
   uint64_t bitfield_;
   NodeIdT id_ = kInvalidNodeId;
@@ -2518,41 +2532,32 @@ class CheckedTruncateFloat64ToUint32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class TruncateUint32ToInt32
-    : public FixedInputValueNodeT<1, TruncateUint32ToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateUint32ToInt32>;
+#define DEFINE_TRUNCATE_NODE(name, from_repr, properties)          \
+  class name : public FixedInputValueNodeT<1, name> {              \
+    using Base = FixedInputValueNodeT<1, name>;                    \
+                                                                   \
+   public:                                                         \
+    explicit name(uint64_t bitfield) : Base(bitfield) {}           \
+                                                                   \
+    static constexpr OpProperties kProperties = properties;        \
+    static constexpr typename Base::InputTypes kInputTypes{        \
+        ValueRepresentation::k##from_repr};                        \
+                                                                   \
+    Input& input() { return Node::input(0); }                      \
+                                                                   \
+    void SetValueLocationConstraints();                            \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
+  };
 
- public:
-  explicit TruncateUint32ToInt32(uint64_t bitfield) : Base(bitfield) {}
+DEFINE_TRUNCATE_NODE(TruncateUint32ToInt32, Uint32, OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, Float64, OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(UnsafeTruncateUint32ToInt32, Uint32, OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, Float64,
+                     OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(TruncateNumberToInt32, Tagged, OpProperties::Int32())
 
-  static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class TruncateFloat64ToInt32
-    : public FixedInputValueNodeT<1, TruncateFloat64ToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateFloat64ToInt32>;
-
- public:
-  explicit TruncateFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
+#undef DEFINE_TRUNCATE_NODE
 
 class CheckedFloat64Unbox
     : public FixedInputValueNodeT<1, CheckedFloat64Unbox> {
@@ -2583,24 +2588,6 @@ class CheckedTruncateNumberToInt32
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class TruncateNumberToInt32
-    : public FixedInputValueNodeT<1, TruncateNumberToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateNumberToInt32>;
-
- public:
-  explicit TruncateNumberToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

@@ -195,21 +195,6 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(mi, DeoptimizeReason::kNotUint32, this);
 }
 
-void CheckedUint32ToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  Register input_reg = ToRegister(input()).W();
-  // Check if the top bit is set -- if it is, then this is not a valid int32,
-  // otherwise it is.
-  static_assert(CheckedUint32ToInt32::kProperties.can_eager_deopt());
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
-  __ RecordComment("-- Jump to eager deopt");
-  __ Tbnz(input_reg, 31, fail);
-}
-
 void CheckJSArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
@@ -249,41 +234,6 @@ void ChangeUint32ToFloat64::SetValueLocationConstraints() {
 void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   __ Ucvtf(ToDoubleRegister(result()), ToRegister(input()).W());
-}
-
-void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  DoubleRegister input_reg = ToDoubleRegister(input());
-  Register result_reg = ToRegister(result()).W();
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  DoubleRegister converted_back = temps.AcquireDouble();
-
-  // Convert the input float64 value to int32.
-  __ Fcvtzs(result_reg, input_reg);
-  // Convert that int32 value back to float64.
-  __ Scvtf(converted_back, result_reg);
-  // Check that the result of the float64->int32->float64 is equal to the input
-  // (i.e. that the conversion didn't truncate.
-  __ Fcmp(input_reg, converted_back);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
-
-  // Check if {input} is -0.
-  Label check_done;
-  __ Cmp(result_reg, wzr);
-  __ B(&check_done, ne);
-
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Register high_word32_of_input = temps.Acquire().W();
-  __ Umov(high_word32_of_input, input_reg.V2S(), 1);
-  __ Cmp(high_word32_of_input, wzr);
-  __ EmitEagerDeoptIf(lt, DeoptimizeReason::kNotInt32, this);
-
-  __ Bind(&check_done);
 }
 
 void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {

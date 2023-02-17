@@ -34,6 +34,50 @@ BasicBlock* Phi::predecessor_at(int i) {
   return merge_state_->predecessor_at(i);
 }
 
+#ifdef DEBUG
+namespace {
+
+template <size_t InputCount, typename Base, typename Derived>
+int StaticInputCount(FixedInputNodeTMixin<InputCount, Base, Derived>*) {
+  return InputCount;
+}
+
+int StaticInputCount(NodeBase*) { UNREACHABLE(); }
+
+}  // namespace
+
+void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
+                                     OpProperties new_properties) {
+  DCHECK_IMPLIES(new_properties.can_eager_deopt(),
+                 properties().can_eager_deopt());
+  DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
+                 properties().can_lazy_deopt());
+
+  int old_input_count = input_count();
+  size_t old_sizeof = -1;
+  switch (opcode()) {
+#define CASE(op)             \
+  case Opcode::k##op:        \
+    old_sizeof = sizeof(op); \
+    break;
+    NODE_BASE_LIST(CASE);
+#undef CASE
+  }
+
+  switch (new_opcode) {
+#define CASE(op)                                                          \
+  case Opcode::k##op: {                                                   \
+    DCHECK_EQ(old_input_count, StaticInputCount(static_cast<op*>(this))); \
+    DCHECK_EQ(sizeof(op), old_sizeof);                                    \
+    break;                                                                \
+  }
+    NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+}
+
+#endif  // DEBUG
+
 namespace {
 
 // ---
@@ -2511,6 +2555,70 @@ void TruncateFloat64ToInt32::SetValueLocationConstraints() {
 void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
+}
+
+void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  __ CheckedTruncateDoubleToInt32(
+      ToRegister(result()), ToDoubleRegister(input()),
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+}
+
+void UnsafeTruncateFloat64ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+#ifdef DEBUG
+  Label fail, start;
+  __ Jump(&start);
+  __ bind(&fail);
+  __ Abort(AbortReason::kFloat64IsNotAInt32);
+
+  __ bind(&start);
+  __ CheckedTruncateDoubleToInt32(ToRegister(result()),
+                                  ToDoubleRegister(input()), &fail);
+#else
+  // TODO(dmercadier): TruncateDoubleToInt32 does additional work when the
+  // double doesn't fit in a 32-bit integer. This is not necessary for
+  // UnsafeTruncateFloat64ToInt32 (since we statically know that it the double
+  // fits in a 32-bit int) and could be instead just a Cvttsd2si (x64) or Fcvtzs
+  // (arm64).
+  __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
+#endif
+}
+
+void CheckedUint32ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
+  __ CompareInt32AndJumpIf(input_reg, 0, kLessThan, fail);
+}
+
+void UnsafeTruncateUint32ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeTruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+#ifdef DEBUG
+  Register input_reg = ToRegister(input());
+  Label success;
+  __ CompareInt32AndJumpIf(input_reg, 0, kGreaterThanEqual, &success);
+  __ Abort(AbortReason::kUint32IsNotAInt32);
+  __ bind(&success);
+#endif
+  // No code emitted -- as far as the machine is concerned, int32 is uint32.
+  DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
 // ---
