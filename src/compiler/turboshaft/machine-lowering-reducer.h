@@ -64,55 +64,51 @@ class MachineLoweringReducer : public Next {
         if (input_assumptions != ObjectIsOp::InputAssumptions::kBigInt) {
           if (NeedsHeapObjectCheck(input_assumptions)) {
             // Check for Smi.
-            GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
+            GOTO_IF(IsSmi(input), done, 0);
           }
 
           // Check for BigInt.
           V<Tagged> map = LoadField<Tagged>(input, AccessBuilder::ForMap());
           V<Word32> is_bigint_map =
               __ TaggedEqual(map, __ HeapConstant(factory_->bigint_map()));
-          GOTO_IF_NOT(is_bigint_map, done, __ Word32Constant(0));
+          GOTO_IF_NOT(is_bigint_map, done, 0);
         }
 
         if (kind == ObjectIsOp::Kind::kBigInt) {
-          GOTO(done, __ Word32Constant(1));
+          GOTO(done, 1);
         } else {
           DCHECK_EQ(kind, ObjectIsOp::Kind::kBigInt64);
           // We have to perform check for BigInt64 range.
           V<Word32> bitfield =
               LoadField<Word32>(input, AccessBuilder::ForBigIntBitfield());
-          GOTO_IF(__ Word32Equal(bitfield, __ Word32Constant(0)), done,
-                  __ Word32Constant(1));
+          GOTO_IF(__ Word32Equal(bitfield, 0), done, 1);
 
           // Length must be 1.
-          V<Word32> length_field = __ Word32BitwiseAnd(
-              bitfield, __ Word32Constant(BigInt::LengthBits::kMask));
-          GOTO_IF_NOT(
-              __ Word32Equal(
-                  length_field,
-                  __ Word32Constant(uint32_t{1} << BigInt::LengthBits::kShift)),
-              done, __ Word32Constant(0));
+          V<Word32> length_field =
+              __ Word32BitwiseAnd(bitfield, BigInt::LengthBits::kMask);
+          GOTO_IF_NOT(__ Word32Equal(length_field,
+                                     uint32_t{1} << BigInt::LengthBits::kShift),
+                      done, 0);
 
           // Check if it fits in 64 bit signed int.
           V<Word64> lsd = LoadField<Word64>(
               input, AccessBuilder::ForBigIntLeastSignificantDigit64());
           V<Word32> magnitude_check = __ Uint64LessThanOrEqual(
-              lsd, __ Word64Constant(std::numeric_limits<int64_t>::max()));
-          GOTO_IF(magnitude_check, done, __ Word32Constant(1));
+              lsd, std::numeric_limits<int64_t>::max());
+          GOTO_IF(magnitude_check, done, 1);
 
           // The BigInt probably doesn't fit into signed int64. The only
           // exception is int64_t::min. We check for this.
-          V<Word32> sign = __ Word32BitwiseAnd(
-              bitfield, __ Word32Constant(BigInt::SignBits::kMask));
-          V<Word32> sign_check =
-              __ Word32Equal(sign, __ Word32Constant(BigInt::SignBits::kMask));
-          GOTO_IF_NOT(sign_check, done, __ Word32Constant(0));
+          V<Word32> sign =
+              __ Word32BitwiseAnd(bitfield, BigInt::SignBits::kMask);
+          V<Word32> sign_check = __ Word32Equal(sign, BigInt::SignBits::kMask);
+          GOTO_IF_NOT(sign_check, done, 0);
 
-          V<Word32> min_check = __ Word64Equal(
-              lsd, __ Word64Constant(std::numeric_limits<int64_t>::min()));
-          GOTO_IF(min_check, done, __ Word32Constant(1));
+          V<Word32> min_check =
+              __ Word64Equal(lsd, std::numeric_limits<int64_t>::min());
+          GOTO_IF(min_check, done, 1);
 
-          GOTO(done, __ Word32Constant(0));
+          GOTO(done, 0);
         }
 
         BIND(done, result);
@@ -128,7 +124,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
+          GOTO_IF(IsSmi(input), done, 0);
         }
 
         // Load bitfield from map.
@@ -139,50 +135,44 @@ class MachineLoweringReducer : public Next {
         V<Word32> check;
         switch (kind) {
           case ObjectIsOp::Kind::kCallable:
-            check = __ Word32Equal(
-                __ Word32Constant(Map::Bits1::IsCallableBit::kMask),
-                __ Word32BitwiseAnd(
-                    bitfield,
-                    __ Word32Constant(Map::Bits1::IsCallableBit::kMask)));
+            check =
+                __ Word32Equal(Map::Bits1::IsCallableBit::kMask,
+                               __ Word32BitwiseAnd(
+                                   bitfield, Map::Bits1::IsCallableBit::kMask));
             break;
           case ObjectIsOp::Kind::kConstructor:
             check = __ Word32Equal(
-                __ Word32Constant(Map::Bits1::IsConstructorBit::kMask),
-                __ Word32BitwiseAnd(
-                    bitfield,
-                    __ Word32Constant(Map::Bits1::IsConstructorBit::kMask)));
+                Map::Bits1::IsConstructorBit::kMask,
+                __ Word32BitwiseAnd(bitfield,
+                                    Map::Bits1::IsConstructorBit::kMask));
             break;
           case ObjectIsOp::Kind::kDetectableCallable:
             check = __ Word32Equal(
-                __ Word32Constant(Map::Bits1::IsCallableBit::kMask),
+                Map::Bits1::IsCallableBit::kMask,
                 __ Word32BitwiseAnd(
-                    bitfield,
-                    __ Word32Constant((Map::Bits1::IsCallableBit::kMask) |
-                                      (Map::Bits1::IsUndetectableBit::kMask))));
+                    bitfield, (Map::Bits1::IsCallableBit::kMask) |
+                                  (Map::Bits1::IsUndetectableBit::kMask)));
             break;
           case ObjectIsOp::Kind::kNonCallable:
             check = __ Word32Equal(
-                __ Word32Constant(0),
-                __ Word32BitwiseAnd(
-                    bitfield,
-                    __ Word32Constant(Map::Bits1::IsCallableBit::kMask)));
-            GOTO_IF_NOT(check, done, __ Word32Constant(0));
+                0, __ Word32BitwiseAnd(bitfield,
+                                       Map::Bits1::IsCallableBit::kMask));
+            GOTO_IF_NOT(check, done, 0);
             // Fallthrough into receiver check.
             V8_FALLTHROUGH;
           case ObjectIsOp::Kind::kReceiver: {
             static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             V<Word32> instance_type =
                 LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
-            check = __ Uint32LessThanOrEqual(
-                __ Word32Constant(FIRST_JS_RECEIVER_TYPE), instance_type);
+            check =
+                __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE, instance_type);
             break;
           }
           case ObjectIsOp::Kind::kUndetectable:
             check = __ Word32Equal(
-                __ Word32Constant(Map::Bits1::IsUndetectableBit::kMask),
-                __ Word32BitwiseAnd(
-                    bitfield,
-                    __ Word32Constant(Map::Bits1::IsUndetectableBit::kMask)));
+                Map::Bits1::IsUndetectableBit::kMask,
+                __ Word32BitwiseAnd(bitfield,
+                                    Map::Bits1::IsUndetectableBit::kMask));
             break;
           default:
             UNREACHABLE();
@@ -204,7 +194,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, __ Word32Constant(1));
+          GOTO_IF(IsSmi(input), done, 1);
         }
 
         V<Tagged> map = LoadField<Tagged>(input, AccessBuilder::ForMap());
@@ -221,7 +211,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, __ Word32Constant(0));
+          GOTO_IF(IsSmi(input), done, 0);
         }
 
         // Load instance type from map.
@@ -232,20 +222,16 @@ class MachineLoweringReducer : public Next {
         V<Word32> check;
         switch (kind) {
           case ObjectIsOp::Kind::kSymbol:
-            check =
-                __ Word32Equal(instance_type, __ Word32Constant(SYMBOL_TYPE));
+            check = __ Word32Equal(instance_type, SYMBOL_TYPE);
             break;
           case ObjectIsOp::Kind::kString:
-            check = __ Uint32LessThan(instance_type,
-                                      __ Word32Constant(FIRST_NONSTRING_TYPE));
+            check = __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
             break;
           case ObjectIsOp::Kind::kArrayBufferView:
             check = __ Uint32LessThan(
-                __ Word32Sub(
-                    instance_type,
-                    __ Word32Constant(FIRST_JS_ARRAY_BUFFER_VIEW_TYPE)),
-                __ Word32Constant(LAST_JS_ARRAY_BUFFER_VIEW_TYPE -
-                                  FIRST_JS_ARRAY_BUFFER_VIEW_TYPE + 1));
+                __ Word32Sub(instance_type, FIRST_JS_ARRAY_BUFFER_VIEW_TYPE),
+                LAST_JS_ARRAY_BUFFER_VIEW_TYPE -
+                    FIRST_JS_ARRAY_BUFFER_VIEW_TYPE + 1);
             break;
           default:
             UNREACHABLE();
@@ -268,21 +254,20 @@ class MachineLoweringReducer : public Next {
         Label<Tagged> done(this);
 
         // BigInts with value 0 must be of size 0 (canonical form).
-        IF(__ Word64Equal(input, __ Word64Constant(int64_t{0}))) {
+        IF(__ Word64Equal(input, int64_t{0})) {
           GOTO(done, AllocateBigInt(OpIndex::Invalid(), OpIndex::Invalid()));
         }
         ELSE {
           // Shift sign bit into BigInt's sign bit position.
           V<Word32> bitfield = __ Word32BitwiseOr(
-              __ Word32Constant(BigInt::LengthBits::encode(1)),
-              __ Word64ShiftRightLogical(input,
-                                         __ Word64Constant(static_cast<int64_t>(
-                                             63 - BigInt::SignBits::kShift))));
+              BigInt::LengthBits::encode(1),
+              __ Word64ShiftRightLogical(
+                  input, static_cast<int64_t>(63 - BigInt::SignBits::kShift)));
 
           // We use (value XOR (value >> 63)) - (value >> 63) to compute the
           // absolute value, in a branchless fashion.
-          V<Word64> sign_mask = __ Word64ShiftRightArithmetic(
-              input, __ Word64Constant(int64_t{63}));
+          V<Word64> sign_mask =
+              __ Word64ShiftRightArithmetic(input, int64_t{63});
           V<Word64> absolute_value =
               __ Word64Sub(__ Word64BitwiseXor(input, sign_mask), sign_mask);
           GOTO(done, AllocateBigInt(bitfield, absolute_value));
@@ -298,7 +283,7 @@ class MachineLoweringReducer : public Next {
         Label<Tagged> done(this);
 
         // BigInts with value 0 must be of size 0 (canonical form).
-        IF(__ Word64Equal(input, __ Word64Constant(uint64_t{0}))) {
+        IF(__ Word64Equal(input, uint64_t{0})) {
           GOTO(done, AllocateBigInt(OpIndex::Invalid(), OpIndex::Invalid()));
         }
         ELSE {
@@ -411,9 +396,9 @@ class MachineLoweringReducer : public Next {
 
   V<Word32> IsSmi(V<Tagged> input) {
     return __ Word32Equal(
-        __ Word32BitwiseAnd(
-            input, __ Word32Constant(static_cast<uint32_t>(kSmiTagMask))),
-        __ Word32Constant(static_cast<uint32_t>(kSmiTag)));
+        __ Word32BitwiseAnd(V<Word32>::Cast(input),
+                            static_cast<uint32_t>(kSmiTagMask)),
+        static_cast<uint32_t>(kSmiTag));
   }
 
   Factory* factory_;

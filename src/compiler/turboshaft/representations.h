@@ -646,9 +646,9 @@ class WordAny : public Any {
 template <size_t Bits>
 struct WordWithBits : public WordAny {
   static_assert(Bits == 32 || Bits == 64);
-  static constexpr RegisterRepresentation Rep =
-      Bits == 32 ? RegisterRepresentation::Word32()
-                 : RegisterRepresentation::Word64();
+  using constexpr_type = std::conditional_t<Bits == 32, uint32_t, uint64_t>;
+  static constexpr WordRepresentation Rep =
+      Bits == 32 ? WordRepresentation::Word32() : WordRepresentation::Word64();
   operator RegisterRepresentation() const { return Rep; }
   static constexpr const char* short_name() {
     if constexpr (Bits == 32) {
@@ -675,9 +675,10 @@ struct FloatAny : public Any {
 template <size_t Bits>
 struct FloatWithBits : public FloatAny {
   static_assert(Bits == 32 || Bits == 64);
-  static constexpr RegisterRepresentation Rep =
-      Bits == 32 ? RegisterRepresentation::Float32()
-                 : RegisterRepresentation::Float64();
+  using constexpr_type = std::conditional_t<Bits == 32, float, double>;
+  static constexpr FloatRepresentation Rep =
+      Bits == 32 ? FloatRepresentation::Float32()
+                 : FloatRepresentation::Float64();
   operator RegisterRepresentation() const { return Rep; }
   static constexpr const char* short_name() {
     if constexpr (Bits == 32) {
