@@ -226,11 +226,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       BytecodeArrayRef bytecode = candidate.bytecode[i].value();
       candidate.total_size += bytecode.length();
       unsigned inlined_bytecode_size = 0;
-      if (candidate.functions[i].has_value()) {
-        JSFunctionRef function = candidate.functions[i].value();
-        inlined_bytecode_size =
-            function.code(broker()).GetInlinedBytecodeSize();
-        candidate.total_size += inlined_bytecode_size;
+      if (OptionalJSFunctionRef function = candidate.functions[i]) {
+        if (OptionalCodeRef code = function->code(broker())) {
+          inlined_bytecode_size = code->GetInlinedBytecodeSize();
+          candidate.total_size += inlined_bytecode_size;
+        }
       }
       candidate_is_small = candidate_is_small &&
                            IsSmall(bytecode.length() + inlined_bytecode_size);
@@ -824,13 +824,13 @@ void JSInliningHeuristic::PrintCandidates() {
       os << "  - target: " << shared;
       if (candidate.bytecode[i].has_value()) {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
-        if (candidate.functions[i].has_value()) {
-          JSFunctionRef function = candidate.functions[i].value();
-          unsigned inlined_bytecode_size =
-              function.code(broker()).GetInlinedBytecodeSize();
-          if (inlined_bytecode_size > 0) {
-            os << ", existing opt code's inlined bytecode size: "
-               << inlined_bytecode_size;
+        if (OptionalJSFunctionRef function = candidate.functions[i]) {
+          if (OptionalCodeRef code = function->code(broker())) {
+            unsigned inlined_bytecode_size = code->GetInlinedBytecodeSize();
+            if (inlined_bytecode_size > 0) {
+              os << ", existing opt code's inlined bytecode size: "
+                 << inlined_bytecode_size;
+            }
           }
         }
       } else {

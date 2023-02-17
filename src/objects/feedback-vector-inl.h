@@ -38,9 +38,6 @@ INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
                 kCreateClosureSlotCountOffset)
 
-RELEASE_ACQUIRE_WEAK_ACCESSORS(FeedbackVector, maybe_optimized_code,
-                               kMaybeOptimizedCodeOffset)
-
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
@@ -149,7 +146,7 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
 }
 
 Code FeedbackVector::optimized_code() const {
-  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
+  MaybeObject slot = maybe_optimized_code();
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
   Code code;

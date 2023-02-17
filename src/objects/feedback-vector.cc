@@ -365,7 +365,7 @@ void FeedbackVector::SetOptimizedCode(Code code) {
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
-  set_maybe_optimized_code(HeapObjectReference::Weak(code), kReleaseStore);
+  set_maybe_optimized_code(HeapObjectReference::Weak(code));
   int32_t state = flags();
   // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
   // the callers doing so.
@@ -384,8 +384,7 @@ void FeedbackVector::SetOptimizedCode(Code code) {
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
   DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
-  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
-                           kReleaseStore);
+  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()));
   set_maybe_has_maglev_code(false);
   set_maybe_has_turbofan_code(false);
 }
@@ -431,7 +430,7 @@ void FeedbackVector::set_osr_tiering_state(TieringState marker) {
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo shared, const char* reason) {
-  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
+  MaybeObject slot = maybe_optimized_code();
   if (slot->IsCleared()) {
     set_maybe_has_maglev_code(false);
     set_maybe_has_turbofan_code(false);

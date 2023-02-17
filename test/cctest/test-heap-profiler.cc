@@ -4098,8 +4098,7 @@ TEST(WeakReference) {
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code),
-                               v8::kReleaseStore);
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));

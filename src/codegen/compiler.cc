@@ -2619,7 +2619,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Install code on closure.
-  function->set_code(*code, kReleaseStore);
+  function->set_code(*code);
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
     JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
@@ -2739,7 +2739,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   Handle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
-    function->set_code(*code, kReleaseStore);
+    function->set_code(*code);
   }
 
 #ifdef DEBUG
@@ -3875,7 +3875,7 @@ void Compiler::DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
   Handle<JSFunction> function = job->compilation_info()->closure();
   ResetTieringState(*function, job->compilation_info()->osr_offset());
   if (restore_function_code) {
-    function->set_code(function->shared().GetCode(), kReleaseStore);
+    function->set_code(function->shared().GetCode());
   }
 }
 
@@ -3926,7 +3926,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
           CompilerTracer::TraceOptimizeOSRFinished(isolate, function,
                                                    osr_offset);
         } else {
-          function->set_code(*compilation_info->code(), kReleaseStore);
+          function->set_code(*compilation_info->code());
         }
       }
       return;
@@ -3940,7 +3940,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   if (V8_LIKELY(use_result)) {
     ResetTieringState(*function, osr_offset);
     if (!IsOSR(osr_offset)) {
-      function->set_code(shared->GetCode(), kReleaseStore);
+      function->set_code(shared->GetCode());
     }
   }
 }
@@ -4015,10 +4015,6 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
         DCHECK(!code.marked_for_deoptimization());
         DCHECK(function->shared().is_compiled());
 
-        // We don't need a release store because the optimized code was
-        // stored with release semantics into the vector
-        static_assert(
-            FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
         function->set_code(code);
       }
     }

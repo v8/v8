@@ -495,8 +495,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
       size, AllocationType::kOld, *feedback_vector_map()));
   DisallowGarbageCollection no_gc;
   vector.set_shared_function_info(*shared);
-  vector.set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()),
-                                  kReleaseStore);
+  vector.set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()));
   vector.set_length(length);
   vector.set_invocation_count(0);
   vector.set_profiler_ticks(0);

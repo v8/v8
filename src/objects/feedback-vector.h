@@ -203,11 +203,6 @@ class FeedbackVector
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
   static_assert(TieringState::kLastTieringState <= TieringStateBits::kMax);
 
-  static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
-  using TorqueGeneratedFeedbackVector<FeedbackVector,
-                                      HeapObject>::maybe_optimized_code;
-  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
-
   static constexpr uint32_t kFlagsMaybeHasTurbofanCode =
       FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
   static constexpr uint32_t kFlagsMaybeHasMaglevCode =

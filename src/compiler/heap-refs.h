@@ -503,7 +503,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context(JSHeapBroker* broker) const;
   NativeContextRef native_context(JSHeapBroker* broker) const;
   SharedFunctionInfoRef shared(JSHeapBroker* broker) const;
-  CodeRef code(JSHeapBroker* broker) const;
+  OptionalCodeRef code(JSHeapBroker* broker) const;
 
   bool has_initial_map(JSHeapBroker* broker) const;
   bool PrototypeRequiresRuntimeLookup(JSHeapBroker* broker) const;

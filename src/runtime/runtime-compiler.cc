@@ -488,7 +488,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
     // 2) synchronous compilation failed for some reason.
 
     if (!function->HasAttachedOptimizedCode()) {
-      function->set_code(function->shared().GetCode(), kReleaseStore);
+      function->set_code(function->shared().GetCode());
     }
 
     return {};

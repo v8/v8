@@ -118,8 +118,7 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
     return CompilationJob::FAILED;
   }
-  info()->toplevel_compilation_unit()->function().object()->set_code(
-      *code, kReleaseStore);
+  info()->toplevel_compilation_unit()->function().object()->set_code(*code);
   return CompilationJob::SUCCEEDED;
 }
 

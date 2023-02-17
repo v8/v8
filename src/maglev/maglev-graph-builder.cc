@@ -3095,7 +3095,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't try to inline if the target function hasn't been compiled yet.
   // TODO(verwaest): Soft deopt instead?
-  if (function.code(broker()).object()->kind() == CodeKind::TURBOFAN) {
+  if (auto code = function.code(broker());
+      !code || code->object()->kind() == CodeKind::TURBOFAN) {
     return ReduceResult::Fail();
   }
   if (!function.feedback_vector(broker()).has_value()) {

@@ -2190,9 +2190,8 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
-CodeRef JSFunctionRef::code(JSHeapBroker* broker) const {
-  Code code = object()->code(kAcquireLoad);
-  return MakeRefAssumeMemoryFence(broker, code);
+OptionalCodeRef JSFunctionRef::code(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->code());
 }
 
 NativeContextRef JSFunctionRef::native_context(JSHeapBroker* broker) const {
