@@ -433,85 +433,82 @@ class LiftoffCompiler {
 
     // Named constructors:
     static OutOfLineCode Trap(
-        Zone* compilation_zone, WasmCode::RuntimeStubId s, WasmCodePosition pos,
+        Zone* zone, WasmCode::RuntimeStubId s, WasmCodePosition pos,
         SpilledRegistersForInspection* spilled_registers,
         OutOfLineSafepointInfo* safepoint_info, uint32_t pc,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       DCHECK_LT(0, pos);
       return {
-          MovableLabel{compilation_zone},  // label
-          MovableLabel{compilation_zone},  // continuation
-          s,                               // stub
-          pos,                             // position
-          {},                              // regs_to_save
-          no_reg,                          // cached_instance
-          safepoint_info,                  // safepoint_info
-          pc,                              // pc
-          spilled_registers,               // spilled_registers
-          debug_sidetable_entry_builder    // debug_side_table_entry_builder
+          MovableLabel{zone},            // label
+          MovableLabel{zone},            // continuation
+          s,                             // stub
+          pos,                           // position
+          {},                            // regs_to_save
+          no_reg,                        // cached_instance
+          safepoint_info,                // safepoint_info
+          pc,                            // pc
+          spilled_registers,             // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
     }
     static OutOfLineCode StackCheck(
-        Zone* compilation_zone, WasmCodePosition pos,
-        LiftoffRegList regs_to_save, Register cached_instance,
-        SpilledRegistersForInspection* spilled_regs,
+        Zone* zone, WasmCodePosition pos, LiftoffRegList regs_to_save,
+        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {
-          MovableLabel{compilation_zone},  // label
-          MovableLabel{compilation_zone},  // continuation
-          WasmCode::kWasmStackGuard,       // stub
-          pos,                             // position
-          regs_to_save,                    // regs_to_save
-          cached_instance,                 // cached_instance
-          safepoint_info,                  // safepoint_info
-          0,                               // pc
-          spilled_regs,                    // spilled_registers
-          debug_sidetable_entry_builder    // debug_side_table_entry_builder
+          MovableLabel{zone},            // label
+          MovableLabel{zone},            // continuation
+          WasmCode::kWasmStackGuard,     // stub
+          pos,                           // position
+          regs_to_save,                  // regs_to_save
+          cached_instance,               // cached_instance
+          safepoint_info,                // safepoint_info
+          0,                             // pc
+          spilled_regs,                  // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
     }
     static OutOfLineCode TierupCheck(
-        Zone* compilation_zone, WasmCodePosition pos,
-        LiftoffRegList regs_to_save, Register cached_instance,
-        SpilledRegistersForInspection* spilled_regs,
+        Zone* zone, WasmCodePosition pos, LiftoffRegList regs_to_save,
+        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {
-          MovableLabel{compilation_zone},  // label
-          MovableLabel{compilation_zone},  // continuation,
-          WasmCode::kWasmTriggerTierUp,    // stub
-          pos,                             // position
-          regs_to_save,                    // regs_to_save
-          cached_instance,                 // cached_instance
-          safepoint_info,                  // safepoint_info
-          0,                               // pc
-          spilled_regs,                    // spilled_registers
-          debug_sidetable_entry_builder    // debug_side_table_entry_builder
+          MovableLabel{zone},            // label
+          MovableLabel{zone},            // continuation,
+          WasmCode::kWasmTriggerTierUp,  // stub
+          pos,                           // position
+          regs_to_save,                  // regs_to_save
+          cached_instance,               // cached_instance
+          safepoint_info,                // safepoint_info
+          0,                             // pc
+          spilled_regs,                  // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
     }
   };
 
   LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
-                  CompilationEnv* env, Zone* compilation_zone,
+                  CompilationEnv* env, Zone* zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
                   const LiftoffOptions& options)
-      : asm_(compilation_zone, std::move(buffer)),
-        descriptor_(
-            GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
+      : asm_(zone, std::move(buffer)),
+        descriptor_(GetLoweredCallDescriptor(zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
         for_debugging_(options.for_debugging),
         func_index_(options.func_index),
-        out_of_line_code_(compilation_zone),
-        source_position_table_builder_(compilation_zone),
-        protected_instructions_(compilation_zone),
-        compilation_zone_(compilation_zone),
-        safepoint_table_builder_(compilation_zone_),
+        out_of_line_code_(zone),
+        source_position_table_builder_(zone),
+        protected_instructions_(zone),
+        zone_(zone),
+        safepoint_table_builder_(zone_),
         next_breakpoint_ptr_(options.breakpoints.begin()),
         next_breakpoint_end_(options.breakpoints.end()),
         dead_breakpoint_(options.dead_breakpoint),
-        handlers_(compilation_zone),
+        handlers_(zone),
         max_steps_(options.max_steps),
         nondeterminism_(options.nondeterminism) {
     // We often see huge numbers of traps per function, so pre-reserve some
@@ -746,7 +743,7 @@ class LiftoffCompiler {
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
     OutOfLineSafepointInfo* safepoint_info =
-        compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+        zone_->New<OutOfLineSafepointInfo>(zone_);
     __ cache_state()->GetTaggedSlotsForOOLCode(
         &safepoint_info->slots, &safepoint_info->spills,
         for_debugging_
@@ -765,9 +762,8 @@ class LiftoffCompiler {
       spilled_regs = GetSpilledRegistersForInspection();
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
-        compilation_zone_, position, regs_to_save,
-        __ cache_state()->cached_instance, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry(decoder)));
+        zone_, position, regs_to_save, __ cache_state()->cached_instance,
+        spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
     __ StackCheck(ool.label.get(), limit_address);
     __ bind(ool.continuation.get());
@@ -818,14 +814,13 @@ class LiftoffCompiler {
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
     OutOfLineSafepointInfo* safepoint_info =
-        compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+        zone_->New<OutOfLineSafepointInfo>(zone_);
     __ cache_state()->GetTaggedSlotsForOOLCode(
         &safepoint_info->slots, &safepoint_info->spills,
         LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
     out_of_line_code_.push_back(OutOfLineCode::TierupCheck(
-        compilation_zone_, position, regs_to_save,
-        __ cache_state()->cached_instance, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry(decoder)));
+        zone_, position, regs_to_save, __ cache_state()->cached_instance,
+        spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
     FREEZE_STATE(trapping);
     __ emit_i32_subi_jump_negative(budget_reg.gp(), budget_used,
@@ -1285,7 +1280,7 @@ class LiftoffCompiler {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->try_info = compilation_zone_->New<TryInfo>(compilation_zone_);
+    block->try_info = zone_->New<TryInfo>(zone_);
     PushControl(block);
   }
 
@@ -1481,7 +1476,7 @@ class LiftoffCompiler {
     DCHECK(if_block->is_if());
 
     // Allocate the else state.
-    if_block->else_state = compilation_zone_->New<ElseState>(compilation_zone_);
+    if_block->else_state = zone_->New<ElseState>(zone_);
 
     // Test the condition on the value stack, jump to else if zero.
     base::Optional<FreezeCacheState> frozen;
@@ -2834,8 +2829,7 @@ class LiftoffCompiler {
   void GenerateBrCase(FullDecoder* decoder, uint32_t br_depth,
                       ZoneMap<uint32_t, MovableLabel>* br_targets,
                       Register tmp1, Register tmp2) {
-    auto [iterator, is_new_target] =
-        br_targets->emplace(br_depth, compilation_zone_);
+    auto [iterator, is_new_target] = br_targets->emplace(br_depth, zone_);
     Label* label = iterator->second.get();
     DCHECK_EQ(is_new_target, !label->is_bound());
     if (is_new_target) {
@@ -2914,8 +2908,8 @@ class LiftoffCompiler {
                           pinned);
     }
 
-    BranchTableIterator<ValidationTag> table_iterator(decoder, imm);
-    ZoneMap<uint32_t, MovableLabel> br_targets(compilation_zone_);
+    BranchTableIterator<ValidationTag> table_iterator{decoder, imm};
+    ZoneMap<uint32_t, MovableLabel> br_targets{zone_};
 
     if (imm.table_count > 0) {
       LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
@@ -2957,8 +2951,7 @@ class LiftoffCompiler {
     DCHECK(for_debugging_);
     // If we are generating debugging code, we really need to spill all
     // registers to make them inspectable when stopping at the trap.
-    auto* spilled = compilation_zone_->New<SpilledRegistersForInspection>(
-        compilation_zone_);
+    auto* spilled = zone_->New<SpilledRegistersForInspection>(zone_);
     for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
       auto& slot = __ cache_state()->stack_state[i];
       if (!slot.is_reg()) continue;
@@ -2980,14 +2973,13 @@ class LiftoffCompiler {
       // define a safepoint for traps that would preserve references on the
       // stack. However, if this is debug code, then we have to preserve the
       // references so that they can be inspected.
-      safepoint_info =
-          compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+      safepoint_info = zone_->New<OutOfLineSafepointInfo>(zone_);
       __ cache_state()->GetTaggedSlotsForOOLCode(
           &safepoint_info->slots, &safepoint_info->spills,
           LiftoffAssembler::CacheState::SpillLocation::kStackSlots);
     }
     out_of_line_code_.push_back(OutOfLineCode::Trap(
-        compilation_zone_, stub, decoder->position(),
+        zone_, stub, decoder->position(),
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr,
         safepoint_info, pc, RegisterOOLDebugSideTableEntry(decoder)));
@@ -4696,7 +4688,7 @@ class LiftoffCompiler {
 
   void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
     if (decoder->current_catch() == -1) return;
-    MovableLabel handler{compilation_zone_};
+    MovableLabel handler{zone_};
 
     // If we return from the throwing code normally, just skip over the handler.
     Label skip_handler;
@@ -4942,7 +4934,7 @@ class LiftoffCompiler {
     auto interface_descriptor = Builtins::CallInterfaceDescriptorFor(
         RuntimeStubIdToBuiltinName(stub_id));
     auto* call_descriptor = compiler::Linkage::GetStubCallDescriptor(
-        compilation_zone_,                              // zone
+        zone_,                                          // zone
         interface_descriptor,                           // descriptor
         interface_descriptor.GetStackParameterCount(),  // stack parameter count
         compiler::CallDescriptor::kNoFlags,             // flags
@@ -7380,15 +7372,13 @@ class LiftoffCompiler {
  private:
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[], TailCall tail_call) {
-    MostlySmallValueKindSig sig(compilation_zone_, imm.sig);
+    MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
-    auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
-    call_descriptor =
-        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+    auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
+    call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     // One slot would be enough for call_direct, but would make index
     // computations much more complicated.
@@ -7466,7 +7456,7 @@ class LiftoffCompiler {
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate& imm, TailCall tail_call) {
-    MostlySmallValueKindSig sig(compilation_zone_, imm.sig);
+    MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
@@ -7675,10 +7665,8 @@ class LiftoffCompiler {
       __ Load(LiftoffRegister(function_target), function_target, index, 0,
               kPointerLoadType, nullptr, false, false, true);
 
-      auto call_descriptor =
-          compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
-      call_descriptor =
-          GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+      auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
+      call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
       __ PrepareCall(&sig, call_descriptor, &function_target,
                      &function_instance);
@@ -7700,14 +7688,13 @@ class LiftoffCompiler {
 
   void CallRef(FullDecoder* decoder, ValueType func_ref_type,
                const FunctionSig* type_sig, TailCall tail_call) {
-    MostlySmallValueKindSig sig(compilation_zone_, type_sig);
+    MostlySmallValueKindSig sig(zone_, type_sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
     compiler::CallDescriptor* call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, type_sig);
-    call_descriptor =
-        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+        compiler::GetWasmCallDescriptor(zone_, type_sig);
+    call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     Register target_reg = no_reg, instance_reg = no_reg;
 
@@ -8055,7 +8042,7 @@ class LiftoffCompiler {
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
-  Zone* compilation_zone_;
+  Zone* zone_;
   SafepointTableBuilder safepoint_table_builder_;
   // The pc offset of the instructions to reserve the stack frame. Needed to
   // patch the actually needed stack size in the end.
