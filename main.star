@@ -113,21 +113,10 @@ luci.project(
 
 ## Swarming permissions
 
-# Allow admins to use LED and "Debug" button on every V8 builder and bot.
-# TODO(alexschulze): Exempt highly-privileged pool from LED and "Debug"
-luci.binding(
-    realm = "@root",
-    roles = "role/swarming.poolUser",
-    groups = "mdb/v8-infra",
-)
-luci.binding(
-    realm = "@root",
-    roles = "role/swarming.taskTriggerer",
-    groups = "mdb/v8-infra",
-)
+LED_GROUPS = ["project-v8-led-users", "mdb/v8-infra"]
 
-# Allow cria/project-v8-led-users to use LED and "Debug" button on
-# try and ci builders
+# Allow indviduals (via groups) to use LED and "Debug" button on try and ci
+# builders without additional approval.
 def led_users(*, pool_realm, builder_realms, groups):
     luci.realm(
         name = pool_realm,
@@ -154,15 +143,23 @@ led_users(
         "ci.br.extended",
         "ci.br.extwin",
     ],
-    groups = "project-v8-led-users",
+    groups = LED_GROUPS,
 )
 
 led_users(
     pool_realm = "pools/try",
     builder_realms = ["try", "try.triggered"],
-    groups = "project-v8-led-users",
+    groups = LED_GROUPS,
 )
 
+# Allow this AoD group to use all pools and trigger all builders
+led_users(
+    pool_realm = "@root",
+    builder_realms = ["@root"],
+    groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
+)
+
+# Allow the devtools-frontend project to use V8's highly-privileged pool.
 luci.realm(
     name = "pools/highly-privileged",
     bindings = [
