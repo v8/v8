@@ -561,21 +561,24 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   DCHECK_EQ(loop_header->opcode(), IrOpcode::kLoop);
 
   queue.push_back(loop_header);
+  visited->insert(loop_header);
 
-#define ENQUEUE_USES(use_name, condition)                                      \
-  for (Node * use_name : node->uses()) {                                       \
-    if (condition && visited->count(use_name) == 0) queue.push_back(use_name); \
+#define ENQUEUE_USES(use_name, condition)             \
+  for (Node * use_name : node->uses()) {              \
+    if (condition && visited->count(use_name) == 0) { \
+      visited->insert(use_name);                      \
+      queue.push_back(use_name);                      \
+    }                                                 \
   }
   bool has_instruction_worth_peeling = false;
-
   while (!queue.empty()) {
     Node* node = queue.back();
     queue.pop_back();
     if (node->opcode() == IrOpcode::kEnd) {
       // We reached the end of the graph. The end node is not part of the loop.
+      visited->erase(node);
       continue;
     }
-    visited->insert(node);
     if (visited->size() > max_size) return nullptr;
     switch (node->opcode()) {
       case IrOpcode::kLoop:
