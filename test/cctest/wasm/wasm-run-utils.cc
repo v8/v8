@@ -355,29 +355,6 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   return index;
 }
 
-uint32_t TestingModuleBuilder::AddPassiveElementSegment(
-    const std::vector<uint32_t>& entries) {
-  uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
-  DCHECK_EQ(index, dropped_elem_segments_.size());
-
-  test_module_->elem_segments.emplace_back(
-      kWasmFuncRef, WasmElemSegment::kStatusPassive,
-      WasmElemSegment::kFunctionIndexElements);
-  auto& elem_segment = test_module_->elem_segments.back();
-  for (uint32_t entry : entries) {
-    elem_segment.entries.emplace_back(ConstantExpression::RefFunc(entry));
-  }
-
-  // The vector pointers may have moved, so update the instance object.
-  dropped_elem_segments_.push_back(0);
-  uint32_t size = static_cast<uint32_t>(dropped_elem_segments_.size());
-  Handle<FixedUInt8Array> dropped_elem_segments =
-      FixedUInt8Array::New(isolate_, size);
-  dropped_elem_segments->copy_in(0, dropped_elem_segments_.data(), size);
-  instance_object_->set_dropped_elem_segments(*dropped_elem_segments);
-  return index;
-}
-
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {test_module_.get(), native_module_->bounds_checks(),
           runtime_exception_support_, enabled_features_, kNoDynamicTiering};

@@ -17,6 +17,7 @@
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -2031,7 +2032,7 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
   if (!base::IsInBounds<uint64_t>(
           src, count,
           instance->dropped_elem_segments().get(segment_index) == 0
-              ? elem_segment.entries.size()
+              ? elem_segment.element_count
               : 0)) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
   }
@@ -2041,8 +2042,27 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
 
   ErrorThrower thrower(isolate, "LoadElemSegment");
 
+  base::Vector<const byte> module_bytes =
+      instance->module_object().native_module()->wire_bytes();
+
+  ModuleDecoderImpl decoder(WasmFeatures::All(), module_bytes,
+                            ModuleOrigin::kWasmOrigin);
+  decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+
+  // Skip elements up to {src}.
+  for (size_t i = 0; i < src; ++i) {
+    ConstantExpression entry = decoder.consume_element_segment_entry(
+        const_cast<WasmModule*>(instance->module()), elem_segment);
+    USE(entry);
+    DCHECK(entry.is_set());
+  }
   for (size_t i = 0; i < count; ++i) {
-    ConstantExpression entry = elem_segment.entries[src + i];
+    // TODO(manoskouk): Refactor so that we do not decode the constant
+    // expression twice in the general case: once here, and once in
+    // EvaluateConstantExpression below.
+    ConstantExpression entry = decoder.consume_element_segment_entry(
+        const_cast<WasmModule*>(instance->module()), elem_segment);
+    DCHECK(entry.is_set());
     int entry_index = static_cast<int>(dst + i);
     if (is_function_table && entry.kind() == ConstantExpression::kRefFunc) {
       SetFunctionTablePlaceholder(isolate, instance, table_object, entry_index,
@@ -2065,18 +2085,18 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   for (uint32_t segment_index = 0;
        segment_index < module_->elem_segments.size(); ++segment_index) {
-    auto& elem_segment = instance->module()->elem_segments[segment_index];
+    const WasmElemSegment& elem_segment =
+        instance->module()->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
-    uint32_t table_index = elem_segment.table_index;
+    const uint32_t table_index = elem_segment.table_index;
     ValueOrError value = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_, instance);
     if (MaybeMarkError(value, thrower_)) return;
-    uint32_t dst = std::get<WasmValue>(value).to_u32();
-    if (thrower_->error()) return;
-    uint32_t src = 0;
-    size_t count = elem_segment.entries.size();
+    const uint32_t dst = std::get<WasmValue>(value).to_u32();
+    const uint32_t src = 0;
+    const size_t count = elem_segment.element_count;
 
     base::Optional<MessageTemplate> opt_error = LoadElemSegmentImpl(
         &init_expr_zone_, isolate_, instance,

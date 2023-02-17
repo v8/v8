@@ -15,6 +15,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-feature-flags.h"
@@ -615,14 +616,20 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << ", ";
     }
     os << "[";
-    for (uint32_t i = 0; i < elem_segment.entries.size(); i++) {
+    ModuleDecoderImpl decoder(WasmFeatures::All(),
+                              wire_bytes.module_bytes().SubVectorFrom(
+                                  elem_segment.elements_wire_bytes_offset),
+                              ModuleOrigin::kWasmOrigin);
+    for (uint32_t i = 0; i < elem_segment.element_count; i++) {
+      ConstantExpression expr =
+          decoder.consume_element_segment_entry(module, elem_segment);
       if (elem_segment.element_type == WasmElemSegment::kExpressionElements) {
-        DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
-                                elem_segment.entries[i], elem_segment.type);
+        DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, expr,
+                                elem_segment.type);
       } else {
-        os << elem_segment.entries[i].index();
+        os << expr.index();
       }
-      if (i < elem_segment.entries.size() - 1) os << ", ";
+      if (i < elem_segment.element_count - 1) os << ", ";
     }
     os << "], "
        << (elem_segment.element_type == WasmElemSegment::kExpressionElements

@@ -310,7 +310,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     if (!base::IsInBounds<size_t>(
             offset, length,
             elem_segment->status == WasmElemSegment::kStatusPassive
-                ? elem_segment->entries.size()
+                ? elem_segment->element_count
                 : 0)) {
       error_ = MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
       return;

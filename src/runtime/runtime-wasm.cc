@@ -799,7 +799,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
             offset, length,
             instance->dropped_elem_segments().get(segment_index)
                 ? 0
-                : elem_segment->entries.size())) {
+                : elem_segment->element_count)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }

@@ -75,7 +75,9 @@
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
 #endif
@@ -1852,10 +1854,22 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+
+  wasm::ModuleDecoderImpl decoder(
+      wasm::WasmFeatures::All(),
+      instance->module_object().native_module()->wire_bytes(),
+      wasm::ModuleOrigin::kWasmOrigin);
+  decoder.consume_bytes(segment->elements_wire_bytes_offset);
+  // Skip entries until {start_offset}.
+  for (uint32_t i = 0; i < start_offset; i++) {
+    decoder.consume_element_segment_entry(
+        const_cast<wasm::WasmModule*>(instance->module()), *segment);
+  }
   for (uint32_t i = 0; i < length; i++) {
+    wasm::ConstantExpression expr = decoder.consume_element_segment_entry(
+        const_cast<wasm::WasmModule*>(instance->module()), *segment);
     wasm::ValueOrError maybe_element = wasm::EvaluateConstantExpression(
-        &zone, segment->entries[start_offset + i], element_type, isolate(),
-        instance);
+        &zone, expr, element_type, isolate(), instance);
     if (wasm::is_error(maybe_element)) {
       return handle(Smi::FromEnum(wasm::to_error(maybe_element)), isolate());
     }
