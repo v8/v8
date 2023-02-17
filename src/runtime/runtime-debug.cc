@@ -208,6 +208,12 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     if (iter.HasAccess()) {
       iter.Advance();
       Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
+      if (!iter.IsAtEnd() && iter.HasAccess() && object->IsJSGlobalProxy()) {
+        // Skip JSGlobalObject as the [[Prototype]].
+        DCHECK(prototype->IsJSGlobalObject());
+        iter.Advance();
+        prototype = PrototypeIterator::GetCurrent(iter);
+      }
       if (!prototype->IsNull(isolate)) {
         result = ArrayList::Add(
             isolate, result,
