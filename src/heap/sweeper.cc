@@ -365,9 +365,6 @@ void Sweeper::StartSweeperTasks() {
     DCHECK(v8_flags.minor_mc);
     DCHECK_EQ(GarbageCollector::MINOR_MARK_COMPACTOR,
               current_new_space_collector_);
-    // Snapshotted page sets are only needed for concurrent promoted page
-    // iteration, which is not used during memory-reducing GCs.
-    DCHECK(!heap_->ShouldReduceMemory());
 
     DCHECK(snapshot_normal_pages_set_.empty());
     DCHECK(snapshot_large_pages_set_.empty());
@@ -1066,13 +1063,14 @@ void Sweeper::AddNewSpacePage(Page* page, AccessMode mutex_mode) {
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
   DCHECK(heap_->IsMainThread());
-  DCHECK(!heap_->ShouldReduceMemory());
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
                  !job_handle_ || !job_handle_->IsValid());
-  DCHECK_GE(chunk->area_size(),
-            static_cast<size_t>(marking_state_->live_bytes(chunk)));
+  size_t live_bytes = marking_state_->live_bytes(chunk);
+  DCHECK_GE(chunk->area_size(), live_bytes);
+  heap_->IncrementPromotedObjectsSize(live_bytes);
+  heap_->IncrementYoungSurvivorsCounter(live_bytes);
 #if DEBUG
   if (!chunk->IsLargePage()) {
     static_cast<Page*>(chunk)->ForAllFreeListCategories(

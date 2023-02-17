@@ -6535,26 +6535,7 @@ bool YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
 }  // namespace
 
 void MinorMarkCompactCollector::EvacuatePagesInParallel() {
-  std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items;
-
   intptr_t live_bytes = 0;
-  intptr_t moved_bytes = 0;
-
-  std::function<void(MemoryChunk*, intptr_t)> handle_promoted_page;
-  if (heap()->ShouldReduceMemory()) {
-    handle_promoted_page = [&evacuation_items](MemoryChunk* chunk,
-                                               intptr_t live_bytes) {
-      // For memory reducing GCs, parallel iterate pages immediately to avoid
-      // delaying array buffer sweeping.
-      evacuation_items.emplace_back(ParallelWorkItem{}, chunk);
-    };
-  } else {
-    handle_promoted_page = [&moved_bytes, this](MemoryChunk* chunk,
-                                                intptr_t live_bytes) {
-      sweeper()->AddPromotedPageForIteration(chunk);
-      moved_bytes += live_bytes;
-    };
-  }
 
   const NonAtomicMarkingState* marking_state = non_atomic_marking_state();
   DCHECK_EQ(0, promoted_pages_.size());
@@ -6569,7 +6550,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
                            : PromoteUnusablePages::kNo)) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       promoted_pages_.push_back(page);
-      handle_promoted_page(page, live_bytes_on_page);
+      sweeper()->AddPromotedPageForIteration(page);
     } else {
       // Page is not promoted. Sweep it instead.
       sweeper()->AddNewSpacePage(page);
@@ -6587,27 +6568,15 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
       heap_->lo_space()->PromoteNewLargeObject(current);
       current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
       promoted_large_pages_.push_back(current);
-      handle_promoted_page(current, marking_state->live_bytes(current));
+      sweeper()->AddPromotedPageForIteration(current);
     }
     heap()->new_lo_space()->set_objects_size(0);
   }
 
-  size_t wanted_num_tasks = 0;
-  DCHECK_IMPLIES(!heap()->ShouldReduceMemory(), evacuation_items.empty());
-  DCHECK_IMPLIES(heap()->ShouldReduceMemory(), moved_bytes == 0);
-  if (!evacuation_items.empty()) {
-    wanted_num_tasks =
-        CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-            heap(), std::move(evacuation_items));
-  } else {
-    heap()->IncrementPromotedObjectsSize(moved_bytes);
-    heap()->IncrementYoungSurvivorsCounter(moved_bytes);
-  }
-
   if (v8_flags.trace_evacuation) {
     TraceEvacuation(isolate(),
-                    promoted_pages_.size() + promoted_large_pages_.size(),
-                    wanted_num_tasks, live_bytes, 0);
+                    promoted_pages_.size() + promoted_large_pages_.size(), 0,
+                    live_bytes, 0);
   }
 }
 
