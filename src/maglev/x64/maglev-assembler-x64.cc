@@ -576,7 +576,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register stack_cmp_reg = rsp;
     if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
       stack_cmp_reg = kScratchRegister;
-      leaq(stack_cmp_reg, Operand(rsp, stack_check_offset));
+      leaq(stack_cmp_reg, Operand(rsp, -stack_check_offset));
     }
     cmpq(stack_cmp_reg,
          StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
