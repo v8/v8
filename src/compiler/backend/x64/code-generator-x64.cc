@@ -808,38 +808,36 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                            \
   } while (false)
 
-#define ASSEMBLE_COMPARE(cmp_instr, test_instr)                     \
-  do {                                                              \
-    if (HasAddressingMode(instr)) {                                 \
-      size_t index = 0;                                             \
-      Operand left = i.MemoryOperand(&index);                       \
-      if (HasImmediateInput(instr, index)) {                        \
-        __ cmp_instr(left, i.InputImmediate(index));                \
-      } else {                                                      \
-        __ cmp_instr(left, i.InputRegister(index));                 \
-      }                                                             \
-    } else {                                                        \
-      if (HasImmediateInput(instr, 1)) {                            \
-        Immediate right = i.InputImmediate(1);                      \
-        if (HasRegisterInput(instr, 0)) {                           \
-          if (right.value() == 0 &&                                 \
-              (FlagsConditionField::decode(opcode) == kEqual ||     \
-               FlagsConditionField::decode(opcode) == kNotEqual)) { \
-            __ test_instr(i.InputRegister(0), i.InputRegister(0));  \
-          } else {                                                  \
-            __ cmp_instr(i.InputRegister(0), right);                \
-          }                                                         \
-        } else {                                                    \
-          __ cmp_instr(i.InputOperand(0), right);                   \
-        }                                                           \
-      } else {                                                      \
-        if (HasRegisterInput(instr, 1)) {                           \
-          __ cmp_instr(i.InputRegister(0), i.InputRegister(1));     \
-        } else {                                                    \
-          __ cmp_instr(i.InputRegister(0), i.InputOperand(1));      \
-        }                                                           \
-      }                                                             \
-    }                                                               \
+#define ASSEMBLE_COMPARE(cmp_instr, test_instr)                    \
+  do {                                                             \
+    if (HasAddressingMode(instr)) {                                \
+      size_t index = 0;                                            \
+      Operand left = i.MemoryOperand(&index);                      \
+      if (HasImmediateInput(instr, index)) {                       \
+        __ cmp_instr(left, i.InputImmediate(index));               \
+      } else {                                                     \
+        __ cmp_instr(left, i.InputRegister(index));                \
+      }                                                            \
+    } else {                                                       \
+      if (HasImmediateInput(instr, 1)) {                           \
+        Immediate right = i.InputImmediate(1);                     \
+        if (HasRegisterInput(instr, 0)) {                          \
+          if (right.value() == 0) {                                \
+            __ test_instr(i.InputRegister(0), i.InputRegister(0)); \
+          } else {                                                 \
+            __ cmp_instr(i.InputRegister(0), right);               \
+          }                                                        \
+        } else {                                                   \
+          __ cmp_instr(i.InputOperand(0), right);                  \
+        }                                                          \
+      } else {                                                     \
+        if (HasRegisterInput(instr, 1)) {                          \
+          __ cmp_instr(i.InputRegister(0), i.InputRegister(1));    \
+        } else {                                                   \
+          __ cmp_instr(i.InputRegister(0), i.InputOperand(1));     \
+        }                                                          \
+      }                                                            \
+    }                                                              \
   } while (false)
 
 #define ASSEMBLE_TEST(asm_instr)                                 \
