@@ -37,6 +37,7 @@ console_view(
 
 list_view("tryserver", "Tryserver")
 
+list_view("pgo", "Builtins PGO")
 list_view("tools", "Tools")
 
 list_view("crossbench", "Crossbench")

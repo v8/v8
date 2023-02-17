@@ -14,6 +14,7 @@ exec("/official.star")
 exec("/try_ng.star")
 exec("/try.star")
 
+exec("/pgo.star")
 exec("/tools.star")
 
 exec("/crossbench.star")
