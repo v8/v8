@@ -214,6 +214,8 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
               .IsEmpty())) {
       Node* unreachable =
           graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
+      ReplaceWithValue(node, unreachable, unreachable, control);
+      node->Kill();
       return Replace(unreachable);
     }
 
@@ -230,6 +232,8 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
               .IsEmpty())) {
       Node* unreachable =
           graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
+      ReplaceWithValue(node, unreachable, unreachable, control);
+      node->Kill();
       return Replace(unreachable);
     }
     // We should not initialize the same immutable field twice.
