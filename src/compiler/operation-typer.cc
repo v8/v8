@@ -1170,6 +1170,10 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 TYPER_SUPPORTED_MACHINE_BINOP_LIST(MACHINE_BINOP)
 #undef MACHINE_BINOP
 
+Type OperationTyper::ChangeUint32ToUint64(Type input) {
+  return Type::Machine();
+}
+
 #define BIGINT_BINOP(Name)                                 \
   Type OperationTyper::Name(Type lhs, Type rhs) {          \
     DCHECK(lhs.Is(Type::BigInt()));                        \

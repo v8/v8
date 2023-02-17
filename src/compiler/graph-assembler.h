@@ -361,6 +361,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   TNode<UintPtrT> UintPtrAdd(TNode<UintPtrT> left, TNode<UintPtrT> right);
   TNode<UintPtrT> UintPtrSub(TNode<UintPtrT> left, TNode<UintPtrT> right);
   TNode<UintPtrT> UintPtrDiv(TNode<UintPtrT> left, TNode<UintPtrT> right);
+  TNode<UintPtrT> ChangeUint32ToUintPtr(SloppyTNode<Uint32T> value);
 
 #ifdef V8_MAP_PACKING
   Node* PackMapWord(TNode<Map> map);

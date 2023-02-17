@@ -286,6 +286,7 @@ inline std::ostream& operator<<(std::ostream& os, const Operation& op) {
 inline void Print(const Operation& op) { std::cout << op << "\n"; }
 
 OperationStorageSlot* AllocateOpStorage(Graph* graph, size_t slot_count);
+const Operation& Get(const Graph& graph, OpIndex index);
 
 // Determine if an operation declares `properties`, which means that its
 // properties are static and don't depend on inputs or options.
@@ -356,6 +357,9 @@ struct OperationT : Operation {
     OperationStorageSlot* ptr =
         AllocateOpStorage(graph, StorageSlotCount(input_count));
     Derived* result = new (ptr) Derived(std::move(args)...);
+#ifdef DEBUG
+    result->Validate(*graph);
+#endif
     // If this DCHECK fails, then the number of inputs specified in the
     // operation constructor and in the static New function disagree.
     DCHECK_EQ(input_count, result->Operation::input_count);
@@ -409,6 +413,11 @@ struct OperationT : Operation {
     }
     PrintOptionsHelper(os, options, std::make_index_sequence<options_count>());
   }
+
+  // Check graph invariants for this operation. Will be invoked in debug mode
+  // immediately upon construction.
+  // Concrete Operator classes are expected to re-define it.
+  void Validate(const Graph& graph) const = delete;
 
  private:
   template <class... T, size_t... I>
@@ -524,6 +533,13 @@ base::Vector<const RegisterRepresentation> RepVector() {
   return base::VectorOf(rep_array);
 }
 
+bool ValidOpInputRep(const Graph& graph, OpIndex input,
+                     std::initializer_list<RegisterRepresentation> expected_rep,
+                     base::Optional<size_t> projection_index = {});
+bool ValidOpInputRep(const Graph& graph, OpIndex input,
+                     RegisterRepresentation expected_rep,
+                     base::Optional<size_t> projection_index = {});
+
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -610,6 +626,11 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
 
   WordBinopOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), rep));
+    DCHECK(ValidOpInputRep(graph, right(), rep));
+  }
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -654,9 +675,13 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
   }
 
   FloatBinopOp(OpIndex left, OpIndex right, Kind kind, FloatRepresentation rep)
-      : Base(left, right), kind(kind), rep(rep) {
+      : Base(left, right), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK_IMPLIES(kind == any_of(Kind::kPower, Kind::kAtan2, Kind::kMod),
                    rep == FloatRepresentation::Float64());
+    DCHECK(ValidOpInputRep(graph, left(), rep));
+    DCHECK(ValidOpInputRep(graph, right(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
@@ -700,6 +725,11 @@ struct OverflowCheckedBinopOp
   OverflowCheckedBinopOp(OpIndex left, OpIndex right, Kind kind,
                          WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), rep));
+    DCHECK(ValidOpInputRep(graph, right(), rep));
+  }
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -725,8 +755,11 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
   static bool IsSupported(Kind kind, WordRepresentation rep);
 
   explicit WordUnaryOp(OpIndex input, Kind kind, WordRepresentation rep)
-      : Base(input), kind(kind), rep(rep) {
+      : Base(input), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK(IsSupported(kind, rep));
+    DCHECK(ValidOpInputRep(graph, input(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
@@ -774,8 +807,11 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   static bool IsSupported(Kind kind, FloatRepresentation rep);
 
   explicit FloatUnaryOp(OpIndex input, Kind kind, FloatRepresentation rep)
-      : Base(input), kind(kind), rep(rep) {
+      : Base(input), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK(IsSupported(kind, rep));
+    DCHECK(ValidOpInputRep(graph, input(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
@@ -830,6 +866,11 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
 
   ShiftOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), rep));
+    DCHECK(ValidOpInputRep(graph, right(), WordRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{kind, rep}; }
 };
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind);
@@ -845,13 +886,29 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
+  bool ValidInputRep(
+      base::Vector<const RegisterRepresentation> input_reps) const;
+
   EqualOp(OpIndex left, OpIndex right, RegisterRepresentation rep)
-      : Base(left, right), rep(rep) {
+      : Base(left, right), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+#ifdef DEBUG
     DCHECK(rep == any_of(RegisterRepresentation::Word32(),
                          RegisterRepresentation::Word64(),
                          RegisterRepresentation::Float32(),
                          RegisterRepresentation::Float64(),
                          RegisterRepresentation::Tagged()));
+    RegisterRepresentation input_rep = rep;
+#ifdef V8_COMPRESS_POINTERS
+    // In the presence of pointer compression, we only compare the lower 32bit.
+    if (input_rep == RegisterRepresentation::Tagged()) {
+      input_rep = RegisterRepresentation::Compressed();
+    }
+#endif  // V8_COMPRESS_POINTERS
+    DCHECK(ValidOpInputRep(graph, left(), input_rep));
+    DCHECK(ValidOpInputRep(graph, right(), input_rep));
+#endif  // DEBUG
   }
   auto options() const { return std::tuple{rep}; }
 };
@@ -876,7 +933,9 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
 
   ComparisonOp(OpIndex left, OpIndex right, Kind kind,
                RegisterRepresentation rep)
-      : Base(left, right), kind(kind), rep(rep) {
+      : Base(left, right), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK_EQ(rep, any_of(RegisterRepresentation::Word32(),
                           RegisterRepresentation::Word64(),
                           RegisterRepresentation::Float32(),
@@ -885,6 +944,8 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
         rep == any_of(RegisterRepresentation::Float32(),
                       RegisterRepresentation::Float64()),
         kind == any_of(Kind::kSignedLessThan, Kind::kSignedLessThanOrEqual));
+    DCHECK(ValidOpInputRep(graph, left(), rep));
+    DCHECK(ValidOpInputRep(graph, right(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
 
@@ -1025,6 +1086,10 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   ChangeOp(OpIndex input, Kind kind, Assumption assumption,
            RegisterRepresentation from, RegisterRepresentation to)
       : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), from));
+  }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
@@ -1059,6 +1124,10 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
   TryChangeOp(OpIndex input, Kind kind, FloatRepresentation from,
               WordRepresentation to)
       : Base(input), kind(kind), from(from), to(to) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), from));
+  }
   auto options() const { return std::tuple{kind, from, to}; }
 };
 std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind);
@@ -1078,6 +1147,12 @@ struct Float64InsertWord32Op : FixedArityOperationT<2, Float64InsertWord32Op> {
 
   Float64InsertWord32Op(OpIndex float64, OpIndex word32, Kind kind)
       : Base(float64, word32), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, float64(), RegisterRepresentation::Float64()));
+    DCHECK(ValidOpInputRep(graph, word32(), RegisterRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Float64InsertWord32Op::Kind kind);
@@ -1096,11 +1171,14 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 
   TaggedBitcastOp(OpIndex input, RegisterRepresentation from,
                   RegisterRepresentation to)
-      : Base(input), from(from), to(to) {
+      : Base(input), from(from), to(to) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK((from == RegisterRepresentation::PointerSized() &&
             to == RegisterRepresentation::Tagged()) ||
            (from == RegisterRepresentation::Tagged() &&
             to == RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, input(), from));
   }
   auto options() const { return std::tuple{from, to}; }
 };
@@ -1119,15 +1197,17 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
 
   SelectOp(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
            RegisterRepresentation rep, BranchHint hint, Implementation implem)
-      : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {
-#ifdef DEBUG
-    if (implem == Implementation::kCMove) {
-      DCHECK((rep == RegisterRepresentation::Word32() &&
-              SupportedOperations::word32_select()) ||
-             (rep == RegisterRepresentation::Word64() &&
-              SupportedOperations::word64_select()));
-    }
-#endif
+      : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK_IMPLIES(implem == Implementation::kCMove,
+                   (rep == RegisterRepresentation::Word32() &&
+                    SupportedOperations::word32_select()) ||
+                       (rep == RegisterRepresentation::Word64() &&
+                        SupportedOperations::word64_select()));
+    DCHECK(ValidOpInputRep(graph, cond(), RegisterRepresentation::Word32()));
+    DCHECK(ValidOpInputRep(graph, vtrue(), rep));
+    DCHECK(ValidOpInputRep(graph, vfalse(), rep));
   }
 
   OpIndex cond() const { return input(0); }
@@ -1150,6 +1230,14 @@ struct PhiOp : OperationT<PhiOp> {
 
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(inputs), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+#ifdef DEBUG
+    for (OpIndex input : inputs()) {
+      DCHECK(ValidOpInputRep(graph, input, rep));
+    }
+#endif
+  }
   auto options() const { return std::tuple{rep}; }
 };
 
@@ -1180,6 +1268,10 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep,
                    Node* old_backedge_node)
       : Base(first), rep(rep), old_backedge_node(old_backedge_node) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, first(), rep));
+  }
   std::tuple<> options() const { UNREACHABLE(); }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1244,7 +1336,9 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   }
 
   ConstantOp(Kind kind, Storage storage)
-      : Base(), kind(kind), storage(storage) {
+      : Base(), kind(kind), storage(storage) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK_IMPLIES(
         kind == Kind::kWord32,
         storage.integral <= WordRepresentation::Word32().MaxUnsignedValue());
@@ -1477,12 +1571,27 @@ struct LoadOp : OperationT<LoadOp> {
         result_rep(result_rep),
         element_size_log2(element_size_log2),
         offset(offset) {
+    input(0) = base;
+    if (index.valid()) {
+      input(1) = index;
+    }
+  }
+
+  void Validate(const Graph& graph) const {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsTagged() &&
             result_rep == RegisterRepresentation::Compressed()));
-    DCHECK_IMPLIES(element_size_log2 > 0, index.valid());
-    input(0) = base;
-    if (index.valid()) input(1) = index;
+    DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
+    DCHECK(
+        kind.tagged_base
+            ? ValidOpInputRep(graph, base(), RegisterRepresentation::Tagged())
+            : ValidOpInputRep(graph, base(),
+                              {RegisterRepresentation::PointerSized(),
+                               RegisterRepresentation::Tagged()}));
+    if (index().valid()) {
+      DCHECK(ValidOpInputRep(graph, index(),
+                             RegisterRepresentation::PointerSized()));
+    }
   }
   static LoadOp& New(Graph* graph, OpIndex base, OpIndex index, Kind kind,
                      MemoryRepresentation loaded_rep,
@@ -1536,10 +1645,27 @@ struct StoreOp : OperationT<StoreOp> {
         write_barrier(write_barrier),
         element_size_log2(element_size_log2),
         offset(offset) {
-    DCHECK_IMPLIES(element_size_log2 > 0, index.valid());
     input(0) = base;
     input(1) = value;
-    if (index.valid()) input(2) = index;
+    if (index.valid()) {
+      input(2) = index;
+    }
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
+    DCHECK(
+        kind.tagged_base
+            ? ValidOpInputRep(graph, base(), RegisterRepresentation::Tagged())
+            : ValidOpInputRep(graph, base(),
+                              {RegisterRepresentation::PointerSized(),
+                               RegisterRepresentation::Tagged()}));
+    DCHECK(ValidOpInputRep(graph, value(),
+                           stored_rep.ToRegisterRepresentationForStore()));
+    if (index().valid()) {
+      DCHECK(ValidOpInputRep(graph, index(),
+                             RegisterRepresentation::PointerSized()));
+    }
   }
   static StoreOp& New(Graph* graph, OpIndex base, OpIndex index, OpIndex value,
                       Kind kind, MemoryRepresentation stored_rep,
@@ -1571,6 +1697,11 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   AllocateOp(OpIndex size, AllocationType type,
              AllowLargeObjects allow_large_objects)
       : Base(size), type(type), allow_large_objects(allow_large_objects) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, size(), RegisterRepresentation::PointerSized()));
+  }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{type, allow_large_objects}; }
 };
@@ -1587,8 +1718,11 @@ struct DecodeExternalPointerOp
   OpIndex handle() const { return input(0); }
 
   DecodeExternalPointerOp(OpIndex handle, ExternalPointerTag tag)
-      : Base(handle), tag(tag) {
+      : Base(handle), tag(tag) {}
+
+  void Validate(const Graph& graph) const {
     DCHECK_NE(tag, kExternalPointerNullTag);
+    DCHECK(ValidOpInputRep(graph, handle(), RegisterRepresentation::Word32()));
   }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{tag}; }
@@ -1605,6 +1739,11 @@ struct RetainOp : FixedArityOperationT<1, RetainOp> {
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit RetainOp(OpIndex retained) : Base(retained) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, retained(), RegisterRepresentation::Tagged()));
+  }
   auto options() const { return std::tuple{}; }
 };
 
@@ -1621,6 +1760,11 @@ struct StackPointerGreaterThanOp
 
   StackPointerGreaterThanOp(OpIndex stack_limit, StackCheckKind kind)
       : Base(stack_limit), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, stack_limit(),
+                           RegisterRepresentation::PointerSized()));
+  }
   auto options() const { return std::tuple{kind}; }
 };
 
@@ -1637,6 +1781,7 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
   }
 
   StackSlotOp(int size, int alignment) : size(size), alignment(alignment) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{size, alignment}; }
 };
 
@@ -1649,10 +1794,17 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
+    switch (kind) {
+      case Kind::kStackCheckOffset:
+        return RepVector<RegisterRepresentation::Tagged()>();
+      case Kind::kFramePointer:
+      case Kind::kParentFramePointer:
+        return RepVector<RegisterRepresentation::PointerSized()>();
+    }
   }
 
   explicit FrameConstantOp(Kind kind) : Base(), kind(kind) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind);
@@ -1687,6 +1839,13 @@ struct FrameStateOp : OperationT<FrameStateOp> {
   FrameStateOp(base::Vector<const OpIndex> inputs, bool inlined,
                const FrameStateData* data)
       : Base(inputs), inlined(inlined), data(data) {}
+
+  void Validate(const Graph& graph) const {
+    if (inlined) {
+      DCHECK(Get(graph, parent_frame_state()).Is<FrameStateOp>());
+    }
+    // TODO(tebbi): Check frame state inputs using `FrameStateData`.
+  }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{inlined, data}; }
 };
@@ -1701,6 +1860,9 @@ struct DeoptimizeOp : FixedArityOperationT<1, DeoptimizeOp> {
 
   DeoptimizeOp(OpIndex frame_state, const DeoptimizeParameters* parameters)
       : Base(frame_state), parameters(parameters) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
   auto options() const { return std::tuple{parameters}; }
 };
 
@@ -1719,6 +1881,11 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
       : Base(condition, frame_state),
         negated(negated),
         parameters(parameters) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{negated, parameters}; }
 };
 
@@ -1733,6 +1900,11 @@ struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
 
   TrapIfOp(OpIndex condition, bool negated, const TrapId trap_id)
       : Base(condition), negated(negated), trap_id(trap_id) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{negated, trap_id}; }
 };
 
@@ -1745,6 +1917,11 @@ struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
 
   StaticAssertOp(OpIndex condition, const char* source)
       : Base(condition), source(source) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{source}; }
 };
 
@@ -1764,6 +1941,7 @@ struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
         parameter_index(parameter_index),
         rep(rep),
         debug_name(debug_name) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{parameter_index, rep, debug_name}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1777,6 +1955,7 @@ struct OsrValueOp : FixedArityOperationT<0, OsrValueOp> {
   }
 
   explicit OsrValueOp(int32_t index) : Base(), index(index) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{index}; }
 };
 
@@ -1834,6 +2013,13 @@ struct CallOp : OperationT<CallOp> {
     inputs.SubVector(1 + frame_state.valid(), inputs.size())
         .OverwriteWith(arguments);
   }
+  void Validate(const Graph& graph) const {
+    if (frame_state().valid()) {
+      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+    }
+    // TODO(tebbi): Check call inputs based on `TSCallDescriptor`.
+  }
+
   static CallOp& New(Graph* graph, OpIndex callee, OpIndex frame_state,
                      base::Vector<const OpIndex> arguments,
                      const TSCallDescriptor* descriptor) {
@@ -1882,6 +2068,13 @@ struct CallAndCatchExceptionOp : OperationT<CallAndCatchExceptionOp> {
     inputs.SubVector(1 + frame_state.valid(), inputs.size())
         .OverwriteWith(arguments);
   }
+
+  void Validate(const Graph& graph) const {
+    if (frame_state().valid()) {
+      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+    }
+  }
+
   static CallAndCatchExceptionOp& New(Graph* graph, OpIndex callee,
                                       OpIndex frame_state,
                                       base::Vector<const OpIndex> arguments,
@@ -1905,6 +2098,7 @@ struct LoadExceptionOp : FixedArityOperationT<0, LoadExceptionOp> {
   }
 
   LoadExceptionOp() : Base() {}
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -1930,6 +2124,7 @@ struct TailCallOp : OperationT<TailCallOp> {
     inputs[0] = callee;
     inputs.SubVector(1, inputs.size()).OverwriteWith(arguments);
   }
+  void Validate(const Graph& graph) const {}
   static TailCallOp& New(Graph* graph, OpIndex callee,
                          base::Vector<const OpIndex> arguments,
                          const TSCallDescriptor* descriptor) {
@@ -1945,6 +2140,7 @@ struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   UnreachableOp() : Base() {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -1965,6 +2161,11 @@ struct ReturnOp : OperationT<ReturnOp> {
     inputs[0] = pop_count;
     inputs.SubVector(1, inputs.size()).OverwriteWith(return_values);
   }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, pop_count(), RegisterRepresentation::Word32()));
+  }
   static ReturnOp& New(Graph* graph, OpIndex pop_count,
                        base::Vector<const OpIndex> return_values) {
     return Base::New(graph, 1 + return_values.size(), pop_count, return_values);
@@ -1979,6 +2180,7 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit GotoOp(Block* destination) : Base(), destination(destination) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{destination}; }
 };
 
@@ -1994,6 +2196,11 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
 
   BranchOp(OpIndex condition, Block* if_true, Block* if_false, BranchHint hint)
       : Base(condition), if_true(if_true), if_false(if_false), hint(hint) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+  }
   auto options() const { return std::tuple{if_true, if_false, hint}; }
 };
 
@@ -2026,6 +2233,10 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
         cases(cases),
         default_case(default_case),
         default_hint(default_hint) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Word32()));
+  }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{cases, default_case, default_hint}; }
 };
@@ -2077,6 +2288,7 @@ struct TupleOp : OperationT<TupleOp> {
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit TupleOp(base::Vector<const OpIndex> inputs) : Base(inputs) {}
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -2095,6 +2307,10 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
 
   ProjectionOp(OpIndex input, uint16_t index, RegisterRepresentation rep)
       : Base(input), index(index), rep(rep) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), rep, index));
+  }
   auto options() const { return std::tuple{index}; }
 };
 
@@ -2112,6 +2328,10 @@ struct CheckTurboshaftTypeOfOp
   CheckTurboshaftTypeOfOp(OpIndex input, RegisterRepresentation rep, Type type,
                           bool successful)
       : Base(input), rep(rep), type(std::move(type)), successful(successful) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), rep));
+  }
   auto options() const { return std::tuple{rep, type, successful}; }
 };
 
@@ -2148,6 +2368,9 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
 
   ObjectIsOp(OpIndex input, Kind kind, InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind);
@@ -2170,6 +2393,16 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
 
   explicit ConvertToObjectOp(OpIndex input, Kind kind)
       : Base(input), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    switch (kind) {
+      case Kind::kInt64ToBigInt64:
+      case Kind::kUint64ToBigInt64:
+        DCHECK(
+            ValidOpInputRep(graph, input(), RegisterRepresentation::Word64()));
+        break;
+    }
+  }
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind);

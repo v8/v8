@@ -182,7 +182,8 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
   static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
   Node* shift_amount =
       Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
-  Node* scaled_index = Word32Shr(external_pointer, shift_amount);
+  Node* scaled_index =
+      ChangeUint32ToUint64(Word32Shr(external_pointer, shift_amount));
   Node* table;
   if (IsSharedExternalPointerType(tag)) {
     Node* table_address =

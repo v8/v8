@@ -875,6 +875,10 @@ V8_INLINE OperationStorageSlot* AllocateOpStorage(Graph* graph,
   return graph->Allocate(slot_count);
 }
 
+V8_INLINE const Operation& Get(const Graph& graph, OpIndex index) {
+  return graph.Get(index);
+}
+
 V8_INLINE const Operation& Block::FirstOperation(const Graph& graph) const {
   DCHECK_EQ(graph_generation_, graph.generation());
   DCHECK(begin_.valid());

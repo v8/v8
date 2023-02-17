@@ -1933,7 +1933,7 @@ Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
   // we recorded before.
   Node* value_cell =
       __ LoadField(AccessBuilder::ForJSFunctionFeedbackCell(), value);
-  Node* check_cell = __ WordEqual(value_cell, __ HeapConstant(feedback_cell));
+  Node* check_cell = __ TaggedEqual(value_cell, __ HeapConstant(feedback_cell));
   __ DeoptimizeIfNot(DeoptimizeReason::kWrongFeedbackCell, FeedbackSource(),
                      check_cell, frame_state);
   return value;
@@ -4264,7 +4264,8 @@ Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
                      __ Int32Constant(0xD800)),
       &return_result, BranchHint::kFalse, first_code_unit);
 
-  auto length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
+  auto length = __ ChangeUint32ToUintPtr(
+      __ LoadField(AccessBuilder::ForStringLength(), receiver));
   auto next_index = __ IntAdd(position, __ IntPtrConstant(1));
   __ GotoIfNot(__ IntLessThan(next_index, length), &return_result,
                first_code_unit);
@@ -5610,7 +5611,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
             Node* stack_slot = __ StackSlot(kSize, kAlign);
             __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                          kNoWriteBarrier),
-                     stack_slot, 0, node);
+                     stack_slot, 0, __ BitcastTaggedToWord(node));
 
             return stack_slot;
           }
@@ -5668,9 +5669,10 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
 
             Node* length_in_bytes =
                 __ LoadField(AccessBuilder::ForStringLength(), node);
-            Node* data_ptr = __ IntPtrAdd(
-                node, __ IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                        kHeapObjectTag));
+            Node* data_ptr =
+                __ IntPtrAdd(__ BitcastTaggedToWord(node),
+                             __ IntPtrConstant(SeqOneByteString::kHeaderSize -
+                                               kHeapObjectTag));
 
             constexpr int kAlign = alignof(FastOneByteString);
             constexpr int kSize = sizeof(FastOneByteString);
@@ -5709,7 +5711,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       Node* stack_slot = __ StackSlot(kSize, kAlign);
       __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                    kNoWriteBarrier),
-               stack_slot, 0, node);
+               stack_slot, 0, __ BitcastTaggedToWord(node));
 
       // Check that the value is a JSArray.
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
@@ -5775,7 +5777,7 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
 
         __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                      kNoWriteBarrier),
-                 stack_slot, 0, node);
+                 stack_slot, 0, __ BitcastTaggedToWord(node));
 
         Node* target_address = __ ExternalConstant(ExternalReference::Create(
             c_functions[func_index].address, ref_type));

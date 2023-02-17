@@ -201,6 +201,13 @@ TNode<UintPtrT> GraphAssembler::UintPtrDiv(TNode<UintPtrT> left,
              : TNode<UintPtrT>::UncheckedCast(Uint32Div(left, right));
 }
 
+TNode<UintPtrT> GraphAssembler::ChangeUint32ToUintPtr(
+    SloppyTNode<Uint32T> value) {
+  return kSystemPointerSize == 8
+             ? TNode<UintPtrT>::UncheckedCast(ChangeUint32ToUint64(value))
+             : TNode<UintPtrT>::UncheckedCast(value);
+}
+
 #define CHECKED_BINOP_DEF(Name)                                       \
   Node* GraphAssembler::Name(Node* left, Node* right) {               \
     return AddNode(                                                   \
@@ -223,7 +230,7 @@ Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
 
 Node* GraphAssembler::SmiSub(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Int32Sub(left, right);
+    return BitcastWord32ToWord64(Int32Sub(left, right));
   } else {
     return IntSub(left, right);
   }
@@ -583,8 +590,7 @@ class ArrayBufferViewAccessBuilder {
               .Then([&]() { return unchecked_byte_length; })
               .Else([&]() { return a.UintPtrConstant(0); })
               .Value();
-      return a.UintPtrDiv(byte_length,
-                          TNode<UintPtrT>::UncheckedCast(element_size));
+      return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
     };
 
     // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
@@ -601,7 +607,7 @@ class ArrayBufferViewAccessBuilder {
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
-                                TNode<UintPtrT>::UncheckedCast(element_size));
+                                a.ChangeUint32ToUintPtr(element_size));
           })
           .Else([&]() { return a.UintPtrConstant(0); })
           .ExpectTrue()
@@ -622,7 +628,7 @@ class ArrayBufferViewAccessBuilder {
           UseInfo::Word());
 
       return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
-                          TNode<UintPtrT>::UncheckedCast(element_size));
+                          a.ChangeUint32ToUintPtr(element_size));
     };
 
     return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
@@ -797,7 +803,7 @@ TNode<Number> JSGraphAssembler::TypedArrayLength(
 
 TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
     TNode<Uint32T> elements_kind) {
-  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+  TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
   TNode<RawPtrT> shift_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
@@ -808,7 +814,7 @@ TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
 
 TNode<Uint32T> JSGraphAssembler::LookupByteSizeForElementsKind(
     TNode<Uint32T> elements_kind) {
-  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+  TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
   TNode<RawPtrT> size_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
@@ -890,7 +896,7 @@ Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, int offset,
                             Node* value) {
-  return Store(rep, object, Int32Constant(offset), value);
+  return Store(rep, object, IntPtrConstant(offset), value);
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
@@ -899,7 +905,7 @@ Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, int offset) {
-  return Load(type, object, Int32Constant(offset));
+  return Load(type, object, IntPtrConstant(offset));
 }
 
 Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,

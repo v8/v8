@@ -80,6 +80,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
   TYPER_SUPPORTED_MACHINE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
+  Type ChangeUint32ToUint64(Type input);
+
   // Comparison operators.
   Type SameValue(Type lhs, Type rhs);
   Type SameValueNumbersOnly(Type lhs, Type rhs);

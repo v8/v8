@@ -186,7 +186,7 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
       ExternalReference::fast_api_call_target_address(isolate()));
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
-           target_address, 0, target);
+           target_address, 0, __ BitcastTaggedToWord(target));
 
   // Disable JS execution
   Node* javascript_execution_assert = __ ExternalConstant(
@@ -329,10 +329,9 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         __ Int32Constant(0));
 
     Node* data_stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-    __ Store(
-        StoreRepresentation(MachineType::PointerRepresentation(),
-                            kNoWriteBarrier),
-        data_stack_slot, 0, data_argument);
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             data_stack_slot, 0, __ BitcastTaggedToWord(data_argument));
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),

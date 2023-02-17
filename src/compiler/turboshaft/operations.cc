@@ -21,6 +21,96 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+bool AllowImplicitRepresentationChange(RegisterRepresentation actual_rep,
+                                       RegisterRepresentation expected_rep) {
+  if (actual_rep == expected_rep) {
+    return true;
+  }
+  switch (expected_rep.value()) {
+    case RegisterRepresentation::Word32():
+      // We allow implicit 64- to 32-bit truncation.
+      if (actual_rep == RegisterRepresentation::Word64()) {
+        return true;
+      }
+      // We allow implicit tagged -> untagged conversions.
+      // Even without pointer compression, we use `Word32And` for Smi-checks on
+      // tagged values.
+      if (actual_rep == any_of(RegisterRepresentation::Tagged(),
+                               RegisterRepresentation::Compressed())) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Word64():
+      // We allow implicit tagged -> untagged conversions.
+      if (kTaggedSize == kInt64Size &&
+          actual_rep == RegisterRepresentation::Tagged()) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Tagged():
+      // We allow implicit untagged -> tagged conversions. This is only safe for
+      // Smi values.
+      if (actual_rep == RegisterRepresentation::PointerSized()) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Compressed():
+      // Compression is a no-op.
+      if (actual_rep == any_of(RegisterRepresentation::Tagged(),
+                               RegisterRepresentation::PointerSized(),
+                               RegisterRepresentation::Word32())) {
+        return true;
+      }
+      break;
+    default:
+      break;
+  }
+  return false;
+}
+
+bool ValidOpInputRep(
+    const Graph& graph, OpIndex input,
+    std::initializer_list<RegisterRepresentation> expected_reps,
+    base::Optional<size_t> projection_index) {
+  base::Vector<const RegisterRepresentation> input_reps =
+      graph.Get(input).outputs_rep();
+  RegisterRepresentation input_rep;
+  if (projection_index) {
+    if (*projection_index < input_reps.size()) {
+      input_rep = input_reps[*projection_index];
+    } else {
+      std::cerr << "Turboshaft operation has input with wrong arity.\n";
+      std::cerr << "Input has results " << PrintCollection(input_reps)
+                << ", but expected at least " << *projection_index
+                << " results.\n";
+      return false;
+    }
+  } else if (input_reps.size() == 1) {
+    input_rep = input_reps[0];
+  } else {
+    std::cerr << "Turboshaft operation has input with wrong arity.\n";
+    std::cerr << "Expected a single output but found " << input_reps.size()
+              << ".\n";
+    return false;
+  }
+  for (RegisterRepresentation expected_rep : expected_reps) {
+    if (AllowImplicitRepresentationChange(input_rep, expected_rep)) {
+      return true;
+    }
+  }
+  std::cerr << "Turboshaft operation has input with wrong representation.\n";
+  std::cerr << "Expected " << (expected_reps.size() > 1 ? "one of " : "")
+            << PrintCollection(expected_reps).WithoutBrackets() << " but found "
+            << input_rep << ".\n";
+  return false;
+}
+
+bool ValidOpInputRep(const Graph& graph, OpIndex input,
+                     RegisterRepresentation expected_rep,
+                     base::Optional<size_t> projection_index) {
+  return ValidOpInputRep(graph, input, {expected_rep}, projection_index);
+}
+
 const char* OpcodeName(Opcode opcode) {
 #define OPCODE_NAME(Name) #Name,
   const char* table[kNumberOfOpcodes] = {
