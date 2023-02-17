@@ -1712,14 +1712,18 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
   // embedder didn't specify a custom uncaught exception callback,
   // or if the custom callback determined that V8 should abort, then
   // abort.
-  if (v8_flags.abort_on_uncaught_exception) {
+  // Cache the flag on a static so that we can modify the value looked up below
+  // in the presence of read-only flags.
+  static bool abort_on_uncaught_exception =
+      v8_flags.abort_on_uncaught_exception;
+  if (abort_on_uncaught_exception) {
     CatchType prediction = PredictExceptionCatcher();
     if ((prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) &&
         (!abort_on_uncaught_exception_callback_ ||
          abort_on_uncaught_exception_callback_(
              reinterpret_cast<v8::Isolate*>(this)))) {
       // Prevent endless recursion.
-      v8_flags.abort_on_uncaught_exception = false;
+      abort_on_uncaught_exception = false;
       // This flag is intended for use by JavaScript developers, so
       // print a user-friendly stack trace (not an internal one).
       PrintF(stderr, "%s\n\nFROM\n",
