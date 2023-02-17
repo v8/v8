@@ -211,8 +211,10 @@ class LiftoffAssembler : public MacroAssembler {
   ASSERT_TRIVIALLY_COPYABLE(VarState);
 
   struct CacheState {
-    // Allow default construction, move construction, and move assignment.
-    CacheState() = default;
+    explicit CacheState(Zone* zone)
+        : stack_state(ZoneAllocator<VarState>{zone}) {}
+
+    // Allow move construction and move assignment.
     CacheState(CacheState&&) V8_NOEXCEPT = default;
     CacheState& operator=(CacheState&&) V8_NOEXCEPT = default;
     // Disallow copy construction.
@@ -238,7 +240,7 @@ class LiftoffAssembler : public MacroAssembler {
 
     // TODO(jkummerow): Wrap all accesses to {stack_state} in accessors that
     // check {frozen}.
-    base::SmallVector<VarState, 16> stack_state;
+    base::SmallVector<VarState, 16, ZoneAllocator<VarState>> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
@@ -464,8 +466,10 @@ class LiftoffAssembler : public MacroAssembler {
     CacheState& operator=(const CacheState&) V8_NOEXCEPT = default;
   };
 
-  explicit LiftoffAssembler(std::unique_ptr<AssemblerBuffer>);
+  explicit LiftoffAssembler(Zone*, std::unique_ptr<AssemblerBuffer>);
   ~LiftoffAssembler() override;
+
+  Zone* zone() const { return cache_state_.stack_state.get_allocator().zone(); }
 
   // Load a cache slot to a free register.
   V8_INLINE LiftoffRegister LoadToRegister(VarState slot,

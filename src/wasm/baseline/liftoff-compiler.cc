@@ -342,13 +342,13 @@ class LiftoffCompiler {
   using Value = ValueBase<ValidationTag>;
 
   struct ElseState {
-    ElseState(Zone* zone) : label(zone) {}
+    explicit ElseState(Zone* zone) : label(zone), state(zone) {}
     MovableLabel label;
     LiftoffAssembler::CacheState state;
   };
 
   struct TryInfo {
-    TryInfo() = default;
+    explicit TryInfo(Zone* zone) : catch_state(zone) {}
     LiftoffAssembler::CacheState catch_state;
     Label catch_label;
     bool catch_reached = false;
@@ -368,6 +368,7 @@ class LiftoffCompiler {
     template <typename... Args>
     explicit Control(Zone* zone, Args&&... args) V8_NOEXCEPT
         : ControlBase(zone, std::forward<Args>(args)...),
+          label_state(zone),
           label(zone) {}
   };
 
@@ -495,7 +496,7 @@ class LiftoffCompiler {
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
                   const LiftoffOptions& options)
-      : asm_(std::move(buffer)),
+      : asm_(compilation_zone, std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
@@ -1284,7 +1285,7 @@ class LiftoffCompiler {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->try_info = compilation_zone_->New<TryInfo>();
+    block->try_info = compilation_zone_->New<TryInfo>(compilation_zone_);
     PushControl(block);
   }
 

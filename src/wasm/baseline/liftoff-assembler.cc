@@ -482,7 +482,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
 
 LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
     uint32_t num_locals, uint32_t arity, uint32_t stack_depth) {
-  CacheState target;
+  CacheState target{zone()};
 
   // The source state looks like this:
   // |------locals------|---(stack prefix)---|--(discarded)--|----merge----|
@@ -677,9 +677,11 @@ AssemblerOptions DefaultLiftoffOptions() { return AssemblerOptions{}; }
 
 }  // namespace
 
-LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
+LiftoffAssembler::LiftoffAssembler(Zone* zone,
+                                   std::unique_ptr<AssemblerBuffer> buffer)
     : MacroAssembler(nullptr, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
-                     std::move(buffer)) {
+                     std::move(buffer)),
+      cache_state_(zone) {
   set_abort_hard(true);  // Avoid calls to Abort.
 }
 
@@ -1284,7 +1286,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
   // cause a spill in the cache state. Conservatively save and restore the
   // original state in case it is needed after the current instruction
   // (conditional branch).
-  CacheState saved_state;
+  CacheState saved_state{zone()};
 #if DEBUG
   uint32_t saved_state_frozenness = cache_state_.frozen;
   cache_state_.frozen = 0;
