@@ -2869,9 +2869,10 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         }
         Handle<PromiseOnStack> promise_on_stack =
             Handle<PromiseOnStack>::cast(promise_stack);
-        if (!PromiseOnStack::GetPromise(promise_on_stack).ToHandle(&retval)) {
-          return retval;
-        }
+        MaybeHandle<JSObject> maybe_promise =
+            PromiseOnStack::GetPromise(promise_on_stack);
+        if (maybe_promise.is_null()) return retval;
+        retval = maybe_promise.ToHandleChecked();
         if (retval->IsJSPromise()) {
           if (PromiseHasUserDefinedRejectHandler(
                   Handle<JSPromise>::cast(retval))) {
