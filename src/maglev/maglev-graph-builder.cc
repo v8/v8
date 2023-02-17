@@ -1641,10 +1641,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>()) return true;
   if (value->Is<SmiConstant>()) return true;
-
-  const NodeInfo* known_info = known_node_aspects().TryGetInfoFor(value);
-  auto type = known_info ? known_info->type : StaticTypeForNode(value);
-  if (NodeTypeIsSmi(type)) return true;
+  if (CheckType(value, NodeType::kSmi)) return true;
 
   return false;
 }
