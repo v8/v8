@@ -204,6 +204,7 @@ class ZoneForwardList;
   V(NumberWrapper)                              \
   V(ObjectHashSet)                              \
   V(ObjectHashTable)                            \
+  V(ObjectTwoHashTable)                         \
   V(Oddball)                                    \
   V(OrderedHashMap)                             \
   V(OrderedHashSet)                             \

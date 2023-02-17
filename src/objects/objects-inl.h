@@ -416,6 +416,10 @@ DEF_GETTER(HeapObject, IsObjectHashTable, bool) {
   return IsHashTable(cage_base);
 }
 
+DEF_GETTER(HeapObject, IsObjectTwoHashTable, bool) {
+  return IsHashTable(cage_base);
+}
+
 DEF_GETTER(HeapObject, IsHashTableBase, bool) { return IsHashTable(cage_base); }
 
 bool Object::IsPrimitive() const {
