@@ -172,6 +172,11 @@ defaults_ci = {
     "resultdb_bq_table_prefix": "ci",
 }
 
+defaults_ci_hp = {
+    "dimensions": {"os": "Linux", "pool": "luci.v8-internal.highly-privileged"},
+    "resultdb_bq_table_prefix": "ci_hp",
+}
+
 defaults_ci_br = dict(defaults_ci)
 defaults_ci_br["dimensions"]["pool"] = "luci.v8.ci"
 
@@ -203,6 +208,7 @@ defaults_triggered = {
 
 defaults_dict = {
     "ci": defaults_ci,
+    "ci-hp": defaults_ci_hp,
     "try": defaults_try,
     "try.triggered": defaults_triggered,
     "ci.br.beta": defaults_ci_br,

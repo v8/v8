@@ -3,6 +3,17 @@
 # found in the LICENSE file.
 
 load("//lib/lib.star", "GOMA", "RECLIENT", "v8_builder")
+load("//lib/service-accounts.star", "V8_PGO_ACCOUNT")
+
+v8_builder(
+    name = "PGO Builder",
+    bucket = "ci-hp",
+    service_account = V8_PGO_ACCOUNT,
+    executable = "recipe:v8/pgo_builder",
+    schedule = "*/10 * * * *",
+    in_list = "pgo",
+    execution_timeout = 3600,
+)
 
 v8_builder(
     name = "V8 Linux PGO instrumentation - builder",

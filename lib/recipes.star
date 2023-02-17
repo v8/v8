@@ -40,6 +40,7 @@ def define_all_recipes():
         "v8/flako",
         "v8/node_integration_ng",
         "v8/orchestrator",
+        "v8/pgo_builder",
         "v8/presubmit",
         "v8/verify_flakes",
         "v8/spike",
