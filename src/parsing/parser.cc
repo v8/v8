@@ -174,6 +174,9 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
       case Token::DIV:
         *x = factory()->NewNumberLiteral(base::Divide(x_val, y_val), pos);
         return true;
+      case Token::MOD:
+        *x = factory()->NewNumberLiteral(Modulo(x_val, y_val), pos);
+        return true;
       case Token::BIT_OR: {
         int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
         *x = factory()->NewNumberLiteral(value, pos);
