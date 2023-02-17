@@ -4,7 +4,12 @@
 
 load("//definitions.star", "versions")
 load("//lib/description.star", "to_html")
-load("//lib/service-accounts.star", "V8_CI_ACCOUNT", "V8_TRY_ACCOUNT")
+load(
+    "//lib/service-accounts.star",
+    "V8_CI_ACCOUNT",
+    "V8_HP_SERVICE_ACCOUNTS",
+    "V8_TRY_ACCOUNT",
+)
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
@@ -136,6 +141,13 @@ waterfall_acls = [
         roles = acl.BUILDBUCKET_TRIGGERER,
         users = V8_CI_ACCOUNT,
         groups = ["service-account-v8-bot"],
+    ),
+]
+
+waterfall_hp_acls = [
+    acl.entry(
+        roles = acl.BUILDBUCKET_TRIGGERER,
+        users = V8_HP_SERVICE_ACCOUNTS,
     ),
 ]
 

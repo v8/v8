@@ -9,10 +9,12 @@ load(
     "//lib/lib.star",
     "tryserver_acls",
     "waterfall_acls",
+    "waterfall_hp_acls",
 )
 load(
     "//lib/service-accounts.star",
     "V8_CI_ACCOUNT",
+    "V8_HP_SERVICE_ACCOUNTS",
     "V8_PGO_ACCOUNT",
     "V8_SERVICE_ACCOUNTS",
     "V8_TRY_ACCOUNT",
@@ -166,6 +168,7 @@ luci.realm(
         luci.binding(
             roles = "role/swarming.poolUser",
             projects = "devtools-frontend",
+            users = V8_HP_SERVICE_ACCOUNTS,
         ),
     ],
 )
@@ -181,11 +184,12 @@ def grantInvocationCreator(realms, users):
         ])
 
 grantInvocationCreator(["try", "try.triggered"], [V8_TRY_ACCOUNT])
-grantInvocationCreator(["ci"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
+grantInvocationCreator(["ci", "ci-hp"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
 luci.bucket(name = "ci", acls = waterfall_acls)
+luci.bucket(name = "ci-hp", acls = waterfall_hp_acls)
 luci.bucket(name = "try", acls = tryserver_acls)
 luci.bucket(name = "try.triggered", acls = tryserver_acls)
 luci.bucket(name = "ci.br.beta", acls = waterfall_acls)
