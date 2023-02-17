@@ -1472,16 +1472,17 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
         RegisterSnapshot snapshot = node->register_snapshot();
         AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
         {
-          SaveRegisterStateForCall save_register_state(
-              masm, node->register_snapshot());
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          __ Move(kContextRegister, masm->native_context().object());
           __ Move(D::GetRegisterParameter(D::kRight), node->value().object());
           __ CallBuiltin(Builtin::kStringEqual);
+          save_register_state.DefineSafepoint();
           // Compare before restoring registers, so that the deopt below has the
           // correct register set.
           __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
         }
-        __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
-        __ Jump(*end);
+        __ JumpIf(kEqual, *end);
+        __ EmitEagerDeopt(node, DeoptimizeReason::kWrongValue);
       },
       this, end);
 
