@@ -10,15 +10,16 @@ load(
     "tryserver_acls",
     "waterfall_acls",
 )
+load(
+    "//lib/service-accounts.star",
+    "V8_CI_ACCOUNT",
+    "V8_PGO_ACCOUNT",
+    "V8_SERVICE_ACCOUNTS",
+    "V8_TRY_ACCOUNT",
+)
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
 lucicfg.enable_experiment("crbug.com/1182002")
-
-V8_TRY_ACCOUNT = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com"
-V8_CI_ACCOUNT = "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com"
-V8_PGO_ACCOUNT = "v8-ci-pgo-builder@chops-service-accounts.iam.gserviceaccount.com"
-
-V8_SERVICE_ACCOUNTS = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT, V8_PGO_ACCOUNT]
 
 luci.builder.defaults.experiments.set(
     {

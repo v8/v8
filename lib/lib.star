@@ -4,6 +4,7 @@
 
 load("//definitions.star", "versions")
 load("//lib/description.star", "to_html")
+load("//lib/service-accounts.star", "V8_CI_ACCOUNT", "V8_TRY_ACCOUNT")
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
@@ -133,9 +134,7 @@ CQ = struct(
 waterfall_acls = [
     acl.entry(
         roles = acl.BUILDBUCKET_TRIGGERER,
-        users = [
-            "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
-        ],
+        users = V8_CI_ACCOUNT,
         groups = ["service-account-v8-bot"],
     ),
 ]
@@ -168,7 +167,7 @@ defaults_try = {
     "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "default", "pool": "luci.v8.try"},
-    "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+    "service_account": V8_TRY_ACCOUNT,
     "execution_timeout": 1800,
     "properties": {"builder_group": "tryserver.v8"},
     "resultdb_bq_table_prefix": "try",
@@ -178,7 +177,7 @@ defaults_triggered = {
     "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
-    "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+    "service_account": V8_TRY_ACCOUNT,
     "execution_timeout": 4500,
     "properties": {"builder_group": "tryserver.v8"},
     "resultdb_bq_table_prefix": "try",

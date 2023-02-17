@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//lib/service-accounts.star", "V8_TRY_ACCOUNT")
+
 def crossbench_cbb_builder(builder_name, recipe_path, os):
     """
     Adds a new crossbench-cbb builder
@@ -25,7 +27,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os):
             name = recipe_path,
             cipd_package = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
         ),
-        service_account = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+        service_account = V8_TRY_ACCOUNT,
     )
 
     # Add the builder to the "crossbench" list in milo
