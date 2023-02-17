@@ -888,7 +888,10 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     inside_region_ = false;
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-    return RemoveRenameNode(node);
+    if (!v8_flags.turboshaft) {
+      RemoveRenameNode(node);
+      return;
+    }
   }
   if (node->opcode() == IrOpcode::kBeginRegion) {
     // Determine the observability for this region and use that for all
@@ -899,7 +902,10 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     inside_region_ = true;
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-    return RemoveRenameNode(node);
+    if (!v8_flags.turboshaft) {
+      RemoveRenameNode(node);
+      return;
+    }
   }
   if (node->opcode() == IrOpcode::kTypeGuard) {
     return RemoveRenameNode(node);
@@ -1388,6 +1394,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerCheckEqualsInternalizedString(node, frame_state);
       break;
     case IrOpcode::kAllocate:
+      if (v8_flags.turboshaft) return false;
       result = LowerAllocate(node);
       break;
     case IrOpcode::kCheckEqualsSymbol:
@@ -3302,6 +3309,7 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
 }
 
 Node* EffectControlLinearizer::LowerAllocate(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* size = node->InputAt(0);
   AllocationType allocation = AllocationTypeOf(node->op());
   Node* new_node = __ Allocate(allocation, size);

@@ -698,25 +698,25 @@ OpIndex GraphBuilder::Process(
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
 
-#define OBJECT_IS(kind)                                             \
+#define OBJECT_IS_CASE(kind)                                        \
   case IrOpcode::kObjectIs##kind: {                                 \
     return assembler.ObjectIs(Map(node->InputAt(0)),                \
                               ObjectIsOp::Kind::k##kind,            \
                               ObjectIsOp::InputAssumptions::kNone); \
   }
-      OBJECT_IS(ArrayBufferView)
-      OBJECT_IS(BigInt)
-      OBJECT_IS(Callable)
-      OBJECT_IS(Constructor)
-      OBJECT_IS(DetectableCallable)
-      OBJECT_IS(NonCallable)
-      OBJECT_IS(Number)
-      OBJECT_IS(Receiver)
-      OBJECT_IS(Smi)
-      OBJECT_IS(String)
-      OBJECT_IS(Symbol)
-      OBJECT_IS(Undetectable)
-#undef OBJECT_IS
+      OBJECT_IS_CASE(ArrayBufferView)
+      OBJECT_IS_CASE(BigInt)
+      OBJECT_IS_CASE(Callable)
+      OBJECT_IS_CASE(Constructor)
+      OBJECT_IS_CASE(DetectableCallable)
+      OBJECT_IS_CASE(NonCallable)
+      OBJECT_IS_CASE(Number)
+      OBJECT_IS_CASE(Receiver)
+      OBJECT_IS_CASE(Smi)
+      OBJECT_IS_CASE(String)
+      OBJECT_IS_CASE(Symbol)
+      OBJECT_IS_CASE(Undetectable)
+#undef OBJECT_IS_CASE
 
     case IrOpcode::kCheckBigInt: {
       DCHECK(dominating_frame_state.valid());
@@ -1024,6 +1024,12 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
     }
 
+    case IrOpcode::kAllocate: {
+      AllocationType allocation = AllocationTypeOf(node->op());
+      return assembler.Allocate(Map(node->InputAt(0)), allocation,
+                                AllowLargeObjects::kFalse);
+    }
+    // TODO(nicohartmann@): We might not see AllocateRaw here anymore.
     case IrOpcode::kAllocateRaw: {
       Node* size = node->InputAt(0);
       const AllocateParameters& params = AllocateParametersOf(node->op());
@@ -1169,6 +1175,11 @@ OpIndex GraphBuilder::Process(
       return assembler.CheckTurboshaftTypeOf(input_index, rep, *type_opt,
                                              false);
     }
+
+    case IrOpcode::kBeginRegion:
+      return OpIndex::Invalid();
+    case IrOpcode::kFinishRegion:
+      return Map(node->InputAt(0));
 
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
