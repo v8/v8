@@ -113,6 +113,7 @@ class MergePointInterpreterFrameState;
   V(Float64Exponentiate)                \
   V(Float64Modulus)                     \
   V(Float64Negate)                      \
+  V(Float64Round)                       \
   V(Float64Equal)                       \
   V(Float64StrictEqual)                 \
   V(Float64LessThan)                    \
@@ -2502,6 +2503,23 @@ class CheckedTruncateFloat64ToInt32
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Int32() |
                                               OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
+  using Base = FixedInputValueNodeT<1, Float64Round>;
+
+ public:
+  explicit Float64Round(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
 

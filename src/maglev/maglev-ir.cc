@@ -2188,6 +2188,11 @@ void Float64Box::GenerateCode(MaglevAssembler* masm,
   __ AllocateHeapNumber(register_snapshot(), object, value);
 }
 
+void Float64Round::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  set_double_temporaries_needed(1);
+}
 void HoleyFloat64Box::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

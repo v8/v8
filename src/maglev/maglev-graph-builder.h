@@ -975,6 +975,7 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kTagged: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->float64_alternative == nullptr) {
+          EnsureType(value, NodeType::kNumber);
           node_info->float64_alternative =
               AddNewNode<CheckedFloat64Unbox>({value});
         }
@@ -1313,6 +1314,7 @@ class MaglevGraphBuilder {
   V(FunctionPrototypeCall)         \
   V(ObjectPrototypeHasOwnProperty) \
   V(MathPow)                       \
+  V(MathRound)                     \
   V(StringFromCharCode)            \
   V(StringPrototypeCharCodeAt)     \
   MATH_UNARY_IEEE_BUILTIN(V)

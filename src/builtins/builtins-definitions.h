@@ -270,6 +270,7 @@ namespace internal {
                                                                                \
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, SingleParameterOnStack)                  \
+  TFC(MathRoundContinuation, SingleParameterOnStack)                           \
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \

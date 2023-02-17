@@ -3346,6 +3346,41 @@ ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
   return GetRootConstant(RootIndex::kTrueValue);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceMathRound(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+  }
+  ValueNode* arg = args[0];
+  switch (arg->value_representation()) {
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+      return arg;
+    case ValueRepresentation::kTagged:
+      if (CheckType(arg, NodeType::kSmi)) return arg;
+      if (!CheckType(arg, NodeType::kNumber)) {
+        ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
+            {GetContext(), arg}, Object::Conversion::kToNumber);
+        new (conversion->lazy_deopt_info()) LazyDeoptInfo(
+            zone(),
+            BuiltinContinuationDeoptFrame(
+                Builtin::kMathRoundContinuation, {}, GetContext(),
+                zone()->New<InterpretedDeoptFrame>(conversion->lazy_deopt_info()
+                                                       ->top_frame()
+                                                       .as_interpreted())),
+            conversion->lazy_deopt_info()->feedback_to_update());
+        arg = conversion;
+      }
+      arg = GetFloat64(arg);
+      break;
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kFloat64:
+      break;
+  }
+  return AddNewNode<Float64Round>({arg});
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 2) {
