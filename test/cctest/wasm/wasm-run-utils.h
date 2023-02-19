@@ -218,6 +218,7 @@ class TestingModuleBuilder {
   uint32_t AddException(const FunctionSig* sig);
 
   uint32_t AddPassiveDataSegment(base::Vector<const byte> bytes);
+  uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];

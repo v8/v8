@@ -930,13 +930,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     }
     out_ << " ";
     names_->PrintValueType(out_, elem.type);
-
-    ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes_.module_bytes(),
-                              ModuleOrigin::kWasmOrigin);
-    decoder.consume_bytes(elem.elements_wire_bytes_offset);
-    for (size_t i = 0; i < elem.element_count; i++) {
-      ConstantExpression entry = decoder.consume_element_segment_entry(
-          const_cast<WasmModule*>(module_), elem);
+    for (const ConstantExpression& entry : elem.entries) {
       PrintInitExpression(entry, elem.type);
     }
     out_ << ")";
