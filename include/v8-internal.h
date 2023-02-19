@@ -30,6 +30,7 @@ class Isolate;
 
 typedef uintptr_t Address;
 static const Address kNullAddress = 0;
+static const Address kLocalTaggedNullAddress = 1;
 
 constexpr int KB = 1024;
 constexpr int MB = KB * 1024;
@@ -848,6 +849,19 @@ class BackingStoreBase {};
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
 constexpr int kGarbageCollectionReasonMaxValue = 27;
+
+class ValueHelper final {
+  using A = internal::Address;
+
+ public:
+  static A ValueToAddress(const Data* value) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return reinterpret_cast<const A>(value);
+#else
+    return *reinterpret_cast<const A*>(value);
+#endif
+  }
+};
 
 }  // namespace internal
 

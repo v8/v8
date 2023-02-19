@@ -910,14 +910,21 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {
   API_RCS_SCOPE(i_isolate, TracedGlobal, New);
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  i::Address obj_addr = reinterpret_cast<i::Address>(obj);
+#else
+  i::Address obj_addr = *obj;
+#endif
+
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  auto result = i_isolate->traced_handles()->Create(*obj, slot, store_mode);
+  auto result = i_isolate->traced_handles()->Create(obj_addr, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object(*obj).ObjectVerify(i_isolate);
+    i::Object(obj_addr).ObjectVerify(i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -1047,6 +1054,15 @@ int HandleScope::NumberOfHandles(Isolate* v8_isolate) {
 i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  return i::HandleScope::CreateHandle(i_isolate, value);
+}
+
+#endif
 
 EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -5426,7 +5442,14 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                   "Function to be called is a null pointer");
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  i::Handle<i::Object>* args = new i::Handle<i::Object>[argc];
+  for (int i = 0; i < argc; ++i) {
+    args[i] = Utils::OpenHandle(*argv[i]);
+  }
+#else
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+#endif
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
       i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);

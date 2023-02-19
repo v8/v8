@@ -62,7 +62,11 @@ class TracedReferenceBase {
    */
   V8_INLINE v8::Local<v8::Value> Get(v8::Isolate* isolate) const {
     if (IsEmpty()) return Local<Value>();
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<Value>::New(isolate, *reinterpret_cast<Value**>(val_));
+#else
     return Local<Value>::New(isolate, reinterpret_cast<Value*>(val_));
+#endif
   }
 
   /**
@@ -135,7 +139,16 @@ class BasicTracedReference : public TracedReferenceBase {
   /**
    * Construct a Local<T> from this handle.
    */
-  Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
+  Local<T> Get(Isolate* isolate) const {
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (val_ == nullptr) {
+      return Local<T>();
+    }
+    return Local<T>::New(isolate, *this);
+#else
+    return Local<T>::New(isolate, *this);
+#endif
+  }
 
   template <class S>
   V8_INLINE BasicTracedReference<S>& As() const {
@@ -284,7 +297,13 @@ template <class T>
 internal::Address* BasicTracedReference<T>::New(
     Isolate* isolate, T* that, void* slot,
     internal::GlobalHandleStoreMode store_mode) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  if (reinterpret_cast<internal::Address>(that) ==
+      internal::kLocalTaggedNullAddress)
+    return nullptr;
+#else
   if (that == nullptr) return nullptr;
+#endif
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
   return internal::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,

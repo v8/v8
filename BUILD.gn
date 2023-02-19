@@ -780,6 +780,7 @@ external_v8_defines = [
   "V8_USE_PERFETTO",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
+  "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
 ]
 
 enabled_external_v8_defines = []
@@ -818,6 +819,9 @@ if (v8_enable_map_packing) {
 }
 if (is_tsan) {
   enabled_external_v8_defines += [ "V8_IS_TSAN" ]
+}
+if (v8_enable_conservative_stack_scanning) {
+    enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -986,9 +990,6 @@ config("features") {
   }
   if (v8_enable_single_generation) {
     defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
-  }
-  if (v8_enable_conservative_stack_scanning) {
-    defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
   }
   if (v8_enable_inner_pointer_resolution_osb) {
     defines += [ "V8_ENABLE_INNER_POINTER_RESOLUTION_OSB" ]

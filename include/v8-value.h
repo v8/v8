@@ -474,7 +474,7 @@ bool Value::IsUndefined() const {
 bool Value::QuickIsUndefined() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueToAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kUndefinedOddballKind);
@@ -491,7 +491,7 @@ bool Value::IsNull() const {
 bool Value::QuickIsNull() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueToAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kNullOddballKind);
@@ -508,7 +508,7 @@ bool Value::IsNullOrUndefined() const {
 bool Value::QuickIsNullOrUndefined() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueToAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   int kind = I::GetOddballKind(obj);
@@ -526,7 +526,7 @@ bool Value::IsString() const {
 bool Value::QuickIsString() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueToAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
 }
