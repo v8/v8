@@ -265,7 +265,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '7708bc5ae4f77926cf017d7832d784bfc4685418',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0d180f46481a96cbe8340734fa5cdce3bba636c8',
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/requests': {
