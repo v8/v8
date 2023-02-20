@@ -677,7 +677,8 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   AllocationSpace space = page->owner_identity();
   if ((space == OLD_SPACE) && !page->SweepingDone()) {
     heap()->sweeper()->AddPage(space, reinterpret_cast<Page*>(page),
-                               Sweeper::READD_TEMPORARY_REMOVED_PAGE);
+                               Sweeper::READD_TEMPORARY_REMOVED_PAGE,
+                               AccessMode::ATOMIC);
   }
 }
 

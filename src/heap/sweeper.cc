@@ -1050,18 +1050,18 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
 }
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
-                      Sweeper::AddPageMode mode) {
+                      Sweeper::AddPageMode mode, AccessMode mutex_mode) {
   DCHECK_NE(NEW_SPACE, space);
-  AddPageImpl(space, page, mode);
+  AddPageImpl(space, page, mode, mutex_mode);
 }
 
-void Sweeper::AddNewSpacePage(Page* page) {
+void Sweeper::AddNewSpacePage(Page* page, AccessMode mutex_mode) {
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
   page->ClearWasUsedForAllocation();
-  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR);
+  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR, mutex_mode);
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
@@ -1091,8 +1091,16 @@ void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
 }
 
 void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
-                          Sweeper::AddPageMode mode) {
-  base::MutexGuard guard(&mutex_);
+                          Sweeper::AddPageMode mode, AccessMode mutex_mode) {
+  base::Optional<base::MutexGuard> guard;
+  if (mutex_mode == AccessMode::ATOMIC) {
+    guard.emplace(&mutex_);
+  } else {
+    // This assert only checks that the non_atomic version is only used on the
+    // main thread. It would not catch cases where main thread add a page
+    // non-atomically while concurrent jobs are adding pages atomically.
+    AssertMainThreadOrSharedMainThread(heap_);
+  }
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
                  !job_handle_ || !job_handle_->IsValid());

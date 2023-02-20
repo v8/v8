@@ -138,8 +138,10 @@ class Sweeper {
 
   void TearDown();
 
-  void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
-  void AddNewSpacePage(Page* page);
+  void AddPage(AllocationSpace space, Page* page, AddPageMode mode,
+               AccessMode mutex_mode = AccessMode::NON_ATOMIC);
+  void AddNewSpacePage(Page* page,
+                       AccessMode mutex_mode = AccessMode::NON_ATOMIC);
   void AddPromotedPageForIteration(MemoryChunk* chunk);
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
@@ -184,7 +186,8 @@ class Sweeper {
       PretenuringHandler::PretenuringFeedbackMap* pretenuring_feedback,
       CachedOldToNewRememberedSets* old_to_new_remembered_sets);
 
-  void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
+  void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode,
+                   AccessMode mutex_mode);
 
   void FinalizeLocalSweepers();
 
