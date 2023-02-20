@@ -150,6 +150,14 @@ class CallArguments {
     return args_[i];
   }
 
+  void set_arg(size_t i, ValueNode* node) {
+    if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
+      i++;
+    }
+    DCHECK_LT(i, args_.size());
+    args_[i] = node;
+  }
+
   Mode mode() const { return mode_; }
 
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
@@ -3378,7 +3386,22 @@ ReduceResult MaglevGraphBuilder::TryReduceMathRound(
     case ValueRepresentation::kFloat64:
       break;
   }
-  return AddNewNode<Float64Round>({arg});
+  // TODO(leszeks): Add a generic mechanism for marking nodes as optionally
+  // supported.
+  bool float64_round_is_supported =
+#ifdef V8_TARGET_ARCH_X64
+      CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
+#else
+      true;
+#endif
+  if (float64_round_is_supported) {
+    return AddNewNode<Float64Round>({arg});
+  }
+
+  // Update the first argument, in case there was a side-effecting ToNumber
+  // conversion.
+  args.set_arg(0, arg);
+  return ReduceResult::Fail();
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceMathPow(
