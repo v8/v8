@@ -1654,10 +1654,6 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   DCHECK_EQ(node->InputCount(), 1);
-  Node* input = node->InputAt(0);
-  if (input->opcode() == IrOpcode::kTruncateInt64ToInt32) {
-    node->ReplaceInput(0, input->InputAt(0));
-  }
 
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
@@ -1676,6 +1672,10 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         opcode = load_rep.IsSigned() ? kX64Movsxwq : kX64Movzxwq;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+        // While BitcastElider may remove nodes of
+        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+        // with kWord64 can also reach this line.
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
         // ChangeInt32ToInt64 must interpret its input as a _signed_ 32-bit
