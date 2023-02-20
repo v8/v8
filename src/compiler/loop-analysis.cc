@@ -636,7 +636,10 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
             WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
-            WasmCode::kWasmRefFunc};
+            WasmCode::kWasmRefFunc,
+            // While a built-in call, this is the slow path, so it should not
+            // prevent loop unrolling for stringview_wtf16.get_codeunit.
+            WasmCode::kWasmStringViewWtf16GetCodeUnit};
         if (std::count(std::begin(unrollable_builtins),
                        std::end(unrollable_builtins), info) == 0) {
           return nullptr;

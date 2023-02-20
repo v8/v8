@@ -6205,9 +6205,9 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   gasm_->Goto(&done, result);
 
   gasm_->Bind(&bailout);
-  gasm_->Goto(&done,
-              gasm_->CallBuiltin(Builtin::kWasmStringViewWtf16GetCodeUnit,
-                                 Operator::kPure, string, offset));
+  gasm_->Goto(&done, gasm_->CallRuntimeStub(
+                         wasm::WasmCode::kWasmStringViewWtf16GetCodeUnit,
+                         Operator::kPure, string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating
