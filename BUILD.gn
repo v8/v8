@@ -1301,6 +1301,9 @@ config("toolchain") {
   } else if (target_os == "win") {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_WIN" ]
+  } else if (target_os == "chromeos") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_CHROMEOS" ]
   }
 
   # TODO(infra): Support v8_enable_prof on Windows.
