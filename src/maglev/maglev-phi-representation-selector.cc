@@ -213,6 +213,7 @@ ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
     } else if (from_repr == ValueRepresentation::kUint32) {
       old_conversion->OverwriteWith(Opcode::kUnsafeTruncateUint32ToInt32,
                                     UnsafeTruncateUint32ToInt32::kProperties);
+      return old_conversion;
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
       old_conversion->kill();
