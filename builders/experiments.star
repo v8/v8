@@ -110,7 +110,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["omerkatz@chromium.org"],
+        notify_owners = ["nikolaos@chromium.org"],
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
