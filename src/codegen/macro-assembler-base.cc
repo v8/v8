@@ -127,10 +127,10 @@ bool MacroAssemblerBase::IsAddressableThroughRootRegister(
 }
 
 Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
-  DCHECK(RootsTable::IsReadOnly(index));
-  CHECK(V8_STATIC_ROOTS_BOOL);
-  CHECK(isolate_->root(index).IsHeapObject());
-  return V8HeapCompressionScheme::CompressTagged(isolate_->root(index).ptr());
+  DCHECK(CanBeImmediate(index));
+  Object obj = isolate_->root(index);
+  CHECK(obj.IsHeapObject());
+  return V8HeapCompressionScheme::CompressTagged(obj.ptr());
 }
 
 }  // namespace internal

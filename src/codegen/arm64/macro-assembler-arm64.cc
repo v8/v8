@@ -1832,7 +1832,7 @@ void MacroAssembler::CanonicalizeNaN(const VRegister& dst,
 
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+  if (CanBeImmediate(index)) {
     Mov(destination,
         Immediate(ReadOnlyRootPtr(index), RelocInfo::Mode::NO_INFO));
     return;

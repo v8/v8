@@ -164,8 +164,11 @@ Operand MacroAssembler::RootAsOperand(RootIndex index) {
 }
 
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    mov_tagged(destination, Immediate(ReadOnlyRootPtr(index)));
+  static_assert(!CanBeImmediate(RootIndex::kUndefinedValue) ||
+                std::is_same<Tagged_t, uint32_t>::value);
+  if (CanBeImmediate(index)) {
+    mov_tagged(destination,
+               Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
     return;
   }
   DCHECK(root_array_available_);
@@ -173,8 +176,9 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 }
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    DecompressTagged(destination, ReadOnlyRootPtr(index));
+  if (CanBeImmediate(index)) {
+    DecompressTagged(destination,
+                     static_cast<uint32_t>(ReadOnlyRootPtr(index)));
     return;
   }
   DCHECK(root_array_available_);
@@ -187,8 +191,8 @@ void MacroAssembler::PushRoot(RootIndex index) {
 }
 
 void MacroAssembler::CompareRoot(Register with, RootIndex index) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    cmp_tagged(with, Immediate(ReadOnlyRootPtr(index)));
+  if (CanBeImmediate(index)) {
+    cmp_tagged(with, Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
     return;
   }
   DCHECK(root_array_available_);
@@ -202,8 +206,8 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    cmp_tagged(with, Immediate(ReadOnlyRootPtr(index)));
+  if (CanBeImmediate(index)) {
+    cmp_tagged(with, Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
     return;
   }
   DCHECK(root_array_available_);

@@ -851,7 +851,7 @@ void MacroAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
 
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+  if (CanBeImmediate(index)) {
     mov(destination, Operand(ReadOnlyRootPtr(index), RelocInfo::Mode::NO_INFO));
     return;
   }
@@ -860,7 +860,7 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+  if (CanBeImmediate(index)) {
     DecompressTagged(destination, ReadOnlyRootPtr(index));
     return;
   }
@@ -1929,7 +1929,7 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+  if (CanBeImmediate(index)) {
     CompareTagged(obj, Operand(ReadOnlyRootPtr(index)));
     return;
   }

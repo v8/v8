@@ -70,6 +70,9 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   // Corresponds to: destination = [kRootRegister + offset].
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
+  static constexpr bool CanBeImmediate(RootIndex index) {
+    return V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index);
+  }
   Tagged_t ReadOnlyRootPtr(RootIndex index);
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
