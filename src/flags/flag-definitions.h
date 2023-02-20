@@ -443,6 +443,7 @@ DEFINE_BOOL_READONLY(
 DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
+DEFINE_IMPLICATION(conservative_stack_scanning, minor_mc)
 
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
@@ -1402,8 +1403,9 @@ DEFINE_INT(scavenge_task_trigger, 80,
 DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
-DEFINE_BOOL(cppgc_young_generation, false,
-            "run young generation garbage collections in Oilpan")
+DEFINE_EXPERIMENTAL_FEATURE(
+    cppgc_young_generation,
+    "run young generation garbage collections in Oilpan")
 // CppGC young generation (enables unified young heap) is based on Minor MC.
 DEFINE_IMPLICATION(cppgc_young_generation, minor_mc)
 // Unified young generation disables the unmodified wrapper reclamation
@@ -2090,11 +2092,12 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
-DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
+DEFINE_EXPERIMENTAL_FEATURE(minor_mc,
+                            "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
 
-DEFINE_BOOL(concurrent_minor_mc_marking, false,
-            "perform young generation marking concurrently")
+DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_mc_marking,
+                            "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc_marking)
 
 //
