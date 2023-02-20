@@ -6838,28 +6838,8 @@ Code Heap::FindCodeForInnerPointer(Address inner_pointer) {
 GcSafeCode Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   base::Optional<GcSafeCode> maybe_code =
       GcSafeTryFindCodeForInnerPointer(inner_pointer);
-  if (V8_UNLIKELY(!maybe_code.has_value())) {
-    // Put useful info on the stack for debugging and crash the process.
-
-    // TODO(1241665): Remove once the issue is solved.
-    CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
-    void* code_range_embedded_blob_code_copy =
-        code_range ? code_range->embedded_blob_code_copy() : nullptr;
-    Address flags = (isolate()->is_short_builtin_calls_enabled() ? 1 : 0) |
-                    (code_range ? 2 : 0) |
-                    static_cast<Address>(max_old_generation_size());
-
-    isolate()->PushParamsAndDie(
-        reinterpret_cast<void*>(inner_pointer),
-        const_cast<uint8_t*>(isolate()->embedded_blob_code()),
-        const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
-        code_range_embedded_blob_code_copy,
-        reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()),
-        reinterpret_cast<void*>(flags));
-
-    UNREACHABLE();
-  }
-
+  // Callers expect that the code object is found.
+  CHECK(maybe_code.has_value());
   return GcSafeCode::unchecked_cast(maybe_code.value());
 }
 
