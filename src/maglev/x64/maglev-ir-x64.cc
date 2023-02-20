@@ -5,6 +5,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -1874,34 +1875,55 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+namespace {
+
+void TryUnboxTagged(MaglevAssembler* masm, DoubleRegister dst,
+                    Register clobbered_src, Label* fail) {
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(clobbered_src, &is_not_smi, Label::kNear);
+  // If Smi, convert to Float64.
+  __ SmiToInt32(clobbered_src);
+  __ Cvtlsi2sd(dst, clobbered_src);
+  __ jmp(&done, Label::kNear);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, jump to fail otherwise.
+  if (fail) {
+    __ CompareRoot(FieldOperand(clobbered_src, HeapObject::kMapOffset),
+                   RootIndex::kHeapNumberMap);
+    __ JumpIf(kNotEqual, fail);
+  } else {
+    if (v8_flags.debug_code) {
+      __ CompareRoot(FieldOperand(clobbered_src, HeapObject::kMapOffset),
+                     RootIndex::kHeapNumberMap);
+      __ Assert(kEqual, AbortReason::kUnexpectedValue);
+    }
+  }
+  __ Movsd(dst, FieldOperand(clobbered_src, HeapNumber::kValueOffset));
+  __ bind(&done);
+}
+
+}  // namespace
+
 void CheckedFloat64Unbox::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
 void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   Register value = ToRegister(input());
-  Label is_not_smi, done;
-  // Check if Smi.
-  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
-  // If Smi, convert to Float64.
-  __ SmiToInt32(value);
-  __ Cvtlsi2sd(ToDoubleRegister(result()), value);
-  // TODO(v8:7700): Add a constraint to the register allocator to indicate that
-  // the value in the input register is "trashed" by this node. Currently we
-  // have the invariant that the input register should not be mutated when it is
-  // not the same as the output register or the function does not call a
-  // builtin. So, we recover the Smi value here.
-  __ SmiTag(value);
-  __ jmp(&done, Label::kNear);
-  __ bind(&is_not_smi);
-  // Check if HeapNumber, deopt otherwise.
-  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
-                 RootIndex::kHeapNumberMap);
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
-  __ Movsd(ToDoubleRegister(result()),
-           FieldOperand(value, HeapNumber::kValueOffset));
-  __ bind(&done);
+  TryUnboxTagged(masm, ToDoubleRegister(result()), value,
+                 __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber));
+}
+
+void UnsafeFloat64Unbox::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineAsRegister(this);
+}
+void UnsafeFloat64Unbox::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register value = ToRegister(input());
+  TryUnboxTagged(masm, ToDoubleRegister(result()), value, nullptr);
 }
 
 namespace {

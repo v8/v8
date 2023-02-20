@@ -872,6 +872,15 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
       return SourcePosition::Unknown();
   }
 }
+compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
+    const DeoptFrame& deopt_frame) {
+  switch (deopt_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return deopt_frame.as_interpreted().unit().shared_function_info();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return GetSharedFunctionInfo(*deopt_frame.parent());
+  }
+}
 }  // namespace
 
 class MaglevTranslationArrayBuilder {
@@ -955,8 +964,7 @@ class MaglevTranslationArrayBuilder {
         }
         translation_array_builder_->BeginInterpretedFrame(
             interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(
-                *interpreted_frame.unit().shared_function_info().object()),
+            GetDeoptLiteral(*GetSharedFunctionInfo(interpreted_frame).object()),
             interpreted_frame.unit().register_count(), return_offset,
             deopt_info->result_size());
 
@@ -973,11 +981,8 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->BeginBuiltinContinuationFrame(
             Builtins::GetContinuationBytecodeOffset(
                 builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(*builtin_continuation_frame.parent()
-                                 ->as_interpreted()
-                                 .unit()
-                                 .shared_function_info()
-                                 .object()),
+            GetDeoptLiteral(
+                *GetSharedFunctionInfo(builtin_continuation_frame).object()),
             builtin_continuation_frame.parameters().length());
 
         // Closure
@@ -1033,8 +1038,7 @@ class MaglevTranslationArrayBuilder {
         const int return_count = 0;
         translation_array_builder_->BeginInterpretedFrame(
             interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(
-                *interpreted_frame.unit().shared_function_info().object()),
+            GetDeoptLiteral(*GetSharedFunctionInfo(interpreted_frame).object()),
             interpreted_frame.unit().register_count(), return_offset,
             return_count);
 
@@ -1051,11 +1055,8 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->BeginBuiltinContinuationFrame(
             Builtins::GetContinuationBytecodeOffset(
                 builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(*builtin_continuation_frame.parent()
-                                 ->as_interpreted()
-                                 .unit()
-                                 .shared_function_info()
-                                 .object()),
+            GetDeoptLiteral(
+                *GetSharedFunctionInfo(builtin_continuation_frame).object()),
             builtin_continuation_frame.parameters().length());
 
         // Closure

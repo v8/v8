@@ -34,7 +34,7 @@ void DeepForEachInputImpl(const DeoptFrame& frame,
         f(node, &input_locations[index++]);
       }
       f(frame.as_builtin_continuation().context(), &input_locations[index++]);
-      UNREACHABLE();
+      break;
   }
 }
 
@@ -72,6 +72,7 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
       };
       f(top_frame.as_builtin_continuation().context(),
         &input_locations[index++]);
+      break;
   }
 }
 

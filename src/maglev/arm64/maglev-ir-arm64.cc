@@ -1305,6 +1305,40 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+namespace {
+
+void TryUnboxTagged(MaglevAssembler* masm, DoubleRegister dst, Register src,
+                    Label* fail) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register temp = temps.Acquire();
+
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(src, &is_not_smi);
+  // If Smi, convert to Float64.
+  __ SmiToInt32(temp, src);
+  __ Sxtw(temp, temp.W());
+  __ Scvtf(dst, temp);
+  __ Jump(&done);
+  __ Bind(&is_not_smi);
+  // Check if HeapNumber, jump to fail otherwise.
+  if (fail) {
+    __ Move(temp, FieldMemOperand(src, HeapObject::kMapOffset));
+    __ JumpIfNotRoot(temp, RootIndex::kHeapNumberMap, fail);
+  } else {
+    if (v8_flags.debug_code) {
+      __ Move(temp, FieldMemOperand(src, HeapObject::kMapOffset));
+      __ CompareRoot(temp, RootIndex::kHeapNumberMap);
+      __ Assert(eq, AbortReason::kUnexpectedValue);
+    }
+  }
+  __ Move(temp, FieldMemOperand(src, HeapNumber::kValueOffset));
+  __ Fmov(dst, temp);
+  __ Bind(&done);
+}
+
+}  // namespace
+
 void CheckedFloat64Unbox::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -1312,24 +1346,18 @@ void CheckedFloat64Unbox::SetValueLocationConstraints() {
 void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   Register value = ToRegister(input());
-  Label is_not_smi, done;
-  // Check if Smi.
-  __ JumpIfNotSmi(value, &is_not_smi);
-  // If Smi, convert to Float64.
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register temp = temps.Acquire();
-  __ SmiToInt32(temp, value);
-  __ Sxtw(temp, temp.W());
-  __ Scvtf(ToDoubleRegister(result()), temp);
-  __ Jump(&done);
-  __ Bind(&is_not_smi);
-  // Check if HeapNumber, deopt otherwise.
-  __ Move(temp, FieldMemOperand(value, HeapObject::kMapOffset));
-  __ CompareRoot(temp, RootIndex::kHeapNumberMap);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
-  __ Move(temp, FieldMemOperand(value, HeapNumber::kValueOffset));
-  __ Fmov(ToDoubleRegister(result()), temp);
-  __ Bind(&done);
+  TryUnboxTagged(masm, ToDoubleRegister(result()), value,
+                 __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber));
+}
+
+void UnsafeFloat64Unbox::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void UnsafeFloat64Unbox::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register value = ToRegister(input());
+  TryUnboxTagged(masm, ToDoubleRegister(result()), value, nullptr);
 }
 
 int GeneratorStore::MaxCallStackArgs() const {

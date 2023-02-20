@@ -2568,7 +2568,7 @@ void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
 }
 void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
-  __ CheckedTruncateDoubleToInt32(
+  __ TryTruncateDoubleToInt32(
       ToRegister(result()), ToDoubleRegister(input()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
@@ -2586,8 +2586,8 @@ void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ Abort(AbortReason::kFloat64IsNotAInt32);
 
   __ bind(&start);
-  __ CheckedTruncateDoubleToInt32(ToRegister(result()),
-                                  ToDoubleRegister(input()), &fail);
+  __ TryTruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()),
+                              &fail);
 #else
   // TODO(dmercadier): TruncateDoubleToInt32 does additional work when the
   // double doesn't fit in a 32-bit integer. This is not necessary for

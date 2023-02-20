@@ -701,9 +701,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   Mov(dst, Operand(dst.W(), UXTW));
 }
 
-void MaglevAssembler::CheckedTruncateDoubleToInt32(Register dst,
-                                                   DoubleRegister src,
-                                                   Label* fail) {
+void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
+                                               Label* fail) {
   ScratchRegisterScope temps(this);
   DoubleRegister converted_back = temps.AcquireDouble();
 

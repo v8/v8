@@ -215,6 +215,7 @@ class MergePointInterpreterFrameState;
   V(Float64Box)                              \
   V(HoleyFloat64Box)                         \
   V(CheckedFloat64Unbox)                     \
+  V(UnsafeFloat64Unbox)                      \
   V(LogicalNot)                              \
   V(SetPendingMessage)                       \
   V(StringAt)                                \
@@ -2606,6 +2607,24 @@ class CheckedFloat64Unbox
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Float64() |
                                               OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class UnsafeFloat64Unbox : public FixedInputValueNodeT<1, UnsafeFloat64Unbox> {
+  using Base = FixedInputValueNodeT<1, UnsafeFloat64Unbox>;
+
+ public:
+  explicit UnsafeFloat64Unbox(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

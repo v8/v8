@@ -484,9 +484,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   movl(dst, dst);
 }
 
-void MaglevAssembler::CheckedTruncateDoubleToInt32(Register dst,
-                                                   DoubleRegister src,
-                                                   Label* fail) {
+void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
+                                               Label* fail) {
   DoubleRegister converted_back = kScratchDoubleReg;
 
   // Convert the input float64 value to int32.

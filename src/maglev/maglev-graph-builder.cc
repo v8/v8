@@ -192,15 +192,17 @@ class CallArguments {
   Mode mode_;
 };
 
-class MaglevGraphBuilder::CallSpeculationScope {
+class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
  public:
   CallSpeculationScope(MaglevGraphBuilder* builder,
                        compiler::FeedbackSource feedback_source)
       : builder_(builder) {
     DCHECK(!builder_->current_speculation_feedback_.IsValid());
-    DCHECK_EQ(
-        FeedbackNexus(feedback_source.vector, feedback_source.slot).kind(),
-        FeedbackSlotKind::kCall);
+    if (feedback_source.IsValid()) {
+      DCHECK_EQ(
+          FeedbackNexus(feedback_source.vector, feedback_source.slot).kind(),
+          FeedbackSlotKind::kCall);
+    }
     builder_->current_speculation_feedback_ = feedback_source;
   }
   ~CallSpeculationScope() {
@@ -209,6 +211,27 @@ class MaglevGraphBuilder::CallSpeculationScope {
 
  private:
   MaglevGraphBuilder* builder_;
+};
+
+class V8_NODISCARD MaglevGraphBuilder::LazyDeoptContinuationScope {
+ public:
+  LazyDeoptContinuationScope(MaglevGraphBuilder* builder, Builtin continuation)
+      : builder_(builder),
+        parent_(builder->current_lazy_deopt_continuation_scope_),
+        continuation_(continuation) {
+    builder_->current_lazy_deopt_continuation_scope_ = this;
+  }
+  ~LazyDeoptContinuationScope() {
+    builder_->current_lazy_deopt_continuation_scope_ = parent_;
+  }
+
+  LazyDeoptContinuationScope* parent() const { return parent_; }
+  Builtin continuation() const { return continuation_; }
+
+ private:
+  MaglevGraphBuilder* builder_;
+  LazyDeoptContinuationScope* parent_;
+  Builtin continuation_;
 };
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -336,6 +359,53 @@ void MaglevGraphBuilder::BuildMergeStates() {
           is_inline());
     }
   }
+}
+
+DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
+  if (parent_ == nullptr) return nullptr;
+  if (parent_deopt_frame_ == nullptr) {
+    // Force parent to create a fresh deopt frame.
+    parent_->latest_checkpointed_frame_.reset();
+    parent_deopt_frame_ =
+        zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame());
+  }
+  return parent_deopt_frame_;
+}
+
+DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
+  if (!latest_checkpointed_frame_) {
+    // TODO(leszeks): Figure out a way of handling eager continuations.
+    DCHECK_NULL(current_lazy_deopt_continuation_scope_);
+    latest_checkpointed_frame_.emplace(
+        *compilation_unit_,
+        zone()->New<CompactInterpreterFrameState>(
+            *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        GetParentDeoptFrame());
+  }
+  return *latest_checkpointed_frame_;
+}
+
+DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
+  return GetDeoptFrameForLazyDeoptHelper(
+      current_lazy_deopt_continuation_scope_);
+}
+
+DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
+    LazyDeoptContinuationScope* continuation_scope) {
+  if (continuation_scope == nullptr) {
+    return InterpretedDeoptFrame(
+        *compilation_unit_,
+        zone()->New<CompactInterpreterFrameState>(
+            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        GetParentDeoptFrame());
+  }
+
+  return BuiltinContinuationDeoptFrame(
+      continuation_scope->continuation(), {}, GetContext(),
+      zone()->New<DeoptFrame>(
+          GetDeoptFrameForLazyDeoptHelper(continuation_scope->parent())));
 }
 
 namespace {
@@ -1434,6 +1504,19 @@ ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
     return AddNewNode<UnsafeSmiUntag>({node});
   } else {
     return AddNewNode<CheckedSmiUntag>({node});
+  }
+}
+
+ValueNode* MaglevGraphBuilder::BuildFloat64Unbox(ValueNode* node) {
+  NodeType old_type;
+  if (EnsureType(node, NodeType::kNumber, &old_type)) {
+    if (old_type == NodeType::kSmi) {
+      ValueNode* untagged_smi = AddNewNode<UnsafeSmiUntag>({node});
+      return AddNewNode<ChangeInt32ToFloat64>({untagged_smi});
+    }
+    return AddNewNode<UnsafeFloat64Unbox>({node});
+  } else {
+    return AddNewNode<CheckedFloat64Unbox>({node});
   }
 }
 
@@ -3366,20 +3449,15 @@ ReduceResult MaglevGraphBuilder::TryReduceMathRound(
       return arg;
     case ValueRepresentation::kTagged:
       if (CheckType(arg, NodeType::kSmi)) return arg;
-      if (!CheckType(arg, NodeType::kNumber)) {
+      if (CheckType(arg, NodeType::kNumber)) {
+        arg = GetFloat64(arg);
+      } else {
+        LazyDeoptContinuationScope continuation_scope(
+            this, Builtin::kMathRoundContinuation);
         ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
             {GetContext(), arg}, Object::Conversion::kToNumber);
-        new (conversion->lazy_deopt_info()) LazyDeoptInfo(
-            zone(),
-            BuiltinContinuationDeoptFrame(
-                Builtin::kMathRoundContinuation, {}, GetContext(),
-                zone()->New<InterpretedDeoptFrame>(conversion->lazy_deopt_info()
-                                                       ->top_frame()
-                                                       .as_interpreted())),
-            conversion->lazy_deopt_info()->feedback_to_update());
-        arg = conversion;
+        arg = AddNewNode<UnsafeFloat64Unbox>({conversion});
       }
-      arg = GetFloat64(arg);
       break;
     case ValueRepresentation::kWord64:
       UNREACHABLE();
@@ -3467,7 +3545,8 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (speculation_mode == SpeculationMode::kDisallowSpeculation) {
+  if (feedback_source.IsValid() &&
+      speculation_mode == SpeculationMode::kDisallowSpeculation) {
     // TODO(leszeks): Some builtins might be inlinable without speculation.
     return ReduceResult::Fail();
   }
@@ -4281,37 +4360,22 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // Call @@hasInstance
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {callable_node, object});
-    ReduceResult result = ReduceCall(*has_instance_field, args);
-    // TODO(victorgomes): Propagate the case if we need to soft deopt.
-    DCHECK(!result.IsDoneWithAbort());
-    ValueNode* call_result = result.value();
-
-    // Make sure that a lazy deopt after the @@hasInstance call also performs
-    // ToBoolean before returning to the interpreter.
-    // TODO(leszeks): Wrap this in a helper.
-    if (call_result->properties().can_lazy_deopt()) {
-      if (call_result->lazy_deopt_info()->HasResultLocation()) {
-        // If the call result has an existing lazy deopt location, then it must
-        // be an existing value. Don't add a ToBoolean continuation here -- if
-        // calculating the result lazy deopts, then it will have lazy deopted
-        // already to a previous bytecode before this call reduction.
-        DCHECK(!IsNodeCreatedForThisBytecode(call_result));
-      } else {
-        new (call_result->lazy_deopt_info()) LazyDeoptInfo(
-            zone(),
-            BuiltinContinuationDeoptFrame(
-                Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
-                zone()->New<InterpretedDeoptFrame>(
-                    call_result->lazy_deopt_info()
-                        ->top_frame()
-                        .as_interpreted())),
-            call_result->lazy_deopt_info()->feedback_to_update());
-      }
+    ValueNode* call_result;
+    {
+      // Make sure that a lazy deopt after the @@hasInstance call also performs
+      // ToBoolean before returning to the interpreter.
+      LazyDeoptContinuationScope continuation_scope(
+          this, Builtin::kToBooleanLazyDeoptContinuation);
+      ReduceResult result = ReduceCall(*has_instance_field, args);
+      // TODO(victorgomes): Propagate the case if we need to soft deopt.
+      DCHECK(!result.IsDoneWithAbort());
+      call_result = result.value();
     }
 
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
-    SetAccumulator(AddNewNode<ToBoolean>({call_result}));
+    // TODO(leszeks): Avoid forcing a conversion to tagged here.
+    SetAccumulator(AddNewNode<ToBoolean>({GetTaggedValue(call_result)}));
     return true;
   }
 

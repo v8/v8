@@ -197,6 +197,7 @@ class MaglevGraphBuilder {
 
  private:
   class CallSpeculationScope;
+  class LazyDeoptContinuationScope;
 
   bool CheckType(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
@@ -954,9 +955,7 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kTagged: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->float64_alternative == nullptr) {
-          EnsureType(value, NodeType::kNumber);
-          node_info->float64_alternative =
-              AddNewNode<CheckedFloat64Unbox>({value});
+          node_info->float64_alternative = BuildFloat64Unbox(value);
         }
         return node_info->float64_alternative;
       }
@@ -1120,37 +1119,11 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(target1, second_value);
   }
 
-  DeoptFrame* GetParentDeoptFrame() {
-    if (parent_ == nullptr) return nullptr;
-    if (parent_deopt_frame_ == nullptr) {
-      // Force parent to create a fresh deopt frame.
-      parent_->latest_checkpointed_frame_.reset();
-      parent_deopt_frame_ =
-          zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame());
-    }
-    return parent_deopt_frame_;
-  }
-
-  InterpretedDeoptFrame GetLatestCheckpointedFrame() {
-    if (!latest_checkpointed_frame_) {
-      latest_checkpointed_frame_.emplace(
-          *compilation_unit_,
-          zone()->New<CompactInterpreterFrameState>(
-              *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-          BytecodeOffset(iterator_.current_offset()), current_source_position_,
-          GetParentDeoptFrame());
-    }
-    return *latest_checkpointed_frame_;
-  }
-
-  InterpretedDeoptFrame GetDeoptFrameForLazyDeopt() {
-    return InterpretedDeoptFrame(
-        *compilation_unit_,
-        zone()->New<CompactInterpreterFrameState>(
-            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
-        BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        GetParentDeoptFrame());
-  }
+  DeoptFrame* GetParentDeoptFrame();
+  DeoptFrame GetLatestCheckpointedFrame();
+  DeoptFrame GetDeoptFrameForLazyDeopt();
+  DeoptFrame GetDeoptFrameForLazyDeoptHelper(
+      LazyDeoptContinuationScope* continuation_scope);
 
   void MarkPossibleMapMigration() {
     current_for_in_state.receiver_needs_map_check = true;
@@ -1376,6 +1349,7 @@ class MaglevGraphBuilder {
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
+  ValueNode* BuildFloat64Unbox(ValueNode* node);
 
   void BuildCheckSmi(ValueNode* object);
   void BuildCheckNumber(ValueNode* object);
@@ -1653,6 +1627,8 @@ class MaglevGraphBuilder {
 
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
+
+  LazyDeoptContinuationScope* current_lazy_deopt_continuation_scope_ = nullptr;
 
   struct HandlerTableEntry {
     int end;
