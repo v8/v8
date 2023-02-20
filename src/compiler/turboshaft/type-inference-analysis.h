@@ -294,7 +294,7 @@ class TypeInferenceAnalysis {
     Type old_type = GetTypeAtDefinition(index);
     Type new_type = ComputeTypeForPhi(phi);
 
-    if (old_type.IsInvalid()) {
+    if (old_type.IsInvalid() || old_type.IsNone()) {
       SetType(index, new_type);
       return true;
     }
