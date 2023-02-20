@@ -96,7 +96,9 @@ try_builder(
 try_builder(
     name = "v8_linux64_bazel",
     bucket = "try",
-    cq_properties = CQ.BLOCK,
+    # TODO(crbug.com/v8/13748): Enable again after bazel build is fixed.
+    # cq_properties = CQ.BLOCK,
+    cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/bazel",
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
