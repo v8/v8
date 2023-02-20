@@ -703,6 +703,10 @@ struct FloatOperationTyper {
         results[2] = l_max / r_min;
         results[3] = l_max / r_max;
 
+        for (float_t r : results) {
+          if (std::isnan(r)) return type_t::Any();
+        }
+
         const float_t result_min = array_min(results);
         const float_t result_max = array_max(results);
         return Range(result_min, result_max, special_values, zone);
