@@ -973,16 +973,35 @@ class LazyDeoptInfo : public DeoptInfo {
                 compiler::FeedbackSource feedback_to_update)
       : DeoptInfo(zone, std::move(top_frame), feedback_to_update) {}
 
-  interpreter::Register result_location() const { return result_location_; }
-  int result_size() const { return result_size_; }
+  interpreter::Register result_location() const {
+    // We should only be checking this for interpreted frames, other kinds of
+    // frames shouldn't be considered for result locations.
+    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    return result_location_;
+  }
+  int result_size() const {
+    // We should only be checking this for interpreted frames, other kinds of
+    // frames shouldn't be considered for result locations.
+    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    return result_size_;
+  }
 
   bool IsResultRegister(interpreter::Register reg) const;
   void SetResultLocation(interpreter::Register result_location,
                          int result_size) {
+    // We should only be checking this for interpreted frames, other kinds of
+    // frames shouldn't be considered for result locations.
+    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
     DCHECK(result_location.is_valid());
     DCHECK(!result_location_.is_valid());
     result_location_ = result_location;
     result_size_ = result_size;
+  }
+  bool HasResultLocation() const {
+    // We should only be checking this for interpreted frames, other kinds of
+    // frames shouldn't be considered for result locations.
+    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    return result_location_.is_valid();
   }
 
   int deopting_call_return_pc() const { return deopting_call_return_pc_; }
@@ -1067,12 +1086,12 @@ class NodeBase : public ZoneObject {
   template <class T, int size>
   using NextBitField = InputCountField::Next<T, size>;
 
-  template <class T>
-  static constexpr Opcode opcode_of = detail::opcode_of_helper<T>::value;
-
   static constexpr int kMaxInputs = InputCountField::kMax;
 
  public:
+  template <class T>
+  static constexpr Opcode opcode_of = detail::opcode_of_helper<T>::value;
+
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, std::initializer_list<ValueNode*> inputs,
                       Args&&... args) {

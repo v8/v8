@@ -3164,7 +3164,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     MarkBytecodeDead();
     return ReduceResult::DoneWithAbort();
   }
-  DCHECK(result.HasValue());
+  DCHECK(result.IsDoneWithValue());
 
   // Reset checkpoint after an inlined call, otherwise we might deopt before the
   // call and visible side effects from the inlined function could happen twice.
@@ -4261,24 +4261,34 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     ReduceResult result = ReduceCall(*has_instance_field, args);
     // TODO(victorgomes): Propagate the case if we need to soft deopt.
     DCHECK(!result.IsDoneWithAbort());
-    ValueNode* call = result.value();
+    ValueNode* call_result = result.value();
 
     // Make sure that a lazy deopt after the @@hasInstance call also performs
     // ToBoolean before returning to the interpreter.
     // TODO(leszeks): Wrap this in a helper.
-    if (call->properties().can_lazy_deopt()) {
-      new (call->lazy_deopt_info()) LazyDeoptInfo(
-          zone(),
-          BuiltinContinuationDeoptFrame(
-              Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
-              zone()->New<InterpretedDeoptFrame>(
-                  call->lazy_deopt_info()->top_frame().as_interpreted())),
-          call->lazy_deopt_info()->feedback_to_update());
+    if (call_result->properties().can_lazy_deopt()) {
+      if (call_result->lazy_deopt_info()->HasResultLocation()) {
+        // If the call result has an existing lazy deopt location, then it must
+        // be an existing value. Don't add a ToBoolean continuation here -- if
+        // calculating the result lazy deopts, then it will have lazy deopted
+        // already to a previous bytecode before this call reduction.
+        DCHECK(!IsNodeCreatedForThisBytecode(call_result));
+      } else {
+        new (call_result->lazy_deopt_info()) LazyDeoptInfo(
+            zone(),
+            BuiltinContinuationDeoptFrame(
+                Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
+                zone()->New<InterpretedDeoptFrame>(
+                    call_result->lazy_deopt_info()
+                        ->top_frame()
+                        .as_interpreted())),
+            call_result->lazy_deopt_info()->feedback_to_update());
+      }
     }
 
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
-    SetAccumulator(AddNewNode<ToBoolean>({call}));
+    SetAccumulator(AddNewNode<ToBoolean>({call_result}));
     return true;
   }
 

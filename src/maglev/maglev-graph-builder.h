@@ -40,27 +40,6 @@ namespace maglev {
 
 class CallArguments;
 
-template <typename NodeT>
-inline void MarkAsLazyDeoptResult(NodeT* value,
-                                  interpreter::Register result_location,
-                                  int result_size) {
-  DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
-            value->properties().can_lazy_deopt());
-  if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
-  }
-}
-
-template <>
-inline void MarkAsLazyDeoptResult(ValueNode* value,
-                                  interpreter::Register result_location,
-                                  int result_size) {
-  if (value->properties().can_lazy_deopt() &&
-      !value->lazy_deopt_info()->result_location().is_valid()) {
-    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
-  }
-}
-
 class ReduceResult {
  public:
   enum Kind {
@@ -781,7 +760,7 @@ class MaglevGraphBuilder {
   void MoveNodeBetweenRegisters(interpreter::Register src,
                                 interpreter::Register dst) {
     // We shouldn't be moving newly created nodes between registers.
-    DCHECK_EQ(0, new_nodes_.count(current_interpreter_frame_.get(src)));
+    DCHECK(!IsNodeCreatedForThisBytecode(current_interpreter_frame_.get(src)));
     DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
 
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
@@ -1082,13 +1061,42 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT>
-  void StoreRegister(interpreter::Register target, NodeT* value) {
-    // We should only set register values to nodes that were newly created in
-    // this Visit. Existing nodes should be moved between registers with
-    // MoveNodeBetweenRegisters.
-    if (!IsConstantNode(value->opcode())) {
-      DCHECK_NE(0, new_nodes_.count(value));
+  void MarkAsLazyDeoptResult(NodeT* value,
+                             interpreter::Register result_location,
+                             int result_size) {
+    // Make sure this is a statically known Node type.
+    DCHECK_EQ(NodeBase::opcode_of<NodeT>, value->opcode());
+    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
+              value->properties().can_lazy_deopt());
+    if constexpr (!NodeT::kProperties.can_lazy_deopt()) return;
+    // If we know the type of the node, then we have likely just created it, and
+    // therefore can safely assert that it has not set its result location yet
+    // instead of checking it like we do on the ValueNode* overload.
+    // If this DCHECK causes issues it's safe to remove it, but then we have to
+    // instead dynamically check for is_valid.
+    DCHECK(IsNodeCreatedForThisBytecode(value));
+    DCHECK(!value->lazy_deopt_info()->HasResultLocation());
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+
+  void MarkAsLazyDeoptResult(ValueNode* value,
+                             interpreter::Register result_location,
+                             int result_size) {
+    if (!value->properties().can_lazy_deopt()) return;
+    if (value->lazy_deopt_info()->HasResultLocation()) {
+      // If the node already has a lazy deopt result location, it must be a node
+      // that existed before processing this bytecode. A lazy deopt will already
+      // force the execution of this node to happen earlier, so we need to avoid
+      // overwriting its result location with a new one.
+      DCHECK(!IsNodeCreatedForThisBytecode(value));
+      return;
     }
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+
+  template <typename NodeT>
+  void StoreRegister(interpreter::Register target, NodeT* value) {
+    static_assert(std::is_base_of_v<ValueNode, NodeT>);
     MarkAsLazyDeoptResult(value, target, 1);
     current_interpreter_frame_.set(target, value);
   }
@@ -1654,6 +1662,9 @@ class MaglevGraphBuilder {
   int next_handler_table_index_ = 0;
 
 #ifdef DEBUG
+  bool IsNodeCreatedForThisBytecode(ValueNode* node) const {
+    return new_nodes_.find(node) != new_nodes_.end();
+  }
   std::unordered_set<Node*> new_nodes_;
 #endif
 };
