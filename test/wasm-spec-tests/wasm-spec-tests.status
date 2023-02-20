@@ -28,7 +28,6 @@
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/globals': [FAIL],
-  'proposals/js-types/linking': [FAIL],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'simd_f32x4*': [PASS, HEAVY],
@@ -161,8 +160,10 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
+  'linking': [SKIP],
   'simd*': [SKIP],
   'proposals/tail-call/simd_lane': [SKIP],
+  'proposals/js-types/linking': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
