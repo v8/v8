@@ -148,8 +148,6 @@ in_category(
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         executable = "recipe:v8/bazel",
         first_branch_version = "10.5",
-        # TODO(crbug.com/v8/13748): Enable again after bazel build is fixed.
-        close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - minor mc - debug",
