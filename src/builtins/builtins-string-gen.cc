@@ -265,15 +265,13 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
   TNode<RawPtrT> lhs_data = DirectStringData(lhs, lhs_instance_type);
   TNode<RawPtrT> rhs_data = DirectStringData(rhs, rhs_instance_type);
 
-  constexpr int kChunk =
-      kObjectAlignment % ElementSizeInBytes(MachineRepresentation::kWord64) == 0
-          ? ElementSizeInBytes(MachineRepresentation::kWord64)
-          : ElementSizeInBytes(MachineRepresentation::kWord32);
+  const int kChunk = kTaggedSize;
   static_assert(kObjectAlignment % kChunk == 0);
   // Round up the byte_length to `ceiling(length / kChunk) * kChunk`
   TNode<IntPtrT> rounded_up_len = UncheckedCast<IntPtrT>(WordAnd(
       UncheckedCast<WordT>(IntPtrAdd(byte_length, IntPtrConstant(kChunk - 1))),
       UncheckedCast<WordT>(IntPtrConstant(~(kChunk - 1)))));
+  TNode<RawPtrT> lhs_end = RawPtrAdd(lhs_data, rounded_up_len);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // The padding must me zeroed for chunked comparison to be correct. This loop
@@ -313,26 +311,33 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
   // alignment of allocations.
   static_assert(kChunk == ElementSizeInBytes(MachineRepresentation::kWord64) ||
                 kChunk == ElementSizeInBytes(MachineRepresentation::kWord32));
+  TVARIABLE(RawPtrT, rhs_ptr, rhs_data);
+  VariableList vars({&rhs_ptr}, zone());
+
   if (kChunk == ElementSizeInBytes(MachineRepresentation::kWord64)) {
-    BuildFastLoop<IntPtrT>(
-        IntPtrConstant(0), rounded_up_len,
-        [&](TNode<IntPtrT> index) {
-          TNode<Word64T> lhs_value = UncheckedCast<Word64T>(
-              Load(MachineType::Uint64(), lhs_data, index));
-          TNode<Word64T> rhs_value = UncheckedCast<Word64T>(
-              Load(MachineType::Uint64(), rhs_data, index));
+    BuildFastLoop<RawPtrT>(
+        vars, lhs_data, lhs_end,
+        [&](TNode<RawPtrT> lhs_ptr) {
+          TNode<Word64T> lhs_value = Load<Uint64T>(lhs_ptr);
+          TNode<Word64T> rhs_value = Load<Uint64T>(rhs_ptr.value());
           GotoIf(Word64NotEqual(lhs_value, rhs_value), if_not_equal);
+
+          // Advance {rhs_ptr} to next characters. {lhs_ptr} will be
+          // advanced along loop's {var_index}.
+          Increment(&rhs_ptr, kChunk);
         },
         kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   } else {
-    BuildFastLoop<IntPtrT>(
-        IntPtrConstant(0), rounded_up_len,
-        [&](TNode<IntPtrT> index) {
-          TNode<Word32T> lhs_value = UncheckedCast<Word32T>(
-              Load(MachineType::Uint32(), lhs_data, index));
-          TNode<Word32T> rhs_value = UncheckedCast<Word32T>(
-              Load(MachineType::Uint32(), rhs_data, index));
+    BuildFastLoop<RawPtrT>(
+        vars, lhs_data, lhs_end,
+        [&](TNode<RawPtrT> lhs_ptr) {
+          TNode<Word32T> lhs_value = Load<Uint32T>(lhs_ptr);
+          TNode<Word32T> rhs_value = Load<Uint32T>(rhs_ptr.value());
           GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
+
+          // Advance {rhs_ptr} to next characters. {lhs_ptr} will be
+          // advanced along loop's {var_index}.
+          Increment(&rhs_ptr, kChunk);
         },
         kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   }
@@ -343,40 +348,41 @@ void StringBuiltinsAssembler::StringEqual_Loop(
     TNode<String> lhs, TNode<Word32T> lhs_instance_type, MachineType lhs_type,
     TNode<String> rhs, TNode<Word32T> rhs_instance_type, MachineType rhs_type,
     TNode<IntPtrT> length, Label* if_equal, Label* if_not_equal) {
+  Comment("StringEqual_Loop");
   CSA_DCHECK(this, WordEqual(LoadStringLengthAsWord(lhs), length));
   CSA_DCHECK(this, WordEqual(LoadStringLengthAsWord(rhs), length));
 
   // Compute the effective offset of the first character.
   TNode<RawPtrT> lhs_data = DirectStringData(lhs, lhs_instance_type);
   TNode<RawPtrT> rhs_data = DirectStringData(rhs, rhs_instance_type);
+  TNode<RawPtrT> lhs_end =
+      RawPtrAdd(lhs_data, WordShl(length, IntPtrConstant(ElementSizeLog2Of(
+                                              lhs_type.representation()))));
+  TVARIABLE(RawPtrT, rhs_ptr, rhs_data);
+  VariableList vars({&rhs_ptr}, zone());
 
   // Loop over the {lhs} and {rhs} strings to see if they are equal.
-  TVARIABLE(IntPtrT, var_offset, IntPtrConstant(0));
-  Label loop(this, &var_offset);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    // If {offset} equals {end}, no difference was found, so the
-    // strings are equal.
-    GotoIf(WordEqual(var_offset.value(), length), if_equal);
+  BuildFastLoop<RawPtrT>(
+      vars, lhs_data, lhs_end,
+      [&](TNode<RawPtrT> lhs_ptr) {
+        TNode<Word32T> lhs_value =
+            UncheckedCast<Word32T>(Load(lhs_type, lhs_ptr));
+        TNode<Word32T> rhs_value =
+            UncheckedCast<Word32T>(Load(rhs_type, rhs_ptr.value()));
 
-    // Load the next characters from {lhs} and {rhs}.
-    TNode<Word32T> lhs_value = UncheckedCast<Word32T>(
-        Load(lhs_type, lhs_data,
-             WordShl(var_offset.value(),
-                     ElementSizeLog2Of(lhs_type.representation()))));
-    TNode<Word32T> rhs_value = UncheckedCast<Word32T>(
-        Load(rhs_type, rhs_data,
-             WordShl(var_offset.value(),
-                     ElementSizeLog2Of(rhs_type.representation()))));
+        // Check if the characters match.
+        GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
 
-    // Check if the characters match.
-    GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
+        // Advance {rhs_ptr} to next characters. {lhs_ptr} will be
+        // advanced along loop's {var_index}.
+        Increment(&rhs_ptr, ElementSizeInBytes(rhs_type.representation()));
+      },
+      ElementSizeInBytes(lhs_type.representation()), LoopUnrollingMode::kNo,
+      IndexAdvanceMode::kPost);
 
-    // Advance to next character.
-    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
-    Goto(&loop);
-  }
+  // All characters are checked and no difference was found, so the strings
+  // are equal.
+  Goto(if_equal);
 }
 
 TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(

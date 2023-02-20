@@ -12367,7 +12367,7 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
   return var_index.value();
 }
 
-// Instantiate BuildFastLoop for IntPtrT and UintPtrT.
+// Instantiate BuildFastLoop for IntPtrT, UintPtrT and RawPtrT.
 template V8_EXPORT_PRIVATE TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<
     IntPtrT>(const VariableList& vars, TVariable<IntPtrT>& var_index,
              TNode<IntPtrT> start_index, TNode<IntPtrT> end_index,
@@ -12378,6 +12378,11 @@ template V8_EXPORT_PRIVATE TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<
               TNode<UintPtrT> start_index, TNode<UintPtrT> end_index,
               const FastLoopBody<UintPtrT>& body, int increment,
               LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
+template V8_EXPORT_PRIVATE TNode<RawPtrT> CodeStubAssembler::BuildFastLoop<
+    RawPtrT>(const VariableList& vars, TVariable<RawPtrT>& var_index,
+             TNode<RawPtrT> start_index, TNode<RawPtrT> end_index,
+             const FastLoopBody<RawPtrT>& body, int increment,
+             LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
 
 template <typename TIndex>
 void CodeStubAssembler::BuildFastArrayForEach(
