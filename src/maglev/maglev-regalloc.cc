@@ -1461,9 +1461,12 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
     auto it =
         std::upper_bound(slots.free_slots.begin(), slots.free_slots.end(),
                          start, [](NodeIdT s, const SpillSlotInfo& slot_info) {
-                           return slot_info.freed_at_position < s;
+                           return slot_info.freed_at_position >= s;
                          });
-    if (it != slots.free_slots.end()) {
+    if (it != slots.free_slots.begin()) {
+      // {it} points to the first invalid slot. Decrement it to get to the last
+      // valid slot freed before {start}.
+      --it;
       free_slot = it->slot_index;
       slots.free_slots.erase(it);
     } else {
