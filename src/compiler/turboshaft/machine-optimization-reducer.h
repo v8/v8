@@ -893,7 +893,8 @@ class MachineOptimizationReducer : public Next {
         case WordBinopOp::Kind::kSignedDiv:
         case WordBinopOp::Kind::kUnsignedDiv: {
           OpIndex zero = Asm().WordConstant(0, rep);
-          return Asm().Equal(Asm().Equal(left, zero, rep), zero, rep);
+          return Asm().ChangeUint32ToUintPtr(
+              Asm().Word32Equal(Asm().Equal(left, zero, rep), 0));
         }
         case WordBinopOp::Kind::kAdd:
         case WordBinopOp::Kind::kMul:

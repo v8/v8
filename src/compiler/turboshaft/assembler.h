@@ -913,6 +913,22 @@ class AssemblerOpInterface {
                 Float32, Float64)
   DECL_CHANGE_V(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,
                 Float64, Word32)
+  V<WordPtr> ChangeInt32ToIntPtr(V<Word32> input) {
+    if constexpr (Is64()) {
+      return ChangeInt32ToInt64(input);
+    } else {
+      DCHECK_EQ(WordPtr::Rep, Word32::Rep);
+      return V<WordPtr>::Cast(input);
+    }
+  }
+  V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
+    if constexpr (Is64()) {
+      return ChangeUint32ToUint64(input);
+    } else {
+      DCHECK_EQ(WordPtr::Rep, Word32::Rep);
+      return V<WordPtr>::Cast(input);
+    }
+  }
 
 #define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                     \
   DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \

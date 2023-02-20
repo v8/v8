@@ -664,6 +664,7 @@ struct WordWithBits : public WordAny {
 
 using Word32 = WordWithBits<32>;
 using Word64 = WordWithBits<64>;
+using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
 
 struct FloatAny : public Any {
   static constexpr const char* short_name() { return "F"; }
