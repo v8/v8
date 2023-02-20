@@ -206,26 +206,15 @@ TEST(HeapNumbers) {
 TEST(OddballHandle) {
   JSConstantCacheTester T;
 
-  CHECK_EQ(
-      T.UndefinedConstant(),
-      T.Constant(MakeRef<Object>(T.broker(), T.factory()->undefined_value()),
-                 T.broker()));
-  CHECK_EQ(
-      T.TheHoleConstant(),
-      T.Constant(MakeRef<Object>(T.broker(), T.factory()->the_hole_value()),
-                 T.broker()));
-  CHECK_EQ(T.TrueConstant(),
-           T.Constant(MakeRef<Object>(T.broker(), T.factory()->true_value()),
-                      T.broker()));
+  CHECK_EQ(T.UndefinedConstant(),
+           T.Constant(T.broker()->undefined_value(), T.broker()));
+  CHECK_EQ(T.TheHoleConstant(),
+           T.Constant(T.broker()->the_hole_value(), T.broker()));
+  CHECK_EQ(T.TrueConstant(), T.Constant(T.broker()->true_value(), T.broker()));
   CHECK_EQ(T.FalseConstant(),
-           T.Constant(MakeRef<Object>(T.broker(), T.factory()->false_value()),
-                      T.broker()));
-  CHECK_EQ(T.NullConstant(),
-           T.Constant(MakeRef<Object>(T.broker(), T.factory()->null_value()),
-                      T.broker()));
-  CHECK_EQ(T.NaNConstant(),
-           T.Constant(MakeRef<Object>(T.broker(), T.factory()->nan_value()),
-                      T.broker()));
+           T.Constant(T.broker()->false_value(), T.broker()));
+  CHECK_EQ(T.NullConstant(), T.Constant(T.broker()->null_value(), T.broker()));
+  CHECK_EQ(T.NaNConstant(), T.Constant(T.broker()->nan_value(), T.broker()));
 }
 
 

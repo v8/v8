@@ -1154,26 +1154,25 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   if (instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
   }
-  Factory* f = broker->isolate()->factory();
-  if (equals(MakeRef(broker, f->undefined_map()))) {
+  if (equals(broker->undefined_map())) {
     return OddballType::kUndefined;
   }
-  if (equals(MakeRef(broker, f->null_map()))) {
+  if (equals(broker->null_map())) {
     return OddballType::kNull;
   }
-  if (equals(MakeRef(broker, f->boolean_map()))) {
+  if (equals(broker->boolean_map())) {
     return OddballType::kBoolean;
   }
-  if (equals(MakeRef(broker, f->the_hole_map()))) {
+  if (equals(broker->the_hole_map())) {
     return OddballType::kHole;
   }
-  if (equals(MakeRef(broker, f->uninitialized_map()))) {
+  if (equals(broker->uninitialized_map())) {
     return OddballType::kUninitialized;
   }
-  DCHECK(equals(MakeRef(broker, f->termination_exception_map())) ||
-         equals(MakeRef(broker, f->arguments_marker_map())) ||
-         equals(MakeRef(broker, f->optimized_out_map())) ||
-         equals(MakeRef(broker, f->stale_register_map())));
+  DCHECK(equals(broker->termination_exception_map()) ||
+         equals(broker->arguments_marker_map()) ||
+         equals(broker->optimized_out_map()) ||
+         equals(broker->stale_register_map()));
   return OddballType::kOther;
 }
 
@@ -1812,8 +1811,7 @@ Maybe<double> ObjectRef::OddballToNumber(JSHeapBroker* broker) const {
 
   switch (type) {
     case OddballType::kBoolean: {
-      ObjectRef true_ref =
-          MakeRef<Object>(broker, broker->isolate()->factory()->true_value());
+      ObjectRef true_ref = broker->true_value();
       return this->equals(true_ref) ? Just(1.0) : Just(0.0);
     }
     case OddballType::kUndefined: {

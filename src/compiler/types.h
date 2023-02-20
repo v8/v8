@@ -425,6 +425,7 @@ class V8_EXPORT_PRIVATE Type {
 
   static Type Constant(JSHeapBroker* broker, Handle<i::Object> value,
                        Zone* zone);
+  static Type Constant(JSHeapBroker* broker, ObjectRef value, Zone* zone);
   static Type Constant(double value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);

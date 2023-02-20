@@ -23,6 +23,7 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects.h"
+#include "src/roots/roots.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
@@ -380,6 +381,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return dependencies_;
   }
 
+#define V(Type, name, Name) inline typename ref_traits<Type>::ref_type name();
+  READ_ONLY_ROOT_LIST(V)
+#undef V
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
@@ -441,6 +446,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void CopyCanonicalHandlesForTesting(
       std::unique_ptr<CanonicalHandlesMap> canonical_handles);
 
+#define V(Type, name, Name) void Init##Name();
+  READ_ONLY_ROOT_LIST(V)
+#undef V
+
   Isolate* const isolate_;
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
@@ -465,6 +474,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
+
+  // Cache read only roots to avoid needing to look them up via the map.
+#define V(Type, name, Name) \
+  OptionalRef<typename ref_traits<Type>::ref_type> name##_;
+  READ_ONLY_ROOT_LIST(V)
+#undef V
 
   CompilationDependencies* dependencies_ = nullptr;
 
@@ -611,6 +626,16 @@ typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           Handle<T> object) {
   return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
+
+#define V(Type, name, Name)                                         \
+  inline typename ref_traits<Type>::ref_type JSHeapBroker::name() { \
+    if (!name##_) {                                                 \
+      Init##Name();                                                 \
+    }                                                               \
+    return name##_.value();                                         \
+  }
+READ_ONLY_ROOT_LIST(V)
+#undef V
 
 }  // namespace compiler
 }  // namespace internal

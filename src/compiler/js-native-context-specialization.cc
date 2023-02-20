@@ -264,7 +264,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   int register_count =
       shared.internal_formal_parameter_count_without_receiver() +
       shared.GetBytecodeArray(broker()).register_count();
-  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = broker()->fixed_array_map();
   AllocationBuilder ab(jsgraph(), broker(), effect, control);
   if (!ab.CanAllocateArray(register_count, fixed_array_map)) {
     return NoChange();
@@ -719,7 +719,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   if (!receiver.has_value()) return NoChange();
 
   MapRef receiver_map = receiver->map(broker());
-  NameRef name = MakeRef(broker(), isolate()->factory()->has_instance_symbol());
+  NameRef name = broker()->has_instance_symbol();
   PropertyAccessInfo access_info =
       broker()->GetPropertyAccessInfo(receiver_map, name, AccessMode::kLoad);
 
@@ -1024,8 +1024,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
 
   for (const MapRef& map : resolution_maps) {
     access_infos.push_back(broker()->GetPropertyAccessInfo(
-        map, MakeRef(broker(), isolate()->factory()->then_string()),
-        AccessMode::kLoad));
+        map, broker()->then_string(), AccessMode::kLoad));
   }
   PropertyAccessInfo access_info =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
@@ -1815,8 +1814,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
-    if (object.IsJSFunction() &&
-        name.equals(MakeRef(broker(), factory()->prototype_string()))) {
+    if (object.IsJSFunction() && name.equals(broker()->prototype_string())) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
@@ -1830,8 +1828,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       Node* value = jsgraph()->Constant(prototype, broker());
       ReplaceWithValue(node, value);
       return Replace(value);
-    } else if (object.IsString() &&
-               name.equals(MakeRef(broker(), factory()->length_string()))) {
+    } else if (object.IsString() && name.equals(broker()->length_string())) {
       // Constant-fold "length" property on constant strings.
       Node* value = jsgraph()->Constant(object.AsString().length());
       ReplaceWithValue(node, value);
@@ -1904,7 +1901,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   }
 
   // Load iterator property operator
-  NameRef iterator_symbol = MakeRef(broker(), factory()->iterator_symbol());
+  NameRef iterator_symbol = broker()->iterator_symbol();
   const Operator* load_op =
       javascript()->LoadNamed(iterator_symbol, p.loadFeedback());
 
@@ -2955,8 +2952,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
           AllocationBuilder a(jsgraph(), broker(), effect, control);
           a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
                      Type::OtherInternal());
-          a.Store(AccessBuilder::ForMap(),
-                  MakeRef(broker(), factory()->heap_number_map()));
+          a.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
           FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
           value_field_access.const_field_info = field_access.const_field_info;
           a.Store(value_field_access, value);

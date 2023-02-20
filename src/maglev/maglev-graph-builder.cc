@@ -4193,8 +4193,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* object, compiler::JSObjectRef callable,
     ValueNode* callable_node_if_not_constant) {
   compiler::MapRef receiver_map = callable.map(broker());
-  compiler::NameRef name =
-      MakeRef(broker(), local_isolate()->factory()->has_instance_symbol());
+  compiler::NameRef name = broker()->has_instance_symbol();
   compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
       receiver_map, name, compiler::AccessMode::kLoad);
 
@@ -4912,9 +4911,7 @@ void MaglevGraphBuilder::VisitForInPrepare() {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
     case ForInHint::kEnumCacheKeys: {
-      BuildCheckMaps(enumerator,
-                     base::VectorOf({MakeRefAssumeMemoryFence(
-                         broker(), local_isolate()->factory()->meta_map())}));
+      BuildCheckMaps(enumerator, base::VectorOf({broker()->meta_map()}));
 
       auto* descriptor_array = AddNewNode<LoadTaggedField>(
           {enumerator}, Map::kInstanceDescriptorsOffset);

@@ -2774,9 +2774,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
         JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex);
     const InternalIndex kNameIndex(
         JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex);
-    ReadOnlyRoots roots(isolate());
-    StringRef length_string = MakeRef(broker(), roots.length_string_handle());
-    StringRef name_string = MakeRef(broker(), roots.name_string_handle());
+    StringRef length_string = broker()->length_string();
+    StringRef name_string = broker()->name_string();
 
     OptionalObjectRef length_value(
         receiver_map.GetStrongValue(broker(), kLengthIndex));
@@ -2814,7 +2813,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   int const arity = n.ArgumentCount();
 
   if (arity > 0) {
-    MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
+    MapRef fixed_array_map = broker()->fixed_array_map();
     AllocationBuilder ab(jsgraph(), broker(), effect, control);
     if (!ab.CanAllocateArray(arity, fixed_array_map)) {
       return NoChange();
@@ -8267,8 +8266,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
   for (const MapRef& map : regexp_maps) {
     access_infos.push_back(broker()->GetPropertyAccessInfo(
-        map, MakeRef(broker(), isolate()->factory()->exec_string()),
-        AccessMode::kLoad));
+        map, broker()->exec_string(), AccessMode::kLoad));
   }
 
   PropertyAccessInfo ai_exec =

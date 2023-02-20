@@ -236,11 +236,10 @@ class TyperTest : public TypedGraphTest {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
-        Type result_type =
-            Type::Constant(&broker_,
-                           result_value ? isolate()->factory()->true_value()
-                                        : isolate()->factory()->false_value(),
-                           zone());
+        Type result_type = Type::Constant(
+            &broker_,
+            result_value ? broker_.true_value() : broker_.false_value(),
+            zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }

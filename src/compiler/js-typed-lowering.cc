@@ -477,7 +477,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
       jsgraph_(jsgraph),
       broker_(broker),
       empty_string_type_(
-          Type::Constant(broker, factory()->empty_string(), graph()->zone())),
+          Type::Constant(broker, broker->empty_string(), graph()->zone())),
       pointer_comparable_type_(
           Type::Union(Type::Oddball(),
                       Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
@@ -1236,7 +1236,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   Node* receiver = n.object();
   Type receiver_type = NodeProperties::GetType(receiver);
   NameRef name = NamedAccessOf(node->op()).name();
-  NameRef length_str = MakeRef(broker(), factory()->length_string());
+  NameRef length_str = broker()->length_string();
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);

@@ -25,10 +25,9 @@ TypedOptimization::TypedOptimization(Editor* editor,
       dependencies_(dependencies),
       jsgraph_(jsgraph),
       broker_(broker),
-      true_type_(
-          Type::Constant(broker, factory()->true_value(), graph()->zone())),
+      true_type_(Type::Constant(broker, broker->true_value(), graph()->zone())),
       false_type_(
-          Type::Constant(broker, factory()->false_value(), graph()->zone())),
+          Type::Constant(broker, broker->false_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
 TypedOptimization::~TypedOptimization() = default;
@@ -693,31 +692,22 @@ Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
 Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   Node* const input = node->InputAt(0);
   Type const type = NodeProperties::GetType(input);
-  Factory* const f = factory();
   if (type.Is(Type::Boolean())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->boolean_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->boolean_string(), broker()));
   } else if (type.Is(Type::Number())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->number_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->number_string(), broker()));
   } else if (type.Is(Type::String())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->string_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->string_string(), broker()));
   } else if (type.Is(Type::BigInt())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->bigint_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->bigint_string(), broker()));
   } else if (type.Is(Type::Symbol())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->symbol_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->symbol_string(), broker()));
   } else if (type.Is(Type::OtherUndetectableOrUndefined())) {
-    return Replace(jsgraph()->Constant(MakeRef(broker(), f->undefined_string()),
-                                       broker()));
+    return Replace(jsgraph()->Constant(broker()->undefined_string(), broker()));
   } else if (type.Is(Type::NonCallableOrNull())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->object_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->object_string(), broker()));
   } else if (type.Is(Type::Function())) {
-    return Replace(
-        jsgraph()->Constant(MakeRef(broker(), f->function_string()), broker()));
+    return Replace(jsgraph()->Constant(broker()->function_string(), broker()));
   }
   return NoChange();
 }

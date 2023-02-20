@@ -164,7 +164,7 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   switch (kind) {
 #define TYPED_ARRAY_STRING_TAG(Type, type, TYPE, ctype) \
   case ElementsKind::TYPE##_ELEMENTS:                   \
-    return MakeRef(this, isolate()->factory()->Type##Array_string());
+    return Type##Array_string();
     TYPED_ARRAYS(TYPED_ARRAY_STRING_TAG)
 #undef TYPED_ARRAY_STRING_TAG
     default:
@@ -225,6 +225,14 @@ bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
 bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
   return !IsMainThread() && isolate()->heap()->IsPendingAllocation(object);
 }
+
+#define V(Type, name, Name)                                                 \
+  void JSHeapBroker::Init##Name() {                                         \
+    DCHECK(!name##_);                                                       \
+    name##_ = MakeRefAssumeMemoryFence(this, isolate()->factory()->name()); \
+  }
+READ_ONLY_ROOT_LIST(V)
+#undef V
 
 ProcessedFeedback::ProcessedFeedback(Kind kind, FeedbackSlotKind slot_kind)
     : kind_(kind), slot_kind_(slot_kind) {}

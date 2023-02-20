@@ -890,6 +890,10 @@ Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   // consider having the graph store ObjectRefs or ObjectData pointer instead,
   // which would make new ref construction here unnecessary.
   ObjectRef ref = MakeRefAssumeMemoryFence(broker, value);
+  return Constant(broker, ref, zone);
+}
+
+Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }

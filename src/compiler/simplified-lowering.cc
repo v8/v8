@@ -359,11 +359,10 @@ class RepresentationSelector {
         linkage_(linkage),
         observe_node_manager_(observe_node_manager),
         verifier_(verifier) {
-    Factory* factory = broker_->isolate()->factory();
     singleton_true_ =
-        Type::Constant(broker, factory->true_value(), graph_zone());
+        Type::Constant(broker, broker->true_value(), graph_zone());
     singleton_false_ =
-        Type::Constant(broker, factory->false_value(), graph_zone());
+        Type::Constant(broker, broker->false_value(), graph_zone());
   }
 
   bool verification_enabled() const { return verifier_ != nullptr; }

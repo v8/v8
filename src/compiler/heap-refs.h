@@ -185,6 +185,47 @@ struct ref_traits<Object> {
       RefSerializationKind::kNeverSerialized;
 };
 
+// For types used in ReadOnlyRoots, but which don't have a corresponding Ref
+// type, use HeapObjectRef.
+template <>
+struct ref_traits<Oddball> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<EnumCache> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<PropertyArray> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<ByteArray> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<ClosureFeedbackCellArray> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<NumberDictionary> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<OrderedHashMap> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<OrderedHashSet> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<FeedbackMetadata> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<NameDictionary> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<OrderedNameDictionary> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<SwissNameDictionary> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<InterceptorInfo> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<ArrayList> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<WeakFixedArray> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<WeakArrayList> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<RegisteredSymbolTable> : public ref_traits<HeapObject> {};
+#if V8_ENABLE_WEBASSEMBLY
+template <>
+struct ref_traits<WasmNull> : public ref_traits<HeapObject> {};
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Wrapper around heap refs which works roughly like a base::Optional, but
 // doesn't use extra storage for a boolean, but instead uses a null data pointer
 // as a sentinel no value.
