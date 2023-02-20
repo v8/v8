@@ -735,6 +735,17 @@ InlineCacheState FeedbackNexus::ic_state() const {
                                           : InlineCacheState::MONOMORPHIC;
         }
       }
+      // TODO(1393773): Remove once the issue is solved.
+      Address vector_ptr = vector().ptr();
+      config_.isolate()->PushParamsAndDie(
+          reinterpret_cast<void*>(feedback.ptr()),
+          reinterpret_cast<void*>(extra.ptr()),
+          reinterpret_cast<void*>(vector_ptr),
+          reinterpret_cast<void*>(static_cast<intptr_t>(slot_.ToInt())),
+          reinterpret_cast<void*>(static_cast<intptr_t>(kind())),
+          // Include part of the feedback vector containing the slot.
+          reinterpret_cast<void*>(
+              vector_ptr + FeedbackVector::OffsetOfElementAt(slot_.ToInt())));
       UNREACHABLE();
     }
     case FeedbackSlotKind::kCall: {
