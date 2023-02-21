@@ -1965,10 +1965,21 @@ DEFINE_BOOL(short_builtin_calls, V8_SHORT_BUILTIN_CALLS_BOOL,
             "builtin calls/jumps if system has >=4GB memory")
 DEFINE_BOOL(trace_code_range_allocation, false,
             "Trace code range allocation process.")
-DEFINE_BOOL(better_code_range_allocation, false,
-            "This mode tries harder to allocate code range near .text section. "
-            "Works only for configurations with external code space and "
-            "shared pointer compression cage.")
+
+#ifdef V8_TARGET_OS_CHROMEOS
+#define V8_TARGET_OS_CHROMEOS_BOOL true
+#else
+#define V8_TARGET_OS_CHROMEOS_BOOL false
+#endif  // V8_TARGET_OS_CHROMEOS
+
+// TODO(1417652): Enable on ChromeOS once the issue is fixed.
+DEFINE_BOOL(
+    better_code_range_allocation,
+    V8_EXTERNAL_CODE_SPACE_BOOL&& COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL &&
+        !V8_TARGET_OS_CHROMEOS_BOOL,
+    "This mode tries harder to allocate code range near .text section. "
+    "Works only for configurations with external code space and "
+    "shared pointer compression cage.")
 DEFINE_BOOL(abort_on_far_code_range, false,
             "Abort if code range is allocated further away than 4GB from the"
             ".text section")
