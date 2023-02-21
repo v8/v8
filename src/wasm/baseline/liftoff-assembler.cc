@@ -751,6 +751,8 @@ void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
        slot != end; ++slot) {
     *slot = *(slot + 1);
     stack_offset = NextSpillOffset(slot->kind(), stack_offset);
+    // Padding could allow us to exit early.
+    if (slot->offset() == stack_offset) break;
     if (slot->is_stack()) {
       MoveStackValue(stack_offset, slot->offset(), slot->kind());
     }
