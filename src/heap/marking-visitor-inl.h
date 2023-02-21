@@ -501,7 +501,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptors(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
     Map map, DescriptorArray array) {
-  if (!concrete_visitor()->ShouldVisit(array)) return 0;
+  if (!concrete_visitor()->ShouldVisitUnchecked(array)) return 0;
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));

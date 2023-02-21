@@ -223,6 +223,11 @@ class YoungGenerationConcurrentMarkingVisitor final
   // HeapVisitor override.
 
   bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
+  }
+
+  bool ShouldVisitUnchecked(HeapObject object) {
     return marking_state_.GreyToBlack(object);
   }
 
@@ -354,6 +359,11 @@ class ConcurrentMarkingVisitor final
 
   // HeapVisitor override.
   bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
+  }
+
+  bool ShouldVisitUnchecked(HeapObject object) {
     return marking_state_.GreyToBlack(object);
   }
 

@@ -203,6 +203,11 @@ class MainMarkingVisitor final
 
   // HeapVisitor override.
   bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_->GreyToBlack(object));
+    return true;
+  }
+
+  bool ShouldVisitUnchecked(HeapObject object) {
     return marking_state_->GreyToBlack(object);
   }
 
@@ -242,6 +247,7 @@ class YoungGenerationMainMarkingVisitor final
 
   // HeapVisitor override.
   bool ShouldVisit(HeapObject object);
+  bool ShouldVisitUnchecked(HeapObject object);
 
  private:
   MarkingState* marking_state() { return marking_state_; }
