@@ -47,11 +47,20 @@ struct WasmTag;
 
 // Return the evaluation of {condition} if {ValidationTag::validate} is true,
 // DCHECK that it is true and always return true otherwise.
-#define VALIDATE(condition)                               \
-  (ValidationTag::validate ? V8_LIKELY(condition) : [&] { \
-    DCHECK(condition);                                    \
-    return true;                                          \
-  }())
+// Note that this needs to be a macro, because the "likely" annotation does not
+// survive inlining.
+#ifdef DEBUG
+#define VALIDATE(condition)                       \
+  (ValidationTag::validate ? V8_LIKELY(condition) \
+                           : ValidateAssumeTrue(condition, #condition))
+
+V8_INLINE bool ValidateAssumeTrue(bool condition, const char* message) {
+  DCHECK_WITH_MSG(condition, message);
+  return true;
+}
+#else
+#define VALIDATE(condition) (!ValidationTag::validate || V8_LIKELY(condition))
+#endif
 
 #define CHECK_PROTOTYPE_OPCODE(feat)                                         \
   DCHECK(this->module_->origin == kWasmOrigin);                              \
