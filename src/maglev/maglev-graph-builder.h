@@ -1390,35 +1390,37 @@ class MaglevGraphBuilder {
   // Returns the loaded value node but doesn't update the accumulator yet.
   ValueNode* BuildLoadField(compiler::PropertyAccessInfo access_info,
                             ValueNode* lookup_start_object);
-  bool TryBuildStoreField(compiler::PropertyAccessInfo access_info,
-                          ValueNode* receiver,
-                          compiler::AccessMode access_mode);
-  bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
+  ReduceResult TryBuildStoreField(compiler::PropertyAccessInfo access_info,
                                   ValueNode* receiver,
-                                  ValueNode* lookup_start_object);
-  bool TryBuildPropertySetterCall(compiler::PropertyAccessInfo access_info,
-                                  ValueNode* receiver, ValueNode* value);
+                                  compiler::AccessMode access_mode);
+  ReduceResult TryBuildPropertyGetterCall(
+      compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+      ValueNode* lookup_start_object);
+  ReduceResult TryBuildPropertySetterCall(
+      compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+      ValueNode* value);
 
-  bool TryBuildPropertyLoad(ValueNode* receiver, ValueNode* lookup_start_object,
-                            compiler::NameRef name,
-                            compiler::PropertyAccessInfo const& access_info);
-  bool TryBuildPropertyStore(ValueNode* receiver, compiler::NameRef name,
-                             compiler::PropertyAccessInfo const& access_info,
-                             compiler::AccessMode access_mode);
-  bool TryBuildPropertyAccess(ValueNode* receiver,
-                              ValueNode* lookup_start_object,
-                              compiler::NameRef name,
-                              compiler::PropertyAccessInfo const& access_info,
-                              compiler::AccessMode access_mode);
+  ReduceResult TryBuildPropertyLoad(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NameRef name, compiler::PropertyAccessInfo const& access_info);
+  ReduceResult TryBuildPropertyStore(
+      ValueNode* receiver, compiler::NameRef name,
+      compiler::PropertyAccessInfo const& access_info,
+      compiler::AccessMode access_mode);
+  ReduceResult TryBuildPropertyAccess(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
+      compiler::AccessMode access_mode);
 
   bool TryBuildElementAccessOnString(
       ValueNode* object, ValueNode* index,
       compiler::KeyedAccessMode const& keyed_mode);
 
-  bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
-                           compiler::NamedAccessFeedback const& feedback,
-                           compiler::FeedbackSource const& feedback_source,
-                           compiler::AccessMode access_mode);
+  ReduceResult TryBuildNamedAccess(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NamedAccessFeedback const& feedback,
+      compiler::FeedbackSource const& feedback_source,
+      compiler::AccessMode access_mode);
   bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
                              compiler::ElementAccessFeedback const& feedback,
                              compiler::FeedbackSource const& feedback_source);

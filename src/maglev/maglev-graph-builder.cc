@@ -1839,7 +1839,7 @@ compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
       broker()->dependencies());
 }
 
-bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
+ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
     compiler::PropertyAccessInfo access_info, ValueNode* receiver,
     ValueNode* lookup_start_object) {
   compiler::ObjectRef constant = access_info.constant().value();
@@ -1859,46 +1859,38 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
     CallArguments args(receiver_mode, {receiver});
-    ReduceResult result = ReduceCall(constant.AsJSFunction(), args);
-    // TODO(victorgomes): Propagate the case if we need to soft deopt.
-    DCHECK(!result.IsDoneWithAbort());
-    SetAccumulator(result.value());
+    return ReduceCall(constant.AsJSFunction(), args);
   } else if (receiver != lookup_start_object) {
-    return false;
+    return ReduceResult::Fail();
   } else {
     ValueNode* api_holder = access_info.api_holder().has_value()
                                 ? GetConstant(access_info.api_holder().value())
                                 : receiver;
     compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
-    if (!templ.call_code(broker()).has_value()) return false;
+    if (!templ.call_code(broker()).has_value()) return ReduceResult::Fail();
 
     compiler::CallHandlerInfoRef call_handler_info =
         templ.call_code(broker()).value();
     ApiFunction function(call_handler_info.callback());
     ExternalReference reference = ExternalReference::Create(
         &function, ExternalReference::DIRECT_API_CALL);
-    SetAccumulator(BuildCallBuiltin<Builtin::kCallApiCallback>(
+    return BuildCallBuiltin<Builtin::kCallApiCallback>(
         {GetExternalConstant(reference), GetInt32Constant(0),
-         GetConstant(call_handler_info.data(broker())), api_holder, receiver}));
+         GetConstant(call_handler_info.data(broker())), api_holder, receiver});
   }
-  return true;
 }
 
-bool MaglevGraphBuilder::TryBuildPropertySetterCall(
+ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
     compiler::PropertyAccessInfo access_info, ValueNode* receiver,
     ValueNode* value) {
   compiler::ObjectRef constant = access_info.constant().value();
   if (constant.IsJSFunction()) {
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
-    ReduceResult result = ReduceCall(constant.AsJSFunction(), args);
-    // TODO(victorgomes): Propagate the case if we need to soft deopt.
-    DCHECK(!result.IsDoneWithAbort());
-    SetAccumulator(result.value());
-    return true;
+    return ReduceCall(constant.AsJSFunction(), args);
   } else {
     // TODO(victorgomes): API calls.
-    return false;
+    return ReduceResult::Fail();
   }
 }
 
@@ -1954,7 +1946,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   return value;
 }
 
-bool MaglevGraphBuilder::TryBuildStoreField(
+ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     compiler::PropertyAccessInfo access_info, ValueNode* receiver,
     compiler::AccessMode access_mode) {
   FieldIndex field_index = access_info.field_index();
@@ -1965,12 +1957,11 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     compiler::MapRef original_map = transition.GetBackPointer(broker()).AsMap();
     // TODO(verwaest): Support growing backing stores.
     if (original_map.UnusedPropertyFields() == 0) {
-      return false;
+      return ReduceResult::Fail();
     }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
-    // TODO(verwaest): Deoptimize instead.
-    return false;
+    return ReduceResult::DoneWithAbort();
   }
 
   ValueNode* store_target;
@@ -2039,10 +2030,10 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     }
   }
 
-  return true;
+  return ReduceResult::Done();
 }
 
-bool MaglevGraphBuilder::TryBuildPropertyLoad(
+ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info) {
   if (access_info.holder().has_value() && !access_info.HasDictionaryHolder()) {
@@ -2055,21 +2046,18 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kInvalid:
       UNREACHABLE();
     case compiler::PropertyAccessInfo::kNotFound:
-      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
-      return true;
+      return GetRootConstant(RootIndex::kUndefinedValue);
     case compiler::PropertyAccessInfo::kDataField:
-    case compiler::PropertyAccessInfo::kFastDataConstant:
-      SetAccumulator(BuildLoadField(access_info, lookup_start_object));
-      RecordKnownProperty(lookup_start_object, name,
-                          current_interpreter_frame_.accumulator(),
-                          access_info);
-      return true;
+    case compiler::PropertyAccessInfo::kFastDataConstant: {
+      ValueNode* result = BuildLoadField(access_info, lookup_start_object);
+      RecordKnownProperty(lookup_start_object, name, result, access_info);
+      return result;
+    }
     case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
       compiler::OptionalObjectRef constant =
           TryFoldLoadDictPrototypeConstant(access_info);
-      if (!constant.has_value()) return false;
-      SetAccumulator(GetConstant(constant.value()));
-      return true;
+      if (!constant.has_value()) return ReduceResult::Fail();
+      return GetConstant(constant.value());
     }
     case compiler::PropertyAccessInfo::kFastAccessorConstant:
     case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
@@ -2077,20 +2065,18 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
                                         lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
-      SetAccumulator(AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset));
-      return true;
+      return AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset);
     }
-    case compiler::PropertyAccessInfo::kStringLength:
+    case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
-      SetAccumulator(AddNewNode<StringLength>({receiver}));
-      RecordKnownProperty(lookup_start_object, name,
-                          current_interpreter_frame_.accumulator(),
-                          access_info);
-      return true;
+      ValueNode* result = AddNewNode<StringLength>({receiver});
+      RecordKnownProperty(lookup_start_object, name, result, access_info);
+      return result;
+    }
   }
 }
 
-bool MaglevGraphBuilder::TryBuildPropertyStore(
+ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     ValueNode* receiver, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info,
     compiler::AccessMode access_mode) {
@@ -2105,17 +2091,17 @@ bool MaglevGraphBuilder::TryBuildPropertyStore(
                                       GetAccumulatorTagged());
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-    if (TryBuildStoreField(access_info, receiver, access_mode)) {
+    if (TryBuildStoreField(access_info, receiver, access_mode).IsDone()) {
       RecordKnownProperty(receiver, name,
                           current_interpreter_frame_.accumulator(),
                           access_info);
-      return true;
+      return ReduceResult::Done();
     }
-    return false;
+    return ReduceResult::Fail();
   }
 }
 
-bool MaglevGraphBuilder::TryBuildPropertyAccess(
+ReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info,
     compiler::AccessMode access_mode) {
@@ -2130,11 +2116,11 @@ bool MaglevGraphBuilder::TryBuildPropertyAccess(
       return TryBuildPropertyStore(receiver, name, access_info, access_mode);
     case compiler::AccessMode::kHas:
       // TODO(victorgomes): BuildPropertyTest.
-      return false;
+      return ReduceResult::Fail();
   }
 }
 
-bool MaglevGraphBuilder::TryBuildNamedAccess(
+ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::NamedAccessFeedback const& feedback,
     compiler::FeedbackSource const& feedback_source,
@@ -2143,14 +2129,13 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   if (feedback.maps().empty()) {
     // We don't have a builtin to fast path megamorphic stores.
     // TODO(leszeks): Maybe we should?
-    if (access_mode != compiler::AccessMode::kLoad) return false;
+    if (access_mode != compiler::AccessMode::kLoad) return ReduceResult::Fail();
     // We can't do megamorphic loads for lookups where the lookup start isn't
     // the receiver (e.g. load from super).
-    if (receiver != lookup_start_object) return false;
+    if (receiver != lookup_start_object) return ReduceResult::Fail();
 
-    SetAccumulator(BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
-        {receiver, GetConstant(feedback.name())}, feedback_source));
-    return true;
+    return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
+        {receiver, GetConstant(feedback.name())}, feedback_source);
   }
 
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
@@ -2174,7 +2159,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
     compiler::AccessInfoFactory access_info_factory(broker(), zone());
     if (!access_info_factory.FinalizePropertyAccessInfos(
             access_infos_for_feedback, access_mode, &access_infos)) {
-      return false;
+      return ReduceResult::Fail();
     }
   }
 
@@ -2194,7 +2179,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       BuildCheckMaps(lookup_start_object, maps);
     }
 
-    // Generate the actual property access.
+    // Generate the actual property
     return TryBuildPropertyAccess(receiver, lookup_start_object,
                                   feedback.name(), access_info, access_mode);
   } else {
@@ -2202,7 +2187,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
 
     // Only support polymorphic load at the moment.
     if (access_mode != compiler::AccessMode::kLoad) {
-      return false;
+      return ReduceResult::Fail();
     }
 
     // Check if we support the polymorphic load.
@@ -2214,17 +2199,17 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
                 broker(), access_info.dictionary_index(),
                 broker()->dependencies());
         if (!constant.has_value()) {
-          return false;
+          return ReduceResult::Fail();
         }
       } else if (access_info.IsDictionaryProtoAccessorConstant() ||
                  access_info.IsFastAccessorConstant()) {
-        return false;
+        return ReduceResult::Fail();
       }
 
       // TODO(victorgomes): Support map migration.
       for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
         if (map.is_migration_target()) {
-          return false;
+          return ReduceResult::Fail();
         }
       }
     }
@@ -2288,14 +2273,12 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
     }
 
     if (field_repr.kind() == Representation::kDouble) {
-      SetAccumulator(AddNewNode<LoadPolymorphicDoubleField>(
-          {lookup_start_object}, std::move(poly_access_infos)));
-    } else {
-      SetAccumulator(AddNewNode<LoadPolymorphicTaggedField>(
-          {lookup_start_object}, field_repr, std::move(poly_access_infos)));
+      return AddNewNode<LoadPolymorphicDoubleField>(
+          {lookup_start_object}, std::move(poly_access_infos));
     }
 
-    return true;
+    return AddNewNode<LoadPolymorphicTaggedField>(
+        {lookup_start_object}, field_repr, std::move(poly_access_infos));
   }
 }
 
@@ -2593,14 +2576,18 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess:
+    case compiler::ProcessedFeedback::kNamedAccess: {
       if (TryReuseKnownPropertyLoad(object, name)) return;
-      if (TryBuildNamedAccess(object, object,
-                              processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kLoad)) {
+      ReduceResult result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kLoad);
+      if (result.IsDoneWithAbort()) return;
+      if (result.IsDoneWithValue()) {
+        SetAccumulator(result.value());
         return;
       }
       break;
+    }
     default:
       break;
   }
@@ -2635,15 +2622,18 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess:
+    case compiler::ProcessedFeedback::kNamedAccess: {
       if (TryReuseKnownPropertyLoad(lookup_start_object, name)) return;
-      if (TryBuildNamedAccess(receiver, lookup_start_object,
-                              processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kLoad)) {
+      ReduceResult result = TryBuildNamedAccess(
+          receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
+          feedback_source, compiler::AccessMode::kLoad);
+      if (result.IsDoneWithAbort()) return;
+      if (result.IsDoneWithValue()) {
+        SetAccumulator(result.value());
         return;
       }
       break;
-
+    }
     default:
       break;
   }
@@ -2711,9 +2701,12 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
       if (BuildCheckValue(key, name).IsDoneWithAbort()) return;
       if (TryReuseKnownPropertyLoad(object, name)) return;
-      if (TryBuildNamedAccess(object, object,
-                              processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kLoad)) {
+      ReduceResult result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kLoad);
+      if (result.IsDoneWithAbort()) return;
+      if (result.IsDoneWithValue()) {
+        SetAccumulator(result.value());
         return;
       }
       break;
@@ -2853,7 +2846,8 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kStore)) {
+                              feedback_source, compiler::AccessMode::kStore)
+              .IsDone()) {
         return;
       }
       break;
@@ -2888,7 +2882,8 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kDefine)) {
+                              feedback_source, compiler::AccessMode::kDefine)
+              .IsDone()) {
         return;
       }
       break;
