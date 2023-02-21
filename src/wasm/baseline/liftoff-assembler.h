@@ -475,19 +475,12 @@ class LiftoffAssembler : public MacroAssembler {
   V8_INLINE LiftoffRegister LoadToRegister(VarState slot,
                                            LiftoffRegList pinned) {
     if (V8_LIKELY(slot.is_reg())) return slot.reg();
-    // TODO(13742): Remove this hack.
-    std::aligned_storage_t<sizeof(LiftoffRegister), alignof(LiftoffRegister)>
-        reg_storage;
-    LiftoffRegister* out_reg = reinterpret_cast<LiftoffRegister*>(&reg_storage);
-    LoadToRegister(slot, pinned, out_reg);
-    return *out_reg;
+    return LoadToRegister_Slow(slot, pinned);
   }
 
   // Slow path called for the method above.
-  // TODO(13742): Use a return value instead of output parameter.
-  V8_NOINLINE V8_PRESERVE_MOST void LoadToRegister(VarState slot,
-                                                   LiftoffRegList pinned,
-                                                   LiftoffRegister* dst);
+  V8_NOINLINE V8_PRESERVE_MOST LiftoffRegister
+  LoadToRegister_Slow(VarState slot, LiftoffRegList pinned);
 
   // Load a non-register cache slot to a given (fixed) register.
   void LoadToFixedRegister(VarState slot, LiftoffRegister reg) {
@@ -651,12 +644,7 @@ class LiftoffAssembler : public MacroAssembler {
     if (V8_LIKELY(cache_state_.has_unused_register(candidates))) {
       return cache_state_.unused_register(candidates);
     }
-    // TODO(13742): Remove this hack.
-    std::aligned_storage_t<sizeof(LiftoffRegister), alignof(LiftoffRegister)>
-        reg_storage;
-    LiftoffRegister* out_reg = reinterpret_cast<LiftoffRegister*>(&reg_storage);
-    SpillOneRegister(candidates, out_reg);
-    return *out_reg;
+    return SpillOneRegister(candidates);
   }
 
   // Performs operations on locals and the top {arity} value stack entries
@@ -1689,9 +1677,8 @@ class LiftoffAssembler : public MacroAssembler {
   LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
   // Spill one of the candidate registers.
-  // TODO(13742): Use return value instead of output parameter.
-  V8_NOINLINE V8_PRESERVE_MOST void SpillOneRegister(
-      LiftoffRegList candidates, LiftoffRegister* spilled_reg);
+  V8_NOINLINE V8_PRESERVE_MOST LiftoffRegister
+  SpillOneRegister(LiftoffRegList candidates);
   // Spill one or two fp registers to get a pair of adjacent fp registers.
   LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 

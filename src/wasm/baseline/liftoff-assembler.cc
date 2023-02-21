@@ -691,11 +691,12 @@ LiftoffAssembler::~LiftoffAssembler() {
   }
 }
 
-void LiftoffAssembler::LoadToRegister(VarState slot, LiftoffRegList pinned,
-                                      LiftoffRegister* out_reg) {
+LiftoffRegister LiftoffAssembler::LoadToRegister_Slow(VarState slot,
+                                                      LiftoffRegList pinned) {
   DCHECK(!slot.is_reg());
-  *out_reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
-  LoadToFixedRegister(slot, *out_reg);
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
+  LoadToFixedRegister(slot, reg);
+  return reg;
 }
 
 LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
@@ -1401,17 +1402,17 @@ bool LiftoffAssembler::ValidateCacheState() const {
 }
 #endif
 
-void LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
-                                        LiftoffRegister* spilled_reg) {
+LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates) {
   // Before spilling a regular stack slot, try to drop a "volatile" register
   // (used for caching the memory start or the instance itself). Those can be
   // reloaded without requiring a spill here.
   if (cache_state_.has_volatile_register(candidates)) {
-    *spilled_reg = cache_state_.take_volatile_register(candidates);
-  } else {
-    *spilled_reg = cache_state_.GetNextSpillReg(candidates);
-    SpillRegister(*spilled_reg);
+    return cache_state_.take_volatile_register(candidates);
   }
+
+  LiftoffRegister spilled_reg = cache_state_.GetNextSpillReg(candidates);
+  SpillRegister(spilled_reg);
+  return spilled_reg;
 }
 
 LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(

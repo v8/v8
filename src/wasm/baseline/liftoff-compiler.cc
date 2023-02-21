@@ -3175,14 +3175,13 @@ class LiftoffCompiler {
   V8_INLINE Register GetMemoryStart(LiftoffRegList pinned) {
     Register memory_start = __ cache_state()->cached_mem_start;
     if (V8_UNLIKELY(memory_start == no_reg)) {
-      GetMemoryStart_Slow(pinned, &memory_start);
+      memory_start = GetMemoryStart_Slow(pinned);
     }
     return memory_start;
   }
 
-  // TODO(13742): Switch to a return parameter.
-  V8_NOINLINE V8_PRESERVE_MOST void GetMemoryStart_Slow(LiftoffRegList pinned,
-                                                        Register* reg_out) {
+  V8_NOINLINE V8_PRESERVE_MOST Register
+  GetMemoryStart_Slow(LiftoffRegList pinned) {
     DCHECK_EQ(no_reg, __ cache_state()->cached_mem_start);
     SCOPED_CODE_COMMENT("load memory start");
     Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
@@ -3191,7 +3190,7 @@ class LiftoffCompiler {
     __ DecodeSandboxedPointer(memory_start);
 #endif
     __ cache_state()->SetMemStartCacheRegister(memory_start);
-    *reg_out = memory_start;
+    return memory_start;
   }
 
   void LoadMem(FullDecoder* decoder, LoadType type,
@@ -8000,21 +7999,20 @@ class LiftoffCompiler {
                                               Register fallback) {
     Register instance = __ cache_state()->cached_instance;
     if (V8_UNLIKELY(instance == no_reg)) {
-      LoadInstanceIntoRegister_Slow(pinned, fallback, &instance);
+      instance = LoadInstanceIntoRegister_Slow(pinned, fallback);
     }
     return instance;
   }
 
-  // TODO(13742): Switch to a return parameter.
-  V8_NOINLINE V8_PRESERVE_MOST void LoadInstanceIntoRegister_Slow(
-      LiftoffRegList pinned, Register fallback, Register* reg_out) {
+  V8_NOINLINE V8_PRESERVE_MOST Register
+  LoadInstanceIntoRegister_Slow(LiftoffRegList pinned, Register fallback) {
     DCHECK_EQ(no_reg, __ cache_state()->cached_instance);
     SCOPED_CODE_COMMENT("load instance");
     Register instance = __ cache_state()->TrySetCachedInstanceRegister(
         pinned | LiftoffRegList{fallback});
     if (instance == no_reg) instance = fallback;
     __ LoadInstanceFromFrame(instance);
-    *reg_out = instance;
+    return instance;
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
