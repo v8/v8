@@ -4774,7 +4774,7 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   ExpectLength(2, kExprGlobalSet);
   ExpectLength(2, kExprCallFunction);
   ExpectLength(3, kExprCallIndirect);
-  ExpectLength(3, kExprSelectWithType, 1);
+  ExpectLength(3, kExprSelectWithType, 1, kI32Code);
 }
 
 TEST_F(WasmOpcodeLengthTest, I32Const) {

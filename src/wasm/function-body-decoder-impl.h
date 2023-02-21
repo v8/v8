@@ -383,16 +383,12 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kVoidCode:
     case kI8Code:
     case kI16Code:
-      if (ValidationTag::validate) {
-        DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%x",
-                                   code);
-      }
-      return kWasmBottom;
+      // Fall through to the error reporting below.
+      break;
   }
   // Anything that doesn't match an enumeration value is an invalid type code.
-  if (ValidationTag::validate) {
-    DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%x", code);
-  }
+  if constexpr (!ValidationTag::validate) UNREACHABLE();
+  DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%x", code);
   return kWasmBottom;
 }
 
