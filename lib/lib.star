@@ -173,7 +173,7 @@ defaults_ci = {
 }
 
 defaults_ci_hp = {
-    "dimensions": {"os": "Linux", "pool": "luci.v8-internal.highly-privileged"},
+    "dimensions": {"os": "Linux", "pool": "luci.v8.highly-privileged"},
     "resultdb_bq_table_prefix": "ci_hp",
 }
 
