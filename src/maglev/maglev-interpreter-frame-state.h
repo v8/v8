@@ -243,9 +243,13 @@ struct KnownNodeAspects {
 
 class InterpreterFrameState {
  public:
+  InterpreterFrameState(const MaglevCompilationUnit& info,
+                        KnownNodeAspects* known_node_aspects)
+      : frame_(info), known_node_aspects_(known_node_aspects) {}
+
   explicit InterpreterFrameState(const MaglevCompilationUnit& info)
-      : frame_(info),
-        known_node_aspects_(info.zone()->New<KnownNodeAspects>(info.zone())) {}
+      : InterpreterFrameState(
+            info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
 
   inline void CopyFrom(const MaglevCompilationUnit& info,
                        const MergePointInterpreterFrameState& state);
@@ -280,9 +284,14 @@ class InterpreterFrameState {
 
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
 
-  KnownNodeAspects& known_node_aspects() { return *known_node_aspects_; }
-  const KnownNodeAspects& known_node_aspects() const {
-    return *known_node_aspects_;
+  KnownNodeAspects* known_node_aspects() { return known_node_aspects_; }
+  const KnownNodeAspects* known_node_aspects() const {
+    return known_node_aspects_;
+  }
+
+  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
+    DCHECK_NOT_NULL(known_node_aspects);
+    known_node_aspects_ = known_node_aspects;
   }
 
  private:

@@ -1130,10 +1130,19 @@ class MaglevGraphBuilder {
     current_for_in_state.receiver_needs_map_check = true;
   }
 
-  void MarkPossibleSideEffect() {
+  void MarkParentPossibleSideEffect() {
+    if (parent_) {
+      parent_->MarkParentPossibleSideEffect();
+    }
+
     // If there was a potential side effect, invalidate the previous checkpoint.
     latest_checkpointed_frame_.reset();
 
+    // Any side effect could also be a map migration.
+    MarkPossibleMapMigration();
+  }
+
+  void MarkPossibleSideEffect() {
     // A side effect could change existing objects' maps. For stable maps we
     // know this hasn't happened (because we added a dependency on the maps
     // staying stable and therefore not possible to transition away from), but
@@ -1156,8 +1165,7 @@ class MaglevGraphBuilder {
     known_node_aspects().loaded_properties.clear();
     known_node_aspects().loaded_context_slots.clear();
 
-    // Any side effect could also be a map migration.
-    MarkPossibleMapMigration();
+    MarkParentPossibleSideEffect();
   }
 
   int next_offset() const {
@@ -1582,7 +1590,7 @@ class MaglevGraphBuilder {
   int parameter_count_without_receiver() { return parameter_count() - 1; }
   int register_count() const { return compilation_unit_->register_count(); }
   KnownNodeAspects& known_node_aspects() {
-    return current_interpreter_frame_.known_node_aspects();
+    return *current_interpreter_frame_.known_node_aspects();
   }
 
   // True when this graph builder is building the subgraph of an inlined

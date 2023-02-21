@@ -254,7 +254,11 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       // exit when needed.
       merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
           bytecode().length() + 1)),
-      current_interpreter_frame_(*compilation_unit_),
+      current_interpreter_frame_(
+          *compilation_unit_,
+          is_inline() ? parent->current_interpreter_frame_.known_node_aspects()
+                      : compilation_unit_->zone()->New<KnownNodeAspects>(
+                            compilation_unit_->zone())),
       catch_block_stack_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
@@ -3293,15 +3297,9 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   }
   DCHECK(result.IsDoneWithValue());
 
-  // Reset checkpoint after an inlined call, otherwise we might deopt before the
-  // call and visible side effects from the inlined function could happen twice.
-  // TODO(victorgomes): Re-use checkpoint sometimes, since this can only happen
-  // if the inlined function has a side effect.
-  // Clear unstable maps and constant properties cache, since the inlined function
-  // could have invalidate those.
-  // TODO(victorgomes): Share known_node_aspects with the inlined function, then
-  // we wouldn't need to clear the cache.
-  MarkPossibleSideEffect();
+  // Propagate KnownNodeAspects back to the caller.
+  current_interpreter_frame_.set_known_node_aspects(
+      inner_graph_builder.current_interpreter_frame_.known_node_aspects());
 
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will

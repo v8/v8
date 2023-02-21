@@ -64,12 +64,12 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
             new (&merge_state->per_predecessor_alternatives_[i])
                 Alternatives::List();
         per_predecessor_alternatives->Add(info.zone()->New<Alternatives>(
-            state.known_node_aspects().TryGetInfoFor(entry)));
+            state.known_node_aspects()->TryGetInfoFor(entry)));
         i++;
       });
   merge_state->predecessors_[0] = predecessor;
   merge_state->known_node_aspects_ =
-      state.known_node_aspects().Clone(info.zone());
+      state.known_node_aspects()->Clone(info.zone());
   return merge_state;
 }
 
@@ -193,7 +193,7 @@ void MergePointInterpreterFrameState::Merge(
                                   unmerged.get(reg));
     }
     value = MergeValue(compilation_unit, smi_constants, reg,
-                       unmerged.known_node_aspects(), value, unmerged.get(reg),
+                       *unmerged.known_node_aspects(), value, unmerged.get(reg),
                        per_predecessor_alternatives_[i]);
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << " => "
@@ -207,10 +207,10 @@ void MergePointInterpreterFrameState::Merge(
   if (known_node_aspects_ == nullptr) {
     DCHECK(is_unmerged_loop());
     DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ = unmerged.known_node_aspects().CloneForLoopHeader(
+    known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
         compilation_unit.zone());
   } else {
-    known_node_aspects_->Merge(unmerged.known_node_aspects(),
+    known_node_aspects_->Merge(*unmerged.known_node_aspects(),
                                compilation_unit.zone());
   }
 
@@ -240,7 +240,7 @@ void MergePointInterpreterFrameState::MergeLoop(
                                   loop_end_state.get(reg));
     }
     MergeLoopValue(compilation_unit, smi_constants, reg,
-                   loop_end_state.known_node_aspects(), value,
+                   *loop_end_state.known_node_aspects(), value,
                    loop_end_state.get(reg));
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << " => "
