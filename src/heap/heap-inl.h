@@ -136,16 +136,16 @@ FixedArray Heap::single_character_string_table() {
 #if V8_STATIC_ROOTS_BOOL
 // Check all read only roots are allocated where we expect it. Skip `Exception`
 // which changes during setup-heap-internal.
-#define CHECK_STATIC_ROOT(obj, name)                                         \
-  if (RootsTable::IsReadOnly(RootIndex::k##name) &&                          \
-      RootIndex::k##name != RootIndex::kException) {                         \
+#define DCHECK_STATIC_ROOT(obj, name)                                        \
+  if constexpr (RootsTable::IsReadOnly(RootIndex::k##name) &&                \
+                RootIndex::k##name != RootIndex::kException) {               \
     DCHECK_WITH_MSG(V8HeapCompressionScheme::CompressTagged(obj.ptr()) ==    \
                         StaticReadOnlyRootsPointerTable[static_cast<size_t>( \
                             RootIndex::k##name)],                            \
                     STATIC_ROOTS_FAILED_MSG);                                \
   }
 #else
-#define CHECK_STATIC_ROOT(obj, name)
+#define DCHECK_STATIC_ROOT(obj, name)
 #endif
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
@@ -156,7 +156,7 @@ FixedArray Heap::single_character_string_table() {
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
     DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
                    IsImmovable(HeapObject::cast(value)));                      \
-    CHECK_STATIC_ROOT(value, CamelName);                                       \
+    DCHECK_STATIC_ROOT(value, CamelName);                                      \
     roots_table()[RootIndex::k##CamelName] = value.ptr();                      \
   }
 ROOT_LIST(ROOT_ACCESSOR)
