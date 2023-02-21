@@ -5302,8 +5302,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                              null_succeeds);
             }
             c->br_merge()->reached = true;
+          } else {
+            // Otherwise the types are unrelated. Do not branch.
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);  // rtt
+            }
           }
-          // Otherwise the types are unrelated. Do not branch.
         }
 
         Drop(1);    // value_on_branch
@@ -5386,8 +5390,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
                            branch_depth.depth, null_succeeds);
             c->br_merge()->reached = true;
+          } else {
+            // Otherwise the types are unrelated. Do not branch.
+            CALL_INTERFACE(Drop);  // rtt
           }
-          // Otherwise the types are unrelated. Do not branch.
         }
 
         Drop(1);    // value_on_branch
