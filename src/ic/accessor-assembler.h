@@ -273,6 +273,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                              Label* miss,
                                              StoreTransitionMapFlags flags);
 
+  // Updates flags on |dict| if |name| is an interesting symbol.
+  void UpdateMayHaveInterestingSymbol(TNode<PropertyDictionary> dict,
+                                      TNode<Name> name);
+
   void JumpIfDataProperty(TNode<Uint32T> details, Label* writable,
                           Label* readonly);
 
