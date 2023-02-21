@@ -1215,10 +1215,10 @@ class LiftoffCompiler {
                   decoder->pc())
             : opcode));
 
-    if (!has_outstanding_op() && !decoder->control_at(0)->reachable()) {
+    if (!has_outstanding_op() && decoder->control_at(0)->reachable()) {
       // Decoder stack and liftoff stack have to be in sync if current code
       // path is reachable.
-      DCHECK_EQ(decoder->stack_size() + __ num_locals(),
+      DCHECK_EQ(decoder->stack_size() + __ num_locals() + num_exceptions_,
                 __ cache_state()->stack_state.size());
     }
   }
@@ -6161,7 +6161,8 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
         DCHECK(null_succeeds);
-        return BrOnNull(decoder, obj, depth, true, nullptr);
+        return BrOnNull(decoder, obj, depth, /*pass_null_along_branch*/ true,
+                        nullptr);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6190,7 +6191,8 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
         DCHECK(null_succeeds);
-        return BrOnNonNull(decoder, obj, nullptr, depth, true);
+        return BrOnNonNull(decoder, obj, nullptr, depth,
+                           /*drop_null_on_fallthrough*/ false);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
