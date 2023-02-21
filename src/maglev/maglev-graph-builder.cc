@@ -3280,9 +3280,6 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   end_ref.SetToBlockAndReturnNext(current_block_)
       ->SetToBlockAndReturnNext(current_block_);
 
-#ifdef DEBUG
-  new_nodes_.insert(result.value());
-#endif
   return result;
 }
 
