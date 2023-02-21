@@ -5744,7 +5744,6 @@ v8_component("v8_libbase") {
         sources += [
           "src/base/debug/stack_trace_posix.cc",
           "src/base/platform/platform-darwin.cc",
-          "src/base/platform/platform-macos.cc",
         ]
       } else {
         sources += [
@@ -5772,7 +5771,6 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-darwin.cc",
-      "src/base/platform/platform-macos.cc",
     ]
   } else if (is_ios) {
     sources += [

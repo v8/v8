@@ -550,9 +550,9 @@ DEFINE_STRING(
     "Select which native code sequence to use for wasm trace instruction: "
     "default or cpuid")
 
-// iOS does not support executable code pages for 3rd party applications so
-// we need to forcibly disable the JIT.
-#if defined(V8_TARGET_OS_IOS)
+// iOS on device does not support executable code pages for 3rd party
+// applications so we need to forcibly disable the JIT.
+#if defined(V8_TARGET_OS_IOS) && !TARGET_OS_SIMULATOR
 #define V8_JITLESS_BOOL true
 #define DEFINE_JITLESS_BOOL DEFINE_BOOL_READONLY
 #else
