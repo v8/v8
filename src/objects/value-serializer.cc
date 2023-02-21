@@ -2476,37 +2476,38 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         // Deserializaton of |value| might have deprecated current |target|,
         // ensure we are working with the up-to-date version.
         target = Map::Update(isolate_, target);
-
-        InternalIndex descriptor(properties.size());
-        PropertyDetails details =
-            target->instance_descriptors(isolate_).GetDetails(descriptor);
-        Representation expected_representation = details.representation();
-        if (value->FitsRepresentation(expected_representation)) {
-          if (expected_representation.IsHeapObject() &&
-              !target->instance_descriptors(isolate_)
-                   .GetFieldType(descriptor)
-                   .NowContains(value)) {
-            Handle<FieldType> value_type =
-                value->OptimalType(isolate_, expected_representation);
-            MapUpdater::GeneralizeField(isolate_, target, descriptor,
-                                        details.constness(),
-                                        expected_representation, value_type);
-          }
-          DCHECK(target->instance_descriptors(isolate_)
+        if (!target->is_dictionary_map()) {
+          InternalIndex descriptor(properties.size());
+          PropertyDetails details =
+              target->instance_descriptors(isolate_).GetDetails(descriptor);
+          Representation expected_representation = details.representation();
+          if (value->FitsRepresentation(expected_representation)) {
+            if (expected_representation.IsHeapObject() &&
+                !target->instance_descriptors(isolate_)
                      .GetFieldType(descriptor)
-                     .NowContains(value));
-          properties.push_back(value);
-          map = target;
-          continue;
-        } else {
-          transitioning = false;
+                     .NowContains(value)) {
+              Handle<FieldType> value_type =
+                  value->OptimalType(isolate_, expected_representation);
+              MapUpdater::GeneralizeField(isolate_, target, descriptor,
+                                          details.constness(),
+                                          expected_representation, value_type);
+            }
+            DCHECK(target->instance_descriptors(isolate_)
+                       .GetFieldType(descriptor)
+                       .NowContains(value));
+            properties.push_back(value);
+            map = target;
+            continue;
+          }
         }
+        transitioning = false;
       }
 
       // Fell out of transitioning fast path. Commit the properties gathered so
       // far, and then start setting properties slowly instead.
       DCHECK(!transitioning);
       CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
+      CHECK(!map->is_dictionary_map());
       CommitProperties(object, map, properties);
       num_properties = static_cast<uint32_t>(properties.size());
 
