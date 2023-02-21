@@ -1599,6 +1599,9 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   inline bool IsSwitchTarget() const { return switch_target_; }
   inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
   inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
+  inline bool IsLoopHeaderInAssemblyOrder() const {
+    return loop_header_alignment_;
+  }
 
   using Predecessors = ZoneVector<RpoNumber>;
   Predecessors& predecessors() { return predecessors_; }
