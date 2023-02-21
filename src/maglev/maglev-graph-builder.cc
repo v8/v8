@@ -1367,8 +1367,16 @@ void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
   ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
-  SetAccumulator(BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
-      {name, depth, slot}));
+  ValueNode* result;
+  if (parent_) {
+    ValueNode* vector = GetConstant(feedback());
+    result =
+        BuildCallBuiltin<Builtin::kLookupGlobalIC>({name, depth, slot, vector});
+  } else {
+    result = BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
+        {name, depth, slot});
+  }
+  SetAccumulator(result);
 }
 
 void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
@@ -1393,9 +1401,16 @@ void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
   ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
-  SetAccumulator(
-      BuildCallBuiltin<Builtin::kLookupGlobalICInsideTypeofTrampoline>(
-          {name, depth, slot}));
+  ValueNode* result;
+  if (parent_) {
+    ValueNode* vector = GetConstant(feedback());
+    result = BuildCallBuiltin<Builtin::kLookupGlobalICInsideTypeof>(
+        {name, depth, slot, vector});
+  } else {
+    result = BuildCallBuiltin<Builtin::kLookupGlobalICInsideTypeofTrampoline>(
+        {name, depth, slot});
+  }
+  SetAccumulator(result);
 }
 
 namespace {

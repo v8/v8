@@ -4471,6 +4471,16 @@ void AccessorAssembler::LookupGlobalIC(
   TailCallRuntime(function_id, context, lazy_name());
 }
 
+void AccessorAssembler::GenerateLookupGlobalIC(TypeofMode typeof_mode) {
+  using Descriptor = LookupWithVectorDescriptor;
+  LookupGlobalIC([&] { return Parameter<Object>(Descriptor::kName); },
+                 Parameter<TaggedIndex>(Descriptor::kDepth),
+                 [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
+                 Parameter<Context>(Descriptor::kContext),
+                 [&] { return Parameter<FeedbackVector>(Descriptor::kVector); },
+                 typeof_mode);
+}
+
 void AccessorAssembler::GenerateLookupGlobalICTrampoline(
     TypeofMode typeof_mode) {
   using Descriptor = LookupTrampolineDescriptor;
