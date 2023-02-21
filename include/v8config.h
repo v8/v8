@@ -354,10 +354,14 @@ path. Add it with -I<path> to the command line
 // - component builds fail because _dl_runtime_resolve clobbers registers,
 // - we see crashes on arm64 on Windows (https://crbug.com/1409934), which can
 //   hopefully be fixed in the future.
+// Additionally, the initial implementation in clang <= 16 overwrote the return
+// register(s) in the epilogue of a preserve_most function, so we only use
+// preserve_most in clang >= 17 (see https://reviews.llvm.org/D143425).
 #if (defined(_M_X64) || defined(__x86_64__)            /* x64 (everywhere) */  \
      || ((defined(__AARCH64EL__) || defined(_M_ARM64)) /* arm64, but ... */    \
          && !defined(_WIN32)))                         /* not on windows */    \
-     && !defined(COMPONENT_BUILD)                      /* no component build */
+     && !defined(COMPONENT_BUILD)                      /* no component build */\
+     && __clang_major__ >= 17                          /* clang >= 17 */
 # define V8_HAS_ATTRIBUTE_PRESERVE_MOST (__has_attribute(preserve_most))
 #endif
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
