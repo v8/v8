@@ -638,13 +638,6 @@
   F(MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES)              \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
   F(MINOR_MC_COMPLETE_SWEEPING)                      \
-  F(MINOR_MC_EVACUATE_COPY)                          \
-  F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
-  F(MINOR_MC_EVACUATE_EPILOGUE)                      \
-  F(MINOR_MC_EVACUATE_PROLOGUE)                      \
-  F(MINOR_MC_EVACUATE_REBALANCE)                     \
-  F(MINOR_MC_EVACUATE_UPDATE_STRING_TABLE)           \
-  F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
   F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \
   F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
@@ -655,6 +648,9 @@
   F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
+  F(MINOR_MC_SWEEP_UPDATE_STRING_TABLE)              \
+  F(MINOR_MC_SWEEP_START_JOBS)                       \
+  F(MINOR_MC_FINISH_ENSURE_CAPACITY)                 \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
@@ -673,7 +669,9 @@
   F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
   F(UNMAPPER)                                        \
-  F(UNPARK)
+  F(UNPARK)                                          \
+  F(YOUNG_ARRAY_BUFFER_SWEEP)                        \
+  F(FULL_ARRAY_BUFFER_SWEEP)
 
 #define TRACER_BACKGROUND_SCOPES(F)         \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
@@ -692,6 +690,7 @@
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
 #define TRACER_YOUNG_EPOCH_SCOPES(F)        \
+  F(YOUNG_ARRAY_BUFFER_SWEEP)               \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
   F(MINOR_MARK_COMPACTOR)                   \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \

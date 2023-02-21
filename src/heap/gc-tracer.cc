@@ -865,19 +865,17 @@ void GCTracer::PrintNVP() const {
           "clear.global_handles=%.2f "
           "complete.sweep_array_buffers=%.2f "
           "complete.sweeping=%.2f "
-          "evacuate=%.2f "
-          "evacuate.copy=%.2f "
-          "evacuate.prologue=%.2f "
-          "evacuate.epilogue=%.2f "
-          "evacuate.rebalance=%.2f "
-          "evacuate.update_string_table=%.2f "
           "sweep=%.2f "
           "sweep.new=%.2f "
           "sweep.new_lo=%.2f "
+          "sweep.update_string_table=%.2f "
+          "sweep.start_jobs=%.2f "
+          "sweep.array_buffers=%.2f "
           "finish=%.2f "
-          "finish.sweep_array_buffers=%.2f "
+          "finish.ensure_capacity=%.2f "
           "background.mark=%.2f "
           "background.sweep=%.2f "
+          "background.sweep.array_buffers=%.2f "
           "background.evacuate.copy=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
@@ -910,19 +908,17 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MINOR_MC_COMPLETE_SWEEPING),
-          current_scope(Scope::MINOR_MC_EVACUATE),
-          current_scope(Scope::MINOR_MC_EVACUATE_COPY),
-          current_scope(Scope::MINOR_MC_EVACUATE_PROLOGUE),
-          current_scope(Scope::MINOR_MC_EVACUATE_EPILOGUE),
-          current_scope(Scope::MINOR_MC_EVACUATE_REBALANCE),
-          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_STRING_TABLE),
           current_scope(Scope::MINOR_MC_SWEEP),
           current_scope(Scope::MINOR_MC_SWEEP_NEW),
           current_scope(Scope::MINOR_MC_SWEEP_NEW_LO),
+          current_scope(Scope::MINOR_MC_SWEEP_UPDATE_STRING_TABLE),
+          current_scope(Scope::MINOR_MC_SWEEP_START_JOBS),
+          current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::MINOR_MC_FINISH),
-          current_scope(Scope::MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::MINOR_MC_FINISH_ENSURE_CAPACITY),
           current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MC_BACKGROUND_SWEEPING),
+          current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),
           current_scope(Scope::BACKGROUND_UNMAPPER),
           current_scope(Scope::UNMAPPER), current_.start_object_size,

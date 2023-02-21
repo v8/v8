@@ -303,8 +303,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual void Prologue() {}
 
-  virtual void EvacuatePrologue() = 0;
-  virtual void EvacuateEpilogue() = 0;
+  virtual void GarbageCollectionEpilogue() = 0;
 
   virtual void ZapUnusedMemory() {}
 
@@ -506,8 +505,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void Prologue() final;
 
-  void EvacuatePrologue() final;
-  void EvacuateEpilogue() final;
+  void EvacuatePrologue();
+
+  void GarbageCollectionEpilogue() final;
 
   void ZapUnusedMemory() final;
 
@@ -585,8 +585,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
   // Reset the allocation pointer.
-  void EvacuatePrologue() {}
-  void EvacuateEpilogue() { allocated_linear_areas_ = 0; }
+  void GarbageCollectionEpilogue() { allocated_linear_areas_ = 0; }
 
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
@@ -781,8 +780,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   bool ShouldBePromoted(Address address) const final { return true; }
 
-  void EvacuatePrologue() final { paged_space_.EvacuatePrologue(); }
-  void EvacuateEpilogue() final { paged_space_.EvacuateEpilogue(); }
+  void GarbageCollectionEpilogue() final {
+    paged_space_.GarbageCollectionEpilogue();
+  }
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final {
     return true;

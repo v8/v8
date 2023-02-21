@@ -296,8 +296,6 @@ class CollectorBase {
   }
 
   void StartSweepSpace(PagedSpace* space);
-  void StartSweepNewSpace();
-  void SweepLargeSpace(LargeObjectSpace* space);
 
   bool IsCppHeapMarkingFinished() const;
 
@@ -613,6 +611,9 @@ class MarkCompactCollector final : public CollectorBase {
 
   V8_INLINE bool ShouldMarkObject(HeapObject) const;
 
+  void StartSweepNewSpace();
+  void SweepLargeSpace(LargeObjectSpace* space);
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_{0};
 
@@ -673,7 +674,7 @@ class MarkCompactCollector final : public CollectorBase {
   // the start of each GC.
   base::EnumSet<CodeFlushMode> code_flush_mode_;
 
-  friend class FullEvacuator;
+  friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
 };
 
@@ -699,7 +700,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void StartMarking() final;
 
   void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
-  void CleanupPromotedPages();
 
   void Finish() final;
 
@@ -726,21 +726,14 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void Sweep();
 
-  void EvacuatePrologue();
-  void EvacuateEpilogue();
-  void Evacuate();
-  void EvacuatePagesInParallel();
-  void UpdatePointersAfterEvacuation();
   void FinishConcurrentMarking();
 
-  void SweepArrayBufferExtensions();
+  // 'StartSweepNewSpace' and 'SweepNewLargeSpace' return true if any pages were
+  // promoted.
+  bool StartSweepNewSpace();
+  bool SweepNewLargeSpace();
 
   std::unique_ptr<YoungGenerationMainMarkingVisitor> main_marking_visitor_;
-
-  base::Semaphore page_parallel_job_semaphore_;
-  std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<Page*> promoted_pages_;
-  std::vector<LargePage*> promoted_large_pages_;
 
   Sweeper* const sweeper_;
 

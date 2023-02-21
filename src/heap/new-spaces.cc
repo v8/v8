@@ -469,7 +469,7 @@ void NewSpace::PromotePageToOldSpace(Page* page) {
   RemovePage(page);
   Page* new_page = Page::ConvertNewToOld(page);
   DCHECK(!new_page->InYoungGeneration());
-  new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+  USE(new_page);
 }
 
 // -----------------------------------------------------------------------------
@@ -844,7 +844,7 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
   DCHECK_EQ(0u, Size());
 }
 
-void SemiSpaceNewSpace::EvacuateEpilogue() { set_age_mark(top()); }
+void SemiSpaceNewSpace::GarbageCollectionEpilogue() { set_age_mark(top()); }
 
 void SemiSpaceNewSpace::ZapUnusedMemory() {
   if (!IsFromSpaceCommitted()) return;

@@ -172,6 +172,10 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
     job_->id_ = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
+    GCTracer::Scope::ScopeId scope_id =
+        type == SweepingType::kYoung ? GCTracer::Scope::YOUNG_ARRAY_BUFFER_SWEEP
+                                     : GCTracer::Scope::FULL_ARRAY_BUFFER_SWEEP;
+    TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kMain);
     DoSweep();
     Finalize();
   }
