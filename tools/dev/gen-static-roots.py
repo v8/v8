@@ -62,6 +62,7 @@ v8_enable_shared_ro_heap = true
 v8_enable_pointer_compression_shared_cage = true
 v8_enable_webassembly = true
 v8_enable_i18n_support = true
+dcheck_always_on = true
 """
     },
 }

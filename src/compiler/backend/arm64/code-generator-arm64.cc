@@ -229,7 +229,20 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(Operand::EmbeddedNumber(constant.ToFloat64().value()));
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
-      case Constant::kCompressedHeapObject:  // Fall through.
+      case Constant::kCompressedHeapObject: {
+        RootIndex root_index;
+        if (gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
+                                                        &root_index)) {
+          CHECK(COMPRESS_POINTERS_BOOL);
+          CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
+          Tagged_t ptr =
+              MacroAssemblerBase::ReadOnlyRootPtr(root_index, gen_->isolate());
+          CHECK(Assembler::IsImmAddSub(ptr));
+          return Immediate(ptr);
+        }
+
+        return Operand(constant.ToHeapObject());
+      }
       case Constant::kHeapObject:
         return Operand(constant.ToHeapObject());
       case Constant::kRpoNumber:

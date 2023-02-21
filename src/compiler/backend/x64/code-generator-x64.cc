@@ -58,13 +58,11 @@ class X64OperandConverter : public InstructionOperandConverter {
     if (constant.type() == Constant::kCompressedHeapObject) {
       CHECK(COMPRESS_POINTERS_BOOL);
       CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
-#if DEBUG
       RootIndex root_index;
       CHECK(gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
                                                         &root_index));
-#endif
-      return Immediate(V8HeapCompressionScheme::CompressTagged(
-          constant.ToHeapObject()->ptr()));
+      return Immediate(
+          MacroAssemblerBase::ReadOnlyRootPtr(root_index, gen_->isolate()));
     }
     if (constant.type() == Constant::kFloat64) {
       DCHECK_EQ(0, constant.ToFloat64().AsUint64());

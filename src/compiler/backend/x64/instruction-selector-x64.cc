@@ -2541,7 +2541,7 @@ void VisitWord64EqualImpl(InstructionSelector* selector, Node* node,
 
 void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
                           FlagsContinuation* cont) {
-  if (COMPRESS_POINTERS_BOOL && selector->CanUseRootsRegister()) {
+  if (COMPRESS_POINTERS_BOOL) {
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
@@ -2567,19 +2567,20 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
       DCHECK_NE(left, nullptr);
       if (RootsTable::IsReadOnly(root_index) &&
           (V8_STATIC_ROOTS_BOOL || !selector->isolate()->bootstrapper())) {
-        return VisitCompare(
-            selector, kX64Cmp32, g.UseRegister(left),
-            g.TempImmediate(V8HeapCompressionScheme::CompressTagged(
-                selector->isolate()->root(root_index).ptr())),
-            cont);
+        return VisitCompare(selector, kX64Cmp32, g.UseRegister(left),
+                            g.TempImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                root_index, selector->isolate())),
+                            cont);
       }
-      InstructionCode opcode =
-          kX64Cmp32 | AddressingModeField::encode(kMode_Root);
-      return VisitCompare(
-          selector, opcode,
-          g.TempImmediate(
-              MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
-          g.UseRegister(left), cont);
+      if (selector->CanUseRootsRegister()) {
+        InstructionCode opcode =
+            kX64Cmp32 | AddressingModeField::encode(kMode_Root);
+        return VisitCompare(
+            selector, opcode,
+            g.TempImmediate(
+                MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+            g.UseRegister(left), cont);
+      }
     }
   }
   VisitWordCompare(selector, node, kX64Cmp32, cont);

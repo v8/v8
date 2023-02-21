@@ -126,11 +126,17 @@ bool MacroAssemblerBase::IsAddressableThroughRootRegister(
   return isolate->root_register_addressable_region().contains(address);
 }
 
-Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
+// static
+Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index,
+                                             Isolate* isolate) {
   DCHECK(CanBeImmediate(index));
-  Object obj = isolate_->root(index);
+  Object obj = isolate->root(index);
   CHECK(obj.IsHeapObject());
   return V8HeapCompressionScheme::CompressTagged(obj.ptr());
+}
+
+Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
+  return ReadOnlyRootPtr(index, isolate_);
 }
 
 }  // namespace internal
