@@ -235,6 +235,11 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   const char* file_prefix = v8_flags.trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
+    if (strcmp(debug_name.get(), "WasmJSFastApiCall") == 0) {
+      // Don't clobber one wrapper's output with another's.
+      static int fast_call_wrappers_count = 0;
+      optimization_id = ++fast_call_wrappers_count;
+    }
     SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
              optimization_id);
   } else if (info->has_shared_info()) {
