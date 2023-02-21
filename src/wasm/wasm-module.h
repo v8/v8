@@ -129,17 +129,26 @@ struct WasmElemSegment {
 
   // Construct an active segment.
   WasmElemSegment(ValueType type, uint32_t table_index,
-                  ConstantExpression offset, ElementType element_type)
+                  ConstantExpression offset, ElementType element_type,
+                  uint32_t element_count, uint32_t elements_wire_bytes_offset)
       : status(kStatusActive),
         type(type),
         table_index(table_index),
         offset(std::move(offset)),
-        element_type(element_type) {}
+        element_type(element_type),
+        element_count(element_count),
+        elements_wire_bytes_offset(elements_wire_bytes_offset) {}
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
-  WasmElemSegment(ValueType type, Status status, ElementType element_type)
-      : status(status), type(type), table_index(0), element_type(element_type) {
+  WasmElemSegment(ValueType type, Status status, ElementType element_type,
+                  uint32_t element_count, uint32_t elements_wire_bytes_offset)
+      : status(status),
+        type(type),
+        table_index(0),
+        element_type(element_type),
+        element_count(element_count),
+        elements_wire_bytes_offset(elements_wire_bytes_offset) {
     DCHECK_NE(status, kStatusActive);
   }
 
@@ -148,7 +157,9 @@ struct WasmElemSegment {
       : status(kStatusActive),
         type(kWasmBottom),
         table_index(0),
-        element_type(kFunctionIndexElements) {}
+        element_type(kFunctionIndexElements),
+        element_count(0),
+        elements_wire_bytes_offset(0) {}
 
   WasmElemSegment(const WasmElemSegment&) = delete;
   WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
@@ -160,7 +171,8 @@ struct WasmElemSegment {
   uint32_t table_index;
   ConstantExpression offset;
   ElementType element_type;
-  std::vector<ConstantExpression> entries;
+  uint32_t element_count;
+  uint32_t elements_wire_bytes_offset;
 };
 
 // Static representation of a wasm import.

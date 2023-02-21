@@ -36,8 +36,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([
         kExprI32Const, 0,  // offset
         kExprLocalGet, 0,  // length
-        kGCPrefix, kExprArrayNewElem, array_type_index,
-        segment,
+        kGCPrefix, kExprArrayNewElem, array_type_index, segment,
         kExprLocalGet, 1,  // index in the array
         kGCPrefix, kExprArrayGet, array_type_index,
         kGCPrefix, kExprStructGet, struct_type_index, 0])

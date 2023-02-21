@@ -310,7 +310,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     if (!base::IsInBounds<size_t>(
             offset, length,
             elem_segment->status == WasmElemSegment::kStatusPassive
-                ? elem_segment->entries.size()
+                ? elem_segment->element_count
                 : 0)) {
       error_ = MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
       return;
@@ -354,7 +354,8 @@ void ConstantExpressionInterface::I31New(FullDecoder* decoder,
 void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,
                                            uint32_t /*drop_values*/) {
   end_found_ = true;
-  // End decoding on "end".
+  // End decoding on "end". Note: We need this because we do not know the length
+  // of a constant expression while decoding it.
   decoder->set_end(decoder->pc() + 1);
   if (generate_value()) {
     computed_value_ = decoder->stack_value(1)->runtime_value;

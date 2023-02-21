@@ -75,7 +75,9 @@
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
 #endif
@@ -1831,8 +1833,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
 Handle<Object> Factory::NewWasmArrayFromElementSegment(
     Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
     uint32_t start_offset, uint32_t length, Handle<Map> map) {
-  wasm::ValueType element_type = WasmArray::type(*map)->element_type();
-  DCHECK(element_type.is_reference());
+  DCHECK(WasmArray::type(*map)->element_type().is_reference());
   HeapObject raw =
       AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
   {
@@ -1852,10 +1853,18 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+
+  wasm::Decoder decoder(
+      instance->module_object().native_module()->wire_bytes());
+  decoder.consume_bytes(segment->elements_wire_bytes_offset);
+  // Skip entries until {start_offset}.
+  for (uint32_t i = 0; i < start_offset; i++) {
+    wasm::ConsumeElementSegmentEntry(&zone, isolate(), instance, *segment,
+                                     decoder);
+  }
   for (uint32_t i = 0; i < length; i++) {
-    wasm::ValueOrError maybe_element = wasm::EvaluateConstantExpression(
-        &zone, segment->entries[start_offset + i], element_type, isolate(),
-        instance);
+    wasm::ValueOrError maybe_element = wasm::ConsumeElementSegmentEntry(
+        &zone, isolate(), instance, *segment, decoder);
     if (wasm::is_error(maybe_element)) {
       return handle(Smi::FromEnum(wasm::to_error(maybe_element)), isolate());
     }

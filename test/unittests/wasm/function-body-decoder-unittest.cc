@@ -159,14 +159,14 @@ class TestModuleBuilder {
 
   byte AddPassiveElementSegment(wasm::ValueType type) {
     mod.elem_segments.emplace_back(type, WasmElemSegment::kStatusPassive,
-                                   WasmElemSegment::kExpressionElements);
+                                   WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
   byte AddDeclarativeElementSegment() {
     mod.elem_segments.emplace_back(kWasmFuncRef,
                                    WasmElemSegment::kStatusDeclarative,
-                                   WasmElemSegment::kExpressionElements);
+                                   WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 

@@ -17,6 +17,7 @@
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -2013,6 +2014,67 @@ void InstanceBuilder::SetTableInitialValues(
   }
 }
 
+ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
+                                        Handle<WasmInstanceObject> instance,
+                                        const WasmElemSegment& segment,
+                                        Decoder& decoder) {
+  if (segment.element_type == WasmElemSegment::kFunctionIndexElements) {
+    uint32_t function_index = decoder.consume_u32v();
+    return EvaluateConstantExpression(
+        zone, ConstantExpression::RefFunc(function_index), segment.type,
+        isolate, instance);
+  }
+
+  switch (static_cast<WasmOpcode>(*decoder.pc())) {
+    case kExprRefFunc: {
+      uint32_t length;
+      uint32_t function_index = decoder.read_u32v<Decoder::FullValidationTag>(
+          decoder.pc() + 1, &length, "ref.func");
+      if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
+        decoder.consume_bytes(length + 2);
+        return EvaluateConstantExpression(
+            zone, ConstantExpression::RefFunc(function_index), segment.type,
+            isolate, instance);
+      }
+      break;
+    }
+    case kExprRefNull: {
+      uint32_t length;
+      HeapType type =
+          value_type_reader::read_heap_type<Decoder::FullValidationTag>(
+              &decoder, decoder.pc() + 1, &length, WasmFeatures::All());
+      if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
+        decoder.consume_bytes(length + 2);
+        return EvaluateConstantExpression(
+            zone, ConstantExpression::RefNull(type.representation()),
+            segment.type, isolate, instance);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  auto sig = FixedSizeSignature<ValueType>::Returns(segment.type);
+  FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end());
+  WasmFeatures detected;
+  // We use FullValidationTag so we do not have to create another template
+  // instance of WasmFullDecoder, which would cost us >50Kb binary code
+  // size.
+  WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                  kConstantExpression>
+      full_decoder(zone, instance->module(), WasmFeatures::All(), &detected,
+                   body, instance->module(), isolate, instance);
+
+  full_decoder.DecodeFunctionBody();
+
+  decoder.consume_bytes(static_cast<int>(full_decoder.pc() - decoder.pc()));
+
+  return full_decoder.interface().has_error()
+             ? ValueOrError(full_decoder.interface().error())
+             : ValueOrError(full_decoder.interface().computed_value());
+}
+
 namespace {
 // If the operation succeeds, returns an empty {Optional}. Otherwise, returns an
 // {Optional} containing the {MessageTemplate} code of the error.
@@ -2031,32 +2093,30 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
   if (!base::IsInBounds<uint64_t>(
           src, count,
           instance->dropped_elem_segments().get(segment_index) == 0
-              ? elem_segment.entries.size()
+              ? elem_segment.element_count
               : 0)) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
   }
 
-  bool is_function_table =
-      IsSubtypeOf(table_object->type(), kWasmFuncRef, instance->module());
-
   ErrorThrower thrower(isolate, "LoadElemSegment");
 
+  base::Vector<const byte> module_bytes =
+      instance->module_object().native_module()->wire_bytes();
+
+  Decoder decoder(module_bytes);
+  decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+
+  // Skip elements up to {src}.
+  for (size_t i = 0; i < src; ++i) {
+    ConsumeElementSegmentEntry(zone, isolate, instance, elem_segment, decoder);
+  }
   for (size_t i = 0; i < count; ++i) {
-    ConstantExpression entry = elem_segment.entries[src + i];
+    ValueOrError result = ConsumeElementSegmentEntry(zone, isolate, instance,
+                                                     elem_segment, decoder);
+    if (is_error(result)) return {to_error(result)};
     int entry_index = static_cast<int>(dst + i);
-    if (is_function_table && entry.kind() == ConstantExpression::kRefFunc) {
-      SetFunctionTablePlaceholder(isolate, instance, table_object, entry_index,
-                                  entry.index());
-    } else if (is_function_table &&
-               entry.kind() == ConstantExpression::kRefNull) {
-      SetFunctionTableNullEntry(isolate, table_object, entry_index);
-    } else {
-      ValueOrError result = EvaluateConstantExpression(
-          zone, entry, elem_segment.type, isolate, instance);
-      if (is_error(result)) return to_error(result);
-      WasmTableObject::Set(isolate, table_object, entry_index,
-                           to_value(result).to_ref());
-    }
+    WasmTableObject::Set(isolate, table_object, entry_index,
+                         to_value(result).to_ref());
   }
   return {};
 }
@@ -2065,18 +2125,18 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   for (uint32_t segment_index = 0;
        segment_index < module_->elem_segments.size(); ++segment_index) {
-    auto& elem_segment = instance->module()->elem_segments[segment_index];
+    const WasmElemSegment& elem_segment =
+        instance->module()->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
-    uint32_t table_index = elem_segment.table_index;
+    const uint32_t table_index = elem_segment.table_index;
     ValueOrError value = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_, instance);
     if (MaybeMarkError(value, thrower_)) return;
-    uint32_t dst = std::get<WasmValue>(value).to_u32();
-    if (thrower_->error()) return;
-    uint32_t src = 0;
-    size_t count = elem_segment.entries.size();
+    const uint32_t dst = std::get<WasmValue>(value).to_u32();
+    const uint32_t src = 0;
+    const size_t count = elem_segment.element_count;
 
     base::Optional<MessageTemplate> opt_error = LoadElemSegmentImpl(
         &init_expr_zone_, isolate_, instance,
