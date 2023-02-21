@@ -50,6 +50,7 @@
 #include "src/objects/js-duration-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-iterator-helpers-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -1274,6 +1275,17 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
     Object element_value = storage.get(j);
     CHECK(element_value.IsShared());
   }
+}
+
+void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorMapHelperVerify(*this, isolate);
+  CHECK(mapper().IsCallable());
+  CHECK_GE(counter().Number(), 0);
+}
+
+void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
+  UNIMPLEMENTED();
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {

@@ -241,7 +241,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
   V(harmony_json_parse_with_source, "harmony json parse with source")          \
-  V(harmony_array_from_async, "harmony Array.fromAsync")
+  V(harmony_array_from_async, "harmony Array.fromAsync")                       \
+  V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                             \

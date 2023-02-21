@@ -15,6 +15,7 @@
 #include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
+#include 'src/objects/js-iterator-helpers.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/js-shadow-realm.h'
@@ -538,6 +539,7 @@ extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro NameStringConstant(): String;
+extern macro NextStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
 extern macro ReturnStringConstant(): String;
@@ -559,6 +561,7 @@ const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 const kMessageString: String = MessageStringConstant();
+const kNextString: String = NextStringConstant();
 const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();

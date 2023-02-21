@@ -151,6 +151,9 @@ class ZoneForwardList;
   V(JSGeneratorObject)                          \
   V(JSGlobalObject)                             \
   V(JSGlobalProxy)                              \
+  V(JSIteratorHelper)                           \
+  V(JSIteratorFilterHelper)                     \
+  V(JSIteratorMapHelper)                        \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \

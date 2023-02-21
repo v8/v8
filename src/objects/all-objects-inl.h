@@ -43,6 +43,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-iterator-helpers-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-proxy-inl.h"
