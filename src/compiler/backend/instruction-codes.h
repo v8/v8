@@ -307,7 +307,14 @@ using MiscField = base::BitField<int, 22, 10>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
+#ifdef V8_TARGET_ARCH_X64
+enum LaneSize { kL8 = 0, kL16 = 1, kL32 = 2, kL64 = 3 };
+enum VectorLength { kV128 = 0, kV256 = 1, kV512 = 3 };
+using LaneSizeField = base::BitField<LaneSize, 22, 2>;
+using VectorLengthField = base::BitField<VectorLength, 24, 2>;
+#else
 using LaneSizeField = base::BitField<int, 22, 8>;
+#endif  // V8_TARGET_ARCH_X64
 using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 // TODO(turbofan): {HasMemoryAccessMode} is currently only used to guard
 // decoding (in CodeGenerator and InstructionScheduler). Encoding (in

@@ -2462,13 +2462,80 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                kScratchRegister);
       break;
     }
-    case kX64F64x2Abs:
+    case kX64FAbs: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Abs
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (dst == src) {
+              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+              __ Psrld(kScratchDoubleReg, byte{1});
+              __ Andps(dst, kScratchDoubleReg);
+            } else {
+              __ Pcmpeqd(dst, dst);
+              __ Psrld(dst, byte{1});
+              __ Andps(dst, src);
+            }
+            break;
+          }
+          case kL64: {
+            // F64x2Abs
+            __ Abspd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                     kScratchRegister);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
     case kX64Float64Abs: {
       __ Abspd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                kScratchRegister);
       break;
     }
-    case kX64F64x2Neg:
+    case kX64FNeg: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Neg
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (dst == src) {
+              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+              __ Pslld(kScratchDoubleReg, byte{31});
+              __ Xorps(dst, kScratchDoubleReg);
+            } else {
+              __ Pcmpeqd(dst, dst);
+              __ Pslld(dst, byte{31});
+              __ Xorps(dst, src);
+            }
+            break;
+          }
+          case kL64: {
+            // F64x2Neg
+            __ Negpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                     kScratchRegister);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
     case kX64Float64Neg: {
       __ Negpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                kScratchRegister);
@@ -2886,73 +2953,354 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64F64x2Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Movddup(dst, i.InputDoubleRegister(0));
+    case kX64FSplat: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Splat
+            __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
+            break;
+          }
+          case kL64: {
+            // F64X2Splat
+            XMMRegister dst = i.OutputSimd128Register();
+            if (instr->InputAt(0)->IsFPRegister()) {
+              __ Movddup(dst, i.InputDoubleRegister(0));
+            } else {
+              __ Movddup(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
       } else {
-        __ Movddup(dst, i.InputOperand(0));
+        UNREACHABLE();
       }
       break;
     }
-    case kX64F64x2ExtractLane: {
-      __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                          i.InputUint8(1));
+    case kX64FExtractLane: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4ExtractLane
+            __ F32x4ExtractLane(i.OutputFloatRegister(),
+                                i.InputSimd128Register(0), i.InputUint8(1));
+            break;
+          }
+          case kL64: {
+            // F64X2ExtractLane
+            __ F64x2ExtractLane(i.OutputDoubleRegister(),
+                                i.InputDoubleRegister(0), i.InputUint8(1));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2ReplaceLane: {
-      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputDoubleRegister(2), i.InputInt8(1));
+    case kX64FReplaceLane: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4ReplaceLane
+            // The insertps instruction uses imm8[5:4] to indicate the lane
+            // that needs to be replaced.
+            byte select = i.InputInt8(1) << 4 & 0x30;
+            if (instr->InputAt(2)->IsFPRegister()) {
+              __ Insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
+                          select);
+            } else {
+              __ Insertps(i.OutputSimd128Register(), i.InputOperand(2), select);
+            }
+            break;
+          }
+          case kL64: {
+            // F64X2ReplaceLane
+            __ F64x2ReplaceLane(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0),
+                                i.InputDoubleRegister(2), i.InputInt8(1));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Sqrt: {
-      __ Sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+    case kX64FSqrt: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Sqrt
+            __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL64: {
+            // F64x2Sqrt
+            __ Sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Add: {
-      ASSEMBLE_SIMD_BINOP(addpd);
+    case kX64FAdd: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Add
+            ASSEMBLE_SIMD_BINOP(addps);
+            break;
+          }
+          case kL64: {
+            // F64x2Add
+            ASSEMBLE_SIMD_BINOP(addpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Sub: {
-      ASSEMBLE_SIMD_BINOP(subpd);
+    case kX64FSub: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Sub
+            ASSEMBLE_SIMD_BINOP(subps);
+            break;
+          }
+          case kL64: {
+            // F64x2Sub
+            ASSEMBLE_SIMD_BINOP(subpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Mul: {
-      ASSEMBLE_SIMD_BINOP(mulpd);
+    case kX64FMul: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Mul
+            ASSEMBLE_SIMD_BINOP(mulps);
+            break;
+          }
+          case kL64: {
+            // F64x2Mul
+            ASSEMBLE_SIMD_BINOP(mulpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Div: {
-      ASSEMBLE_SIMD_BINOP(divpd);
+    case kX64FDiv: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Div
+            ASSEMBLE_SIMD_BINOP(divps);
+            break;
+          }
+          case kL64: {
+            // F64x2Div
+            ASSEMBLE_SIMD_BINOP(divpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Min: {
-      // Avoids a move in no-AVX case if dst = src0.
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
+    case kX64FMin: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Min
+            __ F32x4Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          case kL64: {
+            // F64x2Min
+            // Avoids a move in no-AVX case if dst = src0.
+            DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Max: {
-      // Avoids a move in no-AVX case if dst = src0.
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
+    case kX64FMax: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Max
+            __ F32x4Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          case kL64: {
+            // F64x2Max
+            // Avoids a move in no-AVX case if dst = src0.
+            DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Eq: {
-      ASSEMBLE_SIMD_BINOP(cmpeqpd);
+    case kX64FEq: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Eq
+            ASSEMBLE_SIMD_BINOP(cmpeqps);
+            break;
+          }
+          case kL64: {
+            // F64x2Eq
+            ASSEMBLE_SIMD_BINOP(cmpeqpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Ne: {
-      ASSEMBLE_SIMD_BINOP(cmpneqpd);
+    case kX64FNe: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Ne
+            ASSEMBLE_SIMD_BINOP(cmpneqps);
+            break;
+          }
+          case kL64: {
+            // F64x2Ne
+            ASSEMBLE_SIMD_BINOP(cmpneqpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Lt: {
-      ASSEMBLE_SIMD_BINOP(cmpltpd);
+    case kX64FLt: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Lt
+            ASSEMBLE_SIMD_BINOP(cmpltps);
+            break;
+          }
+          case kL64: {
+            // F64x2Lt
+            ASSEMBLE_SIMD_BINOP(cmpltpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64F64x2Le: {
-      ASSEMBLE_SIMD_BINOP(cmplepd);
+    case kX64FLe: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x4Le
+            ASSEMBLE_SIMD_BINOP(cmpleps);
+            break;
+          }
+          case kL64: {
+            // F64x2Le
+            ASSEMBLE_SIMD_BINOP(cmplepd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64F64x2Qfma: {
@@ -3001,27 +3349,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                  kScratchRegister);
       break;
     }
-    case kX64F32x4Splat: {
-      __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
-      break;
-    }
-    case kX64F32x4ExtractLane: {
-      __ F32x4ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
-                          i.InputUint8(1));
-      break;
-    }
-    case kX64F32x4ReplaceLane: {
-      // The insertps instruction uses imm8[5:4] to indicate the lane
-      // that needs to be replaced.
-      byte select = i.InputInt8(1) << 4 & 0x30;
-      if (instr->InputAt(2)->IsFPRegister()) {
-        __ Insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
-                    select);
-      } else {
-        __ Insertps(i.OutputSimd128Register(), i.InputOperand(2), select);
-      }
-      break;
-    }
     case kX64F32x4SConvertI32x4: {
       __ Cvtdq2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3038,80 +3365,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvtdq2ps(dst, dst);             // convert hi exactly
       __ Addps(dst, dst);                // double hi, exactly
       __ Addps(dst, kScratchDoubleReg);  // add hi and lo, may round.
-      break;
-    }
-    case kX64F32x4Abs: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psrld(kScratchDoubleReg, byte{1});
-        __ Andps(dst, kScratchDoubleReg);
-      } else {
-        __ Pcmpeqd(dst, dst);
-        __ Psrld(dst, byte{1});
-        __ Andps(dst, src);
-      }
-      break;
-    }
-    case kX64F32x4Neg: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Pslld(kScratchDoubleReg, byte{31});
-        __ Xorps(dst, kScratchDoubleReg);
-      } else {
-        __ Pcmpeqd(dst, dst);
-        __ Pslld(dst, byte{31});
-        __ Xorps(dst, src);
-      }
-      break;
-    }
-    case kX64F32x4Sqrt: {
-      __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64F32x4Add: {
-      ASSEMBLE_SIMD_BINOP(addps);
-      break;
-    }
-    case kX64F32x4Sub: {
-      ASSEMBLE_SIMD_BINOP(subps);
-      break;
-    }
-    case kX64F32x4Mul: {
-      ASSEMBLE_SIMD_BINOP(mulps);
-      break;
-    }
-    case kX64F32x4Div: {
-      ASSEMBLE_SIMD_BINOP(divps);
-      break;
-    }
-    case kX64F32x4Min: {
-      __ F32x4Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
-      break;
-    }
-    case kX64F32x4Max: {
-      __ F32x4Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
-      break;
-    }
-    case kX64F32x4Eq: {
-      ASSEMBLE_SIMD_BINOP(cmpeqps);
-      break;
-    }
-    case kX64F32x4Ne: {
-      ASSEMBLE_SIMD_BINOP(cmpneqps);
-      break;
-    }
-    case kX64F32x4Lt: {
-      ASSEMBLE_SIMD_BINOP(cmpltps);
-      break;
-    }
-    case kX64F32x4Le: {
-      ASSEMBLE_SIMD_BINOP(cmpleps);
       break;
     }
     case kX64F32x4Qfma: {
@@ -3154,90 +3407,608 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(maxpd);
       break;
     }
-    case kX64I64x2Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      if (HasRegisterInput(instr, 0)) {
-        __ Movq(dst, i.InputRegister(0));
-        __ Movddup(dst, dst);
+    case kX64ISplat: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Splat
+            XMMRegister dst = i.OutputSimd128Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I8x16Splat(dst, i.InputRegister(0), kScratchDoubleReg);
+            } else {
+              __ I8x16Splat(dst, i.InputOperand(0), kScratchDoubleReg);
+            }
+            break;
+          }
+          case kL16: {
+            // I16x8Splat
+            XMMRegister dst = i.OutputSimd128Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I16x8Splat(dst, i.InputRegister(0));
+            } else {
+              __ I16x8Splat(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          case kL32: {
+            // I32x4Splat
+            XMMRegister dst = i.OutputSimd128Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ Movd(dst, i.InputRegister(0));
+            } else {
+              // TODO(v8:9198): Pshufd can load from aligned memory once
+              // supported.
+              __ Movd(dst, i.InputOperand(0));
+            }
+            __ Pshufd(dst, dst, uint8_t{0x0});
+            break;
+          }
+          case kL64: {
+            // I64X2Splat
+            XMMRegister dst = i.OutputSimd128Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ Movq(dst, i.InputRegister(0));
+              __ Movddup(dst, dst);
+            } else {
+              __ Movddup(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
       } else {
-        __ Movddup(dst, i.InputOperand(0));
+        UNREACHABLE();
       }
       break;
     }
-    case kX64I64x2ExtractLane: {
-      __ Pextrq(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
-    case kX64I64x2Abs: {
-      __ I64x2Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchDoubleReg);
-      break;
-    }
-    case kX64I64x2Neg: {
-      __ I64x2Neg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchDoubleReg);
-      break;
-    }
-    case kX64I64x2BitMask: {
-      __ Movmskpd(i.OutputRegister(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64I64x2Shl: {
-      // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psllq, 6);
-      break;
-    }
-    case kX64I64x2ShrS: {
-      // TODO(zhin): there is vpsraq but requires AVX512
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (HasImmediateInput(instr, 1)) {
-        __ I64x2ShrS(dst, src, i.InputInt6(1), kScratchDoubleReg);
+    case kX64IExtractLane: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL32: {
+            // I32x4ExtractLane
+            __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0),
+                      i.InputInt8(1));
+            break;
+          }
+          case kL64: {
+            // I64X2ExtractLane
+            __ Pextrq(i.OutputRegister(), i.InputSimd128Register(0),
+                      i.InputInt8(1));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
       } else {
-        __ I64x2ShrS(dst, src, i.InputRegister(1), kScratchDoubleReg,
-                     i.TempSimd128Register(0), kScratchRegister);
+        UNREACHABLE();
       }
       break;
     }
-    case kX64I64x2Add: {
-      ASSEMBLE_SIMD_BINOP(paddq);
+    case kX64IAbs: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Abs
+            __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL16: {
+            // I16x8Abs
+            __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL32: {
+            // I32x4Abs
+            __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL64: {
+            // I64x2Abs
+            __ I64x2Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2Sub: {
-      ASSEMBLE_SIMD_BINOP(psubq);
+    case kX64INeg: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Neg
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (dst == src) {
+              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+              __ Psignb(dst, kScratchDoubleReg);
+            } else {
+              __ Pxor(dst, dst);
+              __ Psubb(dst, src);
+            }
+            break;
+          }
+          case kL16: {
+            // I16x8Neg
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (dst == src) {
+              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+              __ Psignw(dst, kScratchDoubleReg);
+            } else {
+              __ Pxor(dst, dst);
+              __ Psubw(dst, src);
+            }
+            break;
+          }
+          case kL32: {
+            // I32x4Neg
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (dst == src) {
+              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+              __ Psignd(dst, kScratchDoubleReg);
+            } else {
+              __ Pxor(dst, dst);
+              __ Psubd(dst, src);
+            }
+            break;
+          }
+          case kL64: {
+            // I64x2Neg
+            __ I64x2Neg(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2Mul: {
-      __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), i.TempSimd128Register(0),
-                  kScratchDoubleReg);
+    case kX64IBitMask: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16BitMask
+            __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL16: {
+            // I16x8BitMask
+            Register dst = i.OutputRegister();
+            __ Packsswb(kScratchDoubleReg, i.InputSimd128Register(0));
+            __ Pmovmskb(dst, kScratchDoubleReg);
+            __ shrq(dst, Immediate(8));
+            break;
+          }
+          case kL32: {
+            // I632x4BitMask
+            __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL64: {
+            // I64x2BitMask
+            __ Movmskpd(i.OutputRegister(), i.InputSimd128Register(0));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2Eq: {
-      CpuFeatureScope sse_scope(masm(), SSE4_1);
-      ASSEMBLE_SIMD_BINOP(pcmpeqq);
+    case kX64IShl: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Shl
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
+            if (HasImmediateInput(instr, 1)) {
+              __ I8x16Shl(dst, src, i.InputInt3(1), kScratchRegister,
+                          kScratchDoubleReg);
+            } else {
+              __ I8x16Shl(dst, src, i.InputRegister(1), kScratchRegister,
+                          kScratchDoubleReg, i.TempSimd128Register(0));
+            }
+            break;
+          }
+          case kL16: {
+            // I16x8Shl
+            // Take shift value modulo 2^4.
+            ASSEMBLE_SIMD_SHIFT(psllw, 4);
+            break;
+          }
+          case kL32: {
+            // I32x4Shl
+            // Take shift value modulo 2^5.
+            ASSEMBLE_SIMD_SHIFT(pslld, 5);
+            break;
+          }
+          case kL64: {
+            // I64x2Shl
+            // Take shift value modulo 2^6.
+            ASSEMBLE_SIMD_SHIFT(psllq, 6);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2Ne: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ Pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+    case kX64IShrS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16ShrS
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
+            if (HasImmediateInput(instr, 1)) {
+              __ I8x16ShrS(dst, src, i.InputInt3(1), kScratchDoubleReg);
+            } else {
+              __ I8x16ShrS(dst, src, i.InputRegister(1), kScratchRegister,
+                           kScratchDoubleReg, i.TempSimd128Register(0));
+            }
+            break;
+          }
+          case kL16: {
+            // I16x8ShrS
+            // Take shift value modulo 2^4.
+            ASSEMBLE_SIMD_SHIFT(psraw, 4);
+            break;
+          }
+          case kL32: {
+            // I32x4ShrS
+            // Take shift value modulo 2^5.
+            ASSEMBLE_SIMD_SHIFT(psrad, 5);
+            break;
+          }
+          case kL64: {
+            // I64x2ShrS
+            // TODO(zhin): there is vpsraq but requires AVX512
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            if (HasImmediateInput(instr, 1)) {
+              __ I64x2ShrS(dst, src, i.InputInt6(1), kScratchDoubleReg);
+            } else {
+              __ I64x2ShrS(dst, src, i.InputRegister(1), kScratchDoubleReg,
+                           i.TempSimd128Register(0), kScratchRegister);
+            }
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2GtS: {
-      __ I64x2GtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
+    case kX64IAdd: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Add
+            ASSEMBLE_SIMD_BINOP(paddb);
+            break;
+          }
+          case kL16: {
+            // I16x8Add
+            ASSEMBLE_SIMD_BINOP(paddw);
+            break;
+          }
+          case kL32: {
+            // I32x4Add
+            ASSEMBLE_SIMD_BINOP(paddd);
+            break;
+          }
+          case kL64: {
+            // I64x2Add
+            ASSEMBLE_SIMD_BINOP(paddq);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2GeS: {
-      __ I64x2GeS(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchDoubleReg);
+    case kX64ISub: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Sub
+            ASSEMBLE_SIMD_BINOP(psubb);
+            break;
+          }
+          case kL16: {
+            // I16x8Sub
+            ASSEMBLE_SIMD_BINOP(psubw);
+            break;
+          }
+          case kL32: {
+            // I32x4Sub
+            ASSEMBLE_SIMD_BINOP(psubd);
+            break;
+          }
+          case kL64: {
+            // I64x2Sub
+            ASSEMBLE_SIMD_BINOP(psubq);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I64x2ShrU: {
-      // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psrlq, 6);
+    case kX64IMul: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL16: {
+            // I16x8Mul
+            ASSEMBLE_SIMD_BINOP(pmullw);
+            break;
+          }
+          case kL32: {
+            // I32x4Mul
+            ASSEMBLE_SIMD_BINOP(pmulld);
+            break;
+          }
+          case kL64: {
+            // I64x2Mul
+            __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), i.TempSimd128Register(0),
+                        kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kX64IEq: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16Eq
+            ASSEMBLE_SIMD_BINOP(pcmpeqb);
+            break;
+          }
+          case kL16: {
+            // I16x8Eq
+            ASSEMBLE_SIMD_BINOP(pcmpeqw);
+            break;
+          }
+          case kL32: {
+            // I32x4Eq
+            ASSEMBLE_SIMD_BINOP(pcmpeqd);
+            break;
+          }
+          case kL64: {
+            // I64x2Eq
+            CpuFeatureScope sse_scope(masm(), SSE4_1);
+            ASSEMBLE_SIMD_BINOP(pcmpeqq);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kX64INe: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            XMMRegister dst = i.OutputSimd128Register();
+            __ Pcmpeqb(dst, i.InputSimd128Register(1));
+            __ Pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(dst, kScratchDoubleReg);
+            break;
+          }
+          case kL16: {
+            // I16x8Ne
+            XMMRegister dst = i.OutputSimd128Register();
+            __ Pcmpeqw(dst, i.InputSimd128Register(1));
+            __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(dst, kScratchDoubleReg);
+            break;
+          }
+          case kL32: {
+            // I32x4Ne
+            __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+            __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+            break;
+          }
+          case kL64: {
+            // I64x2Ne
+            DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+            __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+            __ Pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kX64IGtS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16GtS
+            ASSEMBLE_SIMD_BINOP(pcmpgtb);
+            break;
+          }
+          case kL16: {
+            // I16x8GtS
+            ASSEMBLE_SIMD_BINOP(pcmpgtw);
+            break;
+          }
+          case kL32: {
+            // I32x4GtS
+            ASSEMBLE_SIMD_BINOP(pcmpgtd);
+            break;
+          }
+          case kL64: {
+            // I64x2GtS
+            __ I64x2GtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kX64IGeS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16GeS
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminsb(dst, src);
+            __ Pcmpeqb(dst, src);
+            break;
+          }
+          case kL16: {
+            // I16x8GeS
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminsw(dst, src);
+            __ Pcmpeqw(dst, src);
+            break;
+          }
+          case kL32: {
+            // I32x4GeS
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminsd(dst, src);
+            __ Pcmpeqd(dst, src);
+            break;
+          }
+          case kL64: {
+            // I64x2GeS
+            __ I64x2GeS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kX64IShrU: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16ShrU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(0);
+            DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
+            if (HasImmediateInput(instr, 1)) {
+              __ I8x16ShrU(dst, src, i.InputInt3(1), kScratchRegister,
+                           kScratchDoubleReg);
+            } else {
+              __ I8x16ShrU(dst, src, i.InputRegister(1), kScratchRegister,
+                           kScratchDoubleReg, i.TempSimd128Register(0));
+            }
+            break;
+          }
+          case kL16: {
+            // I16x8ShrU
+            // Take shift value modulo 2^4.
+            ASSEMBLE_SIMD_SHIFT(psrlw, 4);
+            break;
+          }
+          case kL32: {
+            // I32x4ShrU
+            // Take shift value modulo 2^5.
+            ASSEMBLE_SIMD_SHIFT(psrld, 5);
+            break;
+          }
+          case kL64: {
+            // I64x2ShrU
+            // Take shift value modulo 2^6.
+            ASSEMBLE_SIMD_SHIFT(psrlq, 6);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64I64x2ExtMulLowI32x4S: {
@@ -3284,21 +4055,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
-    case kX64I32x4Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      if (HasRegisterInput(instr, 0)) {
-        __ Movd(dst, i.InputRegister(0));
-      } else {
-        // TODO(v8:9198): Pshufd can load from aligned memory once supported.
-        __ Movd(dst, i.InputOperand(0));
-      }
-      __ Pshufd(dst, dst, uint8_t{0x0});
-      break;
-    }
-    case kX64I32x4ExtractLane: {
-      __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
     case kX64I32x4SConvertF32x4: {
       __ I32x4SConvertF32x4(i.OutputSimd128Register(),
                             i.InputSimd128Register(0), kScratchDoubleReg,
@@ -3314,67 +4070,60 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 i.InputSimd128Register(0));
       break;
     }
-    case kX64I32x4Neg: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psignd(dst, kScratchDoubleReg);
+    case kX64IMinS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16MinS
+            ASSEMBLE_SIMD_BINOP(pminsb);
+            break;
+          }
+          case kL16: {
+            // I16x8MinS
+            ASSEMBLE_SIMD_BINOP(pminsw);
+            break;
+          }
+          case kL32: {
+            // I32x4MinS
+            ASSEMBLE_SIMD_BINOP(pminsd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
-        __ Pxor(dst, dst);
-        __ Psubd(dst, src);
+        UNREACHABLE();
       }
       break;
     }
-    case kX64I32x4Shl: {
-      // Take shift value modulo 2^5.
-      ASSEMBLE_SIMD_SHIFT(pslld, 5);
-      break;
-    }
-    case kX64I32x4ShrS: {
-      // Take shift value modulo 2^5.
-      ASSEMBLE_SIMD_SHIFT(psrad, 5);
-      break;
-    }
-    case kX64I32x4Add: {
-      ASSEMBLE_SIMD_BINOP(paddd);
-      break;
-    }
-    case kX64I32x4Sub: {
-      ASSEMBLE_SIMD_BINOP(psubd);
-      break;
-    }
-    case kX64I32x4Mul: {
-      ASSEMBLE_SIMD_BINOP(pmulld);
-      break;
-    }
-    case kX64I32x4MinS: {
-      ASSEMBLE_SIMD_BINOP(pminsd);
-      break;
-    }
-    case kX64I32x4MaxS: {
-      ASSEMBLE_SIMD_BINOP(pmaxsd);
-      break;
-    }
-    case kX64I32x4Eq: {
-      ASSEMBLE_SIMD_BINOP(pcmpeqd);
-      break;
-    }
-    case kX64I32x4Ne: {
-      __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(i.OutputSimd128Register(), kScratchDoubleReg);
-      break;
-    }
-    case kX64I32x4GtS: {
-      ASSEMBLE_SIMD_BINOP(pcmpgtd);
-      break;
-    }
-    case kX64I32x4GeS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminsd(dst, src);
-      __ Pcmpeqd(dst, src);
+    case kX64IMaxS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16MaxS
+            ASSEMBLE_SIMD_BINOP(pmaxsb);
+            break;
+          }
+          case kL16: {
+            // I16x8MaxS
+            ASSEMBLE_SIMD_BINOP(pmaxsw);
+            break;
+          }
+          case kL32: {
+            // I32x4MaxS
+            ASSEMBLE_SIMD_BINOP(pmaxsd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64I32x4UConvertF32x4: {
@@ -3414,41 +4163,140 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
-    case kX64I32x4ShrU: {
-      // Take shift value modulo 2^5.
-      ASSEMBLE_SIMD_SHIFT(psrld, 5);
+    case kX64IMinU: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16MinU
+            ASSEMBLE_SIMD_BINOP(pminub);
+            break;
+          }
+          case kL16: {
+            // I16x8MinU
+            ASSEMBLE_SIMD_BINOP(pminuw);
+            break;
+          }
+          case kL32: {
+            // I32x4MinU
+            ASSEMBLE_SIMD_BINOP(pminud);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I32x4MinU: {
-      ASSEMBLE_SIMD_BINOP(pminud);
+    case kX64IMaxU: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16MaxU
+            ASSEMBLE_SIMD_BINOP(pmaxub);
+            break;
+          }
+          case kL16: {
+            // I16x8MaxU
+            ASSEMBLE_SIMD_BINOP(pmaxuw);
+            break;
+          }
+          case kL32: {
+            // I32x4MaxU
+            ASSEMBLE_SIMD_BINOP(pmaxud);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I32x4MaxU: {
-      ASSEMBLE_SIMD_BINOP(pmaxud);
+    case kX64IGtU: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pmaxub(dst, src);
+            __ Pcmpeqb(dst, src);
+            __ Pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(dst, kScratchDoubleReg);
+            break;
+          }
+          case kL16: {
+            // I16x8GtU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pmaxuw(dst, src);
+            __ Pcmpeqw(dst, src);
+            __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(dst, kScratchDoubleReg);
+            break;
+          }
+          case kL32: {
+            // I32x4GtU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pmaxud(dst, src);
+            __ Pcmpeqd(dst, src);
+            __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+            __ Pxor(dst, kScratchDoubleReg);
+            break;
+          }
+
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64I32x4GtU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pmaxud(dst, src);
-      __ Pcmpeqd(dst, src);
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I32x4GeU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminud(dst, src);
-      __ Pcmpeqd(dst, src);
-      break;
-    }
-    case kX64I32x4Abs: {
-      __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64I32x4BitMask: {
-      __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
+    case kX64IGeU: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16GeU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminub(dst, src);
+            __ Pcmpeqb(dst, src);
+            break;
+          }
+          case kL16: {
+            // I16x8GeU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminuw(dst, src);
+            __ Pcmpeqw(dst, src);
+            break;
+          }
+          case kL32: {
+            // I32x4GeU
+            XMMRegister dst = i.OutputSimd128Register();
+            XMMRegister src = i.InputSimd128Register(1);
+            __ Pminud(dst, src);
+            __ Pcmpeqd(dst, src);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64I32x4DotI16x8S: {
@@ -3507,19 +4355,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pcmpeqd(dst, dst);
       break;
     }
-    case kX64I16x8Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      if (HasRegisterInput(instr, 0)) {
-        __ I16x8Splat(dst, i.InputRegister(0));
+    // case kX64I16x8ExtractLaneS: {
+    case kX64IExtractLaneS: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16ExtractLaneS
+            Register dst = i.OutputRegister();
+            __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
+            __ movsxbl(dst, dst);
+            break;
+          }
+          case kL16: {
+            // I16x8ExtractLaneS
+            Register dst = i.OutputRegister();
+            __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
+            __ movsxwl(dst, dst);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
       } else {
-        __ I16x8Splat(dst, i.InputOperand(0));
+        UNREACHABLE();
       }
-      break;
-    }
-    case kX64I16x8ExtractLaneS: {
-      Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
-      __ movsxwl(dst, dst);
       break;
     }
     case kX64I16x8SConvertI8x16Low: {
@@ -3531,80 +4393,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 i.InputSimd128Register(0));
       break;
     }
-    case kX64I16x8Neg: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psignw(dst, kScratchDoubleReg);
-      } else {
-        __ Pxor(dst, dst);
-        __ Psubw(dst, src);
-      }
-      break;
-    }
-    case kX64I16x8Shl: {
-      // Take shift value modulo 2^4.
-      ASSEMBLE_SIMD_SHIFT(psllw, 4);
-      break;
-    }
-    case kX64I16x8ShrS: {
-      // Take shift value modulo 2^4.
-      ASSEMBLE_SIMD_SHIFT(psraw, 4);
-      break;
-    }
     case kX64I16x8SConvertI32x4: {
       ASSEMBLE_SIMD_BINOP(packssdw);
-      break;
-    }
-    case kX64I16x8Add: {
-      ASSEMBLE_SIMD_BINOP(paddw);
       break;
     }
     case kX64I16x8AddSatS: {
       ASSEMBLE_SIMD_BINOP(paddsw);
       break;
     }
-    case kX64I16x8Sub: {
-      ASSEMBLE_SIMD_BINOP(psubw);
-      break;
-    }
     case kX64I16x8SubSatS: {
       ASSEMBLE_SIMD_BINOP(psubsw);
-      break;
-    }
-    case kX64I16x8Mul: {
-      ASSEMBLE_SIMD_BINOP(pmullw);
-      break;
-    }
-    case kX64I16x8MinS: {
-      ASSEMBLE_SIMD_BINOP(pminsw);
-      break;
-    }
-    case kX64I16x8MaxS: {
-      ASSEMBLE_SIMD_BINOP(pmaxsw);
-      break;
-    }
-    case kX64I16x8Eq: {
-      ASSEMBLE_SIMD_BINOP(pcmpeqw);
-      break;
-    }
-    case kX64I16x8Ne: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Pcmpeqw(dst, i.InputSimd128Register(1));
-      __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I16x8GtS: {
-      ASSEMBLE_SIMD_BINOP(pcmpgtw);
-      break;
-    }
-    case kX64I16x8GeS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminsw(dst, src);
-      __ Pcmpeqw(dst, src);
       break;
     }
     case kX64I16x8UConvertI8x16Low: {
@@ -3614,11 +4412,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I16x8UConvertI8x16High: {
       __ I16x8UConvertI8x16High(i.OutputSimd128Register(),
                                 i.InputSimd128Register(0), kScratchDoubleReg);
-      break;
-    }
-    case kX64I16x8ShrU: {
-      // Take shift value modulo 2^4.
-      ASSEMBLE_SIMD_SHIFT(psrlw, 4);
       break;
     }
     case kX64I16x8UConvertI32x4: {
@@ -3633,43 +4426,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(psubusw);
       break;
     }
-    case kX64I16x8MinU: {
-      ASSEMBLE_SIMD_BINOP(pminuw);
-      break;
-    }
-    case kX64I16x8MaxU: {
-      ASSEMBLE_SIMD_BINOP(pmaxuw);
-      break;
-    }
-    case kX64I16x8GtU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pmaxuw(dst, src);
-      __ Pcmpeqw(dst, src);
-      __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I16x8GeU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminuw(dst, src);
-      __ Pcmpeqw(dst, src);
-      break;
-    }
     case kX64I16x8RoundingAverageU: {
       ASSEMBLE_SIMD_BINOP(pavgw);
-      break;
-    }
-    case kX64I16x8Abs: {
-      __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64I16x8BitMask: {
-      Register dst = i.OutputRegister();
-      __ Packsswb(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ Pmovmskb(dst, kScratchDoubleReg);
-      __ shrq(dst, Immediate(8));
       break;
     }
     case kX64I16x8ExtMulLowI8x16S: {
@@ -3721,15 +4479,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                              i.InputSimd128Register(1));
       break;
     }
-    case kX64I8x16Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      if (HasRegisterInput(instr, 0)) {
-        __ I8x16Splat(dst, i.InputRegister(0), kScratchDoubleReg);
-      } else {
-        __ I8x16Splat(dst, i.InputOperand(0), kScratchDoubleReg);
-      }
-      break;
-    }
     case kX64Pextrb: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
@@ -3756,12 +4505,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64I8x16ExtractLaneS: {
-      Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
-      __ movsxbl(dst, dst);
-      break;
-    }
     case kX64Pinsrb: {
       ASSEMBLE_PINSR(Pinsrb);
       break;
@@ -3782,104 +4525,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(packsswb);
       break;
     }
-    case kX64I8x16Neg: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psignb(dst, kScratchDoubleReg);
-      } else {
-        __ Pxor(dst, dst);
-        __ Psubb(dst, src);
-      }
-      break;
-    }
-    case kX64I8x16Shl: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
-      if (HasImmediateInput(instr, 1)) {
-        __ I8x16Shl(dst, src, i.InputInt3(1), kScratchRegister,
-                    kScratchDoubleReg);
-      } else {
-        __ I8x16Shl(dst, src, i.InputRegister(1), kScratchRegister,
-                    kScratchDoubleReg, i.TempSimd128Register(0));
-      }
-      break;
-    }
-    case kX64I8x16ShrS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
-      if (HasImmediateInput(instr, 1)) {
-        __ I8x16ShrS(dst, src, i.InputInt3(1), kScratchDoubleReg);
-      } else {
-        __ I8x16ShrS(dst, src, i.InputRegister(1), kScratchRegister,
-                     kScratchDoubleReg, i.TempSimd128Register(0));
-      }
-      break;
-    }
-    case kX64I8x16Add: {
-      ASSEMBLE_SIMD_BINOP(paddb);
-      break;
-    }
     case kX64I8x16AddSatS: {
       ASSEMBLE_SIMD_BINOP(paddsb);
-      break;
-    }
-    case kX64I8x16Sub: {
-      ASSEMBLE_SIMD_BINOP(psubb);
       break;
     }
     case kX64I8x16SubSatS: {
       ASSEMBLE_SIMD_BINOP(psubsb);
       break;
     }
-    case kX64I8x16MinS: {
-      ASSEMBLE_SIMD_BINOP(pminsb);
-      break;
-    }
-    case kX64I8x16MaxS: {
-      ASSEMBLE_SIMD_BINOP(pmaxsb);
-      break;
-    }
-    case kX64I8x16Eq: {
-      ASSEMBLE_SIMD_BINOP(pcmpeqb);
-      break;
-    }
-    case kX64I8x16Ne: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Pcmpeqb(dst, i.InputSimd128Register(1));
-      __ Pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I8x16GtS: {
-      ASSEMBLE_SIMD_BINOP(pcmpgtb);
-      break;
-    }
-    case kX64I8x16GeS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminsb(dst, src);
-      __ Pcmpeqb(dst, src);
-      break;
-    }
     case kX64I8x16UConvertI16x8: {
       ASSEMBLE_SIMD_BINOP(packuswb);
-      break;
-    }
-    case kX64I8x16ShrU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
-      if (HasImmediateInput(instr, 1)) {
-        __ I8x16ShrU(dst, src, i.InputInt3(1), kScratchRegister,
-                     kScratchDoubleReg);
-      } else {
-        __ I8x16ShrU(dst, src, i.InputRegister(1), kScratchRegister,
-                     kScratchDoubleReg, i.TempSimd128Register(0));
-      }
       break;
     }
     case kX64I8x16AddSatU: {
@@ -3890,40 +4545,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(psubusb);
       break;
     }
-    case kX64I8x16MinU: {
-      ASSEMBLE_SIMD_BINOP(pminub);
-      break;
-    }
-    case kX64I8x16MaxU: {
-      ASSEMBLE_SIMD_BINOP(pmaxub);
-      break;
-    }
-    case kX64I8x16GtU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pmaxub(dst, src);
-      __ Pcmpeqb(dst, src);
-      __ Pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I8x16GeU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      __ Pminub(dst, src);
-      __ Pcmpeqb(dst, src);
-      break;
-    }
     case kX64I8x16RoundingAverageU: {
       ASSEMBLE_SIMD_BINOP(pavgb);
-      break;
-    }
-    case kX64I8x16Abs: {
-      __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64I8x16BitMask: {
-      __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
     case kX64I32x4ExtMulLowI16x8S: {
@@ -4348,20 +4971,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
-    case kX64I64x2AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
-      break;
-    }
-    case kX64I32x4AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
-      break;
-    }
-    case kX64I16x8AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqw);
-      break;
-    }
-    case kX64I8x16AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
+    case kX64IAllTrue: {
+      LaneSize lane_size = LaneSizeField::decode(opcode);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x16AllTrue
+            ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
+            break;
+          }
+          case kL16: {
+            // I16x8AllTrue
+            ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqw);
+            break;
+          }
+          case kL32: {
+            // I32x4AllTrue
+            ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
+            break;
+          }
+          case kL64: {
+            // I64x2AllTrue
+            ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64Blendvpd: {

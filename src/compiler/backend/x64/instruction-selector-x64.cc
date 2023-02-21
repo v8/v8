@@ -1888,7 +1888,7 @@ void VisitFloatBinop(InstructionSelector* selector, Node* node,
 }
 
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
-                    ArchOpcode opcode) {
+                    InstructionCode opcode) {
   X64OperandGenerator g(selector);
   if (selector->IsSupported(AVX)) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input));
@@ -3317,38 +3317,10 @@ VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
 #define SIMD_BINOP_SSE_AVX_LIST(V) \
-  V(F64x2Add)                      \
-  V(F64x2Sub)                      \
-  V(F64x2Mul)                      \
-  V(F64x2Div)                      \
-  V(F64x2Eq)                       \
-  V(F64x2Ne)                       \
-  V(F64x2Lt)                       \
-  V(F64x2Le)                       \
-  V(F32x4Add)                      \
-  V(F32x4Sub)                      \
-  V(F32x4Mul)                      \
-  V(F32x4Div)                      \
-  V(F32x4Eq)                       \
-  V(F32x4Ne)                       \
-  V(F32x4Lt)                       \
-  V(F32x4Le)                       \
-  V(I64x2Add)                      \
-  V(I64x2Sub)                      \
-  V(I64x2Eq)                       \
   V(I64x2ExtMulLowI32x4S)          \
   V(I64x2ExtMulHighI32x4S)         \
   V(I64x2ExtMulLowI32x4U)          \
   V(I64x2ExtMulHighI32x4U)         \
-  V(I32x4Add)                      \
-  V(I32x4Sub)                      \
-  V(I32x4Mul)                      \
-  V(I32x4MinS)                     \
-  V(I32x4MaxS)                     \
-  V(I32x4Eq)                       \
-  V(I32x4GtS)                      \
-  V(I32x4MinU)                     \
-  V(I32x4MaxU)                     \
   V(I32x4DotI16x8S)                \
   V(I32x4ExtMulLowI16x8S)          \
   V(I32x4ExtMulHighI16x8S)         \
@@ -3356,19 +3328,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4ExtMulHighI16x8U)         \
   V(I16x8SConvertI32x4)            \
   V(I16x8UConvertI32x4)            \
-  V(I16x8Add)                      \
   V(I16x8AddSatS)                  \
-  V(I16x8Sub)                      \
   V(I16x8SubSatS)                  \
-  V(I16x8Mul)                      \
-  V(I16x8MinS)                     \
-  V(I16x8MaxS)                     \
-  V(I16x8Eq)                       \
-  V(I16x8GtS)                      \
   V(I16x8AddSatU)                  \
   V(I16x8SubSatU)                  \
-  V(I16x8MinU)                     \
-  V(I16x8MaxU)                     \
   V(I16x8RoundingAverageU)         \
   V(I16x8ExtMulLowI8x16S)          \
   V(I16x8ExtMulHighI8x16S)         \
@@ -3378,18 +3341,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8RelaxedQ15MulRS)          \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
-  V(I8x16Add)                      \
   V(I8x16AddSatS)                  \
-  V(I8x16Sub)                      \
   V(I8x16SubSatS)                  \
-  V(I8x16MinS)                     \
-  V(I8x16MaxS)                     \
-  V(I8x16Eq)                       \
-  V(I8x16GtS)                      \
   V(I8x16AddSatU)                  \
   V(I8x16SubSatU)                  \
-  V(I8x16MinU)                     \
-  V(I8x16MaxU)                     \
   V(I8x16RoundingAverageU)         \
   V(S128And)                       \
   V(S128Or)                        \
@@ -3399,75 +3354,124 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x8Add)                         \
   V(F32x8Sub)
 
-#define SIMD_BINOP_LIST(V) \
-  V(F64x2Min)              \
-  V(F64x2Max)              \
-  V(F32x4Min)              \
-  V(F32x4Max)              \
-  V(I64x2Ne)               \
-  V(I32x4Ne)               \
-  V(I32x4GtU)              \
-  V(I32x4GeS)              \
-  V(I32x4GeU)              \
-  V(I16x8Ne)               \
-  V(I16x8GtU)              \
-  V(I16x8GeS)              \
-  V(I16x8GeU)              \
-  V(I8x16Ne)               \
-  V(I8x16GtU)              \
-  V(I8x16GeS)              \
-  V(I8x16GeU)
+#define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
+  V(F64x2Add, FAdd, kL64, kV128)                           \
+  V(F32x4Add, FAdd, kL32, kV128)                           \
+  V(I64x2Add, IAdd, kL64, kV128)                           \
+  V(I32x4Add, IAdd, kL32, kV128)                           \
+  V(I16x8Add, IAdd, kL16, kV128)                           \
+  V(I8x16Add, IAdd, kL8, kV128)                            \
+  V(F64x2Sub, FSub, kL64, kV128)                           \
+  V(F32x4Sub, FSub, kL32, kV128)                           \
+  V(I64x2Sub, ISub, kL64, kV128)                           \
+  V(I32x4Sub, ISub, kL32, kV128)                           \
+  V(I16x8Sub, ISub, kL16, kV128)                           \
+  V(I8x16Sub, ISub, kL8, kV128)                            \
+  V(F64x2Mul, FMul, kL64, kV128)                           \
+  V(F32x4Mul, FMul, kL32, kV128)                           \
+  V(I32x4Mul, IMul, kL32, kV128)                           \
+  V(I16x8Mul, IMul, kL16, kV128)                           \
+  V(F64x2Div, FDiv, kL64, kV128)                           \
+  V(F32x4Div, FDiv, kL32, kV128)                           \
+  V(F64x2Eq, FEq, kL64, kV128)                             \
+  V(F32x4Eq, FEq, kL32, kV128)                             \
+  V(I64x2Eq, IEq, kL64, kV128)                             \
+  V(I32x4Eq, IEq, kL32, kV128)                             \
+  V(I16x8Eq, IEq, kL16, kV128)                             \
+  V(I8x16Eq, IEq, kL8, kV128)                              \
+  V(F64x2Ne, FNe, kL64, kV128)                             \
+  V(F32x4Ne, FNe, kL32, kV128)                             \
+  V(I32x4GtS, IGtS, kL32, kV128)                           \
+  V(I16x8GtS, IGtS, kL16, kV128)                           \
+  V(I8x16GtS, IGtS, kL8, kV128)                            \
+  V(F64x2Lt, FLt, kL64, kV128)                             \
+  V(F32x4Lt, FLt, kL32, kV128)                             \
+  V(F64x2Le, FLe, kL64, kV128)                             \
+  V(F32x4Le, FLe, kL32, kV128)                             \
+  V(I32x4MinS, IMinS, kL32, kV128)                         \
+  V(I16x8MinS, IMinS, kL16, kV128)                         \
+  V(I8x16MinS, IMinS, kL8, kV128)                          \
+  V(I32x4MinU, IMinU, kL32, kV128)                         \
+  V(I16x8MinU, IMinU, kL16, kV128)                         \
+  V(I8x16MinU, IMinU, kL8, kV128)                          \
+  V(I32x4MaxS, IMaxS, kL32, kV128)                         \
+  V(I16x8MaxS, IMaxS, kL16, kV128)                         \
+  V(I8x16MaxS, IMaxS, kL8, kV128)                          \
+  V(I32x4MaxU, IMaxU, kL32, kV128)                         \
+  V(I16x8MaxU, IMaxU, kL16, kV128)                         \
+  V(I8x16MaxU, IMaxU, kL8, kV128)
+
+#define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
+  V(F64x2Min, FMin, kL64, kV128)                   \
+  V(F32x4Min, FMin, kL32, kV128)                   \
+  V(F64x2Max, FMax, kL64, kV128)                   \
+  V(F32x4Max, FMax, kL32, kV128)                   \
+  V(I64x2Ne, INe, kL64, kV128)                     \
+  V(I32x4Ne, INe, kL32, kV128)                     \
+  V(I16x8Ne, INe, kL16, kV128)                     \
+  V(I8x16Ne, INe, kL8, kV128)                      \
+  V(I32x4GtU, IGtU, kL32, kV128)                   \
+  V(I16x8GtU, IGtU, kL16, kV128)                   \
+  V(I8x16GtU, IGtU, kL8, kV128)                    \
+  V(I32x4GeS, IGeS, kL32, kV128)                   \
+  V(I16x8GeS, IGeS, kL16, kV128)                   \
+  V(I8x16GeS, IGeS, kL8, kV128)                    \
+  V(I32x4GeU, IGeU, kL32, kV128)                   \
+  V(I16x8GeU, IGeU, kL16, kV128)                   \
+  V(I8x16GeU, IGeU, kL8, kV128)
 
 #define SIMD_UNOP_LIST(V)   \
-  V(F64x2Sqrt)              \
   V(F64x2ConvertLowI32x4S)  \
   V(F32x4SConvertI32x4)     \
-  V(F32x4Abs)               \
-  V(F32x4Neg)               \
-  V(F32x4Sqrt)              \
   V(F32x4DemoteF64x2Zero)   \
-  V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
   V(I64x2UConvertI32x4Low)  \
   V(I64x2UConvertI32x4High) \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
-  V(I32x4Neg)               \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
-  V(I32x4Abs)               \
-  V(I32x4BitMask)           \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
-  V(I16x8Neg)               \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
-  V(I16x8Abs)               \
-  V(I16x8BitMask)           \
-  V(I8x16Neg)               \
-  V(I8x16Abs)               \
-  V(I8x16BitMask)           \
-  V(I64x2AllTrue)           \
-  V(I32x4AllTrue)           \
-  V(I16x8AllTrue)           \
-  V(I8x16AllTrue)           \
   V(S128Not)
 
-#define SIMD_SHIFT_OPCODES(V) \
-  V(I64x2Shl)                 \
-  V(I64x2ShrU)                \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)                \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)
+#define SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
+  V(F32x4Abs, FAbs, kL32, kV128)                  \
+  V(I32x4Abs, IAbs, kL32, kV128)                  \
+  V(I16x8Abs, IAbs, kL16, kV128)                  \
+  V(I8x16Abs, IAbs, kL8, kV128)                   \
+  V(F32x4Neg, FNeg, kL32, kV128)                  \
+  V(I32x4Neg, INeg, kL32, kV128)                  \
+  V(I16x8Neg, INeg, kL16, kV128)                  \
+  V(I8x16Neg, INeg, kL8, kV128)                   \
+  V(F64x2Sqrt, FSqrt, kL64, kV128)                \
+  V(F32x4Sqrt, FSqrt, kL32, kV128)                \
+  V(I64x2BitMask, IBitMask, kL64, kV128)          \
+  V(I32x4BitMask, IBitMask, kL32, kV128)          \
+  V(I16x8BitMask, IBitMask, kL16, kV128)          \
+  V(I8x16BitMask, IBitMask, kL8, kV128)           \
+  V(I64x2AllTrue, IAllTrue, kL64, kV128)          \
+  V(I32x4AllTrue, IAllTrue, kL32, kV128)          \
+  V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
+  V(I8x16AllTrue, IAllTrue, kL8, kV128)
 
-#define SIMD_NARROW_SHIFT_OPCODES(V) \
-  V(I8x16Shl)                        \
-  V(I8x16ShrS)                       \
-  V(I8x16ShrU)
+#define SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(V) \
+  V(I64x2Shl, IShl, kL64, kV128)                      \
+  V(I32x4Shl, IShl, kL32, kV128)                      \
+  V(I16x8Shl, IShl, kL16, kV128)                      \
+  V(I32x4ShrS, IShrS, kL32, kV128)                    \
+  V(I16x8ShrS, IShrS, kL16, kV128)                    \
+  V(I64x2ShrU, IShrU, kL64, kV128)                    \
+  V(I32x4ShrU, IShrU, kL32, kV128)                    \
+  V(I16x8ShrU, IShrU, kL16, kV128)
+
+#define SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(V) \
+  V(I8x16Shl, IShl, kL8, kV128)                              \
+  V(I8x16ShrS, IShrS, kL8, kV128)                            \
+  V(I8x16ShrU, IShrU, kL8, kV128)
 
 void InstructionSelector::VisitS128Const(Node* node) {
   X64OperandGenerator g(this);
@@ -3494,61 +3498,82 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kX64S128Zero, g.DefineAsRegister(node));
 }
 
-#define SIMD_TYPES_FOR_SPLAT(V) \
-  V(I64x2)                      \
-  V(I32x4)                      \
-  V(I16x8)                      \
-  V(I8x16)
+// Name, LaneSize, VectorLength
+#define SIMD_INT_TYPES_FOR_SPLAT(V) \
+  V(I64x2, kL64, kV128)             \
+  V(I32x4, kL32, kV128)             \
+  V(I16x8, kL16, kV128)             \
+  V(I8x16, kL8, kV128)
 
 // Splat with an optimization for const 0.
-#define VISIT_SIMD_SPLAT(Type)                                               \
+#define VISIT_INT_SIMD_SPLAT(Type, LaneSize, VectorLength)                   \
   void InstructionSelector::Visit##Type##Splat(Node* node) {                 \
     X64OperandGenerator g(this);                                             \
     Node* input = node->InputAt(0);                                          \
     if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
       Emit(kX64S128Zero, g.DefineAsRegister(node));                          \
     } else {                                                                 \
-      Emit(kX64##Type##Splat, g.DefineAsRegister(node), g.Use(input));       \
+      Emit(kX64ISplat | LaneSizeField::encode(LaneSize) |                    \
+               VectorLengthField::encode(VectorLength),                      \
+           g.DefineAsRegister(node), g.Use(input));                          \
     }                                                                        \
   }
-SIMD_TYPES_FOR_SPLAT(VISIT_SIMD_SPLAT)
-#undef VISIT_SIMD_SPLAT
-#undef SIMD_TYPES_FOR_SPLAT
+SIMD_INT_TYPES_FOR_SPLAT(VISIT_INT_SIMD_SPLAT)
+#undef VISIT_INT_SIMD_SPLAT
+#undef SIMD_INT_TYPES_FOR_SPLAT
 
 void InstructionSelector::VisitF64x2Splat(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64F64x2Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  Emit(kX64FSplat | LaneSizeField::encode(kL64) |
+           VectorLengthField::encode(kV128),
+       g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64F32x4Splat, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  Emit(kX64FSplat | LaneSizeField::encode(kL32) |
+           VectorLengthField::encode(kV128),
+       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign, Op)                               \
-  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) {      \
-    X64OperandGenerator g(this);                                              \
-    int32_t lane = OpParameter<int32_t>(node->op());                          \
-    Emit(kX64##Op, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)), \
-         g.UseImmediate(lane));                                               \
+#define SIMD_VISIT_EXTRACT_LANE(IF, Type, Sign, LaneSize, VectorLength)  \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    X64OperandGenerator g(this);                                         \
+    int32_t lane = OpParameter<int32_t>(node->op());                     \
+    Emit(kX64##IF##ExtractLane##Sign | LaneSizeField::encode(LaneSize) | \
+             VectorLengthField::encode(VectorLength),                    \
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),      \
+         g.UseImmediate(lane));                                          \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, , F64x2ExtractLane)
-SIMD_VISIT_EXTRACT_LANE(F32x4, , F32x4ExtractLane)
-SIMD_VISIT_EXTRACT_LANE(I64x2, , I64x2ExtractLane)
-SIMD_VISIT_EXTRACT_LANE(I32x4, , I32x4ExtractLane)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S, I16x8ExtractLaneS)
-SIMD_VISIT_EXTRACT_LANE(I16x8, U, Pextrw)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S, I8x16ExtractLaneS)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U, Pextrb)
+SIMD_VISIT_EXTRACT_LANE(F, F64x2, , kL64, kV128)
+SIMD_VISIT_EXTRACT_LANE(F, F32x4, , kL32, kV128)
+SIMD_VISIT_EXTRACT_LANE(I, I64x2, , kL64, kV128)
+SIMD_VISIT_EXTRACT_LANE(I, I32x4, , kL32, kV128)
+SIMD_VISIT_EXTRACT_LANE(I, I16x8, S, kL16, kV128)
+SIMD_VISIT_EXTRACT_LANE(I, I8x16, S, kL8, kV128)
 #undef SIMD_VISIT_EXTRACT_LANE
+
+void InstructionSelector::VisitI16x8ExtractLaneU(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  Emit(kX64Pextrw, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitI8x16ExtractLaneU(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane));
+}
 
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
   X64OperandGenerator g(this);
   int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64F32x4ReplaceLane, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
-       g.Use(node->InputAt(1)));
+  Emit(kX64FReplaceLane | LaneSizeField::encode(kL32) |
+           VectorLengthField::encode(kV128),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane), g.Use(node->InputAt(1)));
 }
 
 void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
@@ -3557,8 +3582,10 @@ void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
   // When no-AVX, define dst == src to save a move.
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64F64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
-       g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
+  Emit(kX64FReplaceLane | LaneSizeField::encode(kL64) |
+           VectorLengthField::encode(kV128),
+       dst, g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.UseRegister(node->InputAt(1)));
 }
 
 #define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                               \
@@ -3579,40 +3606,53 @@ SIMD_TYPES_FOR_REPLACE_LANE(VISIT_SIMD_REPLACE_LANE)
 #undef SIMD_TYPES_FOR_REPLACE_LANE
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define VISIT_SIMD_SHIFT(Opcode)                                           \
-  void InstructionSelector::Visit##Opcode(Node* node) {                    \
+#define VISIT_SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(                  \
+    Name, Opcode, LaneSize, VectorLength)                                  \
+  void InstructionSelector::Visit##Name(Node* node) {                      \
     X64OperandGenerator g(this);                                           \
     InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
                                               : g.DefineSameAsFirst(node); \
     if (g.CanBeImmediate(node->InputAt(1))) {                              \
-      Emit(kX64##Opcode, dst, g.UseRegister(node->InputAt(0)),             \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
+               VectorLengthField::encode(VectorLength),                    \
+           dst, g.UseRegister(node->InputAt(0)),                           \
            g.UseImmediate(node->InputAt(1)));                              \
     } else {                                                               \
-      Emit(kX64##Opcode, dst, g.UseRegister(node->InputAt(0)),             \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
+               VectorLengthField::encode(VectorLength),                    \
+           dst, g.UseRegister(node->InputAt(0)),                           \
            g.UseRegister(node->InputAt(1)));                               \
     }                                                                      \
   }
-SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
-#undef VISIT_SIMD_SHIFT
-#undef SIMD_SHIFT_OPCODES
+SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
+    VISIT_SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES)
 
-#define VISIT_SIMD_NARROW_SHIFT(Opcode)                                     \
-  void InstructionSelector::Visit##Opcode(Node* node) {                     \
+#undef VISIT_SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
+#undef SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
+
+#define VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(            \
+    Name, Opcode, LaneSize, VectorLength)                                   \
+  void InstructionSelector::Visit##Name(Node* node) {                       \
     X64OperandGenerator g(this);                                            \
     InstructionOperand output =                                             \
         IsSupported(AVX) ? g.UseRegister(node) : g.DefineSameAsFirst(node); \
     if (g.CanBeImmediate(node->InputAt(1))) {                               \
-      Emit(kX64##Opcode, output, g.UseRegister(node->InputAt(0)),           \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
+               VectorLengthField::encode(VectorLength),                     \
+           output, g.UseRegister(node->InputAt(0)),                         \
            g.UseImmediate(node->InputAt(1)));                               \
     } else {                                                                \
       InstructionOperand temps[] = {g.TempSimd128Register()};               \
-      Emit(kX64##Opcode, output, g.UseUniqueRegister(node->InputAt(0)),     \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
+               VectorLengthField::encode(VectorLength),                     \
+           output, g.UseUniqueRegister(node->InputAt(0)),                   \
            g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
     }                                                                       \
   }
-SIMD_NARROW_SHIFT_OPCODES(VISIT_SIMD_NARROW_SHIFT)
-#undef VISIT_SIMD_NARROW_SHIFT
-#undef SIMD_NARROW_SHIFT_OPCODES
+SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
+    VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES)
+#undef VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
+#undef SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 
 #define VISIT_SIMD_UNOP(Opcode)                         \
   void InstructionSelector::Visit##Opcode(Node* node) { \
@@ -3624,15 +3664,35 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define VISIT_SIMD_BINOP(Opcode)                                            \
-  void InstructionSelector::Visit##Opcode(Node* node) {                     \
-    X64OperandGenerator g(this);                                            \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+#define VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                VectorLength)           \
+  void InstructionSelector::Visit##Name(Node* node) {                   \
+    X64OperandGenerator g(this);                                        \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |               \
+             VectorLengthField::encode(VectorLength),                   \
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));    \
   }
-SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
-#undef VISIT_SIMD_BINOP
-#undef SIMD_BINOP_LIST
+
+SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH)
+
+#undef VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH
+#undef SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST
+
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                 VectorLength)           \
+  void InstructionSelector::Visit##Name(Node* node) {                    \
+    X64OperandGenerator g(this);                                         \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
+             VectorLengthField::encode(VectorLength),                    \
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),     \
+         g.UseRegister(node->InputAt(1)));                               \
+  }
+
+SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
+    VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH)
+
+#undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
+#undef SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                                              \
   void InstructionSelector::Visit##Opcode(Node* node) {                       \
@@ -3659,6 +3719,28 @@ SIMD256_BINOP_SSE_AVX_LIST(VISIT_SIMD256_BINOP)
 #undef SIMD_BINOP_SSE_AVX_LIST
 #undef SIMD256_BINOP_SSE_AVX_LIST
 
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                 VectorLength)           \
+  void InstructionSelector::Visit##Name(Node* node) {                    \
+    X64OperandGenerator g(this);                                         \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
+               VectorLengthField::encode(VectorLength),                  \
+           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),    \
+           g.UseRegister(node->InputAt(1)));                             \
+    } else {                                                             \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
+               VectorLengthField::encode(VectorLength),                  \
+           g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),   \
+           g.UseRegister(node->InputAt(1)));                             \
+    }                                                                    \
+  }
+
+SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
+    VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH)
+#undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
+#undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
+
 void InstructionSelector::VisitV128AnyTrue(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64V128AnyTrue, g.DefineAsRegister(node),
@@ -3681,11 +3763,15 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64F64x2Abs);
+  VisitFloatUnop(this, node, node->InputAt(0),
+                 kX64FAbs | LaneSizeField::encode(kL64) |
+                     VectorLengthField::encode(kV128));
 }
 
 void InstructionSelector::VisitF64x2Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64F64x2Neg);
+  VisitFloatUnop(this, node, node->InputAt(0),
+                 kX64FNeg | LaneSizeField::encode(kL64) |
+                     VectorLengthField::encode(kV128));
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
@@ -3712,7 +3798,9 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
   InstructionOperand operand0 = IsSupported(AVX)
                                     ? g.UseRegister(node->InputAt(0))
                                     : g.UseUnique(node->InputAt(0));
-  Emit(kX64I64x2Neg, g.DefineAsRegister(node), operand0);
+  Emit(
+      kX64INeg | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
+      g.DefineAsRegister(node), operand0);
 }
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
@@ -3721,11 +3809,15 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
 
   if (g.CanBeImmediate(node->InputAt(1))) {
-    Emit(kX64I64x2ShrS, dst, g.UseRegister(node->InputAt(0)),
+    Emit(kX64IShrS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         dst, g.UseRegister(node->InputAt(0)),
          g.UseImmediate(node->InputAt(1)));
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register()};
-    Emit(kX64I64x2ShrS, dst, g.UseUniqueRegister(node->InputAt(0)),
+    Emit(kX64IShrS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         dst, g.UseUniqueRegister(node->InputAt(0)),
          g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
@@ -3733,9 +3825,10 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I64x2Mul, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  Emit(
+      kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
+      g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
@@ -4335,14 +4428,19 @@ void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
 void InstructionSelector::VisitI64x2GtS(Node* node) {
   X64OperandGenerator g(this);
   if (CpuFeatures::IsSupported(AVX)) {
-    Emit(kX64I64x2GtS, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+    Emit(kX64IGtS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    Emit(kX64I64x2GtS, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+    Emit(kX64IGtS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
   } else {
-    Emit(kX64I64x2GtS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
+    Emit(kX64IGtS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
          g.UseUniqueRegister(node->InputAt(1)));
   }
 }
@@ -4350,15 +4448,19 @@ void InstructionSelector::VisitI64x2GtS(Node* node) {
 void InstructionSelector::VisitI64x2GeS(Node* node) {
   X64OperandGenerator g(this);
   if (CpuFeatures::IsSupported(AVX)) {
-    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+    Emit(kX64IGeS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
+    Emit(kX64IGeS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
          g.UseRegister(node->InputAt(1)));
   } else {
-    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
+    Emit(kX64IGeS | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
          g.UseUniqueRegister(node->InputAt(1)));
   }
 }
@@ -4366,11 +4468,13 @@ void InstructionSelector::VisitI64x2GeS(Node* node) {
 void InstructionSelector::VisitI64x2Abs(Node* node) {
   X64OperandGenerator g(this);
   if (CpuFeatures::IsSupported(AVX)) {
-    Emit(kX64I64x2Abs, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)));
+    Emit(kX64IAbs | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)));
   } else {
-    Emit(kX64I64x2Abs, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)));
+    Emit(kX64IAbs | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
   }
 }
 
