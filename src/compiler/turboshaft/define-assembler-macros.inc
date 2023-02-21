@@ -15,21 +15,34 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
-#define BIND(label, ...)                                                        \
-  auto [CONCAT(prevent_empty_binding, __LINE__), ## __VA_ARGS__] =              \
-    (Asm().Bind(label.block()), label.GetAll(Asm()));                           \
-    (((void)CONCAT(prevent_empty_binding, __LINE__)), label.block()->IsBound())
-#define GOTO(label, ...)                           \
-  Asm().ControlFlowHelper_Goto(label, { __VA_ARGS__ })
-#define GOTO_IF(cond, label, ...)                          \
-  Asm().ControlFlowHelper_GotoIf(cond, label, { __VA_ARGS__ })
-#define GOTO_IF_NOT(cond, label, ...)                         \
-  Asm().ControlFlowHelper_GotoIfNot(cond, label, { __VA_ARGS__ })
+#define BIND(label, ...)                                          \
+  auto [CONCAT(prevent_empty_binding, __LINE__), ##__VA_ARGS__] = \
+      (Asm().Bind(label.block()), label.GetAll(Asm()));           \
+  (((void)CONCAT(prevent_empty_binding, __LINE__)), label.block()->IsBound())
+#define GOTO(label, ...) \
+  Asm().ControlFlowHelper_Goto(label, {__VA_ARGS__})
+#define GOTO_IF(cond, label, ...) \
+  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, BranchHint::kNone)
+#define GOTO_IF_LIKELY(cond, label, ...) \
+  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, BranchHint::kTrue)
+#define GOTO_IF_UNLIKELY(cond, label, ...) \
+  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, BranchHint::kFalse)
+#define GOTO_IF_NOT(cond, label, ...)                           \
+  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
+                                    BranchHint::kNone)
+#define GOTO_IF_NOT_LIKELY(cond, label, ...)                    \
+  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
+                                    BranchHint::kFalse)
+#define GOTO_IF_NOT_UNLIKELY(cond, label, ...)                  \
+  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
+                                    BranchHint::kTrue)
 
 #define IF_WITH_HINT(cond, hint)                                   \
   for (bool bound = Asm().ControlFlowHelper_If(cond, hint); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())
 #define IF(cond) IF_WITH_HINT(cond, BranchHint::kNone)
+#define IF_LIKELY(cond) IF_WITH_HINT(cond, BranchHint::kTrue)
+#define IF_UNLIKELY(cond) IF_WITH_HINT(cond, BranchHint::kFalse)
 #define ELSE_IF(cond)                                            \
   for (bool bound = Asm().ControlFlowHelper_ElseIf(cond); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())

@@ -756,6 +756,8 @@ OpIndex GraphBuilder::Process(
       CHANGE_CASE(ChangeUint64ToBigInt, BigInt, Word64, Unsigned)
       CHANGE_CASE(ChangeInt31ToTaggedSigned, Smi, Word32, Signed)
       CHANGE_CASE(ChangeBitToTagged, Boolean, Word32, Signed)
+      CHANGE_CASE(StringFromSingleCharCode, String, Word32, CharCode)
+      CHANGE_CASE(StringFromSingleCodePoint, String, Word32, CodePoint)
 
     case IrOpcode::kChangeFloat64ToTagged:
       return assembler.ConvertToObject(

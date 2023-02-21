@@ -1285,9 +1285,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringConcat(node);
       break;
     case IrOpcode::kStringFromSingleCharCode:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringFromSingleCharCode(node);
       break;
     case IrOpcode::kStringFromSingleCodePoint:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringFromSingleCodePoint(node);
       break;
     case IrOpcode::kStringIndexOf:
@@ -4351,6 +4353,7 @@ Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,
 }
 
 Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* code = __ Word32And(value, __ Uint32Constant(0xFFFF));
 
@@ -4446,6 +4449,7 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
 #endif  // V8_INTL_SUPPORT
 
 Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* code = value;
 

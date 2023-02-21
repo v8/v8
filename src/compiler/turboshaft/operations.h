@@ -2386,10 +2386,13 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
     kHeapNumber,
     kNumber,
     kSmi,
+    kString,
   };
   enum class InputInterpretation : uint8_t {
     kSigned,
     kUnsigned,
+    kCharCode,
+    kCodePoint,
   };
   Kind kind;
   RegisterRepresentation input_rep;
@@ -2437,6 +2440,13 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
         DCHECK_EQ(input_rep, WordRepresentation::Word32());
         DCHECK_EQ(minus_zero_mode,
                   CheckForMinusZeroMode::kDontCheckForMinusZero);
+        DCHECK(ValidOpInputRep(graph, input(), input_rep));
+        break;
+      case Kind::kString:
+        DCHECK_EQ(input_rep, WordRepresentation::Word32());
+        DCHECK_EQ(input_interpretation,
+                  any_of(InputInterpretation::kCharCode,
+                         InputInterpretation::kCodePoint));
         DCHECK(ValidOpInputRep(graph, input(), input_rep));
         break;
     }

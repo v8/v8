@@ -747,6 +747,8 @@ std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
       return os << "Number";
     case ConvertToObjectOp::Kind::kSmi:
       return os << "Smi";
+    case ConvertToObjectOp::Kind::kString:
+      return os << "String";
   }
 }
 
@@ -758,6 +760,10 @@ std::ostream& operator<<(
       return os << "Signed";
     case ConvertToObjectOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
+    case ConvertToObjectOp::InputInterpretation::kCharCode:
+      return os << "CharCode";
+    case ConvertToObjectOp::InputInterpretation::kCodePoint:
+      return os << "CodePoint";
   }
 }
 

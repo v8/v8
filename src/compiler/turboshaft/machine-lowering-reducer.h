@@ -319,6 +319,9 @@ class MachineLoweringReducer : public Next {
               BIND(done, result);
               return result;
             }
+            case ConvertToObjectOp::InputInterpretation::kCharCode:
+            case ConvertToObjectOp::InputInterpretation::kCodePoint:
+              UNREACHABLE();
           }
         } else if (input_rep == RegisterRepresentation::Word64()) {
           switch (input_interpretation) {
@@ -355,6 +358,9 @@ class MachineLoweringReducer : public Next {
               BIND(done, result);
               return result;
             }
+            case ConvertToObjectOp::InputInterpretation::kCharCode:
+            case ConvertToObjectOp::InputInterpretation::kCodePoint:
+              UNREACHABLE();
           }
         } else {
           DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
@@ -412,6 +418,112 @@ class MachineLoweringReducer : public Next {
         IF(input) { GOTO(done, __ HeapConstant(factory_->true_value())); }
         ELSE { GOTO(done, __ HeapConstant(factory_->false_value())); }
         END_IF
+
+        BIND(done, result);
+        return result;
+      }
+      case ConvertToObjectOp::Kind::kString: {
+        Label<Word32> single_code(this);
+        Label<Tagged> done(this);
+
+        if (input_interpretation ==
+            ConvertToObjectOp::InputInterpretation::kCharCode) {
+          GOTO(single_code, __ Word32BitwiseAnd(input, 0xFFFF));
+        } else {
+          DCHECK_EQ(input_interpretation,
+                    ConvertToObjectOp::InputInterpretation::kCodePoint);
+          // Check if the input is a single code unit.
+          GOTO_IF_LIKELY(__ Uint32LessThanOrEqual(input, 0xFFFF), single_code,
+                         input);
+
+          // Generate surrogate pair string.
+
+          // Convert UTF32 to UTF16 code units and store as a 32 bit word.
+          V<Word32> lead_offset = __ Word32Constant(0xD800 - (0x10000 >> 10));
+
+          // lead = (codepoint >> 10) + LEAD_OFFSET
+          V<Word32> lead =
+              __ Word32Add(__ Word32ShiftRightLogical(input, 10), lead_offset);
+
+          // trail = (codepoint & 0x3FF) + 0xDC00
+          V<Word32> trail =
+              __ Word32Add(__ Word32BitwiseAnd(input, 0x3FF), 0xDC00);
+
+          // codepoint = (trail << 16) | lead
+#if V8_TARGET_BIG_ENDIAN
+          V<Word32> code =
+              __ Word32BitwiseOr(__ Word32ShiftLeft(lead, 16), trail);
+#else
+          V<Word32> code =
+              __ Word32BitwiseOr(__ Word32ShiftLeft(trail, 16), lead);
+#endif
+
+          // Allocate a new SeqTwoByteString for {code}.
+          V<Tagged> string =
+              __ Allocate(__ IntPtrConstant(SeqTwoByteString::SizeFor(2)),
+                          AllocationType::kYoung, AllowLargeObjects::kFalse);
+          // Set padding to 0.
+          __ Store(string, __ IntPtrConstant(0),
+                   StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                   MemoryRepresentation::TaggedSigned(), kNoWriteBarrier,
+                   SeqTwoByteString::SizeFor(2) - kObjectAlignment);
+          StoreField(string, AccessBuilder::ForMap(),
+                     __ HeapConstant(factory_->string_map()));
+          StoreField(string, AccessBuilder::ForNameRawHashField(),
+                     __ Word32Constant(Name::kEmptyHashField));
+          StoreField(string, AccessBuilder::ForStringLength(),
+                     __ Word32Constant(2));
+          __ Store(string, code,
+                   StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                   MemoryRepresentation::Uint32(), kNoWriteBarrier,
+                   SeqTwoByteString::kHeaderSize);
+          GOTO(done, string);
+        }
+
+        if (BIND(single_code, code)) {
+          // Check if the {code} is a one byte character.
+          IF_LIKELY(
+              __ Uint32LessThanOrEqual(code, String::kMaxOneByteCharCode)) {
+            // Load the isolate wide single character string table.
+            OpIndex table =
+                __ HeapConstant(factory_->single_character_string_table());
+
+            // Compute the {table} index for {code}.
+            V<WordPtr> index = __ ChangeUint32ToUintPtr(code);
+
+            // Load the string for the {code} from the single character string
+            // table.
+            OpIndex entry = LoadElement(
+                table, AccessBuilder::ForFixedArrayElement(), index);
+
+            // Use the {entry} from the {table}.
+            GOTO(done, entry);
+          }
+          ELSE {
+            // Allocate a new SeqTwoBytesString for {code}.
+            V<Tagged> string =
+                __ Allocate(__ IntPtrConstant(SeqTwoByteString::SizeFor(1)),
+                            AllocationType::kYoung, AllowLargeObjects::kFalse);
+
+            // Set padding to 0.
+            __ Store(string, __ IntPtrConstant(0),
+                     StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                     MemoryRepresentation::TaggedSigned(), kNoWriteBarrier,
+                     SeqTwoByteString::SizeFor(1) - kObjectAlignment);
+            StoreField(string, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->string_map()));
+            StoreField(string, AccessBuilder::ForNameRawHashField(),
+                       __ Word32Constant(Name::kEmptyHashField));
+            StoreField(string, AccessBuilder::ForStringLength(),
+                       __ Word32Constant(1));
+            __ Store(string, code,
+                     StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                     MemoryRepresentation::Uint16(), kNoWriteBarrier,
+                     SeqTwoByteString::kHeaderSize);
+            GOTO(done, string);
+          }
+          END_IF
+        }
 
         BIND(done, result);
         return result;
@@ -491,6 +603,16 @@ class MachineLoweringReducer : public Next {
         MemoryRepresentation::FromMachineType(machine_type);
     __ Store(object, value, kind, rep, access.write_barrier_kind,
              access.offset);
+  }
+
+  template <typename Rep = Any>
+  V<Rep> LoadElement(V<Tagged> object, const ElementAccess& access,
+                     V<WordPtr> index) {
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(access.machine_type);
+    return __ Load(object, index, kind, rep, access.header_size,
+                   rep.SizeInBytesLog2());
   }
 
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical

@@ -1057,8 +1057,8 @@ class AssemblerOpInterface {
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());
   }
 
-  OpIndex Allocate(OpIndex size, AllocationType type,
-                   AllowLargeObjects allow_large_objects) {
+  V<Tagged> Allocate(V<WordPtr> size, AllocationType type,
+                     AllowLargeObjects allow_large_objects) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -1414,17 +1414,19 @@ class AssemblerOpInterface {
   template <typename... Reps>
   void ControlFlowHelper_GotoIf(
       V<Word32> condition, Label<Reps...>& label,
-      const typename Label<Reps...>::const_or_values_t& values) {
+      const typename Label<Reps...>::const_or_values_t& values,
+      BranchHint hint) {
     label.Set(stack(), values);
-    GotoIf(condition, label.block());
+    GotoIf(condition, label.block(), hint);
   }
 
   template <typename... Reps>
   void ControlFlowHelper_GotoIfNot(
       V<Word32> condition, Label<Reps...>& label,
-      const typename Label<Reps...>::const_or_values_t& values) {
+      const typename Label<Reps...>::const_or_values_t& values,
+      BranchHint hint) {
     label.Set(stack(), values);
-    GotoIfNot(condition, label.block());
+    GotoIfNot(condition, label.block(), hint);
   }
 
   bool ControlFlowHelper_If(V<Word32> condition, BranchHint hint) {
