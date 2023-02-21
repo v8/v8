@@ -7183,25 +7183,24 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
     sweeper()->EnsureCompleted();
 
-    {
-      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+    if (v8_flags.minor_mc && new_space()) {
+      TRACE_GC_EPOCH(tracer(),
+                     sweeper()->GetTracingScopeForCompleteYoungSweep(),
                      ThreadKind::kMain);
-      old_space()->RefillFreeList();
-      {
-        CodePageHeaderModificationScope rwx_write_scope(
-            "Updating per-page stats stored in page headers requires write "
-            "access to Code page headers");
-        code_space()->RefillFreeList();
-      }
-      if (shared_space()) {
-        shared_space()->RefillFreeList();
-      }
+      paged_new_space()->paged_space()->RefillFreeList();
     }
 
-    TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
+    TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
                    ThreadKind::kMain);
-    if (v8_flags.minor_mc && new_space()) {
-      paged_new_space()->paged_space()->RefillFreeList();
+    old_space()->RefillFreeList();
+    {
+      CodePageHeaderModificationScope rwx_write_scope(
+          "Updating per-page stats stored in page headers requires write "
+          "access to Code page headers");
+      code_space()->RefillFreeList();
+    }
+    if (shared_space()) {
+      shared_space()->RefillFreeList();
     }
 
     tracer()->NotifyFullSweepingCompleted();

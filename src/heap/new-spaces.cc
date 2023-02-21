@@ -1002,7 +1002,7 @@ void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
   PagedSpaceBase::FreeLinearAllocationArea();
 }
 
-bool PagedSpaceForNewSpace::ShouldReleasePage() const {
+bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
   return current_capacity_ > target_capacity_;
 }
 

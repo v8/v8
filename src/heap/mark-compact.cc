@@ -413,8 +413,6 @@ void CollectorBase::StartSweepNewSpace() {
     paged_space->StartShrinking();
   }
 
-  Sweeper* sweeper = heap()->sweeper();
-
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     Page* p = *(it++);
     DCHECK(p->SweepingDone());
@@ -425,10 +423,10 @@ void CollectorBase::StartSweepNewSpace() {
     }
 
     if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
-        paged_space->ShouldReleasePage()) {
+        paged_space->ShouldReleaseEmptyPage()) {
       paged_space->ReleasePage(p);
     } else {
-      sweeper->AddNewSpacePage(p);
+      heap()->sweeper()->SweepEmptyNewSpacePage(p);
     }
     will_be_swept++;
   }
@@ -4802,10 +4800,10 @@ void MarkCompactCollector::Evacuate() {
         DCHECK(p->SweepingDone());
         PagedNewSpace* space = heap()->paged_new_space();
         if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
-            space->ShouldReleasePage()) {
+            space->ShouldReleaseEmptyPage()) {
           space->ReleasePage(p);
         } else {
-          sweeper()->AddNewSpacePage(p);
+          sweeper()->SweepEmptyNewSpacePage(p);
         }
       }
     }

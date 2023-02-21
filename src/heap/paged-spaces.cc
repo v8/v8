@@ -866,14 +866,17 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     if (heap()->sweeper()->ShouldRefillFreelistForSpace(identity())) {
-      TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
-      RefillFreeList();
-    }
+      {
+        TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id,
+                       sweeping_scope_kind);
+        RefillFreeList();
+      }
 
-    // Retry the free list allocation.
-    if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                      origin))
-      return true;
+      // Retry the free list allocation.
+      if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                        origin))
+        return true;
+    }
 
     if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
                                  origin, sweeping_scope_id,

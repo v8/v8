@@ -204,7 +204,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   paged_new_space->StartShrinking();
   for (Page* page = paged_new_space->first_page();
        page != paged_new_space->last_page() &&
-       (paged_new_space->ShouldReleasePage());) {
+       (paged_new_space->ShouldReleaseEmptyPage());) {
     Page* current_page = page;
     page = page->next_page();
     if (current_page->allocated_bytes() == 0) {

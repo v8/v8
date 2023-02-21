@@ -1200,5 +1200,53 @@ bool Sweeper::ShouldRefillFreelistForSpace(AllocationSpace space) const {
       std::memory_order_acquire);
 }
 
+void Sweeper::SweepEmptyNewSpacePage(Page* page) {
+  DCHECK(v8_flags.minor_mc);
+  DCHECK_EQ(NEW_SPACE, page->owner_identity());
+  DCHECK_EQ(0, marking_state_->live_bytes(page));
+  DCHECK(marking_state_->bitmap(page)->IsClean());
+  DCHECK(heap_->IsMainThread() ||
+         (heap_->IsSharedMainThread() &&
+          !heap_->isolate()->is_shared_heap_isolate()));
+  DCHECK(heap_->tracer()->IsInAtomicPause());
+  DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
+            page->concurrent_sweeping_state());
+
+  PagedSpaceBase* paged_space =
+      PagedNewSpace::From(heap_->new_space())->paged_space();
+
+  Address start = page->area_start();
+  size_t size = page->area_size();
+
+  if (Heap::ShouldZapGarbage()) {
+    static constexpr Tagged_t kZapTagged = static_cast<Tagged_t>(kZapValue);
+    const size_t size_in_tagged = size / kTaggedSize;
+    Tagged_t* current_addr = reinterpret_cast<Tagged_t*>(start);
+    for (size_t i = 0; i < size_in_tagged; ++i) {
+      base::AsAtomicPtr(current_addr++)
+          ->store(kZapTagged, std::memory_order_relaxed);
+    }
+  }
+
+  page->ClearWasUsedForAllocation();
+  page->ResetAllocationStatistics();
+  heap_->CreateFillerObjectAtSweeper(start, static_cast<int>(size));
+  paged_space->UnaccountedFree(start, size);
+  paged_space->IncreaseAllocatedBytes(0, page);
+  paged_space->RelinkFreeListCategories(page);
+
+  if (heap_->ShouldReduceMemory()) {
+    page->DiscardUnusedMemory(start, size);
+    // Only decrement counter when we discard unused system pages.
+    ActiveSystemPages active_system_pages_after_sweeping;
+    active_system_pages_after_sweeping.Init(
+        MemoryChunkLayout::kMemoryChunkHeaderSize,
+        MemoryAllocator::GetCommitPageSizeBits(), Page::kPageSize);
+    // Decrement accounted memory for discarded memory.
+    paged_space->ReduceActiveSystemPages(page,
+                                         active_system_pages_after_sweeping);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

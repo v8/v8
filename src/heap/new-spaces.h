@@ -636,7 +636,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void ClearUnusedObjectStartBitmaps() {}
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
-  bool ShouldReleasePage() const;
+  bool ShouldReleaseEmptyPage() const;
 
   void RefillFreeList() final;
 
@@ -809,7 +809,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   // All operations on `memory_chunk_list_` should go through `paged_space_`.
   heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }
 
-  bool ShouldReleasePage() const { return paged_space_.ShouldReleasePage(); }
+  bool ShouldReleaseEmptyPage() {
+    return paged_space_.ShouldReleaseEmptyPage();
+  }
   void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
 
  private:
