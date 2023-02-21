@@ -652,6 +652,12 @@ class GraphVisitor {
     return assembler().ReduceTryChange(MapToNewGraph(op.input()), op.kind,
                                        op.from, op.to);
   }
+  OpIndex AssembleOutputGraphTag(const TagOp& op) {
+    return assembler().ReduceTag(MapToNewGraph(op.input()), op.kind);
+  }
+  OpIndex AssembleOutputGraphUntag(const UntagOp& op) {
+    return assembler().ReduceUntag(MapToNewGraph(op.input()), op.kind, op.rep);
+  }
 
   OpIndex AssembleOutputGraphFloat64InsertWord32(
       const Float64InsertWord32Op& op) {
@@ -667,8 +673,9 @@ class GraphVisitor {
                                       op.input_assumptions);
   }
   OpIndex AssembleOutputGraphConvertToObject(const ConvertToObjectOp& op) {
-    return assembler().ReduceConvertToObject(MapToNewGraph(op.input()),
-                                             op.kind);
+    return assembler().ReduceConvertToObject(
+        MapToNewGraph(op.input()), op.kind, op.input_rep,
+        op.input_interpretation, op.minus_zero_mode);
   }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(

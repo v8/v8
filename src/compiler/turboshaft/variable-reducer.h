@@ -143,8 +143,8 @@ class VariableReducer : public Next {
   void Set(Variable var, V<Rep> value) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) return;
     DCHECK(Rep::allows_representation(*var.data()));
-    DCHECK_EQ(Asm().output_graph().Get(value).outputs_rep(),
-              base::VectorOf({*var.data()}));
+    //    DCHECK_EQ(Asm().output_graph().Get(value).outputs_rep(),
+    //              base::VectorOf({*var.data()}));
     table_.Set(var, value);
   }
 

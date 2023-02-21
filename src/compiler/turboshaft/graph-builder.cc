@@ -740,12 +740,30 @@ OpIndex GraphBuilder::Process(
       return input;
     }
 
-    case IrOpcode::kChangeInt64ToBigInt:
+#define CHANGE_CASE(name, kind, input_rep, input_interpretation)         \
+  case IrOpcode::k##name:                                                \
+    return assembler.ConvertToObject(                                    \
+        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,         \
+        input_rep::Rep,                                                  \
+        ConvertToObjectOp::InputInterpretation::k##input_interpretation, \
+        CheckForMinusZeroMode::kDontCheckForMinusZero);
+      CHANGE_CASE(ChangeInt32ToTagged, Number, Word32, Signed)
+      CHANGE_CASE(ChangeUint32ToTagged, Number, Word32, Unsigned)
+      CHANGE_CASE(ChangeInt64ToTagged, Number, Word64, Signed)
+      CHANGE_CASE(ChangeUint64ToTagged, Number, Word64, Unsigned)
+      CHANGE_CASE(ChangeFloat64ToTaggedPointer, HeapNumber, Float64, Signed)
+      CHANGE_CASE(ChangeInt64ToBigInt, BigInt, Word64, Signed)
+      CHANGE_CASE(ChangeUint64ToBigInt, BigInt, Word64, Unsigned)
+      CHANGE_CASE(ChangeInt31ToTaggedSigned, Smi, Word32, Signed)
+      CHANGE_CASE(ChangeBitToTagged, Boolean, Word32, Signed)
+
+    case IrOpcode::kChangeFloat64ToTagged:
       return assembler.ConvertToObject(
-          Map(node->InputAt(0)), ConvertToObjectOp::Kind::kInt64ToBigInt64);
-    case IrOpcode::kChangeUint64ToBigInt:
-      return assembler.ConvertToObject(
-          Map(node->InputAt(0)), ConvertToObjectOp::Kind::kUint64ToBigInt64);
+          Map(node->InputAt(0)), ConvertToObjectOp::Kind::kNumber,
+          RegisterRepresentation::Float64(),
+          ConvertToObjectOp::InputInterpretation::kSigned,
+          CheckMinusZeroModeOf(node->op()));
+#undef CHANGE_CASE
 
     case IrOpcode::kSelect: {
       OpIndex cond = Map(node->InputAt(0));

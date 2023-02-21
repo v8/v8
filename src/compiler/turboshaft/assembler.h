@@ -492,6 +492,7 @@ class AssemblerOpInterface {
   DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
   DECL_SINGLE_REP_BINOP_V(Word32ShiftLeft, Shift, ShiftLeft, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64ShiftLeft, Shift, ShiftLeft, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrShiftLeft, Shift, ShiftLeft, WordPtr)
   DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
   DECL_SINGLE_REP_BINOP_V(Word32RotateRight, Shift, RotateRight, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64RotateRight, Shift, RotateRight, Word64)
@@ -741,11 +742,16 @@ class AssemblerOpInterface {
     return stack().ReduceObjectIs(input, kind, input_assumptions);
   }
 
-  OpIndex ConvertToObject(OpIndex input, ConvertToObjectOp::Kind kind) {
+  OpIndex ConvertToObject(
+      OpIndex input, ConvertToObjectOp::Kind kind,
+      RegisterRepresentation input_rep,
+      ConvertToObjectOp::InputInterpretation input_interpretation,
+      CheckForMinusZeroMode minus_zero_mode) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertToObject(input, kind);
+    return stack().ReduceConvertToObject(input, kind, input_rep,
+                                         input_interpretation, minus_zero_mode);
   }
 
   OpIndex Word32Constant(uint32_t value) {
@@ -979,6 +985,24 @@ class AssemblerOpInterface {
 #undef DECL_CHANGE
 #undef DECL_CHANGE_V
 #undef DECL_TRY_CHANGE
+
+  OpIndex Tag(OpIndex input, TagKind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceTag(input, kind);
+  }
+  V<Tagged> SmiTag(V<Word32> input) { return Tag(input, TagKind::kSmiTag); }
+
+  OpIndex Untag(OpIndex input, TagKind kind, RegisterRepresentation rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceUntag(input, kind, rep);
+  }
+  V<Word32> SmiUntag(V<Tagged> input) {
+    return Untag(input, TagKind::kSmiTag, RegisterRepresentation::Word32());
+  }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep, int32_t offset = 0,
@@ -1487,8 +1511,6 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
         Stack(reducer_args) {
     SupportedOperations::Initialize();
   }
-
-  bool Is64() const { return kSystemPointerSize == sizeof(int64_t); }
 
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }

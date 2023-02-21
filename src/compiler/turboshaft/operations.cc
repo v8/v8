@@ -360,6 +360,13 @@ std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, TagKind kind) {
+  switch (kind) {
+    case TagKind::kSmiTag:
+      return os << "SmiTag";
+  }
+}
+
 void Operation::PrintInputs(std::ostream& os,
                             const std::string& op_index_prefix) const {
   switch (opcode) {
@@ -730,10 +737,27 @@ std::ostream& operator<<(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
   switch (kind) {
-    case ConvertToObjectOp::Kind::kInt64ToBigInt64:
-      return os << "Int64ToBigInt64";
-    case ConvertToObjectOp::Kind::kUint64ToBigInt64:
-      return os << "Uint64ToBigInt64";
+    case ConvertToObjectOp::Kind::kBigInt:
+      return os << "BigInt";
+    case ConvertToObjectOp::Kind::kBoolean:
+      return os << "Boolean";
+    case ConvertToObjectOp::Kind::kHeapNumber:
+      return os << "HeapNumber";
+    case ConvertToObjectOp::Kind::kNumber:
+      return os << "Number";
+    case ConvertToObjectOp::Kind::kSmi:
+      return os << "Smi";
+  }
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertToObjectOp::InputInterpretation input_interpretation) {
+  switch (input_interpretation) {
+    case ConvertToObjectOp::InputInterpretation::kSigned:
+      return os << "Signed";
+    case ConvertToObjectOp::InputInterpretation::kUnsigned:
+      return os << "Unsigned";
   }
 }
 
@@ -743,7 +767,7 @@ std::string Operation::ToString() const {
   return ss.str();
 }
 
-base::LazyMutex SupportedOperations::mutex_;
+base::LazyMutex SupportedOperations::mutex_ = LAZY_MUTEX_INITIALIZER;
 SupportedOperations SupportedOperations::instance_;
 bool SupportedOperations::initialized_;
 

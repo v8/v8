@@ -950,27 +950,35 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
   Node* result = nullptr;
   switch (node->opcode()) {
     case IrOpcode::kChangeBitToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeBitToTagged(node);
       break;
     case IrOpcode::kChangeInt31ToTaggedSigned:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeInt31ToTaggedSigned(node);
       break;
     case IrOpcode::kChangeInt32ToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeInt32ToTagged(node);
       break;
     case IrOpcode::kChangeInt64ToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeInt64ToTagged(node);
       break;
     case IrOpcode::kChangeUint32ToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeUint32ToTagged(node);
       break;
     case IrOpcode::kChangeUint64ToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeUint64ToTagged(node);
       break;
     case IrOpcode::kChangeFloat64ToTagged:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeFloat64ToTagged(node);
       break;
     case IrOpcode::kChangeFloat64ToTaggedPointer:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeFloat64ToTaggedPointer(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt32:
@@ -1524,6 +1532,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 #define __ gasm()->
 
 Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
   return ChangeFloat64ToTagged(value, mode);
@@ -1580,11 +1589,13 @@ Node* EffectControlLinearizer::ChangeFloat64ToTagged(
 }
 
 Node* EffectControlLinearizer::LowerChangeFloat64ToTaggedPointer(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return AllocateHeapNumberWithValue(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeBitToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeBitToTagged(value);
 }
@@ -1604,11 +1615,13 @@ Node* EffectControlLinearizer::ChangeBitToTagged(Node* value) {
 }
 
 Node* EffectControlLinearizer::LowerChangeInt31ToTaggedSigned(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeInt32ToSmi(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeInt32ToTagged(value);
 }
@@ -1633,6 +1646,7 @@ Node* EffectControlLinearizer::ChangeInt32ToTagged(Node* value) {
 }
 
 Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_in_smi_range = __ MakeDeferredLabel();
@@ -1658,6 +1672,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeUint32ToTagged(value);
 }
@@ -1680,6 +1695,7 @@ Node* EffectControlLinearizer::ChangeUint32ToTagged(Node* value) {
 }
 
 Node* EffectControlLinearizer::LowerChangeUint64ToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_in_smi_range = __ MakeDeferredLabel();

@@ -177,17 +177,16 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   }
 }
 
-// These operations should have been lowered in previous reducers already.
-#define SHOULD_HAVE_BEEN_LOWERED_OPS(V) \
-  V(Allocate)                           \
-  V(ConvertToObject)                    \
-  V(DecodeExternalPointer)              \
-  V(ObjectIs)
-#define PROCESS_OPERATION_UNREACHABLE(op) \
+#define SHOULD_HAVE_BEEN_LOWERED(op) \
   Node* ScheduleBuilder::ProcessOperation(const op##Op&) { UNREACHABLE(); }
-SHOULD_HAVE_BEEN_LOWERED_OPS(PROCESS_OPERATION_UNREACHABLE)
-#undef PROCESS_OPERATION_UNREACHABLE
-#undef SHOULD_HAVE_BEEN_LOWERED_OPS
+// These operations should have been lowered in previous reducers already.
+SHOULD_HAVE_BEEN_LOWERED(Allocate)
+SHOULD_HAVE_BEEN_LOWERED(ConvertToObject)
+SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
+SHOULD_HAVE_BEEN_LOWERED(ObjectIs)
+SHOULD_HAVE_BEEN_LOWERED(Tag)
+SHOULD_HAVE_BEEN_LOWERED(Untag)
+#undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
   using Kind = WordBinopOp::Kind;

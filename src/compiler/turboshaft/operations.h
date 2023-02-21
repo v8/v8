@@ -113,7 +113,9 @@ class Graph;
   V(StaticAssert)                    \
   V(CheckTurboshaftTypeOf)           \
   V(ObjectIs)                        \
-  V(ConvertToObject)
+  V(ConvertToObject)                 \
+  V(Tag)                             \
+  V(Untag)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2378,11 +2380,21 @@ std::ostream& operator<<(std::ostream& os,
                          ObjectIsOp::InputAssumptions input_assumptions);
 
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
-  enum class Kind {
-    kInt64ToBigInt64,
-    kUint64ToBigInt64,
+  enum class Kind : uint8_t {
+    kBigInt,
+    kBoolean,
+    kHeapNumber,
+    kNumber,
+    kSmi,
+  };
+  enum class InputInterpretation : uint8_t {
+    kSigned,
+    kUnsigned,
   };
   Kind kind;
+  RegisterRepresentation input_rep;
+  InputInterpretation input_interpretation;
+  CheckForMinusZeroMode minus_zero_mode;
 
   static constexpr OpProperties properties = OpProperties::PureMayAllocate();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -2391,21 +2403,91 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  explicit ConvertToObjectOp(OpIndex input, Kind kind)
-      : Base(input), kind(kind) {}
-
+  explicit ConvertToObjectOp(OpIndex input, Kind kind,
+                             RegisterRepresentation input_rep,
+                             InputInterpretation input_interpretation,
+                             CheckForMinusZeroMode minus_zero_mode)
+      : Base(input),
+        kind(kind),
+        input_rep(input_rep),
+        input_interpretation(input_interpretation),
+        minus_zero_mode(minus_zero_mode) {}
   void Validate(const Graph& graph) const {
     switch (kind) {
-      case Kind::kInt64ToBigInt64:
-      case Kind::kUint64ToBigInt64:
-        DCHECK(
-            ValidOpInputRep(graph, input(), RegisterRepresentation::Word64()));
+      case Kind::kBigInt:
+        DCHECK_EQ(input_rep, RegisterRepresentation::Word64());
+        DCHECK(ValidOpInputRep(graph, input(), input_rep));
+        DCHECK_EQ(minus_zero_mode,
+                  CheckForMinusZeroMode::kDontCheckForMinusZero);
+        break;
+      case Kind::kBoolean:
+        DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
+        DCHECK(ValidOpInputRep(graph, input(), input_rep));
+        DCHECK_EQ(minus_zero_mode,
+                  CheckForMinusZeroMode::kDontCheckForMinusZero);
+        break;
+      case Kind::kNumber:
+      case Kind::kHeapNumber:
+        DCHECK(ValidOpInputRep(graph, input(), input_rep));
+        DCHECK_IMPLIES(
+            minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero,
+            input_rep == RegisterRepresentation::Float64());
+        break;
+      case Kind::kSmi:
+        DCHECK_EQ(input_rep, WordRepresentation::Word32());
+        DCHECK_EQ(minus_zero_mode,
+                  CheckForMinusZeroMode::kDontCheckForMinusZero);
+        DCHECK(ValidOpInputRep(graph, input(), input_rep));
         break;
     }
   }
-  auto options() const { return std::tuple{kind}; }
+
+  auto options() const {
+    return std::tuple{kind, input_rep, input_interpretation, minus_zero_mode};
+  }
 };
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind);
+
+enum class TagKind {
+  kSmiTag,
+};
+std::ostream& operator<<(std::ostream& os, TagKind kind);
+
+struct TagOp : FixedArityOperationT<1, TagOp> {
+  TagKind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  TagOp(OpIndex input, TagKind kind) : Base(input), kind(kind) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+
+struct UntagOp : FixedArityOperationT<1, UntagOp> {
+  TagKind kind;
+  RegisterRepresentation rep;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&rep, 1);
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  UntagOp(OpIndex input, TagKind kind, RegisterRepresentation rep)
+      : Base(input), kind(kind), rep(rep) {}
+  void Validate(const Graph& graph) const { UNIMPLEMENTED(); }
+
+  auto options() const { return std::tuple{kind, rep}; }
+};
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

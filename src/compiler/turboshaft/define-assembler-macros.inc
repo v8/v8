@@ -20,11 +20,11 @@
     (Asm().Bind(label.block()), label.GetAll(Asm()));                           \
     (((void)CONCAT(prevent_empty_binding, __LINE__)), label.block()->IsBound())
 #define GOTO(label, ...)                           \
-  Asm().ControlFlowHelper_Goto(label, __VA_ARGS__)
+  Asm().ControlFlowHelper_Goto(label, { __VA_ARGS__ })
 #define GOTO_IF(cond, label, ...)                          \
-  Asm().ControlFlowHelper_GotoIf(cond, label, __VA_ARGS__)
+  Asm().ControlFlowHelper_GotoIf(cond, label, { __VA_ARGS__ })
 #define GOTO_IF_NOT(cond, label, ...)                         \
-  Asm().ControlFlowHelper_GotoIfNot(cond, label, __VA_ARGS__)
+  Asm().ControlFlowHelper_GotoIfNot(cond, label, { __VA_ARGS__ })
 
 #define IF_WITH_HINT(cond, hint)                                   \
   for (bool bound = Asm().ControlFlowHelper_If(cond, hint); bound; \

@@ -96,6 +96,7 @@
 #include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
+#include "src/compiler/turboshaft/tag-untag-lowering-reducer.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/typed-optimizations-reducer.h"
 #include "src/compiler/turboshaft/types.h"
@@ -2218,6 +2219,17 @@ struct TurboshaftDeadCodeEliminationPhase {
   }
 };
 
+struct TurboshaftTagUntagLoweringPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftTagUntagLowering)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    DCHECK(data->HasTurboshaftGraph());
+    turboshaft::OptimizationPhase<turboshaft::TagUntagLoweringReducer>::Run(
+        data->isolate(), &data->turboshaft_graph(), temp_zone,
+        data->node_origins());
+  }
+};
+
 struct TurboshaftRecreateSchedulePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftRecreateSchedule)
 
@@ -3240,6 +3252,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<TurboshaftDeadCodeEliminationPhase>();
     Run<PrintTurboshaftGraphPhase>(
         TurboshaftDeadCodeEliminationPhase::phase_name());
+
+    Run<TurboshaftTagUntagLoweringPhase>();
+    Run<PrintTurboshaftGraphPhase>(
+        TurboshaftTagUntagLoweringPhase::phase_name());
 
     Run<TurboshaftRecreateSchedulePhase>(linkage);
     TraceSchedule(data->info(), data, data->schedule(),

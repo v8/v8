@@ -17,6 +17,7 @@
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/bigint.h"
+#include "src/objects/heap-number.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -57,7 +58,7 @@ class MachineLoweringReducer : public Next {
     switch (kind) {
       case ObjectIsOp::Kind::kBigInt:
       case ObjectIsOp::Kind::kBigInt64: {
-        DCHECK_IMPLIES(kind == ObjectIsOp::Kind::kBigInt64, __ Is64());
+        DCHECK_IMPLIES(kind == ObjectIsOp::Kind::kBigInt64, Is64());
 
         Label<Word32> done(this);
 
@@ -246,18 +247,23 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex ReduceConvertToObject(OpIndex input, ConvertToObjectOp::Kind kind) {
+  OpIndex ReduceConvertToObject(
+      OpIndex input, ConvertToObjectOp::Kind kind,
+      RegisterRepresentation input_rep,
+      ConvertToObjectOp::InputInterpretation input_interpretation,
+      CheckForMinusZeroMode minus_zero_mode) {
     switch (kind) {
-      case ConvertToObjectOp::Kind::kInt64ToBigInt64: {
-        DCHECK(__ Is64());
-
+      case ConvertToObjectOp::Kind::kBigInt: {
+        DCHECK(Is64());
+        DCHECK_EQ(input_rep, RegisterRepresentation::Word64());
         Label<Tagged> done(this);
 
         // BigInts with value 0 must be of size 0 (canonical form).
-        IF(__ Word64Equal(input, int64_t{0})) {
-          GOTO(done, AllocateBigInt(OpIndex::Invalid(), OpIndex::Invalid()));
-        }
-        ELSE {
+        GOTO_IF(__ Word64Equal(input, int64_t{0}), done,
+                AllocateBigInt(OpIndex::Invalid(), OpIndex::Invalid()));
+
+        if (input_interpretation ==
+            ConvertToObjectOp::InputInterpretation::kSigned) {
           // Shift sign bit into BigInt's sign bit position.
           V<Word32> bitfield = __ Word32BitwiseOr(
               BigInt::LengthBits::encode(1),
@@ -271,25 +277,140 @@ class MachineLoweringReducer : public Next {
           V<Word64> absolute_value =
               __ Word64Sub(__ Word64BitwiseXor(input, sign_mask), sign_mask);
           GOTO(done, AllocateBigInt(bitfield, absolute_value));
-        }
-        END_IF
-
-        BIND(done, result);
-        return result;
-      }
-      case ConvertToObjectOp::Kind::kUint64ToBigInt64: {
-        DCHECK(__ Is64());
-
-        Label<Tagged> done(this);
-
-        // BigInts with value 0 must be of size 0 (canonical form).
-        IF(__ Word64Equal(input, uint64_t{0})) {
-          GOTO(done, AllocateBigInt(OpIndex::Invalid(), OpIndex::Invalid()));
-        }
-        ELSE {
+        } else {
+          DCHECK_EQ(input_interpretation,
+                    ConvertToObjectOp::InputInterpretation::kUnsigned);
           const auto bitfield = BigInt::LengthBits::encode(1);
           GOTO(done, AllocateBigInt(__ Word32Constant(bitfield), input));
         }
+        BIND(done, result);
+        return result;
+      }
+      case ConvertToObjectOp::Kind::kNumber: {
+        if (input_rep == RegisterRepresentation::Word32()) {
+          switch (input_interpretation) {
+            case ConvertToObjectOp::InputInterpretation::kSigned: {
+              if (SmiValuesAre32Bits()) {
+                return __ SmiTag(input);
+              }
+              DCHECK(SmiValuesAre31Bits());
+
+              Label<Tagged> done(this);
+              Label<> overflow(this);
+
+              SmiTagOrOverflow(input, &overflow, &done);
+
+              if (BIND(overflow)) {
+                GOTO(done, AllocateHeapNumberWithValue(
+                               __ ChangeInt32ToFloat64(input)));
+              }
+
+              BIND(done, result);
+              return result;
+            }
+            case ConvertToObjectOp::InputInterpretation::kUnsigned: {
+              Label<Tagged> done(this);
+
+              GOTO_IF(__ Uint32LessThanOrEqual(input, Smi::kMaxValue), done,
+                      __ SmiTag(input));
+              GOTO(done, AllocateHeapNumberWithValue(
+                             __ ChangeUint32ToFloat64(input)));
+
+              BIND(done, result);
+              return result;
+            }
+          }
+        } else if (input_rep == RegisterRepresentation::Word64()) {
+          switch (input_interpretation) {
+            case ConvertToObjectOp::InputInterpretation::kSigned: {
+              Label<Tagged> done(this);
+              Label<> outside_smi_range(this);
+
+              V<Word32> v32 = input;
+              V<Word64> v64 = __ ChangeInt32ToInt64(v32);
+              GOTO_IF_NOT(__ Word64Equal(v64, input), outside_smi_range);
+
+              if constexpr (SmiValuesAre32Bits()) {
+                GOTO(done, __ SmiTag(input));
+              } else {
+                SmiTagOrOverflow(v32, &outside_smi_range, &done);
+              }
+
+              if (BIND(outside_smi_range)) {
+                GOTO(done, AllocateHeapNumberWithValue(
+                               __ ChangeInt64ToFloat64(input)));
+              }
+
+              BIND(done, result);
+              return result;
+            }
+            case ConvertToObjectOp::InputInterpretation::kUnsigned: {
+              Label<Tagged> done(this);
+
+              GOTO_IF(__ Uint64LessThanOrEqual(input, Smi::kMaxValue), done,
+                      __ SmiTag(input));
+              GOTO(done,
+                   AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(input)));
+
+              BIND(done, result);
+              return result;
+            }
+          }
+        } else {
+          DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+          Label<Tagged> done(this);
+          Label<> outside_smi_range(this);
+
+          V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(input);
+          GOTO_IF_NOT(__ Float64Equal(input, __ ChangeInt32ToFloat64(v32)),
+                      outside_smi_range);
+
+          if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+            // In case of 0, we need to check the high bits for the IEEE -0
+            // pattern.
+            IF(__ Word32Equal(v32, 0)) {
+              GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(input), 0),
+                      outside_smi_range);
+            }
+            END_IF
+          }
+
+          if constexpr (SmiValuesAre32Bits()) {
+            GOTO(done, __ SmiTag(v32));
+          } else {
+            SmiTagOrOverflow(v32, &outside_smi_range, &done);
+          }
+
+          if (BIND(outside_smi_range)) {
+            GOTO(done, AllocateHeapNumberWithValue(input));
+          }
+
+          BIND(done, result);
+          return result;
+        }
+        UNREACHABLE();
+        break;
+      }
+      case ConvertToObjectOp::Kind::kHeapNumber: {
+        DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+        DCHECK_EQ(input_interpretation,
+                  ConvertToObjectOp::InputInterpretation::kSigned);
+        return AllocateHeapNumberWithValue(input);
+      }
+      case ConvertToObjectOp::Kind::kSmi: {
+        DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
+        DCHECK_EQ(input_interpretation,
+                  ConvertToObjectOp::InputInterpretation::kSigned);
+        return __ SmiTag(input);
+      }
+      case ConvertToObjectOp::Kind::kBoolean: {
+        DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
+        DCHECK_EQ(input_interpretation,
+                  ConvertToObjectOp::InputInterpretation::kSigned);
+        Label<Tagged> done(this);
+
+        IF(input) { GOTO(done, __ HeapConstant(factory_->true_value())); }
+        ELSE { GOTO(done, __ HeapConstant(factory_->false_value())); }
         END_IF
 
         BIND(done, result);
@@ -299,6 +420,12 @@ class MachineLoweringReducer : public Next {
 
     UNREACHABLE();
   }
+
+  // TODO(nicohartmann@): Remove this once ECL has been fully ported.
+  // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
+  // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
+  // ECL: ChangeUint32ToSmi(input) ==> MLR: __ SmiTag(input)
+  // ECL: ChangeUint64ToSmi(input) ==> MLR: __ SmiTag(input)
 
  private:
   // TODO(nicohartmann@): Might move some of those helpers into the assembler
@@ -369,7 +496,7 @@ class MachineLoweringReducer : public Next {
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical
   // 0n BigInt.
   V<Tagged> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
-    DCHECK(__ Is64());
+    DCHECK(Is64());
     DCHECK_EQ(bitfield.valid(), digit.valid());
     static constexpr auto zero_bitfield =
         BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
@@ -394,11 +521,36 @@ class MachineLoweringReducer : public Next {
     return bigint;
   }
 
+  // TODO(nicohartmann@): Should also make this an operation and lower in
+  // TagUntagLoweringReducer.
   V<Word32> IsSmi(V<Tagged> input) {
     return __ Word32Equal(
         __ Word32BitwiseAnd(V<Word32>::Cast(input),
                             static_cast<uint32_t>(kSmiTagMask)),
         static_cast<uint32_t>(kSmiTag));
+  }
+
+  void SmiTagOrOverflow(V<Word32> input, Label<>* overflow,
+                        Label<Tagged>* done) {
+    DCHECK(SmiValuesAre31Bits());
+
+    // Check for overflow at the same time that we are smi tagging.
+    // Since smi tagging shifts left by one, it's the same as adding value
+    // twice.
+    OpIndex add = __ Int32AddCheckOverflow(input, input);
+    V<Word32> check = __ Projection(add, 1, WordRepresentation::Word32());
+    GOTO_IF(check, *overflow);
+    GOTO(*done, __ SmiTag(input));
+  }
+
+  V<Tagged> AllocateHeapNumberWithValue(V<Float64> value) {
+    V<Tagged> result =
+        __ Allocate(__ IntPtrConstant(HeapNumber::kSize),
+                    AllocationType::kYoung, AllowLargeObjects::kFalse);
+    StoreField(result, AccessBuilder::ForMap(),
+               __ HeapConstant(factory_->heap_number_map()));
+    StoreField(result, AccessBuilder::ForHeapNumberValue(), value);
+    return result;
   }
 
   Factory* factory_;
