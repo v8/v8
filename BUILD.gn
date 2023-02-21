@@ -821,7 +821,7 @@ if (is_tsan) {
   enabled_external_v8_defines += [ "V8_IS_TSAN" ]
 }
 if (v8_enable_conservative_stack_scanning) {
-    enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
+  enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -3202,6 +3202,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/memory-reducer.h",
     "src/heap/new-spaces-inl.h",
     "src/heap/new-spaces.h",
+    "src/heap/object-lock.h",
     "src/heap/object-stats.h",
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.h",
