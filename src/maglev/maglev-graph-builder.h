@@ -1123,7 +1123,8 @@ class MaglevGraphBuilder {
   DeoptFrame GetLatestCheckpointedFrame();
   DeoptFrame GetDeoptFrameForLazyDeopt();
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
-      LazyDeoptContinuationScope* continuation_scope);
+      LazyDeoptContinuationScope* continuation_scope,
+      bool mark_accumulator_dead);
 
   void MarkPossibleMapMigration() {
     current_for_in_state.receiver_needs_map_check = true;

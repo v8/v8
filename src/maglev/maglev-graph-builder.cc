@@ -13,6 +13,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
@@ -365,11 +366,18 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
   if (parent_ == nullptr) return nullptr;
   if (parent_deopt_frame_ == nullptr) {
     // The parent resumes after the call, which is roughly equivalent to a lazy
-    // deopt.
-    // TODO(leszeks): Don't consider the accumulator live in parent frames,
-    // since the call will overwrite it.
+    // deopt. Use the helper function directly so that we can mark the
+    // accumulator as dead (since it'll be overwritten by this function's
+    // return value anyway).
+    // TODO(leszeks): This is true for our current set of
+    // inlinings/continuations, but there might be cases in the future where it
+    // isn't. We may need to store the relevant overwritten register in
+    // LazyDeoptContinuationScope.
+    DCHECK(interpreter::Bytecodes::WritesAccumulator(
+        parent_->iterator_.current_bytecode()));
     parent_deopt_frame_ =
-        zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeopt());
+        zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
+            parent_->current_lazy_deopt_continuation_scope_, true));
   }
   return parent_deopt_frame_;
 }
@@ -389,25 +397,41 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
-  return GetDeoptFrameForLazyDeoptHelper(
-      current_lazy_deopt_continuation_scope_);
+  return GetDeoptFrameForLazyDeoptHelper(current_lazy_deopt_continuation_scope_,
+                                         false);
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
-    LazyDeoptContinuationScope* continuation_scope) {
+    LazyDeoptContinuationScope* continuation_scope,
+    bool mark_accumulator_dead) {
   if (continuation_scope == nullptr) {
+    // Potentially copy the out liveness if we want to explicitly drop the
+    // accumulator.
+    const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
+    if (mark_accumulator_dead && liveness->AccumulatorIsLive()) {
+      compiler::BytecodeLivenessState* liveness_copy =
+          zone()->New<compiler::BytecodeLivenessState>(*liveness, zone());
+      liveness_copy->MarkAccumulatorDead();
+      liveness = liveness_copy;
+    }
     return InterpretedDeoptFrame(
         *compilation_unit_,
-        zone()->New<CompactInterpreterFrameState>(
-            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
+        zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
+                                                  current_interpreter_frame_),
         BytecodeOffset(iterator_.current_offset()), current_source_position_,
         GetParentDeoptFrame());
   }
 
+  // Currently only support builtin continuations for bytecodes that write to
+  // the accumulator
+  DCHECK(
+      interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
   return BuiltinContinuationDeoptFrame(
       continuation_scope->continuation(), {}, GetContext(),
+      // Mark the accumulator dead in parent frames since we know that the
+      // continuation will write it.
       zone()->New<DeoptFrame>(
-          GetDeoptFrameForLazyDeoptHelper(continuation_scope->parent())));
+          GetDeoptFrameForLazyDeoptHelper(continuation_scope->parent(), true)));
 }
 
 namespace {
