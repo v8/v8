@@ -173,7 +173,7 @@ class Sweeper {
 
   bool ShouldRefillFreelistForSpace(AllocationSpace space) const;
 
-  void SweepEmptyNewSpacePage(Page* page);
+  void SweepEmptyNewSpacePage(Page* page, bool should_discard_page);
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }

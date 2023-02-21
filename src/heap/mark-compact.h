@@ -669,6 +669,8 @@ class MarkCompactCollector final : public CollectorBase {
   // the start of each GC.
   base::EnumSet<CodeFlushMode> code_flush_mode_;
 
+  std::vector<Page*> swept_empty_new_space_pages_;
+
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
 };
