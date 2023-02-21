@@ -1114,6 +1114,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // Reparse the class as an expression to build the instance member
   // initializer function.
   Expression* expr = ParseClassExpression(original_scope_);
+  if (has_error()) return nullptr;
 
   DCHECK(expr->IsClassLiteral());
   ClassLiteral* literal = expr->AsClassLiteral();
