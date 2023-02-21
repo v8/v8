@@ -848,12 +848,11 @@ class SafepointingNodeProcessor {
 
 namespace {
 int GetFrameCount(const DeoptFrame& deopt_frame) {
-  switch (deopt_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      return 1 + deopt_frame.as_interpreted().unit().inlining_depth();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      return 1 + GetFrameCount(*deopt_frame.parent());
+  int count = 1;
+  if (deopt_frame.parent()) {
+    count += GetFrameCount(*deopt_frame.parent());
   }
+  return count;
 }
 BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
   switch (deopt_frame.type()) {

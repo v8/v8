@@ -364,10 +364,12 @@ void MaglevGraphBuilder::BuildMergeStates() {
 DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
   if (parent_ == nullptr) return nullptr;
   if (parent_deopt_frame_ == nullptr) {
-    // Force parent to create a fresh deopt frame.
-    parent_->latest_checkpointed_frame_.reset();
+    // The parent resumes after the call, which is roughly equivalent to a lazy
+    // deopt.
+    // TODO(leszeks): Don't consider the accumulator live in parent frames,
+    // since the call will overwrite it.
     parent_deopt_frame_ =
-        zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame());
+        zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeopt());
   }
   return parent_deopt_frame_;
 }
