@@ -2343,6 +2343,9 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   Isolate* shared_isolate = i_isolate->shared_heap_isolate();
   Heap* shared_heap = shared_isolate->heap();
 
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      shared_heap);
+
   // Create two weak references to Strings. One should die, the other should be
   // kept alive by the client isolate.
   Persistent<v8::String> live_weak_ref;
