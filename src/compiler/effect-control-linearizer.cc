@@ -3334,10 +3334,11 @@ Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
@@ -3349,6 +3350,9 @@ Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
                        FIRST_JS_ARRAY_BUFFER_VIEW_TYPE + 1));
   __ Goto(&done, vfalse);
 
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
+
   __ Bind(&done);
   return done.PhiAt(0);
 }
@@ -3357,14 +3361,18 @@ Node* EffectControlLinearizer::LowerObjectIsBigInt(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* vfalse = __ TaggedEqual(value_map, __ BigIntMapConstant());
   __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
@@ -3374,10 +3382,11 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
@@ -3388,6 +3397,9 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
                    __ Int32Constant(Map::Bits1::IsCallableBit::kMask)));
   __ Goto(&done, vfalse);
 
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
+
   __ Bind(&done);
   return done.PhiAt(0);
 }
@@ -3396,10 +3408,11 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
@@ -3409,6 +3422,9 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
       __ Word32And(value_bit_field,
                    __ Int32Constant(Map::Bits1::IsConstructorBit::kMask)));
   __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
@@ -3711,9 +3727,10 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
-  __ GotoIf(ObjectIsSmi(value), &done, __ Int32Constant(0));
+  __ GotoIf(ObjectIsSmi(value), &if_smi);
 
   static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -3722,6 +3739,9 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
   Node* result = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ Goto(&done, result);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
@@ -3737,10 +3757,11 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
@@ -3748,6 +3769,9 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
   Node* vfalse = __ Uint32LessThan(value_instance_type,
                                    __ Uint32Constant(FIRST_NONSTRING_TYPE));
   __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
@@ -3757,10 +3781,11 @@ Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
@@ -3768,6 +3793,9 @@ Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
   Node* vfalse =
       __ Word32Equal(value_instance_type, __ Uint32Constant(SYMBOL_TYPE));
   __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
@@ -3777,10 +3805,11 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
   DCHECK(!lower_in_turboshaft_);
   Node* value = node->InputAt(0);
 
+  auto if_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   Node* check = ObjectIsSmi(value);
-  __ GotoIf(check, &done, __ Int32Constant(0));
+  __ GotoIf(check, &if_smi);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
@@ -3790,6 +3819,9 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
       __ Word32And(value_bit_field,
                    __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask)));
   __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
 
   __ Bind(&done);
   return done.PhiAt(0);
