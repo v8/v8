@@ -793,6 +793,25 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
+  // Set up uninitialized element segments.
+  //--------------------------------------------------------------------------
+  if (!module_->elem_segments.empty()) {
+    Handle<FixedArray> elements = isolate_->factory()->NewFixedArray(
+        static_cast<int>(module_->elem_segments.size()));
+    for (int i = 0; i < static_cast<int>(module_->elem_segments.size()); i++) {
+      // Initialize declarative segments as empty. The rest remain
+      // uninitialized.
+      bool is_declarative = module_->elem_segments[i].status ==
+                            WasmElemSegment::kStatusDeclarative;
+      elements->set(
+          i, is_declarative
+                 ? Object::cast(*isolate_->factory()->empty_fixed_array())
+                 : *isolate_->factory()->undefined_value());
+    }
+    instance->set_element_segments(*elements);
+  }
+
+  //--------------------------------------------------------------------------
   // Load element segments into tables.
   //--------------------------------------------------------------------------
   if (table_count > 0) {
@@ -2014,6 +2033,7 @@ void InstanceBuilder::SetTableInitialValues(
   }
 }
 
+namespace {
 ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
                                         Handle<WasmInstanceObject> instance,
                                         const WasmElemSegment& segment,
@@ -2075,7 +2095,6 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
              : ValueOrError(full_decoder.interface().computed_value());
 }
 
-namespace {
 // If the operation succeeds, returns an empty {Optional}. Otherwise, returns an
 // {Optional} containing the {MessageTemplate} code of the error.
 base::Optional<MessageTemplate> LoadElemSegmentImpl(
@@ -2083,22 +2102,42 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
     Handle<WasmTableObject> table_object, uint32_t table_index,
     uint32_t segment_index, uint32_t dst, uint32_t src, size_t count) {
   DCHECK_LT(segment_index, instance->module()->elem_segments.size());
-  auto& elem_segment = instance->module()->elem_segments[segment_index];
+
+  // If needed, try to lazily initialize the element segment.
+  auto opt_error =
+      InitializeElementSegment(zone, isolate, instance, segment_index);
+  if (opt_error.has_value()) return opt_error;
+
+  Handle<FixedArray> elem_segment =
+      handle(FixedArray::cast(instance->element_segments().get(segment_index)),
+             isolate);
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
   if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length())) {
     return {MessageTemplate::kWasmTrapTableOutOfBounds};
   }
-  if (!base::IsInBounds<uint64_t>(
-          src, count,
-          instance->dropped_elem_segments().get(segment_index) == 0
-              ? elem_segment.element_count
-              : 0)) {
+  if (!base::IsInBounds<uint64_t>(src, count, elem_segment->length())) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
   }
 
-  ErrorThrower thrower(isolate, "LoadElemSegment");
+  for (size_t i = 0; i < count; i++) {
+    WasmTableObject::Set(
+        isolate, table_object, static_cast<int>(dst + i),
+        handle(elem_segment->get(static_cast<int>(src + i)), isolate));
+  }
+
+  return {};
+}
+}  // namespace
+
+base::Optional<MessageTemplate> InitializeElementSegment(
+    Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t segment_index) {
+  if (!instance->element_segments().get(segment_index).IsUndefined()) return {};
+
+  const WasmElemSegment& elem_segment =
+      instance->module()->elem_segments[segment_index];
 
   base::Vector<const byte> module_bytes =
       instance->module_object().native_module()->wire_bytes();
@@ -2106,21 +2145,20 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
   Decoder decoder(module_bytes);
   decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
 
-  // Skip elements up to {src}.
-  for (size_t i = 0; i < src; ++i) {
-    ConsumeElementSegmentEntry(zone, isolate, instance, elem_segment, decoder);
+  Handle<FixedArray> result =
+      isolate->factory()->NewFixedArray(elem_segment.element_count);
+
+  for (size_t i = 0; i < elem_segment.element_count; ++i) {
+    ValueOrError value = ConsumeElementSegmentEntry(zone, isolate, instance,
+                                                    elem_segment, decoder);
+    if (is_error(value)) return {to_error(value)};
+    result->set(static_cast<int>(i), *to_value(value).to_ref());
   }
-  for (size_t i = 0; i < count; ++i) {
-    ValueOrError result = ConsumeElementSegmentEntry(zone, isolate, instance,
-                                                     elem_segment, decoder);
-    if (is_error(result)) return {to_error(result)};
-    int entry_index = static_cast<int>(dst + i);
-    WasmTableObject::Set(isolate, table_object, entry_index,
-                         to_value(result).to_ref());
-  }
+
+  instance->element_segments().set(segment_index, *result);
+
   return {};
 }
-}  // namespace
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   for (uint32_t segment_index = 0;
@@ -2144,9 +2182,10 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
                    instance->tables().get(elem_segment.table_index)),
                isolate_),
         table_index, segment_index, dst, src, count);
-    // Set the active segments to being already dropped, since table.init on
-    // a dropped passive segment and an active segment have the same behavior.
-    instance->dropped_elem_segments().set(segment_index, 1);
+    // Active segment have to be set to empty after instance initialization
+    // (much like passive segments after dropping).
+    instance->element_segments().set(segment_index,
+                                     *isolate_->factory()->empty_fixed_array());
     if (opt_error.has_value()) {
       thrower_->RuntimeError(
           "%s", MessageFormatter::TemplateString(opt_error.value()));

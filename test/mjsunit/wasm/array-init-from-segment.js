@@ -43,6 +43,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .exportFunc()
   }
 
+  // Respective segment elements should be pointer-identical.
+  builder.addFunction("identical", makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprI32Const, 0,  // offset
+      kExprLocalGet, 0,  // length
+      kGCPrefix, kExprArrayNewElem, array_type_index, passive_segment,
+      kExprLocalGet, 1,  // index in the array
+      kGCPrefix, kExprArrayGet, array_type_index,
+
+      kExprI32Const, 0,  // offset
+      kExprLocalGet, 0,  // length
+      kGCPrefix, kExprArrayNewElem, array_type_index, passive_segment,
+      kExprLocalGet, 1,  // index in the array
+      kGCPrefix, kExprArrayGet, array_type_index,
+
+      kExprRefEq])
+    .exportFunc()
+
   generator("init_and_get", passive_segment);
   generator("init_and_get_active", active_segment);
 
@@ -66,6 +84,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapArrayTooLarge, () => init_and_get(1 << 31, 10));
   // Element is out of bounds.
   assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(5, 0));
+  // Respective segment elements should be pointer-identical.
+  assertEquals(1, instance.exports.identical(3, 0));
   // Now drop the segment.
   instance.exports.drop();
   // A 0-length array should still be created...

@@ -669,7 +669,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   Handle<Object> NewWasmArrayFromElementSegment(
-      Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
+      Handle<WasmInstanceObject> instance, uint32_t segment_index,
       uint32_t start_offset, uint32_t length, Handle<Map> map);
   Handle<WasmContinuationObject> NewWasmContinuationObject(
       Address jmpbuf, Handle<Foreign> managed_stack, Handle<HeapObject> parent,

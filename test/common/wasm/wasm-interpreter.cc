@@ -1912,7 +1912,8 @@ class WasmInterpreterInternals {
         IndexImmediate imm(decoder, code->at(pc + *len),
                            "element segment index", kNoValidate);
         *len += imm.length;
-        instance_object_->dropped_elem_segments().set(imm.index, 1);
+        instance_object_->element_segments().set(
+            imm.index, *isolate_->factory()->empty_fixed_array());
         return true;
       }
       case kExprTableCopy: {

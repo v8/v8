@@ -307,6 +307,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
   entries->set(entry_index, *entry);
 }
 
+// TODO(manoskouk): Does this need to be handlified?
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           uint32_t index, Handle<Object> entry) {
   // Callers need to perform bounds checks, type check, and error handling.
@@ -1150,10 +1151,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       FixedUInt32Array::New(isolate, num_data_segments);
   instance->set_data_segment_sizes(*data_segment_sizes);
 
-  int num_elem_segments = static_cast<int>(module->elem_segments.size());
-  Handle<FixedUInt8Array> dropped_elem_segments =
-      FixedUInt8Array::New(isolate, num_elem_segments);
-  instance->set_dropped_elem_segments(*dropped_elem_segments);
+  instance->set_element_segments(*isolate->factory()->empty_fixed_array());
 
   Handle<FixedArray> imported_function_refs =
       isolate->factory()->NewFixedArray(num_imported_functions);
@@ -1206,7 +1204,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   }
 
   InitDataSegmentArrays(instance, module_object);
-  InitElemSegmentArrays(instance, module_object);
 
   return instance;
 }
@@ -1237,20 +1234,6 @@ void WasmInstanceObject::InitDataSegmentArrays(
     // behavior.
     instance->data_segment_sizes().set(
         static_cast<int>(i), segment.active ? 0 : source_bytes.length());
-  }
-}
-
-void WasmInstanceObject::InitElemSegmentArrays(
-    Handle<WasmInstanceObject> instance,
-    Handle<WasmModuleObject> module_object) {
-  auto module = module_object->module();
-  auto num_elem_segments = module->elem_segments.size();
-  for (size_t i = 0; i < num_elem_segments; ++i) {
-    instance->dropped_elem_segments().set(
-        static_cast<int>(i), module->elem_segments[i].status ==
-                                     wasm::WasmElemSegment::kStatusDeclarative
-                                 ? 1
-                                 : 0);
   }
 }
 

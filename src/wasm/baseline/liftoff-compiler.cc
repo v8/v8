@@ -5423,24 +5423,26 @@ class LiftoffCompiler {
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     LiftoffRegList pinned;
-    Register dropped_elem_segments =
+    Register element_segments =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(dropped_elem_segments, DroppedElemSegments,
-                                   pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(element_segments, ElementSegments, pinned);
 
     LiftoffRegister seg_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(
         seg_index,
-        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt8Array(
-            imm.index)));
+        WasmValue(
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index)));
 
-    // Mark the segment as dropped by setting its value in the dropped
-    // segments list to 1.
-    LiftoffRegister one_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(one_reg, WasmValue(1));
-    __ Store(dropped_elem_segments, seg_index.gp(), 0, one_reg,
-             StoreType::kI32Store8, pinned);
+    // Mark the segment as dropped by setting it to the empty fixed array.
+    LiftoffRegister empty_fixed_array =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadFullPointer(
+        empty_fixed_array.gp(), kRootRegister,
+        IsolateData::root_slot_offset(RootIndex::kEmptyFixedArray));
+
+    __ StoreTaggedPointer(element_segments, seg_index.gp(), 0,
+                          empty_fixed_array, pinned);
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,

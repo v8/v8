@@ -793,19 +793,23 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
         instance->data_segment_starts().get(segment_index) + offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
   } else {
-    const wasm::WasmElemSegment* elem_segment =
+    Handle<Object> elem_segment_raw =
+        handle(instance->element_segments().get(segment_index), isolate);
+    const wasm::WasmElemSegment* module_elem_segment =
         &instance->module()->elem_segments[segment_index];
-    if (!base::IsInBounds<size_t>(
-            offset, length,
-            instance->dropped_elem_segments().get(segment_index)
-                ? 0
-                : elem_segment->element_count)) {
+    // If the segment is initialized in the instance, we have to get its length
+    // from there, as it might have been dropped. If the segment is
+    // uninitialized, we need to fetch its length from the module.
+    int segment_length =
+        elem_segment_raw->IsFixedArray()
+            ? Handle<FixedArray>::cast(elem_segment_raw)->length()
+            : module_elem_segment->element_count;
+    if (!base::IsInBounds<size_t>(offset, length, segment_length)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }
-
     Handle<Object> result = isolate->factory()->NewWasmArrayFromElementSegment(
-        instance, elem_segment, offset, length, rtt);
+        instance, segment_index, offset, length, rtt);
     if (result->IsSmi()) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(result->ToSmi().value()));

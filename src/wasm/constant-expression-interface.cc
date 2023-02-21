@@ -318,7 +318,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
 
     Handle<Object> array_object =
         isolate_->factory()->NewWasmArrayFromElementSegment(
-            instance_, elem_segment, offset, length,
+            instance_, segment_imm.index, offset, length,
             Handle<Map>::cast(rtt.runtime_value.to_ref()));
     if (array_object->IsSmi()) {
       // A smi result stands for an error code.

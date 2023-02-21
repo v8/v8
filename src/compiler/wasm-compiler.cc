@@ -96,13 +96,13 @@ MachineType assert_size(int expected_size, MachineType type) {
 
 // Use MachineType::Pointer() over Tagged() to load root pointers because they
 // do not get compressed.
-#define LOAD_ROOT(root_name, factory_name)                   \
+#define LOAD_ROOT(RootName, factory_name)                    \
   (parameter_mode_ == kNoSpecialParameterMode                \
        ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
              isolate_->factory()->factory_name()))           \
        : gasm_->LoadImmutable(                               \
              MachineType::Pointer(), BuildLoadIsolateRoot(), \
-             IsolateData::root_slot_offset(RootIndex::k##root_name)))
+             IsolateData::root_slot_offset(RootIndex::k##RootName)))
 
 bool ContainsSimd(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
@@ -5195,14 +5195,14 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
   // validation.
   DCHECK_LT(elem_segment_index, env_->module->elem_segments.size());
 
-  Node* dropped_elem_segments =
-      LOAD_INSTANCE_FIELD(DroppedElemSegments, MachineType::TaggedPointer());
-  auto store_rep =
-      StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier);
-  gasm_->Store(store_rep, dropped_elem_segments,
-               wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt8Array(
-                   elem_segment_index),
-               Int32Constant(1));
+  Node* elem_segments =
+      LOAD_INSTANCE_FIELD(ElementSegments, MachineType::TaggedPointer());
+  auto store_rep = StoreRepresentation(MachineRepresentation::kTaggedPointer,
+                                       kFullWriteBarrier);
+  gasm_->Store(
+      store_rep, elem_segments,
+      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(elem_segment_index),
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
 }
 
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,

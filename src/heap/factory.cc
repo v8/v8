@@ -1831,7 +1831,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
 }
 
 Handle<Object> Factory::NewWasmArrayFromElementSegment(
-    Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
+    Handle<WasmInstanceObject> instance, uint32_t segment_index,
     uint32_t start_offset, uint32_t length, Handle<Map> map) {
   DCHECK(WasmArray::type(*map)->element_type().is_reference());
   HeapObject raw =
@@ -1851,25 +1851,24 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
 
   Handle<WasmArray> result = handle(WasmArray::cast(raw), isolate());
 
+  // Lazily initialize the element segment if needed.
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+  base::Optional<MessageTemplate> opt_error =
+      wasm::InitializeElementSegment(&zone, isolate(), instance, segment_index);
+  if (opt_error.has_value()) {
+    return handle(Smi::FromEnum(opt_error.value()), isolate());
+  }
 
-  wasm::Decoder decoder(
-      instance->module_object().native_module()->wire_bytes());
-  decoder.consume_bytes(segment->elements_wire_bytes_offset);
-  // Skip entries until {start_offset}.
-  for (uint32_t i = 0; i < start_offset; i++) {
-    wasm::ConsumeElementSegmentEntry(&zone, isolate(), instance, *segment,
-                                     decoder);
-  }
+  Handle<FixedArray> elements =
+      handle(FixedArray::cast(instance->element_segments().get(segment_index)),
+             isolate());
+
   for (uint32_t i = 0; i < length; i++) {
-    wasm::ValueOrError maybe_element = wasm::ConsumeElementSegmentEntry(
-        &zone, isolate(), instance, *segment, decoder);
-    if (wasm::is_error(maybe_element)) {
-      return handle(Smi::FromEnum(wasm::to_error(maybe_element)), isolate());
-    }
-    result->SetTaggedElement(i, wasm::to_value(maybe_element).to_ref());
+    result->SetTaggedElement(
+        i, handle(elements->get(start_offset + i), isolate()));
   }
+
   return result;
 }
 

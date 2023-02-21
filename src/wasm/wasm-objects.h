@@ -366,7 +366,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
   DECL_ACCESSORS(data_segment_starts, FixedAddressArray)
   DECL_ACCESSORS(data_segment_sizes, FixedUInt32Array)
-  DECL_ACCESSORS(dropped_elem_segments, FixedUInt8Array)
+  DECL_ACCESSORS(element_segments, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -409,7 +409,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   /* Less than system pointer size aligned fields are below. */           \
   V(kDataSegmentStartsOffset, kTaggedSize)                                \
   V(kDataSegmentSizesOffset, kTaggedSize)                                 \
-  V(kDroppedElemSegmentsOffset, kTaggedSize)                              \
+  V(kElementSegmentsOffset, kTaggedSize)                                  \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -463,7 +463,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kImportedFunctionTargetsOffset,
       kDataSegmentStartsOffset,
       kDataSegmentSizesOffset,
-      kDroppedElemSegmentsOffset};
+      kElementSegmentsOffset};
 
   const wasm::WasmModule* module();
 
@@ -542,8 +542,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 
  private:
   static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
-                                    Handle<WasmModuleObject>);
-  static void InitElemSegmentArrays(Handle<WasmInstanceObject>,
                                     Handle<WasmModuleObject>);
 };
 
