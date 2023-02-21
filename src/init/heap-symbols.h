@@ -634,6 +634,7 @@
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   TOP_MINOR_MC_SCOPES(F)                             \
+  F(MINOR_MC_CLEAR_STRING_FORWARDING_TABLE)          \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
   F(MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES)              \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \

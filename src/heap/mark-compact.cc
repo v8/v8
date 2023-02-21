@@ -2842,31 +2842,51 @@ class StringForwardingTableCleaner final {
   explicit StringForwardingTableCleaner(Heap* heap)
       : heap_(heap),
         isolate_(heap_->isolate()),
-        marking_state_(heap_->non_atomic_marking_state()),
-        transition_strings_(!heap_->IsGCWithStack() ||
-                            v8_flags.transition_strings_during_gc_with_stack) {}
-  void Run() {
+        marking_state_(heap_->non_atomic_marking_state()) {}
+
+  // Transition all strings in the forwarding table to
+  // ThinStrings/ExternalStrings and clear the table afterwards.
+  void TransitionStrings() {
+    DCHECK(!heap_->IsGCWithStack() ||
+           v8_flags.transition_strings_during_gc_with_stack);
     StringForwardingTable* forwarding_table =
         isolate_->string_forwarding_table();
-    if (transition_strings_) {
-      forwarding_table->IterateElements(
-          [&](StringForwardingTable::Record* record) {
-            TransitionStrings(record);
-          });
-      forwarding_table->Reset();
-    } else {
-      // When performing GC with a stack, we conservatively assume that
-      // the GC could have been triggered by optimized code. Optimized code
-      // assumes that flat strings don't transition during GCs, so we are not
-      // allowed to transition strings to ThinString/ExternalString in that
-      // case.
-      // Instead we mark forward objects to keep them alive and update entries
-      // of evacuated objects later.
-      forwarding_table->IterateElements(
-          [&](StringForwardingTable::Record* record) {
-            MarkForwardObject(record);
-          });
-    }
+    forwarding_table->IterateElements(
+        [&](StringForwardingTable::Record* record) {
+          TransitionStrings(record);
+        });
+    forwarding_table->Reset();
+  }
+
+  // When performing GC with a stack, we conservatively assume that
+  // the GC could have been triggered by optimized code. Optimized code
+  // assumes that flat strings don't transition during GCs, so we are not
+  // allowed to transition strings to ThinString/ExternalString in that
+  // case.
+  // Instead we mark forward objects to keep them alive and update entries
+  // of evacuated objects later.
+  void ProcessFullWithStack() {
+    DCHECK(heap_->IsGCWithStack() &&
+           !v8_flags.transition_strings_during_gc_with_stack);
+    StringForwardingTable* forwarding_table =
+        isolate_->string_forwarding_table();
+    forwarding_table->IterateElements(
+        [&](StringForwardingTable::Record* record) {
+          MarkForwardObject(record);
+        });
+  }
+
+  // For Minor MC we don't mark forward objects, because they are always
+  // in old generation (and thus considered live).
+  // We only need to delete non-live young objects.
+  void ProcessYoungObjects() {
+    DCHECK(v8_flags.always_use_string_forwarding_table);
+    StringForwardingTable* forwarding_table =
+        isolate_->string_forwarding_table();
+    forwarding_table->IterateElements(
+        [&](StringForwardingTable::Record* record) {
+          ClearNonLiveYoungObjects(record);
+        });
   }
 
  private:
@@ -2885,6 +2905,20 @@ class StringForwardingTableCleaner final {
       }
       marking_state_->WhiteToBlack(HeapObject::cast(forward));
     } else {
+      DisposeExternalResource(record);
+      record->set_original_string(StringForwardingTable::deleted_element());
+    }
+  }
+
+  void ClearNonLiveYoungObjects(StringForwardingTable::Record* record) {
+    Object original = record->OriginalStringObject(isolate_);
+    if (!original.IsHeapObject()) {
+      DCHECK_EQ(original, StringForwardingTable::deleted_element());
+      return;
+    }
+    String original_string = String::cast(original);
+    if (!Heap::InYoungGeneration(original_string)) return;
+    if (!marking_state_->IsBlack(original_string)) {
       DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
     }
@@ -2974,7 +3008,6 @@ class StringForwardingTableCleaner final {
   Heap* const heap_;
   Isolate* const isolate_;
   NonAtomicMarkingState* const marking_state_;
-  bool transition_strings_;
   std::unordered_set<Address> disposed_resources_;
 };
 
@@ -2993,7 +3026,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // string table, as entries in the forwarding table can keep internalized
     // strings alive.
     StringForwardingTableCleaner forwarding_table_cleaner(heap());
-    forwarding_table_cleaner.Run();
+    if (!heap_->IsGCWithStack() ||
+        v8_flags.transition_strings_during_gc_with_stack) {
+      forwarding_table_cleaner.TransitionStrings();
+    } else {
+      forwarding_table_cleaner.ProcessFullWithStack();
+    }
   }
 
   auto clearing_job = std::make_unique<ParallelClearingJob>();
@@ -5859,6 +5897,13 @@ void MinorMarkCompactCollector::MakeIterable(
 void MinorMarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR);
 
+  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_CLEAR_STRING_FORWARDING_TABLE);
+    // Clear non-live objects in the string fowarding table.
+    StringForwardingTableCleaner forwarding_table_cleaner(heap());
+    forwarding_table_cleaner.ProcessYoungObjects();
+  }
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_STRING_TABLE);
     // Internalized strings are always stored in old space, so there is no
