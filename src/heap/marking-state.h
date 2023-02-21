@@ -63,8 +63,6 @@ class MarkingStateBase {
 
   V8_INLINE bool GreyToBlack(HeapObject obj);
 
-  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj);
-
   V8_INLINE void ClearLiveness(MemoryChunk* chunk);
 
   void AddStrongReferenceForReferenceSummarizer(HeapObject host,
