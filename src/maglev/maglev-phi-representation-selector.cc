@@ -126,11 +126,14 @@ bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
     case Opcode::kCheckedTruncateNumberToInt32:
     case Opcode::kTruncateNumberToInt32:
     case Opcode::kCheckedFloat64Unbox:
+    case Opcode::kUnsafeFloat64Unbox:
       return true;
     default:
       return false;
   }
 }
+
+namespace {
 
 base::Optional<Opcode> GetOpcodeForCheckedConversion(ValueRepresentation from,
                                                      ValueRepresentation to) {
@@ -153,16 +156,24 @@ base::Optional<Opcode> GetOpcodeForCheckedConversion(ValueRepresentation from,
       base::nullopt,                   // -> Uint32
       Opcode::kChangeUint32ToFloat64,  // -> Float64
       // Float64 ->
-      Opcode::kFloat64Box,                      // -> Tagged
-      Opcode::kCheckedTruncateFloat64ToInt32,   // -> Int32
-      Opcode::kCheckedTruncateFloat64ToUint32,  // -> Uint32
-      base::nullopt                             // -> Float64
+      Opcode::kFloat64Box,              // -> Tagged
+      Opcode::kTruncateFloat64ToInt32,  // -> Int32
+      // ^ Note that Maglev doesn't have a Tagged HeapNumber->Int32 conversion
+      // that checks if converting the Float64 to a Int32 loses precision. We
+      // thus use here TruncateFloat64ToInt32 instead of
+      // CheckedTruncateFloat64ToInt32.
+      base::nullopt,  // -> Uint32
+      // ^ The graph builder never inserts Tagged->Uint32 conversions, so we
+      // don't have to handle this case.
+      base::nullopt  // -> Float64
   };
 
   return conversion_table[(static_cast<int>(from) - 1) *
                               kNumberOfValueRepresentation +
                           static_cast<int>(to)];
 }
+
+}  // namespace
 
 ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
     ValueNode* old_conversion) {
@@ -173,7 +184,12 @@ ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
       old_conversion->input(0).node()->value_representation();
   ValueRepresentation to_repr = old_conversion->value_representation();
 
+  // Since initially Phis are tagged, it would make not sense for
+  // {old_conversion} to convert a Phi to a Tagged value.
   DCHECK_NE(to_repr, ValueRepresentation::kTagged);
+  // The graph builder never inserts Tagged->Uint32 conversions (and thus, we
+  // don't handle them in GetOpcodeForCheckedConversion).
+  DCHECK_NE(to_repr, ValueRepresentation::kUint32);
 
   if (from_repr == ValueRepresentation::kTagged) {
     // The Phi hasn't been untagged, so we leave the conversion as it is.
