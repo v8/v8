@@ -158,7 +158,7 @@ void LocalHeap::SetUpSharedMarking() {
   Isolate* isolate = heap_->isolate();
 
   if (isolate->has_shared_space() && !isolate->is_shared_space_isolate()) {
-    if (isolate->shared_heap_isolate()
+    if (isolate->shared_space_isolate()
             ->heap()
             ->incremental_marking()
             ->IsMarking()) {

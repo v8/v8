@@ -127,7 +127,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
       gc_epoch = major_collector_->epoch();
     } else {
       gc_epoch = isolate()
-                     ->shared_heap_isolate()
+                     ->shared_space_isolate()
                      ->heap()
                      ->mark_compact_collector()
                      ->epoch();
@@ -272,7 +272,7 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
 
   if (heap->isolate()->is_shared_space_isolate()) {
     heap->isolate()
-        ->shared_heap_isolate()
+        ->shared_space_isolate()
         ->global_safepoint()
         ->IterateClientIsolates([](Isolate* client) {
           if (client->is_shared_space_isolate()) return;
@@ -300,7 +300,7 @@ void MarkingBarrier::Activate(bool is_compacting,
 
 void MarkingBarrier::ActivateShared() {
   DCHECK(!shared_heap_worklist_.has_value());
-  Isolate* shared_isolate = isolate()->shared_heap_isolate();
+  Isolate* shared_isolate = isolate()->shared_space_isolate();
   shared_heap_worklist_.emplace(*shared_isolate->heap()
                                      ->mark_compact_collector()
                                      ->marking_worklists()
@@ -317,7 +317,7 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
 
   if (heap->isolate()->is_shared_space_isolate()) {
     heap->isolate()
-        ->shared_heap_isolate()
+        ->shared_space_isolate()
         ->global_safepoint()
         ->IterateClientIsolates([](Isolate* client) {
           if (client->is_shared_space_isolate()) return;
@@ -355,7 +355,7 @@ void MarkingBarrier::PublishAll(Heap* heap) {
 
   if (heap->isolate()->is_shared_space_isolate()) {
     heap->isolate()
-        ->shared_heap_isolate()
+        ->shared_space_isolate()
         ->global_safepoint()
         ->IterateClientIsolates([](Isolate* client) {
           if (client->is_shared_space_isolate()) return;

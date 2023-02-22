@@ -106,8 +106,8 @@ bool Heap::IsMainThread() const {
 
 bool Heap::IsSharedMainThread() const {
   if (!isolate()->has_shared_space()) return false;
-  Isolate* shared_heap_isolate = isolate()->shared_heap_isolate();
-  return shared_heap_isolate->thread_id() == ThreadId::Current();
+  Isolate* shared_space_isolate = isolate()->shared_space_isolate();
+  return shared_space_isolate->thread_id() == ThreadId::Current();
 }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }

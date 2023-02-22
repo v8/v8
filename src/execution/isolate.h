@@ -1698,7 +1698,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // this object cache is per-Isolate like the startup object cache.
   std::vector<Object>* shared_heap_object_cache() {
     if (has_shared_space()) {
-      return &shared_heap_isolate()->shared_heap_object_cache_;
+      return &shared_space_isolate()->shared_heap_object_cache_;
     }
     return &shared_heap_object_cache_;
   }
@@ -1973,6 +1973,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns true when this isolate contains the shared spaces.
   bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
 
+  // Returns the isolate that owns the shared spaces.
   Isolate* shared_space_isolate() const {
     DCHECK(has_shared_space());
     Isolate* isolate = shared_space_isolate_.value();
@@ -1982,14 +1983,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Returns true when this isolate supports allocation in shared spaces.
   bool has_shared_space() const { return shared_space_isolate_.value(); }
-
-  // Returns the isolate that owns the shared spaces.
-  Isolate* shared_heap_isolate() const {
-    DCHECK(has_shared_space());
-    Isolate* isolate = shared_space_isolate();
-    DCHECK_NOT_NULL(isolate);
-    return isolate;
-  }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 

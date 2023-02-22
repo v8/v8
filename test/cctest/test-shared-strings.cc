@@ -2032,7 +2032,7 @@ class WorkerIsolateThread : public v8::base::Thread {
     {
       // Disable CSS for the shared heap and all clients.
       // DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      //     i_client->shared_heap_isolate()->heap());
+      //     i_client->shared_space_isolate()->heap());
 
       Isolate* gc_isolate = i_client->shared_space_isolate();
       gc_isolate->heap()->ForceSharedGCWithEmptyStackForTesting();
@@ -2154,7 +2154,7 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
   std::atomic<bool> done = false;
 
   Isolate* i_isolate = test.i_main_isolate();
-  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Isolate* shared_isolate = i_isolate->shared_space_isolate();
   Heap* shared_heap = shared_isolate->heap();
 
   HandleScope scope(i_isolate);
@@ -2195,7 +2195,7 @@ UNINITIALIZED_TEST(
   std::atomic<bool> done = false;
 
   Isolate* i_isolate = test.i_main_isolate();
-  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Isolate* shared_isolate = i_isolate->shared_space_isolate();
   Heap* shared_heap = shared_isolate->heap();
 
   HandleScope scope(i_isolate);
@@ -2340,7 +2340,7 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
 
   v8::Isolate* isolate = test.main_isolate();
   Isolate* i_isolate = test.i_main_isolate();
-  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Isolate* shared_isolate = i_isolate->shared_space_isolate();
   Heap* shared_heap = shared_isolate->heap();
 
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(

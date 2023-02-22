@@ -3463,7 +3463,7 @@ void Isolate::Deinit() {
   if (has_shared_space()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
     ParkedScope parked_scope(main_thread_local_heap());
-    shared_heap_isolate()->global_safepoint()->clients_mutex_.Lock();
+    shared_space_isolate()->global_safepoint()->clients_mutex_.Lock();
   }
 
   DisallowGarbageCollection no_gc;
@@ -3543,9 +3543,9 @@ void Isolate::Deinit() {
 
   // Detach from the shared heap isolate and then unlock the mutex.
   if (has_shared_space()) {
-    Isolate* shared_heap_isolate = this->shared_heap_isolate();
+    Isolate* shared_space_isolate = this->shared_space_isolate();
     DetachFromSharedSpaceIsolate();
-    shared_heap_isolate->global_safepoint()->clients_mutex_.Unlock();
+    shared_space_isolate->global_safepoint()->clients_mutex_.Unlock();
   }
 
   // Since there are no other threads left, we can lock this mutex without any
@@ -4233,8 +4233,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK(has_shared_space());
     DCHECK(!is_shared_space_isolate());
-    string_table_ = shared_heap_isolate()->string_table_;
-    string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
+    string_table_ = shared_space_isolate()->string_table_;
+    string_forwarding_table_ = shared_space_isolate()->string_forwarding_table_;
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
@@ -4304,7 +4304,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   } else {
     DCHECK(has_shared_space());
     isolate_data_.shared_external_pointer_table_ =
-        shared_heap_isolate()->isolate_data_.shared_external_pointer_table_;
+        shared_space_isolate()->isolate_data_.shared_external_pointer_table_;
   }
 #endif  // V8_COMPRESS_POINTERS
 

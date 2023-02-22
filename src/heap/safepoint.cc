@@ -71,7 +71,7 @@ class PerClientSafepointData final {
 
 void IsolateSafepoint::InitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
-  shared_heap_isolate()->global_safepoint()->AssertActive();
+  shared_space_isolate()->global_safepoint()->AssertActive();
   IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
   LockMutex(initiator->main_thread_local_heap());
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
@@ -79,7 +79,7 @@ void IsolateSafepoint::InitiateGlobalSafepointScope(
 
 void IsolateSafepoint::TryInitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
-  shared_heap_isolate()->global_safepoint()->AssertActive();
+  shared_space_isolate()->global_safepoint()->AssertActive();
   if (!local_heaps_mutex_.TryLock()) return;
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
 }
@@ -277,8 +277,8 @@ void IsolateSafepoint::AssertMainThreadIsOnlyThread() {
 
 Isolate* IsolateSafepoint::isolate() const { return heap_->isolate(); }
 
-Isolate* IsolateSafepoint::shared_heap_isolate() const {
-  return isolate()->shared_heap_isolate();
+Isolate* IsolateSafepoint::shared_space_isolate() const {
+  return isolate()->shared_space_isolate();
 }
 
 IsolateSafepointScope::IsolateSafepointScope(Heap* heap)
@@ -372,7 +372,7 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
 #if DEBUG
   for (const PerClientSafepointData& client : clients) {
-    DCHECK_EQ(client.isolate()->shared_heap_isolate(), shared_heap_isolate_);
+    DCHECK_EQ(client.isolate()->shared_space_isolate(), shared_heap_isolate_);
   }
 #endif  // DEBUG
 
@@ -400,7 +400,7 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
 
 GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
     : initiator_(initiator),
-      shared_heap_isolate_(initiator->shared_heap_isolate()) {
+      shared_heap_isolate_(initiator->shared_space_isolate()) {
   shared_heap_isolate_->global_safepoint()->EnterGlobalSafepointScope(
       initiator_);
 }

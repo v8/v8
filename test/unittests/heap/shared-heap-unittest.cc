@@ -25,7 +25,7 @@ class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
 
   ~SharedHeapNoClientsTest() override { shared_isolate_ = nullptr; }
 
-  v8::Isolate* shared_heap_isolate() {
+  v8::Isolate* shared_space_isolate() {
     return reinterpret_cast<v8::Isolate*>(i_shared_heap_isolate());
   }
 
@@ -180,7 +180,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
-  ::v8::internal::CollectGarbage(OLD_SPACE, shared_heap_isolate());
+  ::v8::internal::CollectGarbage(OLD_SPACE, shared_space_isolate());
 }
 
 void AllocateInSharedHeap(int iterations = 100) {

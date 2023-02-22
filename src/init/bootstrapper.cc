@@ -4753,7 +4753,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
         isolate()->factory()->NewDescriptorArray(1, 0,
                                                  AllocationType::kSharedOld);
     Descriptor length_descriptor = Descriptor::DataField(
-        isolate()->shared_heap_isolate()->factory()->length_string(),
+        isolate()->shared_space_isolate()->factory()->length_string(),
         JSSharedArray::kLengthFieldIndex, ALL_ATTRIBUTES_MASK,
         PropertyConstness::kConst, Representation::Smi(),
         MaybeObjectHandle(FieldType::Any(isolate())));

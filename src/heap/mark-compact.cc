@@ -2021,9 +2021,9 @@ bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
   Object o = *p;
   if (!o.IsHeapObject()) return false;
   HeapObject heap_object = HeapObject::cast(o);
-  Isolate* shared_heap_isolate = heap->isolate()->shared_heap_isolate();
+  Isolate* shared_space_isolate = heap->isolate()->shared_space_isolate();
   MarkCompactCollector* collector =
-      shared_heap_isolate->heap()->mark_compact_collector();
+      shared_space_isolate->heap()->mark_compact_collector();
   if (!heap_object.InSharedWritableHeap()) return false;
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }

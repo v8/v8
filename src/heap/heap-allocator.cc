@@ -112,7 +112,7 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     // We need always_allocate() to be true both on the client- and
     // server-isolate. It is used in both code paths.
     AlwaysAllocateScope shared_scope(
-        heap_->isolate()->shared_heap_isolate()->heap());
+        heap_->isolate()->shared_space_isolate()->heap());
     AlwaysAllocateScope client_scope(heap_);
     result = AllocateRaw(size, allocation, origin, alignment);
   } else {
