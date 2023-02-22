@@ -176,8 +176,8 @@ struct FastLiteralField {
     if (res.IsDone()) {                                     \
       if (res.IsDoneWithValue()) {                          \
         value_processor(res.value());                       \
-        return;                                             \
       }                                                     \
+      return;                                               \
     }                                                       \
   } while (false)
 
