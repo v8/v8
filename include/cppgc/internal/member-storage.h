@@ -35,16 +35,16 @@ enum class WriteBarrierSlotType {
 #define CPPGC_REQUIRE_CONSTANT_INIT
 #endif  // defined(__clang__)
 
-class CageBaseGlobal final {
+class V8_EXPORT CageBaseGlobal final {
  public:
   V8_INLINE CPPGC_CONST static uintptr_t Get() {
     CPPGC_DCHECK(IsBaseConsistent());
-    return g_base_;
+    return g_base_.base;
   }
 
   V8_INLINE CPPGC_CONST static bool IsSet() {
     CPPGC_DCHECK(IsBaseConsistent());
-    return (g_base_ & ~kLowerHalfWordMask) != 0;
+    return (g_base_.base & ~kLowerHalfWordMask) != 0;
   }
 
  private:
@@ -52,12 +52,15 @@ class CageBaseGlobal final {
   static constexpr uintptr_t kLowerHalfWordMask =
       (api_constants::kCagedHeapReservationAlignment - 1);
 
-  static V8_EXPORT uintptr_t g_base_ CPPGC_REQUIRE_CONSTANT_INIT;
+  static union alignas(api_constants::kCachelineSize) Base {
+    uintptr_t base;
+    char cache_line[api_constants::kCachelineSize];
+  } g_base_ CPPGC_REQUIRE_CONSTANT_INIT;
 
   CageBaseGlobal() = delete;
 
   V8_INLINE static bool IsBaseConsistent() {
-    return kLowerHalfWordMask == (g_base_ & kLowerHalfWordMask);
+    return kLowerHalfWordMask == (g_base_.base & kLowerHalfWordMask);
   }
 
   friend class CageBaseGlobalUpdater;

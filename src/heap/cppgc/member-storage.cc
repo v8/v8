@@ -13,7 +13,8 @@ namespace cppgc {
 namespace internal {
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-uintptr_t CageBaseGlobal::g_base_ = CageBaseGlobal::kLowerHalfWordMask;
+alignas(api_constants::kCachelineSize) CageBaseGlobal::Base
+    CageBaseGlobal::g_base_ = {CageBaseGlobal::kLowerHalfWordMask};
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 // Debugging helpers.

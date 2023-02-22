@@ -57,6 +57,9 @@ static constexpr size_t kMaxSupportedAlignment = 2 * kDefaultAlignment;
 // Granularity of heap allocations.
 constexpr size_t kAllocationGranularity = sizeof(void*);
 
+// Default cacheline size.
+constexpr size_t kCachelineSize = 64;
+
 }  // namespace api_constants
 
 }  // namespace internal
