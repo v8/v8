@@ -131,7 +131,10 @@ def led_users(*, pool_realm, builder_realms, groups):
     for br in builder_realms:
         luci.binding(
             realm = br,
-            roles = "role/swarming.taskTriggerer",
+            roles = [
+                "role/buildbucket.triggerer",
+                "role/swarming.taskTriggerer",
+            ],
             groups = groups,
             users = V8_SERVICE_ACCOUNTS,
         )
