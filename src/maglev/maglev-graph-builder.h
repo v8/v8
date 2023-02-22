@@ -128,6 +128,11 @@ class MaglevGraphBuilder {
       SetArgument(i, v);
     }
     BuildRegisterFrameInitialization();
+    graph()->set_function_entry_stack_check(
+        NodeBase::New<FunctionEntryStackCheck>(
+            zone(), GetDeoptFrameForEntryStackCheck(),
+            compiler::FeedbackSource(), std::initializer_list<ValueNode*>{}));
+    AddNode(graph()->function_entry_stack_check());
     BuildMergeStates();
     EndPrologue();
     BuildBody();
@@ -1125,6 +1130,7 @@ class MaglevGraphBuilder {
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
       LazyDeoptContinuationScope* continuation_scope,
       bool mark_accumulator_dead);
+  InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
   void MarkPossibleMapMigration() {
     current_for_in_state.receiver_needs_map_check = true;

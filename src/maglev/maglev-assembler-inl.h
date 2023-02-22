@@ -71,6 +71,10 @@ struct CopyForDeferredHelper<BytecodeOffset>
 template <>
 struct CopyForDeferredHelper<EagerDeoptInfo*>
     : public CopyForDeferredByValue<EagerDeoptInfo*> {};
+// LazyDeoptInfo pointers are copied by value.
+template <>
+struct CopyForDeferredHelper<LazyDeoptInfo*>
+    : public CopyForDeferredByValue<LazyDeoptInfo*> {};
 // ZoneLabelRef is copied by value.
 template <>
 struct CopyForDeferredHelper<ZoneLabelRef>

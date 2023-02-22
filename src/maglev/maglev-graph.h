@@ -115,6 +115,14 @@ class Graph final : public ZoneObject {
     DCHECK_NULL(nan_);
     nan_ = nan;
   }
+  FunctionEntryStackCheck* function_entry_stack_check() const {
+    return function_entry_stack_check_;
+  }
+  void set_function_entry_stack_check(
+      FunctionEntryStackCheck* function_entry_stack_check) {
+    DCHECK_NULL(function_entry_stack_check_);
+    function_entry_stack_check_ = function_entry_stack_check;
+  }
 
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
@@ -133,6 +141,7 @@ class Graph final : public ZoneObject {
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
   Float64Constant* nan_ = nullptr;
+  FunctionEntryStackCheck* function_entry_stack_check_ = nullptr;
 };
 
 }  // namespace maglev

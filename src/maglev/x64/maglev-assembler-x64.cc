@@ -612,17 +612,21 @@ void MaglevAssembler::Prologue(Graph* graph) {
     ZoneLabelRef deferred_call_stack_guard_return(this);
     JumpToDeferredIf(
         below_equal,
-        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
-           int stack_check_offset) {
+        [](MaglevAssembler* masm, LazyDeoptInfo* stack_check_deopt,
+           ZoneLabelRef done, RegList register_inputs, int stack_check_offset) {
           ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
           __ PushAll(register_inputs);
           // Push the frame size
           __ Push(Immediate(Smi::FromInt(stack_check_offset)));
           __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          stack_check_deopt->set_deopting_call_return_pc(
+              __ pc_offset_for_safepoint());
+          __ code_gen_state()->PushLazyDeopt(stack_check_deopt);
           masm->safepoint_table_builder()->DefineSafepoint(masm);
           __ PopAll(register_inputs);
           __ jmp(*done);
         },
+        graph->function_entry_stack_check()->lazy_deopt_info(),
         deferred_call_stack_guard_return, graph->register_inputs(),
         stack_check_offset);
     bind(*deferred_call_stack_guard_return);

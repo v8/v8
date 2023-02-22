@@ -438,6 +438,17 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
           GetDeoptFrameForLazyDeoptHelper(continuation_scope->parent(), true)));
 }
 
+InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
+  DCHECK_EQ(iterator_.current_offset(), 0);
+  DCHECK_NULL(parent_);
+  return InterpretedDeoptFrame(
+      *compilation_unit_,
+      zone()->New<CompactInterpreterFrameState>(
+          *compilation_unit_, GetInLivenessFor(0), current_interpreter_frame_),
+      BytecodeOffset(kFunctionEntryBytecodeOffset), current_source_position_,
+      nullptr);
+}
+
 namespace {
 template <Operation kOperation>
 struct NodeForOperationHelper;

@@ -262,6 +262,7 @@ class MergePointInterpreterFrameState;
   V(CheckValueEqualsString)           \
   V(CheckInstanceType)                \
   V(DebugBreak)                       \
+  V(FunctionEntryStackCheck)          \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreMap)                         \
@@ -4033,6 +4034,20 @@ class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class FunctionEntryStackCheck
+    : public FixedInputNodeT<0, FunctionEntryStackCheck> {
+  using Base = FixedInputNodeT<0, FunctionEntryStackCheck>;
+
+ public:
+  explicit FunctionEntryStackCheck(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::LazyDeopt();
+
+  void SetValueLocationConstraints() {}
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) {}
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
