@@ -487,6 +487,7 @@ DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(future, maglev)
 DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
                             "enable inlining in the maglev optimizing compiler")
+DEFINE_IMPLICATION(maglev_inlining, maglev)
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
@@ -500,6 +501,8 @@ DEFINE_VALUE_IMPLICATION(stress_maglev, interrupt_budget_for_maglev, 128)
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
+DEFINE_BOOL_READONLY(maglev_inlining, false,
+                     "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL_READONLY(stress_maglev, false, "trigger maglev compilation earlier")
 #endif  // V8_ENABLE_MAGLEV
 

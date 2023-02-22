@@ -458,6 +458,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Stress maglev.
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
+      # Stress maglev-inlining.
+      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1471,6 +1473,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Stress maglev.
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
+      # Stress maglev-inlining.
+      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1533,6 +1537,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Stress maglev.
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
+      # Stress maglev-inlining.
+      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
