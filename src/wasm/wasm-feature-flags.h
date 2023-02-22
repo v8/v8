@@ -46,11 +46,6 @@
   /* V8 side owner: manoskouk */                                               \
   V(typed_funcref, "typed function references", false)                         \
                                                                                \
-  /* Relaxed SIMD proposal. */                                                 \
-  /* https://github.com/WebAssembly/relaxed-simd */                            \
-  /* V8 side owner: zhin */                                                    \
-  V(relaxed_simd, "relaxed simd", false)                                       \
-                                                                               \
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \
@@ -89,8 +84,13 @@
   /* Memory64 proposal. */                                                     \
   /* https://github.com/WebAssembly/memory64 */                                \
   /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)
-
+  V(memory64, "memory64", false)                                               \
+                                                                               \
+  /* Relaxed SIMD proposal. */                                                 \
+  /* https://github.com/WebAssembly/relaxed-simd */                            \
+  /* V8 side owner: gdeepti */                                                 \
+  V(relaxed_simd, "relaxed simd", false)                                       \
+                                                                               \
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
