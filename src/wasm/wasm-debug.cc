@@ -209,7 +209,7 @@ class DebugInfoImpl {
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
-    auto* function = &native_module_->module()->functions[func_index];
+    auto* function = &env.module->functions[func_index];
     base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
@@ -218,9 +218,17 @@ class DebugInfoImpl {
 
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
-    // Debugging with lazy validation is not supported yet. Fix this when
-    // needed.
-    CHECK(native_module_->module()->function_was_validated(func_index));
+    // If lazy validation is on, we might need to lazily validate here.
+    if (V8_UNLIKELY(!env.module->function_was_validated(func_index))) {
+      WasmFeatures unused_detected_features;
+      DecodeResult validation_result = ValidateFunctionBody(
+          env.enabled_features, env.module, &unused_detected_features, body);
+      // Handling illegal modules here is tricky. As lazy validation is off by
+      // default anyway and this is for debugging only, we just crash for now.
+      CHECK_WITH_MSG(validation_result.ok(),
+                     validation_result.error().message().c_str());
+      env.module->set_function_validated(func_index);
+    }
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         &env, body,
         LiftoffOptions{}
