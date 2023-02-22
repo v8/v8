@@ -1974,11 +1974,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
 
   Isolate* shared_space_isolate() const {
-    return shared_space_isolate_.value();
+    DCHECK(has_shared_space());
+    Isolate* isolate = shared_space_isolate_.value();
+    DCHECK(has_shared_space());
+    return isolate;
   }
 
   // Returns true when this isolate supports allocation in shared spaces.
-  bool has_shared_space() const { return shared_space_isolate(); }
+  bool has_shared_space() const { return shared_space_isolate_.value(); }
 
   // Returns the isolate that owns the shared spaces.
   Isolate* shared_heap_isolate() const {
