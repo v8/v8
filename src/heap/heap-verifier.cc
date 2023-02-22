@@ -683,6 +683,9 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
 
     CHECK_NULL(chunk->slot_set<OLD_TO_OLD>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_OLD>());
+
+    CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
   }
 
   // TODO(v8:11797): Add old to old slot set verification once all weak objects
