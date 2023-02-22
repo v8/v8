@@ -260,7 +260,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
-  void SetLinearAllocationArea(Address top, Address limit);
+  void SetLinearAllocationArea(Address top, Address limit, Address end);
 
   void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
   void ReduceActiveSystemPages(Page* page,
@@ -296,16 +296,22 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   }
 
   // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit);
+  void SetTopAndLimit(Address top, Address limit, Address end);
   void DecreaseLimit(Address new_limit);
   bool SupportsAllocationObserver() const override {
     return !is_compaction_space();
   }
 
  protected:
+  // Updates the current lab limit without updating top, original_top or
+  // original_limit.
+  void SetLimit(Address limit);
+
+  bool SupportsExtendingLAB() const { return identity() == NEW_SPACE; }
+
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
-  void UpdateInlineAllocationLimit(size_t min_size) override;
+  void UpdateInlineAllocationLimit() override;
 
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -344,6 +350,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // enough space and the caller has to retry after collecting garbage.
   V8_WARN_UNUSED_RESULT bool RawRefillLabMain(int size_in_bytes,
                                               AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
 
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
                                        AllocationOrigin origin);

@@ -571,7 +571,7 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
   to_space_.AddRangeToActiveSystemPages(top(), limit());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  UpdateInlineAllocationLimit(0);
+  UpdateInlineAllocationLimit();
 }
 
 void SemiSpaceNewSpace::ResetLinearAllocationArea() {
@@ -586,7 +586,8 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
   }
 }
 
-void SemiSpaceNewSpace::UpdateInlineAllocationLimit(size_t min_size) {
+void SemiSpaceNewSpace::UpdateInlineAllocationLimitForAllocation(
+    size_t min_size) {
   Address new_limit = ComputeLimit(top(), to_space_.page_high(),
                                    ALIGN_TO_ALLOCATION_ALIGNMENT(min_size));
   DCHECK_LE(top(), new_limit);
@@ -602,6 +603,10 @@ void SemiSpaceNewSpace::UpdateInlineAllocationLimit(size_t min_size) {
 #if DEBUG
   VerifyTop();
 #endif
+}
+
+void SemiSpaceNewSpace::UpdateInlineAllocationLimit() {
+  UpdateInlineAllocationLimitForAllocation(0);
 }
 
 bool SemiSpaceNewSpace::AddFreshPage() {
@@ -662,7 +667,7 @@ void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
   AdvanceAllocationObservers();
   MakeLinearAllocationAreaIterable();
-  UpdateInlineAllocationLimit(0);
+  UpdateInlineAllocationLimit();
 }
 
 #if DEBUG
@@ -957,8 +962,8 @@ void PagedSpaceForNewSpace::FinishShrinking() {
   }
 }
 
-void PagedSpaceForNewSpace::UpdateInlineAllocationLimit(size_t size_in_bytes) {
-  PagedSpaceBase::UpdateInlineAllocationLimit(size_in_bytes);
+void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
+  PagedSpaceBase::UpdateInlineAllocationLimit();
 }
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {

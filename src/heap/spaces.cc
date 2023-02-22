@@ -267,7 +267,6 @@ void SpaceWithLinearArea::DisableInlineAllocation() {
 
   allocation_info_.SetEnabled(false);
   FreeLinearAllocationArea();
-  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::EnableInlineAllocation() {
@@ -275,7 +274,6 @@ void SpaceWithLinearArea::EnableInlineAllocation() {
 
   allocation_info_.SetEnabled(true);
   AdvanceAllocationObservers();
-  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {
@@ -333,7 +331,7 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
   if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::AddAllocationObserver(observer);
-    UpdateInlineAllocationLimit(0);
+    UpdateInlineAllocationLimit();
   } else {
     Space::AddAllocationObserver(observer);
   }
@@ -344,7 +342,7 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
   if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::RemoveAllocationObserver(observer);
-    UpdateInlineAllocationLimit(0);
+    UpdateInlineAllocationLimit();
   } else {
     Space::RemoveAllocationObserver(observer);
   }
@@ -358,7 +356,7 @@ void SpaceWithLinearArea::PauseAllocationObservers() {
 void SpaceWithLinearArea::ResumeAllocationObservers() {
   Space::ResumeAllocationObservers();
   MarkLabStartInitialized();
-  UpdateInlineAllocationLimit(0);
+  UpdateInlineAllocationLimit();
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {

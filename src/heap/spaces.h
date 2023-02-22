@@ -568,8 +568,7 @@ class SpaceWithLinearArea : public Space {
   // allow proper observation based on existing observers. min_size specifies
   // the minimum size that the limited area should have.
   Address ComputeLimit(Address start, Address end, size_t min_size) const;
-  V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit(
-      size_t min_size) = 0;
+  V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit() = 0;
 
   void DisableInlineAllocation();
   void EnableInlineAllocation();

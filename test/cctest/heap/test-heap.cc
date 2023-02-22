@@ -5572,7 +5572,7 @@ bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {
   bool result = heap->code_space()->EnsureAllocation(
       size_in_bytes, AllocationAlignment::kTaggedAligned,
       AllocationOrigin::kRuntime, nullptr);
-  heap->code_space()->UpdateInlineAllocationLimit(0);
+  heap->code_space()->UpdateInlineAllocationLimit();
   return result;
 }
 

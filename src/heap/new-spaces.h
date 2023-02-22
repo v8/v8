@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "spaces.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -444,7 +445,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // inline allocation every once in a while. This is done by setting
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit(size_t size_in_bytes) final;
+  void UpdateInlineAllocationLimit() final;
+  void UpdateInlineAllocationLimitForAllocation(size_t size_in_bytes);
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -592,7 +594,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // inline allocation every once in a while. This is done by setting
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit(size_t size_in_bytes) final;
+  void UpdateInlineAllocationLimit() final;
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -736,8 +738,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   // inline allocation every once in a while. This is done by setting
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit(size_t size_in_bytes) final {
-    paged_space_.UpdateInlineAllocationLimit(size_in_bytes);
+  void UpdateInlineAllocationLimit() final {
+    paged_space_.UpdateInlineAllocationLimit();
   }
 
   // Try to switch the active semispace to a new, empty, page.
