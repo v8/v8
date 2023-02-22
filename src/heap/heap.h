@@ -1688,6 +1688,8 @@ class Heap {
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
+    bool HasYoung() const { return !young_strings_.empty(); }
+
    private:
     void Verify();
     void VerifyYoung();

@@ -539,6 +539,8 @@ class TracedHandlesImpl final {
   size_t used_size_bytes() const { return sizeof(TracedNode) * used_nodes_; }
   size_t total_size_bytes() const { return block_size_bytes_; }
 
+  bool HasYoung() const { return !young_nodes_.empty(); }
+
  private:
   TracedNode* AllocateNode();
   void FreeNode(TracedNode*);
@@ -1154,5 +1156,7 @@ Object TracedHandles::MarkConservatively(Address* inner_location,
   if (!node.is_in_use<AccessMode::ATOMIC>()) return Smi::zero();
   return MarkObject(node.object(), node, mark_mode);
 }
+
+bool TracedHandles::HasYoung() const { return impl_->HasYoung(); }
 
 }  // namespace v8::internal

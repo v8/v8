@@ -80,6 +80,8 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   size_t total_size_bytes() const;
   size_t used_size_bytes() const;
 
+  bool HasYoung() const;
+
  private:
   std::unique_ptr<TracedHandlesImpl> impl_;
 };

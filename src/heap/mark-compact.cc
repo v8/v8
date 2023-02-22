@@ -5937,17 +5937,21 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     StringForwardingTableCleaner forwarding_table_cleaner(heap());
     forwarding_table_cleaner.ProcessYoungObjects();
   }
-  {
+
+  Heap::ExternalStringTable& external_string_table =
+      heap()->external_string_table_;
+  if (external_string_table.HasYoung()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_STRING_TABLE);
     // Internalized strings are always stored in old space, so there is no
     // need to clean them here.
     ExternalStringTableCleaner<ExternalStringTableCleaningMode::kYoungOnly>
         external_visitor(heap());
-    heap()->external_string_table_.IterateYoung(&external_visitor);
-    heap()->external_string_table_.CleanUpYoung();
+    external_string_table.IterateYoung(&external_visitor);
+    external_string_table.CleanUpYoung();
   }
 
-  {
+  if (isolate()->global_handles()->HasYoung() ||
+      isolate()->traced_handles()->HasYoung()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES);
     isolate()->global_handles()->ProcessWeakYoungObjects(

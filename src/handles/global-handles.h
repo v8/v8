@@ -130,6 +130,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void Print();
 #endif  // DEBUG
 
+  bool HasYoung() const { return !young_nodes_.empty(); }
+
  private:
   // Internal node structures.
   class Node;
