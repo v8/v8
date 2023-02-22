@@ -278,9 +278,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   // Grow the capacity of the space.
   virtual void Grow() = 0;
 
-  // Shrink the capacity of the space.
-  virtual void Shrink() = 0;
-
   virtual bool ShouldBePromoted(Address) const = 0;
 
   // Creates a filler object in the linear allocation area.
@@ -305,8 +302,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual void Prologue() {}
 
   virtual void GarbageCollectionEpilogue() = 0;
-
-  virtual void ZapUnusedMemory() {}
 
   virtual bool IsPromotionCandidate(const MemoryChunk* page) const = 0;
 
@@ -354,7 +349,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Grow() final;
 
   // Shrink the capacity of the semispaces.
-  void Shrink() final;
+  void Shrink();
 
   // Return the allocated bytes in the active semispace.
   size_t Size() const final {
@@ -511,7 +506,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void GarbageCollectionEpilogue() final;
 
-  void ZapUnusedMemory() final;
+  void ZapUnusedMemory();
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final;
 
@@ -565,7 +560,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Grow();
 
   // Shrink the capacity of the space.
-  void Shrink() { UNREACHABLE(); }
   bool StartShrinking();
   void FinishShrinking();
 
@@ -675,7 +669,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   void Grow() final { paged_space_.Grow(); }
 
   // Shrink the capacity of the space.
-  void Shrink() final { paged_space_.Shrink(); }
   bool StartShrinking() { return paged_space_.StartShrinking(); }
   void FinishShrinking() { paged_space_.FinishShrinking(); }
 

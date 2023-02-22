@@ -188,7 +188,7 @@ TEST_F(HeapTest, HeapLayout) {
 namespace {
 void ShrinkNewSpace(NewSpace* new_space) {
   if (!v8_flags.minor_mc) {
-    new_space->Shrink();
+    SemiSpaceNewSpace::From(new_space)->Shrink();
     return;
   }
   // MinorMC shrinks the space as part of sweeping.

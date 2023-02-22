@@ -6815,7 +6815,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 }
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
-  if (!v8_flags.minor_mc) heap->new_space()->Shrink();
+  if (!v8_flags.minor_mc) SemiSpaceNewSpace::From(heap->new_space())->Shrink();
   heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 }
 

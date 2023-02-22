@@ -1307,22 +1307,22 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (v8_flags.check_handle_count) CheckHandleCount();
 #endif
 
-  if (new_space()) {
+  if (new_space() && !v8_flags.minor_mc) {
+    SemiSpaceNewSpace* semi_space_new_space =
+        SemiSpaceNewSpace::From(new_space());
     if (Heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
-      new_space()->ZapUnusedMemory();
+      semi_space_new_space->ZapUnusedMemory();
     }
 
-    if (!v8_flags.minor_mc) {
-      {
-        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
-        if (resize_new_space_mode_ == ResizeNewSpaceMode::kShrink) {
-          ReduceNewSpaceSize();
-        }
+    {
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
+      if (resize_new_space_mode_ == ResizeNewSpaceMode::kShrink) {
+        ReduceNewSpaceSize();
       }
-      resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
-
-      SemiSpaceNewSpace::From(new_space())->MakeAllPagesInFromSpaceIterable();
     }
+    resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
+
+    semi_space_new_space->MakeAllPagesInFromSpaceIterable();
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     new_space()->ClearUnusedObjectStartBitmaps();
@@ -3755,7 +3755,7 @@ void Heap::ExpandNewSpaceSize() {
 void Heap::ReduceNewSpaceSize() {
   // MinorMC shrinks new space as part of sweeping.
   if (!v8_flags.minor_mc) {
-    new_space()->Shrink();
+    SemiSpaceNewSpace::From(new_space())->Shrink();
   } else {
     paged_new_space()->FinishShrinking();
   }

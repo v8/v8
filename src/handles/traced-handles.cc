@@ -915,9 +915,9 @@ void TracedHandlesImpl::ProcessYoungObjects(
   for (TracedNode* node : young_nodes_) {
     if (!node->is_in_use()) continue;
 
-    CHECK_IMPLIES(node->is_root(),
-                  !should_reset_handle(isolate_->heap(), node->location()));
-    if (should_reset_handle(isolate_->heap(), node->location())) {
+    bool should_reset = should_reset_handle(isolate_->heap(), node->location());
+    CHECK_IMPLIES(node->is_root(), !should_reset);
+    if (should_reset) {
       CHECK(!is_marking_);
       v8::Value* value = ToApi<v8::Value>(node->handle());
       handler->ResetRoot(
