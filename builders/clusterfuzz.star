@@ -113,13 +113,13 @@ in_category(
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN chained origins",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN no origins",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
     ),
