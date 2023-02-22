@@ -95,12 +95,90 @@ class ReduceResult {
   base::PointerWithPayload<ValueNode, Kind, 3> payload_;
 };
 
+struct FastLiteralField;
+
+// Encoding of a fast allocation site object's element fixed array.
+struct FastLiteralFixedArray {
+  FastLiteralFixedArray() : type(kUninitialized) {}
+  explicit FastLiteralFixedArray(compiler::ObjectRef cow_value)
+      : type(kCoW), cow_value(cow_value) {}
+  explicit FastLiteralFixedArray(int length, Zone* zone)
+      : type(kTagged),
+        length(length),
+        values(zone->NewArray<FastLiteralField>(length)) {}
+  explicit FastLiteralFixedArray(int length, Zone* zone, double)
+      : type(kDouble),
+        length(length),
+        double_values(zone->NewArray<Float64>(length)) {}
+
+  enum { kUninitialized, kCoW, kTagged, kDouble } type;
+
+  union {
+    char uninitialized_marker;
+
+    compiler::ObjectRef cow_value;
+
+    struct {
+      int length;
+      union {
+        FastLiteralField* values;
+        Float64* double_values;
+      };
+    };
+  };
+};
+
+// Encoding of a fast allocation site boilerplate object.
+struct FastLiteralObject {
+  FastLiteralObject(compiler::MapRef map, Zone* zone,
+                    FastLiteralFixedArray elements)
+      : map(map),
+        fields(zone->NewArray<FastLiteralField>(map.GetInObjectProperties())),
+        elements(elements) {}
+
+  compiler::MapRef map;
+  FastLiteralField* fields;
+  FastLiteralFixedArray elements;
+  compiler::OptionalObjectRef js_array_length;
+};
+
+// Encoding of a fast allocation site literal value.
+struct FastLiteralField {
+  explicit FastLiteralField() : type(kUninitialized) {}
+  explicit FastLiteralField(FastLiteralObject object)
+      : type(kObject), object(object) {}
+  explicit FastLiteralField(Float64 mutable_double_value)
+      : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
+  explicit FastLiteralField(compiler::ObjectRef constant_value)
+      : type(kConstant), constant_value(constant_value) {}
+
+  enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
+
+  union {
+    char uninitialized_marker;
+    FastLiteralObject object;
+    Float64 mutable_double_value;
+    compiler::ObjectRef constant_value;
+  };
+};
+
 #define RETURN_IF_DONE(result) \
   do {                         \
     auto res = result;         \
     if (res.IsDone()) {        \
       return res;              \
     }                          \
+  } while (false)
+
+#define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
+  do {                                                      \
+    auto res = result;                                      \
+    if (res.IsDone()) {                                     \
+      if (res.IsDoneWithValue()) {                          \
+        value_processor(res.value());                       \
+        return;                                             \
+      }                                                     \
+    }                                                       \
   } while (false)
 
 #define RETURN_IF_ABORT(result)           \
@@ -1473,6 +1551,22 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
+  ValueNode* ExtendOrReallocateCurrentRawAllocation(
+      int size, AllocationType allocation_type);
+  void ClearCurrentRawAllocation();
+
+  ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
+      const compiler::LiteralFeedback& feedback);
+  base::Optional<FastLiteralObject> TryReadBoilerplateForFastLiteral(
+      compiler::JSObjectRef boilerplate, AllocationType allocation,
+      int max_depth, int* max_properties);
+  ValueNode* BuildAllocateFastLiteral(FastLiteralObject object,
+                                      AllocationType allocation);
+  ValueNode* BuildAllocateFastLiteral(FastLiteralField value,
+                                      AllocationType allocation);
+  ValueNode* BuildAllocateFastLiteral(FastLiteralFixedArray array,
+                                      AllocationType allocation);
+
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>
@@ -1638,6 +1732,8 @@ class MaglevGraphBuilder {
   };
   // TODO(leszeks): Allow having a stack of these.
   ForInState current_for_in_state = ForInState();
+
+  AllocateRaw* current_raw_allocation_ = nullptr;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;

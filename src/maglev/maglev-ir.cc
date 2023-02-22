@@ -350,6 +350,22 @@ void CheckValueInputIs(const NodeBase* node, int i,
   }
 }
 
+void CheckValueInputIs(const NodeBase* node, int i, Opcode expected,
+                       MaglevGraphLabeller* graph_labeller) {
+  ValueNode* input = node->input(i).node();
+  Opcode got = input->opcode();
+  if (got != expected) {
+    std::ostringstream str;
+    str << "Opcode error: node ";
+    if (graph_labeller) {
+      str << "#" << graph_labeller->NodeId(node) << " : ";
+    }
+    str << node->opcode() << " (input @" << i << " = " << input->opcode()
+        << ") opcode " << got << " is not " << expected;
+    FATAL("%s", str.str().c_str());
+  }
+}
+
 void CheckValueInputIsWord32(const NodeBase* node, int i,
                              MaglevGraphLabeller* graph_labeller) {
   ValueNode* input = node->input(i).node();
@@ -470,6 +486,11 @@ void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
   }
+}
+
+void FoldedAllocation::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  Base::VerifyInputs(graph_labeller);
+  CheckValueInputIs(this, 0, Opcode::kAllocateRaw, graph_labeller);
 }
 
 // ---
@@ -1769,6 +1790,14 @@ void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void AllocateRaw::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void AllocateRaw::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  __ Allocate(register_snapshot(), ToRegister(result()), size(),
+              allocation_type());
+}
+
 int CreateClosure::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(pretenured() ? Runtime::kNewClosure_Tenured
                                                 : Runtime::kNewClosure)
@@ -2214,6 +2243,19 @@ void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
       object, done);
   __ AllocateHeapNumber(register_snapshot(), object, value);
   __ bind(*done);
+}
+
+void StoreFloat64::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreFloat64::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register heap_number = ToRegister(object_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+
+  __ AssertNotSmi(heap_number);
+  __ Move(FieldMemOperand(heap_number, offset()), value);
 }
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
@@ -3416,6 +3458,16 @@ void CreateClosure::PrintParams(std::ostream& os,
   os << ")";
 }
 
+void AllocateRaw::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << allocation_type() << ", " << size() << ")";
+}
+
+void FoldedAllocation::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(+" << offset() << ")";
+}
+
 void Abort::PrintParams(std::ostream& os,
                         MaglevGraphLabeller* graph_labeller) const {
   os << "(" << GetAbortReason(reason()) << ")";
@@ -3484,6 +3536,11 @@ void LoadDoubleField::PrintParams(std::ostream& os,
 
 void StoreDoubleField::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreFloat64::PrintParams(std::ostream& os,
+                               MaglevGraphLabeller* graph_labeller) const {
   os << "(" << std::hex << offset() << std::dec << ")";
 }
 

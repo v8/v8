@@ -158,6 +158,16 @@ void BuiltinStringPrototypeCharCodeAt::GenerateCode(
   __ Bind(&done);
 }
 
+void FoldedAllocation::SetValueLocationConstraints() {
+  UseRegister(raw_allocation());
+  DefineAsRegister(this);
+}
+
+void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
+}
+
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }

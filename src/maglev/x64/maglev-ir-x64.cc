@@ -168,6 +168,17 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       Smi::FromInt(bytecode_offset()));
 }
 
+void FoldedAllocation::SetValueLocationConstraints() {
+  UseRegister(raw_allocation());
+  DefineAsRegister(this);
+}
+
+void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  __ leaq(ToRegister(result()),
+          Operand(ToRegister(raw_allocation()), offset()));
+}
+
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }

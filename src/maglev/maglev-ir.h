@@ -135,6 +135,7 @@ class MergePointInterpreterFrameState;
   V(BuiltinStringPrototypeCharCodeAt)
 
 #define VALUE_NODE_LIST(V)                   \
+  V(AllocateRaw)                             \
   V(Call)                                    \
   V(CallBuiltin)                             \
   V(CallRuntime)                             \
@@ -156,6 +157,7 @@ class MergePointInterpreterFrameState;
   V(FastCreateClosure)                       \
   V(CreateRegExpLiteral)                     \
   V(DeleteProperty)                          \
+  V(FoldedAllocation)                        \
   V(ForInPrepare)                            \
   V(ForInNext)                               \
   V(GeneratorRestoreRegister)                \
@@ -267,6 +269,7 @@ class MergePointInterpreterFrameState;
   V(JumpLoopPrologue)                 \
   V(StoreMap)                         \
   V(StoreDoubleField)                 \
+  V(StoreFloat64)                     \
   V(StoreSignedIntDataViewElement)    \
   V(StoreDoubleDataViewElement)       \
   V(StoreTaggedFieldNoWriteBarrier)   \
@@ -3458,6 +3461,59 @@ class CreateShallowObjectLiteral
   const int flags_;
 };
 
+class AllocateRaw : public FixedInputValueNodeT<0, AllocateRaw> {
+  using Base = FixedInputValueNodeT<0, AllocateRaw>;
+
+ public:
+  explicit AllocateRaw(uint64_t bitfield, AllocationType allocation_type,
+                       int size)
+      : Base(bitfield), allocation_type_(allocation_type), size_(size) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  AllocationType allocation_type() const { return allocation_type_; }
+  int size() const { return size_; }
+
+  // Allow increasing the size for allocation folding.
+  void extend(int size) {
+    DCHECK_GT(size, 0);
+    size_ += size;
+  }
+
+ private:
+  AllocationType allocation_type_;
+  int size_;
+};
+
+class FoldedAllocation : public FixedInputValueNodeT<1, FoldedAllocation> {
+  using Base = FixedInputValueNodeT<1, FoldedAllocation>;
+
+ public:
+  explicit FoldedAllocation(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  Input& raw_allocation() { return input(0); }
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+
+  int offset() const { return offset_; }
+
+ private:
+  int offset_;
+};
+
 class CreateFunctionContext
     : public FixedInputValueNodeT<1, CreateFunctionContext> {
   using Base = FixedInputValueNodeT<1, CreateFunctionContext>;
@@ -4667,6 +4723,32 @@ class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
 
  public:
   explicit StoreDoubleField(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
+
+  int offset() const { return offset_; }
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int offset_;
+};
+
+class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
+  using Base = FixedInputNodeT<2, StoreFloat64>;
+
+ public:
+  explicit StoreFloat64(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Writing();

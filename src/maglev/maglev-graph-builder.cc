@@ -17,6 +17,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/maybe-handles-inl.h"
@@ -1784,11 +1785,32 @@ void MaglevGraphBuilder::BuildCheckMaps(
   known_info->type = merger.node_type();
 }
 
+namespace {
+AllocateRaw* GetAllocation(ValueNode* object) {
+  if (object->Is<FoldedAllocation>()) {
+    object = object->Cast<FoldedAllocation>()->input(0).node();
+  }
+  if (object->Is<AllocateRaw>()) {
+    return object->Cast<AllocateRaw>();
+  }
+  return nullptr;
+}
+}  // namespace
+
 bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>()) return true;
   if (value->Is<SmiConstant>()) return true;
   if (CheckType(value, NodeType::kSmi)) return true;
+
+  // No need for a write barrier if both object and value are part of the same
+  // folded young allocation.
+  AllocateRaw* allocation = GetAllocation(object);
+  if (allocation != nullptr &&
+      allocation->allocation_type() == AllocationType::kYoung &&
+      allocation == GetAllocation(value)) {
+    return true;
+  }
 
   return false;
 }
@@ -2620,11 +2642,8 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       ReduceResult result = TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
           compiler::AccessMode::kLoad);
-      if (result.IsDoneWithAbort()) return;
-      if (result.IsDoneWithValue()) {
-        SetAccumulator(result.value());
-        return;
-      }
+      PROCESS_AND_RETURN_IF_DONE(
+          result, [&](ValueNode* value) { SetAccumulator(value); });
       break;
     }
     default:
@@ -2666,11 +2685,8 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       ReduceResult result = TryBuildNamedAccess(
           receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
           feedback_source, compiler::AccessMode::kLoad);
-      if (result.IsDoneWithAbort()) return;
-      if (result.IsDoneWithValue()) {
-        SetAccumulator(result.value());
-        return;
-      }
+      PROCESS_AND_RETURN_IF_DONE(
+          result, [&](ValueNode* value) { SetAccumulator(value); });
       break;
     }
     default:
@@ -2743,11 +2759,8 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       ReduceResult result = TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
           compiler::AccessMode::kLoad);
-      if (result.IsDoneWithAbort()) return;
-      if (result.IsDoneWithValue()) {
-        SetAccumulator(result.value());
-        return;
-      }
+      PROCESS_AND_RETURN_IF_DONE(
+          result, [&](ValueNode* value) { SetAccumulator(value); });
       break;
     }
 
@@ -3819,12 +3832,10 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
           target_node, function, args, feedback_source,
           call_feedback.speculation_mode());
     }
-    if (result.IsDoneWithAbort()) {
-      return;
-    }
-    DCHECK(result.HasValue());
-    SetAccumulator(result.value());
-    return;
+    PROCESS_AND_RETURN_IF_DONE(
+        result, [&](ValueNode* value) { SetAccumulator(value); });
+    // We should always succeed.
+    UNREACHABLE();
   }
 
   // On fallthrough, create a generic call.
@@ -4565,18 +4576,27 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
+  compiler::FeedbackSource feedback_source(feedback(), slot_index);
+
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
+  if (!processed_feedback.IsInsufficient()) {
+    ReduceResult result =
+        TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
+    PROCESS_AND_RETURN_IF_DONE(
+        result, [&](ValueNode* value) { SetAccumulator(value); });
+  }
+
   if (interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
     // TODO(victorgomes): CreateShallowArrayLiteral should not need the
     // boilerplate descriptor. However the current builtin checks that the
     // feedback exists and fallsback to CreateArrayLiteral if it doesn't.
     SetAccumulator(AddNewNode<CreateShallowArrayLiteral>(
-        {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags));
+        {}, constant_elements, feedback_source, literal_flags));
   } else {
     SetAccumulator(AddNewNode<CreateArrayLiteral>(
-        {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags));
+        {}, constant_elements, feedback_source, literal_flags));
   }
 }
 
@@ -4593,6 +4613,370 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
       {}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
+base::Optional<FastLiteralObject>
+MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
+    compiler::JSObjectRef boilerplate, AllocationType allocation, int max_depth,
+    int* max_properties) {
+  DCHECK_GE(max_depth, 0);
+  DCHECK_GE(*max_properties, 0);
+
+  if (max_depth == 0) return {};
+
+  // Prevent concurrent migrations of boilerplate objects.
+  compiler::JSHeapBroker::BoilerplateMigrationGuardIfNeeded
+      boilerplate_access_guard(broker());
+
+  // Now that we hold the migration lock, get the current map.
+  compiler::MapRef boilerplate_map = boilerplate.map(broker());
+  // Protect against concurrent changes to the boilerplate object by checking
+  // for an identical value at the end of the compilation.
+  broker()->dependencies()->DependOnObjectSlotValue(
+      boilerplate, HeapObject::kMapOffset, boilerplate_map);
+  {
+    compiler::OptionalMapRef current_boilerplate_map =
+        boilerplate.map_direct_read(broker());
+    if (!current_boilerplate_map.has_value() ||
+        !current_boilerplate_map->equals(boilerplate_map)) {
+      // TODO(leszeks): Emit an eager deopt for this case, so that we can
+      // re-learn the boilerplate. This will be easier once we get rid of the
+      // two-pass approach, since we'll be able to create the eager deopt here
+      // and return a ReduceResult::DoneWithAbort().
+      return {};
+    }
+  }
+
+  // Bail out if the boilerplate map has been deprecated.  The map could of
+  // course be deprecated at some point after the line below, but it's not a
+  // correctness issue -- it only means the literal won't be created with the
+  // most up to date map(s).
+  if (boilerplate_map.is_deprecated()) return {};
+
+  // We currently only support in-object properties.
+  if (boilerplate.map(broker()).elements_kind() == DICTIONARY_ELEMENTS ||
+      boilerplate.map(broker()).is_dictionary_map() ||
+      !boilerplate.raw_properties_or_hash(broker()).has_value()) {
+    return {};
+  }
+  {
+    compiler::ObjectRef properties =
+        *boilerplate.raw_properties_or_hash(broker());
+    bool const empty =
+        properties.IsSmi() ||
+        properties.equals(MakeRef(
+            broker(), local_isolate()->factory()->empty_fixed_array())) ||
+        properties.equals(MakeRef(
+            broker(), Handle<Object>::cast(
+                          local_isolate()->factory()->empty_property_array())));
+    if (!empty) return {};
+  }
+
+  compiler::OptionalFixedArrayBaseRef maybe_elements =
+      boilerplate.elements(broker(), kRelaxedLoad);
+  if (!maybe_elements.has_value()) return {};
+  compiler::FixedArrayBaseRef boilerplate_elements = maybe_elements.value();
+  broker()->dependencies()->DependOnObjectSlotValue(
+      boilerplate, JSObject::kElementsOffset, boilerplate_elements);
+  int const elements_length = boilerplate_elements.length();
+
+  FastLiteralObject fast_literal(boilerplate_map, zone(), {});
+
+  // Compute the in-object properties to store first.
+  int index = 0;
+  for (InternalIndex i :
+       InternalIndex::Range(boilerplate_map.NumberOfOwnDescriptors())) {
+    PropertyDetails const property_details =
+        boilerplate_map.GetPropertyDetails(broker(), i);
+    if (property_details.location() != PropertyLocation::kField) continue;
+    DCHECK_EQ(PropertyKind::kData, property_details.kind());
+    if ((*max_properties)-- == 0) return {};
+
+    int offset = boilerplate_map.GetInObjectPropertyOffset(index);
+#ifdef DEBUG
+    FieldIndex field_index =
+        FieldIndex::ForDetails(*boilerplate_map.object(), property_details);
+    DCHECK(field_index.is_inobject());
+    DCHECK_EQ(index, field_index.property_index());
+    DCHECK_EQ(field_index.offset(), offset);
+#endif
+
+    // Note: the use of RawInobjectPropertyAt (vs. the higher-level
+    // GetOwnFastDataProperty) here is necessary, since the underlying value
+    // may be `uninitialized`, which the latter explicitly does not support.
+    compiler::OptionalObjectRef maybe_boilerplate_value =
+        boilerplate.RawInobjectPropertyAt(
+            broker(),
+            FieldIndex::ForInObjectOffset(offset, FieldIndex::kTagged));
+    if (!maybe_boilerplate_value.has_value()) return {};
+
+    // Note: We don't need to take a compilation dependency verifying the value
+    // of `boilerplate_value`, since boilerplate properties are constant after
+    // initialization modulo map migration. We protect against concurrent map
+    // migrations (other than elements kind transition, which don't affect us)
+    // via the boilerplate_migration_access lock.
+    compiler::ObjectRef boilerplate_value = maybe_boilerplate_value.value();
+
+    FastLiteralField value;
+    if (boilerplate_value.IsJSObject()) {
+      compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
+      base::Optional<FastLiteralObject> maybe_object_value =
+          TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
+                                           max_depth - 1, max_properties);
+      if (!maybe_object_value.has_value()) return {};
+      value = FastLiteralField(maybe_object_value.value());
+    } else if (property_details.representation().IsDouble()) {
+      Float64 number =
+          Float64::FromBits(boilerplate_value.AsHeapNumber().value_as_bits());
+      value = FastLiteralField(number);
+    } else {
+      // It's fine to store the 'uninitialized' Oddball into a Smi field since
+      // it will get overwritten anyway.
+      DCHECK_IMPLIES(property_details.representation().IsSmi() &&
+                         !boilerplate_value.IsSmi(),
+                     boilerplate_value.object()->IsUninitialized());
+      value = FastLiteralField(boilerplate_value);
+    }
+
+    DCHECK_LT(index, boilerplate_map.GetInObjectProperties());
+    fast_literal.fields[index] = value;
+    index++;
+  }
+
+  // Fill slack at the end of the boilerplate object with filler maps.
+  int const boilerplate_length = boilerplate_map.GetInObjectProperties();
+  for (; index < boilerplate_length; ++index) {
+    DCHECK(!V8_MAP_PACKING_BOOL);
+    // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
+    // enabled.
+    DCHECK_LT(index, boilerplate_map.GetInObjectProperties());
+    fast_literal.fields[index] = FastLiteralField(MakeRef(
+        broker(), local_isolate()->factory()->one_pointer_filler_map()));
+  }
+
+  // Empty or copy-on-write elements just store a constant.
+  compiler::MapRef elements_map = boilerplate_elements.map(broker());
+  // Protect against concurrent changes to the boilerplate object by checking
+  // for an identical value at the end of the compilation.
+  broker()->dependencies()->DependOnObjectSlotValue(
+      boilerplate_elements, HeapObject::kMapOffset, elements_map);
+  if (boilerplate_elements.length() == 0 ||
+      elements_map.IsFixedCowArrayMap(broker())) {
+    if (allocation == AllocationType::kOld &&
+        !boilerplate.IsElementsTenured(boilerplate_elements)) {
+      return {};
+    }
+    fast_literal.elements = FastLiteralFixedArray(boilerplate_elements);
+  } else {
+    // Compute the elements to store first (might have effects).
+    if (boilerplate_elements.IsFixedDoubleArray()) {
+      int const size = FixedDoubleArray::SizeFor(elements_length);
+      if (size > kMaxRegularHeapObjectSize) return {};
+      fast_literal.elements =
+          FastLiteralFixedArray(elements_length, zone(), double{});
+
+      compiler::FixedDoubleArrayRef elements =
+          boilerplate_elements.AsFixedDoubleArray();
+      for (int i = 0; i < elements_length; ++i) {
+        Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
+        fast_literal.elements.double_values[i] = value;
+      }
+    } else {
+      int const size = FixedArray::SizeFor(elements_length);
+      if (size > kMaxRegularHeapObjectSize) return {};
+      fast_literal.elements = FastLiteralFixedArray(elements_length, zone());
+
+      compiler::FixedArrayRef elements = boilerplate_elements.AsFixedArray();
+      for (int i = 0; i < elements_length; ++i) {
+        if ((*max_properties)-- == 0) return {};
+        compiler::OptionalObjectRef element_value =
+            elements.TryGet(broker(), i);
+        if (!element_value.has_value()) return {};
+        if (element_value->IsJSObject()) {
+          base::Optional<FastLiteralObject> object =
+              TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
+                                               allocation, max_depth - 1,
+                                               max_properties);
+          if (!object.has_value()) return {};
+          fast_literal.elements.values[i] = FastLiteralField(*object);
+        } else {
+          fast_literal.elements.values[i] = FastLiteralField(*element_value);
+        }
+      }
+    }
+  }
+
+  if (boilerplate.IsJSArray()) {
+    fast_literal.js_array_length =
+        boilerplate.AsJSArray().GetBoilerplateLength(broker());
+  }
+
+  return fast_literal;
+}
+
+ValueNode* MaglevGraphBuilder::ExtendOrReallocateCurrentRawAllocation(
+    int size, AllocationType allocation_type) {
+  if (!current_raw_allocation_ ||
+      current_raw_allocation_->allocation_type() != allocation_type) {
+    current_raw_allocation_ =
+        AddNewNode<AllocateRaw>({}, allocation_type, size);
+    return current_raw_allocation_;
+  }
+
+  int current_size = current_raw_allocation_->size();
+  if (current_size + size > kMaxRegularHeapObjectSize) {
+    return current_raw_allocation_ =
+               AddNewNode<AllocateRaw>({}, allocation_type, size);
+  }
+
+  DCHECK_GT(current_size, 0);
+  int previous_end = current_size;
+  current_raw_allocation_->extend(size);
+  return AddNewNode<FoldedAllocation>({current_raw_allocation_}, previous_end);
+}
+
+void MaglevGraphBuilder::ClearCurrentRawAllocation() {
+  current_raw_allocation_ = nullptr;
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
+    FastLiteralObject object, AllocationType allocation_type) {
+  base::SmallVector<ValueNode*, 8, ZoneAllocator<ValueNode*>> properties(
+      object.map.GetInObjectProperties(), ZoneAllocator<ValueNode*>(zone()));
+  for (int i = 0; i < object.map.GetInObjectProperties(); ++i) {
+    properties[i] = BuildAllocateFastLiteral(object.fields[i], allocation_type);
+  }
+  ValueNode* elements =
+      BuildAllocateFastLiteral(object.elements, allocation_type);
+
+  DCHECK(object.map.IsJSObjectMap());
+  // TODO(leszeks): Fold allocations.
+  ValueNode* allocation = ExtendOrReallocateCurrentRawAllocation(
+      object.map.instance_size(), allocation_type);
+  AddNewNode<StoreMap>({allocation}, object.map);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation,
+       GetConstant(MakeRefAssumeMemoryFence(
+           broker(), local_isolate()->factory()->empty_fixed_array()))},
+      JSObject::kPropertiesOrHashOffset);
+  if (object.js_array_length.has_value()) {
+    BuildStoreTaggedField(allocation, GetConstant(*object.js_array_length),
+                          JSArray::kLengthOffset);
+  }
+
+  BuildStoreTaggedField(allocation, elements, JSObject::kElementsOffset);
+  for (int i = 0; i < object.map.GetInObjectProperties(); ++i) {
+    BuildStoreTaggedField(allocation, properties[i],
+                          object.map.GetInObjectPropertyOffset(i));
+  }
+  return allocation;
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
+    FastLiteralField value, AllocationType allocation_type) {
+  switch (value.type) {
+    case FastLiteralField::kObject:
+      return BuildAllocateFastLiteral(value.object, allocation_type);
+    case FastLiteralField::kMutableDouble: {
+      ValueNode* new_alloc = ExtendOrReallocateCurrentRawAllocation(
+          HeapNumber::kSize, allocation_type);
+      AddNewNode<StoreMap>(
+          {new_alloc},
+          MakeRefAssumeMemoryFence(
+              broker(), local_isolate()->factory()->heap_number_map()));
+      // TODO(leszeks): Fix hole storage, in case this should be a custom NaN.
+      AddNewNode<StoreFloat64>(
+          {new_alloc,
+           GetFloat64Constant(value.mutable_double_value.get_scalar())},
+          HeapNumber::kValueOffset);
+      return new_alloc;
+    }
+
+    case FastLiteralField::kConstant:
+      return GetConstant(value.constant_value);
+    case FastLiteralField::kUninitialized:
+      UNREACHABLE();
+  }
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
+    FastLiteralFixedArray value, AllocationType allocation_type) {
+  switch (value.type) {
+    case FastLiteralFixedArray::kTagged: {
+      base::SmallVector<ValueNode*, 8, ZoneAllocator<ValueNode*>> elements(
+          value.length, ZoneAllocator<ValueNode*>(zone()));
+      for (int i = 0; i < value.length; ++i) {
+        elements[i] =
+            BuildAllocateFastLiteral(value.values[i], allocation_type);
+      }
+      ValueNode* allocation = ExtendOrReallocateCurrentRawAllocation(
+          FixedArray::SizeFor(value.length), allocation_type);
+      AddNewNode<StoreMap>(
+          {allocation},
+          MakeRefAssumeMemoryFence(
+              broker(), local_isolate()->factory()->fixed_array_map()));
+      AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+          {allocation, GetSmiConstant(value.length)},
+          FixedArray::kLengthOffset);
+      for (int i = 0; i < value.length; ++i) {
+        // TODO(leszeks): Elide the write barrier where possible.
+        BuildStoreTaggedField(allocation, elements[i],
+                              FixedArray::OffsetOfElementAt(i));
+      }
+      return allocation;
+    }
+    case FastLiteralFixedArray::kDouble: {
+      ValueNode* allocation = ExtendOrReallocateCurrentRawAllocation(
+          FixedDoubleArray::SizeFor(value.length), allocation_type);
+      AddNewNode<StoreMap>(
+          {allocation},
+          MakeRefAssumeMemoryFence(
+              broker(), local_isolate()->factory()->fixed_double_array_map()));
+      AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+          {allocation, GetSmiConstant(value.length)},
+          FixedDoubleArray::kLengthOffset);
+      for (int i = 0; i < value.length; ++i) {
+        // TODO(leszeks): Fix hole storage, in case Float64::get_scalar doesn't
+        // preserve custom NaNs.
+        AddNewNode<StoreFloat64>(
+            {allocation,
+             GetFloat64Constant(value.double_values[i].get_scalar())},
+            FixedDoubleArray::OffsetOfElementAt(i));
+      }
+      return allocation;
+    }
+    case FastLiteralFixedArray::kCoW:
+      return GetConstant(value.cow_value);
+    case FastLiteralFixedArray::kUninitialized:
+      UNREACHABLE();
+  }
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
+    const compiler::LiteralFeedback& feedback) {
+  compiler::AllocationSiteRef site = feedback.value();
+  if (!site.boilerplate(broker()).has_value()) return ReduceResult::Fail();
+  AllocationType allocation_type =
+      broker()->dependencies()->DependOnPretenureMode(site);
+
+  // First try to extract out the shape and values of the boilerplate, bailing
+  // out on complex boilerplates.
+  int max_properties = compiler::kMaxFastLiteralProperties;
+  base::Optional<FastLiteralObject> maybe_value =
+      TryReadBoilerplateForFastLiteral(
+          *site.boilerplate(broker()), allocation_type,
+          compiler::kMaxFastLiteralDepth, &max_properties);
+  if (!maybe_value.has_value()) return ReduceResult::Fail();
+
+  // Then, use the collected information to actually create nodes in the graph.
+  // TODO(leszeks): Add support for unwinding graph modifications, so that we
+  // can get rid of this two pass approach.
+  broker()->dependencies()->DependOnElementsKinds(site);
+  ReduceResult result = BuildAllocateFastLiteral(*maybe_value, allocation_type);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentRawAllocation();
+  return result;
+}
+
 void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   compiler::ObjectBoilerplateDescriptionRef boilerplate_desc =
       GetRefOperand<ObjectBoilerplateDescription>(0);
@@ -4600,18 +4984,27 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
+  compiler::FeedbackSource feedback_source(feedback(), slot_index);
+
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
+  if (!processed_feedback.IsInsufficient()) {
+    ReduceResult result =
+        TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
+    PROCESS_AND_RETURN_IF_DONE(
+        result, [&](ValueNode* value) { SetAccumulator(value); });
+  }
+
   if (interpreter::CreateObjectLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
     // TODO(victorgomes): CreateShallowObjectLiteral should not need the
     // boilerplate descriptor. However the current builtin checks that the
     // feedback exists and fallsback to CreateObjectLiteral if it doesn't.
     SetAccumulator(AddNewNode<CreateShallowObjectLiteral>(
-        {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags));
+        {}, boilerplate_desc, feedback_source, literal_flags));
   } else {
     SetAccumulator(AddNewNode<CreateObjectLiteral>(
-        {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags));
+        {}, boilerplate_desc, feedback_source, literal_flags));
   }
 }
 
