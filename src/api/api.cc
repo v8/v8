@@ -735,7 +735,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::Snapshot::ClearReconstructableDataForSerialization(
       i_isolate, function_code_handling == FunctionCodeHandling::kClear);
 
-  i::SafepointKind safepoint_kind = i_isolate->has_shared_heap()
+  i::SafepointKind safepoint_kind = i_isolate->has_shared_space()
                                         ? i::SafepointKind::kGlobal
                                         : i::SafepointKind::kIsolate;
   i::SafepointScope safepoint_scope(i_isolate, safepoint_kind);

@@ -313,7 +313,7 @@ void Sweeper::SnapshotPageSets() {
   // No mutex needed for the main thread.
   std::tie(snapshot_normal_pages_set_, snapshot_large_pages_set_) =
       heap_->memory_allocator()->SnapshotPageSetsUnsafe();
-  if (heap_->isolate()->has_shared_heap()) {
+  if (heap_->isolate()->has_shared_space()) {
     Heap* shared_heap = heap_->isolate()->shared_heap_isolate()->heap();
     if (shared_heap == heap_) {
       // Current heap is the shared heap, thus all relevant pages have already

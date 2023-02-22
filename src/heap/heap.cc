@@ -2334,7 +2334,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 bool Heap::CollectGarbageShared(LocalHeap* local_heap,
                                 GarbageCollectionReason gc_reason) {
   CHECK(deserialization_complete());
-  DCHECK(isolate()->has_shared_heap());
+  DCHECK(isolate()->has_shared_space());
 
   Isolate* shared_space_isolate = isolate()->shared_space_isolate();
   return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
@@ -3548,7 +3548,7 @@ void Heap::FreeLinearAllocationAreas() {
 }
 
 void Heap::FreeSharedLinearAllocationAreas() {
-  if (!isolate()->has_shared_heap()) return;
+  if (!isolate()->has_shared_space()) return;
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->FreeSharedLinearAllocationArea();
   });
@@ -3556,13 +3556,13 @@ void Heap::FreeSharedLinearAllocationAreas() {
 }
 
 void Heap::FreeMainThreadSharedLinearAllocationAreas() {
-  if (!isolate()->has_shared_heap()) return;
+  if (!isolate()->has_shared_space()) return;
   shared_space_allocator_->FreeLinearAllocationArea();
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
 }
 
 void Heap::MakeSharedLinearAllocationAreasIterable() {
-  if (!isolate()->has_shared_heap()) return;
+  if (!isolate()->has_shared_space()) return;
 
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MakeSharedLinearAllocationAreaIterable();
@@ -4711,7 +4711,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     //
     // However, worker/client isolates do not own the shared heap object cache
     // and should not iterate it.
-    if (isolate_->is_shared_space_isolate() || !isolate_->has_shared_heap()) {
+    if (isolate_->is_shared_space_isolate() || !isolate_->has_shared_space()) {
       SerializerDeserializer::IterateSharedHeapObjectCache(isolate_, v);
       v->Synchronize(VisitorSynchronization::kSharedHeapObjectCache);
     }

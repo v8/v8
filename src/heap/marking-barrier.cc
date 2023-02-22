@@ -32,7 +32,7 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
       minor_worklist_(*minor_collector_->marking_worklists()->shared()),
       marking_state_(isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
-      uses_shared_heap_(isolate()->has_shared_heap()),
+      uses_shared_heap_(isolate()->has_shared_space()),
       is_shared_space_isolate_(isolate()->is_shared_space_isolate()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }

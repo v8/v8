@@ -133,7 +133,7 @@ void LocalHeap::SetUp() {
       this, heap_->code_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(shared_old_space_allocator_);
-  if (heap_->isolate()->has_shared_heap()) {
+  if (heap_->isolate()->has_shared_space()) {
     shared_old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
         this, heap_->shared_allocation_space(),
         ConcurrentAllocator::Context::kNotGC);
@@ -157,7 +157,7 @@ void LocalHeap::SetUpSharedMarking() {
 
   Isolate* isolate = heap_->isolate();
 
-  if (isolate->has_shared_heap() && !isolate->is_shared_space_isolate()) {
+  if (isolate->has_shared_space() && !isolate->is_shared_space_isolate()) {
     if (isolate->shared_heap_isolate()
             ->heap()
             ->incremental_marking()

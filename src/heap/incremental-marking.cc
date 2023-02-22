@@ -556,7 +556,7 @@ bool IncrementalMarking::Stop() {
 
   is_marking_ = false;
 
-  if (isolate()->has_shared_heap() && !isolate()->is_shared_space_isolate()) {
+  if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
     // When disabling local incremental marking in a client isolate (= worker
     // isolate), the marking barrier needs to stay enabled when incremental
     // marking in the shared heap is running.

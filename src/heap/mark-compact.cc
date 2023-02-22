@@ -414,7 +414,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      uses_shared_heap_(isolate()->has_shared_heap()),
+      uses_shared_heap_(isolate()->has_shared_space()),
       is_shared_space_isolate_(isolate()->is_shared_space_isolate()),
       sweeper_(heap_->sweeper()) {
 }
@@ -1715,7 +1715,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         shared_old_allocator_(shared_old_allocator),
         record_visitor_(record_visitor),
         shared_string_table_(v8_flags.shared_string_table &&
-                             heap->isolate()->has_shared_heap()) {
+                             heap->isolate()->has_shared_space()) {
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
 #if DEBUG
     rng_.emplace(heap_->isolate()->fuzzer_rng()->NextInt64());
@@ -4168,7 +4168,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap() &&
+  if (v8_flags.shared_string_table && heap->isolate()->has_shared_space() &&
       !heap->isolate()->is_shared_space_isolate()) {
     return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
                                    ConcurrentAllocator::Context::kGC);
@@ -4904,7 +4904,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       : heap_(heap),
         marking_state_(heap_->non_atomic_marking_state()),
         chunk_(chunk),
-        record_old_to_shared_slots_(heap->isolate()->has_shared_heap() &&
+        record_old_to_shared_slots_(heap->isolate()->has_shared_space() &&
                                     !chunk->InSharedHeap()) {}
   ~RememberedSetUpdatingItem() override = default;
 

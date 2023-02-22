@@ -3460,7 +3460,7 @@ void Isolate::Deinit() {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
-  if (has_shared_heap()) {
+  if (has_shared_space()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
     ParkedScope parked_scope(main_thread_local_heap());
     shared_heap_isolate()->global_safepoint()->clients_mutex_.Lock();
@@ -3542,7 +3542,7 @@ void Isolate::Deinit() {
   heap_.TearDownWithSharedHeap();
 
   // Detach from the shared heap isolate and then unlock the mutex.
-  if (has_shared_heap()) {
+  if (has_shared_space()) {
     Isolate* shared_heap_isolate = this->shared_heap_isolate();
     DetachFromSharedSpaceIsolate();
     shared_heap_isolate->global_safepoint()->clients_mutex_.Unlock();
@@ -4205,7 +4205,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
   isolate_data_.is_shared_space_isolate_flag_ = is_shared_space_isolate();
-  isolate_data_.uses_shared_heap_flag_ = has_shared_heap();
+  isolate_data_.uses_shared_heap_flag_ = has_shared_space();
 
   if (attach_to_shared_space_isolate && !is_shared_space_isolate() &&
       attach_to_shared_space_isolate->heap()
@@ -4231,7 +4231,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
-    DCHECK(has_shared_heap());
+    DCHECK(has_shared_space());
     DCHECK(!is_shared_space_isolate());
     string_table_ = shared_heap_isolate()->string_table_;
     string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
@@ -4302,7 +4302,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init(this);
   } else {
-    DCHECK(has_shared_heap());
+    DCHECK(has_shared_space());
     isolate_data_.shared_external_pointer_table_ =
         shared_heap_isolate()->isolate_data_.shared_external_pointer_table_;
   }

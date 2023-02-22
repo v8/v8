@@ -600,7 +600,7 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap()) {
+  if (v8_flags.shared_string_table && heap->isolate()->has_shared_space()) {
     return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
                                    ConcurrentAllocator::Context::kGC);
   }
@@ -610,7 +610,7 @@ ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
 // This returns true if the scavenger runs in a client isolate and incremental
 // marking is enabled in the shared space isolate.
 bool IsSharedIncrementalMarking(Isolate* isolate) {
-  return isolate->has_shared_heap() && !isolate->is_shared_space_isolate() &&
+  return isolate->has_shared_space() && !isolate->is_shared_space_isolate() &&
          isolate->shared_space_isolate()
              ->heap()
              ->incremental_marking()
@@ -684,7 +684,7 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  const bool record_old_to_shared_slots = heap_->isolate()->has_shared_heap();
+  const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
     InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
