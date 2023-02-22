@@ -165,3 +165,31 @@ PrivateClassMemberInspectorTest.runTest = function (InspectorTest, options) {
     await runPrivateClassMemberTest(Protocol, options);
   }]);
 }
+
+async function printPrivateMembers(Protocol, InspectorTest, options) {
+  let { result } = await Protocol.Runtime.getProperties(options);
+  InspectorTest.log('privateProperties from Runtime.getProperties()');
+  if (result.privateProperties === undefined) {
+    InspectorTest.logObject(result.privateProperties);
+  } else {
+    InspectorTest.logMessage(result.privateProperties);
+  }
+
+  // Can happen to accessorPropertiesOnly requests.
+  if (result.internalProperties === undefined) {
+    return;
+  }
+
+  InspectorTest.log('[[PrivateMethods]] in internalProperties from Runtime.getProperties()');
+  let privateMethods = result.internalProperties.find((i) => i.name === '[[PrivateMethods]]');
+  if (privateMethods === undefined) {
+    InspectorTest.logObject(privateMethods);
+    return;
+  }
+
+  InspectorTest.logMessage(privateMethods);
+  ({ result } = await Protocol.Runtime.getProperties({
+    objectId: privateMethods.value.objectId
+  }));
+  InspectorTest.logMessage(result);
+}

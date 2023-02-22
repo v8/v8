@@ -1576,9 +1576,18 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   return mode <= VariableMode::kVar;
 }
 
-inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
-  return mode >= VariableMode::kPrivateMethod &&
+inline bool IsPrivateAccessorVariableMode(VariableMode mode) {
+  return mode >= VariableMode::kPrivateSetterOnly &&
          mode <= VariableMode::kPrivateGetterAndSetter;
+}
+
+inline bool IsPrivateMethodVariableMode(VariableMode mode) {
+  return mode == VariableMode::kPrivateMethod;
+}
+
+inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
+  return IsPrivateMethodVariableMode(mode) ||
+         IsPrivateAccessorVariableMode(mode);
 }
 
 inline bool IsSerializableVariableMode(VariableMode mode) {

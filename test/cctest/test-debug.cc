@@ -4978,7 +4978,8 @@ TEST(GetPrivateFields) {
           .ToLocalChecked());
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+  int filter = static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields);
+  CHECK(v8::debug::GetPrivateMembers(context, object, filter, &names, &values));
 
   CHECK_EQ(names.size(), 2);
   for (int i = 0; i < 2; i++) {
@@ -5010,7 +5011,7 @@ TEST(GetPrivateFields) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+  CHECK(v8::debug::GetPrivateMembers(context, object, filter, &names, &values));
 
   CHECK_EQ(names.size(), 3);
   for (int i = 0; i < 3; i++) {
@@ -5045,7 +5046,7 @@ TEST(GetPrivateFields) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+  CHECK(v8::debug::GetPrivateMembers(context, object, filter, &names, &values));
 
   CHECK_EQ(names.size(), 2);
   for (int i = 0; i < 2; i++) {
@@ -5084,31 +5085,46 @@ TEST(GetPrivateMethodsAndAccessors) {
           .ToLocalChecked());
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
 
-  CHECK_EQ(names.size(), 4);
-  for (int i = 0; i < 4; i++) {
+  int accessor_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+  int method_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods);
+
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(v8_str("#method")->Equals(context, name.As<v8::String>()).FromJust());
+    CHECK(value->IsFunction());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 3);
+  for (int i = 0; i < 3; i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     CHECK(name->IsString());
     std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#method") {
-      CHECK(value->IsFunction());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#accessor") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else if (name_str == "#readOnly") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsNull());
     } else {
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      if (name_str == "#accessor") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsFunction());
-      } else if (name_str == "#readOnly") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsNull());
-      } else {
-        CHECK_EQ(name_str, "#writeOnly");
-        CHECK(accessors->getter()->IsNull());
-        CHECK(accessors->setter()->IsFunction());
-      }
+      CHECK_EQ(name_str, "#writeOnly");
+      CHECK(accessors->getter()->IsNull());
+      CHECK(accessors->setter()->IsFunction());
     }
   }
 
@@ -5130,31 +5146,41 @@ TEST(GetPrivateMethodsAndAccessors) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
 
-  CHECK_EQ(names.size(), 4);
-  for (int i = 0; i < 4; i++) {
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(v8_str("#method")->Equals(context, name.As<v8::String>()).FromJust());
+    CHECK(value->IsFunction());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 3);
+  for (int i = 0; i < 3; i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     CHECK(name->IsString());
     std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#method") {
-      CHECK(value->IsFunction());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#accessor") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else if (name_str == "#readOnly") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsNull());
     } else {
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      if (name_str == "#accessor") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsFunction());
-      } else if (name_str == "#readOnly") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsNull());
-      } else {
-        CHECK_EQ(name_str, "#writeOnly");
-        CHECK(accessors->getter()->IsNull());
-        CHECK(accessors->setter()->IsFunction());
-      }
+      CHECK_EQ(name_str, "#writeOnly");
+      CHECK(accessors->getter()->IsNull());
+      CHECK(accessors->setter()->IsFunction());
     }
   }
 
@@ -5177,24 +5203,34 @@ TEST(GetPrivateMethodsAndAccessors) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
 
-  CHECK_EQ(names.size(), 2);
-  for (int i = 0; i < 2; i++) {
-    v8::Local<v8::Value> name = names[i];
-    v8::Local<v8::Value> value = values[i];
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
     CHECK(name->IsString());
-    std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#method") {
-      CHECK(value->IsFunction());
-    } else {
-      CHECK_EQ(name_str, "#accessor");
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      CHECK(accessors->getter()->IsFunction());
-      CHECK(accessors->setter()->IsFunction());
-    }
+    CHECK(v8_str("#method")->Equals(context, name.As<v8::String>()).FromJust());
+    CHECK(value->IsFunction());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(
+        v8_str("#accessor")->Equals(context, name.As<v8::String>()).FromJust());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    CHECK(accessors->getter()->IsFunction());
+    CHECK(accessors->setter()->IsFunction());
   }
 }
 
@@ -5219,31 +5255,48 @@ TEST(GetPrivateStaticMethodsAndAccessors) {
           .ToLocalChecked());
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
 
-  CHECK_EQ(names.size(), 4);
-  for (int i = 0; i < 4; i++) {
+  int accessor_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+  int method_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods);
+
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(v8_str("#staticMethod")
+              ->Equals(context, name.As<v8::String>())
+              .FromJust());
+    CHECK(value->IsFunction());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 3);
+  for (int i = 0; i < 3; i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     CHECK(name->IsString());
     std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#staticMethod") {
-      CHECK(value->IsFunction());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#staticAccessor") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else if (name_str == "#staticReadOnly") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsNull());
     } else {
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      if (name_str == "#staticAccessor") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsFunction());
-      } else if (name_str == "#staticReadOnly") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsNull());
-      } else {
-        CHECK_EQ(name_str, "#staticWriteOnly");
-        CHECK(accessors->getter()->IsNull());
-        CHECK(accessors->setter()->IsFunction());
-      }
+      CHECK_EQ(name_str, "#staticWriteOnly");
+      CHECK(accessors->getter()->IsNull());
+      CHECK(accessors->setter()->IsFunction());
     }
   }
 }
@@ -5275,31 +5328,47 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
           .ToLocalChecked());
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+  int accessor_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+  int method_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods);
 
-  CHECK_EQ(names.size(), 4);
-  for (int i = 0; i < 4; i++) {
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(v8_str("#staticMethod")
+              ->Equals(context, name.As<v8::String>())
+              .FromJust());
+    CHECK(value->IsFunction());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 3);
+  for (int i = 0; i < 3; i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     CHECK(name->IsString());
     std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#staticMethod") {
-      CHECK(value->IsFunction());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#staticAccessor") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else if (name_str == "#staticReadOnly") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsNull());
     } else {
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      if (name_str == "#staticAccessor") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsFunction());
-      } else if (name_str == "#staticReadOnly") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsNull());
-      } else {
-        CHECK_EQ(name_str, "#staticWriteOnly");
-        CHECK(accessors->getter()->IsNull());
-        CHECK(accessors->setter()->IsFunction());
-      }
+      CHECK_EQ(name_str, "#staticWriteOnly");
+      CHECK(accessors->getter()->IsNull());
+      CHECK(accessors->setter()->IsFunction());
     }
   }
 
@@ -5309,31 +5378,40 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+  CHECK(v8::debug::GetPrivateMembers(context, object, method_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 1);
+  {
+    v8::Local<v8::Value> name = names[0];
+    v8::Local<v8::Value> value = values[0];
+    CHECK(name->IsString());
+    CHECK(v8_str("#method")->Equals(context, name.As<v8::String>()).FromJust());
+    CHECK(value->IsFunction());
+  }
 
-  CHECK_EQ(names.size(), 4);
-  for (int i = 0; i < 4; i++) {
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+  CHECK_EQ(names.size(), 3);
+  for (int i = 0; i < 3; i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     CHECK(name->IsString());
     std::string name_str = FromString(v8_isolate, name.As<v8::String>());
-    if (name_str == "#method") {
-      CHECK(value->IsFunction());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#accessor") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else if (name_str == "#readOnly") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsNull());
     } else {
-      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
-      v8::Local<v8::debug::AccessorPair> accessors =
-          value.As<v8::debug::AccessorPair>();
-      if (name_str == "#accessor") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsFunction());
-      } else if (name_str == "#readOnly") {
-        CHECK(accessors->getter()->IsFunction());
-        CHECK(accessors->setter()->IsNull());
-      } else {
-        CHECK_EQ(name_str, "#writeOnly");
-        CHECK(accessors->getter()->IsNull());
-        CHECK(accessors->setter()->IsFunction());
-      }
+      CHECK_EQ(name_str, "#writeOnly");
+      CHECK(accessors->getter()->IsNull());
+      CHECK(accessors->setter()->IsFunction());
     }
   }
 }
