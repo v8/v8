@@ -7196,12 +7196,15 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   if (sweeper()->sweeping_in_progress()) {
     GarbageCollector collector = tracer_->GetCurrentCollector();
 
+    // Get the scope id before finishing sweeping since it will be reset
+    // afterwards.
+    const auto new_space_sweeping_scope_id =
+        sweeper()->GetTracingScopeForCompleteYoungSweep();
+
     sweeper()->EnsureCompleted();
 
     if (v8_flags.minor_mc && new_space()) {
-      TRACE_GC_EPOCH(tracer(),
-                     sweeper()->GetTracingScopeForCompleteYoungSweep(),
-                     ThreadKind::kMain);
+      TRACE_GC_EPOCH(tracer(), new_space_sweeping_scope_id, ThreadKind::kMain);
       paged_new_space()->paged_space()->RefillFreeList();
     }
 
