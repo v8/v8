@@ -16,20 +16,6 @@ extern class String extends Name {
     return this.StringInstanceType().is_not_internalized;
   }
 
-  // Keep this in sync with the C++ String::IsOneByteRepresentation.
-  //
-  // TODO(verwaest): Consider adding 1-byte ThinStrings back?
-  macro IsOneByteRepresentation(): bool {
-    let s: String;
-    try {
-      const thin = Cast<ThinString>(this) otherwise NotThin;
-      s = thin.actual;
-    } label NotThin {
-      s = this;
-    }
-    return s.StringInstanceType().is_one_byte;
-  }
-
   const length: int32;
 }
 
