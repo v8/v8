@@ -490,6 +490,14 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
 DEFINE_IMPLICATION(maglev_inlining, maglev)
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
+DEFINE_INT(max_maglev_inlined_bytecode_size, 460,
+           "maximum size of bytecode for a single inlining")
+DEFINE_INT(max_maglev_inlined_bytecode_size_cumulative, 920,
+           "maximum cumulative size of bytecode considered for inlining")
+DEFINE_INT(max_maglev_inlined_bytecode_size_small, 27,
+           "maximum size of bytecode considered for small function inlining")
+DEFINE_FLOAT(min_maglev_inlining_frequency, 0.10,
+             "minimum frequency for inlining")
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 
@@ -515,6 +523,9 @@ DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
+DEFINE_BOOL(trace_maglev_inlining_verbose, false,
+            "trace maglev inlining (verbose)")
+DEFINE_IMPLICATION(trace_maglev_inlining_verbose, trace_maglev_inlining)
 
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,

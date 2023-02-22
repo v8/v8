@@ -20,6 +20,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/flags/flags.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -35,6 +36,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/property-details.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 
 namespace v8::internal::maglev {
@@ -238,7 +240,8 @@ class V8_NODISCARD MaglevGraphBuilder::LazyDeoptContinuationScope {
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
-                                       Graph* graph, MaglevGraphBuilder* parent)
+                                       Graph* graph, float call_frequency,
+                                       MaglevGraphBuilder* parent)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
       parent_(parent),
@@ -247,6 +250,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                          true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
+      call_frequency_(call_frequency),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length() +
                                                     (is_inline() ? 1 : 0))),
@@ -3243,57 +3247,117 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
   return current_interpreter_frame_.accumulator();
 }
 
-ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
-    compiler::JSFunctionRef function, CallArguments& args) {
-  // Don't try to inline if the target function hasn't been compiled yet.
-  // TODO(verwaest): Soft deopt instead?
-  if (auto code = function.code(broker());
-      !code || code->object()->kind() == CodeKind::TURBOFAN) {
-    return ReduceResult::Fail();
+#define TRACE_INLINING(...)                       \
+  do {                                            \
+    if (v8_flags.trace_maglev_inlining)           \
+      StdoutStream{} << __VA_ARGS__ << std::endl; \
+  } while (false)
+
+#define TRACE_CANNOT_INLINE(...) \
+  TRACE_INLINING("  cannot inline " << shared << ": " << __VA_ARGS__)
+
+bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
+                                          float call_frequency) {
+  compiler::OptionalCodeRef code = function.code(broker());
+  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+  if (graph()->total_inlined_bytecode_size() >
+      v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
+    TRACE_CANNOT_INLINE("maximum inlined bytecode size");
+    return false;
+  }
+  if (!code) {
+    // TODO(verwaest): Soft deopt instead?
+    TRACE_CANNOT_INLINE("it has not been compiled yet");
+    return false;
+  }
+  if (code->object()->kind() == CodeKind::TURBOFAN) {
+    TRACE_CANNOT_INLINE("already turbofanned");
+    return false;
   }
   if (!function.feedback_vector(broker()).has_value()) {
-    return ReduceResult::Fail();
+    TRACE_CANNOT_INLINE("no feedback vector");
+    return false;
   }
-  if (function.shared(broker()).GetInlineability(broker()) !=
-      SharedFunctionInfo::Inlineability::kIsInlineable) {
-    return ReduceResult::Fail();
+  SharedFunctionInfo::Inlineability inlineability =
+      shared.GetInlineability(broker());
+  if (inlineability != SharedFunctionInfo::Inlineability::kIsInlineable) {
+    TRACE_CANNOT_INLINE(inlineability);
+    return false;
   }
   // TODO(victorgomes): Support NewTarget/RegisterInput in inlined functions.
-  compiler::BytecodeArrayRef bytecode =
-      function.shared(broker()).GetBytecodeArray(broker());
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
-    return ReduceResult::Fail();
+    TRACE_CANNOT_INLINE("use unsupported NewTargetOrGenerator register");
+    return false;
   }
   // TODO(victorgomes): Support exception handler inside inlined functions.
   if (bytecode.handler_table_size() > 0) {
-    return ReduceResult::Fail();
+    TRACE_CANNOT_INLINE("use unsupported expection handlers");
+    return false;
   }
-  // TODO(victorgomes): Improve inline heuristics.
-  if (inlining_depth() > v8_flags.max_maglev_inline_depth) {
-    return ReduceResult::Fail();
-  }
-
-  {
-    // TODO(victorgomes): Support arguments object.
-    // We currently do not materialize the arguments object correctly, bailout
-    // if we have any bytecode that create the arguments object.
-    interpreter::BytecodeArrayIterator iterator(bytecode.object());
-    for (; !iterator.done(); iterator.Advance()) {
-      switch (iterator.current_bytecode()) {
-        case interpreter::Bytecode::kCreateMappedArguments:
-        case interpreter::Bytecode::kCreateUnmappedArguments:
-        case interpreter::Bytecode::kCreateRestParameter:
-          return ReduceResult::Fail();
-        default:
-          break;
-      }
+  // TODO(victorgomes): Support arguments object.
+  // We currently do not materialize the arguments object correctly, bailout
+  // if we have any bytecode that create the arguments object.
+  interpreter::BytecodeArrayIterator iterator(bytecode.object());
+  for (; !iterator.done(); iterator.Advance()) {
+    switch (iterator.current_bytecode()) {
+      case interpreter::Bytecode::kCreateMappedArguments:
+      case interpreter::Bytecode::kCreateUnmappedArguments:
+      case interpreter::Bytecode::kCreateRestParameter:
+        TRACE_CANNOT_INLINE("use unsupported arguments object");
+        return false;
+      default:
+        break;
     }
   }
+  if (call_frequency < v8_flags.min_inlining_frequency) {
+    TRACE_CANNOT_INLINE("call frequency ("
+                        << call_frequency << ") < minimum thredshold ("
+                        << v8_flags.min_maglev_inlining_frequency << ")");
+    return false;
+  }
+  if (bytecode.length() < v8_flags.max_maglev_inlined_bytecode_size_small) {
+    TRACE_INLINING("  inlining " << shared << ": small function");
+    return true;
+  }
+  if (bytecode.length() > v8_flags.max_maglev_inlined_bytecode_size) {
+    TRACE_CANNOT_INLINE("big function, size ("
+                        << bytecode.length() << ") >= max-size ("
+                        << v8_flags.max_maglev_inlined_bytecode_size << ")");
+    return false;
+  }
+  if (inlining_depth() > v8_flags.max_maglev_inline_depth) {
+    TRACE_CANNOT_INLINE("inlining depth ("
+                        << inlining_depth() << ") >= max-depth ("
+                        << v8_flags.max_maglev_inline_depth << ")");
+    return false;
+  }
+  TRACE_INLINING("  inlining " << shared);
+  if (v8_flags.trace_maglev_inlining_verbose) {
+    BytecodeArray::Disassemble(bytecode.object(), std::cout);
+    function.feedback_vector(broker())->object()->Print(std::cout);
+  }
+  graph()->add_inlined_bytecode_size(bytecode.length());
+  return true;
+}
 
-  if (v8_flags.trace_maglev_inlining) {
-    std::cout << "  inlining " << function.shared(broker()) << std::endl;
+ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
+    compiler::JSFunctionRef function, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  float feedback_frequency = 0.0f;
+  if (feedback_source.IsValid()) {
+    compiler::ProcessedFeedback const& feedback =
+        broker()->GetFeedbackForCall(feedback_source);
+    feedback_frequency =
+        feedback.IsInsufficient() ? 0.0f : feedback.AsCall().frequency();
+  }
+  float call_frequency = feedback_frequency * call_frequency_;
+  if (!ShouldInlineCall(function, call_frequency)) {
+    return ReduceResult::Fail();
   }
 
+  compiler::BytecodeArrayRef bytecode =
+      function.shared(broker()).GetBytecodeArray(broker());
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           function.shared(broker()).object(), bytecode.object(),
@@ -3304,7 +3368,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   MaglevCompilationUnit* inner_unit =
       MaglevCompilationUnit::NewInner(zone(), compilation_unit_, function);
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
-                                         this);
+                                         call_frequency, this);
 
   // Propagate catch block.
   inner_graph_builder.parent_catch_block_ = GetCurrentTryCatchBlockOffset();
@@ -3333,8 +3397,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       iterator_.current_offset(), 1, block, GetInLiveness()));
   // Set the exit JumpFromInlined to jump to this resume block.
   // TODO(leszeks): Passing start_ref to JumpFromInlined creates a two-element
-  // linked list of refs. Consider adding a helper to explicitly set the target
-  // instead.
+  // linked list of refs. Consider adding a helper to explicitly set the
+  // target instead.
   end_ref.SetToBlockAndReturnNext(current_block_)
       ->SetToBlockAndReturnNext(current_block_);
 
@@ -3706,7 +3770,8 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    compiler::JSFunctionRef function, CallArguments& args) {
+    compiler::JSFunctionRef function, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context(broker()) != broker()->target_native_context()) {
     return ReduceResult::Fail();
@@ -3720,7 +3785,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     return BuildCallSelf(function, args);
   }
   if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(function, args));
+    RETURN_IF_DONE(TryBuildInlinedCall(function, args, feedback_source));
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
@@ -3772,7 +3837,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
     DCHECK(target.object()->IsCallable());
     RETURN_IF_DONE(
         TryReduceBuiltin(target, args, feedback_source, speculation_mode));
-    RETURN_IF_DONE(TryBuildCallKnownJSFunction(target, args));
+    RETURN_IF_DONE(TryBuildCallKnownJSFunction(target, args, feedback_source));
   }
   return BuildGenericCall(GetConstant(target), GetContext(),
                           Call::TargetType::kJSFunction, args);

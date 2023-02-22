@@ -17,6 +17,7 @@
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/processed-feedback.h"
@@ -190,7 +191,7 @@ class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
                               MaglevCompilationUnit* compilation_unit,
-                              Graph* graph,
+                              Graph* graph, float call_frequency = 1.0f,
                               MaglevGraphBuilder* parent = nullptr);
 
   void Build() {
@@ -1409,10 +1410,13 @@ class MaglevGraphBuilder {
                                 const compiler::FeedbackSource& feedback_source,
                                 SpeculationMode speculation_mode);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
-  ReduceResult TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
-                                           CallArguments& args);
-  ReduceResult TryBuildInlinedCall(compiler::JSFunctionRef function,
-                                   CallArguments& args);
+  ReduceResult TryBuildCallKnownJSFunction(
+      compiler::JSFunctionRef function, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
+  bool ShouldInlineCall(compiler::JSFunctionRef function, float call_frequency);
+  ReduceResult TryBuildInlinedCall(
+      compiler::JSFunctionRef function, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
   ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
                               Call::TargetType target_type,
                               const CallArguments& args,
@@ -1737,6 +1741,8 @@ class MaglevGraphBuilder {
   ForInState current_for_in_state = ForInState();
 
   AllocateRaw* current_raw_allocation_ = nullptr;
+
+  float call_frequency_;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;

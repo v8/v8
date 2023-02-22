@@ -76,6 +76,13 @@ class Graph final : public ZoneObject {
     max_deopted_stack_size_ = size;
   }
 
+  int total_inlined_bytecode_size() const {
+    return total_inlined_bytecode_size_;
+  }
+  void add_inlined_bytecode_size(int size) {
+    total_inlined_bytecode_size_ += size;
+  }
+
   uint32_t stack_check_offset() {
     uint32_t stack_slots = tagged_stack_slots_ + untagged_stack_slots_;
     DCHECK(is_int32(stack_slots));
@@ -145,6 +152,7 @@ class Graph final : public ZoneObject {
   Float64Constant* nan_ = nullptr;
   FunctionEntryStackCheck* function_entry_stack_check_ = nullptr;
   bool has_recursive_calls_ = false;
+  int total_inlined_bytecode_size_ = 0;
 };
 
 }  // namespace maglev
