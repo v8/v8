@@ -1306,11 +1306,37 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
 base::Optional<MessageTemplate> WasmInstanceObject::InitTableEntries(
     Isolate* isolate, Handle<WasmInstanceObject> instance, uint32_t table_index,
     uint32_t segment_index, uint32_t dst, uint32_t src, uint32_t count) {
-  // Note that this implementation just calls through to module instantiation.
-  // This is intentional, so that the runtime only depends on the object
-  // methods, and not the module instantiation logic.
-  return wasm::LoadElemSegment(isolate, instance, table_index, segment_index,
-                               dst, src, count);
+  AccountingAllocator allocator;
+  // This {Zone} will be used only by the temporary WasmFullDecoder allocated
+  // down the line from this call. Therefore it is safe to stack-allocate it
+  // here.
+  Zone zone(&allocator, "LoadElemSegment");
+
+  Handle<WasmTableObject> table_object = handle(
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+
+  // If needed, try to lazily initialize the element segment.
+  base::Optional<MessageTemplate> opt_error =
+      wasm::InitializeElementSegment(&zone, isolate, instance, segment_index);
+  if (opt_error.has_value()) return opt_error;
+
+  Handle<FixedArray> elem_segment =
+      handle(FixedArray::cast(instance->element_segments().get(segment_index)),
+             isolate);
+  if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length())) {
+    return {MessageTemplate::kWasmTrapTableOutOfBounds};
+  }
+  if (!base::IsInBounds<uint64_t>(src, count, elem_segment->length())) {
+    return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
+  }
+
+  for (size_t i = 0; i < count; i++) {
+    WasmTableObject::Set(
+        isolate, table_object, static_cast<int>(dst + i),
+        handle(elem_segment->get(static_cast<int>(src + i)), isolate));
+  }
+
+  return {};
 }
 
 MaybeHandle<WasmInternalFunction> WasmInstanceObject::GetWasmInternalFunction(

@@ -2034,15 +2034,24 @@ void InstanceBuilder::SetTableInitialValues(
 }
 
 namespace {
+
+enum FunctionComputationMode { kLazyFunctions, kStrictFunctions };
+
+// If {function_mode == kLazyFunctions}, may return a function index instead of
+// computing a function object.
+// Assumes the underlying module is verified.
 ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
                                         Handle<WasmInstanceObject> instance,
                                         const WasmElemSegment& segment,
-                                        Decoder& decoder) {
+                                        Decoder& decoder,
+                                        FunctionComputationMode function_mode) {
   if (segment.element_type == WasmElemSegment::kFunctionIndexElements) {
     uint32_t function_index = decoder.consume_u32v();
-    return EvaluateConstantExpression(
-        zone, ConstantExpression::RefFunc(function_index), segment.type,
-        isolate, instance);
+    return function_mode == kStrictFunctions
+               ? EvaluateConstantExpression(
+                     zone, ConstantExpression::RefFunc(function_index),
+                     segment.type, isolate, instance)
+               : ValueOrError(WasmValue(function_index));
   }
 
   switch (static_cast<WasmOpcode>(*decoder.pc())) {
@@ -2052,9 +2061,11 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
           decoder.pc() + 1, &length, "ref.func");
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
-        return EvaluateConstantExpression(
-            zone, ConstantExpression::RefFunc(function_index), segment.type,
-            isolate, instance);
+        return function_mode == kStrictFunctions
+                   ? EvaluateConstantExpression(
+                         zone, ConstantExpression::RefFunc(function_index),
+                         segment.type, isolate, instance)
+                   : ValueOrError(WasmValue(function_index));
       }
       break;
     }
@@ -2095,40 +2106,6 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
              : ValueOrError(full_decoder.interface().computed_value());
 }
 
-// If the operation succeeds, returns an empty {Optional}. Otherwise, returns an
-// {Optional} containing the {MessageTemplate} code of the error.
-base::Optional<MessageTemplate> LoadElemSegmentImpl(
-    Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
-    Handle<WasmTableObject> table_object, uint32_t table_index,
-    uint32_t segment_index, uint32_t dst, uint32_t src, size_t count) {
-  DCHECK_LT(segment_index, instance->module()->elem_segments.size());
-
-  // If needed, try to lazily initialize the element segment.
-  auto opt_error =
-      InitializeElementSegment(zone, isolate, instance, segment_index);
-  if (opt_error.has_value()) return opt_error;
-
-  Handle<FixedArray> elem_segment =
-      handle(FixedArray::cast(instance->element_segments().get(segment_index)),
-             isolate);
-  // TODO(wasm): Move this functionality into wasm-objects, since it is used
-  // for both instantiation and in the implementation of the table.init
-  // instruction.
-  if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length())) {
-    return {MessageTemplate::kWasmTrapTableOutOfBounds};
-  }
-  if (!base::IsInBounds<uint64_t>(src, count, elem_segment->length())) {
-    return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
-  }
-
-  for (size_t i = 0; i < count; i++) {
-    WasmTableObject::Set(
-        isolate, table_object, static_cast<int>(dst + i),
-        handle(elem_segment->get(static_cast<int>(src + i)), isolate));
-  }
-
-  return {};
-}
 }  // namespace
 
 base::Optional<MessageTemplate> InitializeElementSegment(
@@ -2149,8 +2126,8 @@ base::Optional<MessageTemplate> InitializeElementSegment(
       isolate->factory()->NewFixedArray(elem_segment.element_count);
 
   for (size_t i = 0; i < elem_segment.element_count; ++i) {
-    ValueOrError value = ConsumeElementSegmentEntry(zone, isolate, instance,
-                                                    elem_segment, decoder);
+    ValueOrError value = ConsumeElementSegmentEntry(
+        zone, isolate, instance, elem_segment, decoder, kStrictFunctions);
     if (is_error(value)) return {to_error(value)};
     result->set(static_cast<int>(i), *to_value(value).to_ref());
   }
@@ -2169,28 +2146,53 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     const uint32_t table_index = elem_segment.table_index;
-    ValueOrError value = EvaluateConstantExpression(
+    ValueOrError maybe_dst = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_, instance);
-    if (MaybeMarkError(value, thrower_)) return;
-    const uint32_t dst = std::get<WasmValue>(value).to_u32();
-    const uint32_t src = 0;
+    if (MaybeMarkError(maybe_dst, thrower_)) return;
+    const uint32_t dst = to_value(maybe_dst).to_u32();
     const size_t count = elem_segment.element_count;
 
-    base::Optional<MessageTemplate> opt_error = LoadElemSegmentImpl(
-        &init_expr_zone_, isolate_, instance,
-        handle(WasmTableObject::cast(
-                   instance->tables().get(elem_segment.table_index)),
-               isolate_),
-        table_index, segment_index, dst, src, count);
+    Handle<WasmTableObject> table_object = handle(
+        WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
+    if (!base::IsInBounds<size_t>(dst, count, table_object->current_length())) {
+      thrower_->RuntimeError("%s",
+                             MessageFormatter::TemplateString(
+                                 MessageTemplate::kWasmTrapTableOutOfBounds));
+      return;
+    }
+
+    base::Vector<const byte> module_bytes =
+        instance->module_object().native_module()->wire_bytes();
+    Decoder decoder(module_bytes);
+    decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+
+    for (size_t i = 0; i < count; i++) {
+      int entry_index = static_cast<int>(dst + i);
+      ValueOrError computed_element =
+          ConsumeElementSegmentEntry(&init_expr_zone_, isolate_, instance,
+                                     elem_segment, decoder, kLazyFunctions);
+      if (MaybeMarkError(computed_element, thrower_)) return;
+
+      WasmValue computed_value = to_value(computed_element);
+
+      if (computed_value.type() == kWasmI32) {
+        DCHECK(IsSubtypeOf(module_->tables[table_index].type, kWasmFuncRef,
+                           module_));
+        WasmTableObject::SetFunctionTablePlaceholder(isolate_, table_object,
+                                                     entry_index, instance,
+                                                     computed_value.to_i32());
+        WasmTableObject::UpdateDispatchTables(
+            isolate_, *table_object, entry_index,
+            &module_->functions[computed_value.to_i32()], *instance);
+      } else {
+        WasmTableObject::Set(isolate_, table_object, entry_index,
+                             computed_value.to_ref());
+      }
+    }
     // Active segment have to be set to empty after instance initialization
     // (much like passive segments after dropping).
     instance->element_segments().set(segment_index,
                                      *isolate_->factory()->empty_fixed_array());
-    if (opt_error.has_value()) {
-      thrower_->RuntimeError(
-          "%s", MessageFormatter::TemplateString(opt_error.value()));
-      return;
-    }
   }
 }
 
@@ -2201,21 +2203,6 @@ void InstanceBuilder::InitializeTags(Handle<WasmInstanceObject> instance) {
     Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
     tags_table->set(index, *tag);
   }
-}
-
-base::Optional<MessageTemplate> LoadElemSegment(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, uint32_t table_index,
-    uint32_t segment_index, uint32_t dst, uint32_t src, uint32_t count) {
-  AccountingAllocator allocator;
-  // This {Zone} will be used only by the temporary WasmFullDecoder allocated
-  // down the line from this call. Therefore it is safe to stack-allocate it
-  // here.
-  Zone zone(&allocator, "LoadElemSegment");
-  return LoadElemSegmentImpl(
-      &zone, isolate, instance,
-      handle(WasmTableObject::cast(instance->tables().get(table_index)),
-             isolate),
-      table_index, segment_index, dst, src, count);
 }
 
 }  // namespace wasm

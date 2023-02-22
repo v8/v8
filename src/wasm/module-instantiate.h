@@ -46,14 +46,6 @@ base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t segment_index);
 
-// Loads a range of elements from element segment into a table.
-// Returns the empty {Optional} if the operation succeeds, or an {Optional} with
-// the error {MessageTemplate} if it fails.
-base::Optional<MessageTemplate> LoadElemSegment(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, uint32_t table_index,
-    uint32_t segment_index, uint32_t dst, uint32_t src,
-    uint32_t count) V8_WARN_UNUSED_RESULT;
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
