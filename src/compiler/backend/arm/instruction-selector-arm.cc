@@ -2918,6 +2918,20 @@ void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
   VisitS128Select(node);
 }
 
+#define VISIT_SIMD_QFMOP(op)                        \
+  void InstructionSelector::Visit##op(Node* node) { \
+    ArmOperandGenerator g(this);                    \
+    Emit(kArm##op, g.DefineAsRegister(node),        \
+         g.UseUniqueRegister(node->InputAt(0)),     \
+         g.UseUniqueRegister(node->InputAt(1)),     \
+         g.UseUniqueRegister(node->InputAt(2)));    \
+  }
+VISIT_SIMD_QFMOP(F64x2Qfma)
+VISIT_SIMD_QFMOP(F64x2Qfms)
+VISIT_SIMD_QFMOP(F32x4Qfma)
+VISIT_SIMD_QFMOP(F32x4Qfms)
+#undef VISIT_SIMD_QFMOP
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 

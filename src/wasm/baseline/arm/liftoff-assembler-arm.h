@@ -4206,28 +4206,40 @@ void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfma");
+  vmul(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src1),
+       liftoff::GetSimd128Register(src2));
+  vadd(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src3),
+       liftoff::GetSimd128Register(dst));
 }
 
 void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfms");
+  vmul(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src1),
+       liftoff::GetSimd128Register(src2));
+  vsub(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src3),
+       liftoff::GetSimd128Register(dst));
 }
 
 void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfma");
+  vmul(dst.low_fp(), src1.low_fp(), src2.low_fp());
+  vmul(dst.high_fp(), src1.high_fp(), src2.high_fp());
+  vadd(dst.low_fp(), src3.low_fp(), dst.low_fp());
+  vadd(dst.high_fp(), src3.high_fp(), dst.high_fp());
 }
 
 void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfms");
+  vmul(dst.low_fp(), src1.low_fp(), src2.low_fp());
+  vmul(dst.high_fp(), src1.high_fp(), src2.high_fp());
+  vsub(dst.low_fp(), src3.low_fp(), dst.low_fp());
+  vsub(dst.high_fp(), src3.high_fp(), dst.high_fp());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

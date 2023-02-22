@@ -38,8 +38,6 @@ namespace test_run_wasm_relaxed_simd {
   }                                                             \
   void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -114,23 +112,26 @@ static constexpr base::Vector<const FMOperation<T>> qfms_vector() {
   return base::ArrayVector(qfms_array<T>);
 }
 
-// Fused results only when fma3 feature is enabled, and running on TurboFan or
-// Liftoff (which can fall back to TurboFan if FMA is not implemented).
 bool ExpectFused(TestExecutionTier tier) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  // Fused results only when fma3 feature is enabled, and running on TurboFan or
+  // Liftoff (which can fall back to TurboFan if FMA is not implemented).
   return CpuFeatures::IsSupported(FMA3) &&
          (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
+#elif V8_TARGET_ARCH_ARM
+  // Consistent feature detection for Neonv2 is required before emitting
+  // fused instructions on Arm32. Not all Neon enabled Arm32 devices have
+  // FMA instructions.
+  return false;
 #else
+  // All ARM64 Neon enabled devices have support for FMA instructions, only the
+  // Liftoff/Turbofan tiers emit codegen for fused results.
   return (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
@@ -256,8 +257,6 @@ TEST(RunWasm_RegressFmaReg_liftoff) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 
 namespace {
 // Helper to convert an array of T into an array of uint8_t to be used a v128

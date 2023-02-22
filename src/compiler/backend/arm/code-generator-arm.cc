@@ -1988,6 +1988,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(dst.high(), rhs.high(), gt);
       break;
     }
+    case kArmF64x2Qfma: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register src2 = i.InputSimd128Register(2);
+      __ vmul(dst.low(), src0.low(), src1.low());
+      __ vmul(dst.high(), src0.high(), src1.high());
+      __ vadd(dst.low(), src2.low(), dst.low());
+      __ vadd(dst.high(), src2.high(), dst.high());
+      break;
+    }
+    case kArmF64x2Qfms: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register src2 = i.InputSimd128Register(2);
+      __ vmul(dst.low(), src0.low(), src1.low());
+      __ vmul(dst.high(), src0.high(), src1.high());
+      __ vsub(dst.low(), src2.low(), dst.low());
+      __ vsub(dst.high(), src2.high(), dst.high());
+      break;
+    }
     case kArmF64x2Ceil: {
       CpuFeatureScope scope(masm(), ARMv8);
       Simd128Register dst = i.OutputSimd128Register();
@@ -2286,6 +2308,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // = v128.bitselect(rhs, lhs, f32x4.gt(rhs, lhs))
       __ vcgt(dst, rhs, lhs);
       __ vbsl(dst, rhs, lhs);
+      break;
+    }
+    case kArmF32x4Qfma: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vmul(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vadd(dst, i.InputSimd128Register(2), dst);
+      break;
+    }
+    case kArmF32x4Qfms: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vmul(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vsub(dst, i.InputSimd128Register(2), dst);
       break;
     }
     case kArmF32x4DemoteF64x2Zero: {
