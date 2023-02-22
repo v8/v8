@@ -371,7 +371,7 @@ void IncrementalMarking::StartBlackAllocation() {
         "Marking Code objects requires write access to the Code page header");
     heap()->code_space()->MarkLinearAllocationAreaBlack();
   }
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       client->heap()->MarkSharedLinearAllocationAreasBlack();
@@ -394,7 +394,7 @@ void IncrementalMarking::PauseBlackAllocation() {
         "Marking Code objects requires write access to the Code page header");
     heap()->code_space()->UnmarkLinearAllocationArea();
   }
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       client->heap()->UnmarkSharedLinearAllocationAreas();

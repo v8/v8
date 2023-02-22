@@ -300,8 +300,8 @@ class FullMarkingVerifier : public MarkingVerifier {
 
   V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
     const bool in_shared_heap = heap_object.InSharedWritableHeap();
-    return heap_->isolate()->is_shared_heap_isolate() ? in_shared_heap
-                                                      : !in_shared_heap;
+    return heap_->isolate()->is_shared_space_isolate() ? in_shared_heap
+                                                       : !in_shared_heap;
   }
 
   template <typename TSlot>
@@ -415,7 +415,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       state_(IDLE),
 #endif
       uses_shared_heap_(isolate()->has_shared_heap()),
-      is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()),
+      is_shared_space_isolate_(isolate()->is_shared_space_isolate()),
       sweeper_(heap_->sweeper()) {
 }
 
@@ -1739,7 +1739,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
-      if (heap_->isolate()->is_shared_heap_isolate()) {
+      if (heap_->isolate()->is_shared_space_isolate()) {
         DCHECK_NULL(shared_old_allocator_);
         allocation = local_allocator_->Allocate(
             SHARED_SPACE, size, AllocationOrigin::kGC, alignment);
@@ -2009,7 +2009,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   if (heap_object.InReadOnlySpace()) return false;
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (V8_UNLIKELY(collector->uses_shared_heap_) &&
-      !collector->is_shared_heap_isolate_) {
+      !collector->is_shared_space_isolate_) {
     if (heap_object.InSharedWritableHeap()) return false;
   }
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
@@ -2040,7 +2040,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate());
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     ClientCustomRootBodyMarkingVisitor client_custom_root_body_visitor(this);
     isolate()->global_safepoint()->IterateClientIsolates(
         [this, &client_custom_root_body_visitor](Isolate* client) {
@@ -2184,11 +2184,11 @@ void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
-  if (!isolate()->is_shared_heap_isolate()) return;
+  if (!isolate()->is_shared_space_isolate()) return;
 
   isolate()->global_safepoint()->IterateClientIsolates(
       [collector = this](Isolate* client) {
-        if (client->is_shared_heap_isolate()) return;
+        if (client->is_shared_space_isolate()) return;
         collector->MarkObjectsFromClientHeap(client);
       });
 }
@@ -3080,9 +3080,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
         &IsUnmarkedHeapObject);
     isolate()->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
 
-    if (isolate()->is_shared_heap_isolate()) {
+    if (isolate()->is_shared_space_isolate()) {
       isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-        if (client->is_shared_heap_isolate()) return;
+        if (client->is_shared_space_isolate()) return;
         client->global_handles()->IterateWeakRootsForPhantomHandles(
             &IsUnmarkedSharedHeapObject);
         // No need to reset traced handles since they are always strong.
@@ -4169,7 +4169,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap() &&
-      !heap->isolate()->is_shared_heap_isolate()) {
+      !heap->isolate()->is_shared_space_isolate()) {
     return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
                                    ConcurrentAllocator::Context::kGC);
   }
@@ -5349,10 +5349,10 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 }
 
 void MarkCompactCollector::UpdatePointersInClientHeaps() {
-  if (!isolate()->is_shared_heap_isolate()) return;
+  if (!isolate()->is_shared_space_isolate()) return;
 
   isolate()->global_safepoint()->IterateClientIsolates([this](Isolate* client) {
-    if (client->is_shared_heap_isolate()) return;
+    if (client->is_shared_space_isolate()) return;
     UpdatePointersInClientHeap(client);
   });
 }

@@ -632,7 +632,7 @@ class MarkCompactCollector final : public CollectorBase {
 #endif
 
   const bool uses_shared_heap_;
-  const bool is_shared_heap_isolate_;
+  const bool is_shared_space_isolate_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

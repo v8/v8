@@ -1970,7 +1970,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
+  // Returns true when this isolate contains the shared spaces.
   bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+
   Isolate* shared_space_isolate() const {
     return shared_space_isolate_.value();
   }
@@ -1985,8 +1987,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(isolate);
     return isolate;
   }
-
-  bool is_shared_heap_isolate() const { return is_shared_space_isolate(); }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 

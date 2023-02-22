@@ -3456,7 +3456,7 @@ void Isolate::Deinit() {
 
   // All client isolates should already be detached when the shared heap isolate
   // tears down.
-  if (is_shared_heap_isolate()) {
+  if (is_shared_space_isolate()) {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
@@ -4204,7 +4204,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
-  isolate_data_.is_shared_space_isolate_flag_ = is_shared_heap_isolate();
+  isolate_data_.is_shared_space_isolate_flag_ = is_shared_space_isolate();
   isolate_data_.uses_shared_heap_flag_ = has_shared_heap();
 
   if (attach_to_shared_space_isolate && !is_shared_space_isolate() &&

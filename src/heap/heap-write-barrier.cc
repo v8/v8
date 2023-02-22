@@ -113,7 +113,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   // shared space but only from the shared space isolate (= the main isolate).
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
   DCHECK_IMPLIES(host.InSharedWritableHeap(),
-                 barrier->heap()->isolate()->is_shared_heap_isolate());
+                 barrier->heap()->isolate()->is_shared_space_isolate());
   barrier->AssertMarkingIsActivated();
 #endif  // DEBUG
 
@@ -139,7 +139,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   // The shared marking barrier will only be reached from client isolates (=
   // worker isolates).
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
-  DCHECK(!barrier->heap()->isolate()->is_shared_heap_isolate());
+  DCHECK(!barrier->heap()->isolate()->is_shared_space_isolate());
   barrier->AssertSharedMarkingIsActivated();
 #endif  // DEBUG
 

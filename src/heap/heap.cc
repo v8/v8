@@ -1249,10 +1249,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
           GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
     });
 
-    if (isolate()->is_shared_heap_isolate()) {
+    if (isolate()->is_shared_space_isolate()) {
       isolate()->global_safepoint()->IterateClientIsolates(
           [this, collector](Isolate* client) {
-            if (client->is_shared_heap_isolate()) return;
+            if (client->is_shared_space_isolate()) return;
             client->heap()->safepoint()->IterateLocalHeaps(
                 [this, collector](LocalHeap* local_heap) {
                   local_heap->InvokeGCEpilogueCallbacksInSafepoint(
@@ -1861,7 +1861,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
 
-    SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                        ? SafepointKind::kGlobal
                                        : SafepointKind::kIsolate;
     safepoint_scope.emplace(isolate(), safepoint_kind);
@@ -1871,9 +1871,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
   VerifyCountersAfterSweeping();
 #endif
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_heap_isolate()) return;
+      if (client->is_shared_space_isolate()) return;
 
       if (v8_flags.concurrent_marking) {
         client->heap()->concurrent_marking()->Pause();
@@ -1890,9 +1890,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
   incremental_marking()->Start(collector, gc_reason);
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_heap_isolate()) return;
+      if (client->is_shared_space_isolate()) return;
 
       if (v8_flags.concurrent_marking &&
           client->heap()->incremental_marking()->IsMarking()) {
@@ -2155,9 +2155,9 @@ void ClearStubCaches(Isolate* isolate) {
   isolate->load_stub_cache()->Clear();
   isolate->store_stub_cache()->Clear();
 
-  if (isolate->is_shared_heap_isolate()) {
+  if (isolate->is_shared_space_isolate()) {
     isolate->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_heap_isolate()) return;
+      if (client->is_shared_space_isolate()) return;
 
       client->load_stub_cache()->Clear();
       client->store_stub_cache()->Clear();
@@ -2217,7 +2217,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
 
-    SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                        ? SafepointKind::kGlobal
                                        : SafepointKind::kIsolate;
     safepoint_scope.emplace(isolate(), safepoint_kind);
@@ -2227,10 +2227,10 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   HeapVerifier::VerifyHeapIfEnabled(this);
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates(
         [collector](Isolate* client) {
-          if (client->is_shared_heap_isolate()) return;
+          if (client->is_shared_space_isolate()) return;
           CHECK(client->heap()->deserialization_complete());
 
           if (v8_flags.concurrent_marking) {
@@ -2317,9 +2317,9 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   HeapVerifier::VerifyHeapIfEnabled(this);
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_heap_isolate()) return;
+      if (client->is_shared_space_isolate()) return;
 
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
 
@@ -4711,7 +4711,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     //
     // However, worker/client isolates do not own the shared heap object cache
     // and should not iterate it.
-    if (isolate_->is_shared_heap_isolate() || !isolate_->has_shared_heap()) {
+    if (isolate_->is_shared_space_isolate() || !isolate_->has_shared_heap()) {
       SerializerDeserializer::IterateSharedHeapObjectCache(isolate_, v);
       v->Synchronize(VisitorSynchronization::kSharedHeapObjectCache);
     }
@@ -4771,14 +4771,14 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
                                         base::EnumSet<SkipRoot> options) {
   IterateRoots(v, options);
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     ClientRootVisitor client_root_visitor(v);
     // TODO(v8:13257): We cannot run CSS on client isolates now, as the
     // stack markers will not be correct.
     options.Add(SkipRoot::kConservativeStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
-          if (client->is_shared_heap_isolate()) return;
+          if (client->is_shared_space_isolate()) return;
           client->heap()->IterateRoots(v, options);
         });
   }
@@ -4788,7 +4788,7 @@ void Heap::IterateStackRootsIncludingClients(RootVisitor* v,
                                              ScanStackMode stack_mode) {
   IterateStackRoots(v, stack_mode);
 
-  if (isolate()->is_shared_heap_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     ClientRootVisitor client_root_visitor(v);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor](Isolate* client) {
@@ -6345,7 +6345,7 @@ HeapObjectIterator::HeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
     : heap_(heap),
       safepoint_scope_(std::make_unique<SafepointScope>(
-          heap->isolate(), heap->isolate()->is_shared_heap_isolate()
+          heap->isolate(), heap->isolate()->is_shared_space_isolate()
                                ? SafepointKind::kGlobal
                                : SafepointKind::kIsolate)),
       filtering_(filtering),

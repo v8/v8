@@ -143,7 +143,7 @@ class Sweeper::SweeperJob final : public JobTask {
 namespace {
 void AssertMainThreadOrSharedMainThread(Heap* heap) {
   DCHECK(heap->IsMainThread() || (heap->IsSharedMainThread() &&
-                                  !heap->isolate()->is_shared_heap_isolate()));
+                                  !heap->isolate()->is_shared_space_isolate()));
 }
 }  // namespace
 
@@ -1207,7 +1207,7 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page, bool should_discard_page) {
   DCHECK(marking_state_->bitmap(page)->IsClean());
   DCHECK(heap_->IsMainThread() ||
          (heap_->IsSharedMainThread() &&
-          !heap_->isolate()->is_shared_heap_isolate()));
+          !heap_->isolate()->is_shared_space_isolate()));
   DCHECK(heap_->tracer()->IsInAtomicPause());
   DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
             page->concurrent_sweeping_state());

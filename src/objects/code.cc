@@ -397,7 +397,7 @@ InstructionStream::OptimizedCodeIterator::OptimizedCodeIterator(
     Isolate* isolate)
     : isolate_(isolate),
       safepoint_scope_(std::make_unique<SafepointScope>(
-          isolate, isolate->is_shared_heap_isolate()
+          isolate, isolate->is_shared_space_isolate()
                        ? SafepointKind::kGlobal
                        : SafepointKind::kIsolate)),
       object_iterator_(

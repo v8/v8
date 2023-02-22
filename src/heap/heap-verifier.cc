@@ -286,7 +286,7 @@ void HeapVerification::Verify() {
   CHECK(heap()->HasBeenSetUp());
   AllowGarbageCollection allow_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
-  SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+  SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                      ? SafepointKind::kGlobal
                                      : SafepointKind::kIsolate;
   SafepointScope safepoint_scope(isolate(), safepoint_kind);
@@ -710,7 +710,7 @@ void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(Heap* heap,
     // Shared strings only change layout under GC, never concurrently.
     if (object.IsShared()) {
       Isolate* isolate = heap->isolate();
-      Isolate* shared_heap_isolate = isolate->is_shared_heap_isolate()
+      Isolate* shared_heap_isolate = isolate->is_shared_space_isolate()
                                          ? isolate
                                          : isolate->shared_heap_isolate();
       shared_heap_isolate->global_safepoint()->AssertActive();

@@ -1016,7 +1016,7 @@ void PagedSpaceForNewSpace::RefillFreeList() {
   // evacuation.
   DCHECK(heap_->IsMainThread() ||
          (heap_->IsSharedMainThread() &&
-          !heap_->isolate()->is_shared_heap_isolate()));
+          !heap_->isolate()->is_shared_space_isolate()));
   DCHECK(!is_compaction_space());
 
   Sweeper* sweeper = heap()->sweeper();
