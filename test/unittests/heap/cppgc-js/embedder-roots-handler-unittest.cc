@@ -88,6 +88,8 @@ TEST_F(EmbedderRootsHandlerTest,
   ManualGCScope manual_gc(i_isolate());
   v8::HandleScope scope(v8_isolate());
 
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+
   ClearingEmbedderRootsHandler handler(kClassIdToOptimize);
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
 
@@ -138,9 +140,11 @@ void TracedReferenceTest(v8::Isolate* isolate,
                          ConstructTracedReferenceFunction construct_function,
                          ModifierFunction modifier_function,
                          GCFunction gc_function, SurvivalMode survives) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
   v8::HandleScope scope(isolate);
-  auto* traced_handles =
-      reinterpret_cast<i::Isolate*>(isolate)->traced_handles();
+  auto* traced_handles = i_isolate->traced_handles();
   const size_t initial_count = traced_handles->used_node_count();
   auto gc_invisible_handle =
       std::make_unique<v8::TracedReference<v8::Object>>();
