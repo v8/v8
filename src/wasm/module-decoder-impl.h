@@ -1893,7 +1893,7 @@ class ModuleDecoderImpl : public Decoder {
 
     // V8 does not support shared memory without a maximum.
     if (is_shared && !has_maximum) {
-      errorf(pc() - 1, "shared memory must have a maximum defined");
+      error(pc() - 1, "shared memory must have a maximum defined");
     }
 
     if (is_memory64 && !enabled_features_.has_memory64()) {

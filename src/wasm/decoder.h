@@ -332,7 +332,7 @@ class Decoder {
 
   // Use this for "boolean validation", i.e. if the error message is not used
   // anyway.
-  void V8_NOINLINE MarkError() {
+  void V8_NOINLINE V8_PRESERVE_MOST MarkError() {
     if (!ok()) return;
     error_ = {0, "validation failed"};
     onFirstError();
@@ -340,35 +340,34 @@ class Decoder {
 
   // Do not inline error methods. This has measurable impact on validation time,
   // see https://crbug.com/910432.
-  void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
-  void V8_NOINLINE error(const uint8_t* pc, const char* msg) {
+  void V8_NOINLINE V8_PRESERVE_MOST error(const char* msg) {
+    errorf(pc_offset(), "%s", msg);
+  }
+  void V8_NOINLINE V8_PRESERVE_MOST error(const uint8_t* pc, const char* msg) {
     errorf(pc_offset(pc), "%s", msg);
   }
-  void V8_NOINLINE error(uint32_t offset, const char* msg) {
+  void V8_NOINLINE V8_PRESERVE_MOST error(uint32_t offset, const char* msg) {
     errorf(offset, "%s", msg);
   }
 
-  void V8_NOINLINE PRINTF_FORMAT(2, 3) errorf(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    verrorf(pc_offset(), format, args);
-    va_end(args);
+  template <typename... Args>
+  void V8_NOINLINE V8_PRESERVE_MOST errorf(const char* format, Args... args) {
+    errorf(pc_offset(), format, args...);
   }
 
-  void V8_NOINLINE PRINTF_FORMAT(3, 4)
-      errorf(uint32_t offset, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    verrorf(offset, format, args);
-    va_end(args);
+  template <typename... Args>
+  void V8_NOINLINE V8_PRESERVE_MOST errorf(const uint8_t* pc,
+                                           const char* format, Args... args) {
+    errorf(pc_offset(pc), format, args...);
   }
 
-  void V8_NOINLINE PRINTF_FORMAT(3, 4)
-      errorf(const uint8_t* pc, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    verrorf(pc_offset(pc), format, args);
-    va_end(args);
+  template <typename... Args>
+  void V8_NOINLINE V8_PRESERVE_MOST errorf(uint32_t offset, const char* format,
+                                           Args... args) {
+    static_assert(
+        sizeof...(Args) > 0,
+        "Use error instead of errorf if the format string has no placeholders");
+    verrorf(offset, format, args...);
   }
 
   // Behavior triggered on first error, overridden in subclasses.
@@ -453,12 +452,16 @@ class Decoder {
   WasmError error_;
 
  private:
-  void verrorf(uint32_t offset, const char* format, va_list args) {
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      verrorf(uint32_t offset, const char* format, ...) {
     // Only report the first error.
     if (!ok()) return;
     constexpr int kMaxErrorMsg = 256;
     base::EmbeddedVector<char, kMaxErrorMsg> buffer;
+    va_list args;
+    va_start(args, format);
     int len = base::VSNPrintF(buffer, format, args);
+    va_end(args);
     CHECK_LT(0, len);
     error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
     onFirstError();
