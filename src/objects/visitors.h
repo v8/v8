@@ -107,6 +107,15 @@ class RootVisitor {
   virtual void Synchronize(VisitorSynchronization::SyncTag tag) {}
 
   static const char* RootName(Root root);
+
+  // The type of collector that invokes this visitor. This is used by the
+  // ConservativeStackVisitor to determine which root pointers on the stack
+  // to follow, during conservative stack scanning. For MARK_COMPACTOR (the
+  // default) all pointers are followed, whereas for young generation
+  // collectors only pointers to objects in the young generation are followed.
+  virtual GarbageCollector collector() const {
+    return GarbageCollector::MARK_COMPACTOR;
+  }
 };
 
 class RelocIterator;

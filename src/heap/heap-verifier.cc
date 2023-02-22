@@ -294,6 +294,8 @@ void HeapVerification::Verify() {
 
   heap()->MakeHeapIterable();
 
+  // TODO(v8:13257): Currently we don't iterate through the stack conservatively
+  // when verifying the heap.
   VerifyPointersVisitor visitor(heap());
   heap()->IterateRoots(&visitor,
                        base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/conservative-stack-visitor.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/mark-compact.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -15,7 +15,18 @@ namespace {
 constexpr int Tagged = kTaggedSize;
 constexpr int FullCell = Bitmap::kBitsPerCell * Tagged;
 
-class InnerPointerResolutionTest : public TestWithIsolate {
+template <typename TMixin>
+class WithInnerPointerResolutionMixin : public TMixin {
+ public:
+  Address ResolveInnerPointer(Address maybe_inner_ptr) {
+    return ConservativeStackVisitor::FindBasePtrForMarking(
+        maybe_inner_ptr, this->isolate()->heap()->memory_allocator(),
+        GarbageCollector::MARK_COMPACTOR);
+  }
+};
+
+class InnerPointerResolutionTest
+    : public WithInnerPointerResolutionMixin<TestWithIsolate> {
  public:
   struct ObjectRequest {
     int size;  // The only required field.
@@ -48,7 +59,6 @@ class InnerPointerResolutionTest : public TestWithIsolate {
 
   Heap* heap() { return isolate()->heap(); }
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
-  MarkCompactCollector* collector() { return heap()->mark_compact_collector(); }
 
   // Create, free and lookup pages, normal or large.
 
@@ -227,8 +237,7 @@ class InnerPointerResolutionTest : public TestWithIsolate {
   void RunTestInside(const ObjectRequest& object, int offset) {
     DCHECK_LE(0, offset);
     DCHECK_GT(object.size, offset);
-    Address base_ptr =
-        collector()->FindBasePtrForMarking(object.address + offset);
+    Address base_ptr = ResolveInnerPointer(object.address + offset);
     bool should_return_null =
         !IsPageAlive(object.page_id) || (object.type == ObjectRequest::FREE) ||
         (object.type == ObjectRequest::REGULAR &&
@@ -243,7 +252,7 @@ class InnerPointerResolutionTest : public TestWithIsolate {
 
   // This must be called with an address not contained in any created object.
   void RunTestOutside(Address ptr) {
-    Address base_ptr = collector()->FindBasePtrForMarking(ptr);
+    Address base_ptr = ResolveInnerPointer(ptr);
     EXPECT_EQ(kNullAddress, base_ptr);
   }
 
@@ -600,7 +609,8 @@ TEST_F(InnerPointerResolutionTest, FreePages) {
   TestAll();
 }
 
-using InnerPointerResolutionHeapTest = TestWithHeapInternalsAndContext;
+using InnerPointerResolutionHeapTest =
+    WithInnerPointerResolutionMixin<TestWithHeapInternalsAndContext>;
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   ManualGCScope manual_gc_scope(isolate());
@@ -612,7 +622,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   Page *page1, *page2;
 
   auto allocator = heap()->memory_allocator();
-  auto collector = heap()->mark_compact_collector();
 
   {
     PtrComprCageBase cage_base{isolate()};
@@ -674,11 +683,11 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 
     // Inner pointer resolution should work now, finding the objects in the
     // case of the inner pointers.
-    EXPECT_EQ(obj1.address(), collector->FindBasePtrForMarking(inner_ptr1));
-    EXPECT_EQ(obj2.address(), collector->FindBasePtrForMarking(inner_ptr2));
-    EXPECT_EQ(obj3.address(), collector->FindBasePtrForMarking(inner_ptr3));
-    EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr1));
-    EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr2));
+    EXPECT_EQ(obj1.address(), ResolveInnerPointer(inner_ptr1));
+    EXPECT_EQ(obj2.address(), ResolveInnerPointer(inner_ptr2));
+    EXPECT_EQ(obj3.address(), ResolveInnerPointer(inner_ptr3));
+    EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr1));
+    EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr2));
 
     // Start incremental marking and mark the third object.
     i::IncrementalMarking* marking = heap()->incremental_marking();
@@ -712,11 +721,11 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   // Inner pointer resolution should work with pointers to unused young
   // generation pages (in case of the scavenger, the two pages are now in the
   // "from" semispace). There are no objects to be found.
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr1));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr2));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr3));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr1));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr2));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr1));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr2));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr3));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr1));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr2));
 
   // Garbage collection once more.
   GcAndSweep(NEW_SPACE);
@@ -731,11 +740,11 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   // Inner pointer resolution should work with pointers to unused young
   // generation pages (in case of the scavenger, the two pages are now in the
   // "to" semispace). There are no objects to be found.
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr1));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr2));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr3));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr1));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(outside_ptr2));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr1));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr2));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr3));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr1));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr2));
 }
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
@@ -745,8 +754,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
 
   Global<v8::FixedArray> weak;
   Address inner_ptr;
-
-  auto collector = heap()->mark_compact_collector();
 
   {
     PtrComprCageBase cage_base{isolate()};
@@ -770,7 +777,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     inner_ptr = obj.address() + 17 * Tagged;
 
     // Inner pointer resolution should work now, finding the object.
-    EXPECT_EQ(obj.address(), collector->FindBasePtrForMarking(inner_ptr));
+    EXPECT_EQ(obj.address(), ResolveInnerPointer(inner_ptr));
   }
 
   // Garbage collection should reclaim the object.
@@ -779,12 +786,11 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
 
   // Inner pointer resolution should work with a pointer to an unused young
   // generation large page. There is no object to be found.
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 }
 
 TEST_F(InnerPointerResolutionHeapTest, RegularPageAfterEnd) {
   auto allocator = heap()->memory_allocator();
-  auto collector = heap()->mark_compact_collector();
 
   // Allocate a regular page.
   OldSpace* old_space = heap()->old_space();
@@ -806,7 +812,7 @@ TEST_F(InnerPointerResolutionHeapTest, RegularPageAfterEnd) {
   // Inner pointer resolution after the end of the page area should work.
   Address inner_ptr = page->area_end() + Tagged;
   EXPECT_FALSE(Page::IsAlignedToPageSize(inner_ptr));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 
   // Deallocate the page.
   allocator->Free(MemoryAllocator::FreeMode::kImmediately, page);
@@ -814,7 +820,6 @@ TEST_F(InnerPointerResolutionHeapTest, RegularPageAfterEnd) {
 
 TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   auto allocator = heap()->memory_allocator();
-  auto collector = heap()->mark_compact_collector();
 
   // Allocate a large page.
   OldLargeObjectSpace* lo_space = heap()->lo_space();
@@ -831,7 +836,7 @@ TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   // Inner pointer resolution after the end of the pare area should work.
   Address inner_ptr = page->area_end() + Tagged;
   EXPECT_FALSE(Page::IsAlignedToPageSize(inner_ptr));
-  EXPECT_EQ(kNullAddress, collector->FindBasePtrForMarking(inner_ptr));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 
   // Deallocate the page.
   allocator->Free(MemoryAllocator::FreeMode::kImmediately, page);

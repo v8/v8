@@ -453,14 +453,6 @@ class MarkCompactCollector final : public CollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() final;
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
-  // Finds an object header based on a `maybe_inner_ptr`. It returns
-  // `kNullAddress` if the parameter does not point to (the interior of) a valid
-  // heap object, or if it points to (the interior of) some object that is
-  // already marked as live (black or grey).
-  V8_EXPORT_PRIVATE Address FindBasePtrForMarking(Address maybe_inner_ptr);
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
-
  private:
   Sweeper* sweeper() { return sweeper_; }
 
