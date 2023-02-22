@@ -142,6 +142,7 @@ class MergePointInterpreterFrameState;
   V(CallWithArrayLike)                       \
   V(CallWithSpread)                          \
   V(CallKnownJSFunction)                     \
+  V(CallSelf)                                \
   V(Construct)                               \
   V(ConstructWithSpread)                     \
   V(ConvertReceiver)                         \
@@ -5670,6 +5671,61 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CallSelf : public ValueNodeT<CallSelf> {
+  using Base = ValueNodeT<CallSelf>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kFixedInputCount = 1;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >=
+                kFixedInputCount + InstructionStream::kMaxArguments);
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallSelf(uint64_t bitfield, compiler::JSHeapBroker* broker,
+           const compiler::JSFunctionRef function, ValueNode* receiver)
+      : Base(bitfield),
+        function_(function),
+        expected_parameter_count_(
+            function.shared(broker)
+                .internal_formal_parameter_count_with_receiver()) {
+    set_input(kReceiverIndex, receiver);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& receiver() { return input(kReceiverIndex); }
+  const Input& receiver() const { return input(kReceiverIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
+  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+
+  compiler::SharedFunctionInfoRef shared_function_info(
+      compiler::JSHeapBroker* broker) const {
+    return function_.shared(broker);
+  }
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::JSFunctionRef function_;
+  // Cache the expected parameter count so that we can access it in
+  // MaxCallStackArgs without needing to unpark the local isolate.
+  int expected_parameter_count_;
 };
 
 class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {

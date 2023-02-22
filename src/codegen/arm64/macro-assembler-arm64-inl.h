@@ -405,6 +405,14 @@ void MacroAssembler::JumpOrCallTarget() {
 #endif
 }
 
+void MacroAssembler::BindCallTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiCall);
+#else
+  Bind(label);
+#endif
+}
+
 void MacroAssembler::BindJumpOrCallTarget(Label* label) {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Bind(label, BranchTargetIdentifier::kBtiJumpCall);

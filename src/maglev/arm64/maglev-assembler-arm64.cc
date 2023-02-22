@@ -307,6 +307,10 @@ void MaglevAssembler::Prologue(Graph* graph) {
 
   BailoutIfDeoptimized();
 
+  if (graph->has_recursive_calls()) {
+    BindCallTarget(code_gen_state()->entry_label());
+  }
+
   // Tiering support.
   // TODO(jgruber): Extract to a builtin.
   {

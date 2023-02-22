@@ -7,6 +7,7 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -219,6 +220,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void CompareInt32(Register reg, int32_t imm);
   inline void CompareInt32(Register src1, Register src2);
+
+  inline void CallSelf();
 
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIf(Condition cond, Label* target,

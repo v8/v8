@@ -433,6 +433,12 @@ void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
+void CallSelf::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
 void CallKnownJSFunction::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -2764,6 +2770,49 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int CallSelf::MaxCallStackArgs() const {
+  int actual_parameter_count = num_args() + 1;
+  return std::max(expected_parameter_count_, actual_parameter_count);
+}
+void CallSelf::SetValueLocationConstraints() {
+  UseAny(receiver());
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(this, kReturnRegister0);
+  set_temporaries_needed(1);
+}
+
+void CallSelf::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  int actual_parameter_count = num_args() + 1;
+  if (actual_parameter_count < expected_parameter_count_) {
+    int number_of_undefineds =
+        expected_parameter_count_ - actual_parameter_count;
+    __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+    __ PushReverse(receiver(),
+                   base::make_iterator_range(args_begin(), args_end()),
+                   RepeatValue(scratch, number_of_undefineds));
+  } else {
+    __ PushReverse(receiver(),
+                   base::make_iterator_range(args_begin(), args_end()));
+  }
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
+  __ Move(kContextRegister, function_.context(broker).object());
+  __ Move(kJavaScriptCallTargetRegister, function_.object());
+  compiler::BytecodeArrayRef bytecode =
+      shared_function_info(broker).GetBytecodeArray(broker);
+  if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
+    __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
+  }
+  __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
+  DCHECK(!shared_function_info(broker).HasBuiltinId());
+  __ CallSelf();
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
 int CallKnownJSFunction::MaxCallStackArgs() const {
   int actual_parameter_count = num_args() + 1;
   return std::max(expected_parameter_count_, actual_parameter_count);
@@ -3616,6 +3665,11 @@ void Call::PrintParams(std::ostream& os,
       break;
   }
   os << ")";
+}
+
+void CallSelf::PrintParams(std::ostream& os,
+                           MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << function_.object() << ")";
 }
 
 void CallKnownJSFunction::PrintParams(

@@ -707,6 +707,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Define a call (BLR) target. The target also allows tail calls (via BR)
   // when the target is x16 or x17.
   inline void CallTarget();
+  // Define a jump/call target and bind a label.
+  inline void BindCallTarget(Label* label);
   // Define a jump/call target.
   inline void JumpOrCallTarget();
   // Define a jump/call target and bind a label.

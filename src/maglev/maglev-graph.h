@@ -123,6 +123,8 @@ class Graph final : public ZoneObject {
     DCHECK_NULL(function_entry_stack_check_);
     function_entry_stack_check_ = function_entry_stack_check;
   }
+  bool has_recursive_calls() const { return has_recursive_calls_; }
+  void set_has_recursive_calls(bool value) { has_recursive_calls_ = value; }
 
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
@@ -142,6 +144,7 @@ class Graph final : public ZoneObject {
       inlined_functions_;
   Float64Constant* nan_ = nullptr;
   FunctionEntryStackCheck* function_entry_stack_check_ = nullptr;
+  bool has_recursive_calls_ = false;
 };
 
 }  // namespace maglev

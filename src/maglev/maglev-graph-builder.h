@@ -1402,10 +1402,13 @@ class MaglevGraphBuilder {
   template <typename CallNode, typename... Args>
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
+  ValueNode* BuildCallSelf(compiler::JSFunctionRef function,
+                           CallArguments& args);
   ReduceResult TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
                                 CallArguments& args,
                                 const compiler::FeedbackSource& feedback_source,
                                 SpeculationMode speculation_mode);
+  bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   ReduceResult TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
                                            CallArguments& args);
   ReduceResult TryBuildInlinedCall(compiler::JSFunctionRef function,

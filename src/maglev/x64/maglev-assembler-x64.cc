@@ -515,6 +515,10 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 void MaglevAssembler::Prologue(Graph* graph) {
   BailoutIfDeoptimized(rbx);
 
+  if (graph->has_recursive_calls()) {
+    bind(code_gen_state()->entry_label());
+  }
+
   // Tiering support.
   // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
   // per Maglev code object on x64).

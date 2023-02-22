@@ -456,6 +456,11 @@ inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   cmpl(src1, src2);
 }
 
+inline void MaglevAssembler::CallSelf() {
+  DCHECK(code_gen_state()->entry_label()->is_bound());
+  Call(code_gen_state()->entry_label());
+}
+
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   jmp(target, distance);
 }

@@ -3683,6 +3683,28 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
   }
 }
 
+ValueNode* MaglevGraphBuilder::BuildCallSelf(compiler::JSFunctionRef function,
+                                             CallArguments& args) {
+  ValueNode* receiver = GetConvertReceiver(function, args);
+  size_t input_count = args.count() + CallSelf::kFixedInputCount;
+  graph()->set_has_recursive_calls(true);
+  CallSelf* call =
+      CreateNewNode<CallSelf>(input_count, broker(), function, receiver);
+  for (int i = 0; i < static_cast<int>(args.count()); i++) {
+    call->set_arg(i, GetTaggedValue(args[i]));
+  }
+  return AddNode(call);
+}
+
+bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
+    compiler::JSFunctionRef target) {
+  if (compilation_unit_->info()->specialize_to_function_context()) {
+    return target.equals(compilation_unit_->function());
+  }
+  return compilation_unit_->shared_function_info().equals(
+      target.shared(broker()));
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
@@ -3693,6 +3715,9 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
     return ReduceResult::Fail();
+  }
+  if (!is_inline() && TargetIsCurrentCompilingUnit(function)) {
+    return BuildCallSelf(function, args);
   }
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlinedCall(function, args));
