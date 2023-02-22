@@ -26,14 +26,12 @@ bool DecodeLocalDecls(WasmFeatures enabled, BodyLocalDecls* decls,
   constexpr FixedSizeSignature<ValueType, 0, 0> kNoSig;
   WasmDecoder<ValidationTag> decoder(zone, module, enabled, &no_features,
                                      &kNoSig, start, end);
-  uint32_t length;
-  decoder.DecodeLocals(decoder.pc(), &length);
+  decls->encoded_size = decoder.DecodeLocals(decoder.pc());
   if (ValidationTag::validate && decoder.failed()) {
-    decls->encoded_size = 0;
+    DCHECK_EQ(0, decls->encoded_size);
     return false;
   }
   DCHECK(decoder.ok());
-  decls->encoded_size = length;
   // Copy the decoded locals types into {decls->local_types}.
   DCHECK_NULL(decls->local_types);
   decls->num_locals = decoder.num_locals_;
@@ -233,10 +231,9 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
         opcode == kExprTry) {
       if (i.pc()[1] & 0x80) {
-        uint32_t temp_length;
-        ValueType type =
+        auto [type, temp_length] =
             value_type_reader::read_value_type<Decoder::NoValidationTag>(
-                &decoder, i.pc() + 1, &temp_length, WasmFeatures::All());
+                &decoder, i.pc() + 1, WasmFeatures::All());
         if (temp_length == 1) {
           os << type.name() << ",";
         } else {

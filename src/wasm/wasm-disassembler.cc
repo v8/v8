@@ -167,8 +167,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   indentation.increase();
 
   // Decode and print locals.
-  uint32_t locals_length;
-  DecodeLocals(pc_, &locals_length);
+  uint32_t locals_length = DecodeLocals(pc_);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
     out << "Failed to decode locals\n";
@@ -258,8 +257,7 @@ void FunctionBodyDisassembler::DecodeGlobalInitializer(StringBuilder& out) {
 WasmOpcode FunctionBodyDisassembler::GetOpcode() {
   WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
   if (!WasmOpcodes::IsPrefixOpcode(opcode)) return opcode;
-  uint32_t opcode_length;
-  return read_prefixed_opcode<ValidationTag>(pc_, &opcode_length);
+  return read_prefixed_opcode<ValidationTag>(pc_).first;
 }
 
 void FunctionBodyDisassembler::PrintHexNumber(StringBuilder& out,
@@ -341,8 +339,7 @@ class ImmediatesPrinter {
   void BranchTable(BranchTableImmediate& imm) {
     const byte* pc = imm.table;
     for (uint32_t i = 0; i <= imm.table_count; i++) {
-      uint32_t length;
-      uint32_t target = owner_->read_u32v<ValidationTag>(pc, &length);
+      auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
       PrintDepthAsLabel(target);
       pc += length;
     }

@@ -1222,8 +1222,7 @@ class LiftoffCompiler {
     SLOW_DCHECK(__ ValidateCacheState());
     CODE_COMMENT(WasmOpcodes::OpcodeName(
         WasmOpcodes::IsPrefixOpcode(opcode)
-            ? decoder->read_prefixed_opcode<Decoder::FullValidationTag>(
-                  decoder->pc())
+            ? decoder->read_prefixed_opcode<ValidationTag>(decoder->pc()).first
             : opcode));
 
     if (!has_outstanding_op() && decoder->control_at(0)->reachable()) {
@@ -2901,9 +2900,9 @@ class LiftoffCompiler {
     {
       // All targets must have the same arity (checked by validation), so
       // we can just sample any of them to find that arity.
-      uint32_t ignored_length;
-      uint32_t sample_depth = decoder->read_u32v<Decoder::NoValidationTag>(
-          imm.table, &ignored_length, "first depth");
+      auto [sample_depth, unused_length] =
+          decoder->read_u32v<Decoder::NoValidationTag>(imm.table,
+                                                       "first depth");
       __ PrepareForBranch(decoder->control_at(sample_depth)->br_merge()->arity,
                           pinned);
     }

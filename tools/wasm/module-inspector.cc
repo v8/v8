@@ -233,28 +233,23 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     }
 
     // Decode and print locals.
-    uint32_t locals_length;
-    DecodeLocals(pc_, &locals_length);
+    uint32_t locals_length = DecodeLocals(pc_);
     if (failed()) {
       // TODO(jkummerow): Better error handling.
       out << "Failed to decode locals";
       return;
     }
     uint32_t total_length = 0;
-    uint32_t length;
-    uint32_t entries = read_u32v<ValidationTag>(pc_, &length);
+    auto [entries, length] = read_u32v<ValidationTag>(pc_);
     PrintHexBytes(out, length, pc_, 4);
     out << " // " << entries << " entries in locals list";
     out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
     total_length += length;
     while (entries-- > 0) {
-      uint32_t count_length;
-      uint32_t count =
-          read_u32v<ValidationTag>(pc_ + total_length, &count_length);
-      uint32_t type_length;
-      ValueType type = value_type_reader::read_value_type<ValidationTag>(
-          this, pc_ + total_length + count_length, &type_length,
-          WasmFeatures::All());
+      auto [count, count_length] = read_u32v<ValidationTag>(pc_ + total_length);
+      auto [type, type_length] =
+          value_type_reader::read_value_type<ValidationTag>(
+              this, pc_ + total_length + count_length, WasmFeatures::All());
       PrintHexBytes(out, count_length + type_length, pc_ + total_length, 4);
       out << " // " << count << (count != 1 ? " locals" : " local")
           << " of type ";
@@ -333,8 +328,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
   }
 
   void CollectInstructionStats(InstructionStatistics& stats) {
-    uint32_t locals_length;
-    DecodeLocals(pc_, &locals_length);
+    uint32_t locals_length = DecodeLocals(pc_);
     if (failed()) return;
     stats.RecordLocals(num_locals(), locals_length);
     consume_bytes(locals_length);

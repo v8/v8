@@ -190,7 +190,8 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   bool has_next() { return pc_ < end_; }
 
   WasmOpcode prefixed_opcode() {
-    return read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
+    auto [opcode, length] = read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
+    return opcode;
   }
 };
 

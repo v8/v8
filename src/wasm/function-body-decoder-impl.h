@@ -229,16 +229,16 @@ V8_NOINLINE V8_PRESERVE_MOST void DecodeError(Decoder* decoder,
 namespace value_type_reader {
 
 template <typename ValidationTag>
-HeapType read_heap_type(Decoder* decoder, const byte* pc,
-                        uint32_t* const length, const WasmFeatures& enabled) {
-  int64_t heap_index =
-      decoder->read_i33v<ValidationTag>(pc, length, "heap type");
+std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder, const byte* pc,
+                                             const WasmFeatures& enabled) {
+  auto [heap_index, length] =
+      decoder->read_i33v<ValidationTag>(pc, "heap type");
   if (heap_index < 0) {
     int64_t min_1_byte_leb128 = -64;
     if (!VALIDATE(heap_index >= min_1_byte_leb128)) {
       DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                  heap_index);
-      return HeapType(HeapType::kBottom);
+      return {HeapType(HeapType::kBottom), length};
     }
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
@@ -260,7 +260,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
         V8_FALLTHROUGH;
       case kExternRefCode:
       case kFuncRefCode:
-        return HeapType::from_code(code);
+        return {HeapType::from_code(code), length};
       case kStringRefCode:
       case kStringViewWtf8Code:
       case kStringViewWtf16Code:
@@ -271,11 +271,11 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
                                      "--experimental-wasm-stringref",
                                      HeapType::from_code(code).name().c_str());
         }
-        return HeapType::from_code(code);
+        return {HeapType::from_code(code), length};
       default:
         DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                    heap_index);
-        return HeapType(HeapType::kBottom);
+        return {HeapType(HeapType::kBottom), length};
     }
   } else {
     if (!VALIDATE(enabled.has_typed_funcref())) {
@@ -290,25 +290,21 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
           "Type index %u is greater than the maximum number %zu "
           "of type definitions supported by V8",
           type_index, kV8MaxWasmTypes);
-      return HeapType(HeapType::kBottom);
+      return {HeapType(HeapType::kBottom), length};
     }
-    return HeapType(type_index);
+    return {HeapType(type_index), length};
   }
 }
 
 // Read a value type starting at address {pc} using {decoder}.
 // No bytes are consumed.
-// The length of the read value type is written in {length}.
-// Registers an error for an invalid type only if {ValidationTag::validate} is
-// true.
+// Returns the read value type and the number of bytes read (a.k.a. length).
 template <typename ValidationTag>
-ValueType read_value_type(Decoder* decoder, const byte* pc,
-                          uint32_t* const length, const WasmFeatures& enabled) {
-  *length = 1;
+std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder, const byte* pc,
+                                               const WasmFeatures& enabled) {
   byte val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
   if (!VALIDATE(decoder->ok())) {
-    *length = 0;
-    return kWasmBottom;
+    return {kWasmBottom, 0};
   }
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
   switch (code) {
@@ -325,12 +321,12 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             decoder, pc,
             "invalid value type '%sref', enable with --experimental-wasm-gc",
             HeapType::from_code(code).name().c_str());
-        return kWasmBottom;
+        return {kWasmBottom, 0};
       }
       V8_FALLTHROUGH;
     case kExternRefCode:
     case kFuncRefCode:
-      return ValueType::RefNull(HeapType::from_code(code));
+      return {ValueType::RefNull(HeapType::from_code(code)), 1};
     case kStringRefCode:
     case kStringViewWtf8Code:
     case kStringViewWtf16Code:
@@ -340,18 +336,18 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                                    "invalid value type '%sref', enable with "
                                    "--experimental-wasm-stringref",
                                    HeapType::from_code(code).name().c_str());
-        return kWasmBottom;
+        return {kWasmBottom, 0};
       }
-      return ValueType::RefNull(HeapType::from_code(code));
+      return {ValueType::RefNull(HeapType::from_code(code)), 1};
     }
     case kI32Code:
-      return kWasmI32;
+      return {kWasmI32, 1};
     case kI64Code:
-      return kWasmI64;
+      return {kWasmI64, 1};
     case kF32Code:
-      return kWasmF32;
+      return {kWasmF32, 1};
     case kF64Code:
-      return kWasmF64;
+      return {kWasmF64, 1};
     case kRefCode:
     case kRefNullCode: {
       Nullability nullability = code == kRefNullCode ? kNullable : kNonNullable;
@@ -361,21 +357,21 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             "Invalid type '(ref%s <heaptype>)', enable with "
             "--experimental-wasm-typed-funcref",
             nullability == kNullable ? " null" : "");
-        return kWasmBottom;
+        return {kWasmBottom, 0};
       }
-      HeapType heap_type =
-          read_heap_type<ValidationTag>(decoder, pc + 1, length, enabled);
-      *length += 1;
-      return heap_type.is_bottom()
-                 ? kWasmBottom
-                 : ValueType::RefMaybeNull(heap_type, nullability);
+      auto [heap_type, length] =
+          read_heap_type<ValidationTag>(decoder, pc + 1, enabled);
+      ValueType type = heap_type.is_bottom()
+                           ? kWasmBottom
+                           : ValueType::RefMaybeNull(heap_type, nullability);
+      return {type, length + 1};
     }
     case kS128Code: {
       if (!VALIDATE(CheckHardwareSupportsSimd())) {
         DecodeError<ValidationTag>(decoder, pc, "Wasm SIMD unsupported");
-        return kWasmBottom;
+        return {kWasmBottom, 0};
       }
-      return kWasmS128;
+      return {kWasmS128, 1};
     }
     // Although these codes are included in ValueTypeCode, they technically
     // do not correspond to value types and are only used in specific
@@ -389,7 +385,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   // Anything that doesn't match an enumeration value is an invalid type code.
   if constexpr (!ValidationTag::validate) UNREACHABLE();
   DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%x", code);
-  return kWasmBottom;
+  return {kWasmBottom, 0};
 }
 
 template <typename ValidationTag>
@@ -425,7 +421,7 @@ struct ImmI32Immediate {
 
   template <typename ValidationTag>
   ImmI32Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
-    value = decoder->read_i32v<ValidationTag>(pc, &length, "immi32");
+    std::tie(value, length) = decoder->read_i32v<ValidationTag>(pc, "immi32");
   }
 };
 
@@ -435,7 +431,7 @@ struct ImmI64Immediate {
 
   template <typename ValidationTag>
   ImmI64Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
-    value = decoder->read_i64v<ValidationTag>(pc, &length, "immi64");
+    std::tie(value, length) = decoder->read_i64v<ValidationTag>(pc, "immi64");
   }
 };
 
@@ -485,7 +481,7 @@ struct IndexImmediate {
   template <typename ValidationTag>
   IndexImmediate(Decoder* decoder, const byte* pc, const char* name,
                  ValidationTag = {}) {
-    index = decoder->read_u32v<ValidationTag>(pc, &length, name);
+    std::tie(index, length) = decoder->read_u32v<ValidationTag>(pc, name);
   }
 };
 
@@ -550,8 +546,9 @@ struct SelectTypeImmediate {
   template <typename ValidationTag>
   SelectTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                       const byte* pc, ValidationTag = {}) {
-    uint8_t num_types = decoder->read_u32v<ValidationTag>(
-        pc, &length, "number of select types");
+    uint8_t num_types;
+    std::tie(num_types, length) =
+        decoder->read_u32v<ValidationTag>(pc, "number of select types");
     if (!VALIDATE(num_types == 1)) {
       DecodeError<ValidationTag>(
           decoder, pc,
@@ -559,8 +556,9 @@ struct SelectTypeImmediate {
       return;
     }
     uint32_t type_length;
-    type = value_type_reader::read_value_type<ValidationTag>(
-        decoder, pc + length, &type_length, enabled);
+    std::tie(type, type_length) =
+        value_type_reader::read_value_type<ValidationTag>(decoder, pc + length,
+                                                          enabled);
     length += type_length;
   }
 };
@@ -584,8 +582,9 @@ struct BlockTypeImmediate {
   template <typename ValidationTag>
   BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                      const byte* pc, ValidationTag = {}) {
-    int64_t block_type =
-        decoder->read_i33v<ValidationTag>(pc, &length, "block type");
+    int64_t block_type;
+    std::tie(block_type, length) =
+        decoder->read_i33v<ValidationTag>(pc, "block type");
     if (block_type < 0) {
       // All valid negative types are 1 byte in length, so we check against the
       // minimum 1-byte LEB128 value.
@@ -597,9 +596,9 @@ struct BlockTypeImmediate {
       }
       if (static_cast<ValueTypeCode>(block_type & 0x7F) != kVoidCode) {
         sig = FunctionSig{1, 0, single_return_sig_storage};
-        single_return_sig_storage[0] =
+        std::tie(single_return_sig_storage[0], length) =
             value_type_reader::read_value_type<ValidationTag>(decoder, pc,
-                                                              &length, enabled);
+                                                              enabled);
       }
     } else {
       sig = FunctionSig{0, 0, nullptr};
@@ -623,7 +622,8 @@ struct BranchDepthImmediate {
 
   template <typename ValidationTag>
   BranchDepthImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
-    depth = decoder->read_u32v<ValidationTag>(pc, &length, "branch depth");
+    std::tie(depth, length) =
+        decoder->read_u32v<ValidationTag>(pc, "branch depth");
   }
 };
 
@@ -661,8 +661,9 @@ struct BranchTableImmediate {
   template <typename ValidationTag>
   BranchTableImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
     start = pc;
-    uint32_t len = 0;
-    table_count = decoder->read_u32v<ValidationTag>(pc, &len, "table count");
+    uint32_t len;
+    std::tie(table_count, len) =
+        decoder->read_u32v<ValidationTag>(pc, "table count");
     table = pc + len;
   }
 };
@@ -676,9 +677,8 @@ class BranchTableIterator {
   uint32_t next() {
     DCHECK(has_next());
     index_++;
-    uint32_t length;
-    uint32_t result =
-        decoder_->read_u32v<ValidationTag>(pc_, &length, "branch table entry");
+    auto [result, length] =
+        decoder_->read_u32v<ValidationTag>(pc_, "branch table entry");
     pc_ += length;
     return result;
   }
@@ -739,13 +739,16 @@ struct MemoryAccessImmediate {
                                                   uint32_t max_alignment,
                                                   bool is_memory64) {
     uint32_t alignment_length;
-    alignment =
-        decoder->read_u32v<ValidationTag>(pc, &alignment_length, "alignment");
+    std::tie(alignment, alignment_length) =
+        decoder->read_u32v<ValidationTag>(pc, "alignment");
     uint32_t offset_length;
-    offset = is_memory64 ? decoder->read_u64v<ValidationTag>(
-                               pc + alignment_length, &offset_length, "offset")
-                         : decoder->read_u32v<ValidationTag>(
-                               pc + alignment_length, &offset_length, "offset");
+    if (is_memory64) {
+      std::tie(offset, offset_length) =
+          decoder->read_u64v<ValidationTag>(pc + alignment_length, "offset");
+    } else {
+      std::tie(offset, offset_length) =
+          decoder->read_u32v<ValidationTag>(pc + alignment_length, "offset");
+    }
     length = alignment_length + offset_length;
   }
 };
@@ -826,14 +829,15 @@ struct TableCopyImmediate {
 };
 
 struct HeapTypeImmediate {
-  uint32_t length = 1;
-  HeapType type;
+  uint32_t length;
+  HeapType type{kBottom};
 
   template <typename ValidationTag>
   HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                    const byte* pc, ValidationTag = {})
-      : type(value_type_reader::read_heap_type<ValidationTag>(
-            decoder, pc, &length, enabled)) {}
+                    const byte* pc, ValidationTag = {}) {
+    std::tie(type, length) =
+        value_type_reader::read_heap_type<ValidationTag>(decoder, pc, enabled);
+  }
 };
 
 struct StringConstImmediate {
@@ -842,8 +846,8 @@ struct StringConstImmediate {
 
   template <typename ValidationTag>
   StringConstImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
-    index = decoder->read_u32v<ValidationTag>(pc, &length,
-                                              "stringref literal index");
+    std::tie(index, length) =
+        decoder->read_u32v<ValidationTag>(pc, "stringref literal index");
   }
 };
 
@@ -1359,34 +1363,33 @@ class WasmDecoder : public Decoder {
   }
 
   // Decodes local definitions in the current decoder.
-  // Writes the total length of decoded locals in {total_length}.
   // The decoded locals will be appended to {this->local_types_}.
   // The decoder's pc is not advanced.
-  void DecodeLocals(const byte* pc, uint32_t* total_length) {
+  // The total length of decoded locals is returned.
+  uint32_t DecodeLocals(const byte* pc) {
     DCHECK_NULL(local_types_);
     DCHECK_EQ(0, num_locals_);
 
     // In a first step, count the number of locals and store the decoded
     // entries.
     num_locals_ = static_cast<uint32_t>(this->sig_->parameter_count());
-    uint32_t length;
-    *total_length = 0;
 
     // Decode local declarations, if any.
-    uint32_t entries =
-        read_u32v<ValidationTag>(pc, &length, "local decls count");
+    auto [entries, entries_length] =
+        read_u32v<ValidationTag>(pc, "local decls count");
+
     if (!VALIDATE(ok())) {
-      return DecodeError(pc + *total_length, "invalid local decls count");
+      DecodeError(pc, "invalid local decls count");
+      return 0;
     }
-    *total_length += length;
     TRACE("local decls count: %u\n", entries);
 
     // Do an early validity check, to avoid allocating too much memory below.
     // Every entry needs at least two bytes (count plus type); if that many are
     // not available any more, flag that as an error.
     if (available_bytes() / 2 < entries) {
-      return DecodeError(
-          pc, "local decls count bigger than remaining function size");
+      DecodeError(pc, "local decls count bigger than remaining function size");
+      return 0;
     }
 
     struct DecodedLocalEntry {
@@ -1394,51 +1397,57 @@ class WasmDecoder : public Decoder {
       ValueType type;
     };
     base::SmallVector<DecodedLocalEntry, 8> decoded_locals(entries);
+    uint32_t total_length = entries_length;
     for (uint32_t entry = 0; entry < entries; ++entry) {
       if (!VALIDATE(more())) {
-        return DecodeError(
-            end(), "expected more local decls but reached end of input");
+        DecodeError(end(),
+                    "expected more local decls but reached end of input");
+        return 0;
       }
 
-      uint32_t count =
-          read_u32v<ValidationTag>(pc + *total_length, &length, "local count");
+      auto [count, count_length] =
+          read_u32v<ValidationTag>(pc + total_length, "local count");
       if (!VALIDATE(ok())) {
-        return DecodeError(pc + *total_length, "invalid local count");
+        DecodeError(pc + total_length, "invalid local count");
+        return 0;
       }
       DCHECK_LE(num_locals_, kV8MaxWasmFunctionLocals);
       if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - num_locals_)) {
-        return DecodeError(pc + *total_length, "local count too large");
+        DecodeError(pc + total_length, "local count too large");
+        return 0;
       }
-      *total_length += length;
+      total_length += count_length;
 
-      ValueType type = value_type_reader::read_value_type<ValidationTag>(
-          this, pc + *total_length, &length, enabled_);
-      ValidateValueType(pc + *total_length, type);
-      if (!VALIDATE(ok())) return;
-      *total_length += length;
+      auto [type, type_length] =
+          value_type_reader::read_value_type<ValidationTag>(
+              this, pc + total_length, enabled_);
+      ValidateValueType(pc + total_length, type);
+      if (!VALIDATE(ok())) return 0;
+      total_length += type_length;
 
       num_locals_ += count;
       decoded_locals[entry] = DecodedLocalEntry{count, type};
     }
     DCHECK(ok());
 
-    if (num_locals_ == 0) return;
+    if (num_locals_ > 0) {
+      // Now build the array of local types from the parsed entries.
+      local_types_ = zone_->NewArray<ValueType>(num_locals_);
+      ValueType* locals_ptr = local_types_;
 
-    // Now build the array of local types from the parsed entries.
-    local_types_ = zone_->NewArray<ValueType>(num_locals_);
-    ValueType* locals_ptr = local_types_;
+      if (sig_->parameter_count() > 0) {
+        std::copy(sig_->parameters().begin(), sig_->parameters().end(),
+                  locals_ptr);
+        locals_ptr += sig_->parameter_count();
+      }
 
-    if (sig_->parameter_count() > 0) {
-      std::copy(sig_->parameters().begin(), sig_->parameters().end(),
-                locals_ptr);
-      locals_ptr += sig_->parameter_count();
+      for (auto& entry : decoded_locals) {
+        std::fill_n(locals_ptr, entry.count, entry.type);
+        locals_ptr += entry.count;
+      }
+      DCHECK_EQ(locals_ptr, local_types_ + num_locals_);
     }
-
-    for (auto& entry : decoded_locals) {
-      std::fill_n(locals_ptr, entry.count, entry.type);
-      locals_ptr += entry.count;
-    }
-    DCHECK_EQ(locals_ptr, local_types_ + num_locals_);
+    return total_length;
   }
 
   // Shorthand that forwards to the {DecodeError} functions above, passing our
@@ -2039,8 +2048,9 @@ class WasmDecoder : public Decoder {
 
       /********** Prefixed opcodes **********/
       case kNumericPrefix: {
-        uint32_t length = 0;
-        opcode = decoder->read_prefixed_opcode<ValidationTag>(pc, &length);
+        uint32_t length;
+        std::tie(opcode, length) =
+            decoder->read_prefixed_opcode<ValidationTag>(pc);
         switch (opcode) {
           case kExprI32SConvertSatF32:
           case kExprI32UConvertSatF32:
@@ -2103,8 +2113,9 @@ class WasmDecoder : public Decoder {
         }
       }
       case kSimdPrefix: {
-        uint32_t length = 0;
-        opcode = decoder->read_prefixed_opcode<ValidationTag>(pc, &length);
+        uint32_t length;
+        std::tie(opcode, length) =
+            decoder->read_prefixed_opcode<ValidationTag>(pc);
         switch (opcode) {
           // clang-format off
           FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
@@ -2151,9 +2162,9 @@ class WasmDecoder : public Decoder {
         }
       }
       case kAtomicPrefix: {
-        uint32_t length = 0;
-        opcode = decoder->read_prefixed_opcode<ValidationTag>(pc, &length,
-                                                              "atomic_index");
+        uint32_t length;
+        std::tie(opcode, length) =
+            decoder->read_prefixed_opcode<ValidationTag>(pc, "atomic_index");
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
@@ -2173,9 +2184,9 @@ class WasmDecoder : public Decoder {
         }
       }
       case kGCPrefix: {
-        uint32_t length = 0;
-        opcode = decoder->read_prefixed_opcode<ValidationTag>(pc, &length,
-                                                              "gc_index");
+        uint32_t length;
+        std::tie(opcode, length) =
+            decoder->read_prefixed_opcode<ValidationTag>(pc, "gc_index");
         switch (opcode) {
           case kExprStructNew:
           case kExprStructNewDefault: {
@@ -2450,7 +2461,7 @@ class WasmDecoder : public Decoder {
       case kNumericPrefix:
       case kAtomicPrefix:
       case kSimdPrefix: {
-        opcode = this->read_prefixed_opcode<ValidationTag>(pc);
+        opcode = this->read_prefixed_opcode<ValidationTag>(pc).first;
         switch (opcode) {
           FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
@@ -2476,8 +2487,7 @@ class WasmDecoder : public Decoder {
         }
       }
       case kGCPrefix: {
-        uint32_t unused_length;
-        opcode = this->read_prefixed_opcode<ValidationTag>(pc, &unused_length);
+        opcode = this->read_prefixed_opcode<ValidationTag>(pc).first;
         switch (opcode) {
           case kExprStructGet:
           case kExprStructGetS:
@@ -2671,8 +2681,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DCHECK_EQ(this->num_locals(), 0);
 
     locals_offset_ = this->pc_offset();
-    uint32_t locals_length;
-    this->DecodeLocals(this->pc(), &locals_length);
+    uint32_t locals_length = this->DecodeLocals(this->pc());
     if (!VALIDATE(this->ok())) return TraceFailed();
     this->consume_bytes(locals_length);
     int non_defaultable = 0;
@@ -2726,8 +2735,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
       return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
     }
-    opcode =
-        this->template read_prefixed_opcode<Decoder::FullValidationTag>(pc);
+    opcode = this->template read_prefixed_opcode<Decoder::FullValidationTag>(pc)
+                 .first;
     return WasmOpcodes::OpcodeName(opcode);
   }
 
@@ -3860,9 +3869,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Numeric) {
-    uint32_t opcode_length = 0;
-    WasmOpcode full_opcode = this->template read_prefixed_opcode<ValidationTag>(
-        this->pc_, &opcode_length, "numeric index");
+    auto [full_opcode, opcode_length] =
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
+                                                           "numeric index");
     if (full_opcode == kExprTableGrow || full_opcode == kExprTableSize ||
         full_opcode == kExprTableFill) {
       this->detected_->Add(kFeature_reftypes);
@@ -3880,9 +3889,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError("Wasm SIMD unsupported");
       return 0;
     }
-    uint32_t opcode_length = 0;
-    WasmOpcode full_opcode = this->template read_prefixed_opcode<ValidationTag>(
-        this->pc_, &opcode_length);
+    auto [full_opcode, opcode_length] =
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
     if (!CheckSimdFeatureFlagOpcode(full_opcode)) {
@@ -3893,17 +3901,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Atomic) {
     this->detected_->Add(kFeature_threads);
-    uint32_t opcode_length = 0;
-    WasmOpcode full_opcode = this->template read_prefixed_opcode<ValidationTag>(
-        this->pc_, &opcode_length, "atomic index");
+    auto [full_opcode, opcode_length] =
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
+                                                           "atomic index");
     trace_msg->AppendOpcode(full_opcode);
     return DecodeAtomicOpcode(full_opcode, opcode_length);
   }
 
   DECODE(GC) {
-    uint32_t opcode_length = 0;
-    WasmOpcode full_opcode = this->template read_prefixed_opcode<ValidationTag>(
-        this->pc_, &opcode_length, "gc index");
+    auto [full_opcode, opcode_length] =
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
+                                                           "gc index");
     trace_msg->AppendOpcode(full_opcode);
     if (full_opcode >= kExprStringNewUtf8) {
       CHECK_PROTOTYPE_OPCODE(stringref);

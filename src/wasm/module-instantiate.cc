@@ -2047,9 +2047,9 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
 
   switch (static_cast<WasmOpcode>(*decoder.pc())) {
     case kExprRefFunc: {
-      uint32_t length;
-      uint32_t function_index = decoder.read_u32v<Decoder::FullValidationTag>(
-          decoder.pc() + 1, &length, "ref.func");
+      auto [function_index, length] =
+          decoder.read_u32v<Decoder::FullValidationTag>(decoder.pc() + 1,
+                                                        "ref.func");
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
         return EvaluateConstantExpression(
@@ -2059,14 +2059,13 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
       break;
     }
     case kExprRefNull: {
-      uint32_t length;
-      HeapType type =
+      auto [heap_type, length] =
           value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-              &decoder, decoder.pc() + 1, &length, WasmFeatures::All());
+              &decoder, decoder.pc() + 1, WasmFeatures::All());
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
         return EvaluateConstantExpression(
-            zone, ConstantExpression::RefNull(type.representation()),
+            zone, ConstantExpression::RefNull(heap_type.representation()),
             segment.type, isolate, instance);
       }
       break;
