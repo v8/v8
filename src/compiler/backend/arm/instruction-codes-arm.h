@@ -232,6 +232,8 @@ namespace compiler {
   V(ArmI32x4Abs)                   \
   V(ArmI32x4BitMask)               \
   V(ArmI32x4DotI16x8S)             \
+  V(ArmI16x8DotI8x16S)             \
+  V(ArmI32x4DotI8x16AddS)          \
   V(ArmI32x4TruncSatF64x2SZero)    \
   V(ArmI32x4TruncSatF64x2UZero)    \
   V(ArmI16x8Splat)                 \

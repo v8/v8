@@ -3575,14 +3575,40 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
                                                     LiftoffRegister lhs,
                                                     LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_dot_i8x16_i7x16_s");
+  QwNeonRegister dest = liftoff::GetSimd128Register(dst);
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+
+  vmull(NeonS8, scratch, left.low(), right.low());
+  vpadd(Neon16, dest.low(), scratch.low(), scratch.high());
+
+  vmull(NeonS8, scratch, left.high(), right.high());
+  vpadd(Neon16, dest.high(), scratch.low(), scratch.high());
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
-  bailout(kSimd, "emit_i32x4_dot_i8x16_i7x16_add_s");
+  QwNeonRegister dest = liftoff::GetSimd128Register(dst);
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+  QwNeonRegister accu = liftoff::GetSimd128Register(acc);
+
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+
+  vmull(NeonS8, scratch, left.low(), right.low());
+  vpadd(Neon16, dest.low(), scratch.low(), scratch.high());
+
+  vmull(NeonS8, scratch, left.high(), right.high());
+  vpadd(Neon16, dest.high(), scratch.low(), scratch.high());
+
+  vpaddl(NeonS16, dest, dest);
+  vadd(Neon32, dest, dest, accu);
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,

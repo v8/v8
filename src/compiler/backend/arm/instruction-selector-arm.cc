@@ -2720,10 +2720,25 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 
 void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
   ArmOperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kArmI32x4DotI16x8S, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI16x8DotI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kArmI32x4DotI8x16AddS, g.DefineSameAsInput(node, 2),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitS128Const(Node* node) {

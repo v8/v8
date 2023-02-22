@@ -211,6 +211,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4Abs:
     case kArmI32x4BitMask:
     case kArmI32x4DotI16x8S:
+    case kArmI16x8DotI8x16S:
+    case kArmI32x4DotI8x16AddS:
     case kArmI32x4TruncSatF64x2SZero:
     case kArmI32x4TruncSatF64x2UZero:
     case kArmI16x8Splat:
