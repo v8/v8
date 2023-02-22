@@ -4094,7 +4094,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return EnsureStackArguments_Slow(count, limit);
   }
 
-  V8_NOINLINE int EnsureStackArguments_Slow(int count, uint32_t limit) {
+  V8_NOINLINE V8_PRESERVE_MOST int EnsureStackArguments_Slow(int count,
+                                                             uint32_t limit) {
     if (!VALIDATE(control_.back().unreachable())) {
       NotEnoughArgumentsError(count, stack_.size() - limit);
     }
