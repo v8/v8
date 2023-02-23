@@ -966,12 +966,21 @@ ConsString String::VisitFlat(
 bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
   // One-byte strings are definitionally well formed and cannot have unpaired
   // surrogates.
+  //
+  // Note that an indirect string's 1-byte flag can differ from their underlying
+  // string's 1-byte flag, because the underlying string may have been
+  // externalized from 1-byte to 2-byte. That is, the 1-byte flag is the
+  // 1-byteness at time of creation. However, this is sufficient to determine
+  // well-formedness. String::MakeExternal requires that the external resource's
+  // content is equal to the original string's content, even if 1-byteness
+  // differs.
   if (string->IsOneByteRepresentation()) return true;
 
   // TODO(v8:13557): The two-byte case can be optimized by extending the
   // InstanceType. See
   // https://docs.google.com/document/d/15f-1c_Ysw3lvjy_Gx0SmmD9qeO8UuXuAbWIpWCnTDO8/
   string = Flatten(isolate, string);
+  if (String::IsOneByteRepresentationUnderneath(*string)) return true;
   DisallowGarbageCollection no_gc;
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());

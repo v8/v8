@@ -24,7 +24,9 @@ StringPrototypeToWellFormed(
 
   // Fast path: one-byte strings cannot have unpaired surrogates and are
   // definitionally well-formed.
-  if (s.StringInstanceType().is_one_byte) return s;
+  //
+  // See note in String::IsWellFormedUnicode.
+  if (s.IsOneByteRepresentation()) return s;
 
   // 3. Let strLen be the length of S.
   const strLen = s.length_uint32;
@@ -32,6 +34,7 @@ StringPrototypeToWellFormed(
   // 4. Let k be 0.
   // 5. Let result be the empty String.
   const flat = Flatten(s);
+  if (flat.IsOneByteRepresentationUnderneath()) return flat;
   let result = flat;
 
   // 6. Repeat, while k < strLen,
