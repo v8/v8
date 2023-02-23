@@ -854,6 +854,9 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   } else if (op.from == RegisterRepresentation::PointerSized() &&
              op.to == RegisterRepresentation::Tagged()) {
     o = machine.BitcastWordToTagged();
+  } else if (op.from == RegisterRepresentation::Compressed() &&
+             op.to == RegisterRepresentation::Word32()) {
+    o = machine.BitcastTaggedToWord();
   } else {
     UNIMPLEMENTED();
   }

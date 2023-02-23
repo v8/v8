@@ -140,6 +140,8 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
       auto& bitcast = op.Cast<TaggedBitcastOp>();
       if (NeedsDecompression(op)) {
         MarkAsNeedsDecompression(bitcast.input());
+      } else {
+        candidates.push_back(graph.Index(op));
       }
       break;
     }
@@ -190,6 +192,14 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
                     any_of(RegisterRepresentation::Tagged(),
                            RegisterRepresentation::Compressed()));
           load.result_rep = RegisterRepresentation::Compressed();
+        }
+        break;
+      }
+      case Opcode::kTaggedBitcast: {
+        auto& bitcast = op.Cast<TaggedBitcastOp>();
+        if (bitcast.from == Tagged() && bitcast.to == WordPtr()) {
+          bitcast.from = Compressed();
+          bitcast.to = Word32();
         }
         break;
       }

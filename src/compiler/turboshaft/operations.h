@@ -1182,10 +1182,9 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
       : Base(input), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK((from == RegisterRepresentation::PointerSized() &&
-            to == RegisterRepresentation::Tagged()) ||
-           (from == RegisterRepresentation::Tagged() &&
-            to == RegisterRepresentation::PointerSized()));
+    DCHECK((from == WordPtr() && to == Tagged()) ||
+           (from == Tagged() && to == WordPtr()) ||
+           (from == Compressed() && to == Word32()));
     DCHECK(ValidOpInputRep(graph, input(), from));
   }
   auto options() const { return std::tuple{from, to}; }

@@ -79,7 +79,8 @@ bool ValidOpInputRep(
     if (*projection_index < input_reps.size()) {
       input_rep = input_reps[*projection_index];
     } else {
-      std::cerr << "Turboshaft operation has input with wrong arity.\n";
+      std::cerr << "Turboshaft operation has input #" << input
+                << " with wrong arity.\n";
       std::cerr << "Input has results " << PrintCollection(input_reps)
                 << ", but expected at least " << *projection_index
                 << " results.\n";
@@ -88,7 +89,8 @@ bool ValidOpInputRep(
   } else if (input_reps.size() == 1) {
     input_rep = input_reps[0];
   } else {
-    std::cerr << "Turboshaft operation has input with wrong arity.\n";
+    std::cerr << "Turboshaft operation has input #" << input
+              << " with wrong arity.\n";
     std::cerr << "Expected a single output but found " << input_reps.size()
               << ".\n";
     return false;
@@ -98,7 +100,8 @@ bool ValidOpInputRep(
       return true;
     }
   }
-  std::cerr << "Turboshaft operation has input with wrong representation.\n";
+  std::cerr << "Turboshaft operation has input #" << input
+            << " with wrong representation.\n";
   std::cerr << "Expected " << (expected_reps.size() > 1 ? "one of " : "")
             << PrintCollection(expected_reps).WithoutBrackets() << " but found "
             << input_rep << ".\n";
