@@ -2805,11 +2805,7 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   __ Move(kContextRegister, function_.context(broker).object());
   __ Move(kJavaScriptCallTargetRegister, function_.object());
-  compiler::BytecodeArrayRef bytecode =
-      shared_function_info(broker).GetBytecodeArray(broker);
-  if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
-    __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
-  }
+  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   DCHECK(!shared_function_info(broker).HasBuiltinId());
   __ CallSelf();
