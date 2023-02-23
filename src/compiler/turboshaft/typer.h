@@ -767,7 +767,10 @@ struct FloatOperationTyper {
       // - never greater than abs(l)
       // - never greater than abs(r) - 1
       auto l_abs = std::max(std::abs(l_min), std::abs(l_max));
-      auto r_abs = std::max(std::abs(r_min), std::abs(r_max)) - 1;
+      auto r_abs = std::max(std::abs(r_min), std::abs(r_max));
+      // If rhs is 0, we can only produce NaN.
+      if (r_abs == 0) return type_t::NaN();
+      r_abs -= 1;
       auto abs = std::min(l_abs, r_abs);
       float_t min = 0.0, max = 0.0;
       if (l_min >= 0.0) {
