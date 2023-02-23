@@ -2829,15 +2829,6 @@ void CallKnownJSFunction::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
 
-bool CallKnownJSFunction::EmitNewTarget(compiler::JSHeapBroker* broker) const {
-  compiler::SharedFunctionInfoRef shared = shared_function_info(broker);
-  return v8_flags.enable_slow_asserts || shared.HasBuiltinId() ||
-         !shared.HasBytecodeArray() ||
-         shared.GetBytecodeArray(broker)
-             .incoming_new_target_or_generator_register()
-             .is_valid();
-}
-
 void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
@@ -2857,9 +2848,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   __ Move(kContextRegister, function_.context(broker).object());
   __ Move(kJavaScriptCallTargetRegister, function_.object());
-  if (EmitNewTarget(broker)) {
-    __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
-  }
+  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   if (shared_function_info(broker).HasBuiltinId()) {
     __ CallBuiltin(shared_function_info(broker).builtin_id());
