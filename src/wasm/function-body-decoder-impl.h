@@ -2674,7 +2674,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   Interface& interface() { return interface_; }
 
-  bool Decode() {
+  void Decode() {
     DCHECK(stack_.empty());
     DCHECK(control_.empty());
     DCHECK_LE(this->pc_, this->end_);
@@ -2714,10 +2714,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     DCHECK(stack_.empty());
     TRACE("wasm-decode ok\n\n");
-    return true;
   }
 
-  bool TraceFailed() {
+  void TraceFailed() {
     if (this->error_.offset()) {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
             this->GetBufferRelativeOffset(this->error_.offset()),
@@ -2725,7 +2724,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     } else {
       TRACE("wasm-error: %s\n\n", this->error_.message().c_str());
     }
-    return false;
   }
 
   const char* SafeOpcodeNameAt(const byte* pc) {
