@@ -5,6 +5,7 @@
 #include "src/wasm/module-decoder.h"
 
 #include "src/logging/metrics.h"
+#include "src/tracing/trace-event.h"
 #include "src/wasm/constant-expression.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/module-decoder-impl.h"
@@ -119,6 +120,8 @@ ModuleResult DecodeWasmModule(
 ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
                               bool validate_functions, ModuleOrigin origin) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.DecodeWasmModule");
   ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
   return decoder.DecodeModule(validate_functions);
 }
