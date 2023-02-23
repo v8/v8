@@ -33,22 +33,25 @@ class V8_EXPORT_PRIVATE WasmError {
 
   WasmError(uint32_t offset, std::string message)
       : offset_(offset), message_(std::move(message)) {
-    // The error message must not be empty, otherwise {empty()} would be true.
+    DCHECK_NE(kNoErrorOffset, offset);
     DCHECK(!message_.empty());
   }
 
   PRINTF_FORMAT(3, 4)
   WasmError(uint32_t offset, const char* format, ...) : offset_(offset) {
+    DCHECK_NE(kNoErrorOffset, offset);
     va_list args;
     va_start(args, format);
     message_ = FormatError(format, args);
     va_end(args);
-    // The error message must not be empty, otherwise {empty()} would be true.
     DCHECK(!message_.empty());
   }
 
-  bool empty() const { return message_.empty(); }
-  bool has_error() const { return !message_.empty(); }
+  bool empty() const {
+    DCHECK_EQ(offset_ == kNoErrorOffset, message_.empty());
+    return offset_ == kNoErrorOffset;
+  }
+  bool has_error() const { return !empty(); }
 
   operator bool() const { return has_error(); }
 
@@ -60,7 +63,8 @@ class V8_EXPORT_PRIVATE WasmError {
   static std::string FormatError(const char* format, va_list args);
 
  private:
-  uint32_t offset_ = 0;
+  static constexpr uint32_t kNoErrorOffset = kMaxUInt32;
+  uint32_t offset_ = kNoErrorOffset;
   std::string message_;
 };
 
