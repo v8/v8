@@ -204,14 +204,13 @@ void WasmInliner::Finalize() {
                              source_positions_);
     {
       Graph::SubgraphScope scope(graph());
-      wasm::DecodeResult result = wasm::BuildTFGraph(
-          zone()->allocator(), env_->enabled_features, module(), &builder,
-          &detected, inlinee_body, &inlinee_loop_infos, &dangling_exceptions,
-          node_origins_, candidate.inlinee_index,
-          NodeProperties::IsExceptionalCall(call)
-              ? wasm::kInlinedHandledCall
-              : wasm::kInlinedNonHandledCall);
-      CHECK(result.ok());
+      wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features, module(),
+                         &builder, &detected, inlinee_body, &inlinee_loop_infos,
+                         &dangling_exceptions, node_origins_,
+                         candidate.inlinee_index,
+                         NodeProperties::IsExceptionalCall(call)
+                             ? wasm::kInlinedHandledCall
+                             : wasm::kInlinedNonHandledCall);
       inlinee_start = graph()->start();
       inlinee_end = graph()->end();
     }

@@ -8598,7 +8598,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
 
 namespace {
 
-bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
+void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                const wasm::FunctionBody& func_body,
                                int func_index, wasm::WasmFeatures* detected,
                                MachineGraph* mcgraph,
@@ -8609,26 +8609,15 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
                            source_positions);
   auto* allocator = wasm::GetWasmEngine()->allocator();
-  wasm::VoidResult graph_construction_result =
-      wasm::BuildTFGraph(allocator, env->enabled_features, env->module,
-                         &builder, detected, func_body, loop_infos, nullptr,
-                         node_origins, func_index, wasm::kRegularFunction);
-  if (graph_construction_result.failed()) {
-    if (v8_flags.trace_wasm_compiler) {
-      StdoutStream{} << "Compilation failed: "
-                     << graph_construction_result.error().message()
-                     << std::endl;
-    }
-    return false;
-  }
+  wasm::BuildTFGraph(allocator, env->enabled_features, env->module, &builder,
+                     detected, func_body, loop_infos, nullptr, node_origins,
+                     func_index, wasm::kRegularFunction);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   if (v8_flags.experimental_wasm_revectorize && builder.has_simd()) {
     mcgraph->graph()->SetSimd(true);
   }
 #endif
-
-  return true;
 }
 
 base::Vector<const char> GetDebugName(Zone* zone,
@@ -8706,10 +8695,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   wasm::WasmFeatures unused_detected_features;
   if (!detected) detected = &unused_detected_features;
-  if (!BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
-                                 &loop_infos, node_origins, source_positions)) {
-    return wasm::WasmCompilationResult{};
-  }
+  BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
+                            &loop_infos, node_origins, source_positions);
 
   if (node_origins) {
     node_origins->AddDecorator();

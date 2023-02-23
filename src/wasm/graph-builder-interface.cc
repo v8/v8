@@ -2356,14 +2356,13 @@ class WasmGraphBuildingInterface {
 
 }  // namespace
 
-DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                          const WasmFeatures& enabled, const WasmModule* module,
-                          compiler::WasmGraphBuilder* builder,
-                          WasmFeatures* detected, const FunctionBody& body,
-                          std::vector<compiler::WasmLoopInfo>* loop_infos,
-                          DanglingExceptions* dangling_exceptions,
-                          compiler::NodeOriginTable* node_origins,
-                          int func_index, InlinedStatus inlined_status) {
+void BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
+                  const WasmModule* module, compiler::WasmGraphBuilder* builder,
+                  WasmFeatures* detected, const FunctionBody& body,
+                  std::vector<compiler::WasmLoopInfo>* loop_infos,
+                  DanglingExceptions* dangling_exceptions,
+                  compiler::NodeOriginTable* node_origins, int func_index,
+                  InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::NoValidationTag, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder, func_index,
@@ -2379,8 +2378,9 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   if (dangling_exceptions != nullptr) {
     *dangling_exceptions = std::move(decoder.interface().dangling_exceptions());
   }
-
-  return decoder.toResult(nullptr);
+  // TurboFan does not run with validation, so graph building must always
+  // succeed.
+  CHECK(decoder.ok());
 }
 
 }  // namespace wasm

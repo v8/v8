@@ -405,24 +405,9 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   std::vector<compiler::WasmLoopInfo> loops;
-  DecodeResult result =
-      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
-                   &unused_detected_features, body, &loops, nullptr, nullptr, 0,
-                   kRegularFunction);
-  if (result.failed()) {
-#ifdef DEBUG
-    if (!v8_flags.trace_wasm_decoder) {
-      // Retry the compilation with the tracing flag on, to help in debugging.
-      v8_flags.trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
-                            builder, &unused_detected_features, body, &loops,
-                            nullptr, nullptr, 0, kRegularFunction);
-    }
-#endif
-
-    FATAL("Verification failed; pc = +%x, msg = %s", result.error().offset(),
-          result.error().message().c_str());
-  }
+  BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
+               &unused_detected_features, body, &loops, nullptr, nullptr, 0,
+               kRegularFunction);
   builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
 }
 

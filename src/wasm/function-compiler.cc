@@ -156,6 +156,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       break;
   }
 
+  DCHECK(result.succeeded());
   return result;
 }
 
