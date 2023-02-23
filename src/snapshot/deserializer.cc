@@ -361,9 +361,9 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
                                                      SnapshotSpace space) {
   DCHECK_EQ(map.instance_type(), instance_type);
 
-  DCHECK(!InstanceTypeChecker::IsJSRabGsabDataView(instance_type));
-  if (InstanceTypeChecker::IsJSDataView(instance_type)) {
-    auto data_view = JSDataView::cast(*obj);
+  if (InstanceTypeChecker::IsJSDataView(instance_type) ||
+      InstanceTypeChecker::IsJSRabGsabDataView(instance_type)) {
+    auto data_view = JSDataViewOrRabGsabDataView::cast(*obj);
     auto buffer = JSArrayBuffer::cast(data_view.buffer());
     if (buffer.was_detached()) {
       // Directly set the data pointer to point to the EmptyBackingStoreBuffer.
