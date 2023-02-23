@@ -81,7 +81,7 @@
   'regress/regress-475705': [SKIP],
 
   # https://crbug.com/v8/13767 Unaligned access on arm64 mac.
-  'wasm/gc-null-traps': ['arch == arm64 and system == macos', SKIP],
+  'wasm/gc-null-traps': ['arch == arm64 system in (macos, linux)', SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
