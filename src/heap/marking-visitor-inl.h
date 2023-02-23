@@ -510,6 +510,18 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitStrongDescriptorArray(Map map, StrongDescriptorArray array) {
+  if (!concrete_visitor()->ShouldVisitUnchecked(array)) return 0;
+  int size = StrongDescriptorArray::BodyDescriptor::SizeOf(map, array);
+  if (concrete_visitor()->ShouldVisitMapPointer()) {
+    VisitMapPointer(array);
+  }
+  StrongDescriptorArray::BodyDescriptor::IterateBody(map, array, size, this);
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
     Map map) {
   if (!map.CanTransition()) return 0;
