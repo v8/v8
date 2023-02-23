@@ -466,22 +466,15 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              ModuleWireBytes bytes,
-                              std::string* error_message) {
+                              ModuleWireBytes bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
-  // TODO(titzer): remove dependency on the isolate.
-  if (bytes.start() == nullptr || bytes.length() == 0) {
-    if (error_message) *error_message = "empty module wire bytes";
-    return false;
-  }
+  if (bytes.length() == 0) return false;
+
   auto result = DecodeWasmModule(
       enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync);
-  if (result.failed() && error_message) {
-    *error_message = result.error().message();
-  }
   return result.ok();
 }
 
