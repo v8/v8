@@ -60,8 +60,9 @@ namespace internal {
   INSTANCE_TYPE_LIST_BASE(V)  \
   TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(V)
 
-// Since string types are not consecutive, this macro is used to
-// iterate over them.
+// Since string types are not consecutive, this macro is used to iterate over
+// them. The order matters for read only heap layout. The maps are placed such
+// that string types map to address ranges of maps.
 #define STRING_TYPE_LIST(V)                                                    \
   V(STRING_TYPE, kVariableSizeSentinel, string, String)                        \
   V(ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, one_byte_string,              \
@@ -82,10 +83,18 @@ namespace internal {
     ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,   \
     UncachedExternalOneByteString)                                             \
                                                                                \
-  V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
-    InternalizedString)                                                        \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                  \
-    one_byte_internalized_string, OneByteInternalizedString)                   \
+  V(SHARED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize,                 \
+    shared_external_string, SharedExternalString)                              \
+  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,        \
+    shared_external_one_byte_string, SharedExternalOneByteString)              \
+  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE,                                      \
+    ExternalTwoByteString::kUncachedSize, shared_uncached_external_string,     \
+    SharedUncachedExternalString)                                              \
+  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
+    ExternalOneByteString::kUncachedSize,                                      \
+    shared_uncached_external_one_byte_string,                                  \
+    SharedUncachedExternalOneByteString)                                       \
+                                                                               \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE, ExternalTwoByteString::kSize,           \
     external_internalized_string, ExternalInternalizedString)                  \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
@@ -97,22 +106,16 @@ namespace internal {
     ExternalOneByteString::kUncachedSize,                                      \
     uncached_external_one_byte_internalized_string,                            \
     UncachedExternalOneByteInternalizedString)                                 \
-  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
                                                                                \
+  V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
+    InternalizedString)                                                        \
+  V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                  \
+    one_byte_internalized_string, OneByteInternalizedString)                   \
+                                                                               \
+  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
   V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
-    shared_one_byte_string, SharedOneByteString)                               \
-  V(SHARED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize,                 \
-    shared_external_string, SharedExternalString)                              \
-  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,        \
-    shared_external_one_byte_string, SharedExternalOneByteString)              \
-  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE,                                      \
-    ExternalTwoByteString::kUncachedSize, shared_uncached_external_string,     \
-    SharedUncachedExternalString)                                              \
-  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
-    ExternalOneByteString::kUncachedSize,                                      \
-    shared_uncached_external_one_byte_string,                                  \
-    SharedUncachedExternalOneByteString)
+    shared_one_byte_string, SharedOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate

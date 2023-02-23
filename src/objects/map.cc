@@ -59,27 +59,6 @@ base::Optional<JSFunction> Map::GetConstructorFunction(Map map,
   return {};
 }
 
-Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
-  Map map;
-  switch (type) {
-#define MAKE_CASE(TYPE, Name, name) \
-  case TYPE:                        \
-    map = roots.name##_map();       \
-    break;
-    STRUCT_LIST(MAKE_CASE)
-#undef MAKE_CASE
-#define MAKE_CASE(TYPE, Name, name) \
-  case TYPE:                        \
-    map = roots.name##_map();       \
-    break;
-    TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
-#undef MAKE_CASE
-    default:
-      UNREACHABLE();
-  }
-  return map;
-}
-
 VisitorId Map::GetVisitorId(Map map) {
   static_assert(kVisitorIdCount <= 256);
 

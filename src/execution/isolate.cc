@@ -4078,6 +4078,45 @@ void Isolate::VerifyStaticRoots() {
   STRONG_READ_ONLY_ROOT_LIST(CHECK_NAME)
 #undef CHECK_NAME
 
+  // Check if instance types to map range mappings are still valid.
+  //
+  // Is##type(map) may be computed by checking if the map pointer lies in a
+  // statically known range of addresses, whereas Is##type(instance_type) is the
+  // definitive source of truth. If they disagree it means that a particular
+  // entry in InstanceTypeChecker::kUniqueMapRangeOfInstanceTypeRangeList is out
+  // of date. This can also happen if an instance type is starting to be used by
+  // more maps.
+  //
+  // If this check fails either re-arrange allocations in the read-only heap
+  // such that the static map range is restored (consult static-roots.h for a
+  // sorted list of addresses) or remove the offending entry from the list.
+  for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
+    Object obj = roots_table().slot(idx).load(this);
+    if (obj.ptr() == kNullAddress || !obj.IsMap()) continue;
+    Map map = Map::cast(obj);
+
+#define INSTANCE_TYPE_CHECKER_SINGLE(type, _)  \
+  CHECK_EQ(InstanceTypeChecker::Is##type(map), \
+           InstanceTypeChecker::Is##type(map.instance_type()));
+    INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER_SINGLE)
+#undef INSTANCE_TYPE_CHECKER_SINGLE
+
+#define INSTANCE_TYPE_CHECKER_RANGE(type, _1, _2) \
+  CHECK_EQ(InstanceTypeChecker::Is##type(map),    \
+           InstanceTypeChecker::Is##type(map.instance_type()));
+    INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
+#undef INSTANCE_TYPE_CHECKER_RANGE
+
+    if (InstanceTypeChecker::IsString(map)) {
+      CHECK_EQ(InstanceTypeChecker::IsExternalString(map),
+               InstanceTypeChecker::IsExternalString(map.instance_type()));
+      CHECK_EQ(InstanceTypeChecker::IsInternalizedString(map),
+               InstanceTypeChecker::IsInternalizedString(map.instance_type()));
+      CHECK_EQ(InstanceTypeChecker::IsThinString(map),
+               InstanceTypeChecker::IsThinString(map.instance_type()));
+    }
+  }
+
 #undef STATIC_ROOTS_FAILED_MSG
 #endif  // V8_STATIC_ROOTS_BOOL
 }

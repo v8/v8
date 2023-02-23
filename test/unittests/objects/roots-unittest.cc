@@ -97,7 +97,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
   ReadOnlyRoots roots(isolate());
   for (auto pos = RootIndex::kFirstReadOnlyRoot;
        pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
-    auto obj = Object(roots.at(pos));
+    auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
     CHECK_EQ(obj.IsHeapNumber(), in_nr_range);

@@ -630,8 +630,9 @@ class ReadOnlyRoots {
   // handle otherwise.
   Handle<HeapNumber> FindHeapNumber(double value);
 
-  // Get the address of a given read-only root index, without type checks.
-  V8_INLINE Address at(RootIndex root_index) const;
+  V8_INLINE Address address_at(RootIndex root_index) const;
+  V8_INLINE Object object_at(RootIndex root_index) const;
+  V8_INLINE Handle<Object> handle_at(RootIndex root_index) const;
 
   // Check if a slot is initialized yet. Should only be neccessary for code
   // running during snapshot creation.

@@ -58,7 +58,7 @@ template <typename Impl>
 Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
                                             AllocationType allocation) {
   ReadOnlyRoots roots = read_only_roots();
-  Map map = Map::GetInstanceTypeMap(roots, type);
+  Map map = Map::GetMapFor(roots, type);
   int size = map.instance_size();
   return handle(NewStructInternal(roots, map, size, allocation), isolate());
 }
@@ -1149,8 +1149,9 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
   DCHECK(SwissNameDictionary::IsValidCapacity(capacity));
 
   if (capacity == 0) {
-    DCHECK_NE(read_only_roots().at(RootIndex::kEmptySwissPropertyDictionary),
-              kNullAddress);
+    DCHECK_NE(
+        read_only_roots().address_at(RootIndex::kEmptySwissPropertyDictionary),
+        kNullAddress);
 
     return read_only_roots().empty_swiss_property_dictionary_handle();
   }

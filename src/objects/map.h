@@ -799,7 +799,21 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   inline bool CanTransition() const;
 
-  static Map GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type);
+  static constexpr base::Optional<RootIndex> TryGetMapRootIdxFor(
+      InstanceType type) {
+    switch (type) {
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
+    return RootIndex::k##Name##Map;
+      STRUCT_LIST(MAKE_CASE)
+      TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
+#undef MAKE_CASE
+      default:
+        break;
+    }
+    return {};
+  }
+  static inline Map GetMapFor(ReadOnlyRoots roots, InstanceType type);
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DECL_TESTER)

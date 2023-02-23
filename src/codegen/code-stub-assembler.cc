@@ -1831,16 +1831,9 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
 }
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
-  if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> unique =
-            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
-      return TNode<Map>::UncheckedCast(LoadRoot(*unique));
-    }
-  }
-  Handle<Map> map_handle(
-      Map::GetInstanceTypeMap(ReadOnlyRoots(isolate()), instance_type),
-      isolate());
-  return HeapConstant(map_handle);
+  RootIndex map_idx = Map::TryGetMapRootIdxFor(instance_type).value();
+  return HeapConstant(
+      Handle<Map>::cast(ReadOnlyRoots(isolate()).handle_at(map_idx)));
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {

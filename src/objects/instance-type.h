@@ -345,6 +345,8 @@ INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
   V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell) \
   V(_, HeapNumberMap, heap_number_map, HeapNumber)                    \
   V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)       \
+  V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                       \
+  V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)          \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal

@@ -30,6 +30,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // accessibly from the root list.
   RootIndex root_list_index;
   DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
+  DCHECK_IMPLIES(object->IsMap(), !HeapObject::cast(*object).InReadOnlySpace());
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),

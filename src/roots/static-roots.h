@@ -118,20 +118,20 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kExternalOneByteStringMap = 0xdbd;
   static constexpr Tagged_t kUncachedExternalStringMap = 0xde5;
   static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0xe0d;
-  static constexpr Tagged_t kInternalizedStringMap = 0xe35;
-  static constexpr Tagged_t kOneByteInternalizedStringMap = 0xe5d;
-  static constexpr Tagged_t kExternalInternalizedStringMap = 0xe85;
-  static constexpr Tagged_t kExternalOneByteInternalizedStringMap = 0xead;
-  static constexpr Tagged_t kUncachedExternalInternalizedStringMap = 0xed5;
+  static constexpr Tagged_t kSharedExternalStringMap = 0xe35;
+  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0xe5d;
+  static constexpr Tagged_t kSharedUncachedExternalStringMap = 0xe85;
+  static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0xead;
+  static constexpr Tagged_t kExternalInternalizedStringMap = 0xed5;
+  static constexpr Tagged_t kExternalOneByteInternalizedStringMap = 0xefd;
+  static constexpr Tagged_t kUncachedExternalInternalizedStringMap = 0xf25;
   static constexpr Tagged_t kUncachedExternalOneByteInternalizedStringMap =
-      0xefd;
-  static constexpr Tagged_t kThinStringMap = 0xf25;
-  static constexpr Tagged_t kSharedStringMap = 0xf4d;
-  static constexpr Tagged_t kSharedOneByteStringMap = 0xf75;
-  static constexpr Tagged_t kSharedExternalStringMap = 0xf9d;
-  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0xfc5;
-  static constexpr Tagged_t kSharedUncachedExternalStringMap = 0xfed;
-  static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0x1015;
+      0xf4d;
+  static constexpr Tagged_t kInternalizedStringMap = 0xf75;
+  static constexpr Tagged_t kOneByteInternalizedStringMap = 0xf9d;
+  static constexpr Tagged_t kThinStringMap = 0xfc5;
+  static constexpr Tagged_t kSharedStringMap = 0xfed;
+  static constexpr Tagged_t kSharedOneByteStringMap = 0x1015;
   static constexpr Tagged_t kFixedDoubleArrayMap = 0x103d;
   static constexpr Tagged_t kFeedbackMetadataArrayMap = 0x1065;
   static constexpr Tagged_t kByteArrayMap = 0x108d;
@@ -1506,36 +1506,6 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStoreHandler2Map,
     StaticReadOnlyRoot::kStoreHandler3Map,
 };
-
-inline constexpr base::Optional<std::pair<RootIndex, RootIndex>>
-StaticReadOnlyRootMapRange(InstanceType type) {
-  switch (type) {
-    case INTERNALIZED_STRING_TYPE:
-      return {{RootIndex::kInternalizedStringMap,
-               RootIndex::kUncachedExternalOneByteInternalizedStringMap}};
-    case ALLOCATION_SITE_TYPE:
-      return {{RootIndex::kAllocationSiteWithWeakNextMap,
-               RootIndex::kAllocationSiteWithoutWeakNextMap}};
-    default: {
-    }
-  }
-  return {};
-}
-
-inline constexpr base::Optional<std::pair<RootIndex, RootIndex>>
-StaticReadOnlyRootMapRange(InstanceType first, InstanceType last) {
-  if (first == FIRST_STRING_TYPE && last == LAST_STRING_TYPE) {
-    return {{RootIndex::kStringMap,
-             RootIndex::kSharedUncachedExternalOneByteStringMap}};
-  }
-  if (first == FIRST_NAME_TYPE && last == LAST_NAME_TYPE) {
-    return {{RootIndex::kSymbolMap,
-             RootIndex::kSharedUncachedExternalOneByteStringMap}};
-  }
-  return {};
-}
-
-static constexpr size_t kStaticReadOnlyRootRangesHash = 8801697340173357852UL;
 
 }  // namespace internal
 }  // namespace v8

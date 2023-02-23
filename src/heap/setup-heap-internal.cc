@@ -116,7 +116,7 @@ bool Heap::CreateReadOnlyHeapObjects() {
   ReadOnlyRoots roots(isolate());
   for (auto pos = RootIndex::kFirstReadOnlyRoot;
        pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
-    DCHECK(roots.at(pos));
+    DCHECK(roots.is_initialized(pos));
   }
 #endif
   return true;

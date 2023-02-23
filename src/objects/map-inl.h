@@ -798,6 +798,12 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
 }
 
 // static
+Map Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
+  RootIndex map_idx = TryGetMapRootIdxFor(type).value();
+  return Map::unchecked_cast(roots.object_at(map_idx));
+}
+
+// static
 Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
   return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());

@@ -294,8 +294,6 @@ int main(int argc, char** argv) {
 
       if (i::v8_flags.static_roots_src) {
         i::StaticRootsTableGen::write(i_isolate, i::v8_flags.static_roots_src);
-      } else if (V8_STATIC_ROOTS_BOOL) {
-        i::StaticRootsTableGen::VerifyRanges(i_isolate);
       }
     }
 
