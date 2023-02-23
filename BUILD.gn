@@ -2209,7 +2209,9 @@ template("run_mksnapshot") {
 
       # Replace this with --warn-about-builtin-profile-data to see the full
       # list of builtins with incompatible profiles.
-      args += [ "--abort-on-bad-builtin-profile-data" ]
+      # TODO(crbug.com/v8/13647): Do not fail for invalid profiles
+      # args += [ "--abort-on-bad-builtin-profile-data" ]
+      args += [ "--warn-about-builtin-profile-data" ]
     }
 
     # This is needed to distinguish between generating code for the simulator
