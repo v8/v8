@@ -49,16 +49,16 @@ assertEarlyError('/[a&&&]/v');
 assertEarlyError('/[&&&a]/v');
 
 // Unterminated string disjunction.
-assertEarlyError('/[\q{foo]/v');
-assertEarlyError('/[\q{foo|]/v');
+assertEarlyError('/[\\q{foo]/v');
+assertEarlyError('/[\\q{foo|]/v');
 
 // Negating classes containing strings is not allowed.
-assertEarlyError('/[^\q{foo}]/v');
-assertEarlyError('/[^\q{}]/v');  // Empty string counts as string.
-assertEarlyError('/[^[\q{foo}]]/v');
-assertEarlyError('/[^[\p{Basic_Emoji}]/v');
-assertEarlyError('/[^\q{foo}&&\q{bar}]/v');
-assertEarlyError('/[^\q{foo}--\q{bar}]/v');
+assertEarlyError('/[^\\q{foo}]/v');
+assertEarlyError('/[^\\q{}]/v');  // Empty string counts as string.
+assertEarlyError('/[^[\\q{foo}]]/v');
+assertEarlyError('/[^[\\p{Basic_Emoji}]/v');
+assertEarlyError('/[^\\q{foo}&&\\q{bar}]/v');
+assertEarlyError('/[^\\q{foo}--\\q{bar}]/v');
 // Exceptions when negating the class is allowed:
 // The "string" contains only single characters.
 /[^\q{a|b|c}]/v;
@@ -68,13 +68,16 @@ assertEarlyError('/[^\q{foo}--\q{bar}]/v');
 /[^a--\q{foo}--\q{bar}]/v;
 
 // Negated properties of strings are not allowed.
-assertEarlyError('/\P{Basic_Emoji}/v');
-assertEarlyError('/\P{Emoji_Keycap_Sequence}/v');
-assertEarlyError('/\P{RGI_Emoji_Modifier_Sequence}/v');
-assertEarlyError('/\P{RGI_Emoji_Flag_Sequence}/v');
-assertEarlyError('/\P{RGI_Emoji_Tag_Sequence}/v');
-assertEarlyError('/\P{RGI_Emoji_ZWJ_Sequence}/v');
-assertEarlyError('/\P{RGI_Emoji}/v');
+assertEarlyError('/\\P{Basic_Emoji}/v');
+assertEarlyError('/\\P{Emoji_Keycap_Sequence}/v');
+assertEarlyError('/\\P{RGI_Emoji_Modifier_Sequence}/v');
+assertEarlyError('/\\P{RGI_Emoji_Flag_Sequence}/v');
+assertEarlyError('/\\P{RGI_Emoji_Tag_Sequence}/v');
+assertEarlyError('/\\P{RGI_Emoji_ZWJ_Sequence}/v');
+assertEarlyError('/\\P{RGI_Emoji}/v');
+
+// Invalid identity escape in string disjunciton.
+assertEarlyError('/[\\q{\\w}]/v');
 
 const allAscii = Array.from(
     {length: 127}, (v, i) => { return String.fromCharCode(i); });

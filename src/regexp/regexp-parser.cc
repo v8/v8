@@ -1321,26 +1321,6 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
       state->builder()->flags(), zone());
 }
 
-#ifdef DEBUG
-namespace {
-
-bool IsSpecialClassEscape(base::uc32 c) {
-  switch (c) {
-    case 'd':
-    case 'D':
-    case 's':
-    case 'S':
-    case 'w':
-    case 'W':
-      return true;
-    default:
-      return false;
-  }
-}
-
-}  // namespace
-#endif
-
 // In order to know whether an escape is a backreference or not we have to scan
 // the entire regexp and find the number of capturing parentheses.  However we
 // don't want to scan the regexp twice unless it is necessary.  This mini-parser
@@ -2206,7 +2186,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
     InClassEscapeState in_class_escape_state,
     bool* is_escaped_unicode_character) {
   DCHECK_EQ('\\', current());
-  DCHECK(has_next() && !IsSpecialClassEscape(Next()));
+  DCHECK(has_next());
 
   Advance();
 
