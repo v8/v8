@@ -1197,8 +1197,6 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.NewNativeModule");
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   if (v8_flags.wasm_gdb_remote && !gdb_server_) {
     gdb_server_ = gdb_server::GdbServer::Create();

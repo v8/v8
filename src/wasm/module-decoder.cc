@@ -119,8 +119,6 @@ ModuleResult DecodeWasmModule(
 ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
                               bool validate_functions, ModuleOrigin origin) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.DecodeWasmModule");
   ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
   return decoder.DecodeModule(validate_functions);
 }

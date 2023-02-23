@@ -1783,8 +1783,6 @@ WasmError ValidateFunctions(const WasmModule* module,
                             base::Vector<const uint8_t> wire_bytes,
                             WasmFeatures enabled_features,
                             OnlyLazyFunctions only_lazy_functions) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.ValidateFunctions");
   DCHECK_EQ(module->origin, kWasmOrigin);
   if (only_lazy_functions &&
       !MayCompriseLazyFunctions(module, enabled_features)) {
