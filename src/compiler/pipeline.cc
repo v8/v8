@@ -2517,7 +2517,7 @@ struct InstructionSelectionPhase {
         data->info()->switch_jump_table()
             ? InstructionSelector::kEnableSwitchJumpTable
             : InstructionSelector::kDisableSwitchJumpTable,
-        &data->info()->tick_counter(), data->broker(), data->machine(),
+        &data->info()->tick_counter(), data->broker(),
         data->address_of_max_unoptimized_frame_height(),
         data->address_of_max_pushed_argument_count(),
         data->info()->source_positions()

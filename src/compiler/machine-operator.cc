@@ -701,17 +701,11 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Float64)                 \
   V(Simd128)                 \
   V(Int8)                    \
-  V(Int8AsInt64)             \
   V(Uint8)                   \
-  V(Uint8AsUint64)           \
   V(Int16)                   \
-  V(Int16AsInt64)            \
   V(Uint16)                  \
-  V(Uint16AsUint64)          \
   V(Int32)                   \
-  V(Int32AsInt64)            \
   V(Uint32)                  \
-  V(Uint32AsUint64)          \
   V(Int64)                   \
   V(Uint64)                  \
   V(Pointer)                 \

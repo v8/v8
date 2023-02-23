@@ -167,42 +167,22 @@ class MachineType {
   constexpr static MachineType Int8() {
     return MachineType(MachineRepresentation::kWord8, MachineSemantic::kInt32);
   }
-  constexpr static MachineType Int8AsInt64() {
-    return MachineType(MachineRepresentation::kWord8, MachineSemantic::kInt64);
-  }
   constexpr static MachineType Uint8() {
     return MachineType(MachineRepresentation::kWord8, MachineSemantic::kUint32);
   }
-  constexpr static MachineType Uint8AsUint64() {
-    return MachineType(MachineRepresentation::kWord8, MachineSemantic::kUint64);
-  }
   constexpr static MachineType Int16() {
     return MachineType(MachineRepresentation::kWord16, MachineSemantic::kInt32);
-  }
-  constexpr static MachineType Int16AsInt64() {
-    return MachineType(MachineRepresentation::kWord16, MachineSemantic::kInt64);
   }
   constexpr static MachineType Uint16() {
     return MachineType(MachineRepresentation::kWord16,
                        MachineSemantic::kUint32);
   }
-  constexpr static MachineType Uint16AsUint64() {
-    return MachineType(MachineRepresentation::kWord16,
-                       MachineSemantic::kUint64);
-  }
   constexpr static MachineType Int32() {
     return MachineType(MachineRepresentation::kWord32, MachineSemantic::kInt32);
-  }
-  constexpr static MachineType Int32AsInt64() {
-    return MachineType(MachineRepresentation::kWord32, MachineSemantic::kInt64);
   }
   constexpr static MachineType Uint32() {
     return MachineType(MachineRepresentation::kWord32,
                        MachineSemantic::kUint32);
-  }
-  constexpr static MachineType Uint32AsUint64() {
-    return MachineType(MachineRepresentation::kWord32,
-                       MachineSemantic::kUint64);
   }
   constexpr static MachineType Int64() {
     return MachineType(MachineRepresentation::kWord64, MachineSemantic::kInt64);

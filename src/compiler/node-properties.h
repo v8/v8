@@ -179,8 +179,6 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // currently in a state that satisfies constraints of the new operator.
   static void ChangeOp(Node* node, const Operator* new_op);
 
-  static void UnCheckedChangeOp(Node* node, const Operator* new_op);
-
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
 
