@@ -291,7 +291,7 @@ IsolateSafepointScope::~IsolateSafepointScope() {
 }
 
 GlobalSafepoint::GlobalSafepoint(Isolate* isolate)
-    : shared_heap_isolate_(isolate) {}
+    : shared_space_isolate_(isolate) {}
 
 void GlobalSafepoint::AppendClient(Isolate* client) {
   clients_mutex_.AssertHeld();
@@ -331,9 +331,7 @@ void GlobalSafepoint::RemoveClient(Isolate* client) {
 }
 
 void GlobalSafepoint::AssertNoClientsOnTearDown() {
-  DCHECK_EQ(clients_head_, shared_heap_isolate_);
-  DCHECK_NULL(shared_heap_isolate_->global_safepoint_prev_client_isolate_);
-  DCHECK_NULL(shared_heap_isolate_->global_safepoint_next_client_isolate_);
+  DCHECK_NULL(clients_head_);
 }
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
@@ -357,7 +355,7 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
   // Try to initiate safepoint for all clients. Fail immediately when the
   // local_heaps_mutex_ can't be locked without blocking.
-  IterateClientIsolates([&clients, initiator](Isolate* client) {
+  IterateSharedSpaceAndClientIsolates([&clients, initiator](Isolate* client) {
     clients.emplace_back(client);
     client->heap()->safepoint()->TryInitiateGlobalSafepointScope(
         initiator, &clients.back());
@@ -372,7 +370,7 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
 #if DEBUG
   for (const PerClientSafepointData& client : clients) {
-    DCHECK_EQ(client.isolate()->shared_space_isolate(), shared_heap_isolate_);
+    DCHECK_EQ(client.isolate()->shared_space_isolate(), shared_space_isolate_);
   }
 #endif  // DEBUG
 
@@ -389,7 +387,7 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
   DCHECK_GT(active_safepoint_scopes_, 0);
 
   if (--active_safepoint_scopes_ == 0) {
-    IterateClientIsolates([initiator](Isolate* client) {
+    IterateSharedSpaceAndClientIsolates([initiator](Isolate* client) {
       Heap* client_heap = client->heap();
       client_heap->safepoint()->LeaveGlobalSafepointScope(initiator);
     });
@@ -400,13 +398,13 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
 
 GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
     : initiator_(initiator),
-      shared_heap_isolate_(initiator->shared_space_isolate()) {
-  shared_heap_isolate_->global_safepoint()->EnterGlobalSafepointScope(
+      shared_space_isolate_(initiator->shared_space_isolate()) {
+  shared_space_isolate_->global_safepoint()->EnterGlobalSafepointScope(
       initiator_);
 }
 
 GlobalSafepointScope::~GlobalSafepointScope() {
-  shared_heap_isolate_->global_safepoint()->LeaveGlobalSafepointScope(
+  shared_space_isolate_->global_safepoint()->LeaveGlobalSafepointScope(
       initiator_);
 }
 

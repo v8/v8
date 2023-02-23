@@ -20,19 +20,19 @@ class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
  public:
   SharedHeapNoClientsTest() {
     shared_space_isolate_wrapper.emplace(kNoCounters);
-    shared_isolate_ = shared_space_isolate_wrapper->i_isolate();
+    shared_space_isolate_ = shared_space_isolate_wrapper->i_isolate();
   }
 
-  ~SharedHeapNoClientsTest() override { shared_isolate_ = nullptr; }
+  ~SharedHeapNoClientsTest() override { shared_space_isolate_ = nullptr; }
 
   v8::Isolate* shared_space_isolate() {
-    return reinterpret_cast<v8::Isolate*>(i_shared_heap_isolate());
+    return reinterpret_cast<v8::Isolate*>(i_shared_space_isolate());
   }
 
-  Isolate* i_shared_heap_isolate() { return shared_isolate_; }
+  Isolate* i_shared_space_isolate() { return shared_space_isolate_; }
 
  private:
-  Isolate* shared_isolate_;
+  Isolate* shared_space_isolate_;
   base::Optional<IsolateWrapper> shared_space_isolate_wrapper;
 };
 

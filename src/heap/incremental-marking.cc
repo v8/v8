@@ -373,9 +373,10 @@ void IncrementalMarking::StartBlackAllocation() {
   }
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      client->heap()->MarkSharedLinearAllocationAreasBlack();
-    });
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->MarkSharedLinearAllocationAreasBlack();
+        });
   }
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MarkLinearAllocationAreaBlack();
@@ -396,9 +397,10 @@ void IncrementalMarking::PauseBlackAllocation() {
   }
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      client->heap()->UnmarkSharedLinearAllocationAreas();
-    });
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->UnmarkSharedLinearAllocationAreas();
+        });
   }
   heap()->safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });

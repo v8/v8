@@ -2047,7 +2047,6 @@ void MarkCompactCollector::MarkObjectsFromClientHeaps() {
 
   isolate()->global_safepoint()->IterateClientIsolates(
       [collector = this](Isolate* client) {
-        if (client->is_shared_space_isolate()) return;
         collector->MarkObjectsFromClientHeap(client);
       });
 }
@@ -2941,7 +2940,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
     if (isolate()->is_shared_space_isolate()) {
       isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-        if (client->is_shared_space_isolate()) return;
         client->global_handles()->IterateWeakRootsForPhantomHandles(
             &IsUnmarkedSharedHeapObject);
         // No need to reset traced handles since they are always strong.
@@ -5209,10 +5207,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 void MarkCompactCollector::UpdatePointersInClientHeaps() {
   if (!isolate()->is_shared_space_isolate()) return;
 
-  isolate()->global_safepoint()->IterateClientIsolates([this](Isolate* client) {
-    if (client->is_shared_space_isolate()) return;
-    UpdatePointersInClientHeap(client);
-  });
+  isolate()->global_safepoint()->IterateClientIsolates(
+      [this](Isolate* client) { UpdatePointersInClientHeap(client); });
 }
 
 void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {

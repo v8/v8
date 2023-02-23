@@ -3460,7 +3460,7 @@ void Isolate::Deinit() {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
-  if (has_shared_space()) {
+  if (has_shared_space() && !is_shared_space_isolate()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
     ParkedScope parked_scope(main_thread_local_heap());
     shared_space_isolate()->global_safepoint()->clients_mutex_.Lock();
@@ -3542,11 +3542,14 @@ void Isolate::Deinit() {
   heap_.TearDownWithSharedHeap();
 
   // Detach from the shared heap isolate and then unlock the mutex.
-  if (has_shared_space()) {
-    Isolate* shared_space_isolate = this->shared_space_isolate();
-    DetachFromSharedSpaceIsolate();
-    shared_space_isolate->global_safepoint()->clients_mutex_.Unlock();
+  if (has_shared_space() && !is_shared_space_isolate()) {
+    GlobalSafepoint* global_safepoint =
+        this->shared_space_isolate()->global_safepoint();
+    global_safepoint->RemoveClient(this);
+    global_safepoint->clients_mutex_.Unlock();
   }
+
+  shared_space_isolate_.reset();
 
   // Since there are no other threads left, we can lock this mutex without any
   // ceremony. This signals to the tear down code that we are in a safepoint.
@@ -4142,18 +4145,18 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
-  Isolate* attach_to_shared_space_isolate = nullptr;
+  Isolate* use_shared_space_isolate = nullptr;
 
   if (HasFlagThatRequiresSharedHeap()) {
     if (process_wide_shared_space_isolate_) {
       owns_shareable_data_ = false;
+      use_shared_space_isolate = process_wide_shared_space_isolate_;
     } else {
       process_wide_shared_space_isolate_ = this;
+      use_shared_space_isolate = this;
       is_shared_space_isolate_ = true;
       DCHECK(owns_shareable_data_);
     }
-
-    attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
   }
 
   CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
@@ -4236,18 +4239,19 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   base::Optional<base::RecursiveMutexGuard> clients_guard;
 
-  if (attach_to_shared_space_isolate) {
+  if (use_shared_space_isolate && !is_shared_space_isolate()) {
     clients_guard.emplace(
-        &attach_to_shared_space_isolate->global_safepoint()->clients_mutex_);
+        &use_shared_space_isolate->global_safepoint()->clients_mutex_);
+    use_shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 
-  AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
+  shared_space_isolate_ = use_shared_space_isolate;
 
   isolate_data_.is_shared_space_isolate_flag_ = is_shared_space_isolate();
   isolate_data_.uses_shared_heap_flag_ = has_shared_space();
 
-  if (attach_to_shared_space_isolate && !is_shared_space_isolate() &&
-      attach_to_shared_space_isolate->heap()
+  if (use_shared_space_isolate && !is_shared_space_isolate() &&
+      use_shared_space_isolate->heap()
           ->incremental_marking()
           ->IsMajorMarking()) {
     heap_.SetIsMarkingFlag(true);
@@ -6001,23 +6005,6 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   // It is safe to return the address of std::map values.
   // Only iterators and references to the erased elements are invalidated.
   return reinterpret_cast<Address>(&map[name].second);
-}
-
-void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
-  DCHECK(!shared_space_isolate_.has_value());
-  shared_space_isolate_ = shared_space_isolate;
-  if (shared_space_isolate) {
-    shared_space_isolate->global_safepoint()->AppendClient(this);
-  }
-}
-
-void Isolate::DetachFromSharedSpaceIsolate() {
-  DCHECK(shared_space_isolate_.has_value());
-  Isolate* shared_space_isolate = shared_space_isolate_.value();
-  if (shared_space_isolate) {
-    shared_space_isolate->global_safepoint()->RemoveClient(this);
-  }
-  shared_space_isolate_.reset();
 }
 
 #ifdef V8_COMPRESS_POINTERS

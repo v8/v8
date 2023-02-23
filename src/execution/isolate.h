@@ -2126,12 +2126,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the Exception sentinel.
   Object ThrowInternal(Object exception, MessageLocation* location);
 
-  // These methods add/remove the isolate to/from the list of clients in the
-  // shared space isolate. Isolates in the client list need to participate in a
-  // global safepoint.
-  void AttachToSharedSpaceIsolate(Isolate* shared_space_isolate);
-  void DetachFromSharedSpaceIsolate();
-
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).

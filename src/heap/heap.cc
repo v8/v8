@@ -1252,7 +1252,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     if (isolate()->is_shared_space_isolate()) {
       isolate()->global_safepoint()->IterateClientIsolates(
           [this, collector](Isolate* client) {
-            if (client->is_shared_space_isolate()) return;
             client->heap()->safepoint()->IterateLocalHeaps(
                 [this, collector](LocalHeap* local_heap) {
                   local_heap->InvokeGCEpilogueCallbacksInSafepoint(
@@ -1873,8 +1872,6 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_space_isolate()) return;
-
       if (v8_flags.concurrent_marking) {
         client->heap()->concurrent_marking()->Pause();
       }
@@ -1892,8 +1889,6 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_space_isolate()) return;
-
       if (v8_flags.concurrent_marking &&
           client->heap()->incremental_marking()->IsMarking()) {
         client->heap()->concurrent_marking()->Resume();
@@ -2157,8 +2152,6 @@ void ClearStubCaches(Isolate* isolate) {
 
   if (isolate->is_shared_space_isolate()) {
     isolate->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_space_isolate()) return;
-
       client->load_stub_cache()->Clear();
       client->store_stub_cache()->Clear();
     });
@@ -2230,7 +2223,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates(
         [collector](Isolate* client) {
-          if (client->is_shared_space_isolate()) return;
           CHECK(client->heap()->deserialization_complete());
 
           if (v8_flags.concurrent_marking) {
@@ -2319,8 +2311,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_space_isolate()) return;
-
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
 
       if (v8_flags.concurrent_marking &&
@@ -3508,9 +3498,10 @@ void Heap::MakeHeapIterable() {
   });
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      client->heap()->MakeSharedLinearAllocationAreasIterable();
-    });
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->MakeSharedLinearAllocationAreasIterable();
+        });
   }
 
   PagedSpaceIterator spaces(this);
@@ -3530,9 +3521,10 @@ void Heap::FreeLinearAllocationAreas() {
       [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      client->heap()->FreeSharedLinearAllocationAreas();
-    });
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->FreeSharedLinearAllocationAreas();
+        });
   }
 
   PagedSpaceIterator spaces(this);
@@ -4778,7 +4770,6 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
     options.Add(SkipRoot::kConservativeStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
-          if (client->is_shared_space_isolate()) return;
           client->heap()->IterateRoots(v, options);
         });
   }

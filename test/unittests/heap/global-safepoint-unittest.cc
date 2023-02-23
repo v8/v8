@@ -127,7 +127,7 @@ TEST_F(GlobalSafepointTest, Interrupt) {
     GlobalSafepointScope global_safepoint(i_main_isolate);
     i_main_isolate->shared_space_isolate()
         ->global_safepoint()
-        ->IterateClientIsolates([](Isolate* client) {
+        ->IterateSharedSpaceAndClientIsolates([](Isolate* client) {
           client->stack_guard()->RequestTerminateExecution();
         });
   }

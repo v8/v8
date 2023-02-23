@@ -174,8 +174,15 @@ class GlobalSafepoint final {
   void IterateClientIsolates(Callback callback) {
     for (Isolate* current = clients_head_; current;
          current = current->global_safepoint_next_client_isolate_) {
+      DCHECK(!current->is_shared_space_isolate());
       callback(current);
     }
+  }
+
+  template <typename Callback>
+  void IterateSharedSpaceAndClientIsolates(Callback callback) {
+    callback(shared_space_isolate_);
+    IterateClientIsolates(callback);
   }
 
   void AssertNoClientsOnTearDown();
@@ -186,7 +193,7 @@ class GlobalSafepoint final {
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_heap_isolate_;
+  Isolate* const shared_space_isolate_;
   // RecursiveMutex is needed since we need to support nested
   // GlobalSafepointScopes.
   base::RecursiveMutex clients_mutex_;
@@ -204,7 +211,7 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_heap_isolate_;
+  Isolate* const shared_space_isolate_;
 };
 
 enum class SafepointKind { kIsolate, kGlobal };
