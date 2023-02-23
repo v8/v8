@@ -40,10 +40,9 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-    JSHeapBroker* broker, MachineOperatorBuilder* machine,
-    size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
-    SourcePositionMode source_position_mode, Features features,
-    EnableScheduling enable_scheduling,
+    JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+    size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
+    Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
     EnableTraceTurboJson trace_turbo)
     : zone_(zone),
@@ -75,7 +74,6 @@ InstructionSelector::InstructionSelector(
       trace_turbo_(trace_turbo),
       tick_counter_(tick_counter),
       broker_(broker),
-      machine_(machine),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
       max_pushed_argument_count_(max_pushed_argument_count)
 #if V8_TARGET_ARCH_64_BIT

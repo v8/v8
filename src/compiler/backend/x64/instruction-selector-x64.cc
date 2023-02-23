@@ -45,15 +45,6 @@ bool IsCompressed(Node* const node) {
   return false;
 }
 
-bool IsOnlyValueUse(Node* const user, Node* const node) {
-  for (Edge const edge : node->use_edges()) {
-    if (edge.from() != user && NodeProperties::IsValueEdge(edge)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 // Adds X64-specific methods for generating operands.
@@ -322,24 +313,13 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kBit:  // Fall through.
     case MachineRepresentation::kWord8:
-      opcode =
-          load_rep.IsSigned()
-              ? (load_rep.semantic() == MachineSemantic::kInt64 ? kX64Movsxbq
-                                                                : kX64Movsxbl)
-              : (load_rep.semantic() == MachineSemantic::kUint64 ? kX64Movzxbq
-                                                                 : kX64Movzxbl);
+      opcode = load_rep.IsSigned() ? kX64Movsxbl : kX64Movzxbl;
       break;
     case MachineRepresentation::kWord16:
-      opcode =
-          load_rep.IsSigned()
-              ? (load_rep.semantic() == MachineSemantic::kInt64 ? kX64Movsxwq
-                                                                : kX64Movsxwl)
-              : (load_rep.semantic() == MachineSemantic::kUint64 ? kX64Movzxwq
-                                                                 : kX64Movzxwl);
+      opcode = load_rep.IsSigned() ? kX64Movsxwl : kX64Movzxwl;
       break;
     case MachineRepresentation::kWord32:
-      opcode = load_rep.semantic() == MachineSemantic::kInt64 ? kX64Movsxlq
-                                                              : kX64Movl;
+      opcode = kX64Movl;
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
@@ -1679,22 +1659,17 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* const value = node->InputAt(0);
   if ((value->opcode() == IrOpcode::kLoad ||
        value->opcode() == IrOpcode::kLoadImmutable) &&
-      IsOnlyValueUse(node, value)) {
+      CanCover(node, value)) {
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     MachineRepresentation rep = load_rep.representation();
-    MachineRepresentation new_rep = MachineRepresentation::kNone;
-    MachineSemantic new_sem = MachineSemantic::kNone;
+    InstructionCode opcode;
     switch (rep) {
       case MachineRepresentation::kBit:  // Fall through.
       case MachineRepresentation::kWord8:
-        new_rep = MachineRepresentation::kWord8;
-        new_sem = load_rep.IsSigned() ? MachineSemantic::kInt64
-                                      : MachineSemantic::kUint64;
+        opcode = load_rep.IsSigned() ? kX64Movsxbq : kX64Movzxbq;
         break;
       case MachineRepresentation::kWord16:
-        new_rep = MachineRepresentation::kWord16;
-        new_sem = load_rep.IsSigned() ? MachineSemantic::kInt64
-                                      : MachineSemantic::kUint64;
+        opcode = load_rep.IsSigned() ? kX64Movsxwq : kX64Movzxwq;
         break;
       case MachineRepresentation::kWord32:
       case MachineRepresentation::kWord64:
@@ -1705,21 +1680,18 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
       case MachineRepresentation::kTagged:
         // ChangeInt32ToInt64 must interpret its input as a _signed_ 32-bit
         // integer, so here we must sign-extend the loaded value in any case.
-        new_rep = MachineRepresentation::kWord32;
-        new_sem = MachineSemantic::kInt64;
+        opcode = kX64Movsxlq;
         break;
       default:
         UNREACHABLE();
     }
-    LoadRepresentation new_load_rep(new_rep, new_sem);
-    if (value->opcode() == IrOpcode::kLoad) {
-      NodeProperties::UnCheckedChangeOp(value, machine()->Load(new_load_rep));
-    } else {
-      DCHECK_EQ(value->opcode(), IrOpcode::kLoadImmutable);
-      NodeProperties::UnCheckedChangeOp(value,
-                                        machine()->LoadImmutable(new_load_rep));
-    }
-    EmitIdentity(node);
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    size_t input_count = 0;
+    InstructionOperand inputs[3];
+    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+        node->InputAt(0), inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 1, outputs, input_count, inputs);
   } else {
     Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
   }

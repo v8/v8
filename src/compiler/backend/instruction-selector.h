@@ -282,8 +282,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      JSHeapBroker* broker, MachineOperatorBuilder* machine,
-      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
@@ -673,7 +673,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionSequence* sequence() const { return sequence_; }
   Zone* instruction_zone() const { return sequence()->zone(); }
   Zone* zone() const { return zone_; }
-  MachineOperatorBuilder* machine() const { return machine_; }
 
   void set_instruction_selection_failed() {
     instruction_selection_failed_ = true;
@@ -766,8 +765,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // The broker is only used for unparking the LocalHeap for diagnostic printing
   // for failed StaticAsserts.
   JSHeapBroker* const broker_;
-
-  MachineOperatorBuilder* const machine_;
 
   // Store the maximal unoptimized frame height and an maximal number of pushed
   // arguments (for calls). Later used to apply an offset to stack checks.

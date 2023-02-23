@@ -42,14 +42,13 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   TickCounter tick_counter;
-  MachineOperatorBuilder machine(test_->zone());
   size_t max_unoptimized_frame_height = 0;
   size_t max_pushed_argument_count = 0;
   InstructionSelector selector(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
-      &machine, &max_unoptimized_frame_height, &max_pushed_argument_count,
+      &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing);
   selector.SelectInstructions();
