@@ -144,6 +144,7 @@
 
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
+#include <unistd.h>
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "include/v8-wasm-trap-handler-posix.h"
@@ -338,7 +339,7 @@ void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
 #ifdef V8_FUZZILLI
       // Ignore OOM crashes for fuzzing but exit with an error such that
       // samples are discarded by Fuzzilli.
-      exit(1);
+      _exit(1);
 #else
       base::OS::Abort();
 #endif  // V8_FUZZILLI
