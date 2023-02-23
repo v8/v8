@@ -5771,6 +5771,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     return function_.shared(broker);
   }
 
+  bool EmitNewTarget(compiler::JSHeapBroker* broker) const;
+
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
