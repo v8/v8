@@ -920,22 +920,6 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
   space->set_objects_size(surviving_object_size);
 }
 
-void DiscardSweptEmptyNewSpacePage(Heap* heap, Page* page) {
-  CHECK_EQ(NEW_SPACE, page->owner_identity());
-  CHECK_EQ(0, page->allocated_bytes());
-  CHECK_EQ(Page::ConcurrentSweepingState::kDone,
-           page->concurrent_sweeping_state());
-  page->DiscardUnusedMemory(page->area_start(), page->area_size());
-  // Only decrement counter when we discard unused system pages.
-  ActiveSystemPages active_system_pages;
-  active_system_pages.Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
-                           MemoryAllocator::GetCommitPageSizeBits(),
-                           Page::kPageSize);
-  // Decrement accounted memory for discarded memory.
-  heap->paged_new_space()->paged_space()->ReduceActiveSystemPages(
-      page, active_system_pages);
-}
-
 }  // namespace
 
 void MarkCompactCollector::Finish() {
@@ -943,12 +927,16 @@ void MarkCompactCollector::Finish() {
     TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_SWEEP,
                    ThreadKind::kMain);
 
-    if (v8_flags.minor_mc && heap()->ShouldReduceMemory()) {
-      for (Page* p : swept_empty_new_space_pages_) {
-        DiscardSweptEmptyNewSpacePage(heap(), p);
+    DCHECK_IMPLIES(!v8_flags.minor_mc,
+                   empty_new_space_pages_to_be_swept_.empty());
+    if (!empty_new_space_pages_to_be_swept_.empty()) {
+      GCTracer::Scope sweep_scope(
+          heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
+      for (Page* p : empty_new_space_pages_to_be_swept_) {
+        sweeper()->SweepEmptyNewSpacePage(p);
       }
+      empty_new_space_pages_to_be_swept_.clear();
     }
-    swept_empty_new_space_pages_.clear();
 
     if (heap()->new_lo_space()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW_LO);
@@ -4595,7 +4583,6 @@ void MarkCompactCollector::Evacuate() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
-    bool should_reduce_memory = heap()->ShouldReduceMemory();
     for (Page* p : new_space_evacuation_pages_) {
       // Full GCs don't promote pages within new space.
       DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
@@ -4613,7 +4600,7 @@ void MarkCompactCollector::Evacuate() {
             space->ShouldReleaseEmptyPage()) {
           space->ReleasePage(p);
         } else {
-          sweeper()->SweepEmptyNewSpacePage(p, should_reduce_memory);
+          sweeper()->SweepEmptyNewSpacePage(p);
         }
       }
     }
@@ -5383,7 +5370,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
     paged_space->StartShrinking();
   }
 
-  DCHECK(swept_empty_new_space_pages_.empty());
+  DCHECK(empty_new_space_pages_to_be_swept_.empty());
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     Page* p = *(it++);
     DCHECK(p->SweepingDone());
@@ -5397,8 +5384,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
         paged_space->ShouldReleaseEmptyPage()) {
       paged_space->ReleasePage(p);
     } else {
-      sweeper()->SweepEmptyNewSpacePage(p, false);
-      swept_empty_new_space_pages_.push_back(p);
+      empty_new_space_pages_to_be_swept_.push_back(p);
     }
     will_be_swept++;
   }
@@ -6234,7 +6220,6 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
     paged_space->StartShrinking();
   }
 
-  bool should_reduce_memory = heap()->ShouldReduceMemory();
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     Page* p = *(it++);
     DCHECK(p->SweepingDone());
@@ -6245,7 +6230,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
           paged_space->ShouldReleaseEmptyPage()) {
         paged_space->ReleasePage(p);
       } else {
-        sweeper()->SweepEmptyNewSpacePage(p, should_reduce_memory);
+        sweeper()->SweepEmptyNewSpacePage(p);
       }
       continue;
     }
