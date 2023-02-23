@@ -16,6 +16,41 @@ extern class String extends Name {
     return this.StringInstanceType().is_not_internalized;
   }
 
+  // Keep this in sync with the C++ String::IsOneByteRepresentation.
+  macro IsOneByteRepresentation(): bool {
+    let s: String;
+    try {
+      const thin = Cast<ThinString>(this) otherwise NotThin;
+      s = thin.actual;
+    } label NotThin {
+      s = this;
+    }
+    return s.StringInstanceType().is_one_byte;
+  }
+
+  // Keep this in sync with the C++ String::IsOneByteRepresentationUnderneath.
+  macro IsOneByteRepresentationUnderneath(): bool {
+    let string = this;
+    while (true) {
+      typeswitch (string) {
+        case (cons: ConsString): {
+          dcheck(cons.IsFlat());
+          string = cons.first;
+        }
+        case (thin: ThinString): {
+          string = thin.actual;
+        }
+        case (slice: SlicedString): {
+          string = slice.parent;
+        }
+        case (String): {
+          return string.StringInstanceType().is_one_byte;
+        }
+      }
+    }
+    VerifiedUnreachable();
+  }
+
   const length: int32;
 }
 

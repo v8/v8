@@ -468,7 +468,8 @@ RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
   DCHECK_EQ(1, args.length());
   Handle<String> source = args.at<String>(0);
   if (String::IsWellFormedUnicode(isolate, source)) return *source;
-  source = String::Flatten(isolate, source);
+  // String::IsWellFormedUnicode would have returned true above otherwise.
+  DCHECK(!String::IsOneByteRepresentationUnderneath(*source));
   const int length = source->length();
   Handle<SeqTwoByteString> dest =
       isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
