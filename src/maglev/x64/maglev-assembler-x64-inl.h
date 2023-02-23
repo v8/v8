@@ -375,6 +375,10 @@ inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   MacroAssembler::Move(dst, n);
 }
 
+inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
+  MacroAssembler::Move(dst, n.get_bits());
+}
+
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
 }
@@ -550,7 +554,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       return;
     }
     case Opcode::kFloat64Constant: {
-      double double_value = value->Cast<Float64Constant>()->value();
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
       movq_heap_number(dst, double_value);
       return;
     }

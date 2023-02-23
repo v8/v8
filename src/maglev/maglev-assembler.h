@@ -191,6 +191,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, TaggedIndex i);
   inline void Move(Register dst, int32_t i);
   inline void Move(DoubleRegister dst, double n);
+  inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
   inline void LoadByte(Register dst, MemOperand src);

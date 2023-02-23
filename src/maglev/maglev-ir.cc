@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-ir.h"
 
+#include <limits>
+
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/heap-refs.h"
@@ -528,7 +530,8 @@ Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
 }
 
 Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(value_);
+  return isolate->factory()->NewNumber<AllocationType::kOld>(
+      value_.get_scalar());
 }
 
 Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
@@ -2257,11 +2260,11 @@ void StoreFloat64::SetValueLocationConstraints() {
 }
 void StoreFloat64::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  Register heap_number = ToRegister(object_input());
+  Register object = ToRegister(object_input());
   DoubleRegister value = ToDoubleRegister(value_input());
 
-  __ AssertNotSmi(heap_number);
-  __ Move(FieldMemOperand(heap_number, offset()), value);
+  __ AssertNotSmi(object);
+  __ Move(FieldMemOperand(object, offset()), value);
 }
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
@@ -3459,7 +3462,19 @@ void Int32Constant::PrintParams(std::ostream& os,
 
 void Float64Constant::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
+  if (value().is_nan()) {
+    os << "(NaN [0x" << std::hex << value().get_bits() << std::dec << "]";
+    if (value().is_hole_nan()) {
+      os << ", the hole";
+    } else if (value().get_bits() ==
+               Float64(std::numeric_limits<double>::quiet_NaN()).get_bits()) {
+      os << ", quiet NaN";
+    }
+    os << ")";
+
+  } else {
+    os << "(" << value().get_scalar() << ")";
+  }
 }
 
 void Constant::PrintParams(std::ostream& os,

@@ -334,9 +334,6 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->SetConstantLocation();
     USE(value);
   }
-  if (graph_->nan()) {
-    graph_->nan()->SetConstantLocation();
-  }
   for (const auto& [address, constant] : graph_->external_references()) {
     constant->SetConstantLocation();
     USE(address);

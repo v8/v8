@@ -4974,8 +4974,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
               broker(), local_isolate()->factory()->heap_number_map()));
       // TODO(leszeks): Fix hole storage, in case this should be a custom NaN.
       AddNewNode<StoreFloat64>(
-          {new_alloc,
-           GetFloat64Constant(value.mutable_double_value.get_scalar())},
+          {new_alloc, GetFloat64Constant(value.mutable_double_value)},
           HeapNumber::kValueOffset);
       return new_alloc;
     }
@@ -5027,8 +5026,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
         // TODO(leszeks): Fix hole storage, in case Float64::get_scalar doesn't
         // preserve custom NaNs.
         AddNewNode<StoreFloat64>(
-            {allocation,
-             GetFloat64Constant(value.double_values[i].get_scalar())},
+            {allocation, GetFloat64Constant(value.double_values[i])},
             FixedDoubleArray::OffsetOfElementAt(i));
       }
       return allocation;

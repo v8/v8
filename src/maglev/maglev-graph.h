@@ -10,7 +10,6 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
-#include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -104,7 +103,7 @@ class Graph final : public ZoneObject {
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
-  ZoneMap<double, Float64Constant*>& float64() { return float_; }
+  ZoneMap<uint64_t, Float64Constant*>& float64() { return float_; }
   ZoneMap<Address, ExternalConstant*>& external_references() {
     return external_references_;
   }
@@ -116,11 +115,6 @@ class Graph final : public ZoneObject {
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>&
   inlined_functions() {
     return inlined_functions_;
-  }
-  Float64Constant* nan() const { return nan_; }
-  void set_nan(Float64Constant* nan) {
-    DCHECK_NULL(nan_);
-    nan_ = nan;
   }
   FunctionEntryStackCheck* function_entry_stack_check() const {
     return function_entry_stack_check_;
@@ -142,14 +136,14 @@ class Graph final : public ZoneObject {
   ZoneMap<RootIndex, RootConstant*> root_;
   ZoneMap<int, SmiConstant*> smi_;
   ZoneMap<int, Int32Constant*> int_;
-  ZoneMap<double, Float64Constant*> float_;
+  // Use the bits of the float as the key.
+  ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
-  Float64Constant* nan_ = nullptr;
   FunctionEntryStackCheck* function_entry_stack_check_ = nullptr;
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;

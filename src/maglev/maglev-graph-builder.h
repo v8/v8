@@ -251,18 +251,16 @@ class MaglevGraphBuilder {
   }
 
   Float64Constant* GetFloat64Constant(double constant) {
-    if (std::isnan(constant)) {
-      if (graph_->nan() == nullptr) {
-        graph_->set_nan(CreateNewNode<Float64Constant>(
-            0, std::numeric_limits<double>::quiet_NaN()));
-      }
-      return graph_->nan();
-    }
-    auto it = graph_->float64().find(constant);
+    return GetFloat64Constant(
+        Float64::FromBits(base::double_to_uint64(constant)));
+  }
+
+  Float64Constant* GetFloat64Constant(Float64 constant) {
+    auto it = graph_->float64().find(constant.get_bits());
     if (it == graph_->float64().end()) {
       Float64Constant* node = CreateNewNode<Float64Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-      graph_->float64().emplace(constant, node);
+      graph_->float64().emplace(constant.get_bits(), node);
       return node;
     }
     return it->second;
