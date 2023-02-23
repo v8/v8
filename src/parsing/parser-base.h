@@ -1868,8 +1868,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
     return impl()->FailureExpression();
   }
 
-  const AstRawString* js_pattern = GetNextSymbolForRegExpLiteral();
+  const AstRawString* pattern = GetNextSymbolForRegExpLiteral();
   base::Optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  const AstRawString* flags_as_ast_raw_string = GetNextSymbolForRegExpLiteral();
   if (!flags.has_value() || !ValidateRegExpFlags(flags.value())) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
@@ -1877,13 +1878,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
   Next();
   RegExpError regexp_error;
-  if (!ValidateRegExpLiteral(js_pattern, flags.value(), &regexp_error)) {
+  if (!ValidateRegExpLiteral(pattern, flags.value(), &regexp_error)) {
     if (RegExpErrorIsStackOverflow(regexp_error)) set_stack_overflow();
-    ReportMessage(MessageTemplate::kMalformedRegExp, js_pattern,
-                  RegExpErrorString(regexp_error));
+    ReportMessage(MessageTemplate::kMalformedRegExp, pattern,
+                  flags_as_ast_raw_string, RegExpErrorString(regexp_error));
     return impl()->FailureExpression();
   }
-  return factory()->NewRegExpLiteral(js_pattern, flags.value(), pos);
+  return factory()->NewRegExpLiteral(pattern, flags.value(), pos);
 }
 
 template <typename Impl>

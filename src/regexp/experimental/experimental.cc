@@ -74,14 +74,14 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
   RegExpCompileData parse_result;
   DCHECK(!isolate->has_pending_exception());
 
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(regexp->flags());
   bool parse_success = RegExpParser::ParseRegExpFromHeapString(
-      isolate, &zone, source, JSRegExp::AsRegExpFlags(regexp->flags()),
-      &parse_result);
+      isolate, &zone, source, flags, &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.
     DCHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
-    USE(RegExp::ThrowRegExpException(isolate, regexp, source,
+    USE(RegExp::ThrowRegExpException(isolate, regexp, flags, source,
                                      parse_result.error));
     return base::nullopt;
   }

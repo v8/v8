@@ -136,6 +136,7 @@ template bool RegExp::VerifySyntax<base::uc16>(
 
 MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
+                                                 RegExpFlags flags,
                                                  Handle<String> pattern,
                                                  RegExpError error) {
   base::Vector<const char> error_data =
@@ -144,16 +145,18 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
       isolate->factory()
           ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
           .ToHandleChecked();
-  THROW_NEW_ERROR(
-      isolate,
-      NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern, error_text),
-      Object);
+  Handle<String> flag_string =
+      JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
+  THROW_NEW_ERROR(isolate,
+                  NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern,
+                                 flag_string, error_text),
+                  Object);
 }
 
 void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                   RegExpError error_text) {
-  USE(ThrowRegExpException(isolate, re, Handle<String>(re->source(), isolate),
-                           error_text));
+  USE(ThrowRegExpException(isolate, re, JSRegExp::AsRegExpFlags(re->flags()),
+                           Handle<String>(re->source(), isolate), error_text));
 }
 
 bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
@@ -219,7 +222,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
                                                &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
-    return RegExp::ThrowRegExpException(isolate, re, pattern,
+    return RegExp::ThrowRegExpException(isolate, re, flags, pattern,
                                         parse_result.error);
   }
 
@@ -238,7 +241,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
                                           parse_result.capture_count)) {
       // TODO(mbid): The error could provide a reason for why the regexp can't
       // be executed in linear time (e.g. due to back references).
-      return RegExp::ThrowRegExpException(isolate, re, pattern,
+      return RegExp::ThrowRegExpException(isolate, re, flags, pattern,
                                           RegExpError::kNotLinear);
     }
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
@@ -551,7 +554,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                                &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    USE(RegExp::ThrowRegExpException(isolate, re, pattern, compile_data.error));
+    USE(RegExp::ThrowRegExpException(isolate, re, flags, pattern,
+                                     compile_data.error));
     return false;
   }
   // The compilation target is a kBytecode if we're interpreting all regexp

@@ -543,7 +543,7 @@ namespace internal {
     "Labelled function declaration not allowed as the body of a control flow " \
     "structure")                                                               \
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
-  T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
+  T(MalformedRegExp, "Invalid regular expression: /%/%: %")                    \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
   T(ModuleExportUndefined, "Export '%' is not defined in module")              \
   T(MissingFunctionName, "Function statements require a function name")        \

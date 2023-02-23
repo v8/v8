@@ -98,7 +98,7 @@ function check(re, expectMatch, expectNoMatch = [], negationValid = true) {
     // Negation of classes containing strings is an error.
     const negated = `[^${re.source}]`;
     assertThrows(() => { new RegExp(negated, `${re.flags}`); }, SyntaxError,
-        `Invalid regular expression: /${negated}/: ` +
+        `Invalid regular expression: /${negated}/${re.flags}: ` +
         `Negated character class may contain strings`);
   } else {
     // Nest the current RegExp in a negated class and check expectations are

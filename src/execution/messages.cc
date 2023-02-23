@@ -425,7 +425,7 @@ Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
   if (!arg2.is_null()) {
     arg2_string = Object::NoSideEffectsToString(isolate, arg2);
   }
-  MaybeHandle<String> maybe_result_string = MessageFormatter::Format(
+  MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
       isolate, index, arg0_string, arg1_string, arg2_string);
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
@@ -454,11 +454,11 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
   }
 }
 
-MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
-                                             MessageTemplate index,
-                                             Handle<String> arg0,
-                                             Handle<String> arg1,
-                                             Handle<String> arg2) {
+MaybeHandle<String> MessageFormatter::TryFormat(Isolate* isolate,
+                                                MessageTemplate index,
+                                                Handle<String> arg0,
+                                                Handle<String> arg1,
+                                                Handle<String> arg2) {
   const char* template_string = TemplateString(index);
   if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
@@ -681,7 +681,7 @@ Handle<String> DoFormatMessage(Isolate* isolate, MessageTemplate index,
   isolate->native_context()->IncrementErrorsThrown();
 
   Handle<String> msg;
-  if (!MessageFormatter::Format(isolate, index, arg0_str, arg1_str, arg2_str)
+  if (!MessageFormatter::TryFormat(isolate, index, arg0_str, arg1_str, arg2_str)
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
