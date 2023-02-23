@@ -58,6 +58,9 @@ namespace compiler {
   V(X64Word64AtomicExchangeUint64)                         \
   V(X64Word64AtomicCompareExchangeUint64)                  \
   V(X64Movdqu256)                                          \
+  V(X64MovqDecompressTaggedSigned)                         \
+  V(X64MovqDecompressTagged)                               \
+  V(X64MovqCompressTagged)                                 \
   V(X64S256Load32Splat)                                    \
   V(X64S256Load64Splat)
 
@@ -172,9 +175,6 @@ namespace compiler {
   V(X64Float64Neg)                                   \
   V(X64Float32Abs)                                   \
   V(X64Float32Neg)                                   \
-  V(X64MovqDecompressTaggedSigned)                   \
-  V(X64MovqDecompressTagged)                         \
-  V(X64MovqCompressTagged)                           \
   V(X64MovqEncodeSandboxedPointer)                   \
   V(X64MovqDecodeSandboxedPointer)                   \
   V(X64BitcastFI)                                    \

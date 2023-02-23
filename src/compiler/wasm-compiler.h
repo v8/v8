@@ -13,8 +13,9 @@
 #include <utility>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
-// Do not include anything from src/compiler here!
+// Do not include anything else from src/compiler here!
 #include "src/base/small-vector.h"
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -796,6 +797,7 @@ class WasmGraphBuilder {
   void BoundsCheckArray(Node* array, Node* index, CheckForNull null_check,
                         wasm::WasmCodePosition position);
   void BoundsCheckArrayCopy(Node* array, Node* index, Node* length,
+                            CheckForNull null_check,
                             wasm::WasmCodePosition position);
 
   // Asm.js specific functionality.
@@ -869,6 +871,7 @@ class WasmGraphBuilder {
   Parameter0Mode parameter_mode_;
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;
+  NullCheckStrategy null_check_strategy_;
 };
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };

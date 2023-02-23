@@ -10,6 +10,7 @@
 #define V8_COMPILER_WASM_GC_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 
 namespace v8 {
@@ -29,8 +30,6 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
-  enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
-
   Reduction ReduceWasmTypeCheck(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
   Reduction ReduceAssertNotNull(Node* node);

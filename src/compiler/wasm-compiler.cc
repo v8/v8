@@ -133,7 +133,11 @@ WasmGraphBuilder::WasmGraphBuilder(
       sig_(sig),
       source_position_table_(source_position_table),
       parameter_mode_(parameter_mode),
-      isolate_(isolate) {
+      isolate_(isolate),
+      null_check_strategy_(trap_handler::IsTrapHandlerEnabled() &&
+                                   V8_STATIC_ROOTS_BOOL
+                               ? NullCheckStrategy::kTrapHandler
+                               : NullCheckStrategy::kExplicitNullChecks) {
   DCHECK_EQ(isolate == nullptr, parameter_mode_ != kNoSpecialParameterMode);
   DCHECK_IMPLIES(env && env->bounds_checks == wasm::kTrapHandler,
                  trap_handler::IsTrapHandlerEnabled());
@@ -2982,7 +2986,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
                                      CheckForNull null_check,
                                      IsReturnCall continuation,
                                      wasm::WasmCodePosition position) {
-  if (null_check == kWithNullCheck) {
+  if (null_check == kWithNullCheck &&
+      null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks) {
     args[0] =
         AssertNotNull(args[0], wasm::kWasmFuncRef /* good enough */, position);
   }
@@ -2992,9 +2997,17 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   auto load_target = gasm_->MakeLabel();
   auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  Node* ref_node = gasm_->LoadImmutableFromObject(
-      MachineType::TaggedPointer(), function,
-      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
+  Node* ref_node =
+      null_check == kWithNullCheck &&
+              null_check_strategy_ == NullCheckStrategy::kTrapHandler
+          ? gasm_->LoadTrapOnNull(
+                MachineType::TaggedPointer(), function,
+                gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                    WasmInternalFunction::kRefOffset)))
+          : gasm_->LoadImmutableFromObject(
+                MachineType::TaggedPointer(), function,
+                wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
+  SetSourcePosition(ref_node, position);
 
   Node* target = gasm_->BuildLoadExternalPointerFromObject(
       function, WasmInternalFunction::kCallTargetOffset,
@@ -5860,9 +5873,11 @@ void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
 
 void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
                                             Node* length,
+                                            CheckForNull null_check,
                                             wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* array_length = gasm_->ArrayLength(array, false);
+  Node* array_length = gasm_->ArrayLength(array, null_check == kWithNullCheck);
+  SetSourcePosition(array_length, position);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
       gasm_->Uint32LessThanOrEqual(range_end, array_length),
@@ -5900,14 +5915,8 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
                                  Node* src_index, CheckForNull src_null_check,
                                  Node* length,
                                  wasm::WasmCodePosition position) {
-  if (dst_null_check == kWithNullCheck) {
-    dst_array = AssertNotNull(dst_array, wasm::kWasmArrayRef, position);
-  }
-  if (src_null_check == kWithNullCheck) {
-    src_array = AssertNotNull(src_array, wasm::kWasmArrayRef, position);
-  }
-  BoundsCheckArrayCopy(dst_array, dst_index, length, position);
-  BoundsCheckArrayCopy(src_array, src_index, length, position);
+  BoundsCheckArrayCopy(dst_array, dst_index, length, dst_null_check, position);
+  BoundsCheckArrayCopy(src_array, src_index, length, src_null_check, position);
 
   auto skip = gasm_->MakeLabel();
 

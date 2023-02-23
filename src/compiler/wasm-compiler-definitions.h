@@ -28,6 +28,8 @@ struct WasmTypeCheckConfig {
   const wasm::ValueType to;
 };
 
+enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+
 V8_INLINE std::ostream& operator<<(std::ostream& os,
                                    WasmTypeCheckConfig const& p) {
   return os << p.from.name() << " -> " << p.to.name();

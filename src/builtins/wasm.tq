@@ -405,10 +405,10 @@ builtin WasmArrayNewSegment(
 builtin WasmArrayCopyWithChecks(
     dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
     srcObject: Object): JSAny {
-  if (dstObject == Null) tail ThrowWasmTrapNullDereference();
-  if (srcObject == Null) tail ThrowWasmTrapNullDereference();
-  const dstArray = %RawDownCast<WasmArray>(dstObject);
-  const srcArray = %RawDownCast<WasmArray>(srcObject);
+  if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  const dstArray = UnsafeCast<WasmArray>(dstObject);
+  const srcArray = UnsafeCast<WasmArray>(srcObject);
   // Check that the end of the copying range is in-bounds and that the range
   // does not overflow.
   if (dstIndex + length > dstArray.length || dstIndex + length < dstIndex ||
@@ -422,11 +422,14 @@ builtin WasmArrayCopyWithChecks(
 }
 
 builtin WasmArrayCopy(
-    dstIndex: uint32, srcIndex: uint32, length: uint32, dstArray: WasmArray,
-    srcArray: WasmArray): JSAny {
+    dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
+    srcObject: Object): JSAny {
+  if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
   if (length == 0) return Undefined;
   tail runtime::WasmArrayCopy(
-      LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
+      LoadContextFromFrame(), UnsafeCast<WasmArray>(dstObject),
+      SmiFromUint32(dstIndex), UnsafeCast<WasmArray>(srcObject),
       SmiFromUint32(srcIndex), SmiFromUint32(length));
 }
 
