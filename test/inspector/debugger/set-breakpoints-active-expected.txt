@@ -1,0 +1,12 @@
+Tests for set-breakpoints-active
+
+Running test: testDeactivatedBreakpointsAfterReconnect
+Paused. (reason: other)
+Reconnected.
+Debugger break executed.
+
+Running test: testDeactivatedBreakpointsAfterDisableEnable
+Paused. (reason: other)
+Disabled.
+Enabled.
+Debugger break executed.

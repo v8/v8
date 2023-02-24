@@ -50,6 +50,7 @@ static const char pauseOnExceptionsState[] = "pauseOnExceptionsState";
 static const char asyncCallStackDepth[] = "asyncCallStackDepth";
 static const char blackboxPattern[] = "blackboxPattern";
 static const char debuggerEnabled[] = "debuggerEnabled";
+static const char breakpointsActiveWhenEnabled[] = "breakpointsActive";
 static const char skipAllPauses[] = "skipAllPauses";
 
 static const char breakpointsByRegex[] = "breakpointsByRegex";
@@ -446,9 +447,11 @@ void V8DebuggerAgentImpl::enableImpl() {
     didParseSource(std::move(script), true);
   }
 
-  m_breakpointsActive = true;
-  m_debugger->setBreakpointsActive(true);
-
+  m_breakpointsActive = m_state->booleanProperty(
+      DebuggerAgentState::breakpointsActiveWhenEnabled, true);
+  if (m_breakpointsActive) {
+    m_debugger->setBreakpointsActive(true);
+  }
   if (isPaused()) {
     didPause(0, v8::Local<v8::Value>(), std::vector<v8::debug::BreakpointId>(),
              v8::debug::kException, false,
@@ -546,6 +549,7 @@ void V8DebuggerAgentImpl::restore() {
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   if (m_breakpointsActive == active) return Response::Success();
+  m_state->setBoolean(DebuggerAgentState::breakpointsActiveWhenEnabled, active);
   m_breakpointsActive = active;
   m_debugger->setBreakpointsActive(active);
   if (!active && !m_breakReason.empty()) {

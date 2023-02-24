@@ -172,6 +172,7 @@ void V8Debugger::setBreakpointsActive(bool active) {
     UNREACHABLE();
   }
   m_breakpointsActiveCount += active ? 1 : -1;
+  DCHECK_GE(m_breakpointsActiveCount, 0);
   v8::debug::SetBreakPointsActive(m_isolate, m_breakpointsActiveCount);
 }
 
