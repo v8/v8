@@ -547,9 +547,9 @@ void V8DebuggerAgentImpl::restore() {
 }
 
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
-  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
-  if (m_breakpointsActive == active) return Response::Success();
   m_state->setBoolean(DebuggerAgentState::breakpointsActiveWhenEnabled, active);
+  if (!enabled()) return Response::Success();
+  if (m_breakpointsActive == active) return Response::Success();
   m_breakpointsActive = active;
   m_debugger->setBreakpointsActive(active);
   if (!active && !m_breakReason.empty()) {
