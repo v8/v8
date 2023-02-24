@@ -57,7 +57,7 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   CHECK(file);
   static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
 
-  std::ofstream out(file);
+  std::ofstream out(file, std::ios::binary);
 
   out << "// Copyright 2022 the V8 project authors. All rights reserved.\n"
       << "// Use of this source code is governed by a BSD-style license "
@@ -108,7 +108,7 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       size_t len = strlen(kPreString) + name.length() + 5 + ptr_len + 1;
       out << kPreString << name << " =";
       if (len > 80) out << "\n     ";
-      out << " " << reinterpret_cast<void*>(ptr) << ";\n";
+      out << " 0x" << std::hex << ptr << std::dec << ";\n";
     }
   }
   out << "};\n";

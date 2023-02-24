@@ -10,6 +10,7 @@ import os
 import filecmp
 import tempfile
 import shutil
+import platform
 from pathlib import Path
 
 # Detect if we have goma
@@ -101,8 +102,9 @@ def build(path, gn_args):
     path.mkdir(parents=True, exist_ok=True)
   with (path / "args.gn").open("w") as f:
     f.write(gn_args)
-  run(["gn", "gen", path])
-  run(["autoninja", "-C", path, "mksnapshot"])
+  suffix = ".bat" if platform.system() == "Windows" else ""
+  run(["gn" + suffix, "gen", path])
+  run(["autoninja" + suffix, "-C", path, "mksnapshot"])
   return path.absolute()
 
 
