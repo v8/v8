@@ -591,19 +591,6 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
   vsmul_vv(dst.fp().toV(), src1.fp().toV(), src2.fp().toV());
 }
 
-void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
-                                                    LiftoffRegister lhs,
-                                                    LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_dot_i8x16_i7x16_s");
-}
-
-void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
-                                                        LiftoffRegister lhs,
-                                                        LiftoffRegister rhs,
-                                                        LiftoffRegister acc) {
-  bailout(kSimd, "emit_i32x4_dot_i8x16_i7x16_add_s");
-}
-
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
@@ -1379,6 +1366,67 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
   vcompress_vv(v0, kSimd128ScratchReg3, kSimd128ScratchReg2);
   VU.set(kScratchReg, E32, m1);
   vadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);
+}
+
+void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
+                                                    LiftoffRegister lhs,
+                                                    LiftoffRegister rhs) {
+  VU.set(kScratchReg, E8, m1);
+  vwmul_vv(kSimd128ScratchReg3, lhs.fp().toV(), rhs.fp().toV());
+  VU.set(kScratchReg, E16, m2);
+
+  constexpr int32_t FIRST_INDEX = 0b0101010101010101;
+  constexpr int32_t SECOND_INDEX = 0b1010101010101010;
+  li(kScratchReg, FIRST_INDEX);
+  vmv_sx(v0, kScratchReg);
+  vcompress_vv(kSimd128ScratchReg, kSimd128ScratchReg3, v0);
+
+  li(kScratchReg, SECOND_INDEX);
+  vmv_sx(kSimd128ScratchReg2, kScratchReg);
+  vcompress_vv(v0, kSimd128ScratchReg3, kSimd128ScratchReg2);
+  VU.set(kScratchReg, E16, m1);
+  vadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);
+}
+
+void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
+                                                        LiftoffRegister lhs,
+                                                        LiftoffRegister rhs,
+                                                        LiftoffRegister acc) {
+  VU.set(kScratchReg, E8, m1);
+  VRegister intermediate = kSimd128ScratchReg3;
+  vwmul_vv(intermediate, lhs.fp().toV(), rhs.fp().toV());  // i16*16 v8 v9
+
+  constexpr int32_t FIRST_INDEX = 0b0001000100010001;
+  constexpr int32_t SECOND_INDEX = 0b0010001000100010;
+  constexpr int32_t THIRD_INDEX = 0b0100010001000100;
+  constexpr int32_t FOURTH_INDEX = 0b1000100010001000;
+
+  VU.set(kScratchReg, E16, m2);
+  li(kScratchReg, FIRST_INDEX);
+  vmv_sx(v0, kScratchReg);
+  vcompress_vv(kSimd128ScratchReg, intermediate, v0);  // i16*4 a
+  li(kScratchReg, SECOND_INDEX);
+  vmv_sx(kSimd128ScratchReg2, kScratchReg);
+  vcompress_vv(v0, intermediate, kSimd128ScratchReg2);  // i16*4 b
+
+  VU.set(kScratchReg, E16, m1);
+  vwadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);  // i32*4 c
+
+  VU.set(kScratchReg, E16, m2);
+  li(kScratchReg, THIRD_INDEX);
+  vmv_sx(v0, kScratchReg);
+  vcompress_vv(kSimd128ScratchReg, intermediate, v0);  // i16*4 a
+
+  li(kScratchReg, FOURTH_INDEX);
+  vmv_sx(kSimd128ScratchReg2, kScratchReg);
+  vcompress_vv(v0, intermediate, kSimd128ScratchReg2);  // i16*4 b
+
+  VU.set(kScratchReg, E16, m1);
+  vwadd_vv(kSimd128ScratchReg3, kSimd128ScratchReg, v0);  // i32*4 c
+
+  VU.set(kScratchReg, E32, m1);
+  vadd_vv(dst.fp().toV(), dst.fp().toV(), kSimd128ScratchReg3);
+  vadd_vv(dst.fp().toV(), dst.fp().toV(), acc.fp().toV());
 }
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
