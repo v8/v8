@@ -933,6 +933,8 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
 class ExternalString
     : public TorqueGeneratedExternalString<ExternalString, String> {
  public:
+  class BodyDescriptor;
+
   DECL_VERIFIER(ExternalString)
 
   // Size of uncached external strings.
@@ -999,8 +1001,6 @@ class ExternalOneByteString
   inline uint8_t Get(int index, PtrComprCageBase cage_base,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  class BodyDescriptor;
-
   static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalOneByteString)
@@ -1045,8 +1045,6 @@ class ExternalTwoByteString
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
-
-  class BodyDescriptor;
 
   static_assert(kSize == kSizeOfAllExternalStrings);
 

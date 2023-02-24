@@ -8,6 +8,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/objects/visitors.h"
 
 namespace v8 {
@@ -25,6 +26,7 @@ namespace internal {
   V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
+  V(ExternalString)                     \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
   V(FeedbackCell)                       \
