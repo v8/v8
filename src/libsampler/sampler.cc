@@ -274,6 +274,7 @@ class Sampler::PlatformData {
         THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
         FALSE, 0);
     DCHECK(result);
+    USE(result);
   }
 
   ~PlatformData() {
