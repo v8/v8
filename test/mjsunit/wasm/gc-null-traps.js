@@ -9,23 +9,31 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestNullDereferences() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct = builder.addStruct([
+      makeField(kWasmI32, true), makeField(kWasmI64, true),
+      makeField(kWasmF64, true), makeField(kWasmF32, true)]);
   let struct_ref =
       builder.addStruct([makeField(wasmRefNullType(struct), true)]);
   let array = builder.addArray(kWasmI64, true);
   let array_ref = builder.addArray(wasmRefNullType(struct), true);
   let sig = builder.addType(kSig_i_i);
 
-  builder.addFunction(
-      "structGet", makeSig([wasmRefNullType(struct)], [kWasmI32]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0])
-    .exportFunc();
+  for (let field_type of [[0, kWasmI32], [1, kWasmI64],
+                          [2, kWasmF64], [3, kWasmF32]]) {
+    builder.addFunction(
+        "structGet" + field_type[0],
+        makeSig([wasmRefNullType(struct)], [field_type[1]]))
+      .addBody([
+          kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, field_type[0]])
+      .exportFunc();
 
-  builder.addFunction(
-      "structSet", makeSig([wasmRefNullType(struct), kWasmI32], []))
-    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
-              kGCPrefix, kExprStructSet, struct, 0])
-    .exportFunc();
+    builder.addFunction(
+        "structSet" + field_type[0],
+        makeSig([wasmRefNullType(struct), field_type[1]], []))
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+                kGCPrefix, kExprStructSet, struct, field_type[0]])
+      .exportFunc();
+  }
 
   builder.addFunction(
       "structRefGet", makeSig([wasmRefNullType(struct_ref)],
@@ -117,8 +125,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
 
-  assertTraps(kTrapNullDereference, () => instance.exports.structGet(null));
-  assertTraps(kTrapNullDereference, () => instance.exports.structSet(null, 15));
+  assertTraps(kTrapNullDereference, () => instance.exports.structGet0(null));
+  assertTraps(kTrapNullDereference,
+              () => instance.exports.structSet0(null, 15));
+  assertTraps(kTrapNullDereference, () => instance.exports.structGet1(null));
+  assertTraps(kTrapNullDereference,
+              () => instance.exports.structSet1(null, 15n));
+  assertTraps(kTrapNullDereference, () => instance.exports.structGet2(null));
+  assertTraps(kTrapNullDereference,
+              () => instance.exports.structSet2(null, 15.0));
+  assertTraps(kTrapNullDereference, () => instance.exports.structGet3(null));
+  assertTraps(kTrapNullDereference,
+              () => instance.exports.structSet3(null, 15.0));
   assertTraps(kTrapNullDereference, () => instance.exports.structRefGet(null));
   assertTraps(kTrapNullDereference,
               () => instance.exports.structRefSet(null, null));
