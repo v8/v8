@@ -7325,7 +7325,7 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, lhs_reg.gp(), pinned, lhs.type);
     LiftoffAssembler::VarState lhs_var(kRef, lhs_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringCompare,
+    CallRuntimeStub(WasmCode::kWasmStringCompareLiftoff,
                     MakeSig::Returns(kSmiKind).Params(kRef, kRef),
                     {lhs_var, rhs_var}, decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);

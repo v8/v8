@@ -89,6 +89,14 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
 
  protected:
+  enum class StringComparison {
+    kLessThan,
+    kLessThanOrEqual,
+    kGreaterThan,
+    kGreaterThanOrEqual,
+    kCompare
+  };
+
   void StringEqual_FastLoop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
                             TNode<String> rhs, TNode<Word32T> rhs_instance_type,
                             TNode<IntPtrT> byte_length, Label* if_equal,
@@ -111,7 +119,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void GenerateStringEqual(TNode<String> left, TNode<String> right,
                            TNode<IntPtrT> length);
   void GenerateStringRelationalComparison(TNode<String> left,
-                                          TNode<String> right, Operation op);
+                                          TNode<String> right,
+                                          StringComparison op);
 
   using StringAtAccessor = std::function<TNode<Object>(
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;

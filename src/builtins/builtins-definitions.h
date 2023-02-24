@@ -166,6 +166,7 @@ namespace internal {
   TFC(StringLessThan, Compare)                                                 \
   TFC(StringLessThanOrEqual, Compare)                                          \
   TFC(StringSubstring, StringSubstring)                                        \
+  IF_WASM(TFC, WasmStringCompare, Compare)                                     \
                                                                                \
   /* OrderedHashTable helpers */                                               \
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \

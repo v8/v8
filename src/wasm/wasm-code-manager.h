@@ -150,6 +150,7 @@ struct WasmModule;
   V(WasmStringViewIterRewind)            \
   V(WasmStringViewIterSlice)             \
   V(WasmStringCompare)                   \
+  V(WasmStringCompareLiftoff)            \
   V(WasmStringFromCodePoint)             \
   V(WasmStringHash)                      \
   V(WasmExternInternalize)
