@@ -2106,9 +2106,9 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           default:
-            if (ValidationTag::validate) {
-              decoder->DecodeError(pc, "invalid numeric opcode");
-            }
+            // This path is only possible if we are validating.
+            V8_ASSUME(ValidationTag::validate);
+            decoder->DecodeError(pc, "invalid numeric opcode");
             return length;
         }
       }
@@ -2155,9 +2155,9 @@ class WasmDecoder : public Decoder {
             }
             return length + kSimd128Size;
           default:
-            if (ValidationTag::validate) {
-              decoder->DecodeError(pc, "invalid SIMD opcode");
-            }
+            // This path is only possible if we are validating.
+            V8_ASSUME(ValidationTag::validate);
+            decoder->DecodeError(pc, "invalid SIMD opcode");
             return length;
         }
       }
@@ -2177,9 +2177,9 @@ class WasmDecoder : public Decoder {
             return length + 1;
           }
           default:
-            if (ValidationTag::validate) {
-              decoder->DecodeError(pc, "invalid Atomics opcode");
-            }
+            // This path is only possible if we are validating.
+            V8_ASSUME(ValidationTag::validate);
+            decoder->DecodeError(pc, "invalid Atomics opcode");
             return length;
         }
       }
@@ -2349,10 +2349,9 @@ class WasmDecoder : public Decoder {
           case kExprStringHash:
             return length;
           default:
-            // This is unreachable except for malformed modules.
-            if (ValidationTag::validate) {
-              decoder->DecodeError(pc, "invalid gc opcode");
-            }
+            // This path is only possible if we are validating.
+            V8_ASSUME(ValidationTag::validate);
+            decoder->DecodeError(pc, "invalid gc opcode");
             return length;
         }
       }
@@ -3913,7 +3912,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->template read_prefixed_opcode<ValidationTag>(this->pc_,
                                                            "gc index");
     trace_msg->AppendOpcode(full_opcode);
-    if (full_opcode >= kExprStringNewUtf8) {
+    // If we are validating we could have read an illegal opcode. Handle that
+    // separately.
+    if (!VALIDATE(full_opcode != 0)) {
+      DCHECK(this->failed());
+      return 0;
+    } else if (full_opcode >= kExprStringNewUtf8) {
       CHECK_PROTOTYPE_OPCODE(stringref);
       return DecodeStringRefOpcode(full_opcode, opcode_length);
     } else {
@@ -6264,6 +6268,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 1 + opcode_length;
       }
       default:
+        // This path is only possible if we are validating.
+        V8_ASSUME(ValidationTag::validate);
         this->DecodeError("invalid atomic opcode: 0x%x", opcode);
         return 0;
     }
