@@ -390,7 +390,7 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  return *function;
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // TODO(v8:7700): Remove this function once we no longer need it to measure
