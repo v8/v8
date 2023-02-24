@@ -287,6 +287,7 @@ constexpr Register kWasmInstanceRegister = rsi;
 // function calling convention.
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
+constexpr YMMRegister kScratchSimd256Reg = ymm15;
 constexpr Register kRootRegister = r13;  // callee save
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr Register kPtrComprCageBaseRegister = r14;  // callee save
