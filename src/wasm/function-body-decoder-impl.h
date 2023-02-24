@@ -995,7 +995,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(I64Const, Value* result, int64_t value)                                    \
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
-  F(S128Const, Simd128Immediate& imm, Value* result)                           \
+  F(S128Const, const Simd128Immediate& imm, Value* result)                     \
   F(GlobalGet, Value* result, const GlobalIndexImmediate& imm)                 \
   F(DoReturn, uint32_t drop_values)                                            \
   F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
@@ -1077,7 +1077,6 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)        \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate& imm,               \
     const base::Vector<Value> inputs, Value* result)                           \
-  F(S128Const, const Simd128Immediate& imm, Value* result)                     \
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
     const Value& input1, Value* result)                                        \
   F(Throw, const TagIndexImmediate& imm, const base::Vector<Value>& args)      \

@@ -36,7 +36,7 @@ void ConstantExpressionInterface::F64Const(FullDecoder* decoder, Value* result,
 }
 
 void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
-                                            Simd128Immediate& imm,
+                                            const Simd128Immediate& imm,
                                             Value* result) {
   if (!generate_value()) return;
   result->runtime_value = WasmValue(imm.value, kWasmS128);
