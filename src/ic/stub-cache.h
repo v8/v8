@@ -90,11 +90,6 @@ class V8_EXPORT_PRIVATE StubCache {
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
-  // Used to introduce more entropy from the higher bits of the Map address.
-  // This should fill in the masked out kCacheIndexShift-bits.
-  static const int kMapKeyShift = kPrimaryTableBits + kCacheIndexShift;
-  static const int kSecondaryKeyShift = kSecondaryTableBits + kCacheIndexShift;
-
   static int PrimaryOffsetForTesting(Name name, Map map);
   static int SecondaryOffsetForTesting(Name name, Map map);
 

@@ -37,7 +37,7 @@ int StubCache::PrimaryOffset(Name name, Map map) {
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
   uint32_t map_low32bits =
-      static_cast<uint32_t>(map.ptr() ^ (map.ptr() >> kMapKeyShift));
+      static_cast<uint32_t>(map.ptr() ^ (map.ptr() >> kPrimaryTableBits));
   // Base the offset on a simple combination of name and map.
   uint32_t key = map_low32bits + field;
   return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
@@ -51,7 +51,7 @@ int StubCache::SecondaryOffset(Name name, Map old_map) {
   uint32_t name_low32bits = static_cast<uint32_t>(name.ptr());
   uint32_t map_low32bits = static_cast<uint32_t>(old_map.ptr());
   uint32_t key = (map_low32bits + name_low32bits);
-  key = key + (key >> kSecondaryKeyShift);
+  key = key + (key >> kSecondaryTableBits);
   return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
 }
 

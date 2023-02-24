@@ -2906,7 +2906,7 @@ TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
   TNode<IntPtrT> map_word = BitcastTaggedToWord(map);
 
   TNode<Int32T> map32 = TruncateIntPtrToInt32(UncheckedCast<IntPtrT>(
-      WordXor(map_word, WordShr(map_word, StubCache::kMapKeyShift))));
+      WordXor(map_word, WordShr(map_word, StubCache::kPrimaryTableBits))));
   // Base the offset on a simple combination of name and map.
   TNode<Word32T> hash = Int32Add(raw_hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
@@ -2925,7 +2925,7 @@ TNode<IntPtrT> AccessorAssembler::StubCacheSecondaryOffset(TNode<Name> name,
   TNode<Int32T> map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
   // Base the offset on a simple combination of name and map.
   TNode<Word32T> hash_a = Int32Add(map32, name32);
-  TNode<Word32T> hash_b = Word32Shr(hash_a, StubCache::kSecondaryKeyShift);
+  TNode<Word32T> hash_b = Word32Shr(hash_a, StubCache::kSecondaryTableBits);
   TNode<Word32T> hash = Int32Add(hash_a, hash_b);
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
