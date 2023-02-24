@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import re
 import sys
 
 from common_includes import *
@@ -25,6 +26,8 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel""")
+
+REF_LINE_PATTERN = r"refs\/tags\/(\d+(?:\.\d+){2,3})-pgo\ ([0-9a-f]{40})"
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -61,19 +64,25 @@ class DetectRevisionToRoll(Step):
 
     # The revision that should be rolled. Check for the latest of the most
     # recent releases based on commit timestamp.
-    revisions = self.GetRecentReleases(
-        max_age=self._options.max_age * DAY_IN_SECONDS)
-    assert revisions, "Didn't find any recent release."
+    response = self.Git(
+        r"for-each-ref --count=80 --sort=-committerdate --format "
+        r"'%(refname) %(objectname)' 'refs/tags/*-pgo'"
+    )
+    version_revisions = []
+    for line in response.split('\n'):
+      match = re.fullmatch(REF_LINE_PATTERN, line)
+      if not match:
+        continue
+      version_revisions.append(match.groups())
+
+    assert version_revisions, "Didn't find any recent release."
 
     # There must be some progress between the last roll and the new candidate
     # revision (i.e. we don't go backwards). The revisions are ordered newest
     # to oldest. It is possible that the newest timestamp has no progress
     # compared to the last roll, i.e. if the newest release is a cherry-pick
     # on a release branch. Then we look further.
-    for revision in revisions:
-      version = self.GetVersionTag(revision)
-      assert version, "Internal error. All recent releases should have a tag"
-
+    for version, revision in version_revisions:
       if LooseVersion(self["last_version"]) < LooseVersion(version):
         self["roll"] = revision
         break
@@ -180,8 +189,6 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("--last-roll",
                         help="The git commit ID of the last rolled version. "
                              "Auto-detected if not specified.")
-    parser.add_argument("--max-age", default=7, type=int,
-                        help="Maximum age in days of the latest release.")
     parser.add_argument("--revision",
                         help="Revision to roll. Auto-detected if not "
                              "specified."),
