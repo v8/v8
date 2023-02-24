@@ -3220,7 +3220,8 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
     }
   }
 
-  if (V8_STATIC_ROOTS_BOOL || !isolate()->bootstrapper()) {
+  if (V8_STATIC_ROOTS_BOOL ||
+      (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper())) {
     Arm64OperandGenerator g(this);
     const RootsTable& roots_table = isolate()->roots_table();
     RootIndex root_index;
