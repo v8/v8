@@ -251,6 +251,7 @@ class MergePointInterpreterFrameState;
   V(CheckUint32IsSmi)                 \
   V(CheckHeapObject)                  \
   V(CheckInt32Condition)              \
+  V(CheckFixedArrayNonEmpty)          \
   V(CheckJSArrayBounds)               \
   V(CheckJSDataViewBounds)            \
   V(CheckJSObjectElementsBounds)      \
@@ -3963,6 +3964,24 @@ class CheckMapsWithMigration
  private:
   const ZoneHandleSet<Map> maps_;
   const CheckType check_type_;
+};
+
+class CheckFixedArrayNonEmpty
+    : public FixedInputNodeT<1, CheckFixedArrayNonEmpty> {
+  using Base = FixedInputNodeT<1, CheckFixedArrayNonEmpty>;
+
+ public:
+  explicit CheckFixedArrayNonEmpty(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {

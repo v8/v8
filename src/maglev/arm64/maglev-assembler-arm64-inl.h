@@ -635,6 +635,13 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
   CompareAndBranch(r1.W(), Immediate(value), cond, target);
 }
 
+inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Smi value,
+                                                 Condition cond, Label* target,
+                                                 Label::Distance distance) {
+  AssertSmi(r1);
+  CompareAndBranch(r1, Immediate(value), cond, target);
+}
+
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   TestAndBranchIfAnySet(r1.W(), mask, target);

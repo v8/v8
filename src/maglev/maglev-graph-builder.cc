@@ -2728,7 +2728,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
     // TODO(leszeks): Cache the indices across the loop.
     auto* cache_array = AddNewNode<LoadTaggedField>(
         {current_for_in_state.enum_cache}, EnumCache::kIndicesOffset);
-    // TODO(leszeks): Do we need to check that the indices aren't empty?
+    AddNewNode<CheckFixedArrayNonEmpty>({cache_array});
     // TODO(leszeks): Cache the field index per iteration.
     auto* field_index = AddNewNode<LoadFixedArrayElement>(
         {cache_array, current_for_in_state.index});

@@ -243,6 +243,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
+  inline void CompareSmiAndJumpIf(Register r1, Smi value, Condition cond,
+                                  Label* target,
+                                  Label::Distance distance = Label::kFar);
   inline void TestInt32AndJumpIfAnySet(Register r1, int32_t mask, Label* target,
                                        Label::Distance distance = Label::kFar);
   inline void TestInt32AndJumpIfAllClear(

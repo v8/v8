@@ -36,6 +36,20 @@ BasicBlock* Phi::predecessor_at(int i) {
   return merge_state_->predecessor_at(i);
 }
 
+namespace {
+
+// Prevent people from accidentally using kScratchRegister here and having their
+// code break in arm64.
+struct Do_not_use_kScratchRegister_in_arch_independent_code {
+} kScratchRegister;
+struct Do_not_use_kScratchDoubleRegister_in_arch_independent_code {
+} kScratchDoubleRegister;
+static_assert(!std::is_same_v<decltype(kScratchRegister), Register>);
+static_assert(
+    !std::is_same_v<decltype(kScratchDoubleRegister), DoubleRegister>);
+
+}  // namespace
+
 #ifdef DEBUG
 namespace {
 
@@ -1626,6 +1640,31 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
   }
   __ IsObjectType(object, instance_type());
   __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongInstanceType, this);
+}
+
+void CheckFixedArrayNonEmpty::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(1);
+}
+void CheckFixedArrayNonEmpty::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  __ AssertNotSmi(object);
+
+  if (v8_flags.debug_code) {
+    Label ok;
+    __ IsObjectType(object, FIXED_ARRAY_TYPE);
+    __ JumpIf(kEqual, &ok);
+    __ IsObjectType(object, FIXED_DOUBLE_ARRAY_TYPE);
+    __ Assert(kEqual, AbortReason::kOperandIsNotAFixedArray);
+    __ bind(&ok);
+  }
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register length = temps.Acquire();
+  __ LoadTaggedSignedField(length, object, FixedArrayBase::kLengthOffset);
+  __ CompareSmiAndJumpIf(
+      length, Smi::zero(), kEqual,
+      __ GetDeoptLabel(this, DeoptimizeReason::kWrongEnumIndices));
 }
 
 void CheckInt32Condition::SetValueLocationConstraints() {
