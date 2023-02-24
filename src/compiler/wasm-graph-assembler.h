@@ -292,6 +292,10 @@ class WasmGraphAssembler : public GraphAssembler {
                              effect(), control()));
   }
 
+  Node* LoadRootRegister() {
+    return AddNode(graph()->NewNode(mcgraph()->machine()->LoadRootRegister()));
+  }
+
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 
  private:

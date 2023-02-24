@@ -1838,6 +1838,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoadFramePointer(node);
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
+    case IrOpcode::kLoadRootRegister:
+      return VisitLoadRootRegister(node);
     case IrOpcode::kUnalignedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -2414,6 +2416,11 @@ void InstructionSelector::VisitLoadFramePointer(Node* node) {
 void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitLoadRootRegister(Node* node) {
+  // Do nothing. Following loads/stores from this operator will use kMode_Root
+  // to load/store from an offset of the root register.
 }
 
 void InstructionSelector::VisitFloat64Acos(Node* node) {

@@ -187,14 +187,14 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
   Node* table;
   if (IsSharedExternalPointerType(tag)) {
     Node* table_address =
-        LoadFromObject(MachineType::Pointer(), isolate_root,
-                       IsolateData::shared_external_pointer_table_offset());
-    table = LoadFromObject(MachineType::Pointer(), table_address,
-                           Internals::kExternalPointerTableBufferOffset);
+        Load(MachineType::Pointer(), isolate_root,
+             IsolateData::shared_external_pointer_table_offset());
+    table = Load(MachineType::Pointer(), table_address,
+                 Internals::kExternalPointerTableBufferOffset);
   } else {
-    table = LoadFromObject(MachineType::Pointer(), isolate_root,
-                           IsolateData::external_pointer_table_offset() +
-                               Internals::kExternalPointerTableBufferOffset);
+    table = Load(MachineType::Pointer(), isolate_root,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBufferOffset);
   }
   Node* decoded_ptr = Load(MachineType::Pointer(), table, scaled_index);
   return WordAnd(decoded_ptr, IntPtrConstant(~tag));

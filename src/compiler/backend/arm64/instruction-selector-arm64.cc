@@ -655,6 +655,14 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
     }
   }
 
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    input_count = 1;
+    inputs[0] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Root);
+    selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
+    return;
+  }
+
   inputs[0] = g.UseRegister(base);
 
   if (g.CanBeImmediate(index, immediate_mode)) {
@@ -1025,6 +1033,16 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     inputs[0] = g.UseRegisterOrImmediateZero(value);
+
+    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+      input_count = 2;
+      // This will only work if {index} is a constant.
+      inputs[1] = g.UseImmediate(index);
+      opcode |= AddressingModeField::encode(kMode_Root);
+      Emit(opcode, 0, nullptr, input_count, inputs);
+      return;
+    }
+
     inputs[1] = g.UseRegister(base);
 
     if (g.CanBeImmediate(index, immediate_mode)) {

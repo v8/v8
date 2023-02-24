@@ -104,6 +104,13 @@ MachineType assert_size(int expected_size, MachineType type) {
              MachineType::Pointer(), BuildLoadIsolateRoot(), \
              IsolateData::root_slot_offset(RootIndex::k##RootName)))
 
+#define LOAD_MUTABLE_ROOT(RootName, factory_name)                    \
+  (parameter_mode_ == kNoSpecialParameterMode                        \
+       ? graph()->NewNode(mcgraph()->common()->HeapConstant(         \
+             isolate_->factory()->factory_name()))                   \
+       : gasm_->Load(MachineType::Pointer(), BuildLoadIsolateRoot(), \
+                     IsolateData::root_slot_offset(RootIndex::k##RootName)))
+
 bool ContainsSimd(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
     if (type == wasm::kWasmS128) return true;
@@ -321,16 +328,8 @@ Node* WasmGraphBuilder::GetInstance() { return instance_node_.get(); }
 Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
   switch (parameter_mode_) {
     case kInstanceMode:
-      // For wasm functions, the IsolateRoot is loaded from the instance node so
-      // that the generated code is Isolate independent.
-      return LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
     case kWasmApiFunctionRefMode:
-      // Note: Even if the sandbox is enabled, the pointer to the isolate root
-      // is not encoded, much like the case above.
-      // TODO(manoskouk): Decode the pointer here if that changes.
-      return gasm_->Load(
-          MachineType::Pointer(), Param(0),
-          wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kIsolateRootOffset));
+      return gasm_->LoadRootRegister();
     case kNoSpecialParameterMode:
       return mcgraph()->IntPtrConstant(isolate_->isolate_root());
   }
@@ -2902,7 +2901,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
       // Note: The reference cannot have been cleared: Since the loaded_sig
       // corresponds to a function of the same canonical type, that function
       // will have kept the type alive.
-      Node* rtts = LOAD_ROOT(WasmCanonicalRtts, wasm_canonical_rtts);
+      Node* rtts = LOAD_MUTABLE_ROOT(WasmCanonicalRtts, wasm_canonical_rtts);
       Node* real_rtt =
           gasm_->WordAnd(gasm_->LoadWeakArrayListElement(rtts, loaded_sig),
                          gasm_->IntPtrConstant(~kWeakHeapObjectMask));
@@ -6454,7 +6453,7 @@ void WasmGraphBuilder::RemoveBytecodePositionDecorator() {
 namespace {
 
 // A non-null {isolate} signifies that the generated code is treated as being in
-// a JS frame for functions like BuildIsolateRoot().
+// a JS frame for functions like BuildLoadIsolateRoot().
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
@@ -6888,8 +6887,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
                                          bool new_value) {
     if (v8_flags.debug_code) {
-      Node* flag_value = gasm_->LoadFromObject(MachineType::Pointer(),
-                                               thread_in_wasm_flag_address, 0);
+      Node* flag_value =
+          gasm_->Load(MachineType::Int32(), thread_in_wasm_flag_address, 0);
       Node* check =
           gasm_->Word32Equal(flag_value, Int32Constant(new_value ? 0 : 1));
 
@@ -6909,9 +6908,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                        flag_check.merge);
     }
 
-    gasm_->StoreToObject(ObjectAccess(MachineType::Int32(), kNoWriteBarrier),
-                         thread_in_wasm_flag_address, 0,
-                         Int32Constant(new_value ? 1 : 0));
+    gasm_->Store({MachineRepresentation::kWord32, kNoWriteBarrier},
+                 thread_in_wasm_flag_address, 0,
+                 Int32Constant(new_value ? 1 : 0));
   }
 
   void BuildModifyThreadInWasmFlag(bool new_value) {
@@ -6919,8 +6918,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* isolate_root = BuildLoadIsolateRoot();
 
     Node* thread_in_wasm_flag_address =
-        gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
-                              Isolate::thread_in_wasm_flag_address_offset());
+        gasm_->Load(MachineType::Pointer(), isolate_root,
+                    Isolate::thread_in_wasm_flag_address_offset());
 
     BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
   }
@@ -6935,8 +6934,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* isolate_root = wasm_wrapper_graph_builder_->BuildLoadIsolateRoot();
 
       thread_in_wasm_flag_address_ =
-          gasm->LoadFromObject(MachineType::Pointer(), isolate_root,
-                               Isolate::thread_in_wasm_flag_address_offset());
+          gasm->Load(MachineType::Pointer(), isolate_root,
+                     Isolate::thread_in_wasm_flag_address_offset());
 
       wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
           thread_in_wasm_flag_address_, true);
@@ -7227,7 +7226,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
-    Node* active_suspender = LOAD_ROOT(ActiveSuspender, active_suspender);
+    Node* active_suspender =
+        LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
     gasm_->GotoIf(gasm_->TaggedEqual(active_suspender, UndefinedValue()),
                   &bad_suspender, BranchHint::kFalse);
     gasm_->GotoIfNot(gasm_->TaggedEqual(suspender, active_suspender),
@@ -9064,6 +9064,7 @@ AssemblerOptions WasmStubAssemblerOptions() {
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_MUTABLE_INSTANCE_FIELD
 #undef LOAD_ROOT
+#undef LOAD_MUTABLE_ROOT
 
 }  // namespace compiler
 }  // namespace internal

@@ -87,23 +87,12 @@ Reduction WasmGCLowering::Reduce(Node* node) {
   }
 }
 
-Node* WasmGCLowering::IsolateRoot() {
-  // TODO(13449): Use root register instead of isolate.
-  return gasm_.LoadImmutable(
-      MachineType::Pointer(), instance_node_,
-      WasmInstanceObject::kIsolateRootOffset - kHeapObjectTag);
-}
-
-Node* WasmGCLowering::RootNode(RootIndex index) {
-  Node* isolate_root = IsolateRoot();
-  return gasm_.LoadImmutable(MachineType::Pointer(), isolate_root,
-                             IsolateData::root_slot_offset(index));
-}
-
 Node* WasmGCLowering::Null(wasm::ValueType type) {
-  return wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
-             ? RootNode(RootIndex::kNullValue)
-             : RootNode(RootIndex::kWasmNull);
+  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
+                        ? RootIndex::kNullValue
+                        : RootIndex::kWasmNull;
+  return gasm_.LoadImmutable(MachineType::Pointer(), gasm_.LoadRootRegister(),
+                             IsolateData::root_slot_offset(index));
 }
 
 Node* WasmGCLowering::IsNull(Node* object, wasm::ValueType type) {
@@ -773,7 +762,7 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
         gasm_.Int32Constant(kCharWidthBailoutSentinel));
     Node* resource = gasm_.BuildLoadExternalPointerFromObject(
         string, ExternalString::kResourceDataOffset,
-        kExternalStringResourceDataTag, IsolateRoot());
+        kExternalStringResourceDataTag, gasm_.LoadRootRegister());
     Node* shifted_offset = gasm_.Word32Shl(offset, charwidth_shift);
     final_offset = gasm_.IntPtrAdd(
         resource, gasm_.BuildChangeInt32ToIntPtr(shifted_offset));

@@ -224,9 +224,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 #endif  // V8_ENABLE_WEBASSEMBLY
         return Operand(constant.ToInt64());
       case Constant::kFloat32:
-        return Operand(Operand::EmbeddedNumber(constant.ToFloat32()));
+        return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
-        return Operand(Operand::EmbeddedNumber(constant.ToFloat64().value()));
+        return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
       case Constant::kCompressedHeapObject: {

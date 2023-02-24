@@ -1157,7 +1157,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->factory()->NewFixedArray(num_imported_functions);
   instance->set_imported_function_refs(*imported_function_refs);
 
-  instance->set_isolate_root(isolate->isolate_root());
   instance->set_stack_limit_address(
       isolate->stack_guard()->address_of_jslimit());
   instance->set_real_stack_limit_address(

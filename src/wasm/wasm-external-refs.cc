@@ -565,7 +565,7 @@ void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
   if (element_type.is_reference()) {
     WasmInstanceObject instance =
         WasmInstanceObject::cast(Object(raw_instance));
-    Isolate* isolate = Isolate::FromRootAddress(instance.isolate_root());
+    Isolate* isolate = instance.GetIsolate();
     ObjectSlot dst_slot = dst_array.ElementSlot(dst_index);
     ObjectSlot src_slot = src_array.ElementSlot(src_index);
     if (overlapping_ranges) {

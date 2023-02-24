@@ -48,8 +48,6 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceWasmArrayInitializeLength(Node* node);
   Reduction ReduceStringAsWtf16(Node* node);
   Reduction ReduceStringPrepareForGetCodeunit(Node* node);
-  Node* IsolateRoot();
-  Node* RootNode(RootIndex index);
   Node* Null(wasm::ValueType type);
   Node* IsNull(Node* object, wasm::ValueType type);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,

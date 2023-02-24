@@ -820,6 +820,7 @@
   V(LoadStackCheckOffset)                \
   V(LoadFramePointer)                    \
   V(LoadParentFramePointer)              \
+  V(LoadRootRegister)                    \
   V(UnalignedLoad)                       \
   V(UnalignedStore)                      \
   V(Int32PairAdd)                        \

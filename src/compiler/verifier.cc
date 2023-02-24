@@ -1926,6 +1926,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
+    case IrOpcode::kLoadRootRegister:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kMemoryBarrier:

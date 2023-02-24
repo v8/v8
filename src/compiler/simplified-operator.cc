@@ -169,7 +169,7 @@ size_t hash_value(WasmFieldInfo const& info) {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            WasmFieldInfo const& info) {
   return os << info.field_index << ", "
-            << (info.is_signed ? "signed" : "unsigned")
+            << (info.is_signed ? "signed" : "unsigned") << ", "
             << (info.null_check ? "null check" : "no null check");
 }
 

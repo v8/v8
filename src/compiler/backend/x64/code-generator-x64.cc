@@ -2884,14 +2884,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int slots = stack_decrement / kSystemPointerSize;
       // Whenever codegen uses pushq, we need to check if stack_decrement
       // contains any extra padding and adjust the stack before the pushq.
-      if (HasImmediateInput(instr, 1)) {
-        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        __ pushq(i.InputImmediate(1));
-      } else if (HasAddressingMode(instr)) {
+      if (HasAddressingMode(instr)) {
         __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
         size_t index = 1;
         Operand operand = i.MemoryOperand(&index);
         __ pushq(operand);
+      } else if (HasImmediateInput(instr, 1)) {
+        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+        __ pushq(i.InputImmediate(1));
       } else {
         InstructionOperand* input = instr->InputAt(1);
         if (input->IsRegister()) {

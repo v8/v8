@@ -7560,9 +7560,8 @@ class LiftoffCompiler {
                                  frozen);
         }
         Register real_rtt = tmp3;
-        LOAD_INSTANCE_FIELD(real_rtt, IsolateRoot, kSystemPointerSize, pinned);
         __ LoadFullPointer(
-            real_rtt, real_rtt,
+            real_rtt, kRootRegister,
             IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
         __ LoadTaggedPointer(real_rtt, real_rtt, real_sig_id,
                              ObjectAccess::ToTagged(WeakArrayList::kHeaderSize),

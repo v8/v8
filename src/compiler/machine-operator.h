@@ -1013,6 +1013,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
+  // Note: Only use this operator to:
+  // - Load from a constant offset.
+  // - Store to a constant offset with {kNoWriteBarrier}.
+  // These are the only usages supported by the instruction selector.
+  const Operator* LoadRootRegister();
+
   // Access to the machine stack.
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
