@@ -277,7 +277,8 @@ class MergePointInterpreterFrameState;
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
-  V(ReduceInterruptBudget)            \
+  V(ReduceInterruptBudgetForLoop)     \
+  V(ReduceInterruptBudgetForReturn)   \
   V(ThrowReferenceErrorIfHole)        \
   V(ThrowSuperNotCalledIfHole)        \
   V(ThrowSuperAlreadyCalledIfNotHole) \
@@ -5924,21 +5925,41 @@ class IncreaseInterruptBudget
   const int amount_;
 };
 
-class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
-  using Base = FixedInputNodeT<0, ReduceInterruptBudget>;
+class ReduceInterruptBudgetForLoop
+    : public FixedInputNodeT<0, ReduceInterruptBudgetForLoop> {
+  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForLoop>;
 
  public:
-  explicit ReduceInterruptBudget(uint64_t bitfield, int amount)
+  explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
       : Base(bitfield), amount_(amount) {
     DCHECK_GT(amount, 0);
   }
 
-  // TODO(leszeks): This is marked as lazy deopt because the interrupt can throw
-  // on a stack overflow. Full lazy deopt information is probably overkill
-  // though, we likely don't need the full frame but just the function and
-  // source location. Consider adding a minimal lazy deopt info.
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::LazyDeopt();
+
+  int amount() const { return amount_; }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int amount_;
+};
+
+class ReduceInterruptBudgetForReturn
+    : public FixedInputNodeT<0, ReduceInterruptBudgetForReturn> {
+  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForReturn>;
+
+ public:
+  explicit ReduceInterruptBudgetForReturn(uint64_t bitfield, int amount)
+      : Base(bitfield), amount_(amount) {
+    DCHECK_GT(amount, 0);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
 
   int amount() const { return amount_; }
 

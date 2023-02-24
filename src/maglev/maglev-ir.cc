@@ -3747,7 +3747,12 @@ void IncreaseInterruptBudget::PrintParams(
   os << "(" << amount() << ")";
 }
 
-void ReduceInterruptBudget::PrintParams(
+void ReduceInterruptBudgetForLoop::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
+void ReduceInterruptBudgetForReturn::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << amount() << ")";
 }

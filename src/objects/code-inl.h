@@ -706,6 +706,8 @@ uintptr_t InstructionStream::GetBaselinePCForNextExecutedBytecode(
         bytecode_iterator.GetJumpTargetOffset(), bytecodes);
   } else {
     DCHECK(!interpreter::Bytecodes::IsJump(bytecode));
+    DCHECK(!interpreter::Bytecodes::IsSwitch(bytecode));
+    DCHECK(!interpreter::Bytecodes::Returns(bytecode));
     return GetBaselineEndPCForBytecodeOffset(bytecode_offset, bytecodes);
   }
 }

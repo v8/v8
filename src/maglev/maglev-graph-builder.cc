@@ -5235,7 +5235,8 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 
   if (!is_toptier() && !is_inline()) {
     if (relative_jump_bytecode_offset > 0) {
-      AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
+      AddNewNode<ReduceInterruptBudgetForLoop>({},
+                                               relative_jump_bytecode_offset);
     }
     AddNewNode<JumpLoopPrologue>({}, loop_offset, feedback_slot,
                                  BytecodeOffset(iterator_.current_offset()),
@@ -5665,7 +5666,8 @@ void MaglevGraphBuilder::VisitReturn() {
   // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (!is_inline() && !is_toptier() && relative_jump_bytecode_offset > 0) {
-    AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
+    AddNewNode<ReduceInterruptBudgetForReturn>({},
+                                               relative_jump_bytecode_offset);
   }
 
   if (!is_inline()) {
@@ -5815,7 +5817,8 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
 
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (!is_inline() && !is_toptier() && relative_jump_bytecode_offset > 0) {
-    AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
+    AddNewNode<ReduceInterruptBudgetForReturn>({},
+                                               relative_jump_bytecode_offset);
   }
   FinishBlock<Return>({GetAccumulatorTagged()});
 }
