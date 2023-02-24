@@ -94,7 +94,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length < 0 || length > FixedArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
     UNREACHABLE();
   }
   return NewFixedArrayWithFiller(
@@ -160,7 +161,8 @@ Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
     UNREACHABLE();
   }
   int size = FixedDoubleArray::SizeFor(length);
