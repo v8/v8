@@ -2541,7 +2541,7 @@ void VisitWord64EqualImpl(InstructionSelector* selector, Node* node,
 
 void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
                           FlagsContinuation* cont) {
-  if (COMPRESS_POINTERS_BOOL) {
+  if (COMPRESS_POINTERS_BOOL && selector->isolate()) {
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
