@@ -152,7 +152,22 @@
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)
 #endif  // V8_INTL_SUPPORT
 
-#define INTERNALIZED_STRING_LIST_GENERATOR(V, _)                     \
+// Internalized strings to be allocated early on the read only heap and early in
+// the roots table. Used to give this string a RootIndex < 32.
+#define EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  V(_, empty_string, "")
+
+// Internalized strings to be allocated early on the read only heap
+#define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  V(_, length_string, "length")                            \
+  V(_, prototype_string, "prototype")                      \
+  V(_, name_string, "name")                                \
+  V(_, enumerable_string, "enumerable")                    \
+  V(_, configurable_string, "configurable")                \
+  V(_, value_string, "value")                              \
+  V(_, writable_string, "writable")
+
+#define NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)       \
   INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)                      \
   V(_, add_string, "add")                                            \
   V(_, AggregateError_string, "AggregateError")                      \
@@ -197,7 +212,6 @@
   V(_, code_string, "code")                                          \
   V(_, column_string, "column")                                      \
   V(_, computed_string, "<computed>")                                \
-  V(_, configurable_string, "configurable")                          \
   V(_, conjunction_string, "conjunction")                            \
   V(_, console_string, "console")                                    \
   V(_, constrain_string, "constrain")                                \
@@ -236,7 +250,6 @@
   V(_, dotAll_string, "dotAll")                                      \
   V(_, Error_string, "Error")                                        \
   V(_, EvalError_string, "EvalError")                                \
-  V(_, enumerable_string, "enumerable")                              \
   V(_, element_string, "element")                                    \
   V(_, epochMicroseconds_string, "epochMicroseconds")                \
   V(_, epochMilliseconds_string, "epochMilliseconds")                \
@@ -306,7 +319,6 @@
   V(_, keys_string, "keys")                                          \
   V(_, largestUnit_string, "largestUnit")                            \
   V(_, lastIndex_string, "lastIndex")                                \
-  V(_, length_string, "length")                                      \
   V(_, let_string, "let")                                            \
   V(_, line_string, "line")                                          \
   V(_, linear_string, "linear")                                      \
@@ -333,7 +345,6 @@
   V(_, monthsInYear_string, "monthsInYear")                          \
   V(_, monthCode_string, "monthCode")                                \
   V(_, multiline_string, "multiline")                                \
-  V(_, name_string, "name")                                          \
   V(_, NaN_string, "NaN")                                            \
   V(_, nanosecond_string, "nanosecond")                              \
   V(_, nanoseconds_string, "nanoseconds")                            \
@@ -369,7 +380,6 @@
   V(_, private_constructor_string, "#constructor")                   \
   V(_, Promise_string, "Promise")                                    \
   V(_, proto_string, "__proto__")                                    \
-  V(_, prototype_string, "prototype")                                \
   V(_, proxy_string, "proxy")                                        \
   V(_, Proxy_string, "Proxy")                                        \
   V(_, query_colon_string, "(?:)")                                   \
@@ -444,7 +454,6 @@
   V(_, unit_string, "unit")                                          \
   V(_, URIError_string, "URIError")                                  \
   V(_, UTC_string, "UTC")                                            \
-  V(_, value_string, "value")                                        \
   V(_, valueOf_string, "valueOf")                                    \
   V(_, WeakMap_string, "WeakMap")                                    \
   V(_, WeakRef_string, "WeakRef")                                    \
@@ -453,50 +462,61 @@
   V(_, weeks_string, "weeks")                                        \
   V(_, weekOfYear_string, "weekOfYear")                              \
   V(_, word_string, "word")                                          \
-  V(_, writable_string, "writable")                                  \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")            \
   V(_, year_string, "year")                                          \
   V(_, years_string, "years")                                        \
   V(_, zero_string, "0")
 
-#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)         \
-  V(_, array_buffer_wasm_memory_symbol)             \
-  V(_, call_site_info_symbol)                       \
-  V(_, console_context_id_symbol)                   \
-  V(_, console_context_name_symbol)                 \
-  V(_, class_fields_symbol)                         \
-  V(_, class_positions_symbol)                      \
-  V(_, elements_transition_symbol)                  \
-  V(_, error_end_pos_symbol)                        \
-  V(_, error_script_symbol)                         \
-  V(_, error_stack_symbol)                          \
-  V(_, error_start_pos_symbol)                      \
-  V(_, frozen_symbol)                               \
-  V(_, interpreter_trampoline_symbol)               \
-  V(_, mega_dom_symbol)                             \
-  V(_, megamorphic_symbol)                          \
-  V(_, native_context_index_symbol)                 \
-  V(_, nonextensible_symbol)                        \
-  V(_, not_mapped_symbol)                           \
-  V(_, promise_debug_marker_symbol)                 \
-  V(_, promise_debug_message_symbol)                \
-  V(_, promise_forwarding_handler_symbol)           \
-  V(_, promise_handled_by_symbol)                   \
-  V(_, promise_awaited_by_symbol)                   \
-  V(_, regexp_result_names_symbol)                  \
-  V(_, regexp_result_regexp_input_symbol)           \
-  V(_, regexp_result_regexp_last_index_symbol)      \
-  V(_, sealed_symbol)                               \
-  V(_, strict_function_transition_symbol)           \
-  V(_, template_literal_function_literal_id_symbol) \
-  V(_, template_literal_slot_id_symbol)             \
-  V(_, wasm_exception_tag_symbol)                   \
-  V(_, wasm_exception_values_symbol)                \
-  V(_, wasm_uncatchable_symbol)                     \
-  V(_, wasm_wrapped_object_symbol)                  \
-  V(_, wasm_debug_proxy_cache_symbol)               \
-  V(_, wasm_debug_proxy_names_symbol)               \
-  V(_, uninitialized_symbol)
+#define INTERNALIZED_STRING_LIST_GENERATOR(V, _)           \
+  EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)       \
+  NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)
+
+// Symbols to be allocated early on the read only heap
+#define IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  V(_, not_mapped_symbol)                             \
+  V(_, uninitialized_symbol)                          \
+  V(_, megamorphic_symbol)                            \
+  V(_, elements_transition_symbol)                    \
+  V(_, mega_dom_symbol)
+
+#define NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  V(_, array_buffer_wasm_memory_symbol)                   \
+  V(_, call_site_info_symbol)                             \
+  V(_, console_context_id_symbol)                         \
+  V(_, console_context_name_symbol)                       \
+  V(_, class_fields_symbol)                               \
+  V(_, class_positions_symbol)                            \
+  V(_, error_end_pos_symbol)                              \
+  V(_, error_script_symbol)                               \
+  V(_, error_stack_symbol)                                \
+  V(_, error_start_pos_symbol)                            \
+  V(_, frozen_symbol)                                     \
+  V(_, interpreter_trampoline_symbol)                     \
+  V(_, native_context_index_symbol)                       \
+  V(_, nonextensible_symbol)                              \
+  V(_, promise_debug_marker_symbol)                       \
+  V(_, promise_debug_message_symbol)                      \
+  V(_, promise_forwarding_handler_symbol)                 \
+  V(_, promise_handled_by_symbol)                         \
+  V(_, promise_awaited_by_symbol)                         \
+  V(_, regexp_result_names_symbol)                        \
+  V(_, regexp_result_regexp_input_symbol)                 \
+  V(_, regexp_result_regexp_last_index_symbol)            \
+  V(_, sealed_symbol)                                     \
+  V(_, strict_function_transition_symbol)                 \
+  V(_, template_literal_function_literal_id_symbol)       \
+  V(_, template_literal_slot_id_symbol)                   \
+  V(_, wasm_exception_tag_symbol)                         \
+  V(_, wasm_exception_values_symbol)                      \
+  V(_, wasm_uncatchable_symbol)                           \
+  V(_, wasm_wrapped_object_symbol)                        \
+  V(_, wasm_debug_proxy_cache_symbol)                     \
+  V(_, wasm_debug_proxy_names_symbol)
+
+#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)     \
+  IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \

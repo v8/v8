@@ -1702,31 +1702,10 @@ class Heap {
     std::vector<Object> old_strings_;
   };
 
-  struct StringTypeTable {
-    InstanceType type;
-    int size;
-    RootIndex index;
-  };
-
-  struct ConstantStringTable {
-    const char* contents;
-    RootIndex index;
-  };
-
-  struct StructTable {
-    InstanceType type;
-    int size;
-    RootIndex index;
-  };
-
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
 
   static const int kRememberedUnmappedPages = 128;
-
-  static const StringTypeTable string_type_table[];
-  static const ConstantStringTable constant_string_table[];
-  static const StructTable struct_table[];
 
   static const int kYoungSurvivalRateHighThreshold = 90;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
@@ -1785,10 +1764,13 @@ class Heap {
 
   inline void UpdateOldSpaceLimits();
 
-  bool CreateInitialReadOnlyMaps();
+  bool CreateEarlyReadOnlyMaps();
+  bool CreateImportantReadOnlyObjects();
+  bool CreateLateReadOnlyMaps();
+  bool CreateReadOnlyObjects();
+
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();
-  void CreateInitialReadOnlyObjects();
 
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
