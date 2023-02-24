@@ -173,4 +173,4 @@ class BuildConfig(object):
         'webassembly',
     ]
     detected_options = [attr for attr in attrs if getattr(self, attr, False)]
-    return '\n'.join(detected_options)
+    return ', '.join(detected_options)
