@@ -183,28 +183,32 @@ ENABLE_I18N_SUPPORT_DEFINES = [
     "-DUNISTR_FROM_CHAR_EXPLICIT=",
 ]
 
-def _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
-    return noicu_srcs != [] or noicu_deps != [] or icu_srcs != [] or icu_deps != []
+def _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
+     return noicu_srcs != [] or noicu_deps != [] or noicu_defines != [] or icu_srcs != [] or icu_deps != [] or icu_defines != []
 
 # buildifier: disable=function-docstring
 def v8_binary(
         name,
         srcs,
         deps = [],
+        defines = [],
         includes = [],
         copts = [],
         linkopts = [],
         noicu_srcs = [],
         noicu_deps = [],
+        noicu_defines = [],
         icu_srcs = [],
         icu_deps = [],
+        icu_defines = [],
         **kwargs):
     default = _default_args()
-    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
+    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
         native.cc_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
+            defines = defines + noicu_defines + default.defines,
             includes = includes + ["noicu/"] + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
@@ -215,6 +219,7 @@ def v8_binary(
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
             includes = includes + ["icu/"] + default.includes,
+            defines = defines + icu_defines + default.defines,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             **kwargs
@@ -224,6 +229,7 @@ def v8_binary(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
+            defines = defines + default.defines,
             includes = includes + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
@@ -240,11 +246,13 @@ def v8_library(
         linkopts = [],
         noicu_srcs = [],
         noicu_deps = [],
+        noicu_defines = [],
         icu_srcs = [],
         icu_deps = [],
+        icu_defines = [],
         **kwargs):
     default = _default_args()
-    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
+    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
         native.cc_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
@@ -360,8 +368,8 @@ def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//conditions:default": ":noicu/torque",
         }),
     )
     _v8_torque_initializers(
@@ -371,8 +379,8 @@ def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//conditions:default": ":icu/torque",
         }),
     )
 
@@ -441,8 +449,8 @@ def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//conditions:default": ":noicu/torque",
         }),
     )
     _v8_torque_definitions(
@@ -452,8 +460,8 @@ def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//conditions:default": ":icu/torque",
         }),
     )
 

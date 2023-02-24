@@ -3817,6 +3817,7 @@ v8_binary(
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
+    icu_defines = [ "V8_INTL_SUPPORT" ],
     features = ["-use_header_modules"],
     linkopts = select({
         "@v8//bazel/config:is_android": ["-llog"],
@@ -3863,8 +3864,13 @@ v8_binary(
 
 # This target forces torque to be compiled without pointer compression.
 v8_binary_non_pointer_compression(
-    name = "torque_non_pointer_compression",
-    binary = "torque",
+    name = "noicu/torque_non_pointer_compression",
+    binary = "noicu/torque",
+)
+
+v8_binary_non_pointer_compression(
+    name = "icu/torque_non_pointer_compression",
+    binary = "icu/torque",
 )
 
 alias(
