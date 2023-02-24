@@ -1985,6 +1985,36 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
       &WasmGenerator::simd_lane_memop<kExprS128Load16Lane, 8, kS128>,
       &WasmGenerator::simd_lane_memop<kExprS128Load32Lane, 4, kS128>,
       &WasmGenerator::simd_lane_memop<kExprS128Load64Lane, 2, kS128>,
+
+      &WasmGenerator::op_with_prefix<kExprF32x4Qfma, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Qfms, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Qfma, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Qfms, kS128, kS128, kS128>,
+
+      &WasmGenerator::op_with_prefix<kExprI8x16RelaxedSwizzle, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI8x16RelaxedLaneSelect, kS128, kS128,
+                                     kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8RelaxedLaneSelect, kS128, kS128,
+                                     kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4RelaxedLaneSelect, kS128, kS128,
+                                     kS128>,
+      &WasmGenerator::op_with_prefix<kExprI64x2RelaxedLaneSelect, kS128, kS128,
+                                     kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Qfma, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Qfms, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Qfma, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Qfms, kS128, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4RelaxedMin, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4RelaxedMax, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2RelaxedMin, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2RelaxedMax, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4RelaxedTruncF32x4S, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4RelaxedTruncF32x4U, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4RelaxedTruncF64x2SZero, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4RelaxedTruncF64x2UZero, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8DotI8x16I7x16S, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4DotI8x16I7x16AddS, kS128, kS128,
+                                     kS128>,
   };
 
   GenerateOneOf(alternatives, data);
@@ -2590,6 +2620,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
+  EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;
 }

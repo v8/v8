@@ -531,6 +531,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "// found in the LICENSE file.\n"
         "\n"
         "// Flags: --wasm-staging --experimental-wasm-gc\n"
+        "// Flags: --experimental-wasm-relaxed-simd\n"
         "\n"
         "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
