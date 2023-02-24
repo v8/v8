@@ -2035,10 +2035,10 @@ void InstanceBuilder::SetTableInitialValues(
 
 namespace {
 
-enum FunctionComputationMode { kLazyFunctions, kStrictFunctions };
+enum FunctionComputationMode { kLazyFunctionsAndNull, kStrictFunctionsAndNull };
 
-// If {function_mode == kLazyFunctions}, may return a function index instead of
-// computing a function object.
+// If {function_mode == kLazyFunctionsAndNull}, may return a function index
+// instead of computing a function object, and {WasmValue(-1)} instead of null.
 // Assumes the underlying module is verified.
 ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
                                         Handle<WasmInstanceObject> instance,
@@ -2047,7 +2047,7 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
                                         FunctionComputationMode function_mode) {
   if (segment.element_type == WasmElemSegment::kFunctionIndexElements) {
     uint32_t function_index = decoder.consume_u32v();
-    return function_mode == kStrictFunctions
+    return function_mode == kStrictFunctionsAndNull
                ? EvaluateConstantExpression(
                      zone, ConstantExpression::RefFunc(function_index),
                      segment.type, isolate, instance)
@@ -2061,7 +2061,7 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
                                                         "ref.func");
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
-        return function_mode == kStrictFunctions
+        return function_mode == kStrictFunctionsAndNull
                    ? EvaluateConstantExpression(
                          zone, ConstantExpression::RefFunc(function_index),
                          segment.type, isolate, instance)
@@ -2075,9 +2075,12 @@ ValueOrError ConsumeElementSegmentEntry(Zone* zone, Isolate* isolate,
               &decoder, decoder.pc() + 1, WasmFeatures::All());
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
-        return EvaluateConstantExpression(
-            zone, ConstantExpression::RefNull(heap_type.representation()),
-            segment.type, isolate, instance);
+        return function_mode == kStrictFunctionsAndNull
+                   ? EvaluateConstantExpression(zone,
+                                                ConstantExpression::RefNull(
+                                                    heap_type.representation()),
+                                                segment.type, isolate, instance)
+                   : WasmValue(int32_t{-1});
       }
       break;
     }
@@ -2125,8 +2128,9 @@ base::Optional<MessageTemplate> InitializeElementSegment(
       isolate->factory()->NewFixedArray(elem_segment.element_count);
 
   for (size_t i = 0; i < elem_segment.element_count; ++i) {
-    ValueOrError value = ConsumeElementSegmentEntry(
-        zone, isolate, instance, elem_segment, decoder, kStrictFunctions);
+    ValueOrError value =
+        ConsumeElementSegmentEntry(zone, isolate, instance, elem_segment,
+                                   decoder, kStrictFunctionsAndNull);
     if (is_error(value)) return {to_error(value)};
     result->set(static_cast<int>(i), *to_value(value).to_ref());
   }
@@ -2165,23 +2169,40 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     Decoder decoder(module_bytes);
     decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
 
-    for (size_t i = 0; i < count; i++) {
-      int entry_index = static_cast<int>(dst + i);
-      ValueOrError computed_element =
-          ConsumeElementSegmentEntry(&init_expr_zone_, isolate_, instance,
-                                     elem_segment, decoder, kLazyFunctions);
-      if (MaybeMarkError(computed_element, thrower_)) return;
+    bool is_function_table =
+        IsSubtypeOf(module_->tables[table_index].type, kWasmFuncRef, module_);
 
-      WasmValue computed_value = to_value(computed_element);
+    if (is_function_table) {
+      for (size_t i = 0; i < count; i++) {
+        int entry_index = static_cast<int>(dst + i);
+        ValueOrError computed_element = ConsumeElementSegmentEntry(
+            &init_expr_zone_, isolate_, instance, elem_segment, decoder,
+            kLazyFunctionsAndNull);
+        if (MaybeMarkError(computed_element, thrower_)) return;
 
-      if (computed_value.type() == kWasmI32) {
-        DCHECK(IsSubtypeOf(module_->tables[table_index].type, kWasmFuncRef,
-                           module_));
-        SetFunctionTablePlaceholder(isolate_, instance, table_object,
-                                    entry_index, computed_value.to_i32());
-      } else {
+        WasmValue computed_value = to_value(computed_element);
+
+        if (computed_value.type() == kWasmI32) {
+          if (computed_value.to_i32() >= 0) {
+            SetFunctionTablePlaceholder(isolate_, instance, table_object,
+                                        entry_index, computed_value.to_i32());
+          } else {
+            SetFunctionTableNullEntry(isolate_, table_object, entry_index);
+          }
+        } else {
+          WasmTableObject::Set(isolate_, table_object, entry_index,
+                               computed_value.to_ref());
+        }
+      }
+    } else {
+      for (size_t i = 0; i < count; i++) {
+        int entry_index = static_cast<int>(dst + i);
+        ValueOrError computed_element = ConsumeElementSegmentEntry(
+            &init_expr_zone_, isolate_, instance, elem_segment, decoder,
+            kStrictFunctionsAndNull);
+        if (MaybeMarkError(computed_element, thrower_)) return;
         WasmTableObject::Set(isolate_, table_object, entry_index,
-                             computed_value.to_ref());
+                             to_value(computed_element).to_ref());
       }
     }
     // Active segment have to be set to empty after instance initialization
