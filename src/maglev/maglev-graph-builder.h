@@ -1035,6 +1035,16 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kWord64:
         UNREACHABLE();
       case ValueRepresentation::kTagged: {
+        if (Constant* constant = value->TryCast<Constant>()) {
+          if (constant->object().IsHeapNumber()) {
+            return GetFloat64Constant(
+                constant->object().AsHeapNumber().value());
+          }
+        }
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return GetFloat64Constant(constant->value().value());
+        }
+
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->float64_alternative == nullptr) {
           node_info->float64_alternative = BuildFloat64Unbox(value);
