@@ -2376,7 +2376,10 @@ action("v8_dump_build_config") {
 #
 
 v8_source_set("v8_snapshot") {
-  visibility = [ ":*" ]  # Targets in this file can depend on this.
+  # Let external targets depend on v8_snapshot.
+  if (v8_use_external_startup_data) {
+    visibility = [ ":*" ]  # Targets in this file can depend on this.
+  }
 
   deps = [
     ":v8_internal_headers",
@@ -2410,9 +2413,6 @@ v8_source_set("v8_snapshot") {
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
   } else {
-    # Also top-level visibility targets can depend on this.
-    visibility += [ "//:gn_visibility" ]
-
     public_deps += [ ":v8_maybe_icu" ]
 
     sources += [ "$target_gen_dir/snapshot.cc" ]
