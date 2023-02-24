@@ -365,8 +365,28 @@ class InitExprInterface {
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-    // TODO(12089): Implement.
-    UNIMPLEMENTED();
+    switch (opcode) {
+      case kExprI32Add:
+        os_ << "kExprI32Add, ";
+        break;
+      case kExprI32Sub:
+        os_ << "kExprI32Sub, ";
+        break;
+      case kExprI32Mul:
+        os_ << "kExprI32Mul, ";
+        break;
+      case kExprI64Add:
+        os_ << "kExprI64Add, ";
+        break;
+      case kExprI64Sub:
+        os_ << "kExprI64Sub, ";
+        break;
+      case kExprI64Mul:
+        os_ << "kExprI64Mul, ";
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -707,6 +727,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // Enable non-staged experimental features that we also want to fuzz.
       v8_flags.experimental_wasm_gc = true;
+      v8_flags.experimental_wasm_extended_const = true;
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();

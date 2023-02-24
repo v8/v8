@@ -475,6 +475,48 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(kExprS128Const & 0xFF);
       buffer->write(init.immediate().s128_const.data(), kSimd128Size);
       break;
+    case WasmInitExpr::kI32Add:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI32);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI32);
+      buffer->write_u8(kExprI32Add);
+      break;
+    case WasmInitExpr::kI32Sub:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI32);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI32);
+      buffer->write_u8(kExprI32Sub);
+      break;
+    case WasmInitExpr::kI32Mul:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI32);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI32);
+      buffer->write_u8(kExprI32Mul);
+      break;
+    case WasmInitExpr::kI64Add:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI64);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI64);
+      buffer->write_u8(kExprI64Add);
+      break;
+    case WasmInitExpr::kI64Sub:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI64);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI64);
+      buffer->write_u8(kExprI64Sub);
+      break;
+    case WasmInitExpr::kI64Mul:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI64);
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
+                                        kWasmI64);
+      buffer->write_u8(kExprI64Mul);
+      break;
     case WasmInitExpr::kGlobalGet:
       buffer->write_u8(kExprGlobalGet);
       buffer->write_u32v(init.immediate().index);
