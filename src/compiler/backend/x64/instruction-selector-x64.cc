@@ -2367,17 +2367,9 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
         }
         break;
       }
-      case MachineRepresentation::kWord16:
-        if (opcode == kX64Test || opcode == kX64Test32) return kX64Test16;
-        if (opcode == kX64Cmp || opcode == kX64Cmp32) {
-          if (left_type.semantic() == MachineSemantic::kUint32) {
-            cont->OverwriteUnsignedIfSigned();
-          } else {
-            CHECK_EQ(MachineSemantic::kInt32, left_type.semantic());
-          }
-          return kX64Cmp16;
-        }
-        break;
+      // Cmp16/Test16 may introduce LCP(Length-Changing-Prefixes) stall, use
+      // Cmp32/Test32 instead.
+      case MachineRepresentation::kWord16:  // Fall through.
       case MachineRepresentation::kWord32:
         if (opcode == kX64Test) return kX64Test32;
         if (opcode == kX64Cmp) {
