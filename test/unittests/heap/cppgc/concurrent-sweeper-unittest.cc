@@ -56,6 +56,7 @@ class NonFinalizable : public GarbageCollected<NonFinalizable<Size>> {
 
  private:
   char array_[Size];
+  int padding_to_make_size_the_same_as_finalizible_;
 };
 
 using NormalNonFinalizable = NonFinalizable<32>;
