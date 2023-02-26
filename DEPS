@@ -68,7 +68,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:11.20230224.1.1',
+  'fuchsia_version': 'version:11.20230225.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -212,7 +212,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9c6c41afcf180e0bf068129b75da62e535f37629',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8a26fb906ec1c2acb00aeeab74c284f8993ab867',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
