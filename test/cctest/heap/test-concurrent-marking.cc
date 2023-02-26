@@ -5,11 +5,107 @@
 #include <stdlib.h>
 
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap/marking-worklist-inl.h"
+#include "src/heap/marking-worklist.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-namespace v8::internal::heap {
+namespace v8 {
+namespace internal {
+namespace heap {
+
+void PublishSegment(MarkingWorklist& worklist, HeapObject object) {
+  MarkingWorklist::Local local(worklist);
+  for (size_t i = 0; i < MarkingWorklist::kMinSegmentSizeForTesting; i++) {
+    local.Push(object);
+  }
+  local.Publish();
+}
+
+HeapObject ObjectForTesting(i::Isolate* isolate) {
+  return HeapObject::cast(
+      isolate->roots_table().slot(RootIndex::kFirstStrongRoot).load(isolate));
+}
+
+TEST(ConcurrentMarking) {
+  if (!i::v8_flags.concurrent_marking) return;
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+
+  WeakObjects weak_objects;
+  ConcurrentMarking* concurrent_marking =
+      new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  PublishSegment(*collector->marking_worklists()->shared(),
+                 ObjectForTesting(heap->isolate()));
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
+  concurrent_marking->Join();
+  delete concurrent_marking;
+}
+
+TEST(ConcurrentMarkingReschedule) {
+  if (!i::v8_flags.concurrent_marking) return;
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+
+  WeakObjects weak_objects;
+  ConcurrentMarking* concurrent_marking =
+      new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  PublishSegment(*collector->marking_worklists()->shared(),
+                 ObjectForTesting(heap->isolate()));
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
+  concurrent_marking->Join();
+  PublishSegment(*collector->marking_worklists()->shared(),
+                 ObjectForTesting(heap->isolate()));
+  concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
+  concurrent_marking->Join();
+  delete concurrent_marking;
+}
+
+TEST(ConcurrentMarkingPreemptAndReschedule) {
+  if (!i::v8_flags.concurrent_marking) return;
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+
+  WeakObjects weak_objects;
+  ConcurrentMarking* concurrent_marking =
+      new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  for (int i = 0; i < 5000; i++)
+    PublishSegment(*collector->marking_worklists()->shared(),
+                   ObjectForTesting(heap->isolate()));
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
+  concurrent_marking->Pause();
+  for (int i = 0; i < 5000; i++)
+    PublishSegment(*collector->marking_worklists()->shared(),
+                   ObjectForTesting(heap->isolate()));
+  concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
+  concurrent_marking->Join();
+  delete concurrent_marking;
+}
 
 TEST(ConcurrentMarkingMarkedBytes) {
   if (!v8_flags.incremental_marking) return;
@@ -59,4 +155,6 @@ UNINITIALIZED_TEST(ConcurrentMarkingStoppedOnTeardown) {
   isolate->Dispose();
 }
 
-}  // namespace v8::internal::heap
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8
