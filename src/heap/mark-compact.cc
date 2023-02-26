@@ -2169,6 +2169,10 @@ void MarkCompactCollector::MarkWaiterQueueNode(Isolate* isolate) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
+void MarkCompactCollector::VisitObject(HeapObject obj) {
+  marking_visitor_->Visit(obj.map(), obj);
+}
+
 bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   int iterations = 0;
   int max_iterations = v8_flags.ephemeron_fixpoint_iterations;
@@ -5578,12 +5582,6 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
       marking_state_(marking_state) {}
 
 bool YoungGenerationMainMarkingVisitor::ShouldVisit(HeapObject object) {
-  CHECK(marking_state_->GreyToBlack(object));
-  return true;
-}
-
-bool YoungGenerationMainMarkingVisitor::ShouldVisitUnchecked(
-    HeapObject object) {
   return marking_state_->GreyToBlack(object);
 }
 
@@ -5625,6 +5623,10 @@ std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
   // TODO(v8:13012): Implement this later. It should be similar to
   // MinorMarkCompactCollector::DrainMarkingWorklist.
   UNREACHABLE();
+}
+
+void MinorMarkCompactCollector::VisitObject(HeapObject obj) {
+  main_marking_visitor_->Visit(obj.map(), obj);
 }
 
 void MinorMarkCompactCollector::PerformWrapperTracing() {
