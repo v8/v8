@@ -84,7 +84,7 @@ VisitorId Map::GetVisitorId(Map map) {
         return kVisitSlicedString;
 
       case kExternalStringTag:
-        return kVisitExternalString;
+        return kVisitDataObject;
 
       case kThinStringTag:
         return kVisitThinString;
