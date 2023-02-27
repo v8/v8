@@ -5582,8 +5582,11 @@ class LiftoffCompiler {
         }
         SetDefaultValue(value, field_type, pinned);
       }
+      // Skipping the write barrier is safe as long as:
+      // (1) {obj} is freshly allocated, and
+      // (2) {obj} is in new-space (not pretenured).
       StoreObjectField(obj.gp(), no_reg, offset, value, pinned,
-                       field_type.kind());
+                       field_type.kind(), LiftoffAssembler::kSkipWriteBarrier);
       pinned.clear(value);
     }
     // If this assert fails then initialization of padding field might be
@@ -5701,7 +5704,11 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
                         end_offset.gp(), in_this_case_its_fine);
     }
-    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind);
+    // Skipping the write barrier is safe as long as:
+    // (1) {obj} is freshly allocated, and
+    // (2) {obj} is in new-space (not pretenured).
+    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind,
+                     LiftoffAssembler::kSkipWriteBarrier);
     __ emit_i32_addi(offset.gp(), offset.gp(), elem_size);
     __ emit_jump(&loop);
 
@@ -5835,9 +5842,13 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       __ LoadConstant(offset_reg,
                       WasmValue(i << value_kind_size_log2(elem_kind)));
+      // Skipping the write barrier is safe as long as:
+      // (1) {array} is freshly allocated, and
+      // (2) {array} is in new-space (not pretenured).
       StoreObjectField(array.gp(), offset_reg.gp(),
                        wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
-                       element, pinned, elem_kind);
+                       element, pinned, elem_kind,
+                       LiftoffAssembler::kSkipWriteBarrier);
     }
 
     // Push the array onto the stack.
@@ -7880,9 +7891,12 @@ class LiftoffCompiler {
 
   void StoreObjectField(Register obj, Register offset_reg, int offset,
                         LiftoffRegister value, LiftoffRegList pinned,
-                        ValueKind kind) {
+                        ValueKind kind,
+                        LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
+                            LiftoffAssembler::kNoSkipWriteBarrier) {
     if (is_reference(kind)) {
-      __ StoreTaggedPointer(obj, offset_reg, offset, value, pinned);
+      __ StoreTaggedPointer(obj, offset_reg, offset, value, pinned,
+                            skip_write_barrier);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
