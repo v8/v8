@@ -1839,6 +1839,7 @@
   'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
   'math-floor-part1': [SKIP],
   'compiler/regress-1125145': [SKIP],
+  'compiler/regress-crbug-1399627': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
