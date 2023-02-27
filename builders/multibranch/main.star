@@ -217,6 +217,8 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
         close_tree = False,
+        # TODO(crbug.com/v8/8811): Enable again when it is green.
+        work_in_progress = True,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64",

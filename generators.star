@@ -177,6 +177,12 @@ def extract_property(builder, key, default):
         builder.properties = json.encode(properties)
     return value
 
+def builder_suffix(builder):
+    return builder.name.split("/")[-1]
+
+def builder_suffixes(console):
+    return [builder_suffix(builder) for builder in console.builders]
+
 def hide_wip_builders(ctx):
     """
     Move builders marked as WIP to a separate console.
@@ -195,12 +201,14 @@ def hide_wip_builders(ctx):
         if console == wip_console:
             continue
         filtered_builders = []
-        for builder in console.builders:
-            for wip_builder in wip_builders:
-                if builder.name.endswith(wip_builder):
-                    wip_console.builders.append(builder)
-                else:
-                    filtered_builders.append(builder)
+        for console_builder in console.builders:
+            if builder_suffix(console_builder) in builder_suffixes(wip_console):
+                continue
+            if (builder_suffix(console_builder) in wip_builders and
+                "/luci.v8.ci/" in console_builder.name):
+                wip_console.builders.append(console_builder)
+            else:
+                filtered_builders.append(console_builder)
         console.builders = filtered_builders
 
 lucicfg.generator(aggregate_builder_tester_console)
