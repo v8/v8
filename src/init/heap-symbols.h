@@ -364,6 +364,7 @@
   V(_, Object_string, "Object")                                      \
   V(_, object_string, "object")                                      \
   V(_, object_to_string, "[object Object]")                          \
+  V(_, Object_prototype_string, "Object.prototype")                  \
   V(_, of_string, "of")                                              \
   V(_, offset_string, "offset")                                      \
   V(_, offsetNanoseconds_string, "offsetNanoseconds")                \

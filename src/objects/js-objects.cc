@@ -5185,9 +5185,14 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   bool immutable_proto = map->is_immutable_proto();
   if (immutable_proto) {
-    RETURN_FAILURE(
-        isolate, should_throw,
-        NewTypeError(MessageTemplate::kImmutablePrototypeSet, object));
+    Handle<Object> msg;
+    if (object->IsJSObjectPrototype()) {  // is [[Object.prototype]]
+      msg = isolate->factory()->Object_prototype_string();
+    } else {
+      msg = object;
+    }
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kImmutablePrototypeSet, msg));
   }
 
   // From 6.1.7.3 Invariants of the Essential Internal Methods
