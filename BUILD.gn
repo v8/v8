@@ -371,6 +371,12 @@ declare_args() {
 
   # Make ValueDeserializer crash if the data to deserialize is invalid.
   v8_value_deserializer_hard_fail = false
+
+  # Enable jitless mode, including compile-time optimizations. Note that even
+  # when this is set to 'false', one can run V8 in jitless mode at runtime by
+  # passing the `--jitless` flag; but then you miss out on compile-time
+  # optimizations.
+  v8_jitless = v8_enable_lite_mode
 }
 
 # Derived defaults.
@@ -460,6 +466,10 @@ if (v8_enable_maglev == "") {
 }
 assert(v8_enable_turbofan || !v8_enable_maglev,
        "Maglev is not available when Turbofan is disabled.")
+
+assert(!v8_jitless ||
+           (!v8_enable_maglev && !v8_enable_turbofan && !v8_enable_webassembly),
+       "Maglev, Turbofan and Wasm are not available in jitless mode")
 
 if (v8_builtins_profiling_log_file == "default") {
   v8_builtins_profiling_log_file = ""
@@ -1056,6 +1066,9 @@ config("features") {
   }
   if (v8_enable_turbofan) {
     defines += [ "V8_ENABLE_TURBOFAN" ]
+  }
+  if (v8_jitless) {
+    defines += [ "V8_JITLESS" ]
   }
   if (v8_enable_swiss_name_dictionary) {
     defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
@@ -2360,6 +2373,7 @@ action("v8_dump_build_config") {
     "v8_enable_verify_heap=$v8_enable_verify_heap",
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_enable_webassembly=$v8_enable_webassembly",
+    "v8_jitless=$v8_jitless",
     "v8_target_cpu=\"$v8_target_cpu\"",
   ]
 

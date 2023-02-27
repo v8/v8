@@ -75,7 +75,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         kIncompatibleFlagsForNoTurbofan + [
             "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
             "--always-sparkplug", "--regexp-tier-up",
-            "--no-regexp-interpret-all"
+            "--no-regexp-interpret-all", "--interpreted-frames-native-stack"
         ],
     "nooptimization": [
         "--turbofan", "--always-turbofan", "--stress-concurrent-inlining"
@@ -168,6 +168,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!has_maglev": ["--maglev"],
     "!has_turbofan":
         kIncompatibleFlagsForNoTurbofan,
+    "jitless_build_mode":
+        INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"] +
                  INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "predictable": [

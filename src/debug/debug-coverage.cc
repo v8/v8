@@ -621,6 +621,10 @@ std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
 
 std::unique_ptr<Coverage> Coverage::Collect(
     Isolate* isolate, v8::debug::CoverageMode collectionMode) {
+  // Unsupported if jitless mode is enabled at build-time since related
+  // optimizations deactivate invocation count updates.
+  CHECK(!V8_JITLESS_BOOL);
+
   // Collect call counts for all functions.
   SharedToCounterMap counter_map;
   CollectAndMaybeResetCounts(isolate, &counter_map, collectionMode);

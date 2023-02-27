@@ -27,7 +27,11 @@ namespace internal {
 class IsCompiledScope;
 class FeedbackVectorSpec;
 
-enum class UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback };
+enum class UpdateFeedbackMode {
+  kOptionalFeedback,
+  kGuaranteedFeedback,
+  kNoFeedback,
+};
 
 // Which feedback slots to clear in Clear().
 enum class ClearBehavior {

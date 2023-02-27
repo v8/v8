@@ -602,6 +602,8 @@ class BaseTestRunner(object):
             self.build_config.is_full_debug,
         "interrupt_fuzzer":
             False,
+        "jitless_build_mode":
+            self.build_config.jitless_build_mode,
         "mips_arch_variant":
             self.build_config.mips_arch_variant,
         "mode":

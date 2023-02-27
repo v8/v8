@@ -143,9 +143,25 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   TNode<JSFunction> LoadFunctionClosure();
 
-  // Load the FeedbackVector for the current function. The retuned node could be
-  // undefined.
+  // Load the FeedbackVector for the current function. The returned node could
+  // be undefined.
   TNode<HeapObject> LoadFeedbackVector();
+
+  TNode<HeapObject> LoadFeedbackVectorOrUndefinedIfJitless() {
+#ifndef V8_JITLESS
+    return LoadFeedbackVector();
+#else
+    return UndefinedConstant();
+#endif  // V8_JITLESS
+  }
+
+  static constexpr UpdateFeedbackMode DefaultUpdateFeedbackMode() {
+#ifndef V8_JITLESS
+    return UpdateFeedbackMode::kOptionalFeedback;
+#else
+    return UpdateFeedbackMode::kNoFeedback;
+#endif  // !V8_JITLESS
+  }
 
   // Call JSFunction or Callable |function| with |args| arguments, possibly
   // including the receiver depending on |receiver_mode|. After the call returns
@@ -169,8 +185,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void CallJSWithSpreadAndDispatch(TNode<Object> function,
                                    TNode<Context> context,
                                    const RegListNodePair& args,
-                                   TNode<UintPtrT> slot_id,
-                                   TNode<HeapObject> maybe_feedback_vector);
+                                   TNode<UintPtrT> slot_id);
 
   // Call constructor |target| with |args| arguments (not including receiver).
   // The |new_target| is the same as the |target| for the new keyword, but
@@ -188,8 +203,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                     TNode<Context> context,
                                     TNode<Object> new_target,
                                     const RegListNodePair& args,
-                                    TNode<UintPtrT> slot_id,
-                                    TNode<HeapObject> maybe_feedback_vector);
+                                    TNode<UintPtrT> slot_id);
 
   // Call runtime function with |args| arguments.
   template <class T = Object>

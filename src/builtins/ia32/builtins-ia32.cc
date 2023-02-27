@@ -575,6 +575,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
   __ LoadMap(scratch1, sfi_data);
 
+#ifndef V8_JITLESS
   __ CmpInstanceType(scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
@@ -585,6 +586,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   } else {
     __ j(equal, is_baseline);
   }
+#endif  // !V8_JITLESS
 
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, &done, Label::kNear);
@@ -895,8 +897,6 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 // frame-constants.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
-  Register closure = edi;
-
   __ movd(xmm0, eax);  // Spill actual argument count.
 
   // The bytecode array could have been flushed from the shared function info,
@@ -911,6 +911,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, eax);
   __ j(not_equal, &compile_lazy);
 
+#ifndef V8_JITLESS
+  Register closure = edi;
   Register feedback_vector = ecx;
   Label push_stack_frame;
   // Load feedback vector and check if it is valid. If valid, check for
@@ -948,6 +950,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // MANUAL indicates that the scope shouldn't actually generate code to set
   // up the frame (that is done below).
   __ bind(&push_stack_frame);
+#else
+  // Note: By omitting the above code in jitless mode we also disable:
+  // - kFlagsLogNextExecution: only used for logging/profiling; and
+  // - kInvocationCountOffset: only used for tiering heuristics and code
+  //   coverage.
+#endif  // !V8_JITLESS
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
@@ -1109,6 +1117,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
+#ifndef V8_JITLESS
   __ bind(&flags_need_processing);
   {
     // Restore actual argument count.
@@ -1156,6 +1165,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
+#endif  // !V8_JITLESS
 
   __ bind(&stack_overflow);
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -1527,6 +1537,7 @@ void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
   Generate_InterpreterEnterBytecode(masm);
 }
+
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   auto descriptor =

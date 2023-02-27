@@ -442,6 +442,12 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
+['jitless_build_mode', {
+  # invocation_count maintenance is disabled.
+  'code-coverage*': [SKIP],
+}],  # jitless_build_mode
+
+##############################################################################
 ['lite_mode or variant == jitless', {
   # Timeouts in lite / jitless mode.
   'asm/embenchen/*': [SKIP],

@@ -1896,6 +1896,7 @@ void BaselineCompiler::VisitCreateRestParameter() {
 }
 
 void BaselineCompiler::VisitJumpLoop() {
+#ifndef V8_JITLESS
   Label osr_armed, osr_not_armed;
   using D = OnStackReplacementDescriptor;
   Register feedback_vector = Register::no_reg();
@@ -1916,6 +1917,7 @@ void BaselineCompiler::VisitJumpLoop() {
   }
 
   __ Bind(&osr_not_armed);
+#endif  // !V8_JITLESS
   Label* label = labels_[iterator().GetJumpTargetOffset()].GetPointer();
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
@@ -1924,6 +1926,7 @@ void BaselineCompiler::VisitJumpLoop() {
   DCHECK(label->is_bound());
   UpdateInterruptBudgetAndJumpToLabel(weight, label, label);
 
+#ifndef V8_JITLESS
   {
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Handle Armed");
     __ Bind(&osr_armed);
@@ -1946,6 +1949,7 @@ void BaselineCompiler::VisitJumpLoop() {
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
     __ Jump(&osr_not_armed, Label::kNear);
   }
+#endif  // !V8_JITLESS
 }
 
 void BaselineCompiler::VisitJump() {

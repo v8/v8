@@ -267,7 +267,11 @@ type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
-extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
+extern enum UpdateFeedbackMode {
+  kOptionalFeedback,
+  kGuaranteedFeedback,
+  kNoFeedback
+}
 extern operator '==' macro UpdateFeedbackModeEqual(
     constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
 

@@ -95,6 +95,7 @@ void Serializer::OutputStatistics(const char* name) {
   }
 
 #ifdef OBJECT_PRINT
+  PrintF("\n");
   PrintF("  Instance types (count and bytes):\n");
 #define PRINT_INSTANCE_TYPE(Name)                                          \
   for (int space = 0; space < kNumberOfSnapshotSpaces; ++space) {          \

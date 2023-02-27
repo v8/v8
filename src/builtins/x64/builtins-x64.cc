@@ -697,6 +697,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
   __ LoadMap(scratch1, sfi_data);
 
+#ifndef V8_JITLESS
   __ CmpInstanceType(scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
@@ -707,6 +708,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   } else {
     __ j(equal, is_baseline);
   }
+#endif  // !V8_JITLESS
 
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, &done, Label::kNear);
@@ -1023,7 +1025,6 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
   Register closure = rdi;
-  Register feedback_vector = rbx;
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
@@ -1046,7 +1047,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
                   kScratchRegister);
   __ j(not_equal, &compile_lazy);
 
+#ifndef V8_JITLESS
   // Load the feedback vector from the closure.
+  Register feedback_vector = rbx;
   TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
@@ -1076,6 +1079,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   __ bind(&push_stack_frame);
+#else
+  // Note: By omitting the above code in jitless mode we also disable:
+  // - kFlagsLogNextExecution: only used for logging/profiling; and
+  // - kInvocationCountOffset: only used for tiering heuristics and code
+  //   coverage.
+#endif  // !V8_JITLESS
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ pushq(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
@@ -1220,6 +1229,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
   __ int3();  // Should not return.
 
+#ifndef V8_JITLESS
   __ bind(&flags_need_processing);
   __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure);
 
@@ -1253,6 +1263,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
+#endif  // !V8_JITLESS
 
   __ bind(&stack_overflow);
   __ CallRuntime(Runtime::kThrowStackOverflow);

@@ -8957,30 +8957,27 @@ void CodeStubAssembler::NameDictionaryLookup(
     // memory features turned on. To minimize affecting the fast path, the
     // forwarding index branch defers both fetching the actual hash value and
     // the dictionary lookup to the runtime.
-    ExternalReference func_ref;
+    using ER = ExternalReference;  // To avoid super long lines below.
+    ER func_ref;
     if constexpr (std::is_same<Dictionary, NameDictionary>::value) {
       func_ref =
           mode == kFindExisting
-              ? ExternalReference::name_dictionary_lookup_forwarded_string()
-              : ExternalReference::
-                    name_dictionary_find_insertion_entry_forwarded_string();
+              ? ER::name_dictionary_lookup_forwarded_string()
+              : ER::name_dictionary_find_insertion_entry_forwarded_string();
     } else if constexpr (std::is_same<Dictionary, GlobalDictionary>::value) {
       func_ref =
           mode == kFindExisting
-              ? ExternalReference::global_dictionary_lookup_forwarded_string()
-              : ExternalReference::
-                    global_dictionary_find_insertion_entry_forwarded_string();
+              ? ER::global_dictionary_lookup_forwarded_string()
+              : ER::global_dictionary_find_insertion_entry_forwarded_string();
     } else {
-      func_ref =
-          mode == kFindExisting
-              ? ExternalReference::
-                    name_to_index_hashtable_lookup_forwarded_string()
-              : ExternalReference::
-                    name_to_index_hashtable_find_insertion_entry_forwarded_string();
+      auto ref0 = ER::name_to_index_hashtable_lookup_forwarded_string();
+      auto ref1 =
+          ER::name_to_index_hashtable_find_insertion_entry_forwarded_string();
+      func_ref = mode == kFindExisting ? ref0 : ref1;
     }
-    const TNode<ExternalReference> function = ExternalConstant(func_ref);
-    const TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+    const TNode<ER> function = ExternalConstant(func_ref);
+    const TNode<ER> isolate_ptr =
+        ExternalConstant(ER::isolate_address(isolate()));
     TNode<IntPtrT> entry = UncheckedCast<IntPtrT>(CallCFunction(
         function, MachineType::IntPtr(),
         std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -11101,6 +11098,13 @@ void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
       CSA_DCHECK(this, IsFeedbackVector(maybe_feedback_vector));
       UpdateFeedback(feedback, CAST(maybe_feedback_vector), slot_id);
       break;
+    case UpdateFeedbackMode::kNoFeedback:
+#ifdef V8_JITLESS
+      CSA_DCHECK(this, IsUndefined(maybe_feedback_vector));
+      break;
+#else
+      UNREACHABLE();
+#endif  // !V8_JITLESS
   }
 }
 

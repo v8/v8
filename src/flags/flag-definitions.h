@@ -333,12 +333,6 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL false
 #endif
 
-#ifdef V8_LITE_MODE
-#define V8_LITE_BOOL true
-#else
-#define V8_LITE_BOOL false
-#endif
-
 #ifdef V8_ENABLE_LAZY_SOURCE_POSITIONS
 #define V8_LAZY_SOURCE_POSITIONS_BOOL true
 #else
@@ -362,12 +356,17 @@ DEFINE_BOOL(stress_snapshot, false,
 // there (that only happens in mksnapshot and in --stress-snapshot mode).
 DEFINE_NEG_IMPLICATION(stress_snapshot, incremental_marking)
 
-DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
+#ifdef V8_LITE_MODE
+#define V8_LITE_MODE_BOOL true
+#else
+#define V8_LITE_MODE_BOOL false
+#endif
+
+DEFINE_BOOL(lite_mode, V8_LITE_MODE_BOOL,
             "enables trade-off of performance for memory savings")
 
 // Lite mode implies other flags to trade-off performance for memory.
 DEFINE_IMPLICATION(lite_mode, jitless)
-DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
@@ -553,7 +552,6 @@ DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 2, maglev, false)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 1, sparkplug, false)
 #endif  // ENABLE_SPARKPLUG
-        //
 
 // Flag to select wasm trace mark type
 DEFINE_STRING(
@@ -563,36 +561,35 @@ DEFINE_STRING(
 
 // iOS on device does not support executable code pages for 3rd party
 // applications so we need to forcibly disable the JIT.
+// TODO(jgruber): Handle this in BUILD.gn / v8.gni.
 #if defined(V8_TARGET_OS_IOS) && !TARGET_OS_SIMULATOR
-#define V8_JITLESS_BOOL true
-#define DEFINE_JITLESS_BOOL DEFINE_BOOL_READONLY
-#else
-#define V8_JITLESS_BOOL V8_LITE_BOOL
-#define DEFINE_JITLESS_BOOL DEFINE_BOOL
+#define V8_JITLESS
 #endif
 
-// Flags for jitless
-DEFINE_JITLESS_BOOL(jitless, V8_JITLESS_BOOL,
-                    "Disable runtime allocation of executable memory.")
-
-DEFINE_WEAK_IMPLICATION(jitless, lower_tier_as_toptier)
+#ifdef V8_JITLESS
+#define V8_JITLESS_BOOL true
+DEFINE_BOOL_READONLY(jitless, true,
+                     "Disable runtime allocation of executable memory.")
+#else
+#define V8_JITLESS_BOOL false
+DEFINE_BOOL(jitless, V8_LITE_MODE_BOOL,
+            "Disable runtime allocation of executable memory.")
+#endif  // V8_JITLESS
 
 // Jitless V8 has a few implications:
-DEFINE_NEG_IMPLICATION(jitless, turbofan)
 // Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
-// Regexps are interpreted.
+// No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
+DEFINE_NEG_IMPLICATION(jitless, turbofan)
 #if ENABLE_SPARKPLUG
-// No Sparkplug compilation.
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
 #endif  // ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
-// No Maglev compilation.
 DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif  // V8_ENABLE_MAGLEV
-
+// Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
 DEFINE_BOOL(assert_types, false,
