@@ -405,17 +405,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  Label write_barrier;
   Label exit;
   CheckPageFlag(dst_addr, scratch,
-                MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
-                &write_barrier, Label::kNear);
-  jmp(&exit, Label::kNear);
-  bind(&write_barrier);
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
+                Label::kNear);
   JumpIfSmi(src.gp(), &exit, Label::kNear);
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressTagged(src.gp(), src.gp());
-  }
   CheckPageFlag(src.gp(), scratch,
                 MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
                 zero, &exit, Label::kNear);
