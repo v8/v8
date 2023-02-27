@@ -1184,6 +1184,10 @@
 
   # Skipped because it has contradictory flags.
   'compiler/regress-crbug-1399490': [SKIP],
+
+  # BUG(v8:13470) Skipped until we have a solution.
+  'compiler/js-create-arguments': [SKIP],
+  'compiler/js-create': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
