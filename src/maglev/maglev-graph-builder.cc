@@ -3732,14 +3732,18 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
     ValueNode* target, ValueNode* context, Call::TargetType target_type,
     const CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
+  // TODO(victorgomes): We do not collect call feedback from optimized/inlined
+  // calls. In order to be consistent, we don't pass the feedback_source to the
+  // IR, so that we avoid collecting for generic calls as well. We might want to
+  // revisit this in the future.
   switch (args.mode()) {
     case CallArguments::kDefault:
       return AddNewCallNode<Call>(args, args.receiver_mode(), target_type,
-                                  feedback_source, target, context);
+                                  compiler::FeedbackSource(), target, context);
     case CallArguments::kWithSpread:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
-      return AddNewCallNode<CallWithSpread>(args, feedback_source, target,
-                                            context);
+      return AddNewCallNode<CallWithSpread>(args, compiler::FeedbackSource(),
+                                            target, context);
     case CallArguments::kWithArrayLike:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
       return AddNewNode<CallWithArrayLike>(
