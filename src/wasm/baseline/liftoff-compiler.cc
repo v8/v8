@@ -5838,15 +5838,12 @@ class LiftoffCompiler {
     for (int i = static_cast<int>(elements.size()) - 1; i >= 0; i--) {
       LiftoffRegList pinned{array};
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
-      LiftoffRegister offset_reg =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(offset_reg,
-                      WasmValue(i << value_kind_size_log2(elem_kind)));
+      int offset =
+          WasmArray::kHeaderSize + (i << value_kind_size_log2(elem_kind));
       // Skipping the write barrier is safe as long as:
       // (1) {array} is freshly allocated, and
       // (2) {array} is in new-space (not pretenured).
-      StoreObjectField(array.gp(), offset_reg.gp(),
-                       wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+      StoreObjectField(array.gp(), no_reg, wasm::ObjectAccess::ToTagged(offset),
                        element, pinned, elem_kind,
                        LiftoffAssembler::kSkipWriteBarrier);
     }
