@@ -1048,10 +1048,12 @@ class Heap {
   void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
 
-  enum class ScanStackMode { kNone, kFromMarker, kComplete };
-  void IterateStackRoots(RootVisitor* v, ScanStackMode stack_mode);
-  void IterateStackRootsIncludingClients(RootVisitor* v,
-                                         ScanStackMode stack_mode);
+  void IterateStackRoots(RootVisitor* v);
+
+  enum class ScanStackMode { kFromMarker, kComplete };
+  void IterateConservativeStackRoots(RootVisitor* v, ScanStackMode stack_mode);
+  void IterateConservativeStackRootsIncludingClients(RootVisitor* v,
+                                                     ScanStackMode stack_mode);
 
   // ===========================================================================
   // Remembered set API. =======================================================

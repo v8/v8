@@ -2020,7 +2020,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   heap()->IterateRootsIncludingClients(
-      root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kStack});
+      root_visitor,
+      base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack});
 
   MarkWaiterQueueNode(isolate());
 
@@ -2037,9 +2038,10 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   }
 }
 
-void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
-  heap()->IterateStackRootsIncludingClients(root_visitor,
-                                            Heap::ScanStackMode::kComplete);
+void MarkCompactCollector::MarkRootsFromConservativeStack(
+    RootVisitor* root_visitor) {
+  heap()->IterateConservativeStackRootsIncludingClients(
+      root_visitor, Heap::ScanStackMode::kComplete);
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
@@ -2628,7 +2630,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
-    MarkRootsFromStack(&root_visitor);
+    MarkRootsFromConservativeStack(&root_visitor);
   }
 
   {

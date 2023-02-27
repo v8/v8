@@ -4622,11 +4622,13 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
     if (!options.contains(SkipRoot::kStack)) {
-      ScanStackMode stack_mode =
-          options.contains(SkipRoot::kConservativeStack) ? ScanStackMode::kNone
-          : options.contains(SkipRoot::kTopOfStack) ? ScanStackMode::kFromMarker
-                                                    : ScanStackMode::kComplete;
-      IterateStackRoots(v, stack_mode);
+      IterateStackRoots(v);
+      if (!options.contains(SkipRoot::kConservativeStack)) {
+        ScanStackMode stack_mode = options.contains(SkipRoot::kTopOfStack)
+                                       ? ScanStackMode::kFromMarker
+                                       : ScanStackMode::kComplete;
+        IterateConservativeStackRoots(v, stack_mode);
+      }
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
@@ -4760,19 +4762,11 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
-void Heap::IterateStackRootsIncludingClients(RootVisitor* v,
-                                             ScanStackMode stack_mode) {
-  IterateStackRoots(v, stack_mode);
+void Heap::IterateConservativeStackRootsIncludingClients(
+    RootVisitor* v, ScanStackMode stack_mode) {
+  IterateConservativeStackRoots(v, stack_mode);
 
-  if (isolate()->is_shared_space_isolate()) {
-    ClientRootVisitor client_root_visitor(v);
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [v = &client_root_visitor](Isolate* client) {
-          // TODO(v8:13257): We cannot run CSS on client isolates now, as the
-          // stack markers will not be correct.
-          client->heap()->IterateStackRoots(v, ScanStackMode::kNone);
-        });
-  }
+  // TODO(v8:13257): Iterate over client isolates for CSS once supported.
 }
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
@@ -4798,9 +4792,10 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
-void Heap::IterateStackRoots(RootVisitor* v, ScanStackMode stack_mode) {
-  isolate_->Iterate(v);
+void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
+void Heap::IterateConservativeStackRoots(RootVisitor* v,
+                                         ScanStackMode stack_mode) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (stack_mode == ScanStackMode::kNone || !IsGCWithStack()) return;
 

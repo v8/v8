@@ -481,7 +481,7 @@ class MarkCompactCollector final : public CollectorBase {
   void MarkRoots(RootVisitor* root_visitor);
 
   // Mark the stack roots and all objects reachable from them.
-  void MarkRootsFromStack(RootVisitor* root_visitor);
+  void MarkRootsFromConservativeStack(RootVisitor* root_visitor);
 
   // Mark all objects that are directly referenced from one of the clients
   // heaps.
