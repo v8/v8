@@ -7270,9 +7270,9 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
-    __ DropValue(2);
+    __ DropValues(2);
     __ SmiToInt32(kReturnRegister0);
-    __ PushRegister(kRef, result_reg);
+    __ PushRegister(kI32, result_reg);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
