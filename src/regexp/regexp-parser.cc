@@ -2557,7 +2557,6 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassStringDisjunction(
   // We don't need to handle missing closing '}' here.
   // If the character class is correctly closed, ParseClassSetCharacter will
   // report an error.
-  DCHECK_EQ(current(), '}');
   Advance();
   return nullptr;
 }
