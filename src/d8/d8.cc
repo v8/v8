@@ -1555,6 +1555,7 @@ void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
 int PerIsolateData::HandleUnhandledPromiseRejections() {
   // Avoid recursive calls to HandleUnhandledPromiseRejections.
   if (ignore_unhandled_promises_) return 0;
+  if (isolate_->IsExecutionTerminating()) return 0;
   ignore_unhandled_promises_ = true;
   v8::HandleScope scope(isolate_);
   // Ignore promises that get added during error reporting.
@@ -4520,6 +4521,7 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   try_catch.SetVerbose(true);
   Local<Value> value;
   if (Shell::DeserializeValue(isolate_, std::move(data)).ToLocal(&value)) {
+    DCHECK(!isolate_->IsExecutionTerminating());
     Local<Value> argv[] = {value};
     MaybeLocal<Value> result = onmessage_fun->Call(context, global, 1, argv);
     USE(result);
@@ -5106,8 +5108,10 @@ bool ProcessMessages(
     SealHandleScope shs(isolate);
     for (bool ran_tasks = true; ran_tasks;) {
       // Execute one foreground task (if one exists), then microtasks.
+      if (isolate->IsExecutionTerminating()) return false;
       ran_tasks = v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                                 behavior());
+      if (isolate->IsExecutionTerminating()) return false;
       if (ran_tasks) MicrotasksScope::PerformCheckpoint(isolate);
 
       // In predictable mode we push all background tasks into the foreground
@@ -5115,11 +5119,13 @@ bool ProcessMessages(
       // isolate. We execute all background tasks after running one foreground
       // task.
       if (i::v8_flags.verify_predictable) {
+        if (isolate->IsExecutionTerminating()) return false;
         while (v8::platform::PumpMessageLoop(
             g_default_platform,
             kProcessGlobalPredictablePlatformWorkerTaskQueue,
             platform::MessageLoopBehavior::kDoNotWait)) {
           ran_tasks = true;
+          if (isolate->IsExecutionTerminating()) return false;
         }
       }
     }
@@ -5127,6 +5133,7 @@ bool ProcessMessages(
       v8::platform::RunIdleTasks(g_default_platform, isolate,
                                  50.0 / base::Time::kMillisecondsPerSecond);
     }
+    if (isolate->IsExecutionTerminating()) return false;
     bool ran_set_timeout = false;
     if (!RunSetTimeoutCallback(isolate, &ran_set_timeout)) return false;
     if (!ran_set_timeout) return true;
