@@ -287,6 +287,7 @@ namespace compiler {
   V(S390_I32x4ExtAddPairwiseI16x8U)         \
   V(S390_I32x4TruncSatF64x2SZero)           \
   V(S390_I32x4TruncSatF64x2UZero)           \
+  V(S390_I32x4DotI8x16AddS)                 \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
@@ -328,6 +329,7 @@ namespace compiler {
   V(S390_I16x8ExtAddPairwiseI8x16S)         \
   V(S390_I16x8ExtAddPairwiseI8x16U)         \
   V(S390_I16x8Q15MulRSatS)                  \
+  V(S390_I16x8DotI8x16S)                    \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \

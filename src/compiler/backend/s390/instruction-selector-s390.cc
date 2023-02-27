@@ -2971,6 +2971,22 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_I16x8DotI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  S390OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kS390_I32x4DotI8x16AddS, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   S390OperandGenerator g(this);
 

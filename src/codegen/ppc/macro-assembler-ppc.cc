@@ -4522,6 +4522,21 @@ void MacroAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
   vmsumshm(dst, src1, src2, scratch);
 }
 
+void MacroAssembler::I32x4DotI8x16AddS(Simd128Register dst,
+                                       Simd128Register src1,
+                                       Simd128Register src2,
+                                       Simd128Register src3) {
+  vmsummbm(dst, src1, src2, src3);
+}
+
+void MacroAssembler::I16x8DotI8x16S(Simd128Register dst, Simd128Register src1,
+                                    Simd128Register src2,
+                                    Simd128Register scratch) {
+  vmulesb(scratch, src1, src2);
+  vmulosb(dst, src1, src2);
+  vadduhm(dst, scratch, dst);
+}
+
 void MacroAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
                                       Simd128Register src2,
                                       Simd128Register scratch) {

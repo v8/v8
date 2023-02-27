@@ -6144,6 +6144,30 @@ void MacroAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
   va(dst, scratch, dst, Condition(0), Condition(0), Condition(2));
 }
 
+void MacroAssembler::I32x4DotI8x16AddS(
+    Simd128Register dst, Simd128Register src1, Simd128Register src2,
+    Simd128Register src3, Simd128Register scratch1, Simd128Register scratch2) {
+  // I8 -> I16.
+  vme(scratch1, src1, src2, Condition(0), Condition(0), Condition(0));
+  vmo(dst, src1, src2, Condition(0), Condition(0), Condition(0));
+  va(dst, scratch1, dst, Condition(0), Condition(0), Condition(1));
+  // I16 -> I32.
+  vrepi(scratch2, Operand(1), Condition(1));
+  vme(scratch1, dst, scratch2, Condition(0), Condition(0), Condition(1));
+  vmo(dst, dst, scratch2, Condition(0), Condition(0), Condition(1));
+  va(dst, scratch1, dst, Condition(0), Condition(0), Condition(2));
+  // Add src3.
+  va(dst, dst, src3, Condition(0), Condition(0), Condition(2));
+}
+
+void MacroAssembler::I16x8DotI8x16S(Simd128Register dst, Simd128Register src1,
+                                    Simd128Register src2,
+                                    Simd128Register scratch) {
+  vme(scratch, src1, src2, Condition(0), Condition(0), Condition(0));
+  vmo(dst, src1, src2, Condition(0), Condition(0), Condition(0));
+  va(dst, scratch, dst, Condition(0), Condition(0), Condition(1));
+}
+
 #define Q15_MUL_ROAUND(accumulator, src1, src2, const_val, scratch, unpack) \
   unpack(scratch, src1, Condition(0), Condition(0), Condition(1));          \
   unpack(accumulator, src2, Condition(0), Condition(0), Condition(1));      \

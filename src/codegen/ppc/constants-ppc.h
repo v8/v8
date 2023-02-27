@@ -2029,6 +2029,8 @@ using Instr = uint32_t;
   V(vmladduhm, VMLADDUHM, 0x10000022)                           \
   /* Vector Select */                                           \
   V(vsel, VSEL, 0x1000002A)                                     \
+  /* Vector Multiply-Sum Mixed Byte Modulo */                   \
+  V(vmsummbm, VMSUMMBM, 0x10000025)                             \
   /* Vector Multiply-Sum Signed Halfword Modulo */              \
   V(vmsumshm, VMSUMSHM, 0x10000028)                             \
   /* Vector Multiply-High-Round-Add Signed Halfword Saturate */ \
@@ -2043,8 +2045,6 @@ using Instr = uint32_t;
   V(vmaddfp, VMADDFP, 0x1000002E)                                \
   /* Vector Multiply-High-Add Signed Halfword Saturate */        \
   V(vmhaddshs, VMHADDSHS, 0x10000020)                            \
-  /* Vector Multiply-Sum Mixed Byte Modulo */                    \
-  V(vmsummbm, VMSUMMBM, 0x10000025)                              \
   /* Vector Multiply-Sum Signed Halfword Saturate */             \
   V(vmsumshs, VMSUMSHS, 0x10000029)                              \
   /* Vector Multiply-Sum Unsigned Byte Modulo */                 \

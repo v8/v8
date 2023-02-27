@@ -1202,6 +1202,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   V(I16x8ExtMulLowI8x16U)               \
   V(I16x8ExtMulHighI8x16U)              \
   V(I16x8Q15MulRSatS)                   \
+  V(I16x8DotI8x16S)                     \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
   V(I8x16GeU)                           \
@@ -1450,6 +1451,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                     Simd128Register src2, uint64_t high, uint64_t low,
                     Register scratch1, Register scratch2,
                     Simd128Register scratch3);
+  void I32x4DotI8x16AddS(Simd128Register dst, Simd128Register src1,
+                         Simd128Register src2, Simd128Register src3);
   void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
                    Register scratch2, Simd128Register scratch3);
   void S128Const(Simd128Register dst, uint64_t high, uint64_t low,

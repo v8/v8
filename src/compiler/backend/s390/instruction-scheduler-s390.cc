@@ -253,6 +253,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I32x4ExtAddPairwiseI16x8U:
     case kS390_I32x4TruncSatF64x2SZero:
     case kS390_I32x4TruncSatF64x2UZero:
+    case kS390_I32x4DotI8x16AddS:
     case kS390_I16x8Splat:
     case kS390_I16x8ExtractLaneU:
     case kS390_I16x8ExtractLaneS:
@@ -294,6 +295,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I16x8ExtAddPairwiseI8x16S:
     case kS390_I16x8ExtAddPairwiseI8x16U:
     case kS390_I16x8Q15MulRSatS:
+    case kS390_I16x8DotI8x16S:
     case kS390_I8x16Splat:
     case kS390_I8x16ExtractLaneU:
     case kS390_I8x16ExtractLaneS:

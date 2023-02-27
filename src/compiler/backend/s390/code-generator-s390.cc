@@ -3003,6 +3003,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
+
+    case kS390_I16x8DotI8x16S: {
+      __ I16x8DotI8x16S(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), kScratchDoubleReg);
+      break;
+    }
+    case kS390_I32x4DotI8x16AddS: {
+      __ I32x4DotI8x16AddS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                           i.InputSimd128Register(1), i.InputSimd128Register(2),
+                           kScratchDoubleReg, i.TempSimd128Register(0));
+      break;
+    }
     case kS390_I16x8Q15MulRSatS: {
       __ I16x8Q15MulRSatS(i.OutputSimd128Register(), i.InputSimd128Register(0),
                           i.InputSimd128Register(1), kScratchDoubleReg,
