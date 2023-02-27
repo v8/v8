@@ -587,6 +587,7 @@ v8_source_set("unittests_sources") {
       "wasm/subtyping-unittest.cc",
       "wasm/wasm-code-manager-unittest.cc",
       "wasm/wasm-compiler-unittest.cc",
+      "wasm/wasm-disassembler-unittest-bad-name-section.wasm.inc",
       "wasm/wasm-disassembler-unittest-gc.wasm.inc",
       "wasm/wasm-disassembler-unittest-gc.wat.inc",
       "wasm/wasm-disassembler-unittest-mvp.wasm.inc",

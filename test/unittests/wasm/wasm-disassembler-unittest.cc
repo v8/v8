@@ -90,6 +90,17 @@ TEST_F(WasmDisassemblerTest, Names) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, InvalidNameSection) {
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-bad-name-section.wasm.inc"
+  };
+  std::string expected(
+      "(module\n"
+      "  (table $x (;0;) 0 funcref)\n"
+      ")\n");
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 TEST_F(WasmDisassemblerTest, Simd) {
   constexpr byte module_bytes[] = {
 #include "wasm-disassembler-unittest-simd.wasm.inc"
