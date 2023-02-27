@@ -4797,7 +4797,7 @@ void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 void Heap::IterateConservativeStackRoots(RootVisitor* v,
                                          ScanStackMode stack_mode) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  if (stack_mode == ScanStackMode::kNone || !IsGCWithStack()) return;
+  if (!IsGCWithStack()) return;
 
   ConservativeStackVisitor stack_visitor(isolate_, v);
   if (stack_mode == ScanStackMode::kComplete) {

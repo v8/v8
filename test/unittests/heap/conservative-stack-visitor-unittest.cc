@@ -23,9 +23,9 @@ class RecordingVisitor final : public RootVisitor {
     inner_address_ = base_address_ + 42 * kTaggedSize;
 #ifdef V8_COMPRESS_POINTERS
     compr_address_ = static_cast<uint32_t>(
-        V8HeapCompressionScheme::CompressTagged(base_address_));
+        V8HeapCompressionScheme::CompressObject(base_address_));
     compr_inner_ = static_cast<uint32_t>(
-        V8HeapCompressionScheme::CompressTagged(inner_address_));
+        V8HeapCompressionScheme::CompressObject(inner_address_));
 #else
     compr_address_ = static_cast<uint32_t>(base_address_);
     compr_inner_ = static_cast<uint32_t>(inner_address_);
