@@ -302,12 +302,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
-  Label write_barrier;
   Label exit;
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
-                ne, &write_barrier);
-  b(&exit);
-  bind(&write_barrier);
+                kZero, &exit);
   JumpIfSmi(src.gp(), &exit);
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(src.gp(), src.gp());
