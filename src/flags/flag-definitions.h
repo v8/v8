@@ -444,6 +444,7 @@ DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
 DEFINE_IMPLICATION(conservative_stack_scanning, minor_mc)
+DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
