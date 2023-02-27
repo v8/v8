@@ -165,9 +165,28 @@ class X64OperandGenerator final : public OperandGenerator {
       size_t* input_count,
       RegisterUseKind reg_kind = RegisterUseKind::kUseRegister) {
     AddressingMode mode = kMode_MRI;
+    bool fold_base_into_displacement = false;
+    int64_t fold_value = 0;
     if (base != nullptr && (index != nullptr || displacement != nullptr)) {
-      if (base->opcode() == IrOpcode::kInt32Constant &&
-          OpParameter<int32_t>(base->op()) == 0) {
+      if (index != nullptr && displacement != nullptr && CanBeImmediate(base) &&
+          CanBeImmediate(displacement)) {
+        fold_value = GetImmediateIntegerValue(base);
+        int64_t displacement_val = GetImmediateIntegerValue(displacement);
+        if (displacement_mode == kNegativeDisplacement) {
+          fold_value -= displacement_val;
+        } else {
+          fold_value += displacement_val;
+        }
+        if (fold_value == 0) {
+          base = nullptr;
+          displacement = nullptr;
+        } else if (std::numeric_limits<int32_t>::min() < fold_value &&
+                   fold_value <= std::numeric_limits<int32_t>::max()) {
+          base = nullptr;
+          fold_base_into_displacement = true;
+        }
+      } else if (base->opcode() == IrOpcode::kInt32Constant &&
+                 OpParameter<int32_t>(base->op()) == 0) {
         base = nullptr;
       } else if (base->opcode() == IrOpcode::kInt64Constant &&
                  OpParameter<int64_t>(base->op()) == 0) {
@@ -203,7 +222,16 @@ class X64OperandGenerator final : public OperandGenerator {
       }
     } else {
       DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
-      if (displacement != nullptr) {
+      if (fold_base_into_displacement) {
+        DCHECK(base == nullptr);
+        DCHECK(index != nullptr);
+        DCHECK(displacement != nullptr);
+        inputs[(*input_count)++] = UseRegister(index, reg_kind);
+        inputs[(*input_count)++] = UseImmediate(static_cast<int>(fold_value));
+        static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
+                                                    kMode_M4I, kMode_M8I};
+        mode = kMnI_modes[scale_exponent];
+      } else if (displacement != nullptr) {
         if (index == nullptr) {
           inputs[(*input_count)++] = UseRegister(displacement, reg_kind);
           mode = kMode_MR;
