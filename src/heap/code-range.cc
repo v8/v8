@@ -166,44 +166,28 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
     VirtualMemoryCage candidate_cage;
 
-    // Most of the times using existing function as a hint might give us the
-    // best region from the first attempt.
-    params.requested_start_hint = the_hint;
-
-    if (candidate_cage.InitReservation(params)) {
-      TRACE("=== First attempt, hint=%p: [%p, %p)\n",
-            reinterpret_cast<void*>(params.requested_start_hint),
-            reinterpret_cast<void*>(candidate_cage.region().begin()),
-            reinterpret_cast<void*>(candidate_cage.region().end()));
-      if (!preferred_region.contains(candidate_cage.region())) {
-        // Keep trying.
+    // Try to allocate code range at the end of preferred region, by going
+    // towards the start in steps.
+    const int kAllocationTries = 16;
+    params.requested_start_hint =
+        RoundDown(preferred_region.end() - requested, allocate_page_size);
+    Address step = RoundDown(preferred_region.size() / kAllocationTries,
+                             allocate_page_size);
+    for (int i = 0; i < kAllocationTries; i++) {
+      TRACE("=== Attempt #%d, hint=%p\n", i,
+            reinterpret_cast<void*>(params.requested_start_hint));
+      if (candidate_cage.InitReservation(params)) {
+        TRACE("=== Attempt #%d (%p): [%p, %p)\n", i,
+              reinterpret_cast<void*>(params.requested_start_hint),
+              reinterpret_cast<void*>(candidate_cage.region().begin()),
+              reinterpret_cast<void*>(candidate_cage.region().end()));
+        // Allocation succeeded, check if it's in the preferred range.
+        if (preferred_region.contains(candidate_cage.region())) break;
+        // This allocation is not the one we are searhing for.
         candidate_cage.Free();
       }
-    }
-    if (!candidate_cage.IsReserved()) {
-      // Try to allocate code range at the end of preferred region, by going
-      // towards the start in steps.
-      const int kAllocationTries = 16;
-      params.requested_start_hint =
-          RoundDown(preferred_region.end() - requested, allocate_page_size);
-      Address step = RoundDown(preferred_region.size() / kAllocationTries,
-                               allocate_page_size);
-      for (int i = 0; i < kAllocationTries; i++) {
-        TRACE("=== Attempt #%d, hint=%p\n", i,
-              reinterpret_cast<void*>(params.requested_start_hint));
-        if (candidate_cage.InitReservation(params)) {
-          TRACE("=== Attempt #%d (%p): [%p, %p)\n", i,
-                reinterpret_cast<void*>(params.requested_start_hint),
-                reinterpret_cast<void*>(candidate_cage.region().begin()),
-                reinterpret_cast<void*>(candidate_cage.region().end()));
-          // Allocation succeeded, check if it's in the preferred range.
-          if (preferred_region.contains(candidate_cage.region())) break;
-          // This allocation is not the one we are searhing for.
-          candidate_cage.Free();
-        }
-        if (step == 0) break;
-        params.requested_start_hint -= step;
-      }
+      if (step == 0) break;
+      params.requested_start_hint -= step;
     }
     if (candidate_cage.IsReserved()) {
       *static_cast<VirtualMemoryCage*>(this) = std::move(candidate_cage);
