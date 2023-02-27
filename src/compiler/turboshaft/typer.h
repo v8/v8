@@ -1023,19 +1023,27 @@ struct FloatOperationTyper {
   static std::pair<Type, Type> RestrictionForLessThan_False(const type_t& lhs,
                                                             const type_t& rhs,
                                                             Zone* zone) {
-    // If either side is only NaN, this branch will always be taken.
-    if (lhs.is_only_nan() || rhs.is_only_nan()) {
-      return {type_t::Any(), type_t::Any()};
+    Type restrict_lhs;
+    if (rhs.has_nan()) {
+      restrict_lhs = type_t::Any();
+    } else {
+      uint32_t lhs_sv =
+          type_t::kNaN |
+          (rhs.min() <= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues);
+      restrict_lhs = type_t::Range(rhs.min(), inf, lhs_sv, zone);
     }
 
-    uint32_t lhs_sv =
-        type_t::kNaN |
-        (rhs.min() <= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues);
-    uint32_t rhs_sv =
-        type_t::kNaN |
-        (lhs.max() >= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues);
-    return {type_t::Range(rhs.min(), inf, lhs_sv, zone),
-            type_t::Range(-inf, lhs.max(), rhs_sv, zone)};
+    Type restrict_rhs;
+    if (lhs.has_nan()) {
+      restrict_rhs = type_t::Any();
+    } else {
+      uint32_t rhs_sv =
+          type_t::kNaN |
+          (lhs.max() >= 0 ? type_t::kMinusZero : type_t::kNoSpecialValues);
+      restrict_rhs = type_t::Range(-inf, lhs.max(), rhs_sv, zone);
+    }
+
+    return {restrict_lhs, restrict_rhs};
   }
 
   // Computes the ranges to which the sides of the comparison (lhs <= rhs) can
@@ -1062,13 +1070,10 @@ struct FloatOperationTyper {
   // we learn: lhs cannot be <= rhs.min and rhs cannot be >= lhs.max.
   static std::pair<Type, Type> RestrictionForLessThanOrEqual_False(
       const type_t& lhs, const type_t& rhs, Zone* zone) {
-    // If either side is only NaN, this branch will always be taken.
-    if (lhs.is_only_nan() || rhs.is_only_nan()) {
-      return {type_t::Any(), type_t::Any()};
-    }
-
     Type restrict_lhs;
-    if (rhs.min() == inf) {
+    if (rhs.has_nan()) {
+      restrict_lhs = type_t::Any();
+    } else if (rhs.min() == inf) {
       // The only value for lhs that could make (lhs <= inf) false is NaN.
       restrict_lhs = type_t::NaN();
     } else {
@@ -1079,7 +1084,9 @@ struct FloatOperationTyper {
     }
 
     Type restrict_rhs;
-    if (lhs.max() == -inf) {
+    if (lhs.has_nan()) {
+      restrict_rhs = type_t::Any();
+    } else if (lhs.max() == -inf) {
       // The only value for rhs that could make (-inf <= rhs) false is NaN.
       restrict_rhs = type_t::NaN();
     } else {
