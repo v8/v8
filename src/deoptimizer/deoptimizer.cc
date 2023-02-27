@@ -1913,6 +1913,36 @@ unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
   return fixed_size;
 }
 
+namespace {
+
+// Get the actual deopt call PC from the return address of the deopt, which
+// points to immediately after the deopt call).
+//
+// See also the Deoptimizer constructor.
+Address GetDeoptCallPCFromReturnPC(Address return_pc, InstructionStream code) {
+  DCHECK_GT(Deoptimizer::kEagerDeoptExitSize, 0);
+  DCHECK_GT(Deoptimizer::kLazyDeoptExitSize, 0);
+  DeoptimizationData deopt_data =
+      DeoptimizationData::cast(code.deoptimization_data());
+  Address deopt_start =
+      code.instruction_start() + deopt_data.DeoptExitStart().value();
+  int eager_deopt_count = deopt_data.EagerDeoptCount().value();
+  Address lazy_deopt_start =
+      deopt_start + eager_deopt_count * Deoptimizer::kEagerDeoptExitSize;
+  // The deoptimization exits are sorted so that lazy deopt exits appear
+  // after eager deopts.
+  static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
+                    static_cast<int>(kLastDeoptimizeKind),
+                "lazy deopts are expected to be emitted last");
+  if (return_pc <= lazy_deopt_start) {
+    return return_pc - Deoptimizer::kEagerDeoptExitSize;
+  } else {
+    return return_pc - Deoptimizer::kLazyDeoptExitSize;
+  }
+}
+
+}  // namespace
+
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   // The fp-to-sp delta already takes the context, constant pool pointer and the
   // function into account so we have to avoid double counting them.
@@ -1930,11 +1960,13 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
              result);
     // With slow asserts we can check this exactly, by looking up the safepoint.
     if (v8_flags.enable_slow_asserts) {
-      MaglevSafepointTable table(isolate_, from_, compiled_code_);
-      MaglevSafepointEntry safepoint = table.FindEntry(from_);
+      Address deopt_call_pc = GetDeoptCallPCFromReturnPC(from_, compiled_code_);
+      MaglevSafepointTable table(isolate_, deopt_call_pc, compiled_code_);
+      MaglevSafepointEntry safepoint = table.FindEntry(deopt_call_pc);
       unsigned extra_spills = safepoint.num_pushed_registers();
       CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
-                   CommonFrameConstants::kFixedFrameSizeAboveFp + extra_spills,
+                   CommonFrameConstants::kFixedFrameSizeAboveFp +
+                   extra_spills * kSystemPointerSize,
                result);
     }
   } else {

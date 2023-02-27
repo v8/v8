@@ -417,18 +417,20 @@ void MaglevAssembler::Prologue(Graph* graph) {
         [](MaglevAssembler* masm, LazyDeoptInfo* stack_check_deopt,
            ZoneLabelRef done, RegList register_inputs, int stack_check_offset) {
           ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          __ PushAll(register_inputs);
-          ScratchRegisterScope temps(masm);
-          Register scratch = temps.Acquire();
-          __ Mov(scratch,
-                 Smi::FromInt(stack_check_offset * kSystemPointerSize));
-          __ PushArgument(scratch);
-          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-          stack_check_deopt->set_deopting_call_return_pc(
-              __ pc_offset_for_safepoint());
-          __ code_gen_state()->PushLazyDeopt(stack_check_deopt);
-          masm->safepoint_table_builder()->DefineSafepoint(masm);
-          __ PopAll(register_inputs);
+          RegisterSnapshot snapshot;
+          snapshot.live_registers = register_inputs;
+          snapshot.live_tagged_registers = register_inputs;
+          {
+            SaveRegisterStateForCall save_register_state(masm, snapshot);
+            ScratchRegisterScope temps(masm);
+            Register scratch = temps.Acquire();
+            // Push the frame size
+            __ Mov(scratch,
+                   Smi::FromInt(stack_check_offset * kSystemPointerSize));
+            __ PushArgument(scratch);
+            __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+            save_register_state.DefineSafepointWithLazyDeopt(stack_check_deopt);
+          }
           __ B(*done);
         },
         graph->function_entry_stack_check()->lazy_deopt_info(),
