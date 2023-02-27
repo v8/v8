@@ -9,13 +9,26 @@
 
 namespace v8 {
 namespace internal {
-// Actual value of root register is offset from the root array's start
-// to take advantage of negative displacement values.
-// TODO(sigurds): Choose best value.
-// TODO(ishell): Choose best value for ptr-compr.
-constexpr int kRootRegisterBias = kSystemPointerSize == kTaggedSize ? 128 : 0;
 
+// The actual value of the kRootRegister is offset from the IsolateData's start
+// to take advantage of negative displacement values.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+// On x64, the smallest operand encoding allows int8 offsets, thus we select the
+// bias s.t. the first 32 8-byte slots of IsolateData are can be encoded this
+// way.
+constexpr int kRootRegisterBias = 128;
+// Problems with #include order prevent this static_assert:
+// static_assert(kRootRegister != kPtrComprCageBaseRegister);
+#else
+constexpr int kRootRegisterBias = 0;
+// Problems with #include order prevent this static_assert:
+// static_assert(kRootRegister == kPtrComprCageBaseRegister);
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+
+// The maximum size of the code range s.t. pc-relative calls are possible
+// between all Code objects in the range.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 2048;
+
 }  // namespace internal
 }  // namespace v8
 

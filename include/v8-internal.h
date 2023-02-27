@@ -524,6 +524,8 @@ class Internals {
   static const int kStackGuardSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
+  static const int kLinearAllocationAreaSize = 4 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 25 * kApiSystemPointerSize;
 
   // ExternalPointerTable layout guarantees.
   static const int kExternalPointerTableBufferOffset = 0;
@@ -539,26 +541,32 @@ class Internals {
       kVariousBooleanFlagsOffset + 8;
   static const int kBuiltinTier0TableOffset =
       kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
-  static const int kIsolateEmbedderDataOffset =
+  static const int kNewAllocationInfoOffset =
       kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
+  static const int kOldAllocationInfoOffset =
+      kNewAllocationInfoOffset + kLinearAllocationAreaSize;
   static const int kIsolateFastCCallCallerFpOffset =
-      kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
+      kOldAllocationInfoOffset + kLinearAllocationAreaSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
+  static const int kIsolateThreadLocalTopOffset =
+      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
+  static const int kIsolateEmbedderDataOffset =
+      kIsolateThreadLocalTopOffset + kThreadLocalTopSize;
 #ifdef V8_COMPRESS_POINTERS
   static const int kIsolateExternalPointerTableOffset =
-      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
+      kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
       kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
   static const int kIsolateRootsOffset =
       kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
 #else
   static const int kIsolateRootsOffset =
-      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
+      kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif
 
   static const int kUndefinedValueRootIndex = 4;

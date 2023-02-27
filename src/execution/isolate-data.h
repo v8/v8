@@ -40,26 +40,25 @@ class Isolate;
   V(kBuiltinsTier0TableOffset,                                                \
     Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)    \
   /* Misc. fields. */                                                         \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
-    embedder_data)                                                            \
+  V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
+  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
   V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)      \
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
+  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)    \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
+    embedder_data)                                                            \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes,      \
     external_reference_table)                                                 \
-  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)    \
   V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,    \
     builtin_entry_table)                                                      \
   V(kBuiltinTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,         \
-    builtin_table)                                                            \
-  /* Linear allocation areas for the heap's new and old space */              \
-  V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
-  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)
+    builtin_table)
 
 #ifdef V8_COMPRESS_POINTERS
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)            \
@@ -212,11 +211,8 @@ class IsolateData final {
   Address builtin_tier0_entry_table_[Builtins::kBuiltinTier0Count] = {};
   Address builtin_tier0_table_[Builtins::kBuiltinTier0Count] = {};
 
-  // These fields are accessed through the API, offsets must be kept in sync
-  // with v8::internal::Internals (in include/v8-internal.h) constants. The
-  // layout consistency is verified in Isolate::CheckIsolateLayout() using
-  // runtime checks.
-  void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
+  LinearAllocationArea new_allocation_info_;
+  LinearAllocationArea old_allocation_info_;
 
   // Stores the state of the caller for MacroAssembler::CallCFunction so that
   // the sampling CPU profiler can iterate the stack during such calls. These
@@ -234,6 +230,14 @@ class IsolateData final {
   // long tasks.
   size_t long_task_stats_counter_ = 0;
 
+  ThreadLocalTop thread_local_top_;
+
+  // These fields are accessed through the API, offsets must be kept in sync
+  // with v8::internal::Internals (in include/v8-internal.h) constants. The
+  // layout consistency is verified in Isolate::CheckIsolateLayout() using
+  // runtime checks.
+  void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
+
   // Table containing pointers to external objects.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
@@ -243,8 +247,6 @@ class IsolateData final {
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
 
-  ThreadLocalTop thread_local_top_;
-
   // The entry points for builtins. This corresponds to
   // InstructionStream::InstructionStart() for each InstructionStream object in
   // the builtins table below. The entry table is in IsolateData for easy access
@@ -253,9 +255,6 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
-
-  LinearAllocationArea new_allocation_info_;
-  LinearAllocationArea old_allocation_info_;
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with
@@ -283,6 +282,7 @@ void IsolateData::AssertPredictableLayout() {
   static_assert(std::is_standard_layout<ThreadLocalTop>::value);
   static_assert(std::is_standard_layout<ExternalReferenceTable>::value);
   static_assert(std::is_standard_layout<IsolateData>::value);
+  static_assert(std::is_standard_layout<LinearAllocationArea>::value);
 #define V(Offset, Size, Name) \
   static_assert(offsetof(IsolateData, Name##_) == Offset);
   ISOLATE_DATA_FIELDS(V)

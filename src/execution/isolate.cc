@@ -3405,8 +3405,6 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.builtin_tier0_table_)),
       Internals::kBuiltinTier0TableOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
-           Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_fp_)),
            Internals::kIsolateFastCCallCallerFpOffset);
@@ -3420,6 +3418,8 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
+           Internals::kIsolateEmbedderDataOffset);
 #ifdef V8_COMPRESS_POINTERS
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
