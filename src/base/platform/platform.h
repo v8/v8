@@ -662,6 +662,10 @@ class V8_BASE_EXPORT Stack {
   }
 };
 
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+V8_BASE_EXPORT void SetJitWriteProtected(int enable);
+#endif
+
 }  // namespace base
 }  // namespace v8
 

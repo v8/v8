@@ -222,5 +222,19 @@ bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
   return kr == KERN_SUCCESS;
 }
 
+// See platform-ios.cc for the iOS implementation.
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !defined(V8_OS_IOS)
+// Ignoring this warning is considered better than relying on
+// __builtin_available.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+
+V8_BASE_EXPORT void SetJitWriteProtected(int enable) {
+  pthread_jit_write_protect_np(enable);
+}
+
+#pragma clang diagnostic pop
+#endif
+
 }  // namespace base
 }  // namespace v8

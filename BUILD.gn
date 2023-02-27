@@ -5791,6 +5791,7 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-darwin.cc",
+      "src/base/platform/platform-ios.cc",
     ]
   } else if (is_win) {
     # TODO(infra): Add support for cygwin.
