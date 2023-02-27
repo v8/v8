@@ -142,7 +142,7 @@ class UseMarkingProcessor {
   explicit UseMarkingProcessor(MaglevCompilationInfo* compilation_info)
       : compilation_info_(compilation_info) {}
 
-  void PreProcessGraph(Graph* graph) { next_node_id_ = kFirstValidNodeId; }
+  void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) { DCHECK(loop_used_nodes_.empty()); }
   void PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_state()) return;
@@ -339,7 +339,7 @@ class UseMarkingProcessor {
   }
 
   MaglevCompilationInfo* compilation_info_;
-  uint32_t next_node_id_;
+  uint32_t next_node_id_ = kFirstValidNodeId;
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
