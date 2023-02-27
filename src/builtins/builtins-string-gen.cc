@@ -13,6 +13,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-cell.h"
 
@@ -422,15 +423,36 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
                                                           TNode<String> right) {
   // Added string can be a cons string.
   Comment("Allocating ConsString");
-  TNode<Int32T> left_instance_type = LoadInstanceType(left);
-  TNode<Int32T> right_instance_type = LoadInstanceType(right);
+  TVARIABLE(String, first, left);
+  TVARIABLE(Int32T, left_instance_type, LoadInstanceType(left));
+  Label handle_right(this);
+  GotoIfNot(InstanceTypeEqual(left_instance_type.value(), THIN_STRING_TYPE),
+            &handle_right);
+  {
+    first = LoadObjectField<String>(left, ThinString::kActualOffset);
+    left_instance_type = LoadInstanceType(first.value());
+    Goto(&handle_right);
+  }
 
+  BIND(&handle_right);
+  TVARIABLE(String, second, right);
+  TVARIABLE(Int32T, right_instance_type, LoadInstanceType(right));
+  Label allocate(this);
+  GotoIfNot(InstanceTypeEqual(right_instance_type.value(), THIN_STRING_TYPE),
+            &allocate);
+  {
+    second = LoadObjectField<String>(right, ThinString::kActualOffset);
+    right_instance_type = LoadInstanceType(second.value());
+    Goto(&allocate);
+  }
+
+  BIND(&allocate);
   // Determine the resulting ConsString map to use depending on whether
   // any of {left} or {right} has two byte encoding.
   static_assert(kOneByteStringTag != 0);
   static_assert(kTwoByteStringTag == 0);
   TNode<Int32T> combined_instance_type =
-      Word32And(left_instance_type, right_instance_type);
+      Word32And(left_instance_type.value(), right_instance_type.value());
   TNode<Map> result_map = CAST(Select<Object>(
       IsSetWord32(combined_instance_type, kStringEncodingMask),
       [=] { return ConsOneByteStringMapConstant(); },
@@ -440,8 +462,10 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, left);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, right);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset,
+                                 first.value());
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset,
+                                 second.value());
   return CAST(result);
 }
 
