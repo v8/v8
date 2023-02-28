@@ -1162,7 +1162,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0xE6:
         AppendToBuffer("vcvtdq2pd %s,", NameOfAVXRegister(regop));
-        current += PrintRightAVXOperand(current);
+        current += PrintRightXMMOperand(current);
         break;
       case 0xC2:
         AppendToBuffer("vcmpss %s,%s,", NameOfAVXRegister(regop),
