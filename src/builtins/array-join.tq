@@ -359,7 +359,7 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = string::ToString(context, obj);
+          next = string::ToString_Inline(context, obj);
         }
       }
     }
