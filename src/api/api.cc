@@ -6739,12 +6739,22 @@ namespace {
 
 bool MayContainObjectsToFreeze(i::InstanceType obj_type) {
   if (i::InstanceTypeChecker::IsString(obj_type)) return false;
+  // SharedFunctionInfo is cross-context so it shouldn't be frozen.
   if (i::InstanceTypeChecker::IsSharedFunctionInfo(obj_type)) return false;
   return true;
 }
 
+bool RequiresEmbedderSupportToFreeze(i::InstanceType obj_type) {
+  DCHECK(i::InstanceTypeChecker::IsJSReceiver(obj_type));
+
+  return (i::InstanceTypeChecker::IsJSApiObject(obj_type) ||
+          i::InstanceTypeChecker::IsJSExternalObject(obj_type) ||
+          i::InstanceTypeChecker::IsJSObjectWithEmbedderSlots(obj_type));
+}
+
 bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
   DCHECK(i::InstanceTypeChecker::IsJSReceiver(obj_type));
+
   switch (obj_type) {
     case i::JS_OBJECT_TYPE:
     case i::JS_GLOBAL_OBJECT_TYPE:
@@ -6807,16 +6817,17 @@ bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
 
 class ObjectVisitorDeepFreezer : i::ObjectVisitor {
  public:
-  explicit ObjectVisitorDeepFreezer(i::Isolate* isolate) : isolate_(isolate) {}
+  explicit ObjectVisitorDeepFreezer(i::Isolate* isolate,
+                                    Context::DeepFreezeDelegate* delegate)
+      : isolate_(isolate), delegate_(delegate) {}
 
   bool DeepFreeze(i::Handle<i::Context> context) {
-    bool success = VisitObject(*i::Handle<i::HeapObject>::cast(context));
+    bool success = VisitObject(i::HeapObject::cast(*context));
     DCHECK_EQ(success, !error_.has_value());
     if (!success) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate_, NewTypeError(error_->msg_id, error_->name), false);
     }
-
     for (const auto& obj : objects_to_freeze_) {
       MAYBE_RETURN_ON_EXCEPTION_VALUE(
           isolate_,
@@ -6864,9 +6875,26 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
   }
 
+  bool FreezeEmbedderObjectAndVisitChildren(i::Handle<i::JSObject> obj) {
+    DCHECK(delegate_);
+    std::vector<Local<Object>> children;
+    if (!delegate_->FreezeEmbedderObjectAndGetChildren(Utils::ToLocal(obj),
+                                                       children)) {
+      return false;
+    }
+    for (auto child : children) {
+      if (!VisitObject(*Utils::OpenHandle<Object, i::JSReceiver>(child))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   bool VisitObject(i::HeapObject obj) {
-    DCHECK(!error_.has_value());
     DCHECK(!obj.is_null());
+    if (error_.has_value()) {
+      return false;
+    }
 
     i::DisallowGarbageCollection no_gc;
     i::InstanceType obj_type = obj.map().instance_type();
@@ -6882,9 +6910,22 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
       return true;
     }
 
-    // For contexts we need to ensure that all accessible locals are const.
-    // If not they could be replaced to bypass freezing.
-    if (i::InstanceTypeChecker::IsContext(obj_type)) {
+    if (i::InstanceTypeChecker::IsAccessorPair(obj_type)) {
+      // For AccessorPairs we need to ensure that the functions they point to
+      // have been instantiated into actual JavaScript objects that can be
+      // frozen. TODO(behamilton): If they haven't then we need to save them to
+      // instantiate (and recurse) before freezing.
+      i::AccessorPair accessor_pair = i::AccessorPair::cast(obj);
+      if (accessor_pair.getter().IsFunctionTemplateInfo() ||
+          accessor_pair.setter().IsFunctionTemplateInfo()) {
+        // TODO(behamilton): Handle this more gracefully.
+        error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
+                           isolate_->factory()->empty_string()};
+        return false;
+      }
+    } else if (i::InstanceTypeChecker::IsContext(obj_type)) {
+      // For contexts we need to ensure that all accessible locals are const.
+      // If not they could be replaced to bypass freezing.
       i::ScopeInfo scope_info = i::Context::cast(obj).scope_info();
       for (auto it : i::ScopeInfo::IterateLocalNames(&scope_info, no_gc)) {
         if (scope_info.ContextLocalMode(it->index()) !=
@@ -6898,11 +6939,38 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     } else if (i::InstanceTypeChecker::IsJSReceiver(obj_type)) {
       i::Handle<i::JSReceiver> receiver =
           i::handle(i::JSReceiver::cast(obj), isolate_);
-      if (!IsJSReceiverSafeToFreeze(obj_type)) {
-        DCHECK(!error_.has_value());
-        error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
-                           i::handle(receiver->class_name(), isolate_)};
-        return false;
+      if (RequiresEmbedderSupportToFreeze(obj_type)) {
+        auto js_obj = i::Handle<i::JSObject>::cast(receiver);
+
+        // External objects don't have slots but still need to be processed by
+        // the embedder.
+        if (i::InstanceTypeChecker::IsJSExternalObject(obj_type) ||
+            js_obj->GetEmbedderFieldCount() > 0) {
+          if (!delegate_) {
+            DCHECK(!error_.has_value());
+            error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
+                               i::handle(receiver->class_name(), isolate_)};
+            return false;
+          }
+
+          // Handle embedder specific types and any v8 children it wants to
+          // freeze.
+          if (!FreezeEmbedderObjectAndVisitChildren(js_obj)) {
+            return false;
+          }
+        } else {
+          DCHECK_EQ(js_obj->GetEmbedderFieldCount(), 0);
+        }
+      } else {
+        DCHECK_IMPLIES(
+            i::InstanceTypeChecker::IsJSObject(obj_type),
+            i::JSObject::cast(*receiver).GetEmbedderFieldCount() == 0);
+        if (!IsJSReceiverSafeToFreeze(obj_type)) {
+          DCHECK(!error_.has_value());
+          error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
+                             i::handle(receiver->class_name(), isolate_)};
+          return false;
+        }
       }
 
       // Save this to freeze after we are done. Freezing triggers garbage
@@ -6911,8 +6979,9 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
       objects_to_freeze_.push_back(receiver);
 
     } else {
-      DCHECK(!i::InstanceTypeChecker::IsContext(obj_type) &&
-             !i::InstanceTypeChecker::IsJSReceiver(obj_type));
+      DCHECK(!i::InstanceTypeChecker::IsAccessorPair(obj_type));
+      DCHECK(!i::InstanceTypeChecker::IsContext(obj_type));
+      DCHECK(!i::InstanceTypeChecker::IsJSReceiver(obj_type));
     }
 
     DCHECK(!error_.has_value());
@@ -6922,6 +6991,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
   }
 
   i::Isolate* isolate_;
+  Context::DeepFreezeDelegate* delegate_;
   std::unordered_set<i::Object, i::Object::Hasher> done_list_;
   std::vector<i::Handle<i::JSReceiver>> objects_to_freeze_;
   base::Optional<ErrorInfo> error_;
@@ -6929,7 +6999,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
 
 }  // namespace
 
-Maybe<void> Context::DeepFreeze() {
+Maybe<void> Context::DeepFreeze(DeepFreezeDelegate* delegate) {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* i_isolate = env->GetIsolate();
 
@@ -6940,7 +7010,7 @@ Maybe<void> Context::DeepFreeze() {
   Local<Context> context = Utils::ToLocal(env);
   ENTER_V8_NO_SCRIPT(i_isolate, context, Context, DeepFreeze, Nothing<void>(),
                      i::HandleScope);
-  ObjectVisitorDeepFreezer vfreezer(i_isolate);
+  ObjectVisitorDeepFreezer vfreezer(i_isolate, delegate);
   has_pending_exception = !vfreezer.DeepFreeze(env);
 
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(void);
