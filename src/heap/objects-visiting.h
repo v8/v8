@@ -27,6 +27,7 @@ namespace internal {
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
+  V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
   V(FixedDoubleArray)                   \

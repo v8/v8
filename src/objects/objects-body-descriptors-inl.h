@@ -899,7 +899,7 @@ class WasmNull::BodyDescriptor final : public BodyDescriptorBase {
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
+class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
 
@@ -916,27 +916,12 @@ class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
                             kExternalStringResourceDataTag);
   }
 
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
-};
-
-class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    ExternalString string = ExternalString::cast(obj);
-    v->VisitExternalPointer(obj,
-                            string.RawExternalPointerField(kResourceOffset),
-                            kExternalStringResourceTag);
-    if (string.is_uncached()) return;
-    v->VisitExternalPointer(obj,
-                            string.RawExternalPointerField(kResourceDataOffset),
-                            kExternalStringResourceDataTag);
+  static inline int SizeOf(Map map, HeapObject object) {
+    InstanceType type = map.instance_type();
+    const auto is_uncached =
+        (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
+    return is_uncached ? kUncachedSize : kSizeOfAllExternalStrings;
   }
-
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
 class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {

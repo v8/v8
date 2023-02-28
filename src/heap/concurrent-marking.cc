@@ -37,6 +37,13 @@
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
 
+// These strings can be sources of unsafe string transitions.
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_SOURCES(V) \
+  V(ExternalString, ExternalString)         \
+  V(ConsString, ConsString)                 \
+  V(SlicedString, SlicedString)
+
 namespace v8 {
 namespace internal {
 
@@ -343,15 +350,13 @@ class YoungGenerationConcurrentMarkingVisitor final
                                                                   object);
   }
 
-  int VisitConsString(Map map, ConsString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
+#define VISIT_WITH_SNAPSHOT(VisitorId, TypeName)                              \
+  int Visit##VisitorId(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map, \
+                                                                   object);   \
   }
-
-  int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_WITH_SNAPSHOT)
+#undef VISIT_WITH_SNAPSHOT
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
@@ -453,15 +458,13 @@ class ConcurrentMarkingVisitor final
                                                                   object);
   }
 
-  int VisitConsString(Map map, ConsString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
+#define VISIT_WITH_SNAPSHOT(VisitorId, TypeName)                              \
+  int Visit##VisitorId(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map, \
+                                                                   object);   \
   }
-
-  int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_WITH_SNAPSHOT)
+#undef VISIT_WITH_SNAPSHOT
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
@@ -473,16 +476,6 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
     return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitExternalOneByteString(Map map, ExternalOneByteString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitExternalTwoByteString(Map map, ExternalTwoByteString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
   }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
