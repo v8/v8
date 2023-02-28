@@ -222,6 +222,7 @@ class TypeInferenceAnalysis {
         case Opcode::kNewConsString:
         case Opcode::kNewArray:
         case Opcode::kDoubleArrayMinMax:
+        case Opcode::kLoadFieldByIndex:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {

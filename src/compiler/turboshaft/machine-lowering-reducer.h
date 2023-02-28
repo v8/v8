@@ -672,6 +672,102 @@ class MachineLoweringReducer : public Next {
                                      CheckForMinusZeroMode::kCheckForMinusZero);
   }
 
+  OpIndex ReduceLoadFieldByIndex(V<Tagged> object, V<Word32> field_index) {
+    // Index encoding (see `src/objects/field-index-inl.h`):
+    // For efficiency, the LoadByFieldIndex instruction takes an index that is
+    // optimized for quick access. If the property is inline, the index is
+    // positive. If it's out-of-line, the encoded index is -raw_index - 1 to
+    // disambiguate the zero out-of-line index from the zero inobject case.
+    // The index itself is shifted up by one bit, the lower-most bit
+    // signifying if the field is a mutable double box (1) or not (0).
+    V<WordPtr> index = __ ChangeInt32ToIntPtr(field_index);
+
+    Label<> double_field(this);
+    Label<Tagged> done(this);
+
+    // Check if field is a mutable double field.
+    GOTO_IF_UNLIKELY(__ WordPtrBitwiseAnd(index, 0x1), double_field);
+
+    {
+      // The field is a proper Tagged field on {object}. The {index} is
+      // shifted to the left by one in the code below.
+
+      // Check if field is in-object or out-of-object.
+      IF(__ IntPtrLessThan(index, 0)) {
+        // The field is located in the properties backing store of {object}.
+        // The {index} is equal to the negated out of property index plus 1.
+        V<Tagged> properties = LoadField<Tagged>(
+            object, AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer());
+
+        V<WordPtr> out_of_object_index = __ WordPtrSub(0, index);
+        V<Tagged> result =
+            __ Load(properties, out_of_object_index,
+                    LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                    MemoryRepresentation::AnyTagged(),
+                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2 - 1);
+        GOTO(done, result);
+      }
+      ELSE {
+        // This field is located in the {object} itself.
+        V<Tagged> result = __ Load(
+            object, index, LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+            MemoryRepresentation::AnyTagged(), JSObject::kHeaderSize,
+            kTaggedSizeLog2 - 1);
+        GOTO(done, result);
+      }
+      END_IF
+    }
+
+    if (BIND(double_field)) {
+      // If field is a Double field, either unboxed in the object on 64 bit
+      // architectures, or a mutable HeapNumber.
+      V<WordPtr> double_index = __ WordPtrShiftRightArithmetic(index, 1);
+      Label<Tagged> loaded_field(this);
+
+      // Check if field is in-object or out-of-object.
+      IF(__ IntPtrLessThan(double_index, 0)) {
+        V<Tagged> properties = LoadField<Tagged>(
+            object, AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer());
+
+        V<WordPtr> out_of_object_index = __ WordPtrSub(0, double_index);
+        V<Tagged> result =
+            __ Load(properties, out_of_object_index,
+                    LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                    MemoryRepresentation::AnyTagged(),
+                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2 - 1);
+        GOTO(loaded_field, result);
+      }
+      ELSE {
+        // The field is located in the {object} itself.
+        V<Tagged> result =
+            __ Load(object, double_index,
+                    LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+                    MemoryRepresentation::AnyTagged(), JSObject::kHeaderSize,
+                    kTaggedSizeLog2);
+        GOTO(loaded_field, result);
+      }
+      END_IF
+
+      if (BIND(loaded_field, field)) {
+        // We may have transitioned in-place away from double, so check that
+        // this is a HeapNumber -- otherwise the load is fine and we don't need
+        // to copy anything anyway.
+        GOTO_IF(__ ObjectIsSmi(field), done, field);
+        V<Tagged> map = LoadField<Tagged>(field, AccessBuilder::ForMap());
+        GOTO_IF_NOT(
+            __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+            done, field);
+
+        V<Float64> value =
+            LoadField<Float64>(field, AccessBuilder::ForHeapNumberValue());
+        GOTO(done, AllocateHeapNumberWithValue(value));
+      }
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)

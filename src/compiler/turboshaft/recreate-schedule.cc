@@ -189,6 +189,7 @@ SHOULD_HAVE_BEEN_LOWERED(Untag)
 SHOULD_HAVE_BEEN_LOWERED(NewConsString)
 SHOULD_HAVE_BEEN_LOWERED(NewArray)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
+SHOULD_HAVE_BEEN_LOWERED(LoadFieldByIndex)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {

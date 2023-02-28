@@ -514,6 +514,7 @@ class AssemblerOpInterface {
                        BitwiseAnd)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseAnd, WordBinop, BitwiseAnd, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64BitwiseAnd, WordBinop, BitwiseAnd, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrBitwiseAnd, WordBinop, BitwiseAnd, WordPtr)
 
   DECL_MULTI_REP_BINOP(WordBitwiseOr, WordBinop, WordRepresentation, BitwiseOr)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseOr, WordBinop, BitwiseOr, Word32)
@@ -527,6 +528,7 @@ class AssemblerOpInterface {
   DECL_MULTI_REP_BINOP(WordSub, WordBinop, WordRepresentation, Sub)
   DECL_SINGLE_REP_BINOP_V(Word32Sub, WordBinop, Sub, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Sub, WordBinop, Sub, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrSub, WordBinop, Sub, WordPtr)
   DECL_SINGLE_REP_BINOP(PointerSub, WordBinop, Sub,
                         WordRepresentation::PointerSized())
 
@@ -618,6 +620,8 @@ class AssemblerOpInterface {
                           ShiftRightArithmetic, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64ShiftRightArithmetic, Shift,
                           ShiftRightArithmetic, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightArithmetic, Shift,
+                          ShiftRightArithmetic, WordPtr)
   DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
                        ShiftRightLogical)
   DECL_SINGLE_REP_BINOP_V(Word32ShiftRightLogical, Shift, ShiftRightLogical,
@@ -700,6 +704,8 @@ class AssemblerOpInterface {
                                Word32)
   DECL_SINGLE_REP_COMPARISON_V(Int64LessThan, Comparison, SignedLessThan,
                                Word64)
+  DECL_SINGLE_REP_COMPARISON_V(IntPtrLessThan, Comparison, SignedLessThan,
+                               WordPtr)
 
   DECL_MULTI_REP_BINOP(UintLessThan, Comparison, RegisterRepresentation,
                        UnsignedLessThan)
@@ -876,6 +882,10 @@ class AssemblerOpInterface {
       return OpIndex::Invalid();
     }
     return stack().ReduceObjectIs(input, kind, input_assumptions);
+  }
+  V<Word32> ObjectIsSmi(V<Tagged> object) {
+    return ObjectIs(object, ObjectIsOp::Kind::kSmi,
+                    ObjectIsOp::InputAssumptions::kNone);
   }
 
   OpIndex ConvertToObject(
@@ -1568,6 +1578,13 @@ class AssemblerOpInterface {
   }
   V<Tagged> DoubleArrayMax(V<Tagged> array) {
     return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMax);
+  }
+
+  V<Any> LoadFieldByIndex(V<Tagged> object, V<Word32> index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadFieldByIndex(object, index);
   }
 
   template <typename Rep>

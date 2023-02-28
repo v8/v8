@@ -1215,6 +1215,10 @@ OpIndex GraphBuilder::Process(
       return assembler.DoubleArrayMinMax(Map(node->InputAt(0)),
                                          DoubleArrayMinMaxOp::Kind::kMax);
 
+    case IrOpcode::kLoadFieldByIndex:
+      return assembler.LoadFieldByIndex(Map(node->InputAt(0)),
+                                        Map(node->InputAt(1)));
+
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:

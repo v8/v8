@@ -1441,6 +1441,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerFastApiCall(node);
       break;
     case IrOpcode::kLoadFieldByIndex:
+      if (v8_flags.turboshaft) return false;
       result = LowerLoadFieldByIndex(node);
       break;
     case IrOpcode::kLoadTypedElement:
@@ -5986,6 +5987,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* object = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* zero = __ IntPtrConstant(0);

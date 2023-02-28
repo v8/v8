@@ -118,7 +118,8 @@ class Graph;
   V(Untag)                           \
   V(NewConsString)                   \
   V(NewArray)                        \
-  V(DoubleArrayMinMax)
+  V(DoubleArrayMinMax)               \
+  V(LoadFieldByIndex)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2579,6 +2580,33 @@ struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind);
+
+// TODO(nicohartmann@): We should consider getting rid of the LoadFieldByIndex
+// operation.
+struct LoadFieldByIndexOp : FixedArityOperationT<2, LoadFieldByIndexOp> {
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex object() const { return Base::input(0); }
+  // Index encoding (see `src/objects/field-index-inl.h`):
+  // For efficiency, the LoadByFieldIndex instruction takes an index that is
+  // optimized for quick access. If the property is inline, the index is
+  // positive. If it's out-of-line, the encoded index is -raw_index - 1 to
+  // disambiguate the zero out-of-line index from the zero inobject case.
+  // The index itself is shifted up by one bit, the lower-most bit
+  // signifying if the field is a mutable double box (1) or not (0).
+  OpIndex index() const { return Base::input(1); }
+
+  LoadFieldByIndexOp(OpIndex object, OpIndex index) : Base(object, index) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(), RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

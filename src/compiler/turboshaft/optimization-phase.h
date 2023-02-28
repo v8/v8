@@ -779,6 +779,10 @@ class GraphVisitor {
     return assembler().ReduceDoubleArrayMinMax(MapToNewGraph(op.array()),
                                                op.kind);
   }
+  OpIndex AssembleOutputGraphLoadFieldByIndex(const LoadFieldByIndexOp& op) {
+    return assembler().ReduceLoadFieldByIndex(MapToNewGraph(op.object()),
+                                              MapToNewGraph(op.index()));
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {
