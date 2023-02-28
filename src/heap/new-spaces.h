@@ -285,10 +285,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual void MakeIterable() = 0;
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  virtual void ClearUnusedObjectStartBitmaps() = 0;
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
   virtual iterator begin() = 0;
   virtual iterator end() = 0;
 
@@ -475,10 +471,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void MakeAllPagesInFromSpaceIterable();
   void MakeUnusedPagesInToSpaceIterable();
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  void ClearUnusedObjectStartBitmaps() override;
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
   Page* first_page() final { return to_space_.first_page(); }
   Page* last_page() final { return to_space_.last_page(); }
 
@@ -626,10 +618,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 #endif
 
   void MakeIterable() { free_list()->RepairLists(heap()); }
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  void ClearUnusedObjectStartBitmaps() {}
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
   bool ShouldReleaseEmptyPage() const;
 
@@ -794,12 +782,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
 
   void MakeIterable() override { paged_space_.MakeIterable(); }
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  void ClearUnusedObjectStartBitmaps() override {
-    paged_space_.ClearUnusedObjectStartBitmaps();
-  }
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
   // All operations on `memory_chunk_list_` should go through `paged_space_`.
   heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }

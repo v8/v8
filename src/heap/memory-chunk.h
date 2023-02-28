@@ -215,14 +215,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  ObjectStartBitmap* object_start_bitmap() { return &object_start_bitmap_; }
-
-  const ObjectStartBitmap* object_start_bitmap() const {
-    return &object_start_bitmap_;
-  }
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
   void MarkWasUsedForAllocation() { was_used_for_allocation_ = true; }
   void ClearWasUsedForAllocation() { was_used_for_allocation_ = false; }
   bool WasUsedForAllocation() const { return was_used_for_allocation_; }
@@ -298,10 +290,6 @@ class MemoryChunk : public BasicMemoryChunk {
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
   ActiveSystemPages* active_system_pages_;
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  ObjectStartBitmap object_start_bitmap_;
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
   // Marks a chunk that was used for allocation since it was last swept. Used
   // only for new space pages.

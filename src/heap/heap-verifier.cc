@@ -362,14 +362,6 @@ void HeapVerification::VerifyPage(const BasicMemoryChunk* chunk) {
 
 void HeapVerification::VerifyPageDone(const BasicMemoryChunk* chunk) {
   CHECK_EQ(chunk, *current_chunk_);
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  if (!chunk->InReadOnlySpace()) {
-    const MemoryChunk* memory_chunk = MemoryChunk::cast(chunk);
-    memory_chunk->object_start_bitmap()->Verify();
-  }
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
   current_chunk_.reset();
 }
 

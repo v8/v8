@@ -129,12 +129,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          VirtualMemory reservation, Executability executable,
                          PageSize page_size)
     : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
-                       std::move(reservation))
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-      ,
-      object_start_bitmap_(PtrComprCageBase{heap->isolate()}, area_start)
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-{
+                       std::move(reservation)) {
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_SHARED], nullptr);
@@ -515,11 +510,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
                 chunk->address(),
             MemoryChunkLayout::kActiveSystemPagesOffset);
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->object_start_bitmap_) -
-                chunk->address(),
-            MemoryChunkLayout::kObjectStartBitmapOffset);
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->was_used_for_allocation_) -
                 chunk->address(),
             MemoryChunkLayout::kWasUsedForAllocationOffset);

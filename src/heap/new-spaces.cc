@@ -780,15 +780,6 @@ void SemiSpaceNewSpace::MakeUnusedPagesInToSpaceIterable() {
   }
 }
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-void SemiSpaceNewSpace::ClearUnusedObjectStartBitmaps() {
-  if (!IsFromSpaceCommitted()) return;
-  for (Page* page : PageRange(from_space().first_page(), nullptr)) {
-    page->object_start_bitmap()->Clear();
-  }
-}
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
 bool SemiSpaceNewSpace::ShouldBePromoted(Address address) const {
   Page* page = Page::FromAddress(address);
   Address current_age_mark = age_mark();

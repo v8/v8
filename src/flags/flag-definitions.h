@@ -451,24 +451,6 @@ DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
                        experimental_wasm_stack_switching)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-#define V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL true
-#else
-#define V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL false
-#endif
-DEFINE_BOOL_READONLY(inner_pointer_resolution_osb,
-                     V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL,
-                     "use object start bitmap for IPR")
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
-#define V8_ENABLE_INNER_POINTER_RESOLUTION_MB_BOOL true
-#else
-#define V8_ENABLE_INNER_POINTER_RESOLUTION_MB_BOOL false
-#endif
-DEFINE_BOOL_READONLY(inner_pointer_resolution_mb,
-                     V8_ENABLE_INNER_POINTER_RESOLUTION_MB_BOOL,
-                     "use marking bitmap for IPR")
-
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

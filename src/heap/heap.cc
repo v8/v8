@@ -1321,10 +1321,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
     semi_space_new_space->MakeAllPagesInFromSpaceIterable();
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-    new_space()->ClearUnusedObjectStartBitmaps();
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   }
 
   // Ensure that unmapper task isn't running during full GC. We need access to
