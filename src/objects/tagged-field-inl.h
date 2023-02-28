@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_INL_H_
 #define V8_OBJECTS_TAGGED_FIELD_INL_H_
 
-#include "src/common/ptr-compr-inl.h"
 #include "src/objects/tagged-field.h"
+
+#include "src/common/ptr-compr-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -48,10 +49,7 @@ template <typename T, int kFieldOffset, typename CompressionScheme>
 Tagged_t TaggedField<T, kFieldOffset, CompressionScheme>::full_to_tagged(
     Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  if (std::is_base_of<MaybeObject, T>::value) {
-    return CompressionScheme::CompressAny(value);
-  }
-  return CompressionScheme::CompressObject(value);
+  return CompressionScheme::CompressTagged(value);
 #else
   return value;
 #endif

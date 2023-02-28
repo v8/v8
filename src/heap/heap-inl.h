@@ -139,7 +139,7 @@ FixedArray Heap::single_character_string_table() {
 #define DCHECK_STATIC_ROOT(obj, name)                                        \
   if constexpr (RootsTable::IsReadOnly(RootIndex::k##name) &&                \
                 RootIndex::k##name != RootIndex::kException) {               \
-    DCHECK_WITH_MSG(V8HeapCompressionScheme::CompressObject(obj.ptr()) ==    \
+    DCHECK_WITH_MSG(V8HeapCompressionScheme::CompressTagged(obj.ptr()) ==    \
                         StaticReadOnlyRootsPointerTable[static_cast<size_t>( \
                             RootIndex::k##name)],                            \
                     STATIC_ROOTS_FAILED_MSG);                                \

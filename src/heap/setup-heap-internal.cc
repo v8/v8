@@ -178,7 +178,7 @@ bool Heap::CreateReadOnlyHeapObjects() {
   // The read only heap is sorted such that often used objects are allocated
   // early for their compressed address to fit into 12bit arm immediates.
   ReadOnlySpace* ro_space = isolate()->heap()->read_only_space();
-  DCHECK_LT(V8HeapCompressionScheme::CompressAny(ro_space->top()), 0xfff);
+  DCHECK_LT(V8HeapCompressionScheme::CompressTagged(ro_space->top()), 0xfff);
   USE(ro_space);
 #endif
 

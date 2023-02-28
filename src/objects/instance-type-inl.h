@@ -120,12 +120,12 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) {
 }
 
 inline bool CheckInstanceMap(RootIndex expected, Map map) {
-  return V8HeapCompressionScheme::CompressObject(map.ptr()) ==
+  return V8HeapCompressionScheme::CompressTagged(map.ptr()) ==
          StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected)];
 }
 
 inline bool CheckInstanceMapRange(RootIndexRange expected, Map map) {
-  Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map.ptr());
+  Tagged_t ptr = V8HeapCompressionScheme::CompressTagged(map.ptr());
   Tagged_t first =
       StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected.first)];
   Tagged_t last =
