@@ -50,7 +50,6 @@ void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
     os << node->id() << "/";
   }
   os << graph_labeller->NodeId(node) << ": ";
-  if (node->is_dead()) os << "☠ ";
 }
 
 void PrintPadding(std::ostream& os, int size) {
@@ -778,7 +777,7 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph) {
-  GraphProcessor<MaglevPrintingVisitor, /*visit_dead_nodes*/ true> printer(
+  GraphProcessor<MaglevPrintingVisitor, /*visit_identity_nodes*/ true> printer(
       compilation_info->graph_labeller(), os);
   printer.ProcessGraph(graph);
 }

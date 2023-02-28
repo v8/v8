@@ -52,23 +52,34 @@ class MaglevPhiRepresentationSelector {
   template <class NodeT>
   void UpdateNodeInputs(NodeT* n) {
     NodeBase* node = static_cast<NodeBase*>(n);
-    for (int i = 0; i < node->input_count(); i++) {
-      ValueNode* input = node->input(i).node();
-      if (IsUntagging(input->opcode()) && input->input(0).node()->Is<Phi>() &&
-          input->input(0).node()->value_representation() !=
-              ValueRepresentation::kTagged) {
-        // Note that we're using `IsUntagging(opcode)` rather than
-        // `input->properties().is_conversion` because truncations also need to
-        // be updated, and they don't have the is_conversion property.
-        node->change_input(i, GetInputReplacement(input));
-      } else if (Phi* phi = input->TryCast<Phi>()) {
-        // If the input is a Phi and it was used without any untagging, then we
-        // need to retag it.
-        if (!IsUntagging(n->opcode()) &&
-            phi->value_representation() != ValueRepresentation::kTagged) {
-          // If {n} is a conversion that isn't an untagging, then it has to have
-          // been inserted during this phase, because it knows that {phi} isn't
-          // tagged. As such, we don't do anything in that case.
+
+    if (IsUntagging(n->opcode()) && node->input(0).node()->Is<Phi>() &&
+        node->input(0).node()->value_representation() !=
+            ValueRepresentation::kTagged) {
+      DCHECK_EQ(node->input_count(), 1);
+      // This untagging conversion is outdated, since its input has been
+      // untagged. Depending on the conversion, it might need to be replaced by
+      // another untagged->untagged conversion, or it might need to be removed
+      // alltogether (or rather, replaced by an identity node).
+      UpdateUntagging(n->template Cast<ValueNode>());
+    } else {
+      for (int i = 0; i < n->input_count(); i++) {
+        ValueNode* input = node->input(i).node();
+        if (input->Is<Identity>()) {
+          // Bypassing the identity
+          node->change_input(i, input->input(0).node());
+        } else if (Phi* phi = input->TryCast<Phi>()) {
+          // If the input is a Phi and it was used without any untagging, then
+          // we need to retag it.
+          // Note that it would be bad to retag the input of an untagging node,
+          // but untagging nodes are dealt with earlier in this function, so {n}
+          // can't be an untagging of an untagged phi.
+          DCHECK_IMPLIES(
+              IsUntagging(n->opcode()),
+              phi->value_representation() == ValueRepresentation::kTagged);
+          // If {n} is a conversion that isn't an untagging, then it has to
+          // have been inserted during this phase, because it knows that {phi}
+          // isn't tagged. As such, we don't do anything in that case.
           if (!n->properties().is_conversion()) {
             node->change_input(
                 i, TagPhi(phi, current_block_, NewNodePosition::kStart));
@@ -83,12 +94,9 @@ class MaglevPhiRepresentationSelector {
   // Returns true if {op} is an untagging node.
   bool IsUntagging(Opcode op);
 
-  // GetInputReplacement should be called with {old_input} being an untagging
-  // operation whose input is a Phi that we've decided shouldn't be tagged. Now
-  // that the Phi isn't tagged, the untagging isn't needed anymore and should
-  // instead be either the Phi directly, or a conversion of the Phi to something
-  // else (a Int32ToFloat64 for instance).
-  ValueNode* GetInputReplacement(ValueNode* old_conversion);
+  // Updates {old_untagging} to reflect that its Phi input has been untagged and
+  // that a different conversion is now needed.
+  void UpdateUntagging(ValueNode* old_untagging);
 
   // NewNodePosition is used to represent where a new node should be inserted:
   // at the start of a block (kStart), at the end of a block (kEnd).

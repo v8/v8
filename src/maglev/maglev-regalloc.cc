@@ -154,8 +154,16 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   return node->live_range().end >= target->first_id();
 }
 
+// TODO(dmercadier): this function should never clear any registers, since dead
+// registers should always have been cleared:
+//  - Nodes without uses have their output registers cleared right after their
+//    allocation by `FreeRegistersUsedBy(node)`.
+//  - Once the last use of a Node has been processed, its register is freed (by
+//    UpdateUse, called from Assigned***Input, called by AssignInputs).
+// Thus, this function should DCHECK that all of the registers are live at
+// target, rather than clearing the ones that aren't.
 template <typename RegisterT>
-void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
+void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT>& registers,
                                    ConditionalControlNode* control_node,
                                    BasicBlock* target) {
   RegListBase<RegisterT> list = registers.used();
@@ -168,6 +176,11 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
       list.clear(registers.free());
     }
   }
+}
+
+bool IsDeadNodeToSkip(Node* node) {
+  return node->Is<ValueNode>() && node->Cast<ValueNode>()->is_dead() &&
+         !node->properties().is_required_when_unused();
 }
 }  // namespace
 
@@ -522,25 +535,32 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     VerifyRegisterState();
 
     node_it_ = block->nodes().begin();
-    for (; node_it_ != block->nodes().end(); ++node_it_) {
+    for (; node_it_ != block->nodes().end();) {
       Node* node = *node_it_;
-      if (node->is_dead()) continue;
 
-      if (node->properties().is_conversion() &&
-          !node->properties().can_eager_deopt()) {
-        if (!static_cast<ValueNode*>(node)->next_use()) {
-          // We kill conversion nodes with no uses. Those are probably left
-          // overs nodes to tag Phi inputs, that became dead in the phi
-          // untagging phase.
-          // Note that we don't do this for deopting conversions (like
-          // CheckedSmiTag) because they might have a purpose despite not being
-          // used.
-          node->kill();
-          continue;
+      if (IsDeadNodeToSkip(node)) {
+        // We remove unused pure nodes.
+        if (v8_flags.trace_maglev_regalloc) {
+          printing_visitor_->os()
+              << "Removing unused node "
+              << PrintNodeLabel(graph_labeller(), node) << "\n";
         }
+
+        if (!node->Is<Identity>()) {
+          // Updating the uses of the inputs in order to free dead input
+          // registers. We don't do this for Identity nodes, because they were
+          // skipped during use marking, and their inputs are thus not aware
+          // that they were used by this node.
+          DCHECK(!node->properties().can_deopt());
+          UpdateAllInputUses(node);
+        }
+
+        node_it_ = block->nodes().RemoveAt(node_it_);
+        continue;
       }
 
       AllocateNode(node);
+      ++node_it_;
     }
     AllocateControlNode(block->control_node(), block);
   }
@@ -589,6 +609,44 @@ void StraightForwardRegisterAllocator::UpdateUse(
       slots.free_slots.emplace_back(slot.index(), node->live_range().end);
     }
   }
+}
+
+void StraightForwardRegisterAllocator::UpdateAllInputUses(Node* node) {
+  // Uses need to be iterated in the same order as
+  // UseMarkingProcessor::MarkInputUses iterated them (which is what
+  // AssignInputs does for instance): the ones that go in a fixed fegister, the
+  // ones that go in an arbitrary register, then the ones that go anywhere.
+  enum class Category { kFixedRegister, kArbitraryRegister, kAny };
+
+  auto iterate_inputs = [&](Category category) {
+    for (Input& input : *node) {
+      switch (compiler::UnallocatedOperand::cast(input.operand())
+                  .extended_policy()) {
+        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+          if (category == Category::kArbitraryRegister) UpdateUse(&input);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          if (category == Category::kAny) UpdateUse(&input);
+          break;
+
+        case compiler::UnallocatedOperand::FIXED_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
+          if (category == Category::kFixedRegister) UpdateUse(&input);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+        case compiler::UnallocatedOperand::SAME_AS_INPUT:
+        case compiler::UnallocatedOperand::NONE:
+        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
+          UNREACHABLE();
+      }
+    }
+  };
+
+  iterate_inputs(Category::kFixedRegister);
+  iterate_inputs(Category::kArbitraryRegister);
+  iterate_inputs(Category::kAny);
 }
 
 void StraightForwardRegisterAllocator::AllocateEagerDeopt(
@@ -1382,6 +1440,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
       }
     }
     for (Node* node : block->nodes()) {
+      if (IsDeadNodeToSkip(node)) continue;
       if (ValueNode* value_node = node->TryCast<ValueNode>()) {
         ValidateValueNode(value_node);
       }

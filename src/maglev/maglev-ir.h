@@ -135,6 +135,7 @@ class MergePointInterpreterFrameState;
   V(BuiltinStringPrototypeCharCodeAt)
 
 #define VALUE_NODE_LIST(V)                   \
+  V(Identity)                                \
   V(AllocateRaw)                             \
   V(Call)                                    \
   V(CallBuiltin)                             \
@@ -605,12 +606,19 @@ class BasicBlockRef {
 
 class OpProperties {
  public:
-  constexpr bool is_call() const { return kIsCallBit::decode(bitfield_); }
+  constexpr bool is_call() const {
+    // Only returns true for non-deferred calls. Use `is_any_call` to check
+    // deferred calls as well.
+    return kIsCallBit::decode(bitfield_);
+  }
   constexpr bool can_eager_deopt() const {
     return kCanEagerDeoptBit::decode(bitfield_);
   }
   constexpr bool can_lazy_deopt() const {
     return kCanLazyDeoptBit::decode(bitfield_);
+  }
+  constexpr bool can_deopt() const {
+    return can_eager_deopt() || can_lazy_deopt();
   }
   constexpr bool can_throw() const {
     return kCanThrowBit::decode(bitfield_) && can_lazy_deopt();
@@ -635,8 +643,12 @@ class OpProperties {
   constexpr bool is_pure() const {
     return (bitfield_ & kPureMask) == kPureValue;
   }
-  constexpr bool is_required_when_unused() const {
+  constexpr bool has_any_side_effects() const {
     return can_write() || non_memory_side_effects();
+  }
+  constexpr bool is_required_when_unused() {
+    return has_any_side_effects() || can_throw() || can_deopt() ||
+           is_any_call();
   }
 
   constexpr OpProperties operator|(const OpProperties& that) {
@@ -687,9 +699,6 @@ class OpProperties {
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
-  }
-  static constexpr OpProperties NeedsRegisterSnapshot() {
-    return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
   }
   // Without auditing the call target, we must assume it can cause a lazy deopt
   // and throw. Use this when codegen calls runtime or a builtin, unless
@@ -743,10 +752,28 @@ class OpProperties {
                                      kCanWriteBit::encode(false) |
                                      kNonMemorySideEffectsBit::encode(false);
 
+  // NeedsRegisterSnapshot is only used for DeferredCall, and we rely on this in
+  // `is_any_call` to detect deferred calls. If you need to use
+  // NeedsRegisterSnapshot for something else that DeferredCalls, then you'll
+  // have to update `is_any_call`.
+  static constexpr OpProperties NeedsRegisterSnapshot() {
+    return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
+  }
+
   const uint32_t bitfield_;
 
  public:
   static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
+
+  constexpr bool is_any_call() const {
+    // Currently, there is no kDeferredCall bit, but DeferredCall only sets a
+    // single bit: kNeedsRegisterSnapShot. If this static assert breaks, it
+    // means that you added additional properties to DeferredCall, and you
+    // should update this function accordingly.
+    static_assert(DeferredCall().bitfield_ ==
+                  kNeedsRegisterSnapshotBit::encode(true));
+    return is_call() || needs_register_snapshot();
+  }
 };
 
 constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode);
@@ -1085,8 +1112,9 @@ class NodeBase : public ZoneObject {
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
-  using IsDeadField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
-  using InputCountField = IsDeadField::Next<size_t, 17>;
+  // Align input count to 32-bit.
+  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
+  using InputCountField = UnusedField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
  protected:
@@ -1291,9 +1319,6 @@ class NodeBase : public ZoneObject {
     set_opcode(new_opcode);
     set_properties(new_properties);
   }
-
-  bool is_dead() const { return IsDeadField::decode(bitfield_); }
-  void kill() { bitfield_ = IsDeadField::update(bitfield_, 1); }
 
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
@@ -1796,6 +1821,22 @@ using FixedInputNodeT =
 template <size_t InputCount, class Derived>
 using FixedInputValueNodeT =
     FixedInputNodeTMixin<InputCount, ValueNodeT<Derived>, Derived>;
+
+class Identity : public FixedInputValueNodeT<1, Identity> {
+  using Base = FixedInputValueNodeT<1, Identity>;
+
+ public:
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+
+  explicit Identity(uint64_t bitfield) : Base(bitfield) {}
+
+  void VerifyInputs(MaglevGraphLabeller*) const {
+    // Identity is valid for all input types.
+  }
+  void SetValueLocationConstraints() {}
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 template <class Derived, Operation kOperation>
 class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
@@ -2683,6 +2724,8 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
  public:
   explicit SetPendingMessage(uint64_t bitfield) : Base(bitfield) {}
 
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::Reading();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

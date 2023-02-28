@@ -566,7 +566,7 @@ class MaglevGraphBuilder {
 
   template <typename NodeT>
   NodeT* AddNode(NodeT* node) {
-    if (node->properties().is_required_when_unused()) {
+    if (node->properties().has_any_side_effects()) {
       MarkPossibleSideEffect();
     }
     current_block_->nodes().Add(node);

@@ -136,53 +136,66 @@ bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
 namespace {
 
 base::Optional<Opcode> GetOpcodeForCheckedConversion(ValueRepresentation from,
-                                                     ValueRepresentation to) {
-  static_assert(static_cast<int>(ValueRepresentation::kTagged) == 0);
+                                                     ValueRepresentation to,
+                                                     bool truncating) {
+  DCHECK_NE(from, ValueRepresentation::kTagged);
+  DCHECK_NE(to, ValueRepresentation::kTagged);
+
   static_assert(static_cast<int>(ValueRepresentation::kInt32) == 1);
   static_assert(static_cast<int>(ValueRepresentation::kUint32) == 2);
   static_assert(static_cast<int>(ValueRepresentation::kFloat64) == 3);
 
-  constexpr int kNumberOfValueRepresentation = 4;
+  constexpr int kNumberOfValueRepresentation = 3;
+
+  int truncate_offset = 0;
+  if (from == ValueRepresentation::kFloat64 && truncating) {
+    truncate_offset = kNumberOfValueRepresentation;
+  }
 
   static base::Optional<Opcode> conversion_table[] = {
       // Int32 ->
-      Opcode::kInt32ToNumber,         // -> Tagged
       base::nullopt,                  // -> Int32
       Opcode::kCheckedInt32ToUint32,  // -> Uint32
       Opcode::kChangeInt32ToFloat64,  // -> Float64
+
       // Uint32 ->
-      Opcode::kUint32ToNumber,         // -> Tagged
-      Opcode::kCheckedInt32ToUint32,   // -> Int32
+      Opcode::kCheckedUint32ToInt32,   // -> Int32
       base::nullopt,                   // -> Uint32
       Opcode::kChangeUint32ToFloat64,  // -> Float64
+
       // Float64 ->
-      Opcode::kFloat64Box,              // -> Tagged
+      Opcode::kCheckedTruncateFloat64ToInt32,  // -> Int32
+      base::nullopt,                           // -> Uint32
+      // ^ The graph builder never inserts Tagged->Uint32 conversions, so we
+      // don't have to handle this case.
+      base::nullopt,  // -> Float64
+
+      // Truncating Float64 ->
       Opcode::kTruncateFloat64ToInt32,  // -> Int32
-      // ^ Note that Maglev doesn't have a Tagged HeapNumber->Int32 conversion
-      // that checks if converting the Float64 to a Int32 loses precision. We
-      // thus use here TruncateFloat64ToInt32 instead of
-      // CheckedTruncateFloat64ToInt32.
-      base::nullopt,  // -> Uint32
+      base::nullopt,                    // -> Uint32
       // ^ The graph builder never inserts Tagged->Uint32 conversions, so we
       // don't have to handle this case.
       base::nullopt  // -> Float64
   };
 
+  // The `-1` are because we don't have ->Tagged and Tagged-> conversions, so
+  // since kInt32 is 1, kUint32 is 2 and kFloat64 is 3, we subtract 1 so that
+  // they start at 0.
   return conversion_table[(static_cast<int>(from) - 1) *
                               kNumberOfValueRepresentation +
-                          static_cast<int>(to)];
+                          static_cast<int>(to) - 1 + truncate_offset];
 }
 
 }  // namespace
 
-ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
-    ValueNode* old_conversion) {
-  DCHECK_EQ(old_conversion->input_count(), 1);
-  DCHECK(old_conversion->input(0).node()->Is<Phi>());
+void MaglevPhiRepresentationSelector::UpdateUntagging(
+    ValueNode* old_untagging) {
+  DCHECK_EQ(old_untagging->input_count(), 1);
+  DCHECK(old_untagging->input(0).node()->Is<Phi>());
 
   ValueRepresentation from_repr =
-      old_conversion->input(0).node()->value_representation();
-  ValueRepresentation to_repr = old_conversion->value_representation();
+      old_untagging->input(0).node()->value_representation();
+  ValueRepresentation to_repr = old_untagging->value_representation();
 
   // Since initially Phis are tagged, it would make not sense for
   // {old_conversion} to convert a Phi to a Tagged value.
@@ -193,44 +206,51 @@ ValueNode* MaglevPhiRepresentationSelector::GetInputReplacement(
 
   if (from_repr == ValueRepresentation::kTagged) {
     // The Phi hasn't been untagged, so we leave the conversion as it is.
-    return old_conversion;
+    return;
   }
 
   if (from_repr == to_repr) {
-    old_conversion->kill();
-    return old_conversion->input(0).node();
+    old_untagging->OverwriteWith(Opcode::kIdentity, Identity::kProperties);
+    return;
   }
 
-  if (old_conversion->Is<UnsafeSmiUntag>()) {
+  if (old_untagging->Is<UnsafeSmiUntag>()) {
     // UnsafeSmiTag are only inserted when the node is a known Smi. If the
     // current phi has a Float64/Uint32 representation, then we can safely
     // truncate it to Int32, because we know that the Float64/Uint32 fits in a
     // Smi, and therefore in a Int32.
     if (from_repr == ValueRepresentation::kFloat64) {
-      old_conversion->OverwriteWith(Opcode::kUnsafeTruncateFloat64ToInt32,
-                                    UnsafeTruncateFloat64ToInt32::kProperties);
-      return old_conversion;
+      old_untagging->OverwriteWith(Opcode::kUnsafeTruncateFloat64ToInt32,
+                                   UnsafeTruncateFloat64ToInt32::kProperties);
     } else if (from_repr == ValueRepresentation::kUint32) {
-      old_conversion->OverwriteWith(Opcode::kUnsafeTruncateUint32ToInt32,
-                                    UnsafeTruncateUint32ToInt32::kProperties);
-      return old_conversion;
+      old_untagging->OverwriteWith(Opcode::kUnsafeTruncateUint32ToInt32,
+                                   UnsafeTruncateUint32ToInt32::kProperties);
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
-      old_conversion->kill();
-      return old_conversion->input(0).node();
+      old_untagging->OverwriteWith(Opcode::kIdentity, Identity::kProperties);
     }
+    return;
   }
 
-  base::Optional<Opcode> needed_conversion =
-      GetOpcodeForCheckedConversion(from_repr, to_repr);
+  // The graph builder inserts 3 kind of Tagged->Int32 conversions that can have
+  // heap number as input: CheckedTruncateNumberToInt32, which truncates its
+  // input (and deopts if it's not a HeapNumber), TruncateNumberToInt32, which
+  // truncates its input (assuming that it's indeed a HeapNumber) and
+  // CheckedSmiTag, which deopts on non-smi inputs. The first 2 cannot deopt if
+  // we have Float64 phi and will happily truncate it, but the 3rd one should
+  // deopt if it cannot be converted without loss of precision.
+  bool conversion_is_truncating_float64 =
+      old_untagging->Is<CheckedTruncateNumberToInt32>() ||
+      old_untagging->Is<TruncateNumberToInt32>();
+
+  base::Optional<Opcode> needed_conversion = GetOpcodeForCheckedConversion(
+      from_repr, to_repr, conversion_is_truncating_float64);
 
   DCHECK(needed_conversion.has_value());
 
-  if (*needed_conversion != old_conversion->opcode()) {
-    old_conversion->OverwriteWith(*needed_conversion);
+  if (*needed_conversion != old_untagging->opcode()) {
+    old_untagging->OverwriteWith(*needed_conversion);
   }
-
-  return old_conversion;
 }
 
 ValueNode* MaglevPhiRepresentationSelector::TagPhi(Phi* phi, BasicBlock* block,

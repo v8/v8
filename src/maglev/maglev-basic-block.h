@@ -31,7 +31,7 @@ class BasicBlock {
       return control_node()->id();
     }
     auto node = nodes_.first();
-    while (node && node->is_dead()) {
+    while (node && node->Is<Identity>()) {
       node = node->NextNode();
     }
     return node ? node->id() : control_node()->id();
@@ -42,7 +42,7 @@ class BasicBlock {
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
         if (IsGapMoveNode(node->opcode())) continue;
-        if (node->is_dead()) continue;
+        if (node->Is<Identity>()) continue;
         return node->id();
       }
     }

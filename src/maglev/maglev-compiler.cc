@@ -383,14 +383,14 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
     // TODO(dmercadier): re-enable Phi untagging.
 
-    // GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
-    //     &graph_builder);
-    // representation_selector.ProcessGraph(graph);
+    GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
+        &graph_builder);
+    representation_selector.ProcessGraph(graph);
 
-    // if (v8_flags.print_maglev_graph) {
-    //   std::cout << "\nAfter Phi untagging" << std::endl;
-    //   PrintGraph(std::cout, compilation_info, graph);
-    // }
+    if (v8_flags.print_maglev_graph) {
+      std::cout << "\nAfter Phi untagging" << std::endl;
+      PrintGraph(std::cout, compilation_info, graph);
+    }
   }
 
 #ifdef DEBUG
