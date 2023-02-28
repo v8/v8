@@ -647,8 +647,15 @@ class OpProperties {
     return can_write() || non_memory_side_effects();
   }
   constexpr bool is_required_when_unused() {
-    return has_any_side_effects() || can_throw() || can_deopt() ||
-           is_any_call();
+    if (is_conversion()) {
+      // Calls in conversions are not counted as side-effect as far as
+      // is_required_when_unused is concerned, since they should always be to
+      // the Allocate builtin.
+      return has_any_side_effects() || can_throw() || can_deopt();
+    } else {
+      return has_any_side_effects() || can_throw() || can_deopt() ||
+             is_any_call();
+    }
   }
 
   constexpr OpProperties operator|(const OpProperties& that) {
