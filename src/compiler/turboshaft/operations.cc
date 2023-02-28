@@ -776,6 +776,15 @@ std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind) {
+  switch (kind) {
+    case DoubleArrayMinMaxOp::Kind::kMin:
+      return os << "Min";
+    case DoubleArrayMinMaxOp::Kind::kMax:
+      return os << "Max";
+  }
+}
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;

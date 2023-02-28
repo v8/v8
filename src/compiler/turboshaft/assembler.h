@@ -610,6 +610,8 @@ class AssemblerOpInterface {
                           ShiftRightArithmeticShiftOutZeros, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64ShiftRightArithmeticShiftOutZeros, Shift,
                           ShiftRightArithmeticShiftOutZeros, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightArithmeticShiftOutZeros, Shift,
+                          ShiftRightArithmeticShiftOutZeros, WordPtr)
   DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
                        ShiftRightArithmetic)
   DECL_SINGLE_REP_BINOP_V(Word32ShiftRightArithmetic, Shift,
@@ -886,6 +888,13 @@ class AssemblerOpInterface {
     }
     return stack().ReduceConvertToObject(input, kind, input_rep,
                                          input_interpretation, minus_zero_mode);
+  }
+  V<Tagged> ConvertFloat64ToNumber(V<Float64> input,
+                                   CheckForMinusZeroMode minus_zero_mode) {
+    return ConvertToObject(input, ConvertToObjectOp::Kind::kNumber,
+                           RegisterRepresentation::Float64(),
+                           ConvertToObjectOp::InputInterpretation::kSigned,
+                           minus_zero_mode);
   }
 
   OpIndex Word32Constant(uint32_t value) {
@@ -1546,6 +1555,19 @@ class AssemblerOpInterface {
   }
   V<Tagged> NewDoubleArray(V<WordPtr> length, AllocationType allocation_type) {
     return NewArray(length, NewArrayOp::Kind::kDouble, allocation_type);
+  }
+
+  V<Tagged> DoubleArrayMinMax(V<Tagged> array, DoubleArrayMinMaxOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceDoubleArrayMinMax(array, kind);
+  }
+  V<Tagged> DoubleArrayMin(V<Tagged> array) {
+    return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMin);
+  }
+  V<Tagged> DoubleArrayMax(V<Tagged> array) {
+    return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMax);
   }
 
   template <typename Rep>

@@ -1516,6 +1516,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDoubleArrayMax:
     case IrOpcode::kDoubleArrayMin:
+      if (v8_flags.turboshaft) return false;
       result = LowerDoubleArrayMinMax(node);
       break;
     default:
@@ -6709,6 +6710,7 @@ Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerDoubleArrayMinMax(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(node->opcode() == IrOpcode::kDoubleArrayMin ||
          node->opcode() == IrOpcode::kDoubleArrayMax);
 

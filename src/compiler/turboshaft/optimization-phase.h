@@ -775,6 +775,10 @@ class GraphVisitor {
     return assembler().ReduceNewArray(MapToNewGraph(op.length()), op.kind,
                                       op.allocation_type);
   }
+  OpIndex AssembleOutputGraphDoubleArrayMinMax(const DoubleArrayMinMaxOp& op) {
+    return assembler().ReduceDoubleArrayMinMax(MapToNewGraph(op.array()),
+                                               op.kind);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

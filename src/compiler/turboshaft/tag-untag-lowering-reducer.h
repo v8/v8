@@ -37,7 +37,13 @@ class TagUntagLoweringReducer : public Next {
   }
 
   OpIndex ReduceUntag(OpIndex input, TagKind kind, RegisterRepresentation rep) {
-    UNIMPLEMENTED();
+    DCHECK_EQ(kind, TagKind::kSmiTag);
+    DCHECK_EQ(rep, RegisterRepresentation::Word32());
+    if constexpr (Is64() && SmiValuesAre31Bits()) {
+      return __ Word32ShiftRightArithmeticShiftOutZeros(input, kSmiShiftBits);
+    }
+    return V<Word32>::Cast(
+        __ WordPtrShiftRightArithmeticShiftOutZeros(input, kSmiShiftBits));
   }
 
  private:

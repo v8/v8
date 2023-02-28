@@ -1208,6 +1208,13 @@ OpIndex GraphBuilder::Process(
                                 NewArrayOp::Kind::kObject,
                                 AllocationTypeOf(node->op()));
 
+    case IrOpcode::kDoubleArrayMin:
+      return assembler.DoubleArrayMinMax(Map(node->InputAt(0)),
+                                         DoubleArrayMinMaxOp::Kind::kMin);
+    case IrOpcode::kDoubleArrayMax:
+      return assembler.DoubleArrayMinMax(Map(node->InputAt(0)),
+                                         DoubleArrayMinMaxOp::Kind::kMax);
+
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:

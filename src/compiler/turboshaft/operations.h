@@ -117,7 +117,8 @@ class Graph;
   V(Tag)                             \
   V(Untag)                           \
   V(NewConsString)                   \
-  V(NewArray)
+  V(NewArray)                        \
+  V(DoubleArrayMinMax)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2503,7 +2504,9 @@ struct UntagOp : FixedArityOperationT<1, UntagOp> {
 
   UntagOp(OpIndex input, TagKind kind, RegisterRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
-  void Validate(const Graph& graph) const { UNIMPLEMENTED(); }
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
 
   auto options() const { return std::tuple{kind, rep}; }
 };
@@ -2553,6 +2556,29 @@ struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
   auto options() const { return std::tuple{kind, allocation_type}; }
 };
 std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind);
+
+struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
+  enum class Kind : uint8_t {
+    kMin,
+    kMax,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex array() const { return Base::input(0); }
+
+  DoubleArrayMinMaxOp(OpIndex array, Kind kind) : Base(array), kind(kind) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, array(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind);
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

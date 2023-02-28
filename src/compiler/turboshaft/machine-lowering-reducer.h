@@ -635,12 +635,52 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  OpIndex ReduceDoubleArrayMinMax(V<Tagged> array,
+                                  DoubleArrayMinMaxOp::Kind kind) {
+    DCHECK(kind == DoubleArrayMinMaxOp::Kind::kMin ||
+           kind == DoubleArrayMinMaxOp::Kind::kMax);
+    const bool is_max = kind == DoubleArrayMinMaxOp::Kind::kMax;
+
+    // Iterate the elements and find the result.
+    V<Float64> empty_value =
+        __ Float64Constant(is_max ? -V8_INFINITY : V8_INFINITY);
+    V<WordPtr> array_length = __ ChangeInt32ToIntPtr(__ SmiUntag(
+        LoadField<Tagged>(array, AccessBuilder::ForJSArrayLength(
+                                     ElementsKind::PACKED_DOUBLE_ELEMENTS))));
+    V<Tagged> elements =
+        LoadField<Tagged>(array, AccessBuilder::ForJSObjectElements());
+
+    Label<Float64> done(this);
+    LoopLabel<WordPtr, Float64> loop(this);
+
+    GOTO(loop, intptr_t{0}, empty_value);
+
+    if (BIND(loop, index, accumulator)) {
+      GOTO_IF_NOT_UNLIKELY(__ UintPtrLessThan(index, array_length), done,
+                           accumulator);
+
+      V<Float64> element = LoadElement<Float64>(
+          elements, AccessBuilder::ForFixedDoubleArrayElement(), index);
+
+      V<Float64> new_accumulator = is_max ? __ Float64Max(accumulator, element)
+                                          : __ Float64Min(accumulator, element);
+      GOTO(loop, __ WordPtrAdd(index, 1), new_accumulator);
+    }
+
+    BIND(done, result);
+    return __ ConvertFloat64ToNumber(result,
+                                     CheckForMinusZeroMode::kCheckForMinusZero);
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeUint32ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeUint64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeIntPtrToSmi(input) ==> MLR: __ SmiTag(input)
+  // ECL: ChangeFloat64ToTagged(i, m) ==> MLR: __ ConvertFloat64ToNumber(i, m)
+  // ECL: ChangeSmiToIntPtr(input)
+  //   ==> MLR: __ ChangeInt32ToIntPtr(__ SmiUntag(input))
 
  private:
   // TODO(nicohartmann@): Might move some of those helpers into the assembler
