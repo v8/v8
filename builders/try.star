@@ -9,6 +9,7 @@ def try_builder(
         bucket = "try",
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
+        disable_resultdb_exports = True,
         **kwargs):
     # All unspecified branch trybots are per default optional.
     if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
@@ -19,6 +20,7 @@ def try_builder(
         cq_properties = cq_properties,
         cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
+        disable_resultdb_exports = disable_resultdb_exports,
         **kwargs
     )
 

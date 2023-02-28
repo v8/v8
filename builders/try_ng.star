@@ -29,6 +29,7 @@ def trybot_pair(
         description = None,
         build_timeout = None,
         total_timeout = None,
+        disable_resultdb_exports = True,
         **kwargs):
     # Compilator names are constructed based on orchestrator names with an
     # infix like: v8_linux_rel -> v8_linux_compile_rel.
@@ -53,6 +54,7 @@ def trybot_pair(
         experiments = experiments,
         description = orchestrator_description,
         properties = {"compilator_name": compilator_name},
+        disable_resultdb_exports = disable_resultdb_exports,
     )
 
     # Generate compilator trybot.
@@ -67,6 +69,7 @@ def trybot_pair(
         in_list = "tryserver",
         experiments = experiments,
         description = description,
+        disable_resultdb_exports = disable_resultdb_exports,
         **kwargs
     )
 

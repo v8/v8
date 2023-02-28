@@ -473,6 +473,7 @@ def multibranch_builder(**kwargs):
                 notifies.append("v8 tree closer")
                 args["notifies"] = notifies
         else:
+            args["disable_resultdb_exports"] = True
             args["notifies"] = ["sheriffs"]
             if _builder_is_not_supported(branch.bucket, first_branch_version):
                 continue
