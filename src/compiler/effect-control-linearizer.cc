@@ -917,7 +917,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     // effect that is passed. The frame state is preserved for lowering.
     DCHECK_EQ(RegionObservability::kObservable, region_observability_);
     *frame_state = NodeProperties::GetFrameStateInput(node);
-    if (!lower_in_turboshaft_) return;
+    if (!v8_flags.turboshaft) return;
     // We keep checkpoints to allow Turboshaft's graph builder to recompute the
     // correct FrameStates for nodes.
   }
@@ -1052,39 +1052,87 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerCheckIf(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Add:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt32Add(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Sub:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt32Sub(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Div:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt32Div(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Mod:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt32Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32Div:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint32Div(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32Mod:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint32Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Mul:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt32Mul(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64Add:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64Add(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64Sub:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64Sub(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64Mul:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64Mul(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64Div:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64Div(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64Mod:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
@@ -2239,6 +2287,7 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -2251,6 +2300,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt32Sub(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -2263,6 +2313,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Sub(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
   Node* zero = __ Int32Constant(0);
@@ -2404,6 +2455,7 @@ Node* EffectControlLinearizer::BuildUint32Mod(Node* lhs, Node* rhs) {
 
 Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   // General case for signed integer modulus, with optimization for (unknown)
   // power of 2 right hand side.
   //
@@ -2411,7 +2463,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     let lhs_abs = -lsh in
+  //     let lhs_abs = -lhs in
   //     let res = lhs_abs % rhs in
   //     deopt if res == 0
   //     -res
@@ -2479,6 +2531,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
                                                      Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
   Node* zero = __ Int32Constant(0);
@@ -2517,6 +2570,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedUint32Mod(Node* node,
                                                      Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -2533,6 +2587,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Mod(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt32Mul(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
@@ -3112,6 +3167,7 @@ Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt64Add(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3127,6 +3183,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Add(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt64Sub(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3142,6 +3199,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Sub(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt64Mul(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3157,6 +3215,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Mul(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt64Div(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto division = __ MakeLabel();
@@ -3183,6 +3242,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Div(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
                                                     Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto modulo_op = __ MakeLabel();
