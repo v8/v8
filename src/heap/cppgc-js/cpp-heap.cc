@@ -781,7 +781,13 @@ bool CppHeap::FinishConcurrentMarkingIfNeeded() {
 void CppHeap::WriteBarrier(JSObject js_object) {
   DCHECK(js_object.MayHaveEmbedderFields());
   DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
-  auto descriptor = wrapper_descriptor();
+
+  const auto descriptor = wrapper_descriptor();
+  const auto min_count = std::max(descriptor.wrappable_type_index,
+                                  descriptor.wrappable_instance_index) +
+                         1;
+  if (js_object.GetEmbedderFieldCount() < min_count + 1) return;
+
   const EmbedderDataSlot type_slot(js_object, descriptor.wrappable_type_index);
   const EmbedderDataSlot instance_slot(js_object,
                                        descriptor.wrappable_instance_index);
