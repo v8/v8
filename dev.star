@@ -8,6 +8,7 @@ lucicfg.check_version("1.30.9", "Please update depot_tools")
 load(
     "//lib/lib.star",
     "waterfall_acls",
+    "RECLIENT",
 )
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
@@ -78,11 +79,7 @@ luci.builder(
     dimensions = {"cpu": "x86-64", "os": "Windows-10", "pool": "luci.chromium.ci"},
     executable = "recipe:v8",
     properties = {
-        "$build/goma": {
-            "enable_ats": True,
-            "rpc_extra_params": "?prod",
-            "server_host": "goma.chromium.org",
-        },
+        "$build/reclient": RECLIENT.DEFAULT,
         "builder_group": "client.v8",
         "recipe": "v8",
     },
