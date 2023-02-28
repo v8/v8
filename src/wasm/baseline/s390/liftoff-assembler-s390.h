@@ -291,9 +291,6 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
   JumpIfSmi(src.gp(), &exit);
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressTagged(src.gp(), src.gp());
-  }
   CheckPageFlag(src.gp(), r1, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
   lay(r1, dst_op);
