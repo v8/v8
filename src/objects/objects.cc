@@ -4709,20 +4709,33 @@ void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
   }
 
   uint32_t num_separators = 0;
+  uint32_t repeat_last = 0;
   for (int i = 0; i < length; i++) {
     Object element = fixed_array.get(i);
-    const bool element_is_separator_sequence = element.IsSmi();
+    const bool element_is_special = element.IsSmi();
 
-    // If element is a Smi, it represents the number of separators to write.
-    if (V8_UNLIKELY(element_is_separator_sequence)) {
-      CHECK(element.ToUint32(&num_separators));
-      // Verify that Smis (number of separators) only occur when necessary:
-      //   1) at the beginning
-      //   2) at the end
-      //   3) when the number of separators > 1
-      //     - It is assumed that consecutive Strings will have one separator,
-      //       so there is no need for a Smi.
-      DCHECK(i == 0 || i == length - 1 || num_separators > 1);
+    // If element is a positive Smi, it represents the number of separators to
+    // write. If it is a negative Smi, it reprsents the number of times the last
+    // string is repeated.
+    if (V8_UNLIKELY(element_is_special)) {
+      int count;
+      CHECK(element.ToInt32(&count));
+      if (count > 0) {
+        num_separators = count;
+        //  Verify that Smis (number of separators) only occur when necessary:
+        //    1) at the beginning
+        //    2) at the end
+        //    3) when the number of separators > 1
+        //      - It is assumed that consecutive Strings will have one
+        //      separator,
+        //        so there is no need for a Smi.
+        DCHECK(i == 0 || i == length - 1 || num_separators > 1);
+      } else {
+        repeat_last = -count;
+        // Repeat is only possible when the previous element is not special.
+        DCHECK_GT(i, 0);
+        DCHECK(fixed_array.get(i - 1).IsString());
+      }
     }
 
     // Write separator(s) if necessary.
@@ -4742,11 +4755,37 @@ void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
           sink += separator_length;
         }
       }
+      num_separators = 0;
     }
 
-    if (V8_UNLIKELY(element_is_separator_sequence)) {
-      num_separators = 0;
-    } else {
+    // Repeat the last written string |repeat_last| times (including
+    // separators).
+    if (V8_UNLIKELY(repeat_last > 0)) {
+      Object last_element = fixed_array.get(i - 1);
+      int string_length = String::cast(last_element).length();
+      int length_with_sep = string_length + separator_length;
+      // Only copy separators between elements, not at the start or beginning.
+      sinkchar* copy_end =
+          sink + (length_with_sep * repeat_last) - separator_length;
+      int copy_length = length_with_sep;
+      while (sink + copy_length < copy_end) {
+        DCHECK_LE(sink + copy_length, sink_end);
+        memcpy(sink, sink - copy_length, copy_length * sizeof(sinkchar));
+        sink += copy_length;
+        copy_length *= 2;
+      }
+      int remaining = static_cast<int>(copy_end - sink);
+      if (remaining > 0) {
+        DCHECK_LE(sink + remaining, sink_end);
+        memcpy(sink, sink - remaining - separator_length,
+               remaining * sizeof(sinkchar));
+        sink += remaining;
+      }
+      repeat_last = 0;
+      num_separators = 1;
+    }
+
+    if (V8_LIKELY(!element_is_special)) {
       DCHECK(element.IsString());
       String string = String::cast(element);
       const int string_length = string.length();
