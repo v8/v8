@@ -15,10 +15,10 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
-#define BIND(label, ...)                                          \
-  auto [CONCAT(prevent_empty_binding, __LINE__), ##__VA_ARGS__] = \
-      (Asm().Bind(label.block()), label.GetAll(Asm()));           \
-  (((void)CONCAT(prevent_empty_binding, __LINE__)), label.block()->IsBound())
+#define BIND(label, ...) \
+  auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =            \
+    Asm().ControlFlowHelper_Bind(label);                         \
+    (detail::SuppressUnusedWarning(CONCAT(is_bound_, __LINE__)))
 #define GOTO(label, ...) \
   Asm().ControlFlowHelper_Goto(label, {__VA_ARGS__})
 #define GOTO_IF(cond, label, ...) \

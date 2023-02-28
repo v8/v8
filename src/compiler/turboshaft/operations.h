@@ -115,7 +115,9 @@ class Graph;
   V(ObjectIs)                        \
   V(ConvertToObject)                 \
   V(Tag)                             \
-  V(Untag)
+  V(Untag)                           \
+  V(NewConsString)                   \
+  V(NewArray)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -1246,14 +1248,27 @@ struct PhiOp : OperationT<PhiOp> {
 // Only used when moving a loop phi to a new graph while the loop backedge has
 // not been emitted yet.
 struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
-  RegisterRepresentation rep;
-  union {
-    // Used when transforming a Turboshaft graph.
-    // This is not an input because it refers to the old graph.
-    OpIndex old_backedge_index = OpIndex::Invalid();
-    // Used when translating from sea-of-nodes.
-    Node* old_backedge_node;
+  struct PhiIndex {
+    int index;
   };
+  struct Data {
+    union {
+      // Used when transforming a Turboshaft graph.
+      // This is not an input because it refers to the old graph.
+      OpIndex old_backedge_index = OpIndex::Invalid();
+      // Used when translating from sea-of-nodes.
+      Node* old_backedge_node;
+      // Used when building loops with the assembler macros.
+      PhiIndex phi_index;
+    };
+    explicit Data(OpIndex old_backedge_index)
+        : old_backedge_index(old_backedge_index) {}
+    explicit Data(Node* old_backedge_node)
+        : old_backedge_node(old_backedge_node) {}
+    explicit Data(PhiIndex phi_index) : phi_index(phi_index) {}
+  };
+  RegisterRepresentation rep;
+  Data data;
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -1262,14 +1277,8 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
 
   OpIndex first() const { return input(0); }
 
-  PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep,
-                   OpIndex old_backedge_index)
-      : Base(first), rep(rep), old_backedge_index(old_backedge_index) {
-    DCHECK(old_backedge_index.valid());
-  }
-  PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep,
-                   Node* old_backedge_node)
-      : Base(first), rep(rep), old_backedge_node(old_backedge_node) {}
+  PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep, Data data)
+      : Base(first), rep(rep), data(data) {}
 
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, first(), rep));
@@ -2498,6 +2507,52 @@ struct UntagOp : FixedArityOperationT<1, UntagOp> {
 
   auto options() const { return std::tuple{kind, rep}; }
 };
+
+struct NewConsStringOp : FixedArityOperationT<3, NewConsStringOp> {
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex length() const { return Base::input(0); }
+  OpIndex first() const { return Base::input(1); }
+  OpIndex second() const { return Base::input(2); }
+
+  NewConsStringOp(OpIndex length, OpIndex first, OpIndex second)
+      : Base(length, first, second) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, length(), RegisterRepresentation::Word32()));
+    DCHECK(ValidOpInputRep(graph, first(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, second(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
+  enum class Kind : uint8_t {
+    kDouble,
+    kObject,
+  };
+  Kind kind;
+  AllocationType allocation_type;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex length() const { return Base::input(0); }
+
+  NewArrayOp(OpIndex length, Kind kind, AllocationType allocation_type)
+      : Base(length), kind(kind), allocation_type(allocation_type) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, length(), WordPtr::Rep));
+  }
+
+  auto options() const { return std::tuple{kind, allocation_type}; }
+};
+std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind);
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

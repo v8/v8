@@ -65,6 +65,11 @@ template <class Tuple, class T>
 using append_tuple_type = decltype(std::tuple_cat(
     std::declval<Tuple>(), std::declval<std::tuple<T>>()));
 
+// turn std::tuple<A...> into std::tuple<T, A...>.
+template <class T, class Tuple>
+using prepend_tuple_type = decltype(std::tuple_cat(
+    std::declval<std::tuple<T>>(), std::declval<Tuple>()));
+
 }  // namespace base
 }  // namespace v8
 

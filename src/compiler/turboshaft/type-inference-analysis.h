@@ -219,6 +219,8 @@ class TypeInferenceAnalysis {
         case Opcode::kConvertToObject:
         case Opcode::kTag:
         case Opcode::kUntag:
+        case Opcode::kNewConsString:
+        case Opcode::kNewArray:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {
@@ -296,7 +298,7 @@ class TypeInferenceAnalysis {
     Type old_type = GetTypeAtDefinition(index);
     Type new_type = ComputeTypeForPhi(phi);
 
-    if (old_type.IsInvalid() || old_type.IsNone()) {
+    if (old_type.IsInvalid()) {
       SetType(index, new_type);
       return true;
     }
@@ -319,7 +321,9 @@ class TypeInferenceAnalysis {
         graph_.Get(index).ToString().substr(0, 40).c_str(),
         old_type.ToString().c_str(), new_type.ToString().c_str());
 
-    new_type = Widen(old_type, new_type);
+    if (!old_type.IsNone()) {
+      new_type = Widen(old_type, new_type);
+    }
     SetType(index, new_type);
     return true;
   }

@@ -81,7 +81,7 @@ struct GraphBuilder {
       assembler.output_graph().Replace<PhiOp>(
           assembler.output_graph().Index(pending_phi),
           base::VectorOf(
-              {pending_phi.first(), Map(pending_phi.old_backedge_node)}),
+              {pending_phi.first(), Map(pending_phi.data.old_backedge_node)}),
           pending_phi.rep);
     }
   }
@@ -1195,6 +1195,18 @@ OpIndex GraphBuilder::Process(
       return assembler.CheckTurboshaftTypeOf(input_index, rep, *type_opt,
                                              false);
     }
+
+    case IrOpcode::kNewConsString:
+      return assembler.NewConsString(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+    case IrOpcode::kNewDoubleElements:
+      return assembler.NewArray(Map(node->InputAt(0)),
+                                NewArrayOp::Kind::kDouble,
+                                AllocationTypeOf(node->op()));
+    case IrOpcode::kNewSmiOrObjectElements:
+      return assembler.NewArray(Map(node->InputAt(0)),
+                                NewArrayOp::Kind::kObject,
+                                AllocationTypeOf(node->op()));
 
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();

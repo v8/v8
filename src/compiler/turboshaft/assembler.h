@@ -34,26 +34,6 @@ enum class Builtin : int32_t;
 namespace v8::internal::compiler::turboshaft {
 
 namespace detail {
-template <typename A, typename Vars, typename Vals, size_t... indices>
-void SetVariablesHelper(A& assembler, Vars& vars, const Vals& vals,
-                        std::index_sequence<indices...>) {
-  static_assert(std::tuple_size_v<Vars> == std::tuple_size_v<Vals>);
-
-  (void)std::initializer_list<int>{
-      (assembler.Set(std::get<indices>(vars),
-                     assembler.resolve(std::get<indices>(vals))),
-       0)...};
-}
-
-template <typename A, typename Vars, typename Vals, size_t... indices>
-void GetVariablesHelper(A& assembler, Vars& vars, Vals& vals,
-                        std::index_sequence<indices...>) {
-  static_assert(std::tuple_size_v<Vars> == std::tuple_size_v<Vals>);
-
-  (void)std::initializer_list<int>{
-      ((vals = assembler.Get(std::get<indices>(vars))), 0)...};
-}
-
 template <typename Rep, typename = void>
 struct has_constexpr_type : std::false_type {};
 
@@ -80,60 +60,212 @@ struct make_const_or_v<
 
 template <typename Rep>
 using make_const_or_v_t = typename make_const_or_v<Rep, void>::type;
+
+template <typename A, typename ConstOrValues>
+auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
+  return std::apply(
+      [&](auto&... args) { return std::tuple{assembler.resolve(args)...}; },
+      const_or_values);
+}
+
+template <typename T, size_t N>
+void OrderBy(base::SmallVector<T, N>& values,
+             const base::SmallVector<size_t, N>& permutation) {
+  DCHECK_EQ(permutation.size(), values.size());
+  auto sorted = values;
+  for (size_t i = 0; i < values.size(); ++i) {
+    sorted[permutation[i]] = values[i];
+  }
+  values = sorted;
+}
+
+inline bool SuppressUnusedWarning(bool b) { return b; }
 }  // namespace detail
 
-template <typename... Reps>
-class Label {
-  using variables_t = std::tuple<std::conditional_t<true, Variable, Reps>...>;
-  using values_t = std::tuple<V<Reps>...>;
+template <bool loop, typename... Reps>
+class LabelBase {
   static constexpr size_t size = sizeof...(Reps);
 
  public:
+  static constexpr bool is_loop = loop;
+  using values_t = std::tuple<V<Reps>...>;
   using const_or_values_t = std::tuple<detail::make_const_or_v_t<Reps>...>;
-
-  template <typename Reducer>
-  explicit Label(Reducer* reducer)
-      : Label(reducer->Asm().NewBlock(),
-              std::tuple{NewFreshVariable<Reps>(reducer->Asm())...}) {}
+  using recorded_values_t = std::tuple<base::SmallVector<V<Reps>, 2>...>;
 
   Block* block() { return block_; }
 
   template <typename A>
-  void Set(A& assembler, const const_or_values_t& values) {
-    detail::SetVariablesHelper(assembler, vars_, values,
-                               std::make_index_sequence<size>());
-  }
-
-  template <size_t I, typename A>
-  OpIndex Get(A& assembler) {
-    return assembler.Get(std::get<I>(vars_));
+  void RecordValues(A& assembler, const values_t& values) {
+    Block* source = assembler.current_block();
+    DCHECK_NOT_NULL(source);
+    if constexpr (is_loop) {
+      if (block_->IsBound()) {
+        // This block is already bound, so we have a backedge to a loop header.
+        FixLoopPhis(assembler, values);
+      } else {
+        RecordValuesImpl(source, values, std::make_index_sequence<size>());
+      }
+    } else {
+      if (block_->IsBound()) {
+        // Cannot `Goto` to a bound block. If you are trying to construct a
+        // loop, use a `LoopLabel` instead!
+        UNREACHABLE();
+      }
+      RecordValuesImpl(source, values, std::make_index_sequence<size>());
+    }
   }
 
   template <typename A>
-  auto GetAll(A& assembler) {
-    values_t values;
-    detail::GetVariablesHelper(assembler, vars_, values,
-                               std::make_index_sequence<size>());
-    // C++17 does not allow structured binding of empty tuples, so we pass
-    // a dummy nullptr value here in order to prevent empty bindings.
-    return std::tuple_cat(std::tuple<std::nullptr_t>{}, values);
+  values_t MaterializePhis(A& assembler) {
+    return MaterializePhisImpl(assembler, std::make_index_sequence<size>());
   }
 
- private:
-  Label(Block* block, variables_t vars)
-      : block_(block), vars_(std::move(vars)) {}
+ protected:
+  explicit LabelBase(Block* block) : block_(block) { DCHECK_NOT_NULL(block_); }
 
-  template <typename T, typename A, RegisterRepresentation::Enum rep = T::Rep>
-  static Variable NewFreshVariable(A& assembler) {
-    return assembler.NewFreshVariable(RegisterRepresentation{rep});
+  template <size_t... indices>
+  void RecordValuesImpl(Block* source, const values_t& values,
+                        std::index_sequence<indices...>) {
+#ifdef DEBUG
+    std::initializer_list<size_t> sizes{
+        std::get<indices>(recorded_values_).size()...};
+    DCHECK(base::all_equal(sizes,
+                           static_cast<size_t>(block_->PredecessorCount())));
+    DCHECK_EQ(block_->PredecessorCount(), predecessors_.size());
+#endif
+    (std::get<indices>(recorded_values_).push_back(std::get<indices>(values)),
+     ...);
+    predecessors_.push_back(source);
   }
-  template <typename T, typename A>
-  static Variable NewFreshVaribale(A& assembler) {
-    return assembler.NewFreshVariable();
+
+  template <typename A, size_t... indices>
+  values_t MaterializePhisImpl(A& assembler, std::index_sequence<indices...>) {
+    size_t predecessor_count = block_->PredecessorCount();
+    DCHECK_EQ(predecessors_.size(), predecessor_count);
+    // If this label has no values, we don't need any Phis.
+    if constexpr (size == 0) return values_t{};
+
+    // If this block does not have any predecessors, we shouldn't call this.
+    DCHECK_LT(0, predecessor_count);
+    if constexpr (is_loop) {
+      DCHECK_EQ(predecessor_count, 1);
+      auto phis = values_t{
+          assembler.PendingLoopPhi(std::get<indices>(recorded_values_)[0],
+                                   PendingLoopPhiOp::PhiIndex{indices})...};
+#ifdef DEBUG
+      pending_loop_phis_ = phis;
+#endif  // DEBUG
+      return phis;
+    } else {
+      // With 1 predecessor, we don't need any Phis.
+      if (predecessor_count == 1) {
+        return values_t{std::get<indices>(recorded_values_)[0]...};
+      }
+
+      DCHECK_LT(1, predecessor_count);
+      // We might have to sort inputs.
+      // TODO(nicohartmann@): We can remove this once predecessors are always
+      // sorted by block id, that is, their visitation order.
+      auto predecessor_indices = ComputePredecessorIndices();
+      (detail::OrderBy(std::get<indices>(recorded_values_),
+                       predecessor_indices),
+       ...);
+      detail::OrderBy(predecessors_, predecessor_indices);
+
+      // Construct Phis.
+      return values_t{assembler.Phi(
+          base::VectorOf(std::get<indices>(recorded_values_)))...};
+    }
+  }
+
+  base::SmallVector<size_t, 2> ComputePredecessorIndices() const {
+    base::SmallVector<size_t, 2> indices(predecessors_.size());
+    for (size_t i = 0; i < predecessors_.size(); ++i) {
+      Block* source = predecessors_[i];
+      size_t pos = predecessors_.size() - 1;
+      indices[i] = std::numeric_limits<size_t>::max();
+      for (Block* pred = block_->LastPredecessor(); pred;
+           pred = pred->NeighboringPredecessor()) {
+        if (pred == source) {
+          indices[i] = pos;
+        } else if (pred->LastPredecessor() == source) {
+          DCHECK_EQ(pred->PredecessorCount(), 1);
+          indices[i] = pos;
+        } else {
+          --pos;
+        }
+      }
+      DCHECK_LT(indices[i], predecessors_.size());
+    }
+    return indices;
+  }
+
+  template <typename A>
+  void FixLoopPhis(A& assembler, const values_t& values) {
+    DCHECK(block_->IsBound());
+    DCHECK(block_->IsLoop());
+    DCHECK_EQ(predecessors_.size(), 1);
+
+    auto op_range = assembler.output_graph().operations(*block_);
+    FixLoopPhi<0>(assembler, values, op_range.begin(), op_range.end());
+  }
+
+  template <size_t I, typename A>
+  void FixLoopPhi(A& assembler, const values_t& values,
+                  Graph::MutableOperationIterator next,
+                  Graph::MutableOperationIterator end) {
+    if constexpr (I == std::tuple_size_v<values_t>) {
+      for (; next != end; ++next) {
+        DCHECK(!(*next).Is<PendingLoopPhiOp>());
+      }
+    } else {
+      // Find the next PendingLoopPhi.
+      for (; next != end; ++next) {
+        if (auto* pending_phi = (*next).TryCast<PendingLoopPhiOp>()) {
+          OpIndex phi_index = assembler.output_graph().Index(*pending_phi);
+          DCHECK_EQ(phi_index, std::get<I>(pending_loop_phis_));
+          DCHECK_EQ(pending_phi->first(), std::get<I>(recorded_values_)[0]);
+          DCHECK_EQ(I, pending_phi->data.phi_index.index);
+          assembler.output_graph().template Replace<PhiOp>(
+              phi_index,
+              base::VectorOf<OpIndex>(
+                  {pending_phi->first(), std::get<I>(values)}),
+              pending_phi->rep);
+          break;
+        }
+      }
+      // Check that we found a PendingLoopPhi. Otherwise something is wrong.
+      // Did you `Goto` to a LoopLabel more than twice?
+      DCHECK_NE(next, end);
+      FixLoopPhi<I + 1>(assembler, values, ++next, end);
+    }
   }
 
   Block* block_;
-  variables_t vars_;
+  base::SmallVector<Block*, 2> predecessors_;
+  recorded_values_t recorded_values_;
+#ifdef DEBUG
+  values_t pending_loop_phis_;
+#endif
+};
+
+template <typename... Reps>
+class Label : public LabelBase<false, Reps...> {
+  using super = LabelBase<false, Reps...>;
+
+ public:
+  template <typename Reducer>
+  explicit Label(Reducer* reducer) : super(reducer->Asm().NewBlock()) {}
+};
+
+template <typename... Reps>
+class LoopLabel : public LabelBase<true, Reps...> {
+  using super = LabelBase<true, Reps...>;
+
+ public:
+  template <typename Reducer>
+  explicit LoopLabel(Reducer* reducer)
+      : super(reducer->Asm().NewLoopHeader()) {}
 };
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
@@ -370,6 +502,7 @@ class AssemblerOpInterface {
   DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
   DECL_SINGLE_REP_BINOP_V(Word32Add, WordBinop, Add, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Add, WordBinop, Add, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrAdd, WordBinop, Add, WordPtr)
   DECL_SINGLE_REP_BINOP(PointerAdd, WordBinop, Add,
                         WordRepresentation::PointerSized())
 
@@ -542,6 +675,7 @@ class AssemblerOpInterface {
   }
   DECL_SINGLE_REP_EQUAL_V(Word32Equal, Equal, Word32)
   DECL_SINGLE_REP_EQUAL_V(Word64Equal, Equal, Word64)
+  DECL_SINGLE_REP_EQUAL_V(WordPtrEqual, Equal, WordPtr)
   DECL_SINGLE_REP_EQUAL_V(Float32Equal, Equal, Float32)
   DECL_SINGLE_REP_EQUAL_V(Float64Equal, Equal, Float64)
 #undef DECL_SINGLE_REP_EQUAL_V
@@ -1057,8 +1191,9 @@ class AssemblerOpInterface {
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());
   }
 
-  V<Tagged> Allocate(V<WordPtr> size, AllocationType type,
-                     AllowLargeObjects allow_large_objects) {
+  V<Tagged> Allocate(
+      V<WordPtr> size, AllocationType type,
+      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -1286,19 +1421,35 @@ class AssemblerOpInterface {
               RegisterRepresentation rep) {
     return Phi(base::VectorOf(inputs), rep);
   }
-  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
-                         OpIndex old_backedge_index) {
+  template <typename Rep>
+  V<Rep> Phi(const base::Vector<V<Rep>>& inputs) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
+    std::vector<OpIndex> temp(inputs.size());
+    for (std::size_t i = 0; i < inputs.size(); ++i) temp[i] = inputs[i];
+    return Phi(base::VectorOf(temp), Rep::Rep);
+  }
+  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
+                         PendingLoopPhiOp::Data data) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReducePendingLoopPhi(first, rep, data);
+  }
+  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
+                         OpIndex old_backedge_index) {
+    return PendingLoopPhi(first, rep,
+                          PendingLoopPhiOp::Data{old_backedge_index});
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          Node* old_backedge_index) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
+    return PendingLoopPhi(first, rep,
+                          PendingLoopPhiOp::Data{old_backedge_index});
+  }
+  template <typename Rep>
+  V<Rep> PendingLoopPhi(V<Rep> first, PendingLoopPhiOp::PhiIndex phi_index) {
+    return PendingLoopPhi(first, Rep::Rep, PendingLoopPhiOp::Data{phi_index});
   }
 
   OpIndex Tuple(base::Vector<OpIndex> indices) {
@@ -1380,6 +1531,23 @@ class AssemblerOpInterface {
     return stack().Call(callee, frame_state, arguments, ts_call_descriptor);
   }
 
+  V<Tagged> NewConsString(V<Word32> length, V<Tagged> first, V<Tagged> second) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceNewConsString(length, first, second);
+  }
+  V<Tagged> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
+                     AllocationType allocation_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceNewArray(length, kind, allocation_type);
+  }
+  V<Tagged> NewDoubleArray(V<WordPtr> length, AllocationType allocation_type) {
+    return NewArray(length, NewArrayOp::Kind::kDouble, allocation_type);
+  }
+
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {
     return v;
@@ -1397,35 +1565,40 @@ class AssemblerOpInterface {
     return v.is_constant() ? Float64Constant(v.constant_value()) : v.value();
   }
 
-  template <typename... Reps>
-  Label<Reps...> CreateLabel() {
-    return Label<Reps...>::Create(stack());
+  // These methods are used by the assembler macros (IF, ELSE, ELSE_IF, END_IF).
+  template <typename L>
+  auto ControlFlowHelper_Bind(L& label)
+      -> base::prepend_tuple_type<bool, typename L::values_t> {
+    if (!stack().Bind(label.block())) {
+      return std::tuple_cat(std::tuple{false}, typename L::values_t{});
+    }
+    DCHECK_EQ(label.block(), stack().current_block());
+    return std::tuple_cat(std::tuple{true}, label.MaterializePhis(stack()));
   }
 
-  // These methods are used by the assembler macros (IF, ELSE, ELSE_IF, END_IF).
-  template <typename... Reps>
-  void ControlFlowHelper_Goto(
-      Label<Reps...>& label,
-      const typename Label<Reps...>::const_or_values_t& values) {
-    label.Set(stack(), values);
+  template <typename L>
+  void ControlFlowHelper_Goto(L& label,
+                              const typename L::const_or_values_t& values) {
+    auto resolved_values = detail::ResolveAll(stack(), values);
+    label.RecordValues(stack(), resolved_values);
     Goto(label.block());
   }
 
-  template <typename... Reps>
-  void ControlFlowHelper_GotoIf(
-      V<Word32> condition, Label<Reps...>& label,
-      const typename Label<Reps...>::const_or_values_t& values,
-      BranchHint hint) {
-    label.Set(stack(), values);
+  template <typename L>
+  void ControlFlowHelper_GotoIf(V<Word32> condition, L& label,
+                                const typename L::const_or_values_t& values,
+                                BranchHint hint) {
+    auto resolved_values = detail::ResolveAll(stack(), values);
+    label.RecordValues(stack(), resolved_values);
     GotoIf(condition, label.block(), hint);
   }
 
-  template <typename... Reps>
-  void ControlFlowHelper_GotoIfNot(
-      V<Word32> condition, Label<Reps...>& label,
-      const typename Label<Reps...>::const_or_values_t& values,
-      BranchHint hint) {
-    label.Set(stack(), values);
+  template <typename L>
+  void ControlFlowHelper_GotoIfNot(V<Word32> condition, L& label,
+                                   const typename L::const_or_values_t& values,
+                                   BranchHint hint) {
+    auto resolved_values = detail::ResolveAll(stack(), values);
+    label.RecordValues(stack(), resolved_values);
     GotoIfNot(condition, label.block(), hint);
   }
 

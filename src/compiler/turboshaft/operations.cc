@@ -391,7 +391,7 @@ void Operation::PrintOptions(std::ostream& os) const {
 }
 
 void PendingLoopPhiOp::PrintOptions(std::ostream& os) const {
-  os << "[" << rep << ", #o" << old_backedge_index.id() << "]";
+  os << "[" << rep << ", #o" << data.old_backedge_index.id() << "]";
 }
 
 void ConstantOp::PrintOptions(std::ostream& os) const {
@@ -764,6 +764,15 @@ std::ostream& operator<<(
       return os << "CharCode";
     case ConvertToObjectOp::InputInterpretation::kCodePoint:
       return os << "CodePoint";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
+  switch (kind) {
+    case NewArrayOp::Kind::kDouble:
+      return os << "Double";
+    case NewArrayOp::Kind::kObject:
+      return os << "Object";
   }
 }
 
