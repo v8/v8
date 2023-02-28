@@ -358,6 +358,20 @@ int Sweeper::NumberOfConcurrentSweepers() const {
                   V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1);
 }
 
+namespace {
+bool ShouldUpdateRememberedSets(Heap* heap) {
+  if ((heap->new_space()->Size() > 0) || (heap->new_lo_space()->Size() > 0)) {
+    // Keep track of OLD_TO_NEW slots
+    return true;
+  }
+  if (heap->isolate()->has_shared_space()) {
+    // Keep track of OLD_TO_SHARED slots
+    return true;
+  }
+  return false;
+}
+}  // namespace
+
 void Sweeper::StartSweeperTasks() {
   DCHECK(current_new_space_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
@@ -370,6 +384,9 @@ void Sweeper::StartSweeperTasks() {
     DCHECK(snapshot_large_pages_set_.empty());
     SnapshotPageSets();
 
+    should_update_remembered_sets_ = ShouldUpdateRememberedSets(heap_);
+
+    DCHECK(!promoted_page_iteration_in_progress_);
     promoted_page_iteration_in_progress_.store(true, std::memory_order_release);
   }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
@@ -896,12 +913,15 @@ inline void HandlePromotedObject(
     HeapObject object, NonAtomicMarkingState* marking_state,
     PretenuringHandler* pretenuring_handler, PtrComprCageBase cage_base,
     PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-    PromotedPageRecordMigratedSlotVisitor* record_visitor) {
+    PromotedPageRecordMigratedSlotVisitor* record_visitor,
+    bool should_update_rememebered_sets) {
   DCHECK(marking_state->IsBlack(object));
   pretenuring_handler->UpdateAllocationSite(object.map(), object,
                                             local_pretenuring_feedback);
   DCHECK(!IsCodeSpaceObject(object));
-  object.IterateFast(cage_base, record_visitor);
+  if (should_update_rememebered_sets) {
+    object.IterateFast(cage_base, record_visitor);
+  }
   if (object.IsJSArrayBuffer()) {
     JSArrayBuffer::cast(object).YoungMarkExtensionPromoted();
   }
@@ -930,7 +950,8 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   if (chunk->IsLargePage()) {
     HandlePromotedObject(static_cast<LargePage*>(chunk)->GetObject(),
                          marking_state_, pretenuring_handler_, cage_base,
-                         pretenuring_feedback, &record_visitor);
+                         pretenuring_feedback, &record_visitor,
+                         should_update_remembered_sets_);
   } else {
     bool should_make_iterable = heap_->ShouldZapGarbage();
     PtrComprCageBase cage_base(chunk->heap()->isolate());
@@ -939,7 +960,8 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
          LiveObjectRange<kBlackObjects>(chunk, marking_state_->bitmap(chunk))) {
       HeapObject object = object_and_size.first;
       HandlePromotedObject(object, marking_state_, pretenuring_handler_,
-                           cage_base, pretenuring_feedback, &record_visitor);
+                           cage_base, pretenuring_feedback, &record_visitor,
+                           should_update_remembered_sets_);
       Address free_end = object.address();
       if (should_make_iterable && (free_end != free_start)) {
         CHECK_GT(free_end, free_start);

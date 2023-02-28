@@ -304,6 +304,7 @@ class Sweeper {
   MemoryAllocator::NormalPagesSet snapshot_shared_normal_pages_set_;
   MemoryAllocator::LargePagesSet snapshot_shared_large_pages_set_;
   std::atomic<bool> promoted_page_iteration_in_progress_{false};
+  bool should_update_remembered_sets_;
 };
 
 }  // namespace internal
