@@ -23,8 +23,6 @@ PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
 // V8HeapCompressionScheme
 //
 
-constexpr Address kPtrComprCageBaseMask = ~(kPtrComprCageBaseAlignment - 1);
-
 // static
 Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
     Address on_heap_addr) {
@@ -35,7 +33,6 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
 Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
     PtrComprCageBase cage_base) {
   Address base = cage_base.address();
-  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   base = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
   return base;
@@ -49,11 +46,10 @@ void V8HeapCompressionScheme::InitBase(Address base) {
   base_ = base;
 }
 
+constexpr Address kPtrComprCageBaseMask = ~(kPtrComprCageBaseAlignment - 1);
+
 // static
 V8_CONST Address V8HeapCompressionScheme::base() {
-  // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
-  // casting to an Address). To increase our chances we additionally encode the
-  // same information in this V8_ASSUME.
   V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
@@ -61,15 +57,7 @@ V8_CONST Address V8HeapCompressionScheme::base() {
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
-  // This is used to help clang produce better code. Values which could be
-  // invalid pointers need to be compressed with CompressAny.
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
-}
-
-// static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) {
+Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
@@ -85,12 +73,20 @@ Address V8HeapCompressionScheme::DecompressTagged(TOnHeapAddress on_heap_addr,
                                                   Tagged_t raw_value) {
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
     !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
-  Address cage_base = base();
+  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  byte* cage_base = reinterpret_cast<byte*>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+  // For V8_ASSUME_ALIGNED to be considered for optimizations the following
+  // addition has to happen on a pointer type.
+  Address result = reinterpret_cast<Address>(cage_base + raw_value);
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
   Address result = cage_base + static_cast<Address>(raw_value);
+#endif
+  // Allows to remove compress(decompress(...))
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
+  // Allows to remove SMI checks when the result is compared against a constant.
+  V8_ASSUME(HAS_SMI_TAG(result) == HAS_SMI_TAG(raw_value));
   return result;
 }
 
@@ -127,7 +123,6 @@ Address ExternalCodeCompressionScheme::PrepareCageBaseAddress(
 Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
     PtrComprCageBase cage_base) {
   Address base = cage_base.address();
-  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   base = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
   return base;
@@ -143,9 +138,6 @@ void ExternalCodeCompressionScheme::InitBase(Address base) {
 
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
-  // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
-  // casting to an Address). To increase our chances we additionally encode the
-  // same information in this V8_ASSUME.
   V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
@@ -153,15 +145,7 @@ V8_CONST Address ExternalCodeCompressionScheme::base() {
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
-Tagged_t ExternalCodeCompressionScheme::CompressObject(Address tagged) {
-  // This is used to help clang produce better code. Values which could be
-  // invalid pointers need to be compressed with CompressAny.
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
-}
-
-// static
-Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
+Tagged_t ExternalCodeCompressionScheme::CompressTagged(Address tagged) {
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
@@ -178,12 +162,20 @@ Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
     !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
-  Address cage_base = base();
+  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  byte* cage_base = reinterpret_cast<byte*>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+  // For V8_ASSUME_ALIGNED to be considered for optimizations the following
+  // addition has to happen on a pointer type.
+  Address result = reinterpret_cast<Address>(cage_base + raw_value);
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
   Address result = cage_base + static_cast<Address>(raw_value);
+#endif
+  // Allows to remove compress(decompress(...))
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
+  // Allows to remove SMI checks when the result is compared against a constant.
+  V8_ASSUME(HAS_SMI_TAG(result) == HAS_SMI_TAG(raw_value));
   return result;
 }
 
@@ -212,12 +204,9 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
 }
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
+Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
   UNREACHABLE();
 }
-
-// static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) { UNREACHABLE(); }
 
 // static
 Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {

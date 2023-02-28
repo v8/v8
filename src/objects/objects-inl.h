@@ -128,7 +128,7 @@ ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                       \
   bool Object::Is##Type(ReadOnlyRoots roots) const {                       \
     SLOW_DCHECK(CheckObjectComparisonAllowed(ptr(), roots.Value().ptr())); \
-    return V8HeapCompressionScheme::CompressObject(ptr()) ==               \
+    return V8HeapCompressionScheme::CompressTagged(ptr()) ==               \
            StaticReadOnlyRoot::k##CamelName;                               \
   }
 #else

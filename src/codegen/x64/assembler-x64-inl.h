@@ -339,7 +339,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     DCHECK(COMPRESS_POINTERS_BOOL);
-    Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
+    Tagged_t tagged = V8HeapCompressionScheme::CompressTagged(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
@@ -370,7 +370,7 @@ void RelocInfo::WipeOut() {
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     Address smi_address = Smi::FromInt(0).ptr();
     WriteUnalignedValue(pc_,
-                        V8HeapCompressionScheme::CompressObject(smi_address));
+                        V8HeapCompressionScheme::CompressTagged(smi_address));
   } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,

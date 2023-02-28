@@ -4075,7 +4075,7 @@ void Isolate::VerifyStaticRoots() {
   idx = RootIndex::kFirstReadOnlyRoot;
 #define CHECK_NAME(_1, _2, CamelName)                                     \
   CHECK_WITH_MSG(StaticReadOnlyRoot::k##CamelName ==                      \
-                     V8HeapCompressionScheme::CompressObject(roots[idx]), \
+                     V8HeapCompressionScheme::CompressTagged(roots[idx]), \
                  STATIC_ROOTS_FAILED_MSG);                                \
   ++idx;
   STRONG_READ_ONLY_ROOT_LIST(CHECK_NAME)
@@ -4331,9 +4331,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     Address last = base + code_cage->size() - 1;
     PtrComprCageBase code_cage_base{code_cage_base_};
     CHECK_EQ(base, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressObject(base)));
+                       code_cage_base, ComprScheme::CompressTagged(base)));
     CHECK_EQ(last, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressObject(last)));
+                       code_cage_base, ComprScheme::CompressTagged(last)));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 

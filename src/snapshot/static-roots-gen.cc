@@ -28,7 +28,7 @@ class StaticRootsTableGenImpl {
       RootIndex pos = RootIndex::kFirstReadOnlyRoot;
 #define ADD_ROOT(_, value, CamelName)                       \
   {                                                         \
-    Tagged_t ptr = V8HeapCompressionScheme::CompressObject( \
+    Tagged_t ptr = V8HeapCompressionScheme::CompressTagged( \
         ro_roots.unchecked_##value().ptr());                \
     sorted_roots_[ptr].push_back(pos);                      \
     camel_names_[RootIndex::k##CamelName] = #CamelName;     \
