@@ -728,6 +728,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   if (kind != kS128) {
     MacroAssembler::Move(dst, src);
   } else {
+    VU.set(kScratchReg, E8, m1);
     MacroAssembler::vmv_vv(dst.toV(), src.toV());
   }
 }
@@ -1574,6 +1575,8 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
+  vmv_vi(kSimd128ScratchReg, -1);
+  vmv_vi(kSimd128ScratchReg3, -1);
   li(kScratchReg, 0x0006000400020000);
   vmv_sx(kSimd128ScratchReg, kScratchReg);
   li(kScratchReg, 0x0007000500030001);
@@ -1588,6 +1591,8 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
+  vmv_vi(kSimd128ScratchReg, -1);
+  vmv_vi(kSimd128ScratchReg3, -1);
   li(kScratchReg, 0x0006000400020000);
   vmv_sx(kSimd128ScratchReg, kScratchReg);
   li(kScratchReg, 0x0007000500030001);
@@ -1602,6 +1607,8 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
+  vmv_vi(kSimd128ScratchReg, -1);
+  vmv_vi(kSimd128ScratchReg3, -1);
   li(kScratchReg, 0x0E0C0A0806040200);
   vmv_sx(kSimd128ScratchReg, kScratchReg);
   li(kScratchReg, 0x0F0D0B0907050301);
@@ -1616,6 +1623,8 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
+  vmv_vi(kSimd128ScratchReg, -1);
+  vmv_vi(kSimd128ScratchReg3, -1);
   li(kScratchReg, 0x0E0C0A0806040200);
   vmv_sx(kSimd128ScratchReg, kScratchReg);
   li(kScratchReg, 0x0F0D0B0907050301);

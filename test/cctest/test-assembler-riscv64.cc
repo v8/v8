@@ -2288,11 +2288,14 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
 #define UTEST_RVV_VF_VV_FORM_WITH_OP(instr_name, tested_op) \
   UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, ((rs1_fval)tested_op(rs2_fval)))
 
-#define UTEST_RVV_VF_VF_FORM_WITH_OP(instr_name, tested_op) \
-  UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, ((rs1_fval)tested_op(rs2_fval)))
+#define UTEST_RVV_VF_VF_FORM_WITH_OP(instr_name, array, tested_op) \
+  UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, array,                 \
+                                ((rs1_fval)tested_op(rs2_fval)))
+
+#define ARRAY_FLOAT compiler::ValueHelper::GetVector<float>()
 
 UTEST_RVV_VF_VV_FORM_WITH_OP(vfadd_vv, +)
-// UTEST_RVV_VF_VF_FORM_WITH_OP(vfadd_vf, ARRAY_FLOAT, +)
+UTEST_RVV_VF_VF_FORM_WITH_OP(vfadd_vf, ARRAY_FLOAT, +)
 UTEST_RVV_VF_VV_FORM_WITH_OP(vfsub_vv, -)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfsub_vf, ARRAY_FLOAT, -)
 UTEST_RVV_VF_VV_FORM_WITH_OP(vfmul_vv, *)
@@ -2865,6 +2868,30 @@ UTEST_VCPOP_M_WITH_WIDTH(64)
 UTEST_VCPOP_M_WITH_WIDTH(32)
 UTEST_VCPOP_M_WITH_WIDTH(16)
 UTEST_VCPOP_M_WITH_WIDTH(8)
+
+TEST(RISCV_UTEST_WasmRvvS128const) {
+  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
+  CcTest::InitializeVM();
+  for (uint64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
+    for (uint64_t y : compiler::ValueHelper::GetVector<int64_t>()) {
+      uint64_t src[2] = {x, y};
+      uint8_t vals[16];
+      volatile uint64_t result[kRvvVLEN / 64] = {0};
+      memcpy(vals, src, sizeof(vals));
+      auto fn = [vals, &result](MacroAssembler& assm) {
+        __ Push(kScratchReg);
+        __ WasmRvvS128const(v10, vals);
+        __ li(t1, Operand(int64_t(result)));
+        __ VU.set(t0, VSew::E64, Vlmul::m1);
+        __ vs(v10, t1, 0, VSew::E64);
+        __ Pop(kScratchReg);
+      };
+      GenAndRunTest(fn);
+      CHECK_EQ(result[0], x);
+      CHECK_EQ(result[1], y);
+    }
+  }
+}
 
 #undef UTEST_VCPOP_M_WITH_WIDTH
 

@@ -6317,6 +6317,7 @@ void Simulator::DecodeRvvMVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VRXUNARY0:
+      // vmv.s.x
       if (instr_.Vs2Value() == 0x0) {
         if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
           switch (rvv_vsew()) {
@@ -6339,7 +6340,6 @@ void Simulator::DecodeRvvMVX() {
             default:
               UNREACHABLE();
           }
-          // set_rvv_vl(0);
         }
         set_rvv_vstart(0);
         rvv_trace_vd();
@@ -6636,7 +6636,6 @@ void Simulator::DecodeRvvFVV() {
           break;
         default:
           UNSUPPORTED_RISCV();
-          break;
       }
       break;
     case RO_V_VFUNARY1:
@@ -6987,7 +6986,6 @@ void Simulator::DecodeRvvFVV() {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -7019,6 +7017,48 @@ void Simulator::DecodeRvvFVF() {
           {
             vd = fs1;
             USE(vs2);
+          })
+      break;
+    case RO_V_VFADD_VF:
+      RVV_VI_VFP_VF_LOOP(
+          { UNIMPLEMENTED(); },
+          {
+            auto fn = [this](float frs1, float frs2) {
+              if (is_invalid_fadd(frs1, frs2)) {
+                this->set_fflags(kInvalidOperation);
+                return std::numeric_limits<float>::quiet_NaN();
+              } else {
+                return frs1 + frs2;
+              }
+            };
+            auto alu_out = fn(fs1, vs2);
+            // if any input or result is NaN, the result is quiet_NaN
+            if (std::isnan(alu_out) || std::isnan(fs1) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(fs1) || isSnan(vs2))
+                set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+            }
+            vd = alu_out;
+          },
+          {
+            auto fn = [this](double frs1, double frs2) {
+              if (is_invalid_fadd(frs1, frs2)) {
+                this->set_fflags(kInvalidOperation);
+                return std::numeric_limits<double>::quiet_NaN();
+              } else {
+                return frs1 + frs2;
+              }
+            };
+            auto alu_out = fn(fs1, vs2);
+            // if any input or result is NaN, the result is quiet_NaN
+            if (std::isnan(alu_out) || std::isnan(fs1) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(fs1) || isSnan(vs2))
+                set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<double>::quiet_NaN();
+            }
+            vd = alu_out;
           })
       break;
     case RO_V_VFWADD_VF:
@@ -7116,7 +7156,6 @@ void Simulator::DecodeRvvFVF() {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 void Simulator::DecodeVType() {

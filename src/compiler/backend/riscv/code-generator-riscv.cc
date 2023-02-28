@@ -2367,6 +2367,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ VU.set(kScratchReg, E64, m1);
         __ li(kScratchReg, i.InputInt64(1));
+        __ vmv_vi(kSimd128ScratchReg3, -1);
         __ vmv_sx(kSimd128ScratchReg3, kScratchReg);
         index = kSimd128ScratchReg3;
       }
@@ -2905,6 +2906,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       __ VU.set(kScratchReg, E8, m1);
       __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmv_vx(kSimd128ScratchReg, zero_reg);
       __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
       __ VU.set(kScratchReg, E32, m1);
       __ vmv_xs(dst, kSimd128ScratchReg);
@@ -2915,6 +2917,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       __ VU.set(kScratchReg, E16, m1);
       __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmv_vx(kSimd128ScratchReg, zero_reg);
       __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
       __ VU.set(kScratchReg, E32, m1);
       __ vmv_xs(dst, kSimd128ScratchReg);
@@ -2925,6 +2928,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       __ VU.set(kScratchReg, E32, m1);
       __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmv_vx(kSimd128ScratchReg, zero_reg);
       __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
       __ vmv_xs(dst, kSimd128ScratchReg);
       break;
@@ -2934,6 +2938,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       __ VU.set(kScratchReg, E64, m1);
       __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmv_vx(kSimd128ScratchReg, zero_reg);
       __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
       __ VU.set(kScratchReg, E32, m1);
       __ vmv_xs(dst, kSimd128ScratchReg);

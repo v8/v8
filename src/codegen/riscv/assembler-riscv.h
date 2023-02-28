@@ -612,6 +612,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   VectorUnit VU;
 
+  void ClearVectorunit() { VU.clear(); }
+
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
   // aside from offset, another value like offset + 4 should fit into int16.

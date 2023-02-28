@@ -1506,7 +1506,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   template <typename F>
   void RoundHelper(VRegister dst, VRegister src, Register scratch,
-                   VRegister v_scratch, FPURoundingMode frm);
+                   VRegister v_scratch, FPURoundingMode frm,
+                   bool keep_nan_same = true);
 
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,

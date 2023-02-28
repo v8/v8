@@ -3038,7 +3038,8 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 // handling is needed by NaN, +/-Infinity, +/-0
 template <typename F>
 void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
-                                 VRegister v_scratch, FPURoundingMode frm) {
+                                 VRegister v_scratch, FPURoundingMode frm,
+                                 bool keep_nan_same) {
   VU.set(scratch, std::is_same<F, float>::value ? E32 : E64, m1);
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
@@ -3064,14 +3065,13 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // } else {
   //   srli(rt, rt, 64 - size);
   // }
-
+  vmv_vx(v_scratch, zero_reg);
   li(scratch, 64 - kFloatMantissaBits - kFloatExponentBits);
   vsll_vx(v_scratch, src, scratch);
   li(scratch, 64 - kFloatExponentBits);
   vsrl_vx(v_scratch, v_scratch, scratch);
   li(scratch, kFloatExponentBias + kFloatMantissaBits);
   vmslt_vx(v0, v_scratch, scratch);
-
   VU.set(frm);
   vmv_vv(dst, src);
   if (dst == src) {
@@ -3089,46 +3089,60 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   } else {
     vfsngj_vv(dst, dst, src);
   }
+  if (!keep_nan_same) {
+    vmfeq_vv(v0, src, src);
+    vnot_vv(v0, v0);
+    if (std::is_same<F, float>::value) {
+      fmv_w_x(kScratchDoubleReg, zero_reg);
+    } else {
+#ifdef V8_TARGET_ARCH_RISCV64
+      fmv_d_x(kScratchDoubleReg, zero_reg);
+#else
+      UNIMPLEMENTED();
+#endif
+    }
+    vfadd_vf(dst, src, kScratchDoubleReg, MaskType::Mask);
+  }
 }
 
 void MacroAssembler::Ceil_f(VRegister vdst, VRegister vsrc, Register scratch,
                             VRegister v_scratch) {
-  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RUP);
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RUP, false);
 }
 
 void MacroAssembler::Ceil_d(VRegister vdst, VRegister vsrc, Register scratch,
                             VRegister v_scratch) {
-  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RUP);
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RUP, false);
 }
 
 void MacroAssembler::Floor_f(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RDN);
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RDN, false);
 }
 
 void MacroAssembler::Floor_d(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RDN);
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RDN, false);
 }
 
 void MacroAssembler::Trunc_d(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RTZ);
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RTZ, false);
 }
 
 void MacroAssembler::Trunc_f(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RTZ);
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RTZ, false);
 }
 
 void MacroAssembler::Round_f(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RNE);
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RNE, false);
 }
 
 void MacroAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
-  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE);
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE, false);
 }
 
 #if V8_TARGET_ARCH_RISCV64
@@ -5044,16 +5058,14 @@ void MacroAssembler::WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs,
 }
 
 void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
-  uint64_t imm1 = *(reinterpret_cast<const uint64_t*>(imms));
-  uint64_t imm2 = *((reinterpret_cast<const uint64_t*>(imms)) + 1);
-  VU.set(kScratchReg, VSew::E64, Vlmul::m1);
-  li(kScratchReg, 1);
-  vmv_vx(v0, kScratchReg);
-  li(kScratchReg, imm1);
-  vmerge_vx(dst, kScratchReg, dst);
-  li(kScratchReg, imm2);
-  vsll_vi(v0, v0, 1);
-  vmerge_vx(dst, kScratchReg, dst);
+  uint64_t vals[2];
+  memcpy(vals, imms, sizeof(vals));
+  VU.set(kScratchReg, E64, m1);
+  li(kScratchReg, vals[1]);
+  vmv_sx(kSimd128ScratchReg, kScratchReg);
+  vslideup_vi(dst, kSimd128ScratchReg, 1);
+  li(kScratchReg, vals[0]);
+  vmv_sx(dst, kScratchReg);
 }
 
 void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
