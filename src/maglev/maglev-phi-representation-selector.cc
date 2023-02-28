@@ -36,6 +36,15 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     Node* input = node->input(i).node();
     if (input->Is<SmiConstant>()) {
       // Could be any representation
+    } else if (Constant* constant = input->TryCast<Constant>()) {
+      if (constant->object().IsHeapNumber()) {
+        representation_mask &=
+            representation_mask_for(ValueRepresentation::kFloat64);
+      } else {
+        // Not a Constant that we can untag.
+        representation_mask = 0;
+        break;
+      }
     } else if (input->properties().is_conversion()) {
       DCHECK_EQ(input->input_count(), 1);
       representation_mask &= representation_mask_for(
@@ -107,6 +116,11 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         default:
           UNREACHABLE();
       }
+    } else if (Constant* constant = input->TryCast<Constant>()) {
+      DCHECK(constant->object().IsHeapNumber());
+      DCHECK_EQ(repr, ValueRepresentation::kFloat64);
+      phi->change_input(i, builder_->GetFloat64Constant(
+                               constant->object().AsHeapNumber().value()));
     } else if (input->properties().is_conversion()) {
       // Unwrapping the conversion.
       DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
