@@ -63,6 +63,10 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
+  V8_INLINE int VisitStrongDescriptorArray(Map map,
+                                           StrongDescriptorArray object);
+  V8_INLINE int VisitThinString(Map map, ThinString object);
+  V8_INLINE int VisitExternalString(Map map, ExternalString object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
