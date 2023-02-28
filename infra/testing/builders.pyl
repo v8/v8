@@ -531,8 +531,8 @@
       'os': 'Ubuntu-20.04',
     },
     'tests': [
-      {'name': 'test262', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'v8_linux64_nodcheck_rel': {
@@ -1118,7 +1118,7 @@
       'os': 'Ubuntu-20.04',
     },
     'tests': [
-      {'name': 'test262', 'variant': 'default', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
