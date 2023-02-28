@@ -309,8 +309,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(src.gp(), src.gp());
   }
-  CheckPageFlag(src.gp(), ip,
-                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+  CheckPageFlag(src.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);

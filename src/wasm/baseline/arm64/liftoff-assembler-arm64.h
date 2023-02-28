@@ -498,9 +498,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
   JumpIfSmi(src.gp(), &exit);
-  CheckPageFlag(src.gp(),
-                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-                eq, &exit);
+  CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);

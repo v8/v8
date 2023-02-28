@@ -6857,11 +6857,8 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
 
   } else {
     DCHECK(value_chunk->InSharedHeap());
-
-    heap_internals::MemoryChunk* object_chunk =
-        heap_internals::MemoryChunk::FromHeapObject(object);
-    if (!object_chunk->InSharedHeap())
-      Heap::SharedHeapBarrierSlow(object, slot);
+    DCHECK(!object.InSharedWritableHeap());
+    Heap::SharedHeapBarrierSlow(object, slot);
   }
 }
 
@@ -6875,12 +6872,8 @@ void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
 
   } else {
     DCHECK(value_chunk->InSharedHeap());
-
-    heap_internals::MemoryChunk* table_chunk =
-        heap_internals::MemoryChunk::FromHeapObject(table);
-    if (!table_chunk->InSharedHeap()) {
-      Heap::SharedHeapBarrierSlow(table, slot);
-    }
+    DCHECK(!table.InSharedWritableHeap());
+    Heap::SharedHeapBarrierSlow(table, slot);
   }
 }
 

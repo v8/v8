@@ -119,11 +119,6 @@ class BasicMemoryChunk {
   static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
       POINTERS_TO_HERE_ARE_INTERESTING;
 
-  static constexpr MainThreadFlags
-      kPointersToHereAreInterestingOrInSharedHeapMask =
-          MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
-          MainThreadFlags(IN_SHARED_HEAP);
-
   static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
       POINTERS_FROM_HERE_ARE_INTERESTING;
 

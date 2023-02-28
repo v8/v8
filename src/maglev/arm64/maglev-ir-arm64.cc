@@ -1404,9 +1404,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
            Register array, GeneratorStore* node, int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
           __ CheckPageFlag(
-              value,
-              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
-              *done);
+              value, MemoryChunk::kPointersToHereAreInterestingMask, eq, *done);
 
           Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
           __ Add(slot_reg, array, offset - kHeapObjectTag);
@@ -1450,9 +1448,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         // old-space, consider moving this check to the fast path, maybe even
         // as the first bailout.
         __ CheckPageFlag(
-            context,
-            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
-            *done);
+            context, MemoryChunk::kPointersToHereAreInterestingMask, eq, *done);
 
         __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
         generator = WriteBarrierDescriptor::ObjectRegister();
@@ -1861,9 +1857,8 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreMap* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
-        __ CheckPageFlag(
-            value, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-            eq, *done);
+        __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                         eq, *done);
 
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;
@@ -2151,9 +2146,8 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
-        __ CheckPageFlag(
-            value, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-            eq, *done);
+        __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                         eq, *done);
 
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;

@@ -106,10 +106,12 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
 
-  const bool host_in_young_gen = host_chunk->InYoungGeneration();
+  const bool pointers_from_here_are_interesting =
+      !host_chunk->IsYoungOrSharedChunk();
   const bool is_marking = host_chunk->IsMarking();
 
-  if (!host_in_young_gen && value_chunk->IsYoungOrSharedChunk()) {
+  if (pointers_from_here_are_interesting &&
+      value_chunk->IsYoungOrSharedChunk()) {
     // Generational or shared heap write barrier (old-to-new or old-to-shared).
     Heap_CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
   }
@@ -190,10 +192,12 @@ inline void CombinedEphemeronWriteBarrier(EphemeronHashTable host,
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(heap_object_value);
 
-  const bool host_in_young_gen = host_chunk->InYoungGeneration();
+  const bool pointers_from_here_are_interesting =
+      !host_chunk->IsYoungOrSharedChunk();
   const bool is_marking = host_chunk->IsMarking();
 
-  if (!host_in_young_gen && value_chunk->IsYoungOrSharedChunk()) {
+  if (pointers_from_here_are_interesting &&
+      value_chunk->IsYoungOrSharedChunk()) {
     Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(host, slot.address(),
                                                            heap_object_value);
   }

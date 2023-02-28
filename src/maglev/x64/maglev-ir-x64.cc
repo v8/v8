@@ -78,10 +78,9 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
           // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
           // register, see comment above.
-          __ CheckPageFlag(
-              value, WriteBarrierDescriptor::SlotAddressRegister(),
-              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-              zero, *done);
+          __ CheckPageFlag(value, WriteBarrierDescriptor::SlotAddressRegister(),
+                           MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                           *done);
 
           Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
 
@@ -128,10 +127,9 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         // TODO(leszeks): The context is almost always going to be in
         // old-space, consider moving this check to the fast path, maybe even
         // as the first bailout.
-        __ CheckPageFlag(
-            context, WriteBarrierDescriptor::SlotAddressRegister(),
-            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
-            *done);
+        __ CheckPageFlag(context, WriteBarrierDescriptor::SlotAddressRegister(),
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         *done);
 
         __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
         generator = WriteBarrierDescriptor::ObjectRegister();
@@ -1086,10 +1084,9 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreMap* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
-        __ CheckPageFlag(
-            value, kScratchRegister,
-            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
-            *done);
+        __ CheckPageFlag(value, kScratchRegister,
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         *done);
 
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;
@@ -1143,10 +1140,9 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
-        __ CheckPageFlag(
-            value, kScratchRegister,
-            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
-            *done);
+        __ CheckPageFlag(value, kScratchRegister,
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         *done);
 
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;

@@ -669,6 +669,9 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
   if (object.InSharedWritableHeap()) {
     CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
+
+    CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
   }
 
   if (Heap::InYoungGeneration(object)) {

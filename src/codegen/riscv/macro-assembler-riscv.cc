@@ -435,7 +435,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.Acquire();
     CheckPageFlag(value,
                   temp,  // Used as scratch.
-                  MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+                  MemoryChunk::kPointersToHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);

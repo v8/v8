@@ -299,9 +299,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTagged(value_, value_);
     }
-    __ CheckPageFlag(
-        value_, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-        eq, exit());
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                     exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;

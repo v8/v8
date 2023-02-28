@@ -294,8 +294,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(src.gp(), src.gp());
   }
-  CheckPageFlag(src.gp(), r1,
-                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+  CheckPageFlag(src.gp(), r1, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
   lay(r1, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,

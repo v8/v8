@@ -208,8 +208,15 @@ void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
-    ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    if (owner_identity() == SHARED_SPACE) {
+      // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
+      SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+      // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
+      ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    } else {
+      ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+      SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    }
     ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   }
 }
