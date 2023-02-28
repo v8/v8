@@ -7,8 +7,8 @@ lucicfg.check_version("1.30.9", "Please update depot_tools")
 
 load(
     "//lib/lib.star",
-    "waterfall_acls",
     "RECLIENT",
+    "waterfall_acls",
 )
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
