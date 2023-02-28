@@ -790,16 +790,24 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
   // On 32-bit platforms we need an heuristic here to balance overall memory
   // and address space consumption.
   constexpr int kGBPages = 1024 * 1024 * 1024 / wasm::kWasmPageSize;
+  // We allocate the smallest of the following sizes, but at least the initial
+  // size:
+  // 1) the module-defined maximum;
+  // 2) 1GB;
+  // 3) the engine maximum;
+  int allocation_maximum = std::min(kGBPages, engine_maximum);
   int heuristic_maximum;
   if (initial > kGBPages) {
     // We always allocate at least the initial size.
     heuristic_maximum = initial;
   } else if (has_maximum) {
-    // We try to reserve the maximum, but at most 1GB to avoid OOMs.
-    heuristic_maximum = std::min(maximum, kGBPages);
+    // We try to reserve the maximum, but at most the allocation_maximum to
+    // avoid OOMs.
+    heuristic_maximum = std::min(maximum, allocation_maximum);
   } else if (shared == SharedFlag::kShared) {
-    // If shared memory has no maximum, we use an implicit maximum of 1GB.
-    heuristic_maximum = kGBPages;
+    // If shared memory has no maximum, we use the allocation_maximum as an
+    // implicit maximum.
+    heuristic_maximum = allocation_maximum;
   } else {
     // If non-shared memory has no maximum, we only allocate the initial size
     // and then grow with realloc.

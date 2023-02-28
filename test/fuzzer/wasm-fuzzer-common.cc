@@ -160,7 +160,7 @@ void ExecuteAgainstReference(Isolate* isolate,
       isolate, instance, "main", compiled_args.as_vector(), &exception);
 
   if ((exception_ref != nullptr) != (exception != nullptr)) {
-    FATAL("Exception mispatch! Expected: <%s>; got: <%s>",
+    FATAL("Exception mismatch! Expected: <%s>; got: <%s>",
           exception_ref ? exception_ref.get() : "<no exception>",
           exception ? exception.get() : "<no exception>");
   }
