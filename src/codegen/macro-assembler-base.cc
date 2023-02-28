@@ -132,7 +132,7 @@ Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index,
   DCHECK(CanBeImmediate(index));
   Object obj = isolate->root(index);
   CHECK(obj.IsHeapObject());
-  return V8HeapCompressionScheme::CompressObject(obj.ptr());
+  return V8HeapCompressionScheme::CompressTagged(obj.ptr());
 }
 
 Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index) {

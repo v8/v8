@@ -1188,7 +1188,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     // Restore compression. Generated code should be able to trust that
     // compressed spill slots remain compressed.
     *spill_slot.location() =
-        V8HeapCompressionScheme::CompressObject(*spill_slot.location());
+        V8HeapCompressionScheme::CompressTagged(*spill_slot.location());
   }
 #endif
 }

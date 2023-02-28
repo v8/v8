@@ -91,7 +91,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
     auto space = isolate()->read_only_heap()->read_only_space();
     size_t num_pages = space->pages().size();
     sink_.PutInt(num_pages, "num pages");
-    Tagged_t pos = V8HeapCompressionScheme::CompressAny(
+    Tagged_t pos = V8HeapCompressionScheme::CompressTagged(
         reinterpret_cast<Address>(space->pages()[0]));
     sink_.PutInt(pos, "first page offset");
     for (auto p : space->pages()) {

@@ -190,7 +190,7 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
     Address original_address = original_object.ptr();
     Address new_address =
         isolate_root +
-        V8HeapCompressionScheme::CompressObject(original_address);
+        V8HeapCompressionScheme::CompressTagged(original_address);
     Object new_object = Object(new_address);
     cache.push_back(new_object);
   }
@@ -241,7 +241,7 @@ void PointerCompressedReadOnlyArtifacts::Initialize(
     shared_memory_.push_back(std::move(shared_memory));
     // This is just CompressTagged but inlined so it will always compile.
     Tagged_t compressed_address =
-        V8HeapCompressionScheme::CompressAny(page->address());
+        V8HeapCompressionScheme::CompressTagged(page->address());
     page_offsets_.push_back(compressed_address);
 
     // 3. Update the accounting stats so the allocated bytes are for the new

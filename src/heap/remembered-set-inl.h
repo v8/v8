@@ -45,7 +45,7 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
       DCHECK(!HasWeakHeapObjectTag(new_target));
       if (new_target != old_target) {
         base::Memory<Tagged_t>(addr) =
-            V8HeapCompressionScheme::CompressObject(new_target.ptr());
+            V8HeapCompressionScheme::CompressTagged(new_target.ptr());
       }
       return result;
     }

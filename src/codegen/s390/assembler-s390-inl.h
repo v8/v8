@@ -177,7 +177,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressObject(target.ptr()),
+        V8HeapCompressionScheme::CompressTagged(target.ptr()),
         icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
