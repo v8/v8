@@ -7195,7 +7195,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
     tracer()->NotifyFullSweepingCompleted();
 
 #ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap && !evacuation()) {
+    if (v8_flags.verify_heap) {
       FullEvacuationVerifier verifier(this);
       verifier.Run();
     }
@@ -7241,7 +7241,7 @@ void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
     tracer()->NotifyYoungSweepingCompleted();
 
 #ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap && !evacuation()) {
+    if (v8_flags.verify_heap) {
       YoungGenerationEvacuationVerifier verifier(this);
       verifier.Run();
     }

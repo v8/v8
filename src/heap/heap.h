@@ -1582,10 +1582,6 @@ class Heap {
 
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
-  void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
-
-  bool evacuation() const { return evacuation_; }
-
   // =============================================================================
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -2378,8 +2374,6 @@ class Heap {
 
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
-  bool evacuation_ = false;
-
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
 
   MarkingState marking_state_;
@@ -2770,18 +2764,6 @@ class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
 
  private:
   std::unique_ptr<cppgc::internal::ClassNameAsHeapObjectNameScope> scope_;
-};
-
-class V8_NODISCARD EvacuationScope {
- public:
-  explicit EvacuationScope(Heap* heap) : heap_(heap) {
-    heap_->set_evacuation(true);
-  }
-
-  ~EvacuationScope() { heap_->set_evacuation(false); }
-
- private:
-  Heap* const heap_;
 };
 
 }  // namespace internal

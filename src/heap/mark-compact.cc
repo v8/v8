@@ -4578,7 +4578,6 @@ void MarkCompactCollector::Evacuate() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_COPY);
-    EvacuationScope evacuation_scope(heap());
     EvacuatePagesInParallel();
   }
 
