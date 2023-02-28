@@ -411,8 +411,8 @@ class Decoder {
     Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
-  bool ok() const { return error_.empty(); }
-  bool failed() const { return !ok(); }
+  bool ok() const { return !failed(); }
+  bool failed() const { return error_.has_error(); }
   bool more() const { return pc_ < end_; }
   const WasmError& error() const { return error_; }
 

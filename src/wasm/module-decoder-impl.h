@@ -1619,7 +1619,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void ValidateAllFunctions() {
-    DCHECK(error_.empty());
+    DCHECK(!error_.has_error());
     // Pass nullptr for an "empty" filter function.
     error_ = ValidateFunctions(module_.get(), enabled_features_,
                                base::VectorOf(start_, end_ - start_), nullptr);

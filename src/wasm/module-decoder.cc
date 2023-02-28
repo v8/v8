@@ -413,7 +413,7 @@ class ValidateFunctionsTask : public JobTask {
         next_function_(module->num_imported_functions),
         after_last_function_(next_function_ + module->num_declared_functions),
         error_out_(error_out) {
-    DCHECK(error_out->empty());
+    DCHECK(!error_out->has_error());
   }
 
   void Run(JobDelegate* delegate) override {
@@ -465,7 +465,7 @@ class ValidateFunctionsTask : public JobTask {
   // have (or if we have none yet). Thread-safe.
   void SetError(int func_index, WasmError error) {
     base::MutexGuard mutex_guard{&set_error_mutex_};
-    if (!error_out_->empty() && error_out_->offset() <= error.offset()) {
+    if (error_out_->has_error() && error_out_->offset() <= error.offset()) {
       return;
     }
     *error_out_ = GetWasmErrorWithName(wire_bytes_, func_index, module_, error);

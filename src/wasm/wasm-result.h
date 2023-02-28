@@ -47,11 +47,10 @@ class V8_EXPORT_PRIVATE WasmError {
     DCHECK(!message_.empty());
   }
 
-  bool empty() const {
+  bool has_error() const {
     DCHECK_EQ(offset_ == kNoErrorOffset, message_.empty());
-    return offset_ == kNoErrorOffset;
+    return offset_ != kNoErrorOffset;
   }
-  bool has_error() const { return !empty(); }
 
   operator bool() const { return has_error(); }
 
@@ -100,7 +99,7 @@ class Result {
     return ok() ? Result<U>{std::move(value_)} : Result<U>{error_};
   }
 
-  bool ok() const { return error_.empty(); }
+  bool ok() const { return !failed(); }
   bool failed() const { return error_.has_error(); }
   const WasmError& error() const& { return error_; }
   WasmError&& error() && { return std::move(error_); }
