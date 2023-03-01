@@ -210,7 +210,11 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   JumpIfHelper(masm_, cc, lhs, rhs, target);
 }
 
+#ifdef V8_TARGET_BIG_ENDIAN
 constexpr static int stack_bias = 4;
+#else
+constexpr static int stack_bias = 0;
+#endif
 
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
