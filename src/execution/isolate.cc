@@ -4546,8 +4546,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // Isolate initialization allocates long living objects that should be
   // pretenured to old space.
-  DCHECK_IMPLIES(heap()->new_space(), (heap()->new_space()->Size() == 0) &&
-                                          (heap()->gc_count() == 0));
+  DCHECK_IMPLIES(heap()->new_space(), heap()->new_space()->Size() == 0);
+  DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
+  DCHECK_EQ(heap()->gc_count(), 0);
 
   initialized_ = true;
 

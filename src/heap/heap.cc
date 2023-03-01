@@ -5670,6 +5670,10 @@ void Heap::NotifyDeserializationComplete() {
     need_to_remove_stress_concurrent_allocation_observer_ = true;
   }
 
+  // Deserialization will never create objects in new space.
+  DCHECK_IMPLIES(new_space(), new_space()->Size() == 0);
+  DCHECK_IMPLIES(new_lo_space(), new_lo_space()->Size() == 0);
+
   deserialization_complete_ = true;
 }
 
