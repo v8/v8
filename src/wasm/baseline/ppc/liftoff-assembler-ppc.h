@@ -304,7 +304,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   Label exit;
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
+                to_condition(kZero), &exit);
   JumpIfSmi(src.gp(), &exit);
   CheckPageFlag(src.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
