@@ -623,6 +623,9 @@ class MaglevCodeGeneratingNodeProcessor {
   void PostProcessGraph(Graph* graph) {}
 
   void PreProcessBasicBlock(BasicBlock* block) {
+    if (block->is_loop()) {
+      __ LoopHeaderAlign();
+    }
     if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "-- Block b" << graph_labeller()->BlockId(block);
