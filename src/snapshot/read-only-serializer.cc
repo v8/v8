@@ -24,6 +24,10 @@ ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
 #endif
 {
   static_assert(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
+  if (V8_STATIC_ROOTS_BOOL) {
+    // .. since RO heap pages are serialized verbatim:
+    set_serializer_tracks_serialization_statistics(false);
+  }
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {

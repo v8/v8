@@ -42,7 +42,7 @@ Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
       stack_(isolate->heap())
 #endif
 {
-#ifdef OBJECT_PRINT
+#ifdef VERBOSE_SERIALIZATION_STATISTICS
   if (v8_flags.serialization_statistics) {
     for (int space = 0; space < kNumberOfSnapshotSpaces; ++space) {
       // Value-initialized to 0.
@@ -50,7 +50,7 @@ Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
       instance_type_size_[space] = std::make_unique<size_t[]>(kInstanceTypes);
     }
   }
-#endif  // OBJECT_PRINT
+#endif  // VERBOSE_SERIALIZATION_STATISTICS
 }
 
 #ifdef DEBUG
@@ -62,11 +62,11 @@ void Serializer::CountAllocation(Map map, int size, SnapshotSpace space) {
 
   const int space_number = static_cast<int>(space);
   allocation_size_[space_number] += size;
-#ifdef OBJECT_PRINT
+#ifdef VERBOSE_SERIALIZATION_STATISTICS
   int instance_type = map.instance_type();
   instance_type_count_[space_number][instance_type]++;
   instance_type_size_[space_number][instance_type] += size;
-#endif  // OBJECT_PRINT
+#endif  // VERBOSE_SERIALIZATION_STATISTICS
 }
 
 int Serializer::TotalAllocationSize() const {
@@ -77,40 +77,62 @@ int Serializer::TotalAllocationSize() const {
   return sum;
 }
 
+namespace {
+
+const char* ToString(SnapshotSpace space) {
+  switch (space) {
+    case SnapshotSpace::kReadOnlyHeap:
+      return "ReadOnlyHeap";
+    case SnapshotSpace::kOld:
+      return "Old";
+    case SnapshotSpace::kCode:
+      return "Code";
+  }
+}
+
+}  // namespace
+
 void Serializer::OutputStatistics(const char* name) {
   if (!v8_flags.serialization_statistics) return;
 
   PrintF("%s:\n", name);
+  if (!serializer_tracks_serialization_statistics()) {
+    PrintF("  <serialization statistics are not tracked>\n");
+    return;
+  }
 
   PrintF("  Spaces (bytes):\n");
 
-  for (int space = 0; space < kNumberOfSnapshotSpaces; space++) {
-    PrintF("%16s",
-           BaseSpace::GetSpaceName(static_cast<AllocationSpace>(space)));
+  static constexpr SnapshotSpace kAllSnapshotSpaces[] = {
+      SnapshotSpace::kReadOnlyHeap,
+      SnapshotSpace::kOld,
+      SnapshotSpace::kCode,
+  };
+
+  for (SnapshotSpace space : kAllSnapshotSpaces) {
+    PrintF("%16s", ToString(space));
   }
   PrintF("\n");
 
-  for (int space = 0; space < kNumberOfSnapshotSpaces; space++) {
-    PrintF("%16zu", allocation_size_[space]);
+  for (SnapshotSpace space : kAllSnapshotSpaces) {
+    PrintF("%16zu", allocation_size_[static_cast<int>(space)]);
   }
-
-#ifdef OBJECT_PRINT
   PrintF("\n");
+
+#ifdef VERBOSE_SERIALIZATION_STATISTICS
   PrintF("  Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                          \
-  for (int space = 0; space < kNumberOfSnapshotSpaces; ++space) {          \
-    if (instance_type_count_[space][Name]) {                               \
-      PrintF("%10d %10zu  %-10s %s\n", instance_type_count_[space][Name],  \
-             instance_type_size_[space][Name],                             \
-             BaseSpace::GetSpaceName(static_cast<AllocationSpace>(space)), \
-             #Name);                                                       \
-    }                                                                      \
+#define PRINT_INSTANCE_TYPE(Name)                                           \
+  for (SnapshotSpace space : kAllSnapshotSpaces) {                          \
+    const int space_i = static_cast<int>(space);                            \
+    if (instance_type_count_[space_i][Name]) {                              \
+      PrintF("%10d %10zu  %-10s %s\n", instance_type_count_[space_i][Name], \
+             instance_type_size_[space_i][Name], ToString(space), #Name);   \
+    }                                                                       \
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
-#endif  // OBJECT_PRINT
-
   PrintF("\n");
+#endif  // VERBOSE_SERIALIZATION_STATISTICS
 }
 
 void Serializer::SerializeDeferredObjects() {
