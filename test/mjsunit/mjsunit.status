@@ -1188,6 +1188,7 @@
   # BUG(v8:13470) Skipped until we have a solution.
   'compiler/js-create-arguments': [SKIP],
   'compiler/js-create': [SKIP],
+  'compiler/construct-bound-function': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
