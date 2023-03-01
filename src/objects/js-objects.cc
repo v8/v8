@@ -2539,6 +2539,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSStringIterator::kHeaderSize;
     case JS_ITERATOR_MAP_HELPER_TYPE:
       return JSIteratorMapHelper::kHeaderSize;
+    case JS_ITERATOR_FILTER_HELPER_TYPE:
+      return JSIteratorFilterHelper::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_SHARED_ARRAY_TYPE:

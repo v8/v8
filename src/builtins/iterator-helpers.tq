@@ -44,6 +44,9 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
     case (mapHelper: JSIteratorMapHelper): {
       return IteratorMapHelperNext(mapHelper);
     }
+    case (filterHelper: JSIteratorFilterHelper): {
+      return IteratorFilterHelperNext(filterHelper);
+    }
     case (Object): {
       ThrowTypeError(
           MessageTemplate::kIncompatibleMethodReceiver,
@@ -98,7 +101,7 @@ transitioning javascript builtin IteratorPrototypeMap(
   const methodName: constexpr string = 'Iterator.prototype.map';
 
   // 1. Let O be the this value.
-  // 2. If O is not an Object, throw a *TypeError* exception.
+  // 2. If O is not an Object, throw a TypeError exception.
   const o = Cast<JSReceiver>(receiver)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
 
@@ -161,6 +164,99 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
     IteratorCloseOnException(underlying);
     ReThrowWithMessage(context, e, message);
   }
+}
+
+// --- Filter helper
+
+macro NewJSIteratorFilterHelper(implicit context: Context)(
+    underlying: IteratorRecord, predicate: Callable): JSIteratorFilterHelper {
+  return new JSIteratorFilterHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_FILTER_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    underlying: underlying,
+    predicate: predicate,
+    counter: 0
+  };
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.filter
+transitioning javascript builtin IteratorPrototypeFilter(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(predicate: JSAny): JSIteratorFilterHelper {
+  const methodName: constexpr string = 'Iterator.prototype.filter';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+  const predicate = Cast<Callable>(predicate)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // Step 5 implemented in IteratorFilterHelperNext
+
+  // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //    %IteratorHelperPrototype%).
+  // 7. Set result.[[UnderlyingIterator]] to iterated.
+  // 8. Return result.
+  return NewJSIteratorFilterHelper(iterated, predicate);
+}
+
+transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
+    helper: JSIteratorFilterHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorFilterHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  const underlying = helper.underlying;
+
+  while (true) {
+    const counter = helper.counter;
+
+    // b. Repeat,
+    let next: JSReceiver;
+    try {
+      // i. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(underlying, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // ii. If next is false, return undefined.
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // iii. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      // iv. Let selected be Completion(
+      //     Call(predicate, undefined, « value, 𝔽(counter) »)).
+      const selected =
+          Call(context, helper.predicate, Undefined, value, counter);
+
+      // vii. Set counter to counter + 1.
+      // (Done out of order. Iterator helpers are specified as generators with
+      // yields but we implement them as direct iterators.)
+      helper.counter = counter + 1;
+
+      // vi. If ToBoolean(selected) is true, then
+      if (ToBoolean(selected)) {
+        // 1. Let completion be Completion(Yield(value)).
+        return AllocateJSIteratorResult(value, False);
+        // 2. IfAbruptCloseIterator(completion, iterated).
+        // (Done in IteratorHelperPrototypeReturn.)
+      }
+    } catch (e, message) {
+      // v. IfAbruptCloseIterator(selected, iterated).
+      IteratorCloseOnException(underlying);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+  unreachable;
 }
 
 }  // namespace iterator

@@ -1285,7 +1285,8 @@ void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
-  UNIMPLEMENTED();
+  CHECK(predicate().IsCallable());
+  CHECK_GE(counter().Number(), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {

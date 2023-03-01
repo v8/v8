@@ -258,6 +258,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map, JSHeapBroker* broker) {
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_ITERATOR_MAP_HELPER_TYPE:
+    case JS_ITERATOR_FILTER_HELPER_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
