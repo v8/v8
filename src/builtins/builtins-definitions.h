@@ -271,6 +271,8 @@ namespace internal {
                                                                                \
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, SingleParameterOnStack)                  \
+  TFC(MathCeilContinuation, SingleParameterOnStack)                            \
+  TFC(MathFloorContinuation, SingleParameterOnStack)                           \
   TFC(MathRoundContinuation, SingleParameterOnStack)                           \
                                                                                \
   /* Handlers */                                                               \

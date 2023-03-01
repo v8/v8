@@ -145,7 +145,7 @@ struct FastLiteralObject {
 
 // Encoding of a fast allocation site literal value.
 struct FastLiteralField {
-  explicit FastLiteralField() : type(kUninitialized) {}
+  FastLiteralField() : type(kUninitialized) {}
   explicit FastLiteralField(FastLiteralObject object)
       : type(kObject), object(object) {}
   explicit FastLiteralField(Float64 mutable_double_value)
@@ -1394,6 +1394,8 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeSetFloat64)   \
   V(FunctionPrototypeCall)         \
   V(ObjectPrototypeHasOwnProperty) \
+  V(MathCeil)                      \
+  V(MathFloor)                     \
   V(MathPow)                       \
   V(MathRound)                     \
   V(StringFromCharCode)            \
@@ -1405,6 +1407,10 @@ class MaglevGraphBuilder {
                                CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
+
+  ReduceResult DoTryReduceMathRound(compiler::JSFunctionRef builtin_target,
+                                    CallArguments& args,
+                                    Float64Round::Kind kind);
 
   template <typename CallNode, typename... Args>
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);

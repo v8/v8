@@ -1673,22 +1673,29 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(input());
   DoubleRegister out = ToDoubleRegister(result());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  DoubleRegister temp = temps.AcquireDouble();
-  __ Move(temp, in);
-  __ Roundsd(out, in, kRoundToNearest);
-  // RoundToNearest rounds to even on tie, while JS expects it to round towards
-  // +Infinity. Fix the difference by checking if we rounded down by exactly
-  // 0.5, and if so, round to the other side.
-  __ Subsd(temp, out);
-  __ Move(kScratchDoubleReg, 0.5);
-  Label done;
-  __ Ucomisd(temp, kScratchDoubleReg);
-  __ JumpIf(not_equal, &done, Label::kNear);
-  // Fix wrong tie-to-even by adding 0.5 twice.
-  __ Addsd(out, kScratchDoubleReg);
-  __ Addsd(out, kScratchDoubleReg);
-  __ bind(&done);
+
+  if (kind_ == Kind::kNearest) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    DoubleRegister temp = temps.AcquireDouble();
+    __ Move(temp, in);
+    __ Roundsd(out, in, kRoundToNearest);
+    // RoundToNearest rounds to even on tie, while JS expects it to round
+    // towards +Infinity. Fix the difference by checking if we rounded down by
+    // exactly 0.5, and if so, round to the other side.
+    __ Subsd(temp, out);
+    __ Move(kScratchDoubleReg, 0.5);
+    Label done;
+    __ Ucomisd(temp, kScratchDoubleReg);
+    __ JumpIf(not_equal, &done, Label::kNear);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ Addsd(out, kScratchDoubleReg);
+    __ Addsd(out, kScratchDoubleReg);
+    __ bind(&done);
+  } else if (kind_ == Kind::kFloor) {
+    __ Roundsd(out, in, kRoundDown);
+  } else if (kind_ == Kind::kCeil) {
+    __ Roundsd(out, in, kRoundUp);
+  }
 }
 
 int Float64Exponentiate::MaxCallStackArgs() const {

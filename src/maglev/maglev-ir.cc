@@ -2268,7 +2268,9 @@ void Float64Box::GenerateCode(MaglevAssembler* masm,
 void Float64Round::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
-  set_double_temporaries_needed(1);
+  if (kind_ == Kind::kNearest) {
+    set_double_temporaries_needed(1);
+  }
 }
 void HoleyFloat64Box::SetValueLocationConstraints() {
   UseRegister(input());
@@ -3696,6 +3698,21 @@ void Float64Ieee754Unary::PrintParams(
      << ExternalReferenceTable::NameOfIsolateIndependentAddress(
             ieee_function_.address())
      << ")";
+}
+
+void Float64Round::PrintParams(std::ostream& os,
+                               MaglevGraphLabeller* graph_labeller) const {
+  switch (kind_) {
+    case Kind::kCeil:
+      os << "(ceil)";
+      return;
+    case Kind::kFloor:
+      os << "(floor)";
+      return;
+    case Kind::kNearest:
+      os << "(nearest)";
+      return;
+  }
 }
 
 void Phi::PrintParams(std::ostream& os,

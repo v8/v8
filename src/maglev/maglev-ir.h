@@ -2592,7 +2592,21 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
   using Base = FixedInputValueNodeT<1, Float64Round>;
 
  public:
-  explicit Float64Round(uint64_t bitfield) : Base(bitfield) {}
+  enum class Kind { kFloor, kCeil, kNearest };
+
+  static Builtin continuation(Kind kind) {
+    switch (kind) {
+      case Kind::kCeil:
+        return Builtin::kMathCeilContinuation;
+      case Kind::kFloor:
+        return Builtin::kMathFloorContinuation;
+      case Kind::kNearest:
+        return Builtin::kMathRoundContinuation;
+    }
+  }
+
+  explicit Float64Round(uint64_t bitfield, Kind kind)
+      : Base(bitfield), kind_(kind) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
@@ -2602,7 +2616,10 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Kind kind_;
 };
 
 class CheckedTruncateFloat64ToUint32

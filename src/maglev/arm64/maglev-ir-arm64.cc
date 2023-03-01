@@ -1044,23 +1044,29 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(input());
   DoubleRegister out = ToDoubleRegister(result());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  DoubleRegister temp = temps.AcquireDouble();
-  DoubleRegister temp2 = temps.AcquireDouble();
-  __ Move(temp, in);
-  // Frintn rounds to even on tie, while JS expects it to round towards
-  // +Infinity. Fix the difference by checking if we rounded down by exactly
-  // 0.5, and if so, round to the other side.
-  __ Frintn(out, in);
-  __ Fsub(temp, temp, out);
-  __ Move(temp2, 0.5);
-  __ Fcmp(temp, temp2);
-  Label done;
-  __ JumpIf(ne, &done, Label::kNear);
-  // Fix wrong tie-to-even by adding 0.5 twice.
-  __ Fadd(out, out, temp2);
-  __ Fadd(out, out, temp2);
-  __ bind(&done);
+  if (kind_ == Kind::kNearest) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    DoubleRegister temp = temps.AcquireDouble();
+    DoubleRegister temp2 = temps.AcquireDouble();
+    __ Move(temp, in);
+    // Frintn rounds to even on tie, while JS expects it to round towards
+    // +Infinity. Fix the difference by checking if we rounded down by exactly
+    // 0.5, and if so, round to the other side.
+    __ Frintn(out, in);
+    __ Fsub(temp, temp, out);
+    __ Move(temp2, 0.5);
+    __ Fcmp(temp, temp2);
+    Label done;
+    __ JumpIf(ne, &done, Label::kNear);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ Fadd(out, out, temp2);
+    __ Fadd(out, out, temp2);
+    __ bind(&done);
+  } else if (kind_ == Kind::kCeil) {
+    __ Frintp(out, in);
+  } else if (kind_ == Kind::kFloor) {
+    __ Frintm(out, in);
+  }
 }
 
 int Float64Exponentiate::MaxCallStackArgs() const { return 0; }

@@ -3558,6 +3558,22 @@ ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
 
 ReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(target, args, Float64Round::Kind::kNearest);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceMathFloor(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(target, args, Float64Round::Kind::kFloor);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceMathCeil(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(target, args, Float64Round::Kind::kCeil);
+}
+
+ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
+    compiler::JSFunctionRef target, CallArguments& args,
+    Float64Round::Kind kind) {
   if (args.count() == 0) {
     return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
   }
@@ -3572,7 +3588,7 @@ ReduceResult MaglevGraphBuilder::TryReduceMathRound(
         arg = GetFloat64(arg);
       } else {
         LazyDeoptContinuationScope continuation_scope(
-            this, Builtin::kMathRoundContinuation);
+            this, Float64Round::continuation(kind));
         ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
             {GetContext(), arg}, Object::Conversion::kToNumber);
         arg = AddNewNode<UnsafeFloat64Unbox>({conversion});
@@ -3592,7 +3608,7 @@ ReduceResult MaglevGraphBuilder::TryReduceMathRound(
       true;
 #endif
   if (float64_round_is_supported) {
-    return AddNewNode<Float64Round>({arg});
+    return AddNewNode<Float64Round>({arg}, kind);
   }
 
   // Update the first argument, in case there was a side-effecting ToNumber
