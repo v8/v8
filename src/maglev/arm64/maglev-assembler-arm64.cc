@@ -392,52 +392,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // no need to initialise these.
     Sub(sp, sp, Immediate(remaining_stack_slots * kSystemPointerSize));
   }
-
-  {
-    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
-    // Stack check. This folds the checks for both the interrupt stack limit
-    // check and the real stack limit into one by just checking for the
-    // interrupt limit. The interrupt limit is either equal to the real
-    // stack limit or tighter. By ensuring we have space until that limit
-    // after building the frame we can quickly precheck both at once.
-    ScratchRegisterScope temps(this);
-    const int stack_check_offset = graph->stack_check_offset();
-    Register stack_cmp_reg = sp;
-    if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
-      stack_cmp_reg = temps.Acquire();
-      Sub(stack_cmp_reg, sp, stack_check_offset);
-    }
-    Register interrupt_stack_limit = temps.Acquire();
-    LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
-    Cmp(stack_cmp_reg, interrupt_stack_limit);
-
-    ZoneLabelRef deferred_call_stack_guard_return(this);
-    JumpToDeferredIf(
-        lo,
-        [](MaglevAssembler* masm, LazyDeoptInfo* stack_check_deopt,
-           ZoneLabelRef done, RegList register_inputs, int stack_check_offset) {
-          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          RegisterSnapshot snapshot;
-          snapshot.live_registers = register_inputs;
-          snapshot.live_tagged_registers = register_inputs;
-          {
-            SaveRegisterStateForCall save_register_state(masm, snapshot);
-            ScratchRegisterScope temps(masm);
-            Register scratch = temps.Acquire();
-            // Push the frame size
-            __ Mov(scratch,
-                   Smi::FromInt(stack_check_offset * kSystemPointerSize));
-            __ PushArgument(scratch);
-            __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-            save_register_state.DefineSafepointWithLazyDeopt(stack_check_deopt);
-          }
-          __ B(*done);
-        },
-        graph->function_entry_stack_check()->lazy_deopt_info(),
-        deferred_call_stack_guard_return, graph->register_inputs(),
-        stack_check_offset);
-    bind(*deferred_call_stack_guard_return);
-  }
 }
 
 void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,

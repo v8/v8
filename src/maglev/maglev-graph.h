@@ -82,24 +82,6 @@ class Graph final : public ZoneObject {
     total_inlined_bytecode_size_ += size;
   }
 
-  uint32_t stack_check_offset() {
-    uint32_t stack_slots = tagged_stack_slots_ + untagged_stack_slots_;
-    DCHECK(is_int32(stack_slots));
-    int32_t optimized_frame_height = stack_slots * kSystemPointerSize;
-    DCHECK(is_int32(max_deopted_stack_size_));
-    int32_t signed_max_unoptimized_frame_height =
-        static_cast<int32_t>(max_deopted_stack_size_);
-
-    // The offset is either the delta between the optimized frames and the
-    // interpreted frame, or the maximal number of bytes pushed to the stack
-    // while preparing for function calls, whichever is bigger.
-    uint32_t frame_height_delta = static_cast<uint32_t>(std::max(
-        signed_max_unoptimized_frame_height - optimized_frame_height, 0));
-    uint32_t max_pushed_argument_bytes =
-        static_cast<uint32_t>(max_call_stack_args_ * kSystemPointerSize);
-    return std::max(frame_height_delta, max_pushed_argument_bytes);
-  }
-
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
@@ -115,14 +97,6 @@ class Graph final : public ZoneObject {
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>&
   inlined_functions() {
     return inlined_functions_;
-  }
-  FunctionEntryStackCheck* function_entry_stack_check() const {
-    return function_entry_stack_check_;
-  }
-  void set_function_entry_stack_check(
-      FunctionEntryStackCheck* function_entry_stack_check) {
-    DCHECK_NULL(function_entry_stack_check_);
-    function_entry_stack_check_ = function_entry_stack_check;
   }
   bool has_recursive_calls() const { return has_recursive_calls_; }
   void set_has_recursive_calls(bool value) { has_recursive_calls_ = value; }
@@ -144,7 +118,6 @@ class Graph final : public ZoneObject {
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
-  FunctionEntryStackCheck* function_entry_stack_check_ = nullptr;
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
 };

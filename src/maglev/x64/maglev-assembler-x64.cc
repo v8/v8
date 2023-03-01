@@ -597,46 +597,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // no need to initialise these.
     subq(rsp, Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
   }
-
-  {
-    ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
-    // Stack check. This folds the checks for both the interrupt stack limit
-    // check and the real stack limit into one by just checking for the
-    // interrupt limit. The interrupt limit is either equal to the real
-    // stack limit or tighter. By ensuring we have space until that limit
-    // after building the frame we can quickly precheck both at once.
-    const int stack_check_offset = graph->stack_check_offset();
-    Register stack_cmp_reg = rsp;
-    if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
-      stack_cmp_reg = kScratchRegister;
-      leaq(stack_cmp_reg, Operand(rsp, -stack_check_offset));
-    }
-    cmpq(stack_cmp_reg,
-         StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
-
-    ZoneLabelRef deferred_call_stack_guard_return(this);
-    JumpToDeferredIf(
-        below_equal,
-        [](MaglevAssembler* masm, LazyDeoptInfo* stack_check_deopt,
-           ZoneLabelRef done, RegList register_inputs, int stack_check_offset) {
-          ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          RegisterSnapshot snapshot;
-          snapshot.live_registers = register_inputs;
-          snapshot.live_tagged_registers = register_inputs;
-          {
-            SaveRegisterStateForCall save_register_state(masm, snapshot);
-            // Push the frame size
-            __ Push(Immediate(Smi::FromInt(stack_check_offset)));
-            __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-            save_register_state.DefineSafepointWithLazyDeopt(stack_check_deopt);
-          }
-          __ jmp(*done);
-        },
-        graph->function_entry_stack_check()->lazy_deopt_info(),
-        deferred_call_stack_guard_return, graph->register_inputs(),
-        stack_check_offset);
-    bind(*deferred_call_stack_guard_return);
-  }
 }
 
 void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,

@@ -4171,10 +4171,12 @@ class FunctionEntryStackCheck
  public:
   explicit FunctionEntryStackCheck(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::LazyDeopt();
 
-  void SetValueLocationConstraints() {}
-  void GenerateCode(MaglevAssembler*, const ProcessingState&) {}
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 

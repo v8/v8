@@ -2257,6 +2257,54 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
                              deferred_abort);
 }
 
+int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
+void FunctionEntryStackCheck::SetValueLocationConstraints() {
+  set_temporaries_needed(2);
+}
+void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  // Stack check. This folds the checks for both the interrupt stack limit
+  // check and the real stack limit into one by just checking for the
+  // interrupt limit. The interrupt limit is either equal to the real
+  // stack limit or tighter. By ensuring we have space until that limit
+  // after building the frame we can quickly precheck both at once.
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  const int stack_check_offset = masm->code_gen_state()->stack_check_offset();
+  Register stack_cmp_reg = sp;
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+    stack_cmp_reg = temps.Acquire();
+    __ Sub(stack_cmp_reg, sp, stack_check_offset);
+  }
+  Register interrupt_stack_limit = temps.Acquire();
+  __ LoadStackLimit(interrupt_stack_limit,
+                    StackLimitKind::kInterruptStackLimit);
+  __ Cmp(stack_cmp_reg, interrupt_stack_limit);
+
+  ZoneLabelRef deferred_call_stack_guard_return(masm);
+  __ JumpToDeferredIf(
+      lo,
+      [](MaglevAssembler* masm, FunctionEntryStackCheck* node,
+         ZoneLabelRef done, int stack_check_offset) {
+        ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+        {
+          SaveRegisterStateForCall save_register_state(
+              masm, node->register_snapshot());
+          MaglevAssembler::ScratchRegisterScope temps(masm);
+          Register scratch = temps.Acquire();
+          // Push the frame size
+          __ Mov(scratch,
+                 Smi::FromInt(stack_check_offset * kSystemPointerSize));
+          __ PushArgument(scratch);
+          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+        }
+        __ B(*done);
+      },
+      this, deferred_call_stack_guard_return, stack_check_offset);
+  __ bind(*deferred_call_stack_guard_return);
+}
+
 // ---
 // Control nodes
 // ---

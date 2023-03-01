@@ -2281,6 +2281,45 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
+int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
+void FunctionEntryStackCheck::SetValueLocationConstraints() {}
+void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  // Stack check. This folds the checks for both the interrupt stack limit
+  // check and the real stack limit into one by just checking for the
+  // interrupt limit. The interrupt limit is either equal to the real
+  // stack limit or tighter. By ensuring we have space until that limit
+  // after building the frame we can quickly precheck both at once.
+  const int stack_check_offset = masm->code_gen_state()->stack_check_offset();
+  Register stack_cmp_reg = rsp;
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+    stack_cmp_reg = kScratchRegister;
+    __ leaq(stack_cmp_reg, Operand(rsp, -stack_check_offset));
+  }
+  __ cmpq(stack_cmp_reg,
+          __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+
+  ZoneLabelRef deferred_call_stack_guard_return(masm);
+  __ JumpToDeferredIf(
+      below_equal,
+      [](MaglevAssembler* masm, FunctionEntryStackCheck* node,
+         ZoneLabelRef done, int stack_check_offset) {
+        ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+        {
+          SaveRegisterStateForCall save_register_state(
+              masm, node->register_snapshot());
+          // Push the frame size
+          __ Push(Immediate(Smi::FromInt(stack_check_offset)));
+          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+        }
+        __ jmp(*done);
+      },
+      this, deferred_call_stack_guard_return, stack_check_offset);
+  __ bind(*deferred_call_stack_guard_return);
+}
+
 // ---
 // Control nodes
 // ---

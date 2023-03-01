@@ -207,11 +207,9 @@ class MaglevGraphBuilder {
       SetArgument(i, v);
     }
     BuildRegisterFrameInitialization();
-    graph()->set_function_entry_stack_check(
-        NodeBase::New<FunctionEntryStackCheck>(
-            zone(), GetDeoptFrameForEntryStackCheck(),
-            compiler::FeedbackSource(), std::initializer_list<ValueNode*>{}));
-    AddNode(graph()->function_entry_stack_check());
+    AddNode(NodeBase::New<FunctionEntryStackCheck>(
+        zone(), GetDeoptFrameForEntryStackCheck(), compiler::FeedbackSource(),
+        std::initializer_list<ValueNode*>{}));
     BuildMergeStates();
     EndPrologue();
     BuildBody();

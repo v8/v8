@@ -75,6 +75,32 @@ class MaglevCodeGenState {
 
   Label* entry_label() { return &entry_label_; }
 
+  void set_max_deopted_stack_size(uint32_t max_deopted_stack_size) {
+    max_deopted_stack_size_ = max_deopted_stack_size;
+  }
+
+  void set_max_call_stack_args_(uint32_t max_call_stack_args) {
+    max_call_stack_args_ = max_call_stack_args;
+  }
+
+  uint32_t stack_check_offset() {
+    uint32_t stack_slots = tagged_slots_ + untagged_slots_;
+    DCHECK(is_int32(stack_slots));
+    int32_t optimized_frame_height = stack_slots * kSystemPointerSize;
+    DCHECK(is_int32(max_deopted_stack_size_));
+    int32_t signed_max_unoptimized_frame_height =
+        static_cast<int32_t>(max_deopted_stack_size_);
+
+    // The offset is either the delta between the optimized frames and the
+    // interpreted frame, or the maximal number of bytes pushed to the stack
+    // while preparing for function calls, whichever is bigger.
+    uint32_t frame_height_delta = static_cast<uint32_t>(std::max(
+        signed_max_unoptimized_frame_height - optimized_frame_height, 0));
+    uint32_t max_pushed_argument_bytes =
+        static_cast<uint32_t>(max_call_stack_args_ * kSystemPointerSize);
+    return std::max(frame_height_delta, max_pushed_argument_bytes);
+  }
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -86,6 +112,8 @@ class MaglevCodeGenState {
 
   int untagged_slots_ = 0;
   int tagged_slots_ = 0;
+  uint32_t max_deopted_stack_size_ = kMaxUInt32;
+  uint32_t max_call_stack_args_ = kMaxUInt32;
 
   // Entry point label for recursive calls.
   Label entry_label_;
