@@ -176,53 +176,40 @@ static constexpr StoreType GetStoreType(WasmOpcode opcode) {
   V(I64AtomicStore16U, Uint16)  \
   V(I64AtomicStore32U, Uint32)
 
-// Decoder error with explicit PC and format arguments.
+// Decoder error with explicit PC and optional format arguments.
+// Depending on the validation tag and the number of arguments, this forwards to
+// a V8_NOINLINE and V8_PRESERVE_MOST method of the decoder.
 template <typename ValidationTag, typename... Args>
-V8_NOINLINE V8_PRESERVE_MOST void DecodeError(Decoder* decoder, const byte* pc,
-                                              const char* str, Args&&... args) {
-  if constexpr (!ValidationTag::validate) UNREACHABLE();
-  static_assert(sizeof...(Args) > 0);
-  if constexpr (ValidationTag::full_validation) {
-    decoder->errorf(pc, str, std::forward<Args>(args)...);
-  } else {
+V8_INLINE void DecodeError(Decoder* decoder, const byte* pc, const char* str,
+                           Args&&... args) {
+  // Decode errors can only happen if we are validating; the compiler should
+  // know this e.g. from the VALIDATE macro, but this assumption tells it again
+  // that this path is impossible.
+  V8_ASSUME(ValidationTag::validate);
+  if constexpr (!ValidationTag::full_validation) {
     decoder->MarkError();
-  }
-}
-
-// Decoder error with explicit PC and no format arguments.
-template <typename ValidationTag>
-V8_NOINLINE V8_PRESERVE_MOST void DecodeError(Decoder* decoder, const byte* pc,
-                                              const char* str) {
-  if constexpr (!ValidationTag::validate) UNREACHABLE();
-  if constexpr (ValidationTag::full_validation) {
+  } else if constexpr (sizeof...(Args) == 0) {
     decoder->error(pc, str);
   } else {
-    decoder->MarkError();
+    decoder->errorf(pc, str, std::forward<Args>(args)...);
   }
 }
 
-// Decoder error without explicit PC, but with format arguments.
+// Decoder error without explicit PC and with optional format arguments.
+// Depending on the validation tag and the number of arguments, this forwards to
+// a V8_NOINLINE and V8_PRESERVE_MOST method of the decoder.
 template <typename ValidationTag, typename... Args>
-V8_NOINLINE V8_PRESERVE_MOST void DecodeError(Decoder* decoder, const char* str,
-                                              Args&&... args) {
-  if constexpr (!ValidationTag::validate) UNREACHABLE();
-  static_assert(sizeof...(Args) > 0);
-  if constexpr (ValidationTag::full_validation) {
-    decoder->errorf(str, std::forward<Args>(args)...);
-  } else {
+V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
+  // Decode errors can only happen if we are validating; the compiler should
+  // know this e.g. from the VALIDATE macro, but this assumption tells it again
+  // that this path is impossible.
+  V8_ASSUME(ValidationTag::validate);
+  if constexpr (!ValidationTag::full_validation) {
     decoder->MarkError();
-  }
-}
-
-// Decoder error without explicit PC and without format arguments.
-template <typename ValidationTag>
-V8_NOINLINE V8_PRESERVE_MOST void DecodeError(Decoder* decoder,
-                                              const char* str) {
-  if constexpr (!ValidationTag::validate) UNREACHABLE();
-  if constexpr (ValidationTag::full_validation) {
+  } else if constexpr (sizeof...(Args) == 0) {
     decoder->error(str);
   } else {
-    decoder->MarkError();
+    decoder->errorf(str, std::forward<Args>(args)...);
   }
 }
 
