@@ -498,6 +498,8 @@ DEFINE_BOOL_READONLY(stress_maglev, false, "trigger maglev compilation earlier")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
+DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
+                  "insert stack size checks before every IR node")
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
 DEFINE_BOOL(print_maglev_graph, false, "print maglev graph")
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")

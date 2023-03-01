@@ -635,7 +635,9 @@ class MaglevCodeGeneratingNodeProcessor {
       __ RecordComment(ss.str());
     }
 
-    __ AssertStackSizeCorrect();
+    if (v8_flags.maglev_assert_stack_size) {
+      __ AssertStackSizeCorrect();
+    }
 
     // Emit Phi moves before visiting the control node.
     if (std::is_base_of<UnconditionalControlNode, NodeT>::value) {
