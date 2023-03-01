@@ -585,6 +585,16 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
+['jitless_build_mode', {
+  # invocation_count maintenance is disabled.
+  'test-debug/DebugCoverage*': [SKIP],
+  # Feedback collection maintenance is (mostly) disabled.
+  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
+  # WebAssembly not included.
+  'test-api/Threading8': [SKIP],
+}],  # jitless_build_mode
+
+##############################################################################
 ['lite_mode', {
   # TODO(v8:8510): Tests that currently fail with lazy source positions.
   'test-cpu-profiler/Inlining2': [SKIP],

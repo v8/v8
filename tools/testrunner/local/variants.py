@@ -170,7 +170,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         kIncompatibleFlagsForNoTurbofan,
     "jitless_build_mode":
         INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"] +
+    "lite_mode": ["--max-semi-space-size=*"] +
                  INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",

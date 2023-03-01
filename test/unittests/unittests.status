@@ -195,6 +195,7 @@
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
 }], # lite_mode
 
+##############################################################################
 ['variant == jitless', {
   # --interpreted-frames-native-stack tests
   'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
@@ -202,6 +203,25 @@
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'InterpreterTest.InterpreterWithNativeStack': [SKIP],
 }], # jitless
+
+##############################################################################
+['jitless_build_mode', {
+  # Feedback collection maintenance is (mostly) disabled.
+  'FeedbackVectorTest.Vector*': [SKIP],
+  'InterpreterTest.InterpreterBigIntComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpSmiTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterUnaryOpFeedback': [SKIP],
+  'InterpreterTest.InterpreterStringComparisons': [SKIP],
+  'InterpreterTest.InterpreterSmiComparisons': [SKIP],
+  'InterpreterTest.InterpreterStringAdd': [SKIP],
+  'InterpreterTest.InterpreterMixedComparisons': [SKIP],
+  'InterpreterTest.InterpreterHeapNumberComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpsBigInt': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterBitwiseTypeFeedback': [SKIP],
+  # These require executable code space.
+  'AssemblerX64Test.*': [SKIP],
+}],  # jitless_build_mode
 
 ################################################################################
 ['third_party_heap', {
