@@ -450,14 +450,15 @@ class SeqSubStringKey final : public StringTableKey {
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
       internalized_string_ = result;
+    } else {
+      Handle<SeqTwoByteString> result =
+          isolate->factory()->AllocateRawTwoByteInternalizedString(
+              length(), raw_hash_field());
+      DisallowGarbageCollection no_gc;
+      CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
+                length());
+      internalized_string_ = result;
     }
-    Handle<SeqTwoByteString> result =
-        isolate->factory()->AllocateRawTwoByteInternalizedString(
-            length(), raw_hash_field());
-    DisallowGarbageCollection no_gc;
-    CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
-              length());
-    internalized_string_ = result;
   }
 
   Handle<String> GetHandleForInsertion() {
