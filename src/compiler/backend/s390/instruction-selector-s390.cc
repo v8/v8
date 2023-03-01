@@ -220,8 +220,14 @@ class S390OperandGenerator final : public OperandGenerator {
                                             AddressOption::kAllowInputSwap);
 #endif
     DCHECK(m.matches());
-    if ((m.displacement() == nullptr ||
-         CanBeImmediate(m.displacement(), immediate_mode))) {
+    if (m.base() != nullptr &&
+        m.base()->opcode() == IrOpcode::kLoadRootRegister) {
+      DCHECK_EQ(m.index(), nullptr);
+      DCHECK_EQ(m.scale(), 0);
+      inputs[(*input_count)++] = UseImmediate(m.displacement());
+      return kMode_Root;
+    } else if ((m.displacement() == nullptr ||
+                CanBeImmediate(m.displacement(), immediate_mode))) {
       DCHECK_EQ(0, m.scale());
       return GenerateMemoryOperandInputs(m.index(), m.base(), m.displacement(),
                                          m.displacement_mode(), inputs,

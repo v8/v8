@@ -99,6 +99,9 @@ class S390OperandConverter final : public InstructionOperandConverter {
         *first_index += 3;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
                           InputInt32(index + 2));
+      case kMode_Root:
+        *first_index += 1;
+        return MemOperand(kRootRegister, InputInt32(index));
     }
     UNREACHABLE();
   }

@@ -242,7 +242,11 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
                     node->opcode() == IrOpcode::kWord64AtomicLoad);
 
-  if (g.CanBeImmediate(offset, mode)) {
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    selector->Emit(opcode |= AddressingModeField::encode(kMode_Root),
+                   g.DefineAsRegister(node), g.UseRegister(offset),
+                   g.UseImmediate(is_atomic));
+  } else if (g.CanBeImmediate(offset, mode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(node), g.UseRegister(base),
                    g.UseImmediate(offset), g.UseImmediate(is_atomic));
@@ -387,7 +391,11 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         UNREACHABLE();
     }
 
-    if (g.CanBeImmediate(offset, mode)) {
+    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+      selector->Emit(opcode | AddressingModeField::encode(kMode_Root),
+                     g.NoOutput(), g.UseRegister(offset), g.UseRegister(value),
+                     g.UseImmediate(is_atomic));
+    } else if (g.CanBeImmediate(offset, mode)) {
       selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                      g.NoOutput(), g.UseRegister(base), g.UseImmediate(offset),
                      g.UseRegister(value), g.UseImmediate(is_atomic));

@@ -98,6 +98,9 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case kMode_MRR:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
+      case kMode_Root:
+        *first_index += 1;
+        return MemOperand(kRootRegister, InputRegister(index));
     }
     UNREACHABLE();
   }
@@ -447,9 +450,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define ASSEMBLE_LOAD_FLOAT(asm_instr, asm_instrp, asm_instrx) \
   do {                                                         \
     DoubleRegister result = i.OutputDoubleRegister();          \
+    size_t index = 0;                                          \
     AddressingMode mode = kMode_None;                          \
-    MemOperand operand = i.MemoryOperand(&mode);               \
-    bool is_atomic = i.InputInt32(2);                          \
+    MemOperand operand = i.MemoryOperand(&mode, &index);       \
+    bool is_atomic = i.InputInt32(index);                      \
     if (mode == kMode_MRI) {                                   \
       intptr_t offset = operand.offset();                      \
       if (is_int16(offset)) {                                  \
@@ -469,9 +473,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
                               must_be_aligned)                     \
   do {                                                             \
     Register result = i.OutputRegister();                          \
+    size_t index = 0;                                              \
     AddressingMode mode = kMode_None;                              \
-    MemOperand operand = i.MemoryOperand(&mode);                   \
-    bool is_atomic = i.InputInt32(2);                              \
+    MemOperand operand = i.MemoryOperand(&mode, &index);           \
+    bool is_atomic = i.InputInt32(index);                          \
     if (mode == kMode_MRI) {                                       \
       intptr_t offset = operand.offset();                          \
       bool misaligned = offset & 3;                                \
@@ -488,16 +493,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                           \
   } while (0)
 
-#define ASSEMBLE_LOAD_INTEGER_RR(asm_instr)      \
-  do {                                           \
-    Register result = i.OutputRegister();        \
-    AddressingMode mode = kMode_None;            \
-    MemOperand operand = i.MemoryOperand(&mode); \
-    DCHECK_EQ(mode, kMode_MRR);                  \
-    bool is_atomic = i.InputInt32(2);            \
-    __ asm_instr(result, operand);               \
-    if (is_atomic) __ lwsync();                  \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());         \
+#define ASSEMBLE_LOAD_INTEGER_RR(asm_instr)              \
+  do {                                                   \
+    Register result = i.OutputRegister();                \
+    size_t index = 0;                                    \
+    AddressingMode mode = kMode_None;                    \
+    MemOperand operand = i.MemoryOperand(&mode, &index); \
+    DCHECK_EQ(mode, kMode_MRR);                          \
+    bool is_atomic = i.InputInt32(index);                \
+    __ asm_instr(result, operand);                       \
+    if (is_atomic) __ lwsync();                          \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
 
 #define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrp, asm_instrx) \
@@ -532,7 +538,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                              \
     MemOperand operand = i.MemoryOperand(&mode, &index);           \
     Register value = i.InputRegister(index);                       \
-    bool is_atomic = i.InputInt32(3);                              \
+    bool is_atomic = i.InputInt32(index + 1);                      \
     if (is_atomic) __ lwsync();                                    \
     if (mode == kMode_MRI) {                                       \
       intptr_t offset = operand.offset();                          \
@@ -557,7 +563,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     DCHECK_EQ(mode, kMode_MRR);                          \
     Register value = i.InputRegister(index);             \
-    bool is_atomic = i.InputInt32(3);                    \
+    bool is_atomic = i.InputInt32(index + 1);            \
     if (is_atomic) __ lwsync();                          \
     __ asm_instr(value, operand);                        \
     if (is_atomic) __ sync();                            \

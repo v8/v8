@@ -419,7 +419,8 @@ namespace compiler {
   V(MR)   /* [%r0          ] */        \
   V(MRI)  /* [%r0       + K] */        \
   V(MRR)  /* [%r0 + %r1    ] */        \
-  V(MRRI) /* [%r0 + %r1 + K] */
+  V(MRRI) /* [%r0 + %r1 + K] */        \
+  V(Root) /* [%r0 + K] */
 
 }  // namespace compiler
 }  // namespace internal
