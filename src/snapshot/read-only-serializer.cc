@@ -98,6 +98,14 @@ void ReadOnlySerializer::FinalizeSerialization() {
     Tagged_t pos = V8HeapCompressionScheme::CompressTagged(
         reinterpret_cast<Address>(space->pages()[0]));
     sink_.PutInt(pos, "first page offset");
+#ifdef V8_ENABLE_WEBASSEMBLY
+    // Unprotect and reprotect the payload of wasm null. The header is not
+    // protected.
+    Address wasm_null_payload = isolate()->factory()->wasm_null()->payload();
+    constexpr int kWasmNullPayloadSize = WasmNull::kSize - kTaggedSize;
+    SetPermissions(isolate()->page_allocator(), wasm_null_payload,
+                   kWasmNullPayloadSize, PageAllocator::kRead);
+#endif
     for (auto p : space->pages()) {
       // Pages are shrunk, but memory at the end of the area is still
       // uninitialized and we do not want to include it in the snapshot.
@@ -107,20 +115,16 @@ void ReadOnlySerializer::FinalizeSerialization() {
       __msan_check_mem_is_initialized(reinterpret_cast<void*>(p->area_start()),
                                       static_cast<int>(page_content_bytes));
 #endif
-#if defined(V8_STATIC_ROOTS) && defined(V8_ENABLE_WEBASSEMBLY)
-      // Unprotect and reprotect the payload of wasm null.
-      Address wasm_null_payload = isolate()->factory()->wasm_null()->payload();
-      SetPermissions(isolate()->page_allocator(), wasm_null_payload,
-                     WasmNull::kSize - kTaggedSize, PageAllocator::kRead);
       sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
                    static_cast<int>(page_content_bytes), "page");
-      SetPermissions(isolate()->page_allocator(), wasm_null_payload,
-                     WasmNull::kSize - kTaggedSize, PageAllocator::kNoAccess);
-#else
-      sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
-                   static_cast<int>(page_content_bytes), "page");
-#endif
     }
+#ifdef V8_ENABLE_WEBASSEMBLY
+    // Mark the virtual page range as inaccessible, and allow the OS to reclaim
+    // the underlying physical pages. We do not want to protect the header (map
+    // word), as it needs to remain accessible.
+    isolate()->page_allocator()->DecommitPages(
+        reinterpret_cast<void*>(wasm_null_payload), kWasmNullPayloadSize);
+#endif
   } else {
     // This comes right after serialization of the other snapshots, where we
     // add entries to the read-only object cache. Add one entry with 'undefined'
