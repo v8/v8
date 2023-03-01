@@ -1034,7 +1034,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
 #if defined(V8_COMPRESS_POINTERS)
   // The null value is not accessible on mksnapshot runs.
   if (isolate->snapshot_available()) {
-    wasm_null_tagged_compressed_ = V8HeapCompressionScheme::CompressTagged(
+    wasm_null_tagged_compressed_ = V8HeapCompressionScheme::CompressObject(
         isolate->factory()->wasm_null()->ptr());
   }
 #endif
