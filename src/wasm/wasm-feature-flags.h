@@ -56,11 +56,6 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
-  /* Extended Constant Expressions Proposal. */                                \
-  /* https://github.com/WebAssembly/extended-const */                          \
-  /* V8 side owner: manoskouk */                                               \
-  V(extended_const, "extended constant expressions", false)                    \
-                                                                               \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
@@ -91,6 +86,12 @@
   /* V8 side owner: gdeepti */                                                 \
   V(relaxed_simd, "relaxed simd", false)                                       \
                                                                                \
+  /* Extended Constant Expressions Proposal. */                                \
+  /* https://github.com/WebAssembly/extended-const */                          \
+  /* V8 side owner: manoskouk */                                               \
+  /* Staged in v11.3. */                                                       \
+  V(extended_const, "extended constant expressions", false)
+
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
