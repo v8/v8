@@ -54,10 +54,8 @@ inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
   DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (obj.is_null()) return Local<To>();
-  return Local<To>(reinterpret_cast<To*>(*obj.location()));
-#else
-  return Local<To>(reinterpret_cast<To*>(obj.location()));
 #endif
+  return Local<To>(internal::ValueHelper::SlotAsValue<To>(obj.location()));
 }
 
 // Implementations of ToLocal
@@ -123,38 +121,37 @@ MAKE_TO_LOCAL(ToLocal, ScriptOrModule, ScriptOrModule)
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
-#define MAKE_OPEN_HANDLE(From, To)                                             \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
-      const v8::From* that, bool allow_empty_handle) {                         \
-    DCHECK(allow_empty_handle ||                                               \
-           reinterpret_cast<v8::internal::Address>(that) !=                    \
-               v8::internal::kLocalTaggedNullAddress);                         \
-    DCHECK(reinterpret_cast<v8::internal::Address>(that) ==                    \
-               v8::internal::kLocalTaggedNullAddress ||                        \
-           v8::internal::Object(reinterpret_cast<v8::internal::Address>(that)) \
-               .Is##To());                                                     \
-    if (reinterpret_cast<v8::internal::Address>(that) ==                       \
-        v8::internal::kLocalTaggedNullAddress) {                               \
-      return v8::internal::Handle<v8::internal::To>::null();                   \
-    }                                                                          \
-    return v8::internal::Handle<v8::internal::To>(                             \
-        v8::HandleScope::CreateHandleForCurrentIsolate(                        \
-            reinterpret_cast<v8::internal::Address>(that)));                   \
+#define MAKE_OPEN_HANDLE(From, To)                                            \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
+      const v8::From* that, bool allow_empty_handle) {                        \
+    DCHECK(allow_empty_handle ||                                              \
+           that != v8::internal::ValueHelper::EmptyValue<v8::From>());        \
+    DCHECK(                                                                   \
+        that == v8::internal::ValueHelper::EmptyValue<v8::From>() ||          \
+        v8::internal::Object(v8::internal::ValueHelper::ValueAsAddress(that)) \
+            .Is##To());                                                       \
+    if (that == v8::internal::ValueHelper::EmptyValue<v8::From>()) {          \
+      return v8::internal::Handle<v8::internal::To>::null();                  \
+    }                                                                         \
+    return v8::internal::Handle<v8::internal::To>(                            \
+        v8::HandleScope::CreateHandleForCurrentIsolate(                       \
+            reinterpret_cast<v8::internal::Address>(that)));                  \
   }
 
 #else
 
-#define MAKE_OPEN_HANDLE(From, To)                                    \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(           \
-      const v8::From* that, bool allow_empty_handle) {                \
-    DCHECK(allow_empty_handle || that != nullptr);                    \
-    DCHECK(that == nullptr ||                                         \
-           v8::internal::Object(                                      \
-               *reinterpret_cast<const v8::internal::Address*>(that)) \
-               .Is##To());                                            \
-    return v8::internal::Handle<v8::internal::To>(                    \
-        reinterpret_cast<v8::internal::Address*>(                     \
-            const_cast<v8::From*>(that)));                            \
+#define MAKE_OPEN_HANDLE(From, To)                                            \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
+      const v8::From* that, bool allow_empty_handle) {                        \
+    DCHECK(allow_empty_handle ||                                              \
+           that != v8::internal::ValueHelper::EmptyValue<v8::From>());        \
+    DCHECK(                                                                   \
+        that == v8::internal::ValueHelper::EmptyValue<v8::From>() ||          \
+        v8::internal::Object(v8::internal::ValueHelper::ValueAsAddress(that)) \
+            .Is##To());                                                       \
+    return v8::internal::Handle<v8::internal::To>(                            \
+        reinterpret_cast<v8::internal::Address*>(                             \
+            const_cast<v8::From*>(that)));                                    \
   }
 
 #endif

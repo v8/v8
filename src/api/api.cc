@@ -911,17 +911,11 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {
   API_RCS_SCOPE(i_isolate, TracedGlobal, New);
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  i::Address obj_addr = reinterpret_cast<i::Address>(obj);
-#else
-  i::Address obj_addr = *obj;
-#endif
-
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
+  auto obj_addr = internal::ValueHelper::ValueAsAddress(obj);
   auto result = i_isolate->traced_handles()->Create(obj_addr, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {

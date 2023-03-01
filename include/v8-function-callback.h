@@ -285,7 +285,7 @@ void ReturnValue<T>::Set(const Local<S> handle) {
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
   } else {
-    *value_ = handle.AddressFromSlot();
+    *value_ = internal::ValueHelper::ValueAsAddress(*handle);
   }
 }
 
@@ -362,7 +362,7 @@ template <typename T>
 Local<Value> ReturnValue<T>::Get() const {
   using I = internal::Internals;
   if (*value_ == *I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex))
-    return Local<Value>(*Undefined(GetIsolate()));
+    return Undefined(GetIsolate());
   return Local<Value>::New(GetIsolate(), reinterpret_cast<Value*>(value_));
 }
 
@@ -387,32 +387,29 @@ FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Address* implicit_args,
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   // values_ points to the first argument (not the receiver).
-  if (i < 0 || length_ <= i) return Local<Value>::New(*Undefined(GetIsolate()));
-  return Local<Value>::New(reinterpret_cast<Value*>(values_ + i));
+  if (i < 0 || length_ <= i) return Undefined(GetIsolate());
+  return Local<Value>::FromSlot(values_ + i);
 }
 
 template <typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
   // values_ points to the first argument (not the receiver).
-  return Local<Object>::New(reinterpret_cast<Object*>(values_ - 1));
+  return Local<Object>::FromSlot(values_ - 1);
 }
 
 template <typename T>
 Local<Object> FunctionCallbackInfo<T>::Holder() const {
-  return Local<Object>::New(
-      reinterpret_cast<Object*>(&implicit_args_[kHolderIndex]));
+  return Local<Object>::FromSlot(&implicit_args_[kHolderIndex]);
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
-  return Local<Value>::New(
-      reinterpret_cast<Value*>(&implicit_args_[kNewTargetIndex]));
+  return Local<Value>::FromSlot(&implicit_args_[kNewTargetIndex]);
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
-  return Local<Value>::New(
-      reinterpret_cast<Value*>(&implicit_args_[kDataIndex]));
+  return Local<Value>::FromSlot(&implicit_args_[kDataIndex]);
 }
 
 template <typename T>
@@ -442,17 +439,17 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 
 template <typename T>
 Local<Value> PropertyCallbackInfo<T>::Data() const {
-  return Local<Value>::New(reinterpret_cast<Value*>(&args_[kDataIndex]));
+  return Local<Value>::FromSlot(&args_[kDataIndex]);
 }
 
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::This() const {
-  return Local<Object>::New(reinterpret_cast<Object*>(&args_[kThisIndex]));
+  return Local<Object>::FromSlot(&args_[kThisIndex]);
 }
 
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::Holder() const {
-  return Local<Object>::New(reinterpret_cast<Object*>(&args_[kHolderIndex]));
+  return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 
 template <typename T>

@@ -707,7 +707,7 @@ Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = internal::ValueHelper::ValueToAddress(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
@@ -737,7 +737,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = internal::ValueHelper::ValueToAddress(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);

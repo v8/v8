@@ -126,6 +126,33 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   friend class Context;
 };
 
+namespace internal {
+
+/**
+ * Helper functions about handles.
+ */
+class HandleHelper final {
+ public:
+  /**
+   * Checks whether two handles are equal.
+   * They are equal iff they are both empty or they are both non-empty and the
+   * objects to which they refer are physically equal.
+   *
+   * If both handles refer to JS objects, this is the same as strict equality.
+   * For primitives, such as numbers or strings, a `false` return value does not
+   * indicate that the values aren't equal in the JavaScript sense.
+   * Use `Value::StrictEquals()` to check primitives for equality.
+   */
+  template <typename T1, typename T2>
+  V8_INLINE static bool EqualHandles(const T1& lhs, const T2& rhs) {
+    if (lhs.IsEmpty()) return rhs.IsEmpty();
+    if (rhs.IsEmpty()) return false;
+    return lhs.address() == rhs.address();
+  }
+};
+
+}  // namespace internal
+
 /**
  * An object reference managed by the v8 garbage collector.
  *
@@ -158,12 +185,8 @@ class V8_EXPORT V8_NODISCARD HandleScope {
 template <class T>
 class Local {
  public:
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  V8_INLINE Local()
-      : val_(reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)) {}
-#else
-  V8_INLINE Local() : val_(nullptr) {}
-#endif
+  V8_INLINE Local() : val_(internal::ValueHelper::EmptyValue<T>()) {}
+
   template <class S>
   V8_INLINE Local(Local<S> that) : val_(reinterpret_cast<T*>(*that)) {
     /**
@@ -178,83 +201,39 @@ class Local {
    * Returns true if the handle is empty.
    */
   V8_INLINE bool IsEmpty() const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return (internal::Address)val_ == internal::kLocalTaggedNullAddress;
-#else
-    return val_ == nullptr;
-#endif
+    return val_ == internal::ValueHelper::EmptyValue<T>();
   }
 
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
    */
-  V8_INLINE void Clear() {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    val_ = reinterpret_cast<T*>(internal::kLocalTaggedNullAddress);
-#else
-    val_ = nullptr;
-#endif
-  }
+  V8_INLINE void Clear() { val_ = internal::ValueHelper::EmptyValue<T>(); }
 
   V8_INLINE T* operator->() const { return val_; }
 
   V8_INLINE T* operator*() const { return val_; }
 
   /**
-   * Checks whether two handles are the same.
-   * Returns true if both are empty, or if the objects to which they refer
-   * are identical.
-   *
-   * If both handles refer to JS objects, this is the same as strict equality.
-   * For primitives, such as numbers or strings, a `false` return value does not
-   * indicate that the values aren't equal in the JavaScript sense.
-   * Use `Value::StrictEquals()` to check primitives for equality.
-   */
-  template <class S>
-  V8_INLINE bool operator==(const Local<S>& that) const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    internal::Address a = reinterpret_cast<internal::Address>(this->val_);
-    internal::Address b = reinterpret_cast<internal::Address>(that.val_);
-    if (a == internal::kLocalTaggedNullAddress)
-      return b == internal::kLocalTaggedNullAddress;
-    if (b == internal::kLocalTaggedNullAddress) return false;
-    return a == b;
-#else
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-#endif
-  }
-
-  template <class S>
-  V8_INLINE bool operator==(const PersistentBase<S>& that) const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    internal::Address a = reinterpret_cast<internal::Address>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == internal::kLocalTaggedNullAddress) return b == nullptr;
-    if (b == nullptr) return false;
-    return a == *b;
-#else
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-#endif
-  }
-
-  /**
-   * Checks whether two handles are different.
-   * Returns true if only one of the handles is empty, or if
-   * the objects to which they refer are different.
+   * Checks whether two handles are equal or different.
+   * They are equal iff they are both empty or they are both non-empty and the
+   * objects to which they refer are physically equal.
    *
    * If both handles refer to JS objects, this is the same as strict
    * non-equality. For primitives, such as numbers or strings, a `true` return
    * value does not indicate that the values aren't equal in the JavaScript
    * sense. Use `Value::StrictEquals()` to check primitives for equality.
    */
+
+  template <class S>
+  V8_INLINE bool operator==(const Local<S>& that) const {
+    return internal::HandleHelper::EqualHandles(*this, that);
+  }
+
+  template <class S>
+  V8_INLINE bool operator==(const PersistentBase<S>& that) const {
+    return internal::HandleHelper::EqualHandles(*this, that);
+  }
+
   template <class S>
   V8_INLINE bool operator!=(const Local<S>& that) const {
     return !operator==(that);
@@ -290,22 +269,6 @@ class Local {
     return Local<S>::Cast(*this);
   }
 
-  V8_INLINE T* ValueFromSlot() const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return val_;
-#else
-    return *reinterpret_cast<T**>(val_);
-#endif
-  }
-
-  V8_INLINE internal::Address AddressFromSlot() const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return reinterpret_cast<internal::Address>(val_);
-#else
-    return *reinterpret_cast<internal::Address*>(val_);
-#endif
-  }
-
   /**
    * Create a local handle for the content of another handle.
    * The referee is kept alive by the local handle even when
@@ -317,34 +280,12 @@ class Local {
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return New(isolate, *reinterpret_cast<T**>(that.val_));
-#else
-    return New(isolate, that.val_);
-#endif
+    return New(isolate, internal::ValueHelper::SlotAsValue<T>(that.val_));
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const BasicTracedReference<T>& that) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return New(isolate, *reinterpret_cast<T**>(that.val_));
-#else
-    return New(isolate, *that);
-#endif
-  }
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  V8_INLINE static Local<T> New(Isolate* isolate, const Eternal<T>& that) {
-    return New(isolate, *reinterpret_cast<T**>(that.val_));
-  }
-#endif
-
-  V8_INLINE static Local<T> New(T* value) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return Local<T>(*reinterpret_cast<T**>(value));
-#else
-    return Local<T>(value);
-#endif
+    return New(isolate, internal::ValueHelper::SlotAsValue<T>(*that));
   }
 
  private:
@@ -352,12 +293,6 @@ class Local {
   friend class Utils;
   template <class F>
   friend class Eternal;
-  template <class F>
-  friend class PersistentBase;
-  template <class F, class M>
-  friend class Persistent;
-  template <class F>
-  friend class Local;
   template <class F>
   friend class MaybeLocal;
   template <class F>
@@ -385,27 +320,30 @@ class Local {
   friend class ReturnValue;
   template <class F>
   friend class Traced;
-  template <class F>
-  friend class BasicTracedReference;
-  template <class F>
-  friend class TracedReference;
-  friend class v8::internal::SamplingHeapProfiler;
+  friend class internal::SamplingHeapProfiler;
+  friend class internal::HandleHelper;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
+
+  V8_INLINE internal::Address address() const {
+    return internal::ValueHelper::ValueAsAddress(val_);
+  }
+
+  V8_INLINE static Local<T> FromSlot(internal::Address* slot) {
+    return Local<T>(internal::ValueHelper::SlotAsValue<T>(slot));
+  }
+
   V8_INLINE static Local<T> New(Isolate* isolate, T* that) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    if (reinterpret_cast<internal::Address>(that) ==
-        internal::kLocalTaggedNullAddress)
-      return Local<T>();
     return Local<T>(that);
 #else
     if (that == nullptr) return Local<T>();
-    T* that_ptr = that;
-    internal::Address* p = reinterpret_cast<internal::Address*>(that_ptr);
+    internal::Address* p = reinterpret_cast<internal::Address*>(that);
     return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
         reinterpret_cast<internal::Isolate*>(isolate), *p)));
 #endif
   }
+
   T* val_;
 };
 
@@ -428,23 +366,14 @@ using Handle = Local<T>;
 template <class T>
 class MaybeLocal {
  public:
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  V8_INLINE MaybeLocal()
-      : val_(reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)) {}
-#else
-  V8_INLINE MaybeLocal() : val_(nullptr) {}
-#endif
+  V8_INLINE MaybeLocal() : val_(internal::ValueHelper::EmptyValue<T>()) {}
   template <class S>
   V8_INLINE MaybeLocal(Local<S> that) : val_(reinterpret_cast<T*>(*that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
   V8_INLINE bool IsEmpty() const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return (internal::Address)val_ == internal::kLocalTaggedNullAddress;
-#else
-    return val_ == nullptr;
-#endif
+    return val_ == internal::ValueHelper::EmptyValue<T>();
   }
 
   /**
@@ -453,13 +382,7 @@ class MaybeLocal {
    */
   template <class S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    out->val_ = IsEmpty()
-                    ? reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)
-                    : this->val_;
-#else
-    out->val_ = IsEmpty() ? nullptr : this->val_;
-#endif
+    out->val_ = IsEmpty() ? internal::ValueHelper::EmptyValue<T>() : this->val_;
     return !IsEmpty();
   }
 
@@ -468,13 +391,7 @@ class MaybeLocal {
    * V8 will crash the process.
    */
   V8_INLINE Local<T> ToLocalChecked() {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    if (V8_UNLIKELY(reinterpret_cast<internal::Address>(val_) ==
-                    internal::kLocalTaggedNullAddress))
-      api_internal::ToLocalEmpty();
-#else
-    if (V8_UNLIKELY(val_ == nullptr)) api_internal::ToLocalEmpty();
-#endif
+    if (V8_UNLIKELY(IsEmpty())) api_internal::ToLocalEmpty();
     return Local<T>(val_);
   }
 

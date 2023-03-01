@@ -177,27 +177,14 @@ class V8_EXPORT SnapshotCreator {
   void* data_;
 };
 
-class SnapshotHelper {
-  using A = internal::Address;
-
- public:
-  static A ObjectToAddress(const Data* value) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return reinterpret_cast<const A>(value);
-#else
-    return *reinterpret_cast<const A*>(value);
-#endif
-  }
-};
-
 template <class T>
 size_t SnapshotCreator::AddData(Local<Context> context, Local<T> object) {
-  return AddData(context, SnapshotHelper::ObjectToAddress(*object));
+  return AddData(context, internal::ValueHelper::ValueAsAddress(*object));
 }
 
 template <class T>
 size_t SnapshotCreator::AddData(Local<T> object) {
-  return AddData(SnapshotHelper::ObjectToAddress(*object));
+  return AddData(internal::ValueHelper::ValueAsAddress(*object));
 }
 
 }  // namespace v8

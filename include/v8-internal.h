@@ -21,8 +21,6 @@ class Array;
 class Context;
 class Data;
 class Isolate;
-template <typename T>
-class Local;
 
 namespace internal {
 
@@ -30,7 +28,6 @@ class Isolate;
 
 typedef uintptr_t Address;
 static constexpr Address kNullAddress = 0;
-static constexpr Address kLocalTaggedNullAddress = 1;
 
 constexpr int KB = 1024;
 constexpr int MB = KB * 1024;
@@ -848,21 +845,58 @@ class BackingStoreBase {};
 // This is needed for histograms sampling garbage collection reasons.
 constexpr int kGarbageCollectionReasonMaxValue = 27;
 
+// Helper functions about values contained in handles.
 class ValueHelper final {
-  using A = internal::Address;
-
  public:
-  static A ValueToAddress(const Data* value) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return reinterpret_cast<const A>(value);
-#else
-    return *reinterpret_cast<const A*>(value);
-#endif
+  static constexpr Address kLocalTaggedNullAddress = 1;
+
+  template <typename T>
+  static constexpr T* EmptyValue() {
+    return reinterpret_cast<T*>(kLocalTaggedNullAddress);
   }
+
+  template <typename T>
+  V8_INLINE static Address ValueAsAddress(const T* value) {
+    return reinterpret_cast<Address>(value);
+  }
+
+  template <typename T, typename S>
+  V8_INLINE static T* SlotAsValue(S* slot) {
+    return *reinterpret_cast<T**>(slot);
+  }
+
+  template <typename T>
+  V8_INLINE static T* ValueAsSlot(T* const& value) {
+    return reinterpret_cast<T*>(const_cast<T**>(&value));
+  }
+
+#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+  template <typename T>
+  static constexpr T* EmptyValue() {
+    return nullptr;
+  }
+
+  template <typename T>
+  V8_INLINE static Address ValueAsAddress(const T* value) {
+    return *reinterpret_cast<const Address*>(value);
+  }
+
+  template <typename T, typename S>
+  V8_INLINE static T* SlotAsValue(S* slot) {
+    return reinterpret_cast<T*>(slot);
+  }
+
+  template <typename T>
+  V8_INLINE static T* ValueAsSlot(T* const& value) {
+    return value;
+  }
+
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 };
 
 }  // namespace internal
-
 }  // namespace v8
 
 #endif  // INCLUDE_V8_INTERNAL_H_

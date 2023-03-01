@@ -394,7 +394,7 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
-  A ctx = internal::ValueHelper::ValueToAddress(this);
+  A ctx = internal::ValueHelper::ValueAsAddress(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset = I::kEmbedderDataArrayHeaderSize +
