@@ -6189,9 +6189,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       if (source->IsRegister()) {
         Register src = g.ToRegister(source);
         Register dst = g.ToRegister(destination);
-        __ movq(kScratchRegister, src);
-        __ movq(src, dst);
-        __ movq(dst, kScratchRegister);
+        if (Use32BitMove(source, destination)) {
+          __ movl(kScratchRegister, src);
+          __ movl(src, dst);
+          __ movl(dst, kScratchRegister);
+        } else {
+          __ movq(kScratchRegister, src);
+          __ movq(src, dst);
+          __ movq(dst, kScratchRegister);
+        }
       } else {
         DCHECK(source->IsFPRegister());
         MachineRepresentation rep =
