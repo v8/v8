@@ -5838,7 +5838,6 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
 }
 
 class PageMarkingItem;
-class RootMarkingItem;
 
 class YoungGenerationMarkingTask {
  public:
@@ -5884,6 +5883,7 @@ class YoungGenerationMarkingTask {
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
   base::MutexGuard guard(chunk_->mutex());
+  CodePageMemoryModificationScope memory_modification_scope(chunk_);
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers(task);
   } else {
