@@ -630,9 +630,10 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   os << "RelocInfo (size = " << code.relocation_size() << ")\n";
-  if (code.IsInstructionStream()) {
-    for (RelocIterator it(InstructionStream::cast(code)); !it.done();
-         it.next()) {
+  // TODO(jgruber): Update this once relocations are based on Code, not
+  // InstructionStream objects.
+  if (code.has_instruction_stream()) {
+    for (RelocIterator it(code.instruction_stream()); !it.done(); it.next()) {
       it.rinfo()->Print(isolate, os);
     }
   }
