@@ -1111,6 +1111,12 @@ class MachineOptimizationReducer : public Next {
             }
             break;
           }
+          case RegisterRepresentation::Tagged(): {
+            // TODO(nicohartmann@): We might optimize comparison of
+            // HeapConstants here, but this requires that we are allowed to
+            // dereference handles.
+            break;
+          }
           default:
             UNREACHABLE();
         }
