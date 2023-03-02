@@ -176,7 +176,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
 RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  auto value_addr_smi = Smi::cast(args[0]);
+  Smi return_addr_smi = Smi::cast(args[0]);
 
   PrintIndentation(WasmStackSize(isolate));
   PrintF("}");
@@ -192,26 +192,30 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
       frame->wasm_instance().module()->functions[func_index].sig;
 
   size_t num_returns = sig->return_count();
+  // If we have no returns, we should have passed {Smi::zero()}.
+  DCHECK_IMPLIES(num_returns == 0, return_addr_smi.IsZero());
   if (num_returns == 1) {
     wasm::ValueType return_type = sig->GetReturn(0);
     switch (return_type.kind()) {
       case wasm::kI32: {
-        int32_t value = base::ReadUnalignedValue<int32_t>(value_addr_smi.ptr());
+        int32_t value =
+            base::ReadUnalignedValue<int32_t>(return_addr_smi.ptr());
         PrintF(" -> %d\n", value);
         break;
       }
       case wasm::kI64: {
-        int64_t value = base::ReadUnalignedValue<int64_t>(value_addr_smi.ptr());
+        int64_t value =
+            base::ReadUnalignedValue<int64_t>(return_addr_smi.ptr());
         PrintF(" -> %" PRId64 "\n", value);
         break;
       }
       case wasm::kF32: {
-        float value = base::ReadUnalignedValue<float>(value_addr_smi.ptr());
+        float value = base::ReadUnalignedValue<float>(return_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }
       case wasm::kF64: {
-        double value = base::ReadUnalignedValue<double>(value_addr_smi.ptr());
+        double value = base::ReadUnalignedValue<double>(return_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }

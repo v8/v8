@@ -2361,6 +2361,9 @@ class LiftoffCompiler {
       }
       DCHECK(return_slot.is_stack());
       __ LoadSpillAddress(param_reg, return_slot.offset(), return_slot.kind());
+    } else {
+      // Make sure to pass a "valid" parameter (Smi::zero()).
+      LoadSmi(LiftoffRegister{param_reg}, 0);
     }
 
     source_position_table_builder_.AddPosition(
