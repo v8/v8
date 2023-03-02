@@ -151,10 +151,12 @@ inline void UseAny(Input& input) {
 inline void UseFixed(Input& input, Register reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
                        kNoVreg);
+  input.node()->SetHint(input.operand());
 }
 inline void UseFixed(Input& input, DoubleRegister reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
                        reg.code(), kNoVreg);
+  input.node()->SetHint(input.operand());
 }
 
 }  // namespace maglev

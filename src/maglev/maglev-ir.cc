@@ -311,21 +311,38 @@ void NodeBase::Print() const {
   std::cout << std::endl;
 }
 
-void ValueNode::SetNoSpillOrHint() {
-  DCHECK_EQ(state_, kLastUse);
+void ValueNode::SetHint(compiler::InstructionOperand hint) {
+  if (!hint_.IsInvalid()) return;
+  hint_ = hint;
+  if (result_.operand().IsUnallocated()) {
+    auto operand = compiler::UnallocatedOperand::cast(result_.operand());
+    if (operand.HasSameAsInputPolicy()) {
+      input(operand.input_index()).node()->SetHint(hint);
+    }
+  }
+  if (this->Is<Phi>()) {
+    for (Input& input : *this) {
+      if (input.node()->has_id() && input.node()->id() < this->id()) {
+        input.node()->SetHint(hint);
+      }
+    }
+  }
+}
+
+void ValueNode::SetNoSpill() {
   DCHECK(!IsConstantNode(opcode()));
 #ifdef DEBUG
-  state_ = kSpillOrHint;
+  state_ = kSpill;
 #endif  // DEBUG
-  spill_or_hint_ = compiler::InstructionOperand();
+  spill_ = compiler::InstructionOperand();
 }
 
 void ValueNode::SetConstantLocation() {
   DCHECK(IsConstantNode(opcode()));
 #ifdef DEBUG
-  state_ = kSpillOrHint;
+  state_ = kSpill;
 #endif  // DEBUG
-  spill_or_hint_ = compiler::ConstantOperand(
+  spill_ = compiler::ConstantOperand(
       compiler::UnallocatedOperand::cast(result().operand())
           .virtual_register());
 }

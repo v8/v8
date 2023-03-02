@@ -682,7 +682,7 @@ class MaglevCodeGeneratingNodeProcessor {
 
     if (std::is_base_of<ValueNode, NodeT>::value) {
       ValueNode* value_node = node->template Cast<ValueNode>();
-      if (value_node->is_spilled()) {
+      if (value_node->has_valid_live_range() && value_node->is_spilled()) {
         compiler::AllocatedOperand source =
             compiler::AllocatedOperand::cast(value_node->result().operand());
         // We shouldn't spill nodes which already output to the stack.

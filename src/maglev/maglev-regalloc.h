@@ -124,9 +124,13 @@ class RegisterFrameState {
   bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
   void clear_blocked() { blocked_ = kEmptyRegList; }
 
-  compiler::InstructionOperand TryChooseInputRegister(ValueNode* node);
+  compiler::InstructionOperand TryChooseInputRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
   compiler::InstructionOperand TryChooseUnblockedInputRegister(ValueNode* node);
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
 
  private:
   ValueNode* values_[RegisterT::kNumRegisters];
@@ -178,7 +182,7 @@ class StraightForwardRegisterAllocator {
   void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
   void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);
   void AssignFixedInput(Input& input);
-  void AssignArbitraryRegisterInput(Input& input);
+  void AssignArbitraryRegisterInput(NodeBase* result_node, Input& input);
   void AssignAnyInput(Input& input);
   void AssignInputs(NodeBase* node);
   template <typename RegisterT>
@@ -189,6 +193,8 @@ class StraightForwardRegisterAllocator {
   void AssignArbitraryTemporaries(RegisterFrameState<RegisterT>& registers,
                                   NodeBase* node);
   void AssignArbitraryTemporaries(NodeBase* node);
+  template <typename RegisterT>
+  void SetLoopPhiRegisterHint(Phi* phi, RegisterT reg);
   void TryAllocateToInput(Phi* phi);
 
   void VerifyInputs(NodeBase* node);
@@ -225,8 +231,10 @@ class StraightForwardRegisterAllocator {
 
   template <typename RegisterT>
   void DropRegisterValueAtEnd(RegisterT reg);
+  bool IsCurrentNodeLastUseOf(ValueNode* node);
   template <typename RegisterT>
-  void EnsureFreeRegisterAtEnd();
+  void EnsureFreeRegisterAtEnd(const compiler::InstructionOperand& hint =
+                                   compiler::InstructionOperand());
   compiler::AllocatedOperand AllocateRegisterAtEnd(ValueNode* node);
 
   template <typename RegisterT>
@@ -235,7 +243,9 @@ class StraightForwardRegisterAllocator {
   void DropRegisterValue(Register reg);
   void DropRegisterValue(DoubleRegister reg);
 
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
 
   template <typename RegisterT>
   compiler::AllocatedOperand ForceAllocate(

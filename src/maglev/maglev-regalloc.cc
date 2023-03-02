@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-regalloc.h"
 
 #include <sstream>
+#include <type_traits>
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
@@ -428,7 +429,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // TODO(leszeks): We should remove dead phis entirely and turn this
         // into a DCHECK.
         if (!phi->has_valid_live_range()) continue;
-        phi->SetNoSpillOrHint();
+        phi->SetNoSpill();
         TryAllocateToInput(phi);
       }
       if (block->is_exception_handler_block()) {
@@ -485,8 +486,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           // We'll use a double register.
           if (!double_registers_.UnblockedFreeIsEmpty()) {
             compiler::AllocatedOperand allocation =
-                double_registers_.AllocateRegister(phi);
+                double_registers_.AllocateRegister(phi, phi->hint());
             phi->result().SetAllocated(allocation);
+            SetLoopPhiRegisterHint(phi, allocation.GetDoubleRegister());
             if (v8_flags.trace_maglev_regalloc) {
               printing_visitor_->Process(phi, ProcessingState(block_it_));
               printing_visitor_->os()
@@ -497,8 +499,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           // We'll use a general purpose register for this Phi.
           if (!general_registers_.UnblockedFreeIsEmpty()) {
             compiler::AllocatedOperand allocation =
-                general_registers_.AllocateRegister(phi);
+                general_registers_.AllocateRegister(phi, phi->hint());
             phi->result().SetAllocated(allocation);
+            SetLoopPhiRegisterHint(phi, allocation.GetRegister());
             if (v8_flags.trace_maglev_regalloc) {
               printing_visitor_->Process(phi, ProcessingState(block_it_));
               printing_visitor_->os()
@@ -771,7 +774,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
     ValueNode* node = list.GetValue(reg);
     // If the register is not live after the current node, just remove its
     // value.
-    if (node->live_range().end == current_node_->id()) {
+    if (IsCurrentNodeLastUseOf(node)) {
       node->RemoveRegister(reg);
     } else {
       DropRegisterValue(list, reg);
@@ -783,7 +786,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
 void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
   DCHECK(!node->Is<Phi>());
 
-  node->SetNoSpillOrHint();
+  node->SetNoSpill();
 
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(node->result().operand());
@@ -815,6 +818,8 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
     case compiler::UnallocatedOperand::SAME_AS_INPUT: {
       Input& input = node->input(operand.input_index());
       node->result().SetAllocated(ForceAllocate(input, node));
+      // Clear any hint that (probably) comes from this constraint.
+      if (node->has_hint()) input.node()->ClearHint();
       break;
     }
 
@@ -872,6 +877,10 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // register, as we may still want to use it elsewhere.
   if (!registers.UnblockedFreeIsEmpty()) {
     RegisterT target_reg = registers.unblocked_free().first();
+    RegisterT hint_reg = node->GetRegisterHint<RegisterT>();
+    if (hint_reg.is_valid() && registers.unblocked_free().has(hint_reg)) {
+      target_reg = hint_reg;
+    }
     registers.RemoveFromFree(target_reg);
     registers.SetValueWithoutBlocking(target_reg, node);
     // Emit a gapmove.
@@ -1062,6 +1071,21 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   VerifyRegisterState();
 }
 
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::SetLoopPhiRegisterHint(Phi* phi,
+                                                              RegisterT reg) {
+  compiler::UnallocatedOperand hint(
+      std::is_same_v<RegisterT, Register>
+          ? compiler::UnallocatedOperand::FIXED_REGISTER
+          : compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+      reg.code(), kNoVreg);
+  for (Input& input : *phi) {
+    if (input.node()->id() > phi->id()) {
+      input.node()->SetHint(hint);
+    }
+  }
+}
+
 void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
   // Try allocate phis to a register used by any of the inputs.
   for (Input& input : *phi) {
@@ -1071,6 +1095,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
       Register reg = input.AssignedGeneralRegister();
       if (general_registers_.unblocked_free().has(reg)) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
+        SetLoopPhiRegisterHint(phi, reg);
         DCHECK_EQ(general_registers_.GetValue(reg), phi);
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->Process(phi, ProcessingState(block_it_));
@@ -1188,6 +1213,8 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
     AddMoveBeforeCurrentNode(node, location, allocated);
   }
   UpdateUse(&input);
+  // Clear any hint that (probably) comes from this fixed use.
+  input.node()->ClearHint();
 }
 
 void StraightForwardRegisterAllocator::MarkAsClobbered(
@@ -1223,10 +1250,27 @@ bool IsInRegisterLocation(ValueNode* node,
 }
 #endif  // DEBUG
 
+bool SameAsInput(ValueNode* node, Input& input) {
+  auto operand = compiler::UnallocatedOperand::cast(node->result().operand());
+  return operand.HasSameAsInputPolicy() &&
+         &input == &node->input(operand.input_index());
+}
+
+compiler::InstructionOperand InputHint(NodeBase* node, Input& input) {
+  ValueNode* value_node = node->TryCast<ValueNode>();
+  if (!value_node) return input.node()->hint();
+  DCHECK(value_node->result().operand().IsUnallocated());
+  if (SameAsInput(value_node, input)) {
+    return value_node->hint();
+  } else {
+    return input.node()->hint();
+  }
+}
+
 }  // namespace
 
 void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
-    Input& input) {
+    NodeBase* result_node, Input& input) {
   // Already assigned in AssignFixedInput
   if (!input.operand().IsUnallocated()) return;
 
@@ -1246,6 +1290,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
 
   compiler::AllocatedOperand location = ([&] {
     compiler::InstructionOperand existing_register_location;
+    auto hint = InputHint(result_node, input);
     if (is_clobbered) {
       // For clobbered inputs, we want to pick a different register than
       // non-clobbered inputs, so that we don't clobber those.
@@ -1254,10 +1299,16 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
               ? double_registers_.TryChooseUnblockedInputRegister(node)
               : general_registers_.TryChooseUnblockedInputRegister(node);
     } else {
+      ValueNode* value_node = result_node->TryCast<ValueNode>();
+      // Only use the hint if it helps with the result's allocation due to
+      // same-as-input policy. Otherwise this doesn't affect regalloc.
+      auto result_hint = value_node && SameAsInput(value_node, input)
+                             ? value_node->hint()
+                             : compiler::InstructionOperand();
       existing_register_location =
           node->use_double_register()
-              ? double_registers_.TryChooseInputRegister(node)
-              : general_registers_.TryChooseInputRegister(node);
+              ? double_registers_.TryChooseInputRegister(node, result_hint)
+              : general_registers_.TryChooseInputRegister(node, result_hint);
     }
 
     // Reuse an existing register if possible.
@@ -1273,7 +1324,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
 
     // Otherwise, allocate a register for the node and load it in from there.
     compiler::InstructionOperand existing_location = node->allocation();
-    compiler::AllocatedOperand allocation = AllocateRegister(node);
+    compiler::AllocatedOperand allocation = AllocateRegister(node, hint);
     DCHECK_NE(existing_location, allocation);
     AddMoveBeforeCurrentNode(node, existing_location, allocation);
 
@@ -1338,7 +1389,7 @@ void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // registers are allocated before assigning any location for these inputs.
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
-  for (Input& input : *node) AssignArbitraryRegisterInput(input);
+  for (Input& input : *node) AssignArbitraryRegisterInput(node, input);
   AssignArbitraryTemporaries(node);
   for (Input& input : *node) AssignAnyInput(input);
 }
@@ -1577,56 +1628,84 @@ RegisterT StraightForwardRegisterAllocator::FreeUnblockedRegister() {
 }
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
-    ValueNode* node) {
+    ValueNode* node, const compiler::InstructionOperand& hint) {
   compiler::InstructionOperand allocation;
   if (node->use_double_register()) {
     if (double_registers_.UnblockedFreeIsEmpty()) {
       FreeUnblockedRegister<DoubleRegister>();
     }
-    return double_registers_.AllocateRegister(node);
+    return double_registers_.AllocateRegister(node, hint);
   } else {
     if (general_registers_.UnblockedFreeIsEmpty()) {
       FreeUnblockedRegister<Register>();
     }
-    return general_registers_.AllocateRegister(node);
+    return general_registers_.AllocateRegister(node, hint);
   }
 }
 
+namespace {
 template <typename RegisterT>
-void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd() {
+static RegisterT GetRegisterHint(const compiler::InstructionOperand& hint) {
+  if (hint.IsInvalid()) return RegisterT::no_reg();
+  DCHECK(hint.IsUnallocated());
+  return RegisterT::from_code(
+      compiler::UnallocatedOperand::cast(hint).fixed_register_index());
+}
+
+}  // namespace
+
+bool StraightForwardRegisterAllocator::IsCurrentNodeLastUseOf(ValueNode* node) {
+  return node->live_range().end == current_node_->id();
+}
+
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd(
+    const compiler::InstructionOperand& hint) {
   RegisterFrameState<RegisterT>& registers = GetRegisterFrameState<RegisterT>();
   // If we still have free registers, pick one of those.
   if (!registers.free().is_empty()) {
     // Make sure that at least one of the free registers is not blocked; this
     // effectively means freeing up a temporary.
     if (registers.unblocked_free().is_empty()) {
-      registers.unblock(registers.free().first());
+      RegisterT reg = GetRegisterHint<RegisterT>(hint);
+      if (!registers.free().has(reg)) {
+        reg = registers.free().first();
+      }
+      registers.unblock(reg);
     }
     return;
   }
 
   // If the current node is a last use of an input, pick a register containing
-  // the input.
+  // the input. Prefer the hint register if available.
+  RegisterT hint_reg = GetRegisterHint<RegisterT>(hint);
+  if (registers.blocked().has(hint_reg) &&
+      IsCurrentNodeLastUseOf(registers.GetValue(hint_reg))) {
+    DropRegisterValueAtEnd(hint_reg);
+    return;
+  }
   for (RegisterT reg : registers.blocked()) {
-    if (registers.GetValue(reg)->live_range().end == current_node_->id()) {
+    if (IsCurrentNodeLastUseOf(registers.GetValue(reg))) {
       DropRegisterValueAtEnd(reg);
       return;
     }
   }
 
   // Pick any input-blocked register based on regular heuristics.
-  RegisterT reg = PickRegisterToFree<RegisterT>(registers.empty());
+  RegisterT reg = hint.IsInvalid()
+                      ? PickRegisterToFree<RegisterT>(registers.empty())
+                      : GetRegisterHint<RegisterT>(hint);
   DropRegisterValueAtEnd(reg);
 }
 
 compiler::AllocatedOperand
 StraightForwardRegisterAllocator::AllocateRegisterAtEnd(ValueNode* node) {
   if (node->use_double_register()) {
-    EnsureFreeRegisterAtEnd<DoubleRegister>();
-    return double_registers_.AllocateRegister(node);
+    EnsureFreeRegisterAtEnd<DoubleRegister>(node->hint());
+    return double_registers_.AllocateRegister(node, node->hint());
   } else {
-    EnsureFreeRegisterAtEnd<Register>();
-    return general_registers_.AllocateRegister(node);
+    EnsureFreeRegisterAtEnd<Register>(node->hint());
+    return general_registers_.AllocateRegister(node, node->hint());
   }
 }
 
@@ -1698,14 +1777,19 @@ compiler::AllocatedOperand OperandForNodeRegister(ValueNode* node,
 
 template <typename RegisterT>
 compiler::InstructionOperand
-RegisterFrameState<RegisterT>::TryChooseInputRegister(ValueNode* node) {
+RegisterFrameState<RegisterT>::TryChooseInputRegister(
+    ValueNode* node, const compiler::InstructionOperand& hint) {
   RegTList result_registers = node->result_registers<RegisterT>();
   if (result_registers.is_empty()) return compiler::InstructionOperand();
 
   // Prefer to return an existing blocked register.
   RegTList blocked_result_registers = result_registers & blocked_;
   if (!blocked_result_registers.is_empty()) {
-    return OperandForNodeRegister(node, blocked_result_registers.first());
+    RegisterT reg = GetRegisterHint<RegisterT>(hint);
+    if (!blocked_result_registers.has(reg)) {
+      reg = blocked_result_registers.first();
+    }
+    return OperandForNodeRegister(node, reg);
   }
 
   RegisterT reg = result_registers.first();
@@ -1726,9 +1810,12 @@ RegisterFrameState<RegisterT>::TryChooseUnblockedInputRegister(
 
 template <typename RegisterT>
 compiler::AllocatedOperand RegisterFrameState<RegisterT>::AllocateRegister(
-    ValueNode* node) {
+    ValueNode* node, const compiler::InstructionOperand& hint) {
   DCHECK(!unblocked_free().is_empty());
-  RegisterT reg = unblocked_free().first();
+  RegisterT reg = GetRegisterHint<RegisterT>(hint);
+  if (!unblocked_free().has(reg)) {
+    reg = unblocked_free().first();
+  }
   RemoveFromFree(reg);
 
   // Allocation succeeded. This might have found an existing allocation.

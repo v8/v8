@@ -1515,20 +1515,35 @@ class ValueNode : public Node {
   ValueLocation& result() { return result_; }
   const ValueLocation& result() const { return result_; }
 
+  void SetHint(compiler::InstructionOperand hint);
+
+  void ClearHint() { hint_ = compiler::InstructionOperand(); }
+
+  bool has_hint() { return !hint_.IsInvalid(); }
+
+  template <typename RegisterT>
+  RegisterT GetRegisterHint() {
+    if (hint_.IsInvalid()) return RegisterT::no_reg();
+    return RegisterT::from_code(
+        compiler::UnallocatedOperand::cast(hint_).fixed_register_index());
+  }
+
   const compiler::InstructionOperand& hint() const {
-    DCHECK_EQ(state_, kSpillOrHint);
-    DCHECK(spill_or_hint_.IsInvalid() || spill_or_hint_.IsUnallocated());
-    return spill_or_hint_;
+    DCHECK(hint_.IsInvalid() || hint_.IsUnallocated());
+    return hint_;
   }
 
   bool is_loadable() const {
-    DCHECK_EQ(state_, kSpillOrHint);
-    return spill_or_hint_.IsConstant() || spill_or_hint_.IsAnyStackSlot();
+    DCHECK_EQ(state_, kSpill);
+    return spill_.IsConstant() || spill_.IsAnyStackSlot();
   }
 
-  bool is_spilled() const { return spill_or_hint_.IsAnyStackSlot(); }
+  bool is_spilled() const {
+    DCHECK_EQ(state_, kSpill);
+    return spill_.IsAnyStackSlot();
+  }
 
-  void SetNoSpillOrHint();
+  void SetNoSpill();
   void SetConstantLocation();
 
   /* For constants only. */
@@ -1541,15 +1556,15 @@ class ValueNode : public Node {
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
     if (state_ == kLastUse) {
-      state_ = kSpillOrHint;
+      state_ = kSpill;
     } else {
       DCHECK(!is_loadable());
     }
 #endif  // DEBUG
     DCHECK(!IsConstantNode(opcode()));
     DCHECK(operand.IsAnyStackSlot());
-    spill_or_hint_ = operand;
-    DCHECK(spill_or_hint_.IsAnyStackSlot());
+    spill_ = operand;
+    DCHECK(spill_.IsAnyStackSlot());
   }
 
   compiler::AllocatedOperand spill_slot() const {
@@ -1558,9 +1573,9 @@ class ValueNode : public Node {
   }
 
   compiler::InstructionOperand loadable_slot() const {
-    DCHECK_EQ(state_, kSpillOrHint);
+    DCHECK_EQ(state_, kSpill);
     DCHECK(is_loadable());
-    return spill_or_hint_;
+    return spill_;
   }
 
   void mark_use(NodeIdT id, InputLocation* input_location) {
@@ -1678,13 +1693,14 @@ class ValueNode : public Node {
                                         FirstRegisterCode());
     }
     DCHECK(is_loadable());
-    return spill_or_hint_;
+    return spill_;
   }
 
  protected:
   explicit ValueNode(uint64_t bitfield)
       : Node(bitfield),
-        last_uses_next_use_id_(&next_use_)
+        last_uses_next_use_id_(&next_use_),
+        hint_(compiler::InstructionOperand())
 #ifdef DEBUG
         ,
         state_(kLastUse)
@@ -1719,11 +1735,11 @@ class ValueNode : public Node {
     // this will be a pointer to an Input's next_use_id_ field, but it's
     // initialized to this node's next_use_ to track the first use.
     NodeIdT* last_uses_next_use_id_;
-    compiler::InstructionOperand spill_or_hint_;
+    compiler::InstructionOperand spill_;
   };
+  compiler::InstructionOperand hint_;
 #ifdef DEBUG
-  // TODO(leszeks): Consider spilling into kSpill and kHint.
-  enum { kLastUse, kSpillOrHint } state_;
+  enum {kLastUse, kSpill} state_;
 #endif  // DEBUG
 };
 
