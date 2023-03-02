@@ -359,7 +359,9 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = string::ToString_Inline(context, obj);
+          const str = string::ToString_Inline(context, obj);
+          if (str == kEmptyString) continue;
+          next = str;
         }
       }
     }

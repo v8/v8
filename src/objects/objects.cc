@@ -4763,12 +4763,16 @@ void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
     if (V8_UNLIKELY(repeat_last > 0)) {
       Object last_element = fixed_array.get(i - 1);
       int string_length = String::cast(last_element).length();
+      // The implemented logic requires that string length is > 0. Empty strings
+      // are handled by repeating the separator (positive smi in the fixed
+      // array) already.
+      DCHECK_GT(string_length, 0);
       int length_with_sep = string_length + separator_length;
       // Only copy separators between elements, not at the start or beginning.
       sinkchar* copy_end =
           sink + (length_with_sep * repeat_last) - separator_length;
       int copy_length = length_with_sep;
-      while (sink + copy_length < copy_end) {
+      while (sink < copy_end - copy_length) {
         DCHECK_LE(sink + copy_length, sink_end);
         memcpy(sink, sink - copy_length, copy_length * sizeof(sinkchar));
         sink += copy_length;
