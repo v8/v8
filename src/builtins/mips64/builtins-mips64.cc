@@ -318,6 +318,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   __ GetObjectType(sfi_data, scratch1, scratch1);
+
+#ifndef V8_JITLESS
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
@@ -327,6 +329,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   } else {
     __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
   }
+#endif  // !V8_JITLESS
+
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ Ld(sfi_data,
         FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
@@ -1078,7 +1082,6 @@ void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
   Register closure = a1;
-  Register feedback_vector = a2;
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
@@ -1096,7 +1099,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ GetObjectType(kInterpreterBytecodeArrayRegister, kScratchReg, kScratchReg);
   __ Branch(&compile_lazy, ne, kScratchReg, Operand(BYTECODE_ARRAY_TYPE));
 
+#ifndef V8_JITLESS
   // Load the feedback vector from the closure.
+  Register feedback_vector = a2;
   __ Ld(feedback_vector,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
@@ -1134,6 +1139,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   __ bind(&push_stack_frame);
+#else
+  // Note: By omitting the above code in jitless mode we also disable:
+  // - kFlagsLogNextExecution: only used for logging/profiling; and
+  // - kInvocationCountOffset: only used for tiering heuristics and code
+  //   coverage.
+#endif  // !V8_JITLESS
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
@@ -1269,6 +1280,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
+#ifndef V8_JITLESS
   __ bind(&flags_need_processing);
   __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   __ bind(&is_baseline);
@@ -1299,6 +1311,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
+#endif  // !V8_JITLESS
+
   __ bind(&compile_lazy);
   __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
   // Unreachable code.
