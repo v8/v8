@@ -1512,18 +1512,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Ld_b:
       __ Ld_b(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kLoong64St_b:
-      __ St_b(i.InputOrZeroRegister(2), i.MemoryOperand());
+    case kLoong64St_b: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ St_b(i.InputOrZeroRegister(index), mem);
       break;
+    }
     case kLoong64Ld_hu:
       __ Ld_hu(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64Ld_h:
       __ Ld_h(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kLoong64St_h:
-      __ St_h(i.InputOrZeroRegister(2), i.MemoryOperand());
+    case kLoong64St_h: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ St_h(i.InputOrZeroRegister(index), mem);
       break;
+    }
     case kLoong64Ld_w:
       __ Ld_w(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1533,12 +1539,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Ld_d:
       __ Ld_d(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kLoong64St_w:
-      __ St_w(i.InputOrZeroRegister(2), i.MemoryOperand());
+    case kLoong64St_w: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ St_w(i.InputOrZeroRegister(index), mem);
       break;
-    case kLoong64St_d:
-      __ St_d(i.InputOrZeroRegister(2), i.MemoryOperand());
+    }
+    case kLoong64St_d: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ St_d(i.InputOrZeroRegister(index), mem);
       break;
+    }
     case kLoong64LoadDecompressTaggedSigned:
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1582,12 +1594,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fld_d(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kLoong64Fst_d: {
-      FPURegister ft = i.InputOrZeroDoubleRegister(2);
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&index);
+      FPURegister ft = i.InputOrZeroDoubleRegister(index);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
 
-      __ Fst_d(ft, i.MemoryOperand());
+      __ Fst_d(ft, operand);
       break;
     }
     case kLoong64Dbar: {

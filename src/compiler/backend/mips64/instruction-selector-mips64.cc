@@ -359,6 +359,13 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    selector->Emit(opcode | AddressingModeField::encode(kMode_Root),
+                   g.DefineAsRegister(output == nullptr ? node : output),
+                   g.UseImmediate(index));
+    return;
+  }
+
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(output == nullptr ? node : output),
@@ -583,6 +590,13 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
+    }
+
+    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+      // This will only work if {index} is a constant.
+      Emit(opcode | AddressingModeField::encode(kMode_Root), g.NoOutput(),
+           g.UseImmediate(index), g.UseRegisterOrImmediateZero(value));
+      return;
     }
 
     if (g.CanBeImmediate(index, opcode)) {
