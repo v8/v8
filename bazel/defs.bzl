@@ -2,7 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FlagInfo = provider(fields = ["value"])
+"""
+This module contains helper functions to compile V8.
+"""
+
+FlagInfo = provider("The value of an option.",
+fields = ["value"])
 
 def _options_impl(ctx):
     return FlagInfo(value = ctx.build_setting_value)
@@ -465,7 +470,9 @@ def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
         }),
     )
 
-def _v8_target_cpu_transition_impl(settings, attr):
+def _v8_target_cpu_transition_impl(settings,
+                                   attr, # @unused
+                                  ):
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
