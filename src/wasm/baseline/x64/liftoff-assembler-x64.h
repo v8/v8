@@ -297,22 +297,17 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return is_reference(kind);
 }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
-                                    RelocInfo::Mode rmode) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
-      if (value.to_i32() == 0 && RelocInfo::IsNoInfo(rmode)) {
+      if (value.to_i32() == 0) {
         xorl(reg.gp(), reg.gp());
       } else {
-        movl(reg.gp(), Immediate(value.to_i32(), rmode));
+        movl(reg.gp(), Immediate(value.to_i32()));
       }
       break;
     case kI64:
-      if (RelocInfo::IsNoInfo(rmode)) {
-        MacroAssembler::Move(reg.gp(), value.to_i64());
-      } else {
-        movq(reg.gp(), Immediate64(value.to_i64(), rmode));
-      }
+      MacroAssembler::Move(reg.gp(), value.to_i64());
       break;
     case kF32:
       MacroAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());

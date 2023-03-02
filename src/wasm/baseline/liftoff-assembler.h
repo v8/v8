@@ -775,8 +775,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline static int SlotSizeForType(ValueKind kind);
   inline static bool NeedsAlignment(ValueKind kind);
 
-  inline void LoadConstant(LiftoffRegister, WasmValue,
-                           RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceFromFrame(Register dst);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
                                int size);

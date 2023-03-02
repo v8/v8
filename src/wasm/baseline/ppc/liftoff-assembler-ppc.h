@@ -213,14 +213,13 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return (kind == kS128 || is_reference(kind));
 }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
-                                    RelocInfo::Mode rmode) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
-      mov(reg.gp(), Operand(value.to_i32(), rmode));
+      mov(reg.gp(), Operand(value.to_i32()));
       break;
     case kI64:
-      mov(reg.gp(), Operand(value.to_i64(), rmode));
+      mov(reg.gp(), Operand(value.to_i64()));
       break;
     case kF32: {
       UseScratchRegisterScope temps(this);

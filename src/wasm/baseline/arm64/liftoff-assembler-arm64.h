@@ -391,20 +391,19 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
 }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
-                                    RelocInfo::Mode rmode) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
-      Mov(reg.gp().W(), Immediate(value.to_i32(), rmode));
+      Mov(reg.gp().W(), value.to_i32());
       break;
     case kI64:
-      Mov(reg.gp().X(), Immediate(value.to_i64(), rmode));
+      Mov(reg.gp().X(), value.to_i64());
       break;
     case kF32:
-      Fmov(reg.fp().S(), value.to_f32_boxed().get_scalar());
+      Fmov(reg.fp().S(), value.to_f32());
       break;
     case kF64:
-      Fmov(reg.fp().D(), value.to_f64_boxed().get_scalar());
+      Fmov(reg.fp().D(), value.to_f64());
       break;
     default:
       UNREACHABLE();
