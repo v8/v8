@@ -367,9 +367,6 @@ class EffectControlLinearizer {
   JSHeapBroker* broker_;
   JSGraphAssembler* graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
-  // TODO(nicohartmann@, chromium:1416830): Enable once all allocating nodes are
-  // ported and regions are preserved properly.
-  const bool lower_in_turboshaft_ = false;
 };
 
 namespace {
@@ -1042,7 +1039,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedUint64ToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedBigIntToBigInt64:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
@@ -1194,11 +1194,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
     case IrOpcode::kCheckBigInt:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckBigInt(node, frame_state);
       break;
     case IrOpcode::kChangeInt64ToBigInt:
-      if (lower_in_turboshaft_) {
+      if (v8_flags.turboshaft) {
         DCHECK(machine()->Is64());
         // ChangeInt64ToBigInt is allocting when lowered, so we must fix its
         // position in the effect chain such that it is non-floating after ECL
@@ -1210,7 +1213,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       }
       break;
     case IrOpcode::kChangeUint64ToBigInt:
-      if (lower_in_turboshaft_) {
+      if (v8_flags.turboshaft) {
         DCHECK(machine()->Is64());
         // ChangeUint64ToBigInt is allocting when lowered, so we must fix its
         // position in the effect chain such that it is non-floating after ECL
@@ -1234,23 +1237,23 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberToString(node);
       break;
     case IrOpcode::kObjectIsArrayBufferView:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsArrayBufferView(node);
       break;
     case IrOpcode::kObjectIsBigInt:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsBigInt(node);
       break;
     case IrOpcode::kObjectIsCallable:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsCallable(node);
       break;
     case IrOpcode::kObjectIsConstructor:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsConstructor(node);
       break;
     case IrOpcode::kObjectIsDetectableCallable:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsDetectableCallable(node);
       break;
     case IrOpcode::kObjectIsMinusZero:
@@ -1266,31 +1269,31 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsNaN(node);
       break;
     case IrOpcode::kObjectIsNonCallable:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsNonCallable(node);
       break;
     case IrOpcode::kObjectIsNumber:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsNumber(node);
       break;
     case IrOpcode::kObjectIsReceiver:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsReceiver(node);
       break;
     case IrOpcode::kObjectIsSmi:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsSmi(node);
       break;
     case IrOpcode::kObjectIsString:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsString(node);
       break;
     case IrOpcode::kObjectIsSymbol:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsSymbol(node);
       break;
     case IrOpcode::kObjectIsUndetectable:
-      if (lower_in_turboshaft_) return false;
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsUndetectable(node);
       break;
     case IrOpcode::kArgumentsLength:
@@ -3092,7 +3095,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
 }
 
 Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -3112,7 +3115,7 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
 
 Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
                                                             Node* frame_state) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel();
@@ -3270,7 +3273,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
 }
 
 Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
@@ -3297,7 +3300,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
@@ -3414,7 +3417,7 @@ Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3441,7 +3444,7 @@ Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsBigInt(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3462,7 +3465,7 @@ Node* EffectControlLinearizer::LowerObjectIsBigInt(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3488,7 +3491,7 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3514,7 +3517,7 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3756,7 +3759,7 @@ Node* EffectControlLinearizer::LowerNumberIsNaN(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_primitive = __ MakeDeferredLabel();
@@ -3789,7 +3792,7 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNumber(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeLabel();
@@ -3807,7 +3810,7 @@ Node* EffectControlLinearizer::LowerObjectIsNumber(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3831,13 +3834,13 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsSmi(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ObjectIsSmi(value);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3861,7 +3864,7 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();
@@ -3885,7 +3888,7 @@ Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
-  DCHECK(!lower_in_turboshaft_);
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel();

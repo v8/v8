@@ -529,16 +529,20 @@ class GraphVisitor {
       // To account for this, we reorder the inputs of the Phi, and get rid of
       // inputs from blocks that vanished.
 
-      base::SmallVector<uint32_t, 16> old_pred_vec;
+#ifdef DEBUG
+      // To check that indices are set properly, we zap them in debug builds.
+      const uint32_t invalid_custom_data = std::numeric_limits<uint32_t>::max();
+      for (auto& block : assembler().modifiable_input_graph().blocks()) {
+        block.custom_data() = invalid_custom_data;
+      }
+#endif
+      uint32_t pos = current_input_block_->PredecessorCount() - 1;
       for (old_pred = current_input_block_->LastPredecessor();
            old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
-        old_pred_vec.push_back(old_pred->index().id());
-        // Checking that predecessors are indeed sorted.
-        DCHECK_IMPLIES(old_pred->NeighboringPredecessor() != nullptr,
-                       old_pred->index().id() >
-                           old_pred->NeighboringPredecessor()->index().id());
+        // Store the current index of the {old_pred}.
+        DCHECK_EQ(old_pred->custom_data(), invalid_custom_data);
+        old_pred->custom_data() = pos--;
       }
-      std::reverse(old_pred_vec.begin(), old_pred_vec.end());
 
       // Filling {new_inputs}: we iterate the new predecessors, and, for each
       // predecessor, we check the index of the input corresponding to the old
@@ -549,13 +553,8 @@ class GraphVisitor {
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->Origin();
         DCHECK_NOT_NULL(origin);
-        // {old_pred_vec} is sorted. We can thus use a binary search to find the
-        // index of {origin} in {old_pred_vec}: the index is the index of the
-        // old input corresponding to {new_pred}.
-        auto lower = std::lower_bound(old_pred_vec.begin(), old_pred_vec.end(),
-                                      origin->index().id());
-        DCHECK_NE(lower, old_pred_vec.end());
-        OpIndex input = old_inputs[lower - old_pred_vec.begin()];
+        DCHECK_NE(origin->custom_data(), invalid_custom_data);
+        OpIndex input = old_inputs[origin->custom_data()];
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable

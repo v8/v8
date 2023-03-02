@@ -68,17 +68,6 @@ auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
       const_or_values);
 }
 
-template <typename T, size_t N>
-void OrderBy(base::SmallVector<T, N>& values,
-             const base::SmallVector<size_t, N>& permutation) {
-  DCHECK_EQ(permutation.size(), values.size());
-  auto sorted = values;
-  for (size_t i = 0; i < values.size(); ++i) {
-    sorted[permutation[i]] = values[i];
-  }
-  values = sorted;
-}
-
 inline bool SuppressUnusedWarning(bool b) { return b; }
 }  // namespace detail
 
@@ -161,43 +150,12 @@ class LabelBase {
       if (predecessor_count == 1) {
         return values_t{std::get<indices>(recorded_values_)[0]...};
       }
-
       DCHECK_LT(1, predecessor_count);
-      // We might have to sort inputs.
-      // TODO(nicohartmann@): We can remove this once predecessors are always
-      // sorted by block id, that is, their visitation order.
-      auto predecessor_indices = ComputePredecessorIndices();
-      (detail::OrderBy(std::get<indices>(recorded_values_),
-                       predecessor_indices),
-       ...);
-      detail::OrderBy(predecessors_, predecessor_indices);
 
       // Construct Phis.
       return values_t{assembler.Phi(
           base::VectorOf(std::get<indices>(recorded_values_)))...};
     }
-  }
-
-  base::SmallVector<size_t, 2> ComputePredecessorIndices() const {
-    base::SmallVector<size_t, 2> indices(predecessors_.size());
-    for (size_t i = 0; i < predecessors_.size(); ++i) {
-      Block* source = predecessors_[i];
-      size_t pos = predecessors_.size() - 1;
-      indices[i] = std::numeric_limits<size_t>::max();
-      for (Block* pred = block_->LastPredecessor(); pred;
-           pred = pred->NeighboringPredecessor()) {
-        if (pred == source) {
-          indices[i] = pos;
-        } else if (pred->LastPredecessor() == source) {
-          DCHECK_EQ(pred->PredecessorCount(), 1);
-          indices[i] = pos;
-        } else {
-          --pos;
-        }
-      }
-      DCHECK_LT(indices[i], predecessors_.size());
-    }
-    return indices;
   }
 
   template <typename A>
@@ -1830,7 +1788,8 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
       Block* pred = destination->LastPredecessor();
       destination->ResetLastPredecessor();
       destination->SetKind(Block::Kind::kMerge);
-      // It is important to add `source` first, because it was bound first.
+      // We have to split `pred` first to preserve order of predecessors.
+      SplitEdge(pred, destination);
       if (branch) {
         // A branch always goes to a BranchTarget. We thus split the edge: we'll
         // insert a new Block, to which {source} will branch, and which will
@@ -1841,7 +1800,6 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
         // special to do.
         destination->AddPredecessor(source);
       }
-      SplitEdge(pred, destination);
       return;
     }
 

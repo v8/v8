@@ -392,6 +392,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   explicit Block(Kind kind) : kind_(kind) {}
 
+  uint32_t& custom_data() { return custom_data_; }
+  const uint32_t& custom_data() const { return custom_data_; }
+
  private:
   // AddPredecessor should never be called directly except from Assembler's
   // AddPredecessor and SplitEdge methods, which takes care of maintaining
@@ -415,6 +418,11 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
   const Block* origin_ = nullptr;
+  // The {custom_data_} field can be used by algorithms to temporarily store
+  // block-specific data. This field is not preserved when constructing a new
+  // output graph and algorithms cannot rely on this field being properly reset
+  // after previous uses.
+  uint32_t custom_data_ = 0;
 #ifdef DEBUG
   size_t graph_generation_ = 0;
 #endif
