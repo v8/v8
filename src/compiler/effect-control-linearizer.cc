@@ -979,21 +979,27 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerChangeFloat64ToTaggedPointer(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt32:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedSignedToInt32(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt64:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedSignedToInt64(node);
       break;
     case IrOpcode::kChangeTaggedToBit:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToBit(node);
       break;
     case IrOpcode::kChangeTaggedToInt32:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToInt32(node);
       break;
     case IrOpcode::kChangeTaggedToUint32:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToUint32(node);
       break;
     case IrOpcode::kChangeTaggedToInt64:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToInt64(node);
       break;
     case IrOpcode::kChangeTaggedToFloat64:
@@ -1774,16 +1780,19 @@ Node* EffectControlLinearizer::LowerChangeUint64ToTagged(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt32(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeSmiToInt32(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return ChangeSmiToInt64(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToBit(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return __ TaggedEqual(value, __ TrueConstant());
 }
@@ -1877,6 +1886,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedPointerToBit(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
@@ -1898,6 +1908,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
@@ -1919,6 +1930,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();

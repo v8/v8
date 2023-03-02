@@ -217,6 +217,7 @@ class TypeInferenceAnalysis {
         case Opcode::kTailCall:
         case Opcode::kObjectIs:
         case Opcode::kConvertToObject:
+        case Opcode::kConvertObjectToPrimitive:
         case Opcode::kTag:
         case Opcode::kUntag:
         case Opcode::kNewConsString:

@@ -114,6 +114,7 @@ class Graph;
   V(CheckTurboshaftTypeOf)           \
   V(ObjectIs)                        \
   V(ConvertToObject)                 \
+  V(ConvertObjectToPrimitive)        \
   V(Tag)                             \
   V(Untag)                           \
   V(NewConsString)                   \
@@ -2468,6 +2469,51 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   }
 };
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind);
+
+struct ConvertObjectToPrimitiveOp
+    : FixedArityOperationT<1, ConvertObjectToPrimitiveOp> {
+  enum class Kind : uint8_t {
+    kInt32,
+    kInt64,
+    kUint32,
+    kBit,
+  };
+  enum class InputAssumptions : uint8_t {
+    kObject,
+    kSmi,
+    kNumberOrOddball,
+  };
+  Kind kind;
+  InputAssumptions input_assumptions;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kInt32:
+      case Kind::kUint32:
+      case Kind::kBit:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case Kind::kInt64:
+        return RepVector<RegisterRepresentation::Word64()>();
+    }
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  ConvertObjectToPrimitiveOp(OpIndex input, Kind kind,
+                             InputAssumptions input_assumptions)
+      : Base(input), kind(kind), input_assumptions(input_assumptions) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind, input_assumptions}; }
+};
+std::ostream& operator<<(std::ostream& os,
+                         ConvertObjectToPrimitiveOp::Kind kind);
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions);
 
 enum class TagKind {
   kSmiTag,

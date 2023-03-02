@@ -767,6 +767,33 @@ std::ostream& operator<<(
   }
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         ConvertObjectToPrimitiveOp::Kind kind) {
+  switch (kind) {
+    case ConvertObjectToPrimitiveOp::Kind::kInt32:
+      return os << "Int32";
+    case ConvertObjectToPrimitiveOp::Kind::kInt64:
+      return os << "Int64";
+    case ConvertObjectToPrimitiveOp::Kind::kUint32:
+      return os << "Uint32";
+    case ConvertObjectToPrimitiveOp::Kind::kBit:
+      return os << "Bit";
+  }
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+  switch (input_assumptions) {
+    case ConvertObjectToPrimitiveOp::InputAssumptions::kObject:
+      return os << "Object";
+    case ConvertObjectToPrimitiveOp::InputAssumptions::kSmi:
+      return os << "Smi";
+    case ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
+      return os << "NumberOrOddball";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
   switch (kind) {
     case NewArrayOp::Kind::kDouble:

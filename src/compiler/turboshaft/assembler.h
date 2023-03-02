@@ -873,6 +873,16 @@ class AssemblerOpInterface {
                            minus_zero_mode);
   }
 
+  OpIndex ConvertObjectToPrimitive(
+      OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
+      ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvertObjectToPrimitive(object, kind,
+                                                  input_assumptions);
+  }
+
   OpIndex Word32Constant(uint32_t value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();

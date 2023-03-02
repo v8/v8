@@ -703,24 +703,26 @@ OpIndex GraphBuilder::Process(
       return input;
     }
 
-#define CHANGE_CASE(name, kind, input_rep, input_interpretation)         \
-  case IrOpcode::k##name:                                                \
-    return __ ConvertToObject(                                           \
-        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,         \
-        input_rep::Rep,                                                  \
-        ConvertToObjectOp::InputInterpretation::k##input_interpretation, \
+#define CONVERT_TO_OBJECT_CASE(name, kind, input_rep, input_interpretation) \
+  case IrOpcode::k##name:                                                   \
+    return __ ConvertToObject(                                              \
+        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,            \
+        input_rep::Rep,                                                     \
+        ConvertToObjectOp::InputInterpretation::k##input_interpretation,    \
         CheckForMinusZeroMode::kDontCheckForMinusZero);
-      CHANGE_CASE(ChangeInt32ToTagged, Number, Word32, Signed)
-      CHANGE_CASE(ChangeUint32ToTagged, Number, Word32, Unsigned)
-      CHANGE_CASE(ChangeInt64ToTagged, Number, Word64, Signed)
-      CHANGE_CASE(ChangeUint64ToTagged, Number, Word64, Unsigned)
-      CHANGE_CASE(ChangeFloat64ToTaggedPointer, HeapNumber, Float64, Signed)
-      CHANGE_CASE(ChangeInt64ToBigInt, BigInt, Word64, Signed)
-      CHANGE_CASE(ChangeUint64ToBigInt, BigInt, Word64, Unsigned)
-      CHANGE_CASE(ChangeInt31ToTaggedSigned, Smi, Word32, Signed)
-      CHANGE_CASE(ChangeBitToTagged, Boolean, Word32, Signed)
-      CHANGE_CASE(StringFromSingleCharCode, String, Word32, CharCode)
-      CHANGE_CASE(StringFromSingleCodePoint, String, Word32, CodePoint)
+      CONVERT_TO_OBJECT_CASE(ChangeInt32ToTagged, Number, Word32, Signed)
+      CONVERT_TO_OBJECT_CASE(ChangeUint32ToTagged, Number, Word32, Unsigned)
+      CONVERT_TO_OBJECT_CASE(ChangeInt64ToTagged, Number, Word64, Signed)
+      CONVERT_TO_OBJECT_CASE(ChangeUint64ToTagged, Number, Word64, Unsigned)
+      CONVERT_TO_OBJECT_CASE(ChangeFloat64ToTaggedPointer, HeapNumber, Float64,
+                             Signed)
+      CONVERT_TO_OBJECT_CASE(ChangeInt64ToBigInt, BigInt, Word64, Signed)
+      CONVERT_TO_OBJECT_CASE(ChangeUint64ToBigInt, BigInt, Word64, Unsigned)
+      CONVERT_TO_OBJECT_CASE(ChangeInt31ToTaggedSigned, Smi, Word32, Signed)
+      CONVERT_TO_OBJECT_CASE(ChangeBitToTagged, Boolean, Word32, Signed)
+      CONVERT_TO_OBJECT_CASE(StringFromSingleCharCode, String, Word32, CharCode)
+      CONVERT_TO_OBJECT_CASE(StringFromSingleCodePoint, String, Word32,
+                             CodePoint)
 
     case IrOpcode::kChangeFloat64ToTagged:
       return __ ConvertToObject(Map(node->InputAt(0)),
@@ -728,7 +730,23 @@ OpIndex GraphBuilder::Process(
                                 RegisterRepresentation::Float64(),
                                 ConvertToObjectOp::InputInterpretation::kSigned,
                                 CheckMinusZeroModeOf(node->op()));
-#undef CHANGE_CASE
+#undef CONVERT_TO_OBJECT_CASE
+
+#define CONVERT_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions)   \
+  case IrOpcode::k##name:                                                 \
+    return __ ConvertObjectToPrimitive(                                   \
+        Map(node->InputAt(0)), ConvertObjectToPrimitiveOp::Kind::k##kind, \
+        ConvertObjectToPrimitiveOp::InputAssumptions::k##input_assumptions);
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt32, Int32, Smi)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt64, Int64, Smi)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToBit, Bit, Object)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToInt32, Int32,
+                                       NumberOrOddball)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToUint32, Uint32,
+                                       NumberOrOddball)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToInt64, Int64,
+                                       NumberOrOddball)
+#undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
     case IrOpcode::kSelect: {
       OpIndex cond = Map(node->InputAt(0));

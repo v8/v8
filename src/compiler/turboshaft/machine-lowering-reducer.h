@@ -19,6 +19,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/utils/utils.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -534,6 +535,86 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
+  OpIndex ReduceConvertObjectToPrimitive(
+      OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
+      ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    switch (kind) {
+      case ConvertObjectToPrimitiveOp::Kind::kInt32:
+        if (input_assumptions ==
+            ConvertObjectToPrimitiveOp::InputAssumptions::kSmi) {
+          return __ SmiUntag(object);
+        } else {
+          DCHECK_EQ(
+              input_assumptions,
+              ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+          Label<Word32> done(this);
+
+          IF(__ ObjectIsSmi(object)) { GOTO(done, __ SmiUntag(object)); }
+          ELSE {
+            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                              Oddball::kToNumberRawOffset);
+            V<Float64> value =
+                LoadField<Float64>(object, AccessBuilder::ForHeapNumberValue());
+            GOTO(done, __ ReversibleFloat64ToInt32(value));
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        }
+        UNREACHABLE();
+      case ConvertObjectToPrimitiveOp::Kind::kInt64:
+        if (input_assumptions ==
+            ConvertObjectToPrimitiveOp::InputAssumptions::kSmi) {
+          return __ ChangeInt32ToInt64(__ SmiUntag(object));
+        } else {
+          DCHECK_EQ(
+              input_assumptions,
+              ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+          Label<Word64> done(this);
+
+          IF(__ ObjectIsSmi(object)) {
+            GOTO(done, __ ChangeInt32ToInt64(__ SmiUntag(object)));
+          }
+          ELSE {
+            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                              Oddball::kToNumberRawOffset);
+            V<Float64> value =
+                LoadField<Float64>(object, AccessBuilder::ForHeapNumberValue());
+            GOTO(done, __ ReversibleFloat64ToInt64(value));
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        }
+        UNREACHABLE();
+      case ConvertObjectToPrimitiveOp::Kind::kUint32: {
+        DCHECK_EQ(
+            input_assumptions,
+            ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+        Label<Word32> done(this);
+
+        IF(__ ObjectIsSmi(object)) { GOTO(done, __ SmiUntag(object)); }
+        ELSE {
+          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                            Oddball::kToNumberRawOffset);
+          V<Float64> value =
+              LoadField<Float64>(object, AccessBuilder::ForHeapNumberValue());
+          GOTO(done, __ ReversibleFloat64ToUint32(value));
+        }
+        END_IF
+
+        BIND(done, result);
+        return result;
+      }
+      case ConvertObjectToPrimitiveOp::Kind::kBit:
+        DCHECK_EQ(input_assumptions,
+                  ConvertObjectToPrimitiveOp::InputAssumptions::kObject);
+        return __ TaggedEqual(object, __ HeapConstant(factory_->true_value()));
+    }
+  }
+
   OpIndex ReduceNewConsString(OpIndex length, OpIndex first, OpIndex second) {
     // Determine the instance types of {first} and {second}.
     V<Tagged> first_map = LoadMapField(first);
@@ -777,6 +858,9 @@ class MachineLoweringReducer : public Next {
   // ECL: ChangeFloat64ToTagged(i, m) ==> MLR: __ ConvertFloat64ToNumber(i, m)
   // ECL: ChangeSmiToIntPtr(input)
   //   ==> MLR: __ ChangeInt32ToIntPtr(__ SmiUntag(input))
+  // ECL: ChangeSmiToInt32(input) ==> MLR: __ SmiUntag(input)
+  // ECL: ChangeSmiToInt64(input) ==> MLR: __ ChangeInt32ToInt64(__
+  // SmiUntag(input))
 
  private:
   // TODO(nicohartmann@): Might move some of those helpers into the assembler

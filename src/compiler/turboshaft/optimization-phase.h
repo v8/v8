@@ -676,6 +676,11 @@ class GraphVisitor {
         MapToNewGraph(op.input()), op.kind, op.input_rep,
         op.input_interpretation, op.minus_zero_mode);
   }
+  OpIndex AssembleOutputGraphConvertObjectToPrimitive(
+      const ConvertObjectToPrimitiveOp& op) {
+    return assembler().ReduceConvertObjectToPrimitive(
+        MapToNewGraph(op.input()), op.kind, op.input_assumptions);
+  }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(
         MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
