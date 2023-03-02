@@ -29,6 +29,8 @@
 namespace v8 {
 namespace internal {
 
+// The maximum size of the code range s.t. pc-relative calls are possible
+// between all Code objects in the range.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
 
 // Number of registers
@@ -39,10 +41,17 @@ const int kNumDoubleRegisters = 16;
 
 const int kNoRegister = -1;
 
-// Actual value of root register is offset from the root array's start
+// The actual value of the kRootRegister is offset from the IsolateData's start
 // to take advantage of negative displacement values.
-// TODO(sigurds): Choose best value.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr int kRootRegisterBias = 128;
+// Problems with #include order prevent this static_assert:
+// static_assert(kRootRegister != kPtrComprCageBaseRegister);
+#else
+constexpr int kRootRegisterBias = 0;
+// Problems with #include order prevent this static_assert:
+// static_assert(kRootRegister == kPtrComprCageBaseRegister);
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
