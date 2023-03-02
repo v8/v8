@@ -1031,8 +1031,8 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft,
                             "enable TurboFan's Turboshaft phases for JS")
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
-DEFINE_BOOL(turboshaft_wasm, false,
-            "enable TurboFan's Turboshaft phases for wasm")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
+                            "enable TurboFan's Turboshaft phases for wasm")
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
