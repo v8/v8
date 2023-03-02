@@ -237,7 +237,6 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(size_t prefix_hash) {
 void NativeModuleCache::StreamingCompilationFailed(size_t prefix_hash) {
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, {}};
-  DCHECK_EQ(1, map_.count(key));
   map_.erase(key);
   cache_cv_.NotifyAll();
 }
