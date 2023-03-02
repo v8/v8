@@ -3104,11 +3104,23 @@ class LiftoffCompiler {
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    DCHECK_GE(kMaxUInt32, offset);
-    __ LoadConstant(effective_offset, WasmValue(static_cast<uint32_t>(offset)));
-    if (index != no_reg) {
-      // TODO(clemensb): Do a 64-bit addition here if memory64 is used.
-      __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
+    bool is_memory64 = env_->module->is_memory64;
+    if (is_memory64 && !kNeedI64RegPair) {
+      __ LoadConstant(effective_offset,
+                      WasmValue(static_cast<uint64_t>(offset)));
+      if (index != no_reg) {
+        __ emit_i64_add(effective_offset, effective_offset,
+                        LiftoffRegister(index));
+      }
+    } else {
+      // The offset is actually a 32-bits number when 'kNeedI64RegPair'
+      // is true, so we just do 32-bits operations on it under memory64.
+      DCHECK_GE(kMaxUInt32, offset);
+      __ LoadConstant(effective_offset,
+                      WasmValue(static_cast<uint32_t>(offset)));
+      if (index != no_reg) {
+        __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
+      }
     }
 
     // Get a register to hold the stack slot for MemoryTracingInfo.
@@ -3121,7 +3133,7 @@ class LiftoffCompiler {
     LiftoffRegister data = effective_offset;
 
     // Now store all information into the MemoryTracingInfo struct.
-    if (kSystemPointerSize == 8) {
+    if (kSystemPointerSize == 8 && !is_memory64) {
       // Zero-extend the effective offset to u64.
       CHECK(__ emit_type_conversion(kExprI64UConvertI32, data, effective_offset,
                                     nullptr));

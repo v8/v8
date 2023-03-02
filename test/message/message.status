@@ -40,6 +40,7 @@
 # Skip Liftoff tests on platforms that don't support Liftoff.
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x', {
   'wasm-trace-memory-liftoff': [SKIP],
+  'wasm-trace-memory64-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
 
@@ -79,12 +80,15 @@
 ['arch == mips64el or arch == riscv64 or arch == loong64', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
+  'wasm-trace-memory64': [SKIP],
 }], # arch == mips64el or arch == riscv64 or arch == loong64
 
 ##############################################################################
 ['no_simd_hardware == True', {
   'wasm-trace-memory': [SKIP],
   'wasm-trace-memory-liftoff': [SKIP],
+  'wasm-trace-memory64': [SKIP],
+  'wasm-trace-memory64-liftoff': [SKIP],
 }],  # no_simd_hardware == True
 
 ################################################################################
@@ -105,4 +109,12 @@
 ['arch == riscv32', {
   'wasm-trace-turbofan':[SKIP],
 }],  # (arch == riscv32)
+
+##############################################################################
+# 32-bit platforms
+['arch in (ia32, arm, riscv32)', {
+  # Needs >4GB of available contiguous memory.
+  'wasm-trace-memory64': [SKIP],
+  'wasm-trace-memory64-liftoff': [SKIP],
+}],  # 'arch in (ia32, arm, riscv32)'
 ]

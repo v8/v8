@@ -196,6 +196,7 @@ let kSig_v_i = makeSig([kWasmI32], []);
 let kSig_v_ii = makeSig([kWasmI32, kWasmI32], []);
 let kSig_v_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], []);
 let kSig_v_l = makeSig([kWasmI64], []);
+let kSig_v_li = makeSig([kWasmI64, kWasmI32], []);
 let kSig_v_d = makeSig([kWasmF64], []);
 let kSig_v_dd = makeSig([kWasmF64, kWasmF64], []);
 let kSig_v_ddi = makeSig([kWasmF64, kWasmF64, kWasmI32], []);
