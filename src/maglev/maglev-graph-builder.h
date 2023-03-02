@@ -1075,6 +1075,11 @@ class MaglevGraphBuilder {
     return GetFloat64(current_interpreter_frame_.get(reg));
   }
 
+  ValueNode* GetRawAccumulator() {
+    return current_interpreter_frame_.get(
+        interpreter::Register::virtual_accumulator());
+  }
+
   ValueNode* GetAccumulatorTagged() {
     return GetTaggedValue(interpreter::Register::virtual_accumulator());
   }

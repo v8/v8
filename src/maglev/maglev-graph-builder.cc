@@ -896,8 +896,8 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
   if (IsOffsetAMergePoint(next_offset())) return false;
 
   interpreter::Bytecode next_bytecode = iterator_.next_bytecode();
-  int true_offset;
-  int false_offset;
+  int true_offset, false_offset;
+  int true_interrupt_correction, false_interrupt_correction;
   switch (next_bytecode) {
     case interpreter::Bytecode::kJumpIfFalse:
     case interpreter::Bytecode::kJumpIfFalseConstant:
@@ -910,7 +910,9 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       // emitting the test.
       iterator_.Advance();
       true_offset = next_offset();
+      true_interrupt_correction = 0;
       false_offset = iterator_.GetJumpTargetOffset();
+      false_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
       break;
     case interpreter::Bytecode::kJumpIfTrue:
     case interpreter::Bytecode::kJumpIfTrueConstant:
@@ -923,7 +925,9 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       // emitting the test.
       iterator_.Advance();
       true_offset = iterator_.GetJumpTargetOffset();
+      true_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
       false_offset = next_offset();
+      false_interrupt_correction = 0;
       break;
     default:
       return false;
@@ -931,18 +935,9 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
 
   BasicBlock* block = FinishBlock<BranchControlNodeT>(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
-      &jump_targets_[false_offset]);
-  if (true_offset == iterator_.GetJumpTargetOffset()) {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_true_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
-  } else {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_false_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
-  }
+      true_interrupt_correction, &jump_targets_[false_offset],
+      false_interrupt_correction);
+
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
   return true;
@@ -5389,26 +5384,24 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
     return;
   }
 
-  BasicBlockRef* true_target = jump_type == kJumpIfTrue
-                                   ? &jump_targets_[jump_offset]
-                                   : &jump_targets_[fallthrough_offset];
-  BasicBlockRef* false_target = jump_type == kJumpIfFalse
-                                    ? &jump_targets_[jump_offset]
-                                    : &jump_targets_[fallthrough_offset];
+  BasicBlockRef *true_target, *false_target;
+  int true_interrupt_correction, false_interrupt_correction;
+  if (jump_type == kJumpIfTrue) {
+    true_target = &jump_targets_[jump_offset];
+    true_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
+    false_target = &jump_targets_[fallthrough_offset];
+    false_interrupt_correction = 0;
+  } else {
+    true_target = &jump_targets_[fallthrough_offset];
+    true_interrupt_correction = 0;
+    false_target = &jump_targets_[jump_offset];
+    false_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
+  }
 
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
-      {node}, true_target, false_target, root_index);
-  if (jump_type == kJumpIfTrue) {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_true_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
-  } else {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_false_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
-  }
+      {node}, true_target, true_interrupt_correction, false_target,
+      false_interrupt_correction, root_index);
+
   MergeIntoFrameState(block, jump_offset);
   StartFallthroughBlock(fallthrough_offset, block);
 }
@@ -5442,34 +5435,80 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     return;
   }
 
-  BasicBlockRef* true_target = jump_type == kJumpIfTrue
-                                   ? &jump_targets_[jump_offset]
-                                   : &jump_targets_[fallthrough_offset];
-  BasicBlockRef* false_target = jump_type == kJumpIfFalse
-                                    ? &jump_targets_[jump_offset]
-                                    : &jump_targets_[fallthrough_offset];
-
-  BasicBlock* block =
-      FinishBlock<BranchIfToBooleanTrue>({node}, true_target, false_target);
+  BasicBlockRef *true_target, *false_target;
+  int true_interrupt_correction, false_interrupt_correction;
   if (jump_type == kJumpIfTrue) {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_true_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
+    true_target = &jump_targets_[jump_offset];
+    true_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
+    false_target = &jump_targets_[fallthrough_offset];
+    false_interrupt_correction = 0;
   } else {
-    block->control_node()
-        ->Cast<BranchControlNode>()
-        ->set_false_interrupt_correction(
-            iterator_.GetRelativeJumpTargetOffset());
+    true_target = &jump_targets_[fallthrough_offset];
+    true_interrupt_correction = 0;
+    false_target = &jump_targets_[jump_offset];
+    false_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
   }
+
+  auto make_specialized_branch_if_compare = [&](ValueRepresentation repr,
+                                                ValueNode* cond) {
+    // Note that this function (BuildBranchIfToBooleanTrue) generates either a
+    // BranchIfToBooleanTrue, or a BranchIfFloat64Compare/BranchIfInt32Compare
+    // comparing the {node} with 0. In the former case, the jump is taken if
+    // {node} is non-zero, while in the latter cases, the jump is taken if
+    // {node} is zero. The {true_target} and {false_target} are thus swapped
+    // when we generate a BranchIfFloat64Compare or a BranchIfInt32Compare
+    // below.
+    DCHECK_EQ(repr, cond->value_representation());
+    switch (repr) {
+      case ValueRepresentation::kFloat64:
+        return FinishBlock<BranchIfFloat64Compare>(
+            {cond, GetFloat64Constant(0)}, Operation::kEqual, false_target,
+            false_interrupt_correction, true_target, true_interrupt_correction);
+      case ValueRepresentation::kInt32:
+        return FinishBlock<BranchIfInt32Compare>(
+            {cond, GetInt32Constant(0)}, Operation::kEqual, false_target,
+            false_interrupt_correction, true_target, true_interrupt_correction);
+      default:
+        UNREACHABLE();
+    }
+  };
+
+  BasicBlock* block;
+  if (node->value_representation() == ValueRepresentation::kInt32) {
+    block =
+        make_specialized_branch_if_compare(ValueRepresentation::kInt32, node);
+  } else if (node->value_representation() == ValueRepresentation::kFloat64) {
+    block =
+        make_specialized_branch_if_compare(ValueRepresentation::kFloat64, node);
+  } else {
+    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(node);
+    if (ValueNode* as_int32 = node_info->int32_alternative) {
+      block = make_specialized_branch_if_compare(ValueRepresentation::kInt32,
+                                                 as_int32);
+    } else if (ValueNode* as_float64 = node_info->float64_alternative) {
+      block = make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
+                                                 as_float64);
+    } else {
+      DCHECK(node->value_representation() == ValueRepresentation::kTagged ||
+             node->value_representation() == ValueRepresentation::kUint32);
+      // Uint32 should be rare enough that tagging them shouldn't be too
+      // expensive (we don't have a `BranchIfUint32Compare` node, and adding one
+      // doesn't seem worth it at this point).
+      node = GetTaggedValue(node);
+      block = FinishBlock<BranchIfToBooleanTrue>(
+          {node}, true_target, true_interrupt_correction, false_target,
+          false_interrupt_correction);
+    }
+  }
+
   MergeIntoFrameState(block, jump_offset);
   StartFallthroughBlock(fallthrough_offset, block);
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
-  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(), kJumpIfTrue);
+  BuildBranchIfToBooleanTrue(GetRawAccumulator(), kJumpIfTrue);
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanFalse() {
-  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(), kJumpIfFalse);
+  BuildBranchIfToBooleanTrue(GetRawAccumulator(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfTrue() {
   BuildBranchIfTrue(GetAccumulatorTagged(), kJumpIfTrue);
@@ -5490,16 +5529,22 @@ void MaglevGraphBuilder::VisitJumpIfNotUndefined() {
   BuildBranchIfUndefined(GetAccumulatorTagged(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
+  int true_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
+  int false_interrupt_correction = 0;
   BasicBlock* block = FinishBlock<BranchIfUndefinedOrNull>(
       {GetAccumulatorTagged()}, &jump_targets_[iterator_.GetJumpTargetOffset()],
-      &jump_targets_[next_offset()]);
+      true_interrupt_correction, &jump_targets_[next_offset()],
+      false_interrupt_correction);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
 }
 void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
+  int true_interrupt_correction = iterator_.GetRelativeJumpTargetOffset();
+  int false_interrupt_correction = 0;
   BasicBlock* block = FinishBlock<BranchIfJSReceiver>(
       {GetAccumulatorTagged()}, &jump_targets_[iterator_.GetJumpTargetOffset()],
-      &jump_targets_[next_offset()]);
+      true_interrupt_correction, &jump_targets_[next_offset()],
+      false_interrupt_correction);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
 }
@@ -5769,10 +5814,13 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
 
   // We create an initial block that checks if the generator is undefined.
   ValueNode* maybe_generator = LoadRegisterTagged(0);
+  // Neither the true nor the false path jump over any bytecode
+  int true_interrupt_correction = 0, false_interrupt_correction = 0;
   BasicBlock* block_is_generator_undefined = FinishBlock<BranchIfRootConstant>(
       {maybe_generator}, &jump_targets_[next_offset()],
+      true_interrupt_correction,
       &jump_targets_[generator_prologue_block_offset],
-      RootIndex::kUndefinedValue);
+      false_interrupt_correction, RootIndex::kUndefinedValue);
   MergeIntoFrameState(block_is_generator_undefined, next_offset());
 
   // We create the generator prologue block.
