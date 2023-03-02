@@ -376,7 +376,9 @@ declare_args() {
   # when this is set to 'false', one can run V8 in jitless mode at runtime by
   # passing the `--jitless` flag; but then you miss out on compile-time
   # optimizations.
-  v8_jitless = v8_enable_lite_mode
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable jit.
+  v8_jitless = v8_enable_lite_mode || target_is_ios_device
 }
 
 # Derived defaults.

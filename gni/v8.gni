@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/gclient_args.gni")
+import("//build/config/ios/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
 import("release_branch_toggle.gni")
@@ -119,6 +120,11 @@ declare_args() {
 
   # TODO: macros for determining endian type are clang specific.
   v8_use_libm_trig_functions = is_clang
+
+  # iOS device does not support executable code pages. Not we
+  # use target_os == "ios" here because it isn't equivalent
+  # to is_ios (is_ios is based on host_os).
+  target_is_ios_device = target_os == "ios" && target_environment == "device"
 }
 
 if (v8_use_external_startup_data == "") {
@@ -137,16 +143,23 @@ if (build_with_chromium && use_perfetto_client_library) {
   v8_use_perfetto = true
 }
 
+# TODO(jgruber): Move v8_jitless from BUILD.gn here as these
+# all depend on each other and really should be derived from
+# v8_jitless.
 # WebAssembly is enabled by default, except in lite mode.
 if (v8_enable_webassembly == "") {
-  v8_enable_webassembly = !v8_enable_lite_mode
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable webassembly.
+  v8_enable_webassembly = !v8_enable_lite_mode && !target_is_ios_device
 }
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
 
 # Turbofan is enabled by default, except in lite mode.
 if (v8_enable_turbofan == "") {
-  v8_enable_turbofan = !v8_enable_lite_mode
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable turbofan.
+  v8_enable_turbofan = !v8_enable_lite_mode && !target_is_ios_device
 }
 assert(v8_enable_turbofan || !v8_enable_webassembly,
        "Webassembly is not available when Turbofan is disabled.")
