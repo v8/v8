@@ -24,8 +24,9 @@ namespace wasm {
 class WasmFeatures;
 struct WasmModule;
 
-std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
-bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const FunctionSig& function);
+V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
 
 // Format of all opcode macros: kExprName, binary, signature, wat name
 

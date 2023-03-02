@@ -20,40 +20,44 @@
 #endif
 
 int PrintHelp(char** argv) {
-  std::cerr << "Usage: Specify an action and a module in any order.\n"
-            << "The action can be any of:\n"
+  std::cerr
+      << "Usage: Specify an action and a module in any order.\n"
+      << "The action can be any of:\n"
 
-            << " --help\n"
-            << "     Print this help and exit.\n"
+      << " --help\n"
+      << "     Print this help and exit.\n"
 
-            << " --list-functions\n"
-            << "     List functions in the given module\n"
+      << " --list-functions\n"
+      << "     List functions in the given module\n"
 
-            << " --section-stats\n"
-            << "     Show information about sections in the given module\n"
+      << " --list-signatures\n"
+      << "     List signatures with their use counts in the given module\n"
 
-            << " --instruction-stats\n"
-            << "     Show information about instructions in the given module\n"
+      << " --section-stats\n"
+      << "     Show information about sections in the given module\n"
 
-            << " --single-wat FUNC_INDEX\n"
-            << "     Print function FUNC_INDEX in .wat format\n"
+      << " --instruction-stats\n"
+      << "     Show information about instructions in the given module\n"
 
-            << " --full-wat\n"
-            << "     Print full module in .wat format\n"
+      << " --single-wat FUNC_INDEX\n"
+      << "     Print function FUNC_INDEX in .wat format\n"
 
-            << " --single-hexdump FUNC_INDEX\n"
-            << "     Print function FUNC_INDEX in annotated hex format\n"
+      << " --full-wat\n"
+      << "     Print full module in .wat format\n"
 
-            << " --full-hexdump\n"
-            << "     Print full module in annotated hex format\n"
+      << " --single-hexdump FUNC_INDEX\n"
+      << "     Print function FUNC_INDEX in annotated hex format\n"
 
-            << " --strip\n"
-            << "     Dump the module, in binary format, without its Name"
-            << " section (requires using -o as well)\n"
+      << " --full-hexdump\n"
+      << "     Print full module in annotated hex format\n"
 
-            << "\n"
-            << " -o OUTFILE or --output OUTFILE\n"
-            << "     Send output to OUTFILE instead of <stdout>\n";
+      << " --strip\n"
+      << "     Dump the module, in binary format, without its Name"
+      << " section (requires using -o as well)\n"
+
+      << "\n"
+      << " -o OUTFILE or --output OUTFILE\n"
+      << "     Send output to OUTFILE instead of <stdout>\n";
   return 1;
 }
 
@@ -756,6 +760,54 @@ class FormatConverter {
     }
   }
 
+  static bool sig_uses_vector_comparison(std::pair<uint32_t, uint32_t> left,
+                                         std::pair<uint32_t, uint32_t> right) {
+    return left.second > right.second;
+  }
+
+  void SortAndPrintSigUses(std::map<uint32_t, uint32_t> uses,
+                           const WasmModule* module, const char* kind) {
+    std::vector<std::pair<uint32_t, uint32_t>> sig_uses_vector;
+    for (auto sig_use : uses) {
+      sig_uses_vector.push_back(sig_use);
+    }
+    std::sort(sig_uses_vector.begin(), sig_uses_vector.end(),
+              sig_uses_vector_comparison);
+
+    out_ << sig_uses_vector.size() << " different signatures get used by "
+         << kind << std::endl;
+    for (auto sig_use : sig_uses_vector) {
+      uint32_t sig_index = sig_use.first;
+      uint32_t uses = sig_use.second;
+
+      const FunctionSig* sig = module->signature(sig_index);
+
+      out_ << uses << " " << kind << " use the signature " << *sig << std::endl;
+    }
+  }
+
+  void ListSignatures() {
+    DCHECK_EQ(status_, kModuleReady);
+    const WasmModule* m = module();
+    uint32_t num_functions = static_cast<uint32_t>(m->functions.size());
+    std::map<uint32_t, uint32_t> sig_uses;
+    std::map<uint32_t, uint32_t> export_sig_uses;
+
+    for (uint32_t i = 0; i < num_functions; i++) {
+      const WasmFunction& f = m->functions[i];
+      sig_uses[f.sig_index]++;
+      if (f.exported) {
+        export_sig_uses[f.sig_index]++;
+      }
+    }
+
+    SortAndPrintSigUses(sig_uses, m, "functions");
+
+    out_ << std::endl;
+
+    SortAndPrintSigUses(export_sig_uses, m, "exported functions");
+  }
+
   void SectionStats() {
     DCHECK_EQ(status_, kModuleReady);
     Decoder decoder(raw_bytes());
@@ -1063,6 +1115,7 @@ enum class Action {
   kUnset,
   kHelp,
   kListFunctions,
+  kListSignatures,
   kSectionStats,
   kInstructionStats,
   kFullWat,
@@ -1099,6 +1152,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kHelp;
     } else if (strcmp(argv[i], "--list-functions") == 0) {
       options->action = Action::kListFunctions;
+    } else if (strcmp(argv[i], "--list-signatures") == 0) {
+      options->action = Action::kListSignatures;
     } else if (strcmp(argv[i], "--section-stats") == 0) {
       options->action = Action::kSectionStats;
     } else if (strcmp(argv[i], "--instruction-stats") == 0) {
@@ -1193,6 +1248,9 @@ int main(int argc, char** argv) {
   switch (options.action) {
     case Action::kListFunctions:
       fc.ListFunctions();
+      break;
+    case Action::kListSignatures:
+      fc.ListSignatures();
       break;
     case Action::kSectionStats:
       fc.SectionStats();
