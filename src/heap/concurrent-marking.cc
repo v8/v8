@@ -178,7 +178,7 @@ class ConcurrentMarkingVisitorUtility {
     const SlotSnapshot& snapshot =
         MakeSlotSnapshot<Visitor, T, TBodyDescriptor>(visitor, map, object,
                                                       size);
-    if (!visitor->ShouldVisitUnchecked(object)) return 0;
+    if (!visitor->ShouldVisit(object)) return 0;
     ConcurrentMarkingVisitorUtility::VisitPointersInSnapshot(visitor, object,
                                                              snapshot);
     ConcurrentMarkingVisitorUtility::VisitExternalPointersInSnapshot(
@@ -370,12 +370,9 @@ class YoungGenerationConcurrentMarkingVisitor final
 
   void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
+  // HeapVisitor override.
 
-  bool ShouldVisitUnchecked(HeapObject object) {
+  bool ShouldVisit(HeapObject object) {
     return marking_state_.GreyToBlack(object);
   }
 
@@ -496,12 +493,8 @@ class ConcurrentMarkingVisitor final
     return false;
   }
 
+  // HeapVisitor override.
   bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
-
-  bool ShouldVisitUnchecked(HeapObject object) {
     return marking_state_.GreyToBlack(object);
   }
 
