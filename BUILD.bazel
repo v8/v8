@@ -1548,6 +1548,7 @@ filegroup(
         "src/heap/new-spaces-inl.h",
         "src/heap/new-spaces.cc",
         "src/heap/new-spaces.h",
+        "src/heap/object-lock.h",
         "src/heap/object-stats.cc",
         "src/heap/object-stats.h",
         "src/heap/objects-visiting-inl.h",

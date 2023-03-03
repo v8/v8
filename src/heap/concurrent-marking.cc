@@ -23,6 +23,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/weak-object-worklists.h"
@@ -43,6 +44,12 @@
   V(ExternalString, ExternalString)         \
   V(ConsString, ConsString)                 \
   V(SlicedString, SlicedString)
+
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_TARGETS(V) \
+  UNSAFE_STRING_TRANSITION_SOURCES(V)       \
+  V(ShortcutCandidate, ConsString)          \
+  V(ThinString, ThinString)
 
 namespace v8 {
 namespace internal {
@@ -72,53 +79,6 @@ class ConcurrentMarkingState final
   MemoryChunkDataMap* memory_chunk_data_;
 };
 
-// Helper class for storing in-object slot addresses and values.
-class SlotSnapshot {
- public:
-  SlotSnapshot()
-      : number_of_object_slots_(0), number_of_external_pointer_slots_(0) {}
-  SlotSnapshot(const SlotSnapshot&) = delete;
-  SlotSnapshot& operator=(const SlotSnapshot&) = delete;
-  int number_of_object_slots() const { return number_of_object_slots_; }
-  int number_of_external_pointer_slots() const {
-    return number_of_external_pointer_slots_;
-  }
-  ObjectSlot object_slot(int i) const { return object_snapshot_[i].first; }
-  Object object_value(int i) const { return object_snapshot_[i].second; }
-  ExternalPointerSlot external_pointer_slot(int i) const {
-    return external_pointer_snapshot_[i].first;
-  }
-  ExternalPointerTag external_pointer_tag(int i) const {
-    return external_pointer_snapshot_[i].second;
-  }
-  void clear() {
-    number_of_object_slots_ = 0;
-    number_of_external_pointer_slots_ = 0;
-  }
-  void add(ObjectSlot slot, Object value) {
-    DCHECK_LT(number_of_object_slots_, kMaxObjectSlots);
-    object_snapshot_[number_of_object_slots_++] = {slot, value};
-  }
-  void add(ExternalPointerSlot slot, ExternalPointerTag tag) {
-    DCHECK_LT(number_of_external_pointer_slots_, kMaxExternalPointerSlots);
-    external_pointer_snapshot_[number_of_external_pointer_slots_++] = {slot,
-                                                                       tag};
-  }
-
- private:
-  // Maximum number of pointer slots of objects we use snapshotting for.
-  // ConsStrings can have 3 (Map + Left + Right) pointers.
-  static constexpr int kMaxObjectSlots = 3;
-  // Maximum number of external pointer slots of objects we use snapshotting
-  // for. ExternalStrings can have 2 (resource + cached data) external pointers.
-  static constexpr int kMaxExternalPointerSlots = 2;
-  int number_of_object_slots_;
-  int number_of_external_pointer_slots_;
-  std::pair<ObjectSlot, Object> object_snapshot_[kMaxObjectSlots];
-  std::pair<ExternalPointerSlot, ExternalPointerTag>
-      external_pointer_snapshot_[kMaxExternalPointerSlots];
-};
-
 class ConcurrentMarkingVisitorUtility {
  public:
   template <typename Visitor, typename T,
@@ -145,116 +105,33 @@ class ConcurrentMarkingVisitorUtility {
                                                               object);
   }
 
-  template <typename Visitor>
-  static void VisitPointersInSnapshot(Visitor* visitor, HeapObject host,
-                                      const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_object_slots(); i++) {
-      ObjectSlot slot = snapshot.object_slot(i);
-      Object object = snapshot.object_value(i);
-      DCHECK(!HasWeakHeapObjectTag(object));
-      if (!object.IsHeapObject()) continue;
-      HeapObject heap_object = HeapObject::cast(object);
-      visitor->SynchronizePageAccess(heap_object);
-      if (!visitor->ShouldMarkObject(heap_object)) continue;
-      visitor->MarkObject(host, heap_object);
-      visitor->RecordSlot(host, slot, heap_object);
-    }
-  }
-
-  template <typename Visitor>
-  static void VisitExternalPointersInSnapshot(Visitor* visitor, HeapObject host,
-                                              const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_external_pointer_slots(); i++) {
-      ExternalPointerSlot slot = snapshot.external_pointer_slot(i);
-      ExternalPointerTag tag = snapshot.external_pointer_tag(i);
-      visitor->VisitExternalPointer(host, slot, tag);
-    }
-  }
-
   template <typename Visitor, typename T>
-  static int VisitFullyWithSnapshot(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::BodyDescriptor;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot =
-        MakeSlotSnapshot<Visitor, T, TBodyDescriptor>(visitor, map, object,
-                                                      size);
-    if (!visitor->ShouldVisitUnchecked(object)) return 0;
-    ConcurrentMarkingVisitorUtility::VisitPointersInSnapshot(visitor, object,
-                                                             snapshot);
-    ConcurrentMarkingVisitorUtility::VisitExternalPointersInSnapshot(
-        visitor, object, snapshot);
+  static int VisitStringLocked(Visitor* visitor, T object) {
+    SharedObjectLockGuard guard(object);
+    CHECK(visitor->ShouldVisit(object));
+    if (visitor->ShouldVisitMapPointer()) {
+      visitor->VisitMapPointer(object);
+    }
+    // The object has been locked. At this point exclusive access is guaranteed
+    // but we must re-read the map and check whether the string has
+    // transitioned.
+    Map map = object.map();
+    int size;
+    switch (map.visitor_id()) {
+#define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorId, TypeName) \
+  case kVisit##VisitorId:                                         \
+    size = TypeName::BodyDescriptor::SizeOf(map, object);         \
+    TypeName::BodyDescriptor::IterateBody(                        \
+        map, TypeName::unchecked_cast(object), size, visitor);    \
+    break;
+
+      UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)
+#undef UNSAFE_STRING_TRANSITION_TARGET_CASE
+      default:
+        UNREACHABLE();
+    }
     return size;
   }
-
-  template <typename Visitor, typename T, typename TBodyDescriptor>
-  static const SlotSnapshot& MakeSlotSnapshot(Visitor* visitor, Map map,
-                                              T object, int size) {
-    SlotSnapshottingVisitor slot_snaphotting_visitor(visitor->slot_snapshot(),
-                                                     visitor->cage_base(),
-                                                     visitor->code_cage_base());
-    slot_snaphotting_visitor.VisitPointer(object, object.map_slot());
-    TBodyDescriptor::IterateBody(map, object, size, &slot_snaphotting_visitor);
-    return *(visitor->slot_snapshot());
-  }
-
-  // Helper class for collecting in-object slot addresses and values.
-  class SlotSnapshottingVisitor final : public ObjectVisitorWithCageBases {
-   public:
-    explicit SlotSnapshottingVisitor(SlotSnapshot* slot_snapshot,
-                                     PtrComprCageBase cage_base,
-                                     PtrComprCageBase code_cage_base)
-        : ObjectVisitorWithCageBases(cage_base, code_cage_base),
-          slot_snapshot_(slot_snapshot) {
-      slot_snapshot_->clear();
-    }
-
-    void VisitPointers(HeapObject host, ObjectSlot start,
-                       ObjectSlot end) override {
-      for (ObjectSlot p = start; p < end; ++p) {
-        Object object = p.Relaxed_Load(cage_base());
-        slot_snapshot_->add(p, object);
-      }
-    }
-
-    void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-      Object code = slot.Relaxed_Load(code_cage_base());
-      slot_snapshot_->add(ObjectSlot(slot.address()), code);
-    }
-
-    void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                       MaybeObjectSlot end) override {
-      // This should never happen, because we don't use snapshotting for objects
-      // which contain weak references.
-      UNREACHABLE();
-    }
-
-    void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
-                              ExternalPointerTag tag) override {
-      slot_snapshot_->add(slot, tag);
-    }
-
-    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-    void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
-                                 ObjectSlot end) override {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-   private:
-    SlotSnapshot* slot_snapshot_;
-  };
 };
 
 class YoungGenerationConcurrentMarkingVisitor final
@@ -350,13 +227,12 @@ class YoungGenerationConcurrentMarkingVisitor final
                                                                   object);
   }
 
-#define VISIT_WITH_SNAPSHOT(VisitorId, TypeName)                              \
-  int Visit##VisitorId(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map, \
-                                                                   object);   \
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  int Visit##TypeName(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
   }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_WITH_SNAPSHOT)
-#undef VISIT_WITH_SNAPSHOT
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
@@ -382,13 +258,10 @@ class YoungGenerationConcurrentMarkingVisitor final
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 
-  SlotSnapshot* slot_snapshot() { return &slot_snapshot_; }
-
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
   ConcurrentMarkingState marking_state_;
-  SlotSnapshot slot_snapshot_;
 };
 
 class ConcurrentMarkingVisitor final
@@ -461,13 +334,12 @@ class ConcurrentMarkingVisitor final
                                                                   object);
   }
 
-#define VISIT_WITH_SNAPSHOT(VisitorId, TypeName)                              \
-  int Visit##VisitorId(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map, \
-                                                                   object);   \
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  int Visit##TypeName(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
   }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_WITH_SNAPSHOT)
-#undef VISIT_WITH_SNAPSHOT
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
@@ -510,8 +382,6 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
 
-  SlotSnapshot* slot_snapshot() { return &slot_snapshot_; }
-
  private:
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitJSObjectSubclass(Map map, T object) {
@@ -542,7 +412,6 @@ class ConcurrentMarkingVisitor final
 
   ConcurrentMarkingState marking_state_;
   MemoryChunkDataMap* memory_chunk_data_;
-  SlotSnapshot slot_snapshot_;
 
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;

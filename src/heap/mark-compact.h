@@ -277,9 +277,6 @@ class CollectorBase {
   virtual std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process) = 0;
 
-  // Used by incremental marking for object that change their layout.
-  virtual void VisitObject(HeapObject obj) = 0;
-
   virtual void Finish() = 0;
 
   bool IsMajorMC();
@@ -434,8 +431,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   WeakObjects* weak_objects() { return &weak_objects_; }
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
-
-  void VisitObject(HeapObject obj) final;
 
   void AddNewlyDiscovered(HeapObject object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
@@ -700,8 +695,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
 
   void Finish() final;
-
-  void VisitObject(HeapObject obj) final;
 
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();

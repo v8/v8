@@ -903,6 +903,7 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
     }
   }
   set_map_word(value, order);
+  Heap::NotifyObjectLayoutChangeDone(*this);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     if (emit_write_barrier == EmitWriteBarrier::kYes) {

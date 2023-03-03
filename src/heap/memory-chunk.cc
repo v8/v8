@@ -5,6 +5,7 @@
 #include "src/heap/memory-chunk.h"
 
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
@@ -147,6 +148,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   page_protection_change_mutex_ = new base::Mutex();
   write_unprotect_counter_ = 0;
   mutex_ = new base::Mutex();
+  shared_mutex_ = new base::SharedMutex();
 
   external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
   external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] = 0;
@@ -240,6 +242,10 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;
+  }
+  if (shared_mutex_) {
+    delete shared_mutex_;
+    shared_mutex_ = nullptr;
   }
   if (page_protection_change_mutex_ != nullptr) {
     delete page_protection_change_mutex_;
@@ -493,6 +499,8 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
       MemoryChunkLayout::kInvalidatedSlotsOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->mutex_) - chunk->address(),
             MemoryChunkLayout::kMutexOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->shared_mutex_) - chunk->address(),
+            MemoryChunkLayout::kSharedMutexOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->concurrent_sweeping_) -
                 chunk->address(),
             MemoryChunkLayout::kConcurrentSweepingOffset);

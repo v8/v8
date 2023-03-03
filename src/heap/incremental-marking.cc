@@ -61,20 +61,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       marking_state_(heap->marking_state()),
       atomic_marking_state_(heap->atomic_marking_state()) {}
 
-void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
-    HeapObject obj) {
-  // TODO(v8:13012): Add scope for MinorMC.
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
-  marking_state()->WhiteToGrey(obj);
-  if (IsMajorMarking()) {
-    major_collector_->VisitObject(obj);
-  } else {
-    // Not covered by tests.
-    minor_collector_->VisitObject(obj);
-  }
-}
-
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
   MarkBit mark_bit = atomic_marking_state()->MarkBitFrom(obj);
   Marking::MarkBlack<AccessMode::ATOMIC>(mark_bit);

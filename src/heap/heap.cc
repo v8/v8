@@ -73,6 +73,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -3781,6 +3782,10 @@ void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
                           GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
 }
 
+namespace {
+thread_local Address pending_layout_change_object = kNullAddress;
+}  // namespace
+
 void Heap::NotifyObjectLayoutChange(
     HeapObject object, const DisallowGarbageCollection&,
     InvalidateRecordedSlots invalidate_recorded_slots, int new_size) {
@@ -3788,7 +3793,9 @@ void Heap::NotifyObjectLayoutChange(
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
 
     if (incremental_marking()->IsMarking()) {
-      incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
+      ExclusiveObjectLock::Lock(object);
+      DCHECK_EQ(pending_layout_change_object, kNullAddress);
+      pending_layout_change_object = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
         MemoryChunk::FromHeapObject(object)
             ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, new_size);
@@ -3807,6 +3814,15 @@ void Heap::NotifyObjectLayoutChange(
     HeapVerifier::SetPendingLayoutChangeObject(this, object);
   }
 #endif
+}
+
+// static
+void Heap::NotifyObjectLayoutChangeDone(HeapObject object) {
+  if (pending_layout_change_object != kNullAddress) {
+    DCHECK_EQ(pending_layout_change_object, object.address());
+    ExclusiveObjectLock::Unlock(object);
+    pending_layout_change_object = kNullAddress;
+  }
 }
 
 void Heap::NotifyObjectSizeChange(

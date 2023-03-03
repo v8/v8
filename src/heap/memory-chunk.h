@@ -85,7 +85,8 @@ class MemoryChunk : public BasicMemoryChunk {
 
   void DiscardUnusedMemory(Address addr, size_t size);
 
-  base::Mutex* mutex() { return mutex_; }
+  base::Mutex* mutex() const { return mutex_; }
+  base::SharedMutex* shared_mutex() const { return shared_mutex_; }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -261,6 +262,7 @@ class MemoryChunk : public BasicMemoryChunk {
   InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   base::Mutex* mutex_;
+  base::SharedMutex* shared_mutex_;
 
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_;
 

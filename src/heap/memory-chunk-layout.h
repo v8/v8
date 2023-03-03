@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
@@ -57,6 +58,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
     FIELD(void* [kNumSets], InvalidatedSlots),
     FIELD(base::Mutex*, Mutex),
+    FIELD(base::SharedMutex*, SharedMutex),
     FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
     FIELD(base::Mutex*, PageProtectionChangeMutex),
     FIELD(uintptr_t, WriteUnprotectCounter),
