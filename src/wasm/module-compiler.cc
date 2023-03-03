@@ -5,6 +5,7 @@
 #include "src/wasm/module-compiler.h"
 
 #include <algorithm>
+#include <memory>
 #include <queue>
 
 #include "src/api/api-inl.h"
@@ -2023,35 +2024,60 @@ struct ValidateFunctionsStreamingJobData {
     }
   };
 
-  void AddUnit(int func_index, base::Vector<const uint8_t> code) {
-    base::MutexGuard guard(&mutex);
-    if (found_error) return;
-    units.push_back({func_index, code});
+  void Initialize(int num_declared_functions) {
+    DCHECK_NULL(units);
+    if (num_declared_functions == 0) return;
+    // TODO(clemensb): Use {std::make_unique_for_overwrite} once we allow C++20.
+    units.reset(new Unit[num_declared_functions]);
+    // Initially {next == end}.
+    next_unit.store(units.get(), std::memory_order_relaxed);
+    end_of_units.store(units.get(), std::memory_order_relaxed);
   }
 
-  size_t NumUnits() const {
-    base::MutexGuard guard{&mutex};
-    DCHECK_IMPLIES(found_error, units.empty());
-    return units.size();
+  void AddUnit(int declared_func_index, base::Vector<const uint8_t> code) {
+    DCHECK_NOT_NULL(units);
+    // Write new unit to {*end}, then increment {end}. There is only one thread
+    // adding new units, so no further synchronization needed.
+    Unit* ptr = end_of_units.load(std::memory_order_relaxed);
+    // Check invariant: {next <= end}.
+    DCHECK_LE(next_unit.load(std::memory_order_relaxed), ptr);
+    *ptr = {declared_func_index, code};
+    // Use release semantics, so whoever loads this pointer (using acquire
+    // semantics) sees all our previous stores.
+    end_of_units.store(ptr + 1, std::memory_order_release);
   }
 
+  size_t NumOutstandingUnits() const {
+    Unit* next = next_unit.load(std::memory_order_relaxed);
+    Unit* end = end_of_units.load(std::memory_order_relaxed);
+    DCHECK_LE(next, end);
+    return end - next;
+  }
+
+  // Retrieve one unit to validate; returns an "invalid" unit if nothing is in
+  // the queue.
   Unit GetUnit() {
-    base::MutexGuard guard(&mutex);
-    if (units.empty()) return {};
-    Unit unit = units.back();
-    units.pop_back();
-    return unit;
+    // Use an acquire load to synchronize with the store in {AddUnit}. All units
+    // before this {end} are fully initialized and ready to execute.
+    Unit* end = end_of_units.load(std::memory_order_acquire);
+    Unit* next = next_unit.load(std::memory_order_relaxed);
+    while (next < end) {
+      if (next_unit.compare_exchange_weak(next, next + 1,
+                                          std::memory_order_relaxed)) {
+        return *next;
+      }
+      // Otherwise retry with updated {next} pointer.
+    }
+    return {};
   }
 
-  // TODO(clemensb): Use a more scalable data structure for work distribution.
-  mutable base::Mutex mutex;
-  std::vector<Unit> units;
-  bool found_error = false;
+  std::unique_ptr<Unit[]> units;
+  std::atomic<Unit*> next_unit;
+  std::atomic<Unit*> end_of_units;
+  std::atomic<bool> found_error{false};
 };
 
 class ValidateFunctionsStreamingJob final : public JobTask {
-  using Unit = ValidateFunctionsStreamingJobData::Unit;
-
  public:
   ValidateFunctionsStreamingJob(const WasmModule* module,
                                 WasmFeatures enabled_features,
@@ -2060,15 +2086,13 @@ class ValidateFunctionsStreamingJob final : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
+    using Unit = ValidateFunctionsStreamingJobData::Unit;
     while (Unit unit = data_->GetUnit()) {
       DecodeResult result = ValidateSingleFunction(
           module_, unit.func_index, unit.code, enabled_features_);
 
       if (result.failed()) {
-        WasmError new_error = std::move(result).error();
-        base::MutexGuard guard{&data_->mutex};
-        data_->found_error = true;
-        data_->units.clear();
+        data_->found_error.store(true, std::memory_order_relaxed);
         break;
       }
       // After validating one function, check if we should yield.
@@ -2077,7 +2101,7 @@ class ValidateFunctionsStreamingJob final : public JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return worker_count + data_->NumUnits();
+    return worker_count + data_->NumOutstandingUnits();
   }
 
  private:
@@ -2791,6 +2815,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
     // streaming decoder is held alive by the {AsyncCompileJob}, so we can just
     // use the {bytes} vector as long as the {AsyncCompileJob} is still running.
     if (!validate_functions_job_handle_) {
+      validate_functions_job_data_.Initialize(module->num_declared_functions);
       validate_functions_job_handle_ = V8::GetCurrentPlatform()->CreateJob(
           TaskPriority::kUserVisible,
           std::make_unique<ValidateFunctionsStreamingJob>(
