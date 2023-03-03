@@ -84,7 +84,6 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
-#include "src/heap/stress-marking-observer.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/init/bootstrapper.h"
@@ -5576,9 +5575,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (v8_flags.stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
-    stress_marking_observer_ = new StressMarkingObserver();
-    AddAllocationObserversToAllSpaces(stress_marking_observer_,
-                                      stress_marking_observer_);
   }
   if (IsStressingScavenge()) {
     stress_scavenge_observer_ = new StressScavengeObserver(this);
@@ -5838,12 +5834,6 @@ void Heap::TearDown() {
   }
   stress_concurrent_allocation_observer_.reset();
 
-  if (v8_flags.stress_marking > 0) {
-    RemoveAllocationObserversFromAllSpaces(stress_marking_observer_,
-                                           stress_marking_observer_);
-    delete stress_marking_observer_;
-    stress_marking_observer_ = nullptr;
-  }
   if (IsStressingScavenge()) {
     new_space()->RemoveAllocationObserver(stress_scavenge_observer_);
     delete stress_scavenge_observer_;

@@ -1581,8 +1581,6 @@ filegroup(
         "src/heap/spaces-inl.h",
         "src/heap/spaces.cc",
         "src/heap/spaces.h",
-        "src/heap/stress-marking-observer.cc",
-        "src/heap/stress-marking-observer.h",
         "src/heap/stress-scavenge-observer.cc",
         "src/heap/stress-scavenge-observer.h",
         "src/heap/sweeper.cc",
