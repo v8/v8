@@ -30,7 +30,7 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
     shell = os.path.abspath(
-      os.path.join(self.test_config.shell_dir, "unittests"))
+      os.path.join(self.test_config.shell_dir, "v8_unittests"))
     if utils.IsWindows():
       shell += ".exe"
 
@@ -88,7 +88,7 @@ class TestCase(testcase.TestCase):
     )
 
   def get_shell(self):
-    return self.suite.name
+    return 'v8_' + self.suite.name
 
   def get_android_resources(self):
     # Bytecode-generator tests are the only ones requiring extra files on
