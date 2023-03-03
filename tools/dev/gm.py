@@ -34,8 +34,10 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "bigint_shell", "cctest", "inspector-test",
-                      "unittests", "wasm_api_tests"]
+BUILD_TARGETS_TEST = [
+    "d8", "bigint_shell", "cctest", "inspector-test", "v8_unittests",
+    "wasm_api_tests"
+]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
@@ -60,7 +62,7 @@ MODES = {
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = [
-    "d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
+    "d8", "cctest", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
     "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
     "bigint_shell", "wami"
 ]
@@ -115,22 +117,24 @@ HELP = """<arch> can be any of: %(arches)s
     "targets": ", ".join(TARGETS)
 }
 
-TESTSUITES_TARGETS = {"benchmarks": "d8",
-              "bigint": "bigint_shell",
-              "cctest": "cctest",
-              "debugger": "d8",
-              "fuzzer": "v8_fuzzers",
-              "inspector": "inspector-test",
-              "intl": "d8",
-              "message": "d8",
-              "mjsunit": "d8",
-              "mozilla": "d8",
-              "test262": "d8",
-              "unittests": "unittests",
-              "wasm-api-tests": "wasm_api_tests",
-              "wasm-js": "d8",
-              "wasm-spec-tests": "d8",
-              "webkit": "d8"}
+TESTSUITES_TARGETS = {
+    "benchmarks": "d8",
+    "bigint": "bigint_shell",
+    "cctest": "cctest",
+    "debugger": "d8",
+    "fuzzer": "v8_fuzzers",
+    "inspector": "inspector-test",
+    "intl": "d8",
+    "message": "d8",
+    "mjsunit": "d8",
+    "mozilla": "d8",
+    "test262": "d8",
+    "unittests": "v8_unittests",
+    "wasm-api-tests": "wasm_api_tests",
+    "wasm-js": "d8",
+    "wasm-spec-tests": "d8",
+    "webkit": "d8"
+}
 
 OUTDIR = "out"
 
