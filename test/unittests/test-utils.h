@@ -38,7 +38,7 @@ class WithDefaultPlatformMixin : public TMixin {
     platform_ = v8::platform::NewDefaultPlatform(
         0, v8::platform::IdleTaskSupport::kEnabled);
     CHECK_NOT_NULL(platform_.get());
-    v8::V8::InitializePlatform(platform_.get());
+    i::V8::InitializePlatformForTesting(platform_.get());
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.

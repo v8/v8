@@ -44,6 +44,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
+#include "src/init/v8.h"
 #ifdef V8_ENABLE_TURBOFAN
 #include "src/compiler/pipeline.h"
 #endif  // V8_ENABLE_TURBOFAN
@@ -119,7 +120,7 @@ void CcTest::Run(const char* snapshot_directory) {
   } else {
     platform = std::move(underlying_default_platform);
   }
-  v8::V8::InitializePlatform(platform.get());
+  i::V8::InitializePlatformForTesting(platform.get());
   cppgc::InitializeProcess(platform->GetPageAllocator());
 
   // Allow changing flags in cctests.
