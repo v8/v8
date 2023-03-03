@@ -128,7 +128,8 @@ TEST_F(ObjectStartBitmapTest, AdjacentObjectsAtBegin) {
 }
 
 TEST_F(ObjectStartBitmapTest, AdjacentObjectsAtEnd) {
-  const size_t last_entry_index = ObjectStartBitmap::MaxEntries() - 1;
+  static constexpr size_t last_entry_index =
+      ObjectStartBitmap::MaxEntries() - 1;
   AllocateObject(last_entry_index);
   AllocateObject(last_entry_index - 1);
   EXPECT_FALSE(CheckObjectAllocated(last_entry_index - 2));
