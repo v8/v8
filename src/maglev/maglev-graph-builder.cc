@@ -10,6 +10,7 @@
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
@@ -3729,14 +3730,16 @@ template <typename CallNode, typename... Args>
 CallNode* MaglevGraphBuilder::AddNewCallNode(const CallArguments& args,
                                              Args&&... extra_args) {
   size_t input_count = args.count_with_receiver() + CallNode::kFixedInputCount;
-  CallNode* call =
-      CreateNewNode<CallNode>(input_count, std::forward<Args>(extra_args)...);
-  int arg_index = 0;
-  call->set_arg(arg_index++, GetTaggedOrUndefined(args.receiver()));
-  for (size_t i = 0; i < args.count(); ++i) {
-    call->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-  return AddNode(call);
+  return AddNewNode<CallNode>(
+      input_count,
+      [&](CallNode* call) {
+        int arg_index = 0;
+        call->set_arg(arg_index++, GetTaggedOrUndefined(args.receiver()));
+        for (size_t i = 0; i < args.count(); ++i) {
+          call->set_arg(arg_index++, GetTaggedValue(args[i]));
+        }
+      },
+      std::forward<Args>(extra_args)...);
 }
 
 ValueNode* MaglevGraphBuilder::BuildGenericCall(
@@ -3767,12 +3770,14 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(compiler::JSFunctionRef function,
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
   graph()->set_has_recursive_calls(true);
-  CallSelf* call =
-      CreateNewNode<CallSelf>(input_count, broker(), function, receiver);
-  for (int i = 0; i < static_cast<int>(args.count()); i++) {
-    call->set_arg(i, GetTaggedValue(args[i]));
-  }
-  return AddNode(call);
+  return AddNewNode<CallSelf>(
+      input_count,
+      [&](CallSelf* call) {
+        for (int i = 0; i < static_cast<int>(args.count()); i++) {
+          call->set_arg(i, GetTaggedValue(args[i]));
+        }
+      },
+      broker(), function, receiver);
 }
 
 bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
@@ -3804,12 +3809,14 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
-  CallKnownJSFunction* call = CreateNewNode<CallKnownJSFunction>(
-      input_count, broker(), function, receiver);
-  for (int i = 0; i < static_cast<int>(args.count()); i++) {
-    call->set_arg(i, GetTaggedValue(args[i]));
-  }
-  return AddNode(call);
+  return AddNewNode<CallKnownJSFunction>(
+      input_count,
+      [&](CallKnownJSFunction* call) {
+        for (int i = 0; i < static_cast<int>(args.count()); i++) {
+          call->set_arg(i, GetTaggedValue(args[i]));
+        }
+      },
+      broker(), function, receiver);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(
@@ -4039,13 +4046,15 @@ void MaglevGraphBuilder::VisitCallRuntime() {
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
   size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
-  CallRuntime* call_runtime =
-      CreateNewNode<CallRuntime>(input_count, function_id, context);
-  for (int i = 0; i < args.register_count(); ++i) {
-    call_runtime->set_arg(i, GetTaggedValue(args[i]));
-  }
-
-  SetAccumulator(AddNode(call_runtime));
+  CallRuntime* call_runtime = AddNewNode<CallRuntime>(
+      input_count,
+      [&](CallRuntime* call_runtime) {
+        for (int i = 0; i < args.register_count(); ++i) {
+          call_runtime->set_arg(i, GetTaggedValue(args[i]));
+        }
+      },
+      function_id, context);
+  SetAccumulator(call_runtime);
 }
 
 void MaglevGraphBuilder::VisitCallJSRuntime() {
@@ -4069,11 +4078,14 @@ void MaglevGraphBuilder::VisitCallRuntimeForPair() {
   ValueNode* context = GetContext();
 
   size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
-  CallRuntime* call_runtime =
-      AddNewNode<CallRuntime>(input_count, function_id, context);
-  for (int i = 0; i < args.register_count(); ++i) {
-    call_runtime->set_arg(i, GetTaggedValue(args[i]));
-  }
+  CallRuntime* call_runtime = AddNewNode<CallRuntime>(
+      input_count,
+      [&](CallRuntime* call_runtime) {
+        for (int i = 0; i < args.register_count(); ++i) {
+          call_runtime->set_arg(i, GetTaggedValue(args[i]));
+        }
+      },
+      function_id, context);
   auto result = iterator_.GetRegisterPairOperand(3);
   StoreRegisterPair(result, call_runtime);
 }
@@ -4109,16 +4121,18 @@ void MaglevGraphBuilder::
       GetSmiConstant(args.register_count() - 1);
   int kContext = 1;
   int kExcludedPropertyCount = 1;
-  CallBuiltin* call_builtin = CreateNewNode<CallBuiltin>(
+  CallBuiltin* call_builtin = AddNewNode<CallBuiltin>(
       args.register_count() + kContext + kExcludedPropertyCount,
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        call_builtin->set_arg(arg_index++, GetTaggedValue(args[0]));
+        call_builtin->set_arg(arg_index++, excluded_property_count);
+        for (int i = 1; i < args.register_count(); i++) {
+          call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
+        }
+      },
       Builtin::kCopyDataPropertiesWithExcludedProperties, GetContext());
-  int arg_index = 0;
-  call_builtin->set_arg(arg_index++, GetTaggedValue(args[0]));
-  call_builtin->set_arg(arg_index++, excluded_property_count);
-  for (int i = 1; i < args.register_count(); i++) {
-    call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-  SetAccumulator(AddNode(call_builtin));
+  SetAccumulator(call_builtin);
 }
 
 void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
@@ -4248,15 +4262,19 @@ void MaglevGraphBuilder::VisitConstruct() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
   size_t input_count = args.register_count() + 1 + Construct::kFixedInputCount;
-  Construct* construct = CreateNewNode<Construct>(
-      input_count, feedback_source, constructor, new_target, context);
-  int arg_index = 0;
-  // Add undefined receiver.
-  construct->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
-  for (int i = 0; i < args.register_count(); i++) {
-    construct->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-  SetAccumulator(AddNode(construct));
+  Construct* construct = AddNewNode<Construct>(
+      input_count,
+      [&](Construct* construct) {
+        int arg_index = 0;
+        // Add undefined receiver.
+        construct->set_arg(arg_index++,
+                           GetRootConstant(RootIndex::kUndefinedValue));
+        for (int i = 0; i < args.register_count(); i++) {
+          construct->set_arg(arg_index++, GetTaggedValue(args[i]));
+        }
+      },
+      feedback_source, constructor, new_target, context);
+  SetAccumulator(construct);
 }
 
 void MaglevGraphBuilder::VisitConstructWithSpread() {
@@ -4270,15 +4288,19 @@ void MaglevGraphBuilder::VisitConstructWithSpread() {
   int kReceiver = 1;
   size_t input_count =
       args.register_count() + kReceiver + ConstructWithSpread::kFixedInputCount;
-  ConstructWithSpread* construct = CreateNewNode<ConstructWithSpread>(
-      input_count, feedback_source, constructor, new_target, context);
-  int arg_index = 0;
-  // Add undefined receiver.
-  construct->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
-  for (int i = 0; i < args.register_count(); ++i) {
-    construct->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-  SetAccumulator(AddNode(construct));
+  ConstructWithSpread* construct = AddNewNode<ConstructWithSpread>(
+      input_count,
+      [&](ConstructWithSpread* construct) {
+        int arg_index = 0;
+        // Add undefined receiver.
+        construct->set_arg(arg_index++,
+                           GetRootConstant(RootIndex::kUndefinedValue));
+        for (int i = 0; i < args.register_count(); i++) {
+          construct->set_arg(arg_index++, GetTaggedValue(args[i]));
+        }
+      },
+      feedback_source, constructor, new_target, context);
+  SetAccumulator(construct);
 }
 
 void MaglevGraphBuilder::VisitTestEqual() {
@@ -5868,20 +5890,23 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
                     GeneratorStore::kFixedInputCount;
   int debug_pos_offset = iterator_.current_offset() +
                          (BytecodeArray::kHeaderSize - kHeapObjectTag);
-  GeneratorStore* node = CreateNewNode<GeneratorStore>(
-      input_count, context, generator, suspend_id, debug_pos_offset);
-  int arg_index = 0;
-  for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
-    node->set_parameters_and_registers(arg_index++, GetTaggedArgument(i));
-  }
-  const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
-  for (int i = 0; i < args.register_count(); ++i) {
-    ValueNode* value = liveness->RegisterIsLive(args[i].index())
-                           ? GetTaggedValue(args[i])
-                           : GetRootConstant(RootIndex::kOptimizedOut);
-    node->set_parameters_and_registers(arg_index++, value);
-  }
-  AddNode(node);
+  AddNewNode<GeneratorStore>(
+      input_count,
+      [&](GeneratorStore* node) {
+        int arg_index = 0;
+        for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
+          node->set_parameters_and_registers(arg_index++, GetTaggedArgument(i));
+        }
+        const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
+        for (int i = 0; i < args.register_count(); ++i) {
+          ValueNode* value = liveness->RegisterIsLive(args[i].index())
+                                 ? GetTaggedValue(args[i])
+                                 : GetRootConstant(RootIndex::kOptimizedOut);
+          node->set_parameters_and_registers(arg_index++, value);
+        }
+      },
+
+      context, generator, suspend_id, debug_pos_offset);
 
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (!is_toptier() && relative_jump_bytecode_offset > 0) {

@@ -14,7 +14,6 @@
 #include "src/base/optional.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
-#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/feedback-source.h"
@@ -207,9 +206,15 @@ class MaglevGraphBuilder {
       SetArgument(i, v);
     }
     BuildRegisterFrameInitialization();
-    AddNode(NodeBase::New<FunctionEntryStackCheck>(
-        zone(), GetDeoptFrameForEntryStackCheck(), compiler::FeedbackSource(),
-        std::initializer_list<ValueNode*>{}));
+
+    // Don't use the AddNewNode helper for the function entry stack check, so
+    // that we can set a custom deopt frame on it.
+    FunctionEntryStackCheck* function_entry_stack_check =
+        FunctionEntryStackCheck::New(zone(), {});
+    new (function_entry_stack_check->lazy_deopt_info()) LazyDeoptInfo(
+        zone(), GetDeoptFrameForEntryStackCheck(), compiler::FeedbackSource());
+    AddInitializedNodeToGraph(function_entry_stack_check);
+
     BuildMergeStates();
     EndPrologue();
     BuildBody();
@@ -240,7 +245,7 @@ class MaglevGraphBuilder {
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {
-      Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);
+      Int32Constant* node = CreateNewConstantNode<Int32Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->int32().emplace(constant, node);
       return node;
@@ -256,7 +261,8 @@ class MaglevGraphBuilder {
   Float64Constant* GetFloat64Constant(Float64 constant) {
     auto it = graph_->float64().find(constant.get_bits());
     if (it == graph_->float64().end()) {
-      Float64Constant* node = CreateNewNode<Float64Constant>(0, constant);
+      Float64Constant* node =
+          CreateNewConstantNode<Float64Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->float64().emplace(constant.get_bits(), node);
       return node;
@@ -562,11 +568,7 @@ class MaglevGraphBuilder {
   INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
-  template <typename NodeT>
-  NodeT* AddNode(NodeT* node) {
-    if (node->properties().has_any_side_effects()) {
-      MarkPossibleSideEffect();
-    }
+  void AddInitializedNodeToGraph(Node* node) {
     current_block_->nodes().Add(node);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     if (v8_flags.trace_maglev_graph_building) {
@@ -577,32 +579,80 @@ class MaglevGraphBuilder {
 #ifdef DEBUG
     new_nodes_.insert(node);
 #endif
+  }
+
+  // Add a new node with a dynamic set of inputs which are initialized by the
+  // `post_create_input_initializer` function before the node is added to the
+  // graph.
+  template <typename NodeT, typename Function, typename... Args>
+  NodeT* AddNewNode(size_t input_count,
+                    Function&& post_create_input_initializer, Args&&... args) {
+    NodeT* node =
+        NodeBase::New<NodeT>(zone(), input_count, std::forward<Args>(args)...);
+    post_create_input_initializer(node);
+    return AttachExtraInfoAndAddToGraph(node);
+  }
+
+  // Add a new node with a static set of inputs.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
+    NodeT* node =
+        NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
+    return AttachExtraInfoAndAddToGraph(node);
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* CreateNewConstantNode(Args&&... args) {
+    static_assert(IsConstantNode(Node::opcode_of<NodeT>));
+    NodeT* node = NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
+    static_assert(!NodeT::kProperties.can_eager_deopt());
+    static_assert(!NodeT::kProperties.can_lazy_deopt());
+    static_assert(!NodeT::kProperties.can_throw());
+    static_assert(!NodeT::kProperties.has_any_side_effects());
     return node;
   }
 
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(size_t input_count, Args&&... args) {
-    return AddNode(
-        CreateNewNode<NodeT>(input_count, std::forward<Args>(args)...));
+  template <typename NodeT>
+  NodeT* AttachExtraInfoAndAddToGraph(NodeT* node) {
+    AttachEagerDeoptInfo(node);
+    AttachLazyDeoptInfo(node);
+    AttachExceptionHandlerInfo(node);
+    if (NodeT::kProperties.has_any_side_effects()) {
+      MarkPossibleSideEffect();
+    }
+    AddInitializedNodeToGraph(node);
+    return node;
   }
 
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
-    return AddNode(CreateNewNode<NodeT>(inputs, std::forward<Args>(args)...));
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* CreateNewNodeHelper(Args&&... args) {
+  template <typename NodeT>
+  void AttachEagerDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return NodeBase::New<NodeT>(zone(), GetLatestCheckpointedFrame(),
-                                  current_speculation_feedback_,
-                                  std::forward<Args>(args)...);
-    } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      return NodeBase::New<NodeT>(zone(), GetDeoptFrameForLazyDeopt(),
-                                  current_speculation_feedback_,
-                                  std::forward<Args>(args)...);
-    } else {
-      return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
+      new (node->eager_deopt_info()) EagerDeoptInfo(
+          zone(), GetLatestCheckpointedFrame(), current_speculation_feedback_);
+    }
+  }
+
+  template <typename NodeT>
+  void AttachLazyDeoptInfo(NodeT* node) {
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      new (node->lazy_deopt_info()) LazyDeoptInfo(
+          zone(), GetDeoptFrameForLazyDeopt(), current_speculation_feedback_);
+    }
+  }
+
+  template <typename NodeT>
+  void AttachExceptionHandlerInfo(NodeT* node) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      BasicBlockRef* catch_block_ref = GetCurrentTryCatchBlockOffset();
+      if (catch_block_ref) {
+        new (node->exception_handler_info())
+            ExceptionHandlerInfo(catch_block_ref);
+      } else {
+        // Patch no exception handler marker.
+        // TODO(victorgomes): Avoid allocating exception handler data in this
+        // case.
+        new (node->exception_handler_info()) ExceptionHandlerInfo();
+      }
     }
   }
 
@@ -619,24 +669,6 @@ class MaglevGraphBuilder {
     return nullptr;
   }
 
-  template <typename NodeT, typename... Args>
-  NodeT* CreateNewNode(Args&&... args) {
-    NodeT* node = CreateNewNodeHelper<NodeT>(std::forward<Args>(args)...);
-    if constexpr (NodeT::kProperties.can_throw()) {
-      BasicBlockRef* catch_block_ref = GetCurrentTryCatchBlockOffset();
-      if (catch_block_ref) {
-        new (node->exception_handler_info())
-            ExceptionHandlerInfo(catch_block_ref);
-      } else {
-        // Patch no exception handler marker.
-        // TODO(victorgomes): Avoid allocating exception handler data in this
-        // case.
-        new (node->exception_handler_info()) ExceptionHandlerInfo();
-      }
-    }
-    return node;
-  }
-
   enum ContextSlotMutability { kImmutable, kMutable };
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode** context, size_t* depth, int slot_index,
@@ -649,18 +681,19 @@ class MaglevGraphBuilder {
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
     using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
-    CallBuiltin* call_builtin;
     if constexpr (Descriptor::HasContextParameter()) {
-      call_builtin =
-          CreateNewNode<CallBuiltin>(inputs.size() + 1, kBuiltin, GetContext());
+      return AddNewNode<CallBuiltin>(
+          inputs.size() + 1,
+          [&](CallBuiltin* call_builtin) {
+            int arg_index = 0;
+            for (auto* input : inputs) {
+              call_builtin->set_arg(arg_index++, input);
+            }
+          },
+          kBuiltin, GetContext());
     } else {
-      call_builtin = CreateNewNode<CallBuiltin>(inputs.size(), kBuiltin);
+      return AddNewNode<CallBuiltin>(inputs, kBuiltin);
     }
-    int arg_index = 0;
-    for (auto* input : inputs) {
-      call_builtin->set_arg(arg_index++, input);
-    }
-    return AddNode(call_builtin);
   }
 
   template <Builtin kBuiltin>
@@ -689,14 +722,15 @@ class MaglevGraphBuilder {
 
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
-    CallRuntime* call_runtime = CreateNewNode<CallRuntime>(
-        inputs.size() + CallRuntime::kFixedInputCount, function_id,
-        GetContext());
-    int arg_index = 0;
-    for (auto* input : inputs) {
-      call_runtime->set_arg(arg_index++, input);
-    }
-    return AddNode(call_runtime);
+    return AddNewNode<CallRuntime>(
+        inputs.size() + CallRuntime::kFixedInputCount,
+        [&](CallRuntime* call_runtime) {
+          int arg_index = 0;
+          for (auto* input : inputs) {
+            call_runtime->set_arg(arg_index++, input);
+          }
+        },
+        function_id, GetContext());
   }
 
   void BuildAbort(AbortReason reason) {
@@ -766,7 +800,8 @@ class MaglevGraphBuilder {
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->smi().find(constant);
     if (it == graph_->smi().end()) {
-      SmiConstant* node = CreateNewNode<SmiConstant>(0, Smi::FromInt(constant));
+      SmiConstant* node =
+          CreateNewConstantNode<SmiConstant>(0, Smi::FromInt(constant));
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->smi().emplace(constant, node);
       return node;
@@ -777,7 +812,8 @@ class MaglevGraphBuilder {
   ExternalConstant* GetExternalConstant(ExternalReference reference) {
     auto it = graph_->external_references().find(reference.address());
     if (it == graph_->external_references().end()) {
-      ExternalConstant* node = CreateNewNode<ExternalConstant>(0, reference);
+      ExternalConstant* node =
+          CreateNewConstantNode<ExternalConstant>(0, reference);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->external_references().emplace(reference.address(), node);
       return node;
@@ -788,7 +824,7 @@ class MaglevGraphBuilder {
   RootConstant* GetRootConstant(RootIndex index) {
     auto it = graph_->root().find(index);
     if (it == graph_->root().end()) {
-      RootConstant* node = CreateNewNode<RootConstant>(0, index);
+      RootConstant* node = CreateNewConstantNode<RootConstant>(0, index);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->root().emplace(index, node);
       return node;
@@ -812,7 +848,7 @@ class MaglevGraphBuilder {
 
     auto it = graph_->constants().find(constant);
     if (it == graph_->constants().end()) {
-      Constant* node = CreateNewNode<Constant>(0, constant);
+      Constant* node = CreateNewConstantNode<Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->constants().emplace(constant, node);
       return node;
@@ -1289,8 +1325,12 @@ class MaglevGraphBuilder {
   template <typename ControlNodeT, typename... Args>
   BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
-    ControlNode* control_node = CreateNewNode<ControlNodeT>(
-        control_inputs, std::forward<Args>(args)...);
+    ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
+        zone(), control_inputs, std::forward<Args>(args)...);
+    AttachEagerDeoptInfo(control_node);
+    static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
+    static_assert(!ControlNodeT::kProperties.can_throw());
+    static_assert(!ControlNodeT::kProperties.has_any_side_effects());
     current_block_->set_control_node(control_node);
 
     BasicBlock* block = current_block_;

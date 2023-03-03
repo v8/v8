@@ -998,7 +998,7 @@ struct RegisterSnapshot {
 
 class EagerDeoptInfo : public DeoptInfo {
  public:
-  EagerDeoptInfo(Zone* zone, DeoptFrame&& top_frame,
+  EagerDeoptInfo(Zone* zone, DeoptFrame top_frame,
                  compiler::FeedbackSource feedback_to_update)
       : DeoptInfo(zone, std::move(top_frame), feedback_to_update) {}
 
@@ -1147,22 +1147,6 @@ class NodeBase : public ZoneObject {
       node->set_input(i++, input);
     }
 
-    return node;
-  }
-
-  template <class Derived, typename... Args>
-  static Derived* New(Zone* zone, DeoptFrame&& deopt_frame,
-                      compiler::FeedbackSource feedback_to_update,
-                      Args&&... args) {
-    Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
-    if constexpr (Derived::kProperties.can_eager_deopt()) {
-      new (node->eager_deopt_info())
-          EagerDeoptInfo(zone, std::move(deopt_frame), feedback_to_update);
-    } else {
-      static_assert(Derived::kProperties.can_lazy_deopt());
-      new (node->lazy_deopt_info())
-          LazyDeoptInfo(zone, std::move(deopt_frame), feedback_to_update);
-    }
     return node;
   }
 
@@ -1769,6 +1753,16 @@ class NodeTMixin : public Base {
   constexpr Opcode opcode() const { return NodeBase::opcode_of<Derived>; }
   constexpr const OpProperties& properties() const {
     return Derived::kProperties;
+  }
+
+  template <typename... Args>
+  static Derived* New(Zone* zone, std::initializer_list<ValueNode*> inputs,
+                      Args&&... args) {
+    return NodeBase::New<Derived>(zone, inputs, std::forward<Args>...);
+  }
+  template <typename... Args>
+  static Derived* New(Zone* zone, size_t input_count, Args&&... args) {
+    return NodeBase::New<Derived>(zone, input_count, std::forward<Args>...);
   }
 
  protected:
