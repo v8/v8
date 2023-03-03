@@ -71,6 +71,11 @@ Handle<WasmModuleObject> CompileReferenceModule(
                                       .set_for_debugging(kForDebugging)
                                       .set_max_steps(max_steps)
                                       .set_nondeterminism(nondeterminism));
+    if (!result.succeeded()) {
+      FATAL(
+          "Liftoff compilation failed on a valid module. Run with "
+          "--trace-wasm-decoder (in a debug build) to see why.");
+    }
     native_module->PublishCode(
         native_module->AddCompiledCode(std::move(result)));
   }
