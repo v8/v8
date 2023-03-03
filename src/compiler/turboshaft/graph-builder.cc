@@ -296,6 +296,9 @@ OpIndex GraphBuilder::Process(
     const base::SmallVector<int, 16>& predecessor_permutation,
     OpIndex& dominating_frame_state, base::Optional<BailoutReason>* bailout,
     bool is_final_control) {
+  if (Asm().current_block() == nullptr) {
+    return OpIndex::Invalid();
+  }
   __ SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
@@ -994,12 +997,7 @@ OpIndex GraphBuilder::Process(
       __ Return(Map(pop_count), base::VectorOf(return_values));
       return OpIndex::Invalid();
     }
-
     case IrOpcode::kUnreachable:
-      for (Node* use : node->uses()) {
-        CHECK_EQ(use->opcode(), IrOpcode::kThrow);
-      }
-      return OpIndex::Invalid();
     case IrOpcode::kThrow:
       __ Unreachable();
       return OpIndex::Invalid();
