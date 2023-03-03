@@ -4816,75 +4816,30 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   template <typename TSlot>
-  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(TSlot slot) {
+  inline void CheckAndUpdateOldToNewSlot(TSlot slot) {
     static_assert(
         std::is_same<TSlot, FullMaybeObjectSlot>::value ||
             std::is_same<TSlot, MaybeObjectSlot>::value,
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
     HeapObject heap_object;
-    if (!(*slot).GetHeapObject(&heap_object)) {
-      return REMOVE_SLOT;
-    }
-    if (!Heap::InYoungGeneration(heap_object)) return REMOVE_SLOT;
-    return CheckAndUpdateOldToNewSlot(slot, heap_object);
-  }
+    if (!(*slot).GetHeapObject(&heap_object)) return;
+    if (!Heap::InYoungGeneration(heap_object)) return;
 
-  template <typename TSlot>
-  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(TSlot slot,
-                                                       HeapObject heap_object) {
-    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
-    if (Heap::InFromPage(heap_object)) {
-      if (v8_flags.minor_mc) {
-        DCHECK(!heap_object.map_word(kRelaxedLoad).IsForwardingAddress());
-        DCHECK(Page::FromHeapObject(heap_object)->IsLargePage());
-        DCHECK(!marking_state_->IsBlack(heap_object));
-        return REMOVE_SLOT;
-      }
-      MapWord map_word = heap_object.map_word(kRelaxedLoad);
-      if (map_word.IsForwardingAddress()) {
-        HeapObjectReference::Update(THeapObjectSlot(slot),
-                                    map_word.ToForwardingAddress(heap_object));
-      }
-      bool success = (*slot).GetHeapObject(&heap_object);
-      USE(success);
-      DCHECK(success);
-      // If the object was in from space before and is after executing the
-      // callback in to space, the object is still live.
-      // Unfortunately, we do not know about the slot. It could be in a
-      // just freed free space object.
-      if (Heap::InToPage(heap_object)) {
-        return KEEP_SLOT;
-      }
-      return REMOVE_SLOT;
-    } else {
+    if (v8_flags.minor_mc && !Heap::IsLargeObject(heap_object)) {
       DCHECK(Heap::InToPage(heap_object));
-      // Slots can point to "to" space if the page has been moved, or if the
-      // slot has been recorded multiple times in the remembered set, or
-      // if the slot was already updated during old->old updating.
-      // In case the page has been moved, check markbits to determine liveness
-      // of the slot. In the other case, the slot can just be kept.
-      if (v8_flags.minor_mc) {
-        MapWord map_word = heap_object.map_word(kRelaxedLoad);
-        if (map_word.IsForwardingAddress()) {
-          HeapObjectReference::Update(
-              THeapObjectSlot(slot), map_word.ToForwardingAddress(heap_object));
-          bool success = (*slot).GetHeapObject(&heap_object);
-          USE(success);
-          DCHECK(success);
-        } else if (marking_state_->IsBlack(heap_object)) {
-          return KEEP_SLOT;
-        }
-        return REMOVE_SLOT;
-      }
-      if (Page::FromHeapObject(heap_object)
-              ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
-        if (marking_state_->IsBlack(heap_object)) {
-          return KEEP_SLOT;
-        } else {
-          return REMOVE_SLOT;
-        }
-      }
-      return KEEP_SLOT;
+    } else {
+      DCHECK(Heap::InFromPage(heap_object));
+    }
+
+    MapWord map_word = heap_object.map_word(kRelaxedLoad);
+    if (map_word.IsForwardingAddress()) {
+      using THeapObjectSlot = typename TSlot::THeapObjectSlot;
+      HeapObjectReference::Update(THeapObjectSlot(slot),
+                                  map_word.ToForwardingAddress(heap_object));
+    } else {
+      // OLD_TO_NEW slots are recorded in dead memory, so they might point to
+      // dead objects.
+      DCHECK(!marking_state_->IsBlack(heap_object));
     }
   }
 
@@ -4906,28 +4861,28 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                                   : InvalidatedSlotsFilter::LivenessCheck::kNo;
       InvalidatedSlotsFilter filter =
           InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
-      int slots = RememberedSet<OLD_TO_NEW>::Iterate(
+      RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
           [this, &filter, cage_base](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-            SlotCallbackResult result = CheckAndUpdateOldToNewSlot(slot);
+            CheckAndUpdateOldToNewSlot(slot);
             // A new space string might have been promoted into the shared heap
             // during GC.
             if (record_old_to_shared_slots_) {
               CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
             }
-            return result;
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
           },
-          SlotSet::FREE_EMPTY_BUCKETS);
-
-      if (slots == 0) {
-        chunk_->ReleaseSlotSet<OLD_TO_NEW>();
-      }
+          SlotSet::KEEP_EMPTY_BUCKETS);
     }
 
     // The invalidated slots are not needed after old-to-new slots were
     // processed.
     chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+    // Full GCs will empty new space, so OLD_TO_NEW is empty.
+    chunk_->ReleaseSlotSet<OLD_TO_NEW>();
   }
 
   void UpdateUntypedOldToOldPointers() {
@@ -5018,20 +4973,25 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     const auto check_and_update_old_to_new_slot_fn =
         [this](FullMaybeObjectSlot slot) {
-          return CheckAndUpdateOldToNewSlot(slot);
+          CheckAndUpdateOldToNewSlot(slot);
+          return KEEP_SLOT;
         };
     RememberedSet<OLD_TO_NEW>::IterateTyped(
         chunk_, [this, &check_and_update_old_to_new_slot_fn](SlotType slot_type,
                                                              Address slot) {
-          SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
+          UpdateTypedSlotHelper::UpdateTypedSlot(
               heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (record_old_to_shared_slots_) {
             CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
           }
-          return result;
+          // Always keep slot since all slots are dropped at once after
+          // iteration.
+          return KEEP_SLOT;
         });
+    // Full GCs will empty new space, so OLD_TO_NEW is empty.
+    chunk_->ReleaseTypedSlotSet<OLD_TO_NEW>();
   }
 
   void UpdateTypedOldToOldPointers() {
