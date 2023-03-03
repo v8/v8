@@ -4514,13 +4514,15 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         .slot(RootIndex::kActiveContinuation)
         .store(*continuation);
   }
-  if (!create_heap_objects && V8_STATIC_ROOTS_BOOL) {
+#if V8_STATIC_ROOTS_BOOL
+  if (!create_heap_objects) {
     // Protect the payload of wasm null.
     page_allocator()->DecommitPages(
         reinterpret_cast<void*>(factory()->wasm_null()->payload()),
         WasmNull::kSize - kTaggedSize);
   }
-#endif
+#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   heap()->AddGCPrologueCallback(ResetBeforeGC, kGCTypeMarkSweepCompact,
                                 nullptr);

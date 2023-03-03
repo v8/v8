@@ -1063,24 +1063,28 @@ bool Heap::CreateReadOnlyObjects() {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Allocate the wasm-null object. It is a regular V8 heap object contained in
-  // a V8 page. It is large enough so that its payload (other than its map word)
-  // can be mprotected on OS page granularity.
-  // We adjust the layout such that we have a filler object in the current OS
-  // page, and the wasm-null map word at the end of the current OS page. The
-  // payload then is contained on a separate OS page which can be protected.
+  // a V8 page.
+  // In static-roots builds, it is large enough so that its payload (other than
+  // its map word) can be mprotected on OS page granularity. We adjust the
+  // layout such that we have a filler object in the current OS page, and the
+  // wasm-null map word at the end of the current OS page. The payload then is
+  // contained on a separate OS page which can be protected.
+  // In non-static-roots builds, it is a regular object of size {kTaggedSize}
+  // and does not need padding.
 
-  // Ensure all of the following lands on the same V8 page.
-  constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
-  read_only_space_->EnsureSpaceForAllocation(
-      kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
-  Address next_page =
-      RoundUp(read_only_space_->top(), kLargestPossibleOSPageSize);
-  CHECK_EQ(kOffsetAfterMapWord % kObjectAlignment, 0);
 
-  // Add some filler to end up right before an OS page boundary.
-  {
+  if (V8_STATIC_ROOTS_BOOL) {
+    // Ensure all of the following lands on the same V8 page.
+    constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
+    read_only_space_->EnsureSpaceForAllocation(
+        kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
+    Address next_page =
+        RoundUp(read_only_space_->top(), kLargestPossibleOSPageSize);
+    CHECK_EQ(kOffsetAfterMapWord % kObjectAlignment, 0);
+
+    // Add some filler to end up right before an OS page boundary.
     int filler_size = static_cast<int>(next_page - read_only_space_->top() -
                                        kOffsetAfterMapWord);
     HeapObject filler =
@@ -1101,8 +1105,9 @@ bool Heap::CreateReadOnlyObjects() {
         reinterpret_cast<uint32_t*>(obj.ptr() - kHeapObjectTag + kTaggedSize),
         0, (WasmNull::kSize - kTaggedSize) / sizeof(uint32_t));
     set_wasm_null(WasmNull::cast(obj));
-
-    CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
+    if (V8_STATIC_ROOTS_BOOL) {
+      CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
+    }
   }
 #endif
 

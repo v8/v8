@@ -1062,6 +1062,7 @@ class WasmSuspenderObject
 
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
+#if V8_STATIC_ROOTS_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
   static constexpr int kSize = 64 * KB + kTaggedSize;
   // Payload should be a multiple of page size.
@@ -1071,7 +1072,9 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
                              wasm::kV8MaxWasmStructFields * kSimd128Size);
 
   Address payload() { return ptr() + kHeaderSize - kHeapObjectTag; }
-
+#else
+  static constexpr int kSize = kTaggedSize;
+#endif
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmNull)
