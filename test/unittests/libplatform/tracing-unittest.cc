@@ -598,7 +598,12 @@ class TestListener : public TraceEventListener {
         if (!first_annotation) {
           slice += ",";
         }
-        slice += debug_annotation_names_[it.name_iid()] + "=";
+        if (!it.name().empty()) {
+          slice += it.name();
+        } else {
+          slice += debug_annotation_names_[it.name_iid()];
+        }
+        slice += "=";
         std::stringstream value;
         if (it.has_bool_value()) {
           value << "(bool)" << it.bool_value();
