@@ -815,7 +815,7 @@ class MachineLoweringReducer : public Next {
             __ Load(properties, out_of_object_index,
                     LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
                     MemoryRepresentation::AnyTagged(),
-                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2 - 1);
+                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2);
         GOTO(loaded_field, result);
       }
       ELSE {

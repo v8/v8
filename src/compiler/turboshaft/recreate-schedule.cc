@@ -1361,6 +1361,10 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
   return nullptr;
 }
 
+Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
+  return AddNode(machine.DebugBreak(), {});
+}
+
 }  // namespace
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,

@@ -1563,6 +1563,13 @@ class AssemblerOpInterface {
     return stack().ReduceLoadFieldByIndex(object, index);
   }
 
+  void DebugBreak() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceDebugBreak();
+  }
+
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {
     return v;

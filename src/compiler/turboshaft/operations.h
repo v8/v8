@@ -120,7 +120,8 @@ class Graph;
   V(NewConsString)                   \
   V(NewArray)                        \
   V(DoubleArrayMinMax)               \
-  V(LoadFieldByIndex)
+  V(LoadFieldByIndex)                \
+  V(DebugBreak)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2650,6 +2651,18 @@ struct LoadFieldByIndexOp : FixedArityOperationT<2, LoadFieldByIndexOp> {
     DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
     DCHECK(ValidOpInputRep(graph, index(), RegisterRepresentation::Word32()));
   }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<>();
+  }
+
+  DebugBreakOp() : Base() {}
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
