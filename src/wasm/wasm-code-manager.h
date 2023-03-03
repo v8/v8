@@ -829,6 +829,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   Counters* counters() const { return code_allocator_.counters(); }
 
+  // Provide {Lock} and {Unlock} to allow to take the allocation_mutex_ from the
+  // outside. This is needed e.g. by serialization, to make sure that no new
+  // code gets installed during serialization.
+  void Lock() { allocation_mutex_.Lock(); }
+
+  void Unlock() { allocation_mutex_.Unlock(); }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
