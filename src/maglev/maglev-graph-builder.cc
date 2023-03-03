@@ -1385,8 +1385,7 @@ void MaglevGraphBuilder::VisitStaGlobal() {
   // TODO(v8:7700): Add fast path.
 
   ValueNode* context = GetContext();
-  SetAccumulator(
-      AddNewNode<StoreGlobal>({context, value}, name, feedback_source));
+  AddNewNode<StoreGlobal>({context, value}, name, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitLdaLookupSlot() {
@@ -2910,8 +2909,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(AddNewNode<SetNamedGeneric>({context, object, value}, name,
-                                             feedback_source));
+  AddNewNode<SetNamedGeneric>({context, object, value}, name, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
@@ -2947,8 +2945,8 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(AddNewNode<DefineNamedOwnGeneric>({context, object, value},
-                                                   name, feedback_source));
+  AddNewNode<DefineNamedOwnGeneric>({context, object, value}, name,
+                                    feedback_source);
 }
 
 void MaglevGraphBuilder::VisitSetKeyedProperty() {
@@ -2963,8 +2961,7 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(AddNewNode<SetKeyedGeneric>({context, object, key, value},
-                                             feedback_source));
+  AddNewNode<SetKeyedGeneric>({context, object, key, value}, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
@@ -2980,8 +2977,8 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(AddNewNode<DefineKeyedOwnGeneric>(
-      {context, object, key, value, flags}, feedback_source));
+  AddNewNode<DefineKeyedOwnGeneric>({context, object, key, value, flags},
+                                    feedback_source);
 }
 
 void MaglevGraphBuilder::VisitStaInArrayLiteral() {
@@ -3009,8 +3006,8 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(AddNewNode<StoreInArrayLiteralGeneric>(
-      {context, object, name, value}, feedback_source));
+  AddNewNode<StoreInArrayLiteralGeneric>({context, object, name, value},
+                                         feedback_source);
 }
 
 void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
@@ -3020,9 +3017,8 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
   ValueNode* slot = GetSmiConstant(GetSlotOperand(3).ToInt());
   ValueNode* feedback_vector = GetConstant(feedback());
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
-                       {object, name, value, flags, feedback_vector, slot}));
+  BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
+                   {object, name, value, flags, feedback_vector, slot});
 }
 
 void MaglevGraphBuilder::VisitAdd() { VisitBinaryOperation<Operation::kAdd>(); }

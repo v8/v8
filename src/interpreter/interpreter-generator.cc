@@ -236,11 +236,11 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   TNode<Object> result = CallBuiltin(Builtin::kStoreGlobalIC, context, name,
                                      value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
-  // the accumulator, we overwrite the accumulator after the IC call. It
+  // the accumulator, we clobber the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(result);
+  ClobberAccumulator(result);
 
   Dispatch();
 }
@@ -604,11 +604,11 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
     TNode<Object> result =
         CallStub(ic, context, object, name, value, slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
-    // the accumulator, we overwrite the accumulator after the IC call. It
+    // the accumulator, we clobber the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
     // restore to the correct value on the outside. Storing the result means we
     // don't need to keep unnecessary state alive across the callstub.
-    SetAccumulator(result);
+    ClobberAccumulator(result);
     Dispatch();
   }
 };
@@ -659,11 +659,11 @@ IGNITION_HANDLER(SetKeyedProperty, InterpreterAssembler) {
   TNode<Object> result = CallBuiltin(Builtin::kKeyedStoreIC, context, object,
                                      name, value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
-  // the accumulator, we overwrite the accumulator after the IC call. It
+  // the accumulator, we clobber the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(result);
+  ClobberAccumulator(result);
   Dispatch();
 }
 
@@ -686,15 +686,15 @@ IGNITION_HANDLER(DefineKeyedOwnProperty, InterpreterAssembler) {
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name,
-                           value, flags, slot, maybe_vector);
+  TNode<Object> result =
+      CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name, value,
+                  flags, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
-  // the accumulator, we overwrite the accumulator after the IC call. It
+  // the accumulator, we clobber the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(var_result.value());
+  ClobberAccumulator(result);
   Dispatch();
 }
 
@@ -714,11 +714,11 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
       CallBuiltin(Builtin::kStoreInArrayLiteralIC, context, array, index, value,
                   slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
-  // the accumulator, we overwrite the accumulator after the IC call. It
+  // the accumulator, we clobber the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(result);
+  ClobberAccumulator(result);
   Dispatch();
 }
 
@@ -2920,10 +2920,7 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
   ForInPrepare(enumerator, vector_index, maybe_feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kOptionalFeedback);
 
-  // The accumulator is clobbered soon after ForInPrepare, so avoid keeping it
-  // alive too long and instead set it to cache_array to match the first return
-  // value of Builtin::kForInPrepare.
-  SetAccumulator(cache_array);
+  ClobberAccumulator(SmiConstant(0));
 
   StoreRegisterTripleAtOperandIndex(cache_type, cache_array, cache_length, 0);
   Dispatch();

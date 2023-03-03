@@ -526,7 +526,7 @@ void BaselineCompiler::VisitSingleBytecode() {
     // though, since the control flow would not match the control flow of this
     // scope.
     if (v8_flags.debug_code &&
-        !interpreter::Bytecodes::WritesAccumulator(bytecode) &&
+        !interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode) &&
         !interpreter::Bytecodes::IsJump(bytecode) &&
         !interpreter::Bytecodes::IsSwitch(bytecode)) {
       accumulator_preserved_scope.emplace(&basm_);

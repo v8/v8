@@ -74,6 +74,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Accumulator.
   TNode<Object> GetAccumulator();
   void SetAccumulator(TNode<Object> value);
+  void ClobberAccumulator(TNode<Object> clobber_value);
 
   // Context.
   TNode<Context> GetContext();

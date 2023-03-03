@@ -165,6 +165,13 @@ void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   accumulator_ = value;
 }
 
+void InterpreterAssembler::ClobberAccumulator(TNode<Object> clobber_value) {
+  DCHECK(Bytecodes::ClobbersAccumulator(bytecode_));
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kClobberAccumulator;
+  accumulator_ = clobber_value;
+}
+
 TNode<Context> InterpreterAssembler::GetContext() {
   return CAST(LoadRegister(Register::current_context()));
 }

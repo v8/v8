@@ -212,6 +212,8 @@ void UpdateInLiveness(BytecodeLivenessState* in_liveness,
   if (BytecodeOperands::WritesAccumulator(implicit_register_use)) {
     in_liveness->MarkAccumulatorDead();
   }
+  DCHECK_IMPLIES(BytecodeOperands::ClobbersAccumulator(implicit_register_use),
+                 !in_liveness->AccumulatorIsLive());
   (UpdateInLivenessForOutOperand<bytecode, operand_types, operand_index>(
        in_liveness, iterator),
    ...);
