@@ -684,9 +684,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                                      : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
-    // TODO(manoskouk): These two overlap. Introduce a more specialized smaller
-    // field for {RecordWriteMode}.
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
     code |= AccessModeField::encode(access_mode);
     selector->Emit(code, 0, nullptr, arraysize(inputs), inputs,
                    arraysize(temps), temps);

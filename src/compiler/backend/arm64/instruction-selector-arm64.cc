@@ -946,9 +946,7 @@ void InstructionSelector::VisitStore(Node* node) {
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
-    // TODO(manoskouk): These two overlap. Introduce a more specialized smaller
-    // field for {RecordWriteMode}.
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
     if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
@@ -2897,7 +2895,7 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     code = kArchAtomicStoreWithWriteBarrier;
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
   } else {
     switch (rep) {
       case MachineRepresentation::kWord8:

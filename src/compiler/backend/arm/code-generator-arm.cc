@@ -929,7 +929,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode;
       if (arch_opcode == kArchStoreWithWriteBarrier) {
-        mode = static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+        mode = RecordWriteModeField::decode(instr->opcode());
       } else {
         mode = AtomicStoreRecordWriteModeField::decode(instr->opcode());
       }

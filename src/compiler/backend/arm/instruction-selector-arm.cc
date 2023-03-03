@@ -735,7 +735,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     InstructionCode code;
     if (!atomic_order) {
       code = kArchStoreWithWriteBarrier;
-      code |= MiscField::encode(static_cast<int>(record_write_mode));
+      code |= RecordWriteModeField::encode(record_write_mode);
     } else {
       code = kArchAtomicStoreWithWriteBarrier;
       code |= AtomicMemoryOrderField::encode(*atomic_order);

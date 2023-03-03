@@ -721,7 +721,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                                      : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count,
                    temps);
   } else if (is_seqcst) {
