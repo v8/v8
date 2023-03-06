@@ -716,7 +716,6 @@ struct FloatOperationTyper {
       if (l_max < 0) {
         if (r_all_positive) {
           // All values are negative.
-          DCHECK_NE(special_values & type_t::kMinusZero, 0);
           return Range(-inf, next_smaller(float_t{0}), special_values, zone);
         } else {
           DCHECK(r_all_negative);
