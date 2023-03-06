@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-gc --allow-natives-syntax --turbofan
 // Flags: --no-always-turbofan --no-always-sparkplug --expose-gc
-// TODO(mliedtke): Enable test with --experimental-wasm-js-inlining
+// Flags: --experimental-wasm-js-inlining
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
