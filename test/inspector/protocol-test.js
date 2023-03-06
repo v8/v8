@@ -280,16 +280,6 @@ InspectorTest.Session = class {
     return (this._scriptMap.get(scriptId) ?? frame).url;
   }
 
-  getPausedUrl(msg) {
-    const reason = msg.params.reason;
-    if (reason === 'instrumentation') {
-      return msg.params.data.url;
-    } else {
-      const top_frame = msg.params.callFrames[0];
-      return this.getCallFrameUrl(top_frame);
-    }
-  }
-
   logCallFrames(callFrames) {
     for (var frame of callFrames) {
       var functionName = frame.functionName || '(anonymous)';

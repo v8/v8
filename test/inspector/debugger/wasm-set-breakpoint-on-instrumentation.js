@@ -8,16 +8,17 @@ const {session, contextGroup, Protocol} = InspectorTest.start(
     'Test if breakpoints are hit that are set on instrumentation pause in wasm.');
 session.setupScriptMap();
 
-function setBreakpoint(msg, func, condition) {
+function setBreakpoint(msg, condition) {
   const top_frame = msg.params.callFrames[0];
   const reason = msg.params.reason;
-  if (reason === 'instrumentation' &&
-      msg.params.data.url.startsWith('wasm://')) {
-    const scriptId = msg.params.data.scriptId;
+  const url = session.getCallFrameUrl(top_frame);
+  if (reason === 'instrumentation' && url.startsWith('wasm://')) {
+    const scriptId = top_frame.location.scriptId;
+    const columnNumber = top_frame.location.columnNumber;
 
     InspectorTest.log('Setting breakpoint at instrumentation break location');
     const breakpoint_info = {
-      'location': {scriptId, 'lineNumber': 0, 'columnNumber': func.body_offset}
+      'location': {scriptId, 'lineNumber': 0, columnNumber}
     };
     if (condition) {
       breakpoint_info.condition = condition;
@@ -28,11 +29,11 @@ function setBreakpoint(msg, func, condition) {
 }
 
 async function handlePause(msg) {
+  const top_frame = msg.params.callFrames[0];
   const reason = msg.params.reason;
-  const url = session.getPausedUrl(msg);
+  const url = session.getCallFrameUrl(top_frame);
   InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
-  if (!url.startsWith('v8://test/') && msg.params.callFrames.length > 0) {
-    const top_frame = msg.params.callFrames[0];
+  if (!url.startsWith('v8://test/')) {
     await session.logSourceLocation(top_frame.location);
   }
   InspectorTest.log(
@@ -67,7 +68,7 @@ async function runSetBreakpointOnInstrumentationTest(condition) {
 
   // Third pause: wasm script. This will set a breakpoint. Pass on a condition.
   const msg = await Protocol.Debugger.oncePaused();
-  await setBreakpoint(msg, start_fn, condition);
+  await setBreakpoint(msg, condition);
   await handlePause(msg);
 
   // Fourth pause: wasm script, if condition evaluates to true.
