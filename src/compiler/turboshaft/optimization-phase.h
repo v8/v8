@@ -329,32 +329,33 @@ class GraphVisitor {
           << "\n";
     }
     Block* new_block = MapToNewGraph(input_block->index());
-    if (!assembler().Bind(new_block, input_block)) {
+    if (assembler().Bind(new_block, input_block)) {
+      for (OpIndex index : input_graph().OperationIndices(*input_block)) {
+        if (!VisitOp<trace_reduction>(index, input_block)) break;
+      }
+      if constexpr (trace_reduction) TraceBlockFinished();
+    } else {
       if constexpr (trace_reduction) TraceBlockUnreachable();
-      // If we eliminate a loop backedge, we need to turn the loop into a
-      // single-predecessor merge block.
-      const Operation& last_op =
-          *base::Reversed(input_graph().operations(*input_block)).begin();
-      if (auto* final_goto = last_op.TryCast<GotoOp>()) {
-        if (final_goto->destination->IsLoop()) {
-          if (input_block->index() > final_goto->destination->index()) {
-            Block* new_loop = MapToNewGraph(final_goto->destination->index());
-            DCHECK(new_loop->IsLoop());
-            if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
-              output_graph_.TurnLoopIntoMerge(new_loop);
-            }
-          } else {
-            // We have a forward jump to a loop, rather than a backedge. We
-            // don't need to do anything.
+    }
+
+    // If we eliminate a loop backedge, we need to turn the loop into a
+    // single-predecessor merge block.
+    const Operation& last_op =
+        *base::Reversed(input_graph().operations(*input_block)).begin();
+    if (auto* final_goto = last_op.TryCast<GotoOp>()) {
+      if (final_goto->destination->IsLoop()) {
+        if (input_block->index() > final_goto->destination->index()) {
+          Block* new_loop = MapToNewGraph(final_goto->destination->index());
+          DCHECK(new_loop->IsLoop());
+          if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
+            output_graph_.TurnLoopIntoMerge(new_loop);
           }
+        } else {
+          // We have a forward jump to a loop, rather than a backedge. We
+          // don't need to do anything.
         }
       }
-      return;
     }
-    for (OpIndex index : input_graph().OperationIndices(*input_block)) {
-      if (!VisitOp<trace_reduction>(index, input_block)) break;
-    }
-    if constexpr (trace_reduction) TraceBlockFinished();
   }
 
   template <bool trace_reduction>
