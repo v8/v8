@@ -601,6 +601,7 @@ class Shell : public i::AllStatic {
   static void NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Terminate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args);
