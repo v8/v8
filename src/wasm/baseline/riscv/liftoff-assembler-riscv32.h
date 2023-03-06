@@ -227,13 +227,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
-  Label write_barrier;
   Label exit;
   CheckPageFlag(dst_addr, kScratchReg,
-                MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                &write_barrier);
-  Branch(&exit);
-  bind(&write_barrier);
+                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
   JumpIfSmi(src.gp(), &exit);
   CheckPageFlag(src.gp(), kScratchReg,
                 MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
