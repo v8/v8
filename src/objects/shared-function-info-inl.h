@@ -755,6 +755,15 @@ const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
   DCHECK_LT(function_data.function_index(), module->functions.size());
   return module->functions[function_data.function_index()].sig;
 }
+
+int SharedFunctionInfo::wasm_function_index() const {
+  if (!HasWasmExportedFunctionData()) return -1;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  DCHECK_GE(function_data.function_index(), 0);
+  DCHECK_LT(function_data.function_index(), wasm_module()->functions.size());
+  return function_data.function_index();
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {

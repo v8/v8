@@ -386,25 +386,46 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
 
 #if V8_ENABLE_WEBASSEMBLY
 Reduction JSInliner::ReduceJSWasmCall(Node* node) {
-  // Create the subgraph for the inlinee.
-  Node* start_node;
-  Node* end;
+  JSWasmCallNode n(node);
+  const JSWasmCallParameters& wasm_call_params = n.Parameters();
+  int fct_index = wasm_call_params.function_index();
+  wasm::NativeModule* native_module = wasm_call_params.native_module();
+  const wasm::FunctionSig* sig = wasm_call_params.signature();
+
+  // Try "full" inlining of very simple WasmGC functions.
+  bool can_inline_body = false;
+  Node* inlinee_body_start = nullptr;
+  Node* inlinee_body_end = nullptr;
+  // TODO(7748): It would be useful to also support inlining of wasm functions
+  // if they are surrounded by a try block which requires further work, so that
+  // the wasm trap gets forwarded to the corresponding catch block.
+  if (v8_flags.experimental_wasm_gc && v8_flags.experimental_wasm_js_inlining &&
+      fct_index != -1 && native_module &&
+      native_module->module() == wasm_module_ &&
+      !NodeProperties::IsExceptionalCall(node)) {
+    Graph::SubgraphScope graph_scope(graph());
+    WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
+                             WasmGraphBuilder::kNoSpecialParameterMode,
+                             isolate());
+    can_inline_body = builder.TryWasmInlining(fct_index, native_module);
+    inlinee_body_start = graph()->start();
+    inlinee_body_end = graph()->end();
+  }
+
+  // Create the subgraph for the wrapper inlinee.
+  Node* wrapper_start_node;
+  Node* wrapper_end_node;
   size_t subgraph_min_node_id;
   {
     Graph::SubgraphScope scope(graph());
-
     graph()->SetEnd(nullptr);
-
-    JSWasmCallNode n(node);
-    const JSWasmCallParameters& wasm_call_params = n.Parameters();
 
     // Create a nested frame state inside the frame state attached to the
     // call; this will ensure that lazy deoptimizations at this point will
     // still return the result of the Wasm function call.
     Node* continuation_frame_state =
-        CreateJSWasmCallBuiltinContinuationFrameState(
-            jsgraph(), n.context(), n.frame_state(),
-            wasm_call_params.signature());
+        CreateJSWasmCallBuiltinContinuationFrameState(jsgraph(), n.context(),
+                                                      n.frame_state(), sig);
 
     // All the nodes inserted by the inlined subgraph will have
     // id >= subgraph_min_node_id. We use this later to avoid wire nodes that
@@ -412,16 +433,17 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // surrounding exception handler, if present.
     subgraph_min_node_id = graph()->NodeCount();
 
+    bool set_in_wasm_flag = !can_inline_body;
     BuildInlinedJSToWasmWrapper(
-        graph()->zone(), jsgraph(), wasm_call_params.signature(),
-        wasm_call_params.module(), isolate(), source_positions_,
-        wasm::WasmFeatures::FromFlags(), continuation_frame_state);
+        graph()->zone(), jsgraph(), sig, wasm_call_params.module(), isolate(),
+        source_positions_, wasm::WasmFeatures::FromFlags(),
+        continuation_frame_state, set_in_wasm_flag);
 
     // Extract the inlinee start/end nodes.
-    start_node = graph()->start();
-    end = graph()->end();
+    wrapper_start_node = graph()->start();
+    wrapper_end_node = graph()->end();
   }
-  StartNode start{start_node};
+  StartNode start{wrapper_start_node};
 
   Node* exception_target = nullptr;
   NodeProperties::IsExceptionalCall(node, &exception_target);
@@ -432,7 +454,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
-    AllNodes inlined_nodes(local_zone_, end, graph());
+    AllNodes inlined_nodes(local_zone_, wrapper_end_node, graph());
     for (Node* subnode : inlined_nodes.reachable) {
       // Ignore nodes that are not part of the inlinee.
       if (subnode->id() < subgraph_min_node_id) continue;
@@ -447,13 +469,111 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     }
   }
 
+  // Search in inlined nodes for call to inline wasm.
+  // Note: We can only inline wasm functions of a single wasm module into any
+  // given JavaScript function (due to the WasmGCLowering being dependent on
+  // module-specific type indices).
+  Node* wasm_fct_call = nullptr;
+  if (can_inline_body) {
+    AllNodes inlined_nodes(local_zone_, wrapper_end_node, graph());
+    for (Node* subnode : inlined_nodes.reachable) {
+      // Ignore nodes that are not part of the inlinee.
+      if (subnode->id() < subgraph_min_node_id) continue;
+
+      if (subnode->opcode() == IrOpcode::kCall &&
+          CallDescriptorOf(subnode->op())->kind() ==
+              CallDescriptor::kCallWasmFunction) {
+        wasm_fct_call = subnode;
+        break;
+      }
+    }
+    DCHECK(wasm_fct_call != nullptr);
+  }
+
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* new_target = jsgraph()->UndefinedConstant();
 
-  return InlineJSWasmCall(node, new_target, context, frame_state, start, end,
-                          exception_target, uncaught_subcalls);
+  // Inline the wasm wrapper.
+  Reduction r =
+      InlineJSWasmCall(node, new_target, context, frame_state, start,
+                       wrapper_end_node, exception_target, uncaught_subcalls);
+  // Inline the wrapped wasm body if supported.
+  if (can_inline_body) {
+    InlineWasmFunction(wasm_fct_call, inlinee_body_start, inlinee_body_end);
+  }
+  return r;
 }
+
+void JSInliner::InlineWasmFunction(Node* call, Node* inlinee_start,
+                                   Node* inlinee_end) {
+  // TODO(7748): This is very similar to what is done for wasm inlining inside
+  // another wasm function. Can we reuse some of its code?
+  // 1) Rewire function entry.
+  Node* control = NodeProperties::GetControlInput(call);
+  Node* effect = NodeProperties::GetEffectInput(call);
+
+  for (Edge edge : inlinee_start->use_edges()) {
+    Node* use = edge.from();
+    if (use == nullptr) continue;
+    switch (use->opcode()) {
+      case IrOpcode::kParameter: {
+        // Index 0 is the callee node.
+        int index = 1 + ParameterIndexOf(use->op());
+        Node* arg = NodeProperties::GetValueInput(call, index);
+        Replace(use, arg);
+        break;
+      }
+      default:
+        if (NodeProperties::IsEffectEdge(edge)) {
+          edge.UpdateTo(effect);
+        } else if (NodeProperties::IsControlEdge(edge)) {
+          // Projections pointing to the inlinee start are floating
+          // control. They should point to the graph's start.
+          edge.UpdateTo(use->opcode() == IrOpcode::kProjection
+                            ? graph()->start()
+                            : control);
+        } else {
+          UNREACHABLE();
+        }
+        Revisit(edge.from());
+        break;
+    }
+  }
+
+  // 2) Handle all graph terminators for the callee.
+  // Special case here: There is only one call terminator.
+  DCHECK_EQ(inlinee_end->inputs().count(), 1);
+  Node* terminator = *inlinee_end->inputs().begin();
+  DCHECK_EQ(terminator->opcode(), IrOpcode::kReturn);
+  inlinee_end->Kill();
+
+  // 3) Rewire unhandled calls to the handler.
+  // This is not supported yet resulting in exceptional calls being treated
+  // as non-inlineable.
+  DCHECK(!NodeProperties::IsExceptionalCall(call));
+
+  // 4) Handle return values.
+  int return_values = terminator->InputCount();
+  DCHECK_GE(return_values, 3);
+  DCHECK_LE(return_values, 4);
+  // Subtract effect, control and drop count.
+  int return_count = return_values - 3;
+  Node* effect_output = terminator->InputAt(return_count + 1);
+  Node* control_output = terminator->InputAt(return_count + 2);
+  for (Edge use_edge : call->use_edges()) {
+    if (NodeProperties::IsValueEdge(use_edge)) {
+      Node* use = use_edge.from();
+      // There is at most one value edge.
+      ReplaceWithValue(use, return_count == 1 ? terminator->InputAt(1)
+                                              : jsgraph()->UndefinedConstant());
+    }
+  }
+  // All value inputs are replaced by the above loop, so it is ok to use
+  // Dead() as a dummy for value replacement.
+  ReplaceWithValue(call, jsgraph()->Dead(), effect_output, control_output);
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Reduction JSInliner::ReduceJSCall(Node* node) {

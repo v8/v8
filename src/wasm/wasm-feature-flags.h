@@ -29,6 +29,10 @@
   /* V8 side owner: jkummerow */                                               \
   V(gc, "garbage collection", false)                                           \
                                                                                \
+  /* Inlining of small wasm GC functions into JavaScript */                    \
+  /* V8 side owner: mliedtke */                                                \
+  V(js_inlining, "inline small wasm functions into JS", false)                 \
+                                                                               \
   /* Non-specified, V8-only experimental additions to the GC proposal */       \
   /* V8 side owner: jkummerow */                                               \
   V(assume_ref_cast_succeeds,                                                  \

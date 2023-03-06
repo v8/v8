@@ -235,6 +235,10 @@ class TypeInferenceAnalysis {
                     allow_narrowing, is_fallback_for_unsupported_operation);
           }
           break;
+        case Opcode::kLoadRootRegister:
+          SetType(index,
+                  Typer::TypeForRepresentation(op.outputs_rep(), graph_zone_));
+          break;
       }
     }
 

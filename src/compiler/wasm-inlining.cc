@@ -223,7 +223,7 @@ void WasmInliner::Finalize() {
 
     if (call->opcode() == IrOpcode::kCall) {
       InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
-                 subgraph_min_node_id, &dangling_exceptions);
+                 &dangling_exceptions);
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
     }
@@ -291,7 +291,6 @@ void WasmInliner::InlineTailCall(Node* call, Node* callee_start,
 
 void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
                              const wasm::FunctionSig* inlinee_sig,
-                             size_t subgraph_min_node_id,
                              wasm::DanglingExceptions* dangling_exceptions) {
   DCHECK_EQ(call->opcode(), IrOpcode::kCall);
 

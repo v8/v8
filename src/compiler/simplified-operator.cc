@@ -1499,7 +1499,7 @@ const Operator* SimplifiedOperatorBuilder::WasmTypeCast(
 
 const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
   return zone()->New<Operator1<int>>(IrOpcode::kRttCanon, Operator::kPure,
-                                     "RttCanon", 0, 0, 0, 1, 0, 0, index);
+                                     "RttCanon", 1, 0, 0, 1, 0, 0, index);
 }
 
 // Note: The following two operators have a control input solely to find the
