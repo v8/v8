@@ -420,12 +420,15 @@ class ArgsTest(unittest.TestCase):
       shutil.copy(GCMOLE_PATH / 'gcmole_args.py', temp_gcmole)
 
       # Simulate a ninja call relative to the build dir.
-      subprocess.check_call([sys.executable, temp_gcmole], cwd=temp_out)
+      gn_sysroot = '//build/linux/debian_bullseye_amd64-sysroot'
+      subprocess.check_call(
+          [sys.executable, temp_gcmole, gn_sysroot], cwd=temp_out)
 
       with open(temp_dir / 'out' / 'v8_gcmole.args') as f:
         self.assertEqual(f.read().split(), [
             '-DUSE_GLIB=1', '-DV8_TARGET_ARCH_X64', '-I.', '-Iout/gen',
-            '-Iinclude', '-Iout/gen/include'
+            '-Iinclude', '-Iout/gen/include',
+            '--sysroot=build/linux/debian_bullseye_amd64-sysroot',
         ])
 
 

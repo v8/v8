@@ -31,6 +31,11 @@ def search_flags(regexp, ninja_config):
 
 
 def main():
+  assert len(sys.argv) == 2, 'Expecting sysroot arg'
+  gn_sysroot_var = sys.argv[1]
+  assert gn_sysroot_var.startswith('//'), 'Expecting root-dir gn path'
+  rel_sysroot = gn_sysroot_var[len('//'):]
+
   assert BUILD_DIR_ABS.exists()
 
   ninja_file = BUILD_DIR_ABS / 'obj' / 'v8_base_without_compiler.ninja'
@@ -52,7 +57,7 @@ def main():
     include_flags.append(prefix + os.path.normpath(BUILD_DIR_REL / suffix))
 
   with open('v8_gcmole.args', 'w') as f:
-    f.write(' '.join([defines] + include_flags))
+    f.write(' '.join([defines] + include_flags + [f'--sysroot={rel_sysroot}']))
 
 
 if __name__ == '__main__':
