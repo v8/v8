@@ -87,18 +87,15 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
 
 class V8_NODISCARD ClearThreadInWasmScope {
  public:
-  explicit ClearThreadInWasmScope(Isolate* isolate)
-      : isolate_(isolate), is_thread_in_wasm_(trap_handler::IsThreadInWasm()) {
-    // In some cases we call this from Wasm code inlined into JavaScript
-    // so the flag might not be set.
-    if (is_thread_in_wasm_) {
-      trap_handler::ClearThreadInWasm();
-    }
+  explicit ClearThreadInWasmScope(Isolate* isolate) : isolate_(isolate) {
+    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                   trap_handler::IsThreadInWasm());
+    trap_handler::ClearThreadInWasm();
   }
   ~ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
                    !trap_handler::IsThreadInWasm());
-    if (!isolate_->has_pending_exception() && is_thread_in_wasm_) {
+    if (!isolate_->has_pending_exception()) {
       trap_handler::SetThreadInWasm();
     }
     // Otherwise we only want to set the flag if the exception is caught in
@@ -107,7 +104,6 @@ class V8_NODISCARD ClearThreadInWasmScope {
 
  private:
   Isolate* isolate_;
-  const bool is_thread_in_wasm_;
 };
 
 Object ThrowWasmError(Isolate* isolate, MessageTemplate message,

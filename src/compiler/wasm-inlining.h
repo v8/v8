@@ -94,6 +94,7 @@ class WasmInliner final : public AdvancedReducer {
   Reduction ReduceCall(Node* call);
   void InlineCall(Node* call, Node* callee_start, Node* callee_end,
                   const wasm::FunctionSig* inlinee_sig,
+                  size_t subgraph_min_node_id,
                   wasm::DanglingExceptions* dangling_exceptions);
   void InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
   void RewireFunctionEntry(Node* call, Node* callee_start);

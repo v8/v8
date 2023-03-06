@@ -2115,28 +2115,6 @@ function wasmSignedLeb(val, max_len = 5) {
       'Leb value <' + val + '> exceeds maximum length of ' + max_len);
 }
 
-function wasmSignedLeb64(val, max_len) {
-  if (typeof val != "bigint") {
-    if (val < Math.pow(2, 31)) {
-      return wasmSignedLeb(val, max_len);
-    }
-    val = BigInt(val);
-  }
-  let res = [];
-  for (let i = 0; i < max_len; ++i) {
-    let v = val & 0x7fn;
-    // If {v} sign-extended from 7 to 32 bits is equal to val, we are done.
-    if (((v << 25n) >> 25n) == val) {
-      res.push(Number(v));
-      return res;
-    }
-    res.push(Number(v) | 0x80);
-    val = val >> 7n;
-  }
-  throw new Error(
-      'Leb value <' + val + '> exceeds maximum length of ' + max_len);
-}
-
 function wasmUnsignedLeb(val, max_len = 5) {
   let res = [];
   for (let i = 0; i < max_len; ++i) {
@@ -2159,7 +2137,7 @@ function wasmI32Const(val) {
 // Note: Since {val} is a JS number, the generated constant only has 53 bits of
 // precision.
 function wasmI64Const(val) {
-  return [kExprI64Const, ...wasmSignedLeb64(val, 10)];
+  return [kExprI64Const, ...wasmSignedLeb(val, 10)];
 }
 
 function wasmF32Const(f) {

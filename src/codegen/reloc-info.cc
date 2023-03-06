@@ -479,16 +479,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";
-  } else if (IsWasmStubCall(rmode_)) {
-    os << "  (";
-    Address addr = target_address();
-    if (isolate != nullptr) {
-      Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, addr);
-      os << (Builtins::IsBuiltinId(builtin) ? Builtins::name(builtin)
-                                            : "<UNRECOGNIZED>")
-         << ")  (";
-    }
-    os << reinterpret_cast<const void*>(addr) << ")";
   }
 
   os << "\n";
@@ -532,7 +522,6 @@ void RelocInfo::Verify(Isolate* isolate) {
           OffHeapInstructionStream::TryLookupCode(isolate, addr)));
       break;
     }
-    case WASM_STUB_CALL:
     case NEAR_BUILTIN_ENTRY: {
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
@@ -550,6 +539,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CALL:
+    case WASM_STUB_CALL:
     case NO_INFO:
       break;
     case NUMBER_OF_MODES:

@@ -245,8 +245,7 @@ Builtin Assembler::target_builtin_at(Address pc) {
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-      IsWasmStubCall(rmode_)) {
+  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_)) {
     WriteUnalignedValue(
         pc_, ReadUnalignedValue<int32_t>(pc_) - static_cast<int32_t>(delta));
   } else if (IsInternalReference(rmode_)) {
@@ -257,7 +256,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-         IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
+         IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 

@@ -34,7 +34,6 @@
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
-#include "src/compiler/wasm-inlining-into-js.h"
 #include "src/execution/simulator-base.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
@@ -155,44 +154,6 @@ WasmGraphBuilder::WasmGraphBuilder(
 // Destructor define here where the definition of {WasmGraphAssembler} is
 // available.
 WasmGraphBuilder::~WasmGraphBuilder() = default;
-
-bool WasmGraphBuilder::TryWasmInlining(int fct_index,
-                                       wasm::NativeModule* native_module) {
-  DCHECK(v8_flags.experimental_wasm_js_inlining);
-  DCHECK(v8_flags.experimental_wasm_gc);
-  DCHECK(native_module->HasWireBytes());
-  const wasm::WasmModule* module = native_module->module();
-  const wasm::WasmFunction& inlinee = module->functions[fct_index];
-  // TODO(mliedtke): What would be a proper maximum size?
-  const uint32_t kMaxWasmInlineeSize = 30;
-  if (inlinee.code.length() > kMaxWasmInlineeSize) {
-    return false;
-  }
-  if (inlinee.imported) {
-    // Inlining of imported functions is not supported.
-    return false;
-  }
-  base::Vector<const byte> bytes(native_module->wire_bytes().SubVector(
-      inlinee.code.offset(), inlinee.code.end_offset()));
-  const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
-                                        bytes.begin(), bytes.end());
-  // If the inlinee was not validated before, do that now.
-  if (V8_UNLIKELY(!module->function_was_validated(fct_index))) {
-    wasm::WasmFeatures unused_detected_features;
-    if (ValidateFunctionBody(env_->enabled_features, module,
-                             &unused_detected_features, inlinee_body)
-            .failed()) {
-      // At this point we cannot easily raise a compilation error any more.
-      // Since this situation is highly unlikely though, we just ignore this
-      // inlinee and move on. The same validation error will be triggered
-      // again when actually compiling the invalid function.
-      return false;
-    }
-    module->set_function_validated(fct_index);
-  }
-  return WasmIntoJSInliner::TryInlining(graph()->zone(), module, mcgraph_,
-                                        inlinee_body, bytes);
-}
 
 void WasmGraphBuilder::Start(unsigned params) {
   Node* start = graph()->NewNode(mcgraph()->common()->Start(params));
@@ -5489,8 +5450,7 @@ Node* WasmGraphBuilder::ArrayNewSegment(const wasm::ArrayType* type,
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
-  return graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
-                          GetInstance());
+  return graph()->NewNode(gasm_->simplified()->RttCanon(type_index));
 }
 
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
@@ -6981,8 +6941,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           thread_in_wasm_flag_address_, true);
     }
 
-    ModifyThreadInWasmFlagScope(const ModifyThreadInWasmFlagScope&) = delete;
-
     ~ModifyThreadInWasmFlagScope() {
       if (!trap_handler::IsTrapHandlerEnabled()) return;
 
@@ -7017,18 +6975,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildCallAndReturn(bool is_import, Node* js_context,
                            Node* function_data,
                            base::SmallVector<Node*, 16> args,
-                           bool do_conversion, Node* frame_state,
-                           bool set_in_wasm_flag) {
+                           bool do_conversion, Node* frame_state) {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<Node*, 1> rets(rets_count);
 
     // Set the ThreadInWasm flag before we do the actual call.
     {
-      base::Optional<ModifyThreadInWasmFlagScope>
-          modify_thread_in_wasm_flag_builder;
-      if (set_in_wasm_flag) {
-        modify_thread_in_wasm_flag_builder.emplace(this, gasm_.get());
-      }
+      ModifyThreadInWasmFlagScope modify_thread_in_wasm_flag_builder(
+          this, gasm_.get());
 
       if (is_import) {
         // Call to an imported function.
@@ -7145,8 +7099,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   void BuildJSToWasmWrapper(bool is_import, bool do_conversion = true,
-                            Node* frame_state = nullptr,
-                            bool set_in_wasm_flag = true) {
+                            Node* frame_state = nullptr) {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the JS parameter nodes.
@@ -7198,9 +7151,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         Node* wasm_param = FromJSFast(params[i + 1], sig_->GetParam(i));
         args[i + 1] = wasm_param;
       }
-      Node* jsval =
-          BuildCallAndReturn(is_import, js_context, function_data, args,
-                             do_conversion, frame_state, set_in_wasm_flag);
+      Node* jsval = BuildCallAndReturn(is_import, js_context, function_data,
+                                       args, do_conversion, frame_state);
       gasm_->Goto(&done, jsval);
       gasm_->Bind(&slow_path);
     }
@@ -7225,10 +7177,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[i + 1] = wasm_param;
       }
     }
-
-    Node* jsval =
-        BuildCallAndReturn(is_import, js_context, function_data, args,
-                           do_conversion, frame_state, set_in_wasm_flag);
+    Node* jsval = BuildCallAndReturn(is_import, js_context, function_data, args,
+                                     do_conversion, frame_state);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -7940,13 +7890,13 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::WasmModule* module,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
-                                 wasm::WasmFeatures features, Node* frame_state,
-                                 bool set_in_wasm_flag) {
+                                 wasm::WasmFeatures features,
+                                 Node* frame_state) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
                                   WasmGraphBuilder::kNoSpecialParameterMode,
                                   isolate, spt,
                                   StubCallMode::kCallBuiltinPointer, features);
-  builder.BuildJSToWasmWrapper(false, false, frame_state, set_in_wasm_flag);
+  builder.BuildJSToWasmWrapper(false, false, frame_state);
 }
 
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(

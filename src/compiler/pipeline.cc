@@ -642,25 +642,11 @@ class PipelineData {
     has_js_wasm_calls_ = has_js_wasm_calls;
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  const wasm::WasmModule* wasm_module_for_inlining() const {
-    return wasm_module_for_inlining_;
-  }
-  void set_wasm_module_for_inlining(const wasm::WasmModule* module) {
-    wasm_module_for_inlining_ = module;
-  }
-#endif
-
  private:
   Isolate* const isolate_;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine* const wasm_engine_ = nullptr;
   wasm::AssemblerBufferCache* assembler_buffer_cache_ = nullptr;
-  // The wasm module to be used for inlining wasm functions into JS.
-  // The first module wins and inlining of different modules into the same
-  // JS function is not supported. This is necessary because the wasm
-  // instructions use module-specific (non-canonicalized) type indices.
-  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
   AccountingAllocator* const allocator_;
   OptimizedCompilationInfo* const info_;
@@ -1469,15 +1455,10 @@ struct InliningPhase {
     graph_reducer.ReduceGraph();
     info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
 
-#if V8_ENABLE_WEBASSEMBLY
     // Skip the "wasm-inlining" phase if there are no Wasm functions calls.
     if (call_reducer.has_wasm_calls()) {
       data->set_has_js_wasm_calls(true);
-      DCHECK(call_reducer.wasm_module_for_inlining() != nullptr);
-      data->set_wasm_module_for_inlining(
-          call_reducer.wasm_module_for_inlining());
     }
-#endif
   }
 };
 
@@ -1486,10 +1467,8 @@ struct JSWasmInliningPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JSWasmInlining)
   void Run(PipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
-    DCHECK(data->wasm_module_for_inlining() != nullptr);
 
     OptimizedCompilationInfo* info = data->info();
-    info->set_wasm_runtime_exception_support();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
                                data->broker(), data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1497,19 +1476,13 @@ struct JSWasmInliningPhase {
     CommonOperatorReducer common_reducer(
         &graph_reducer, data->graph(), data->broker(), data->common(),
         data->machine(), temp_zone, BranchSemantics::kMachine);
-    JSInliningHeuristic inlining(
-        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
-        data->broker(), data->source_positions(), data->node_origins(),
-        JSInliningHeuristic::kWasmOnly, data->wasm_module_for_inlining());
-    // The Wasm trap handler is not supported in JavaScript.
-    const bool disable_trap_handler = true;
-    WasmGCLowering lowering(&graph_reducer, data->jsgraph(),
-                            data->wasm_module_for_inlining(),
-                            disable_trap_handler);
+    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
+                                 data->jsgraph(), data->broker(),
+                                 data->source_positions(), data->node_origins(),
+                                 JSInliningHeuristic::kWasmOnly);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &inlining);
-    AddReducer(data, &graph_reducer, &lowering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -2325,7 +2298,7 @@ struct WasmGCLoweringPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module, false);
+    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     AddReducer(data, &graph_reducer, &lowering);

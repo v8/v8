@@ -1464,10 +1464,6 @@ OpIndex GraphBuilder::Process(
       return BuildUint32Mod(lhs, rhs);
     }
 
-    case IrOpcode::kLoadRootRegister:
-      // Inlined usage of wasm root register operation in JS.
-      return assembler.ReduceLoadRootRegister();
-
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:

@@ -31,10 +31,6 @@
 #include "src/diagnostics/eh-frame.h"
 #endif
 
-#ifdef V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -237,20 +233,6 @@ void InstructionStream::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       it.rinfo()->set_target_address(p, UPDATE_WRITE_BARRIER,
                                      SKIP_ICACHE_FLUSH);
       DCHECK_EQ(p, it.rinfo()->target_address());
-    } else if (RelocInfo::IsWasmStubCall(mode)) {
-#if V8_ENABLE_WEBASSEMBLY
-      // Map wasm stub id to builtin.
-      uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
-      DCHECK_LT(stub_call_tag, wasm::WasmCode::kRuntimeStubCount);
-      Builtin builtin = wasm::RuntimeStubIdToBuiltinName(
-          static_cast<wasm::WasmCode::RuntimeStubId>(stub_call_tag));
-      // Store the builtin address in relocation info.
-      Address entry =
-          heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];
-      it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
-#else
-      UNREACHABLE();
-#endif
     } else {
       intptr_t delta =
           instruction_start() - reinterpret_cast<Address>(desc.buffer);

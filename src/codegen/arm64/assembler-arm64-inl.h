@@ -620,7 +620,7 @@ int RelocInfo::target_address_size() {
 
 Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-         IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
+         IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 

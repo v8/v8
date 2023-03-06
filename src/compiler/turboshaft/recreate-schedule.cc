@@ -1365,10 +1365,6 @@ Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
   return AddNode(machine.DebugBreak(), {});
 }
 
-Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {
-  return AddNode(machine.LoadRootRegister(), {});
-}
-
 }  // namespace
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,

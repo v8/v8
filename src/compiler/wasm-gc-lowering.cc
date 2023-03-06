@@ -23,17 +23,26 @@ namespace internal {
 namespace compiler {
 
 WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
-                               const wasm::WasmModule* module,
-                               bool disable_trap_handler)
+                               const wasm::WasmModule* module)
     : AdvancedReducer(editor),
       null_check_strategy_(trap_handler::IsTrapHandlerEnabled() &&
-                                   V8_STATIC_ROOTS_BOOL && !disable_trap_handler
+                                   V8_STATIC_ROOTS_BOOL
                                ? kTrapHandler
                                : kExplicitNullChecks),
       gasm_(mcgraph, mcgraph->zone()),
       module_(module),
       dead_(mcgraph->Dead()),
-      mcgraph_(mcgraph) {}
+      instance_node_(nullptr) {
+  // Find and store the instance node.
+  for (Node* start_use : mcgraph->graph()->start()->uses()) {
+    if (start_use->opcode() == IrOpcode::kParameter &&
+        ParameterIndexOf(start_use->op()) == 0) {
+      instance_node_ = start_use;
+      break;
+    }
+  }
+  DCHECK_NOT_NULL(instance_node_);
+}
 
 Reduction WasmGCLowering::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -325,9 +334,8 @@ Reduction WasmGCLowering::ReduceIsNotNull(Node* node) {
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kRttCanon);
   int type_index = OpParameter<int>(node->op());
-  Node* instance_node = node->InputAt(0);
   Node* maps_list = gasm_.LoadImmutable(
-      MachineType::TaggedPointer(), instance_node,
+      MachineType::TaggedPointer(), instance_node_,
       WasmInstanceObject::kManagedObjectMapsOffset - kHeapObjectTag);
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
@@ -406,27 +414,9 @@ Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
       gasm_.Float64LessThan(gasm_.Float64Constant(kInt31MaxValue), float_value),
       &end_label, input);
   // Check if value is -0.
-  Node* is_minus_zero = nullptr;
-  if (mcgraph_->machine()->Is64()) {
-    Node* minus_zero = gasm_.Int64Constant(base::bit_cast<int64_t>(-0.0));
-    Node* float_bits = gasm_.BitcastFloat64ToInt64(float_value);
-    is_minus_zero = gasm_.Word64Equal(float_bits, minus_zero);
-  } else {
-    constexpr int32_t kMinusZeroLoBits = static_cast<int32_t>(0);
-    constexpr int32_t kMinusZeroHiBits = static_cast<int32_t>(1) << 31;
-    auto done = gasm_.MakeLabel(MachineRepresentation::kBit);
-
-    Node* value_lo = gasm_.Float64ExtractLowWord32(float_value);
-    gasm_.GotoIfNot(
-        gasm_.Word32Equal(value_lo, gasm_.Int32Constant(kMinusZeroLoBits)),
-        &done, gasm_.Int32Constant(0));
-    Node* value_hi = gasm_.Float64ExtractHighWord32(float_value);
-    gasm_.Goto(&done, gasm_.Word32Equal(value_hi,
-                                        gasm_.Int32Constant(kMinusZeroHiBits)));
-    gasm_.Bind(&done);
-    is_minus_zero = done.PhiAt(0);
-  }
-  gasm_.GotoIf(is_minus_zero, &end_label, input);
+  Node* minus_zero = gasm_.Int64Constant(base::bit_cast<int64_t>(-0.0));
+  Node* float_bits = gasm_.BitcastFloat64ToInt64(float_value);
+  gasm_.GotoIf(gasm_.Word64Equal(float_bits, minus_zero), &end_label, input);
   // Check if value is integral.
   Node* int_value = gasm_.ChangeFloat64ToInt32(float_value);
   gasm_.GotoIf(

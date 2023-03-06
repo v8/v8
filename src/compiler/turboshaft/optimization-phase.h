@@ -790,9 +790,6 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphDebugBreak(const DebugBreakOp& op) {
     return assembler().ReduceDebugBreak();
   }
-  OpIndex AssembleOutputGraphLoadRootRegister(const LoadRootRegisterOp& op) {
-    return assembler().ReduceLoadRootRegister();
-  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

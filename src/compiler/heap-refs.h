@@ -962,27 +962,26 @@ class ScopeInfoRef : public HeapObjectRef {
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;
 };
 
-#define BROKER_SFI_FIELDS(V)                                    \
-  V(int, internal_formal_parameter_count_with_receiver)         \
-  V(int, internal_formal_parameter_count_without_receiver)      \
-  V(bool, IsDontAdaptArguments)                                 \
-  V(bool, has_simple_parameters)                                \
-  V(bool, has_duplicate_parameters)                             \
-  V(int, function_map_index)                                    \
-  V(FunctionKind, kind)                                         \
-  V(LanguageMode, language_mode)                                \
-  V(bool, native)                                               \
-  V(bool, HasBreakInfo)                                         \
-  V(bool, HasBuiltinId)                                         \
-  V(bool, construct_as_builtin)                                 \
-  V(bool, HasBytecodeArray)                                     \
-  V(int, StartPosition)                                         \
-  V(bool, is_compiled)                                          \
-  V(bool, IsUserJavaScript)                                     \
-  V(bool, requires_instance_members_initializer)                \
-  IF_WASM(V, const wasm::WasmModule*, wasm_module)              \
-  IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature) \
-  IF_WASM(V, int, wasm_function_index)
+#define BROKER_SFI_FIELDS(V)                               \
+  V(int, internal_formal_parameter_count_with_receiver)    \
+  V(int, internal_formal_parameter_count_without_receiver) \
+  V(bool, IsDontAdaptArguments)                            \
+  V(bool, has_simple_parameters)                           \
+  V(bool, has_duplicate_parameters)                        \
+  V(int, function_map_index)                               \
+  V(FunctionKind, kind)                                    \
+  V(LanguageMode, language_mode)                           \
+  V(bool, native)                                          \
+  V(bool, HasBreakInfo)                                    \
+  V(bool, HasBuiltinId)                                    \
+  V(bool, construct_as_builtin)                            \
+  V(bool, HasBytecodeArray)                                \
+  V(int, StartPosition)                                    \
+  V(bool, is_compiled)                                     \
+  V(bool, IsUserJavaScript)                                \
+  V(bool, requires_instance_members_initializer)           \
+  IF_WASM(V, const wasm::WasmModule*, wasm_module)         \
+  IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:

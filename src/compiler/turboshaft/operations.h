@@ -121,8 +121,7 @@ class Graph;
   V(NewArray)                        \
   V(DoubleArrayMinMax)               \
   V(LoadFieldByIndex)                \
-  V(DebugBreak)                      \
-  V(LoadRootRegister)
+  V(DebugBreak)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -292,7 +291,7 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle op);
 inline std::ostream& operator<<(std::ostream& os, const Operation& op) {
   return os << OperationPrintStyle{op};
 }
-void Print(const Operation& op);
+inline void Print(const Operation& op) { std::cout << op << "\n"; }
 
 OperationStorageSlot* AllocateOpStorage(Graph* graph, size_t slot_count);
 const Operation& Get(const Graph& graph, OpIndex index);
@@ -2666,17 +2665,6 @@ struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
-};
-
-struct LoadRootRegisterOp : FixedArityOperationT<0, LoadRootRegisterOp> {
-  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::PointerSized()>();
-  }
-
-  LoadRootRegisterOp() : Base() {}
-  void Validate(const Graph& graph) const {}
-  std::tuple<> options() const { return {}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

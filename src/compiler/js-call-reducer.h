@@ -72,9 +72,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
   bool has_wasm_calls() const { return has_wasm_calls_; }
-  const wasm::WasmModule* wasm_module_for_inlining() const {
-    return wasm_module_for_inlining_;
-  }
 
   CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
@@ -291,7 +288,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
   bool has_wasm_calls_ = false;
-  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
 };
 
 }  // namespace compiler

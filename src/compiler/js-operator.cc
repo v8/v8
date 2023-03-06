@@ -942,10 +942,8 @@ const Operator* JSOperatorBuilder::CallRuntime(
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
-    const wasm::FunctionSig* wasm_signature, int function_index,
-    wasm::NativeModule* native_module, FeedbackSource const& feedback) {
-  JSWasmCallParameters parameters(wasm_module, wasm_signature, function_index,
-                                  native_module, feedback);
+    const wasm::FunctionSig* wasm_signature, FeedbackSource const& feedback) {
+  JSWasmCallParameters parameters(wasm_module, wasm_signature, feedback);
   return zone()->New<Operator1<JSWasmCallParameters>>(
       IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
       "JSWasmCall",                                    // name

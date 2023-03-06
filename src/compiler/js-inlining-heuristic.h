@@ -19,11 +19,10 @@ class JSInliningHeuristic final : public AdvancedReducer {
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
                       SourcePositionTable* source_positions,
-                      NodeOriginTable* node_origins, Mode mode,
-                      const wasm::WasmModule* wasm_module = nullptr)
+                      NodeOriginTable* node_origins, Mode mode)
       : AdvancedReducer(editor),
         inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
-                 node_origins, wasm_module),
+                 node_origins),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
@@ -33,9 +32,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            v8_flags.max_inlined_bytecode_size_absolute) {
-    DCHECK_EQ(mode == kWasmOnly, wasm_module != nullptr);
-  }
+            v8_flags.max_inlined_bytecode_size_absolute) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 

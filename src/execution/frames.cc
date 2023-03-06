@@ -2152,17 +2152,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     // summary which is a bit more aware of maglev behaviour and can e.g. handle
     // more compact safepointed frame information for both function entry and
     // loop stack checks.
-    //
-    // TODO(7748): For JS functions containing inlined wasm we need support to
-    // create a frame summary for the wasm function as well which is needed for
-    // wasm trap stack traces. Also, the current hack does not preserve the code
-    // position in the JavaScript frame.
-    if (code.is_maglevved()
-#if V8_ENABLE_WEBASSEMBLY
-        || ((code.kind() == CodeKind::TURBOFAN) &&
-            v8_flags.experimental_wasm_js_inlining)
-#endif
-    ) {
+    if (code.is_maglevved()) {
       DCHECK(frames->empty());
       Handle<AbstractCode> abstract_code(
           AbstractCode::cast(function().shared().GetBytecodeArray(isolate())),

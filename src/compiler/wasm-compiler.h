@@ -233,16 +233,7 @@ class WasmGraphBuilder {
       : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr) {
   }
 
-  V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
-                                     MachineGraph* mcgraph,
-                                     const wasm::FunctionSig* sig,
-                                     compiler::SourcePositionTable* spt,
-                                     Parameter0Mode parameter_mode,
-                                     Isolate* isolate);
-
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
-
-  bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module);
 
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
@@ -637,6 +628,13 @@ class WasmGraphBuilder {
   void ReserveCallCounts(size_t num_call_instructions);
 
  protected:
+  V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
+                                     MachineGraph* mcgraph,
+                                     const wasm::FunctionSig* sig,
+                                     compiler::SourcePositionTable* spt,
+                                     Parameter0Mode parameter_mode,
+                                     Isolate* isolate);
+
   Node* NoContextConstant();
 
   Node* GetInstance();
@@ -882,7 +880,7 @@ V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
     const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, wasm::WasmFeatures features,
-    Node* frame_state, bool set_in_wasm_flag);
+    Node* frame_state);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, const wasm::FunctionSig* signature,

@@ -87,8 +87,6 @@ extern macro WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     WasmInstanceObject): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
     WasmInstanceObject): FixedArray;
-extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
-    NativeContext;
 
 macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstance(LoadInstanceFromFrame());
@@ -636,7 +634,7 @@ transitioning builtin WasmGetOwnProperty(implicit context: Context)(
 // Trap builtins.
 
 builtin WasmTrap(error: Smi): JSAny {
-  tail runtime::ThrowWasmError(LoadContextFromWasmOrJsFrame(), error);
+  tail runtime::ThrowWasmError(LoadContextFromFrame(), error);
 }
 
 builtin ThrowWasmTrapUnreachable(): JSAny {
