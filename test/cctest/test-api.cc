@@ -678,31 +678,29 @@ TEST(MakingExternalStringConditions) {
     CcTest::CollectGarbage(i::NEW_SPACE);
   }
 
-  uint16_t* two_byte_string = AsciiToTwoByteString("s1");
-  Local<String> tiny_local_string =
-      String::NewFromTwoByte(env->GetIsolate(), two_byte_string)
-          .ToLocalChecked();
-  i::DeleteArray(two_byte_string);
+  Local<String> tiny_local_string = v8_str("\xCF\x80");
+  Local<String> local_string = v8_str("s1234\xCF\x80");
 
-  two_byte_string = AsciiToTwoByteString("s1234");
-  Local<String> local_string =
-      String::NewFromTwoByte(env->GetIsolate(), two_byte_string)
-          .ToLocalChecked();
-  i::DeleteArray(two_byte_string);
+  CHECK(!tiny_local_string->IsOneByte());
+  CHECK(!local_string->IsOneByte());
 
   if (!i::v8_flags.single_generation) {
     // We should refuse to externalize new space strings.
-    CHECK(!local_string->CanMakeExternal());
+    CHECK(!local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
     // Trigger full GC so that the newly allocated string moves to old gen.
     CcTest::CollectGarbage(i::OLD_SPACE);
   }
   // Old space strings should be accepted.
-  CHECK(local_string->CanMakeExternal());
+  CHECK(local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
 
   // Tiny strings are not in-place externalizable when pointer compression is
   // enabled, but they are if the sandbox is enabled.
-  CHECK_EQ(V8_ENABLE_SANDBOX_BOOL || i::kTaggedSize == i::kSystemPointerSize,
-           tiny_local_string->CanMakeExternal());
+  CHECK_EQ(
+      V8_ENABLE_SANDBOX_BOOL || i::kTaggedSize == i::kSystemPointerSize,
+      tiny_local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
+
+  // Change of representation is not allowed.
+  CHECK(!local_string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
 }
 
 
@@ -719,18 +717,26 @@ TEST(MakingExternalOneByteStringConditions) {
   Local<String> tiny_local_string = v8_str("s");
   Local<String> local_string = v8_str("s1234");
 
+  CHECK(tiny_local_string->IsOneByte());
+  CHECK(local_string->IsOneByte());
+
   // Single-character strings should not be externalized because they
   // are always in the RO-space.
-  CHECK(!tiny_local_string->CanMakeExternal());
+  CHECK(
+      !tiny_local_string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
   if (!i::v8_flags.single_generation) {
     // We should refuse to externalize new space strings.
-    CHECK(!local_string->CanMakeExternal());
+    CHECK(!local_string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
     // Trigger full GC so that the newly allocated string moves to old gen.
     CcTest::CollectGarbage(i::OLD_SPACE);
-    CHECK(!tiny_local_string->CanMakeExternal());
+    CHECK(!tiny_local_string->CanMakeExternal(
+        String::Encoding::ONE_BYTE_ENCODING));
   }
   // Old space strings should be accepted.
-  CHECK(local_string->CanMakeExternal());
+  CHECK(local_string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
+
+  // Change of representation is not allowed.
+  CHECK(!local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
 }
 
 

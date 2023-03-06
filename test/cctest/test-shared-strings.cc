@@ -1601,7 +1601,8 @@ void CreateExternalResources(Isolate* i_isolate, Handle<FixedArray> strings,
   resources.reserve(strings->length());
   for (int i = 0; i < strings->length(); i++) {
     Handle<String> input_string(String::cast(strings->get(i)), i_isolate);
-    CHECK(Utils::ToLocal(input_string)->CanMakeExternal());
+    CHECK(Utils::ToLocal(input_string)
+              ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
     const int length = input_string->length();
     char* buffer = new char[length + 1];
     String::WriteToFlat(*input_string, reinterpret_cast<uint8_t*>(buffer), 0,

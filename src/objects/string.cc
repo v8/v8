@@ -612,6 +612,38 @@ bool String::SupportsExternalization() {
   return true;
 }
 
+bool String::SupportsExternalization(v8::String::Encoding encoding) {
+  if (this->IsThinString()) {
+    return i::ThinString::cast(*this).actual().SupportsExternalization(
+        encoding);
+  }
+
+  // RO_SPACE strings cannot be externalized.
+  if (IsReadOnlyHeapObject(*this)) {
+    return false;
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+  // Small strings may not be in-place externalizable.
+  if (this->Size() < ExternalString::kUncachedSize) return false;
+#else
+  DCHECK_LE(ExternalString::kUncachedSize, this->Size());
+#endif
+
+  StringShape shape(*this);
+
+  // Already an external string.
+  if (shape.IsExternal()) {
+    return false;
+  }
+
+  // Encoding changes are not supported.
+  static_assert(kStringEncodingMask == 1 << 3);
+  static_assert(v8::String::Encoding::ONE_BYTE_ENCODING == 1 << 3);
+  static_assert(v8::String::Encoding::TWO_BYTE_ENCODING == 0);
+  return shape.encoding_tag() == static_cast<uint32_t>(encoding);
+}
+
 const char* String::PrefixForDebugPrint() const {
   StringShape shape(*this);
   if (IsTwoByteRepresentation()) {

@@ -493,7 +493,14 @@ class V8_EXPORT String : public Name {
   /**
    * Returns true if this string can be made external.
    */
+  V8_DEPRECATE_SOON("Use the version that takes an encoding as argument.")
   bool CanMakeExternal() const;
+
+  /**
+   * Returns true if this string can be made external, given the encoding for
+   * the external string resource.
+   */
+  bool CanMakeExternal(Encoding encoding) const;
 
   /**
    * Returns true if the strings values are equal. Same as JS ==/===.

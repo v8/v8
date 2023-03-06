@@ -17,9 +17,9 @@ const char kOneByteSubjectString[] = {
     'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
     'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
 const uint16_t kTwoByteSubjectString[] = {
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
+    0xCF80, 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a',    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a',    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
 
 const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 static_assert(arraysize(kOneByteSubjectString) ==
@@ -84,8 +84,8 @@ class InterruptTest {
     auto instance = reinterpret_cast<InterruptTest*>(data);
     HandleScope scope(isolate);
     Local<String> string =
-        Local<String>::New(isolate, instance->string_handle_);
-    CHECK(string->CanMakeExternal());
+        Local<String>::New(isolate, instance->one_byte_string_handle_);
+    CHECK(string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
     string->MakeExternal(&one_byte_string_resource);
   }
 
@@ -93,8 +93,8 @@ class InterruptTest {
     auto instance = reinterpret_cast<InterruptTest*>(data);
     HandleScope scope(isolate);
     Local<String> string =
-        Local<String>::New(isolate, instance->string_handle_);
-    CHECK(string->CanMakeExternal());
+        Local<String>::New(isolate, instance->two_byte_string_handle_);
+    CHECK(string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
     string->MakeExternal(&two_byte_string_resource);
   }
 
@@ -137,16 +137,29 @@ class InterruptTest {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
 
     // The string must be in old space to support externalization.
-    i::Handle<i::String> i_string =
+    i::Handle<i::String> i_one_byte_string =
         i_isolate->factory()->NewStringFromAsciiChecked(
             &kOneByteSubjectString[0], i::AllocationType::kOld);
-    Local<String> string = Utils::ToLocal(i_string);
+    Local<String> one_byte_string = Utils::ToLocal(i_one_byte_string);
+
+    i::Handle<i::String> i_two_byte_string =
+        i_isolate->factory()
+            ->NewStringFromTwoByte(
+                base::Vector<const base::uc16>(&kTwoByteSubjectString[0],
+                                               kSubjectStringLength),
+                i::AllocationType::kOld)
+            .ToHandleChecked();
+    Local<String> two_byte_string = Utils::ToLocal(i_two_byte_string);
 
     env_->Global()
-        ->Set(env_.local(), v8_str("subject_string"), string)
+        ->Set(env_.local(), v8_str("subject_string"), one_byte_string)
+        .FromJust();
+    env_->Global()
+        ->Set(env_.local(), v8_str("I 8 some \xCF\x80"), two_byte_string)
         .FromJust();
 
-    string_handle_.Reset(env_->GetIsolate(), string);
+    one_byte_string_handle_.Reset(env_->GetIsolate(), one_byte_string);
+    two_byte_string_handle_.Reset(env_->GetIsolate(), two_byte_string);
   }
 
   void TestBody() {
@@ -210,7 +223,8 @@ class InterruptTest {
   Isolate* isolate_;
   base::Semaphore sem_;  // Coordinates between main and interrupt threads.
 
-  Persistent<String> string_handle_;
+  Persistent<String> one_byte_string_handle_;
+  Persistent<String> two_byte_string_handle_;
 
   std::atomic<bool> ran_test_body_;
   std::atomic<bool> ran_to_completion_;
