@@ -9,11 +9,13 @@ session.setupScriptMap();
 function setBreakpoint(msg, condition) {
   const reason = msg.params.reason;
   if (reason === 'instrumentation') {
-    const scriptId = msg.params.data.scriptId;
+    const top_frame = msg.params.callFrames[0];
+    const scriptId = top_frame.location.scriptId;
+    const columnNumber = top_frame.location.columnNumber;
 
     InspectorTest.log('Setting breakpoint at instrumentation break location');
     const breakpoint_info = {
-      'location': {scriptId, 'lineNumber': 0, 'columnNumber': 0}
+      'location': {scriptId, 'lineNumber': 0, columnNumber}
     };
     if (condition) {
       breakpoint_info.condition = condition;
@@ -24,8 +26,9 @@ function setBreakpoint(msg, condition) {
 }
 
 function handlePause(msg) {
+  const top_frame = msg.params.callFrames[0];
   const reason = msg.params.reason;
-  const url = session.getPausedUrl(msg);
+  const url = session.getCallFrameUrl(top_frame);
   InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
   InspectorTest.log(
       `Hit breakpoints: ${JSON.stringify(msg.params.hitBreakpoints)}`);
@@ -42,7 +45,7 @@ async function runSetBreakpointOnInstrumentationTest(condition) {
   await Protocol.Debugger.setInstrumentationBreakpoint(
       {instrumentation: 'beforeScriptExecution'});
   const runPromise =
-      Protocol.Runtime.evaluate({expression: '42\n//# sourceURL=foo.js'});
+      Protocol.Runtime.evaluate({expression: '//# sourceURL=foo.js'});
 
   // First pause: instrumentation
   const msg = await Protocol.Debugger.oncePaused();
