@@ -279,3 +279,52 @@ function testOptimized(run, fctToOptimize) {
   };
   testOptimized(testTrap, getTrap);
 })();
+
+(function TestInliningExternExternalize() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([
+    makeField(wasmRefNullType(0), true),
+    makeField(kWasmI32, true),
+  ]);
+
+  builder.addFunction('createStruct',
+      makeSig([kWasmExternRef, kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, struct,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStructNew, struct,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('getRef', makeSig([kWasmExternRef], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+  builder.addFunction('getVal', makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 1,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let structA = wasm.createStruct(null, 1);
+  let structB = wasm.createStruct(structA, 2);
+  let getRef = () => assertSame(structA, wasm.getRef(structB));
+  testOptimized(getRef);
+  let getRefGetVal = () => assertSame(1, wasm.getVal(wasm.getRef(structB)));
+  testOptimized(getRefGetVal);
+})();

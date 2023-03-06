@@ -88,13 +88,19 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
           DCHECK(!stack.empty());
           stack.back() = ParseExternInternalize(stack.back());
           continue;
+        case wasm::kExprExternExternalize:
+          DCHECK(!stack.empty());
+          stack.back() = ParseExternExternalize(stack.back());
+          continue;
         case wasm::kExprRefCast:
           DCHECK(!stack.empty());
           stack.back() = ParseRefCast(stack.back());
           continue;
         case wasm::kExprStructGet:
+        case wasm::kExprStructGetS:
+        case wasm::kExprStructGetU:
           DCHECK(!stack.empty());
-          stack.back() = ParseStructGet(stack.back());
+          stack.back() = ParseStructGet(stack.back(), opcode);
           continue;
         case wasm::kExprLocalGet:
           stack.push_back(ParseLocalGet());
@@ -140,23 +146,33 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     return {internalized, result_type};
   }
 
+  Value ParseExternExternalize(Value input) {
+    DCHECK(input.type.is_reference());
+    wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
+        wasm::HeapType::kExtern, input.type.is_nullable()
+                                     ? wasm::Nullability::kNullable
+                                     : wasm::Nullability::kNonNullable);
+    Node* internalized = gasm_.WasmExternExternalize(input.node);
+    return {internalized, result_type};
+  }
+
   Value ParseLocalGet() {
     uint32_t index = consume_u32v();
     DCHECK_LT(index, body_.sig->parameter_count());
     return {Param(index + 1), body_.sig->GetParam(index)};
   }
 
-  Value ParseStructGet(Value struct_val) {
+  Value ParseStructGet(Value struct_val, WasmOpcode opcode) {
     uint32_t struct_index = consume_u32v();
     DCHECK(module_->has_struct(struct_index));
     const wasm::StructType* struct_type = module_->struct_type(struct_index);
     uint32_t field_index = consume_u32v();
     DCHECK_GT(struct_type->field_count(), field_index);
-    const bool is_signed = false;
-    const bool null_check = true;
+    const bool is_signed = opcode == wasm::kExprStructGetS;
+    const bool null_check = struct_val.type.is_nullable();
     Node* member = gasm_.StructGet(struct_val.node, struct_type, field_index,
                                    is_signed, null_check);
-    return {member, struct_type->field(field_index)};
+    return {member, struct_type->field(field_index).Unpacked()};
   }
 
   Value ParseRefCast(Value input) {
