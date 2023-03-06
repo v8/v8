@@ -653,29 +653,40 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
   return GetConstructorHelper(isolate, receiver).second;
 }
 
-MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
-  JSReceiver receiver = *this;
-  // Externals are JSObjects with null as a constructor.
-  DCHECK(!receiver.IsJSExternalObject());
-  Object constructor = receiver.map().GetConstructor();
+base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
+  DisallowGarbageCollection no_gc;
   JSFunction function;
-  if (constructor.IsJSFunction()) {
-    function = JSFunction::cast(constructor);
-  } else if (constructor.IsFunctionTemplateInfo()) {
-    // Remote objects don't have a creation context.
-    return MaybeHandle<NativeContext>();
-  } else if (receiver.IsJSGeneratorObject()) {
-    function = JSGeneratorObject::cast(receiver).function();
-  } else if (receiver.IsJSFunction()) {
-    function = JSFunction::cast(receiver);
-  } else {
-    return MaybeHandle<NativeContext>();
+  {
+    JSReceiver receiver = *this;
+    Map receiver_map = receiver.map();
+    InstanceType receiver_instance_type = receiver_map.instance_type();
+    if (V8_LIKELY(InstanceTypeChecker::IsJSFunction(receiver_instance_type))) {
+      function = JSFunction::cast(receiver);
+    } else if (InstanceTypeChecker::IsJSGeneratorObject(
+                   receiver_instance_type)) {
+      function = JSGeneratorObject::cast(receiver).function();
+    } else {
+      // Externals are JSObjects with null as a constructor.
+      DCHECK(!receiver.IsJSExternalObject());
+      Object constructor = receiver_map.GetConstructor();
+      if (constructor.IsJSFunction()) {
+        function = JSFunction::cast(constructor);
+      } else {
+        // constructor might be a FunctionTemplateInfo but remote objects don't
+        // have a creation context, if the object doesn't have a constructor
+        // then we can't compute a creation context.
+        return {};
+      }
+    }
   }
+  if (function.has_context()) return function.native_context();
+  return {};
+}
 
-  return function.has_context()
-             ? Handle<NativeContext>(function.native_context(),
-                                     receiver.GetIsolate())
-             : MaybeHandle<NativeContext>();
+MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
+  base::Optional<NativeContext> maybe_context = GetCreationContextRaw();
+  if (!maybe_context.has_value()) return {};
+  return handle(maybe_context.value(), GetIsolate());
 }
 
 // static

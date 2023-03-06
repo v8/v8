@@ -5274,6 +5274,40 @@ MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
   return MaybeLocal<v8::Context>();
 }
 
+void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
+    int index) {
+  const char* location =
+      "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
+  auto self = Utils::OpenHandle(this);
+  auto maybe_context = self->GetCreationContextRaw();
+  if (!maybe_context.has_value()) return nullptr;
+
+  // The code below mostly mimics Context::GetAlignedPointerFromEmbedderData()
+  // but it doesn't try to expand the EmbedderDataArray instance.
+  i::DisallowGarbageCollection no_gc;
+  i::NativeContext native_context =
+      i::NativeContext::cast(maybe_context.value());
+  i::Isolate* i_isolate = native_context.GetIsolate();
+
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  // TODO(ishell): remove cast once embedder_data slot has a proper type.
+  i::EmbedderDataArray data =
+      i::EmbedderDataArray::cast(native_context.embedder_data());
+  if (V8_LIKELY(static_cast<unsigned>(index) <
+                static_cast<unsigned>(data.length()))) {
+    void* result;
+    Utils::ApiCheck(
+        i::EmbedderDataSlot(data, index).ToAlignedPointer(i_isolate, &result),
+        location, "Pointer is not aligned");
+    return result;
+  }
+  // Bad index, report an API error.
+  Utils::ApiCheck(index >= 0, location, "Negative index");
+  Utils::ApiCheck(index < i::EmbedderDataArray::kMaxLength, location,
+                  "Index too large");
+  return nullptr;
+}
+
 Local<v8::Context> v8::Object::GetCreationContextChecked() {
   Local<Context> context;
   Utils::ApiCheck(GetCreationContext().ToLocal(&context),

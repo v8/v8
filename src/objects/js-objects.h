@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_H_
 #define V8_OBJECTS_JS_OBJECTS_H_
 
+#include "src/base/optional.h"
 #include "src/objects/embedder-data-slot.h"
 // TODO(jkummerow): Consider forward-declaring instead.
 #include "src/objects/internal-index.h"
@@ -252,6 +253,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
+  V8_EXPORT_PRIVATE base::Optional<NativeContext> GetCreationContextRaw();
   V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>

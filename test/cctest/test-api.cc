@@ -3111,14 +3111,16 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
   delete[] heap_allocated_2;
 }
 
-static void CheckAlignedPointerInEmbedderData(LocalContext* env, int index,
-                                              void* value) {
+static void CheckAlignedPointerInEmbedderData(LocalContext* env,
+                                              v8::Local<v8::Object> some_obj,
+                                              int index, void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
   (*env)->SetAlignedPointerInEmbedderData(index, value);
   CcTest::CollectAllGarbage();
   CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
+  CHECK_EQ(value,
+           some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(index));
 }
-
 
 static void* AlignedTestPointer(int i) {
   return reinterpret_cast<void*>(i * 1234);
@@ -3127,24 +3129,27 @@ static void* AlignedTestPointer(int i) {
 
 THREADED_TEST(EmbedderDataAlignedPointers) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
-  CheckAlignedPointerInEmbedderData(&env, 0, nullptr);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+  CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
   CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int* heap_allocated = new int[100];
-  CheckAlignedPointerInEmbedderData(&env, 1, heap_allocated);
+  CheckAlignedPointerInEmbedderData(&env, obj, 1, heap_allocated);
   CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
   delete[] heap_allocated;
 
   int stack_allocated[100];
-  CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
+  CheckAlignedPointerInEmbedderData(&env, obj, 2, stack_allocated);
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
   // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
-  CheckAlignedPointerInEmbedderData(&env, 3, huge);
+  CheckAlignedPointerInEmbedderData(&env, obj, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
 
   // Test growing of the embedder data's backing store.
