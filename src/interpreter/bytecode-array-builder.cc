@@ -1605,8 +1605,9 @@ bool BytecodeArrayBuilder::RegisterListIsValid(RegisterList reg_list) const {
 
 template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
 void BytecodeArrayBuilder::PrepareToOutputBytecode() {
-  if (register_optimizer_)
+  if (register_optimizer_) {
     register_optimizer_->PrepareForBytecode<bytecode, implicit_register_use>();
+  }
 }
 
 uint32_t BytecodeArrayBuilder::GetInputRegisterOperand(Register reg) {

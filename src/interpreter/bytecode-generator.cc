@@ -896,6 +896,8 @@ class V8_NODISCARD BytecodeGenerator::MultipleEntryBlockContextScope {
     }
   }
 
+  ~MultipleEntryBlockContextScope() { DCHECK(!is_in_scope_); }
+
   MultipleEntryBlockContextScope(const MultipleEntryBlockContextScope&) =
       delete;
   MultipleEntryBlockContextScope& operator=(
@@ -906,12 +908,9 @@ class V8_NODISCARD BytecodeGenerator::MultipleEntryBlockContextScope {
     DCHECK(inner_context_.is_valid());
     DCHECK(outer_context_.is_valid());
     DCHECK(!is_in_scope_);
-    Register temp = generator_->register_allocator()->NewRegister();
-    generator_->builder()->StoreAccumulatorInRegister(temp);
     generator_->builder()->LoadAccumulatorWithRegister(inner_context_);
     current_scope_.emplace(generator_, scope_);
     context_scope_.emplace(generator_, scope_, outer_context_);
-    generator_->builder()->LoadAccumulatorWithRegister(temp);
     is_in_scope_ = true;
   }
 
@@ -919,11 +918,8 @@ class V8_NODISCARD BytecodeGenerator::MultipleEntryBlockContextScope {
     DCHECK(inner_context_.is_valid());
     DCHECK(outer_context_.is_valid());
     DCHECK(is_in_scope_);
-    Register temp = generator_->register_allocator()->NewRegister();
-    generator_->builder()->StoreAccumulatorInRegister(temp);
     context_scope_ = base::nullopt;
     current_scope_ = base::nullopt;
-    generator_->builder()->LoadAccumulatorWithRegister(temp);
     is_in_scope_ = false;
   }
 
@@ -3310,11 +3306,15 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  builder()->LoadAccumulatorWithRegister(literal);
   if (home_object != nullptr) {
     object_literal_context_scope.SetEnteredIf(true);
+    builder()->LoadAccumulatorWithRegister(literal);
     BuildVariableAssignment(home_object, Token::INIT, HoleCheckMode::kElided);
   }
+  // Make sure to exit the scope before materialising the value into the
+  // accumulator, to prevent the context scope from clobbering it.
+  object_literal_context_scope.SetEnteredIf(false);
+  builder()->LoadAccumulatorWithRegister(literal);
 }
 
 // Fill an array with values from an iterator, starting at a given index. It is
