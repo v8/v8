@@ -2003,15 +2003,19 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
   String16 breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
   std::unique_ptr<protocol::DictionaryValue> breakAuxData;
 
+  std::unique_ptr<Array<CallFrame>> protocolCallFrames;
+  Response response = currentCallFrames(&protocolCallFrames);
+  if (!response.IsSuccess())
+    protocolCallFrames = std::make_unique<Array<CallFrame>>();
+
   if (m_debuggerBreakpointIdToBreakpointId.find(instrumentationId) !=
       m_debuggerBreakpointIdToBreakpointId.end()) {
-    std::unique_ptr<V8StackTraceImpl> stack =
-        V8StackTraceImpl::capture(m_inspector->debugger(), 1);
-    DCHECK(stack && !stack->isEmpty());
-    if (stack && !stack->isEmpty()) {
+    DCHECK_GT(protocolCallFrames->size(), 0);
+    if (protocolCallFrames->size() > 0) {
       m_instrumentationFinished = false;
       breakReason = protocol::Debugger::Paused::ReasonEnum::Instrumentation;
-      const String16 scriptId = String16::fromInteger(stack->topScriptId());
+      const String16 scriptId =
+          protocolCallFrames->at(0)->getLocation()->getScriptId();
       DCHECK_NE(m_scripts.find(scriptId), m_scripts.end());
       const auto& script = m_scripts[scriptId];
 
@@ -2024,8 +2028,6 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
     }
   }
 
-  std::unique_ptr<Array<CallFrame>> protocolCallFrames =
-      std::make_unique<Array<CallFrame>>();
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData),
                     std::make_unique<Array<String16>>(),
