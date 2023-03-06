@@ -5934,11 +5934,12 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
 
   const compiler::BytecodeLivenessState* liveness =
       GetOutLivenessFor(next_offset());
+  RootConstant* stale = GetRootConstant(RootIndex::kStaleRegister);
   for (int i = 0; i < registers.register_count(); ++i) {
     if (liveness->RegisterIsLive(registers[i].index())) {
       int array_index = parameter_count_without_receiver() + i;
-      StoreRegister(registers[i],
-                    AddNewNode<GeneratorRestoreRegister>({array}, array_index));
+      StoreRegister(registers[i], AddNewNode<GeneratorRestoreRegister>(
+                                      {array, stale}, array_index));
     }
   }
   SetAccumulator(AddNewNode<LoadTaggedField>(

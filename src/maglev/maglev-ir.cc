@@ -2217,18 +2217,19 @@ void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
 
 void GeneratorRestoreRegister::SetValueLocationConstraints() {
   UseRegister(array_input());
+  UseRegister(stale_input());
   DefineAsRegister(this);
-  // TODO(victorgomes): Create a arch-agnostic scratch register scope.
-  set_temporaries_needed(2);
+  set_temporaries_needed(1);
 }
 void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register temp = temps.Acquire();
   Register array = ToRegister(array_input());
+  Register stale = ToRegister(stale_input());
   Register result_reg = ToRegister(result());
 
-  // The input and the output can alias, if that happen we use a temporary
+  // The input and the output can alias, if that happens we use a temporary
   // register and a move at the end.
   Register value = (array == result_reg ? temp : result_reg);
 
@@ -2237,10 +2238,8 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
       value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
 
   // And trashs it with StaleRegisterConstant.
-  Register scratch = temps.Acquire();
-  __ LoadRoot(scratch, RootIndex::kStaleRegister);
   __ StoreTaggedField(
-      FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())), scratch);
+      FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())), stale);
 
   if (value != result_reg) {
     __ Move(result_reg, value);

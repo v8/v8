@@ -3195,17 +3195,18 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
 };
 
 class GeneratorRestoreRegister
-    : public FixedInputValueNodeT<1, GeneratorRestoreRegister> {
-  using Base = FixedInputValueNodeT<1, GeneratorRestoreRegister>;
+    : public FixedInputValueNodeT<2, GeneratorRestoreRegister> {
+  using Base = FixedInputValueNodeT<2, GeneratorRestoreRegister>;
 
  public:
   explicit GeneratorRestoreRegister(uint64_t bitfield, int index)
       : Base(bitfield), index_(index) {}
 
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& array_input() { return input(0); }
+  Input& stale_input() { return input(1); }
   int index() const { return index_; }
 
   void SetValueLocationConstraints();
