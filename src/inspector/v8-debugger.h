@@ -153,6 +153,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
   static void terminateExecutionCompletedCallbackIgnoringData(
       v8::Isolate* isolate, void*);
+  void installTerminateExecutionCallbacks(v8::Local<v8::Context> context);
+
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
@@ -308,6 +310,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
+  bool m_terminateExecutionReported = true;
 
   // Throwing conditional breakpoints for which we already have logged an error
   // message to the console. The intention is to reduce console spam.

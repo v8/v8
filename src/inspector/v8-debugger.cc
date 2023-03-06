@@ -321,15 +321,20 @@ void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
 void V8Debugger::terminateExecution(
     v8::Local<v8::Context> context,
     std::unique_ptr<TerminateExecutionCallback> callback) {
-  if (m_terminateExecutionCallback) {
+  if (!m_terminateExecutionReported) {
     if (callback) {
       callback->sendFailure(Response::ServerError(
           "There is current termination request in progress"));
     }
     return;
   }
-  v8::HandleScope handles(m_isolate);
   m_terminateExecutionCallback = std::move(callback);
+  installTerminateExecutionCallbacks(context);
+  m_isolate->TerminateExecution();
+}
+
+void V8Debugger::installTerminateExecutionCallbacks(
+    v8::Local<v8::Context> context) {
   m_terminateExecutionCallbackContext.Reset(m_isolate, context);
   m_terminateExecutionCallbackContext.SetWeak();
   m_isolate->AddCallCompletedCallback(
@@ -338,11 +343,12 @@ void V8Debugger::terminateExecution(
   microtask_queue->AddMicrotasksCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
       microtask_queue);
-  m_isolate->TerminateExecution();
+  DCHECK(m_terminateExecutionReported);
+  m_terminateExecutionReported = false;
 }
 
 void V8Debugger::reportTermination() {
-  if (!m_terminateExecutionCallback) {
+  if (m_terminateExecutionReported) {
     DCHECK(m_terminateExecutionCallbackContext.IsEmpty());
     return;
   }
@@ -352,14 +358,19 @@ void V8Debugger::reportTermination() {
   if (!m_terminateExecutionCallbackContext.IsEmpty()) {
     v8::MicrotaskQueue* microtask_queue =
         m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
-    microtask_queue->RemoveMicrotasksCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-        microtask_queue);
+    if (microtask_queue) {
+      microtask_queue->RemoveMicrotasksCompletedCallback(
+          &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+          microtask_queue);
+    }
   }
   m_isolate->CancelTerminateExecution();
-  m_terminateExecutionCallback->sendSuccess();
-  m_terminateExecutionCallback.reset();
+  if (m_terminateExecutionCallback) {
+    m_terminateExecutionCallback->sendSuccess();
+    m_terminateExecutionCallback.reset();
+  }
   m_terminateExecutionCallbackContext.Reset();
+  m_terminateExecutionReported = true;
 }
 
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
