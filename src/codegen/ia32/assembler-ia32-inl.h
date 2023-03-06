@@ -53,8 +53,10 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 void RelocInfo::apply(intptr_t delta) {
   DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                         RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET)));
-  if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_)) {
+                         RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+                         RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
+  if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_) ||
+      IsWasmStubCall(rmode_)) {
     base::WriteUnalignedValue(pc_,
                               base::ReadUnalignedValue<int32_t>(pc_) - delta);
   } else if (IsInternalReference(rmode_)) {
@@ -65,7 +67,7 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 

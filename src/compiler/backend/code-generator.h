@@ -201,6 +201,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
     return offsets_info_;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsWasm() const { return info()->IsWasm(); }
+#endif
+
   static constexpr int kBinarySearchSwitchMinimalCases = 4;
 
   // Returns true if an offset should be applied to the given stack check. There

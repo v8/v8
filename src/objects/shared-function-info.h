@@ -361,6 +361,7 @@ class SharedFunctionInfo
 
   inline const wasm::WasmModule* wasm_module() const;
   inline const wasm::FunctionSig* wasm_function_signature() const;
+  inline int wasm_function_index() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // builtin corresponds to the auto-generated Builtin enum.

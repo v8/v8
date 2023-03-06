@@ -3021,6 +3021,8 @@ filegroup(
             "src/compiler/wasm-graph-assembler.h",
             "src/compiler/wasm-inlining.cc",
             "src/compiler/wasm-inlining.h",
+            "src/compiler/wasm-inlining-into-js.cc",
+            "src/compiler/wasm-inlining-into-js.h",
             "src/compiler/wasm-typer.cc",
             "src/compiler/wasm-typer.h",
         ],

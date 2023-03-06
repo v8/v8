@@ -3604,8 +3604,21 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
   has_wasm_calls_ = true;
 
   const wasm::WasmModule* wasm_module = shared.wasm_module();
-  const Operator* op =
-      javascript()->CallWasm(wasm_module, wasm_signature, p.feedback());
+  if (wasm_module_for_inlining_ == nullptr) {
+    wasm_module_for_inlining_ = wasm_module;
+  }
+
+  wasm::NativeModule* native_module = nullptr;
+  if (shared.object()->HasWasmExportedFunctionData()) {
+    native_module = shared.object()
+                        ->wasm_exported_function_data()
+                        .instance()
+                        .module_object()
+                        .native_module();
+  }
+  const Operator* op = javascript()->CallWasm(wasm_module, wasm_signature,
+                                              shared.wasm_function_index(),
+                                              native_module, p.feedback());
 
   // Remove additional inputs
   size_t actual_arity = n.ArgumentCount();

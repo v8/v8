@@ -21,6 +21,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+void Print(const Operation& op) { std::cout << op << "\n"; }
+
 bool AllowImplicitRepresentationChange(RegisterRepresentation actual_rep,
                                        RegisterRepresentation expected_rep) {
   if (actual_rep == expected_rep) {

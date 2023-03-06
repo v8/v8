@@ -429,7 +429,15 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+      if (gen_->IsWasm() || PointerCompressionIsEnabled()) {
+        __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+      } else {
+        // For wasm traps inlined into JavaScript force indirect call if pointer
+        // compression is disabled as it can't be guaranteed that the built-in's
+        // address is close enough for a near call.
+        __ IndirectCall(static_cast<Address>(trap_id),
+                        RelocInfo::WASM_STUB_CALL);
+      }
       ReferenceMap* reference_map =
           gen_->zone()->New<ReferenceMap>(gen_->zone());
       gen_->RecordSafepoint(reference_map);

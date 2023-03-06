@@ -23,7 +23,7 @@ class WasmGraphAssembler;
 class WasmGCLowering final : public AdvancedReducer {
  public:
   WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
-                 const wasm::WasmModule* module);
+                 const wasm::WasmModule* module, bool disable_trap_handler);
 
   const char* reducer_name() const override { return "WasmGCLowering"; }
 
@@ -56,7 +56,7 @@ class WasmGCLowering final : public AdvancedReducer {
   WasmGraphAssembler gasm_;
   const wasm::WasmModule* module_;
   Node* dead_;
-  Node* instance_node_;
+  const MachineGraph* mcgraph_;
 };
 
 }  // namespace compiler

@@ -203,7 +203,8 @@ CPURegList CPURegList::GetCallerSavedV(int size) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE);
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded. Being

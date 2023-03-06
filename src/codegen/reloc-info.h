@@ -365,6 +365,7 @@ class RelocInfo {
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
+           ModeMask(RelocInfo::WASM_STUB_CALL) |
            ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
   }
 
