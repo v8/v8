@@ -1012,8 +1012,13 @@ class EagerDeoptInfo : public DeoptInfo {
 class LazyDeoptInfo : public DeoptInfo {
  public:
   LazyDeoptInfo(Zone* zone, DeoptFrame&& top_frame,
+                interpreter::Register result_location, int result_size,
                 compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, std::move(top_frame), feedback_to_update) {}
+      : DeoptInfo(zone, std::move(top_frame), feedback_to_update),
+        result_location_(result_location),
+        bitfield_(
+            DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
+            ResultSizeField::encode(result_size)) {}
 
   interpreter::Register result_location() const {
     // We should only be checking this for interpreted frames, other kinds of
@@ -1025,19 +1030,18 @@ class LazyDeoptInfo : public DeoptInfo {
     // We should only be checking this for interpreted frames, other kinds of
     // frames shouldn't be considered for result locations.
     DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
-    return result_size_;
+    return ResultSizeField::decode(bitfield_);
   }
 
   bool IsResultRegister(interpreter::Register reg) const;
-  void SetResultLocation(interpreter::Register result_location,
-                         int result_size) {
-    // We should only be checking this for interpreted frames, other kinds of
-    // frames shouldn't be considered for result locations.
-    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
-    DCHECK(result_location.is_valid());
-    DCHECK(!result_location_.is_valid());
+  void UpdateResultLocation(interpreter::Register result_location,
+                            int result_size) {
+    // We should only update to a subset of the existing result location.
+    DCHECK_GE(result_location.index(), result_location_.index());
+    DCHECK_LE(result_location.index() + result_size,
+              result_location_.index() + this->result_size());
     result_location_ = result_location;
-    result_size_ = result_size;
+    bitfield_ = ResultSizeField::update(bitfield_, result_size);
   }
   bool HasResultLocation() const {
     // We should only be checking this for interpreted frames, other kinds of
@@ -1046,14 +1050,36 @@ class LazyDeoptInfo : public DeoptInfo {
     return result_location_.is_valid();
   }
 
-  int deopting_call_return_pc() const { return deopting_call_return_pc_; }
-  void set_deopting_call_return_pc(int pc) { deopting_call_return_pc_ = pc; }
+  int deopting_call_return_pc() const {
+    DCHECK_NE(DeoptingCallReturnPcField::decode(bitfield_),
+              kUninitializedCallReturnPc);
+    return DeoptingCallReturnPcField::decode(bitfield_);
+  }
+  void set_deopting_call_return_pc(int pc) {
+    DCHECK_EQ(DeoptingCallReturnPcField::decode(bitfield_),
+              kUninitializedCallReturnPc);
+    bitfield_ = DeoptingCallReturnPcField::update(bitfield_, pc);
+  }
 
  private:
-  int deopting_call_return_pc_ = -1;
-  interpreter::Register result_location_ =
-      interpreter::Register::invalid_value();
-  int result_size_ = 1;
+  using DeoptingCallReturnPcField = base::BitField<unsigned int, 0, 30>;
+  using ResultSizeField = DeoptingCallReturnPcField::Next<unsigned int, 2>;
+
+  // The max code size is enforced by the various assemblers, but it's not
+  // visible here, so static assert against the magic constant that we happen
+  // to know is correct.
+  static constexpr int kMaxCodeSize = 512 * MB;
+  static constexpr unsigned int kUninitializedCallReturnPc =
+      DeoptingCallReturnPcField::kMax;
+  static_assert(DeoptingCallReturnPcField::is_valid(kMaxCodeSize));
+  static_assert(kMaxCodeSize != kUninitializedCallReturnPc);
+
+  // Lazy deopts can have at most two result registers -- temporarily three for
+  // ForInPrepare.
+  static_assert(ResultSizeField::kMax >= 3);
+
+  interpreter::Register result_location_;
+  uint32_t bitfield_;
 };
 
 class ExceptionHandlerInfo {

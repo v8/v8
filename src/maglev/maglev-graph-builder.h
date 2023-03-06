@@ -212,7 +212,8 @@ class MaglevGraphBuilder {
     FunctionEntryStackCheck* function_entry_stack_check =
         FunctionEntryStackCheck::New(zone(), {});
     new (function_entry_stack_check->lazy_deopt_info()) LazyDeoptInfo(
-        zone(), GetDeoptFrameForEntryStackCheck(), compiler::FeedbackSource());
+        zone(), GetDeoptFrameForEntryStackCheck(),
+        interpreter::Register::invalid_value(), 0, compiler::FeedbackSource());
     AddInitializedNodeToGraph(function_entry_stack_check);
 
     BuildMergeStates();
@@ -635,8 +636,10 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachLazyDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      new (node->lazy_deopt_info()) LazyDeoptInfo(
-          zone(), GetDeoptFrameForLazyDeopt(), current_speculation_feedback_);
+      auto [register_result, register_count] = GetResultLocationAndSize();
+      new (node->lazy_deopt_info())
+          LazyDeoptInfo(zone(), GetDeoptFrameForLazyDeopt(), register_result,
+                        register_count, current_speculation_feedback_);
     }
   }
 
@@ -1191,44 +1194,16 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT>
-  void MarkAsLazyDeoptResult(NodeT* value,
-                             interpreter::Register result_location,
-                             int result_size) {
-    // Make sure this is a statically known Node type.
-    DCHECK_EQ(NodeBase::opcode_of<NodeT>, value->opcode());
-    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
-              value->properties().can_lazy_deopt());
-    if constexpr (!NodeT::kProperties.can_lazy_deopt()) return;
-    // If we know the type of the node, then we have likely just created it, and
-    // therefore can safely assert that it has not set its result location yet
-    // instead of checking it like we do on the ValueNode* overload.
-    // If this DCHECK causes issues it's safe to remove it, but then we have to
-    // instead dynamically check for is_valid.
-    DCHECK(IsNodeCreatedForThisBytecode(value));
-    DCHECK(!value->lazy_deopt_info()->HasResultLocation());
-    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
-  }
-
-  void MarkAsLazyDeoptResult(ValueNode* value,
-                             interpreter::Register result_location,
-                             int result_size) {
-    if (!value->properties().can_lazy_deopt()) return;
-    if (value->lazy_deopt_info()->HasResultLocation()) {
-      // If the node already has a lazy deopt result location, it must be a node
-      // that existed before processing this bytecode. A lazy deopt will already
-      // force the execution of this node to happen earlier, so we need to avoid
-      // overwriting its result location with a new one.
-      DCHECK(!IsNodeCreatedForThisBytecode(value));
-      return;
-    }
-    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
-  }
-
-  template <typename NodeT>
   void StoreRegister(interpreter::Register target, NodeT* value) {
     static_assert(std::is_base_of_v<ValueNode, NodeT>);
-    MarkAsLazyDeoptResult(value, target, 1);
+    DCHECK(HasOutputRegister(target));
     current_interpreter_frame_.set(target, value);
+
+    // Make sure the lazy deopt info of this value, if any, is registered as
+    // mutating this register.
+    DCHECK_IMPLIES(value->properties().can_lazy_deopt() &&
+                       IsNodeCreatedForThisBytecode(value),
+                   value->lazy_deopt_info()->IsResultRegister(target));
   }
 
   template <typename NodeT>
@@ -1242,13 +1217,28 @@ class MaglevGraphBuilder {
     DCHECK_EQ(value->ReturnCount(), 2);
 
     DCHECK_NE(0, new_nodes_.count(value));
-    MarkAsLazyDeoptResult(value, target0, value->ReturnCount());
+    DCHECK(HasOutputRegister(target0));
     current_interpreter_frame_.set(target0, value);
 
     ValueNode* second_value = GetSecondValue(value);
     DCHECK_NE(0, new_nodes_.count(second_value));
+    DCHECK(HasOutputRegister(target1));
     current_interpreter_frame_.set(target1, second_value);
+
+    // Make sure the lazy deopt info of this value, if any, is registered as
+    // mutating these registers.
+    DCHECK_IMPLIES(value->properties().can_lazy_deopt() &&
+                       IsNodeCreatedForThisBytecode(value),
+                   value->lazy_deopt_info()->IsResultRegister(target0));
+    DCHECK_IMPLIES(value->properties().can_lazy_deopt() &&
+                       IsNodeCreatedForThisBytecode(value),
+                   value->lazy_deopt_info()->IsResultRegister(target1));
   }
+
+  std::pair<interpreter::Register, int> GetResultLocationAndSize() const;
+#ifdef DEBUG
+  bool HasOutputRegister(interpreter::Register reg) const;
+#endif
 
   DeoptFrame* GetParentDeoptFrame();
   DeoptFrame GetLatestCheckpointedFrame();

@@ -468,7 +468,6 @@ void TranslationArrayBuilder::BeginInterpretedFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     int return_value_offset, int return_value_count) {
   if (return_value_count == 0) {
-    DCHECK_EQ(return_value_offset, 0);
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN;
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
         SignedOperand(literal_id), SignedOperand(height));

@@ -25,6 +25,7 @@
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
@@ -327,14 +328,17 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(ValueNode* context,
   if (new_target_or_generator_register.is_valid()) {
     int new_target_index = new_target_or_generator_register.index();
     for (; register_index < new_target_index; register_index++) {
-      StoreRegister(interpreter::Register(register_index), undefined_value);
+      current_interpreter_frame_.set(interpreter::Register(register_index),
+                                     undefined_value);
     }
-    StoreRegister(new_target_or_generator_register,
-                  GetRegisterInput(kJavaScriptCallNewTargetRegister));
+    current_interpreter_frame_.set(
+        new_target_or_generator_register,
+        GetRegisterInput(kJavaScriptCallNewTargetRegister));
     register_index++;
   }
   for (; register_index < register_count(); register_index++) {
-    StoreRegister(interpreter::Register(register_index), undefined_value);
+    current_interpreter_frame_.set(interpreter::Register(register_index),
+                                   undefined_value);
   }
 }
 
@@ -371,6 +375,147 @@ void MaglevGraphBuilder::BuildMergeStates() {
     }
   }
 }
+
+namespace {
+
+template <int index, interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper;
+
+// Terminal cases
+template <int index>
+struct GetResultLocationAndSizeHelper<index> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    // TODO(leszeks): This should probably actually be "UNREACHABLE" but we have
+    // lazy deopt info for interrupt budget updates at returns, not for actual
+    // lazy deopts, but just for stack iteration purposes.
+    return {interpreter::Register::invalid_value(), 0};
+  }
+  static bool HasOutputRegisterOperand() { return false; }
+};
+
+template <int index, interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper<index, interpreter::OperandType::kRegOut,
+                                      operands...> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    // We shouldn't have any other output operands than this one.
+    return {iterator.GetRegisterOperand(index), 1};
+  }
+  static bool HasOutputRegisterOperand() { return true; }
+};
+
+template <int index, interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper<
+    index, interpreter::OperandType::kRegOutPair, operands...> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    // We shouldn't have any other output operands than this one.
+    return {iterator.GetRegisterOperand(index), 2};
+  }
+  static bool HasOutputRegisterOperand() { return true; }
+};
+
+template <int index, interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper<
+    index, interpreter::OperandType::kRegOutTriple, operands...> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    // We shouldn't have any other output operands than this one.
+    DCHECK(!(GetResultLocationAndSizeHelper<
+             index + 1, operands...>::HasOutputRegisterOperand()));
+    return {iterator.GetRegisterOperand(index), 3};
+  }
+  static bool HasOutputRegisterOperand() { return true; }
+};
+
+// We don't support RegOutList for lazy deopts.
+template <int index, interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper<
+    index, interpreter::OperandType::kRegOutList, operands...> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    interpreter::RegisterList list = iterator.GetRegisterListOperand(index);
+    return {list.first_register(), list.register_count()};
+  }
+  static bool HasOutputRegisterOperand() { return true; }
+};
+
+// Induction case.
+template <int index, interpreter::OperandType operand,
+          interpreter::OperandType... operands>
+struct GetResultLocationAndSizeHelper<index, operand, operands...> {
+  static std::pair<interpreter::Register, int> GetResultLocationAndSize(
+      const interpreter::BytecodeArrayIterator& iterator) {
+    return GetResultLocationAndSizeHelper<
+        index + 1, operands...>::GetResultLocationAndSize(iterator);
+  }
+  static bool HasOutputRegisterOperand() {
+    return GetResultLocationAndSizeHelper<
+        index + 1, operands...>::HasOutputRegisterOperand();
+  }
+};
+
+template <interpreter::Bytecode bytecode,
+          interpreter::ImplicitRegisterUse implicit_use,
+          interpreter::OperandType... operands>
+std::pair<interpreter::Register, int> GetResultLocationAndSizeForBytecode(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  // We don't support output registers for implicit registers.
+  DCHECK(!interpreter::BytecodeOperands::WritesImplicitRegister(implicit_use));
+  if (interpreter::BytecodeOperands::WritesAccumulator(implicit_use)) {
+    // If we write the accumulator, we shouldn't also write an output register.
+    DCHECK(!(GetResultLocationAndSizeHelper<
+             0, operands...>::HasOutputRegisterOperand()));
+    return {interpreter::Register::virtual_accumulator(), 1};
+  }
+
+  // Use template magic to output a the appropriate GetRegisterOperand call and
+  // size for this bytecode.
+  return GetResultLocationAndSizeHelper<
+      0, operands...>::GetResultLocationAndSize(iterator);
+}
+
+}  // namespace
+
+std::pair<interpreter::Register, int>
+MaglevGraphBuilder::GetResultLocationAndSize() const {
+  using Bytecode = interpreter::Bytecode;
+  using OperandType = interpreter::OperandType;
+  using ImplicitRegisterUse = interpreter::ImplicitRegisterUse;
+  Bytecode bytecode = iterator_.current_bytecode();
+  // TODO(leszeks): Only emit these cases for bytecodes we know can lazy deopt.
+  switch (bytecode) {
+#define CASE(Name, ...)                                           \
+  case Bytecode::k##Name:                                         \
+    return GetResultLocationAndSizeForBytecode<Bytecode::k##Name, \
+                                               __VA_ARGS__>(iterator_);
+    BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+}
+
+#ifdef DEBUG
+bool MaglevGraphBuilder::HasOutputRegister(interpreter::Register reg) const {
+  interpreter::Bytecode bytecode = iterator_.current_bytecode();
+  if (reg == interpreter::Register::virtual_accumulator()) {
+    return interpreter::Bytecodes::WritesAccumulator(bytecode);
+  }
+  for (int i = 0; i < interpreter::Bytecodes::NumberOfOperands(bytecode); ++i) {
+    if (interpreter::Bytecodes::IsRegisterOutputOperandType(
+            interpreter::Bytecodes::GetOperandType(bytecode, i))) {
+      interpreter::Register operand_reg = iterator_.GetRegisterOperand(i);
+      int operand_range = iterator_.GetRegisterOperandRange(i);
+      if (base::IsInRange(reg.index(), operand_reg.index(),
+                          operand_reg.index() + operand_range)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+#endif
 
 DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
   if (parent_ == nullptr) return nullptr;
@@ -5635,18 +5780,24 @@ void MaglevGraphBuilder::VisitForInPrepare() {
       break;
     }
     case ForInHint::kAny: {
+      // The result of the  bytecode is output in registers |cache_info_triple|
+      // to |cache_info_triple + 2|, with the registers holding cache_type,
+      // cache_array, and cache_length respectively.
+      //
+      // We set the cache type first (to the accumulator value), and write
+      // the other two with a ForInPrepare builtin call. This can lazy deopt,
+      // which will write to cache_array and cache_length, with cache_type
+      // already set on the translation frame.
+
       // This move needs to happen before ForInPrepare to avoid lazy deopt
       // extending the lifetime of the {cache_type} register.
       MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                                cache_type_reg);
       ForInPrepare* result =
           AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
-      // No need to set the accumulator.
-      DCHECK(!GetOutLiveness()->AccumulatorIsLive());
-      // The result is output in registers |cache_info_triple| to
-      // |cache_info_triple + 2|, with the registers holding cache_type,
-      // cache_array, and cache_length respectively. Cache type is already set
-      // above, so store the remaining two now.
+      // The add will set up a lazy deopt info writing to all three output
+      // registers. Update this to only write to the latter two.
+      result->lazy_deopt_info()->UpdateResultLocation(cache_array_reg, 2);
       StoreRegisterPair({cache_array_reg, cache_length_reg}, result);
       // Force a conversion to Int32 for the cache length value.
       GetInt32(cache_length_reg);
