@@ -6561,14 +6561,17 @@ class BranchIfFloat64Compare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfFloat64Compare(uint64_t bitfield, Operation operation,
-                                  BasicBlockRef* if_true_refs,
-                                  int true_interrupt_correction,
-                                  BasicBlockRef* if_false_refs,
-                                  int false_interrupt_correction)
+  enum class JumpModeIfNaN { kJumpToFalse, kJumpToTrue };
+
+  explicit BranchIfFloat64Compare(
+      uint64_t bitfield, Operation operation, BasicBlockRef* if_true_refs,
+      int true_interrupt_correction, BasicBlockRef* if_false_refs,
+      int false_interrupt_correction,
+      JumpModeIfNaN jump_mode_if_nan = JumpModeIfNaN::kJumpToFalse)
       : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
              false_interrupt_correction),
-        operation_(operation) {}
+        operation_(operation),
+        jump_mode_if_nan_(jump_mode_if_nan) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
@@ -6579,6 +6582,7 @@ class BranchIfFloat64Compare
 
  private:
   Operation operation_;
+  JumpModeIfNaN jump_mode_if_nan_;
 };
 
 class BranchIfReferenceCompare

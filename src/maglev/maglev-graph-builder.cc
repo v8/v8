@@ -5481,7 +5481,8 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
       case ValueRepresentation::kFloat64:
         return FinishBlock<BranchIfFloat64Compare>(
             {cond, GetFloat64Constant(0)}, Operation::kEqual, false_target,
-            false_interrupt_correction, true_target, true_interrupt_correction);
+            false_interrupt_correction, true_target, true_interrupt_correction,
+            BranchIfFloat64Compare::JumpModeIfNaN::kJumpToTrue);
       case ValueRepresentation::kInt32:
         return FinishBlock<BranchIfInt32Compare>(
             {cond, GetInt32Constant(0)}, Operation::kEqual, false_target,
