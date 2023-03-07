@@ -23,4 +23,9 @@ namespace cppgc {
 
 }  // namespace cppgc
 
+// Add this annotation on a case-by-case basis when enforcement of
+// CPPGC_STACK_ALLOCATED should be suppressed.
+#define CPPGC_STACK_ALLOCATED_IGNORE(bug_or_reason) \
+  __attribute__((annotate("stack_allocated_ignore")))
+
 #endif  // INCLUDE_CPPGC_MACROS_H_
