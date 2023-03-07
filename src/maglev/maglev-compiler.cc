@@ -64,6 +64,18 @@ class ValueLocationConstraintProcessor {
 #undef DEF_PROCESS_NODE
 };
 
+class DecompressedUseMarkingProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  template <typename NodeT>
+  void Process(NodeT* node, const ProcessingState& state) {
+    node->MarkTaggedInputsAsDecompressing();
+  }
+};
+
 class MaxCallDepthProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
@@ -406,7 +418,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     //   - Find the maximum number of stack arguments passed to calls
     //   - Collect use information, for SSA liveness and next-use distance.
     GraphMultiProcessor<ValueLocationConstraintProcessor, MaxCallDepthProcessor,
-                        UseMarkingProcessor>
+                        UseMarkingProcessor, DecompressedUseMarkingProcessor>
         processor(UseMarkingProcessor{compilation_info});
     processor.ProcessGraph(graph);
   }

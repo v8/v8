@@ -1340,6 +1340,20 @@ class NodeBase : public ZoneObject {
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
 
+  // Allow updating bits above NextBitField from subclasses
+  constexpr uint64_t bitfield() const { return bitfield_; }
+  void set_bitfield(uint64_t new_bitfield) {
+#ifdef DEBUG
+    // Make sure that all the base bitfield bits (all bits before the next
+    // bitfield start) are equal in the new value.s
+    const uint64_t base_bitfield_mask =
+        (uint64_t{1} << NextBitField<bool, 1>::kShift) - 1;
+    DCHECK_EQ(bitfield_ & base_bitfield_mask,
+              new_bitfield & base_bitfield_mask);
+#endif
+    bitfield_ = new_bitfield;
+  }
+
   constexpr Input* input_base() {
     return detail::ObjectPtrBeforeAddress<Input>(this);
   }
@@ -1521,6 +1535,14 @@ class Node : public NodeBase {
 
 // All non-control nodes with a result.
 class ValueNode : public Node {
+ private:
+  using TaggedResultNeedsDecompressField = NextBitField<bool, 1>;
+
+ protected:
+  // Subclasses may use the remaining bitfield bits.
+  template <class T, int size>
+  using NextBitField = TaggedResultNeedsDecompressField::Next<T, size>;
+
  public:
   ValueLocation& result() { return result_; }
   const ValueLocation& result() const { return result_; }
@@ -1623,6 +1645,26 @@ class ValueNode : public Node {
   constexpr bool is_tagged() const {
     return (properties().value_representation() ==
             ValueRepresentation::kTagged);
+  }
+
+  constexpr bool decompresses_tagged_result() const {
+    DCHECK(is_tagged());
+    return TaggedResultNeedsDecompressField::decode(bitfield());
+  }
+  void SetTaggedResultNeedsDecompress() {
+    DCHECK_IMPLIES(!Is<Identity>(), is_tagged());
+    DCHECK_IMPLIES(Is<Identity>(), input(0).node()->is_tagged());
+    set_bitfield(TaggedResultNeedsDecompressField::update(bitfield(), true));
+    if (Is<Phi>()) {
+      for (Input& input : *this) {
+        // Avoid endless recursion by terminating on values already marked.
+        if (input.node()->decompresses_tagged_result()) continue;
+        input.node()->SetTaggedResultNeedsDecompress();
+      }
+    } else if (Is<Identity>()) {
+      DCHECK_EQ(input_count(), 0);
+      input(0).node()->SetTaggedResultNeedsDecompress();
+    }
   }
 
   constexpr ValueRepresentation value_representation() const {
@@ -1840,6 +1882,20 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
     }
   }
 
+  void MarkTaggedInputsAsDecompressing() const {
+    if constexpr (kInputCount != 0) {
+      static_assert(
+          std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
+      static_assert(kInputCount == Derived::kInputTypes.size());
+      for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
+        if (Derived::kInputTypes[i] == ValueRepresentation::kTagged) {
+          ValueNode* input_node = this->input(i).node();
+          input_node->SetTaggedResultNeedsDecompress();
+        }
+      }
+    }
+  }
+
  protected:
   using InputTypes = detail::ArrayWrapper<kInputCount>;
   detail::YouNeedToDefineAnInputTypesArrayInYourDerivedClass kInputTypes;
@@ -1875,6 +1931,11 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
 
   void VerifyInputs(MaglevGraphLabeller*) const {
     // Identity is valid for all input types.
+  }
+  void MarkTaggedInputsAsDecompressing() {
+    // Do not mark inputs as decompressing here, since we don't yet know whether
+    // this Phi needs decompression. Instead, let
+    // Node::SetTaggedResultNeedsDecompress pass through phis.
   }
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&) {}
@@ -2355,6 +2416,9 @@ class UnsafeSmiTag : public FixedInputValueNodeT<1, UnsafeSmiTag> {
   Input& input() { return Node::input(0); }
 
   void VerifyInputs(MaglevGraphLabeller*) const;
+  void MarkTaggedInputsAsDecompressing() {
+    // No tagged inputs.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2374,6 +2438,9 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
 
   Input& input() { return Node::input(0); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to untag.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2392,6 +2459,9 @@ class UnsafeSmiUntag : public FixedInputValueNodeT<1, UnsafeSmiUntag> {
 
   Input& input() { return Node::input(0); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to untag.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2841,6 +2911,9 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
   Input& lhs() { return Node::input(0); }
   Input& rhs() { return Node::input(1); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to compare reference equality.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2858,6 +2931,9 @@ class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
   Input& lhs() { return Node::input(0); }
   Input& rhs() { return Node::input(1); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to compare reference equality.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3038,6 +3114,9 @@ class GeneratorStore : public NodeT<GeneratorStore> {
 
   int MaxCallStackArgs() const;
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to store.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3842,24 +3921,27 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   using Base = FixedInputNodeT<1, CheckValue>;
 
  public:
-  explicit CheckValue(uint64_t bitfield, const compiler::ObjectRef& value)
+  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef& value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  compiler::ObjectRef value() const { return value_; }
+  compiler::HeapObjectRef value() const { return value_; }
 
   static constexpr int kTargetIndex = 0;
   Input& target_input() { return input(kTargetIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to compare reference equality.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::ObjectRef value_;
+  const compiler::HeapObjectRef value_;
 };
 
 class CheckValueEqualsString
@@ -3905,6 +3987,9 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
   Input& first_input() { return input(kFirstIndex); }
   Input& second_input() { return input(kSecondIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to compare reference equality.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3923,6 +4008,9 @@ class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to check Smi bits.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3964,6 +4052,9 @@ class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to check Smi bits.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4916,6 +5007,10 @@ class StoreTaggedFieldNoWriteBarrier
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    object_input().node()->SetTaggedResultNeedsDecompress();
+    // Don't need to decompress value to store it.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4968,6 +5063,10 @@ class StoreTaggedFieldWithWriteBarrier
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    object_input().node()->SetTaggedResultNeedsDecompress();
+    // Don't need to decompress value to store it.
+  }
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5448,6 +5547,11 @@ class Phi : public ValueNodeT<Phi> {
   bool is_exception_phi() const { return input_count() == 0; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing() {
+    // Do not mark inputs as decompressing here, since we don't yet know whether
+    // this Phi needs decompression. Instead, let
+    // Node::SetTaggedResultNeedsDecompress pass through phis.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -5508,6 +5612,7 @@ class Call : public ValueNodeT<Call> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5563,6 +5668,7 @@ class Construct : public ValueNodeT<Construct> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5657,6 +5763,7 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5708,6 +5815,7 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5762,6 +5870,7 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5793,6 +5902,7 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   Input& context() { return input(kContextIndex); }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5842,6 +5952,7 @@ class CallSelf : public ValueNodeT<CallSelf> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5898,6 +6009,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5959,6 +6071,7 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -6473,6 +6586,9 @@ class BranchIfRootConstant
   RootIndex root_index() { return root_index_; }
   Input& condition_input() { return input(0); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress values to reference compare.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -6499,6 +6615,9 @@ class BranchIfUndefinedOrNull
 
   Input& condition_input() { return input(0); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress values to reference compare.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -6633,6 +6752,9 @@ class BranchIfReferenceCompare
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress values to reference compare.
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
