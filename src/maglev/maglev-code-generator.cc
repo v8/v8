@@ -857,17 +857,31 @@ class SafepointingNodeProcessor {
 };
 
 namespace {
-int GetFrameCount(const DeoptFrame& deopt_frame) {
-  int count = 1;
-  if (deopt_frame.parent()) {
-    count += GetFrameCount(*deopt_frame.parent());
+struct FrameCount {
+  int total;
+  int js_frame;
+};
+
+FrameCount GetFrameCount(const DeoptFrame* deopt_frame) {
+  int total = 1;
+  int js_frame = 1;
+  while (deopt_frame->parent()) {
+    deopt_frame = deopt_frame->parent();
+    if (deopt_frame->type() != DeoptFrame::FrameType::kInlinedArgumentsFrame) {
+      js_frame++;
+    }
+    total++;
   }
-  return count;
+  return FrameCount{total, js_frame};
 }
+
 BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().bytecode_position();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      DCHECK_NOT_NULL(deopt_frame.parent());
+      return GetBytecodeOffset(*deopt_frame.parent());
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return Builtins::GetContinuationBytecodeOffset(
           deopt_frame.as_builtin_continuation().builtin_id());
@@ -877,6 +891,9 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().source_position();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      DCHECK_NOT_NULL(deopt_frame.parent());
+      return GetSourcePosition(*deopt_frame.parent());
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return SourcePosition::Unknown();
   }
@@ -886,6 +903,7 @@ compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().unit().shared_function_info();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return GetSharedFunctionInfo(*deopt_frame.parent());
   }
@@ -904,8 +922,7 @@ class MaglevTranslationArrayBuilder {
         deopt_literals_(deopt_literals) {}
 
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
-    int frame_count = GetFrameCount(deopt_info->top_frame());
-    int jsframe_count = frame_count;
+    auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(
             frame_count, jsframe_count,
@@ -921,8 +938,7 @@ class MaglevTranslationArrayBuilder {
   }
 
   void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
-    int frame_count = GetFrameCount(deopt_info->top_frame());
-    int jsframe_count = frame_count;
+    auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(
             frame_count, jsframe_count,
@@ -973,7 +989,7 @@ class MaglevTranslationArrayBuilder {
         }
         translation_array_builder_->BeginInterpretedFrame(
             interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(*GetSharedFunctionInfo(interpreted_frame).object()),
+            GetDeoptLiteral(GetSharedFunctionInfo(interpreted_frame)),
             interpreted_frame.unit().register_count(), return_offset,
             deopt_info->result_size());
 
@@ -983,6 +999,9 @@ class MaglevTranslationArrayBuilder {
             deopt_info->result_size());
         break;
       }
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        // The inlined arguments frame can never be the top frame.
+        UNREACHABLE();
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
             top_frame.as_builtin_continuation();
@@ -990,8 +1009,7 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->BeginBuiltinContinuationFrame(
             Builtins::GetContinuationBytecodeOffset(
                 builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(
-                *GetSharedFunctionInfo(builtin_continuation_frame).object()),
+            GetDeoptLiteral(GetSharedFunctionInfo(builtin_continuation_frame)),
             builtin_continuation_frame.parameters().length());
 
         // Closure
@@ -1047,7 +1065,7 @@ class MaglevTranslationArrayBuilder {
         const int return_count = 0;
         translation_array_builder_->BeginInterpretedFrame(
             interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(*GetSharedFunctionInfo(interpreted_frame).object()),
+            GetDeoptLiteral(GetSharedFunctionInfo(interpreted_frame)),
             interpreted_frame.unit().register_count(), return_offset,
             return_count);
 
@@ -1057,6 +1075,28 @@ class MaglevTranslationArrayBuilder {
             return_count);
         break;
       }
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
+        const InlinedArgumentsDeoptFrame& inlined_arguments_frame =
+            frame.as_inlined_arguments();
+
+        translation_array_builder_->BeginInlinedExtraArguments(
+            GetDeoptLiteral(GetSharedFunctionInfo(inlined_arguments_frame)),
+            static_cast<uint32_t>(inlined_arguments_frame.arguments().size()));
+
+        // Closure
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(inlined_arguments_frame.unit().function()));
+
+        // Arguments
+        // TODO(victorgomes): Technically we don't need all arguments, only the
+        // extra ones. But doing this at the moment, since it matches the
+        // TurboFan behaviour.
+        for (ValueNode* value : inlined_arguments_frame.arguments()) {
+          BuildDeoptFrameSingleValue(value, *current_input_location);
+          current_input_location++;
+        }
+        break;
+      }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
             frame.as_builtin_continuation();
@@ -1064,8 +1104,7 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->BeginBuiltinContinuationFrame(
             Builtins::GetContinuationBytecodeOffset(
                 builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(
-                *GetSharedFunctionInfo(builtin_continuation_frame).object()),
+            GetDeoptLiteral(GetSharedFunctionInfo(builtin_continuation_frame)),
             builtin_continuation_frame.parameters().length());
 
         // Closure
@@ -1158,7 +1197,7 @@ class MaglevTranslationArrayBuilder {
       translation_array_builder_->StoreStackSlot(closure_index);
     } else {
       translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(*compilation_unit.function().object()));
+          GetDeoptLiteral(compilation_unit.function()));
     }
 
     // TODO(leszeks): The input locations array happens to be in the same order
@@ -1229,6 +1268,10 @@ class MaglevTranslationArrayBuilder {
       *res.entry = deopt_literals_->size() - 1;
     }
     return *res.entry;
+  }
+
+  int GetDeoptLiteral(compiler::HeapObjectRef ref) {
+    return GetDeoptLiteral(*ref.object());
   }
 
   LocalIsolate* local_isolate_;

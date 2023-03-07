@@ -29,6 +29,12 @@ void DeepForEachInputImpl(const DeoptFrame& frame,
             f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
+      for (ValueNode* node : frame.as_inlined_arguments().arguments()) {
+        f(node, &input_locations[index++]);
+      }
+      break;
+    }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);
@@ -66,6 +72,9 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
             f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      // The inlined arguments frame can never be the top frame.
+      UNREACHABLE();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       for (ValueNode* node : top_frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);

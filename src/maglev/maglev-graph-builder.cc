@@ -243,6 +243,7 @@ class V8_NODISCARD MaglevGraphBuilder::LazyDeoptContinuationScope {
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
                                        Graph* graph, float call_frequency,
+                                       BytecodeOffset bytecode_offset,
                                        MaglevGraphBuilder* parent)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
@@ -266,6 +267,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           is_inline() ? parent->current_interpreter_frame_.known_node_aspects()
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
                             compilation_unit_->zone())),
+      caller_bytecode_offset_(bytecode_offset),
       catch_block_stack_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
@@ -530,9 +532,15 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
     // LazyDeoptContinuationScope.
     DCHECK(interpreter::Bytecodes::WritesAccumulator(
         parent_->iterator_.current_bytecode()));
+
     parent_deopt_frame_ =
         zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
             parent_->current_lazy_deopt_continuation_scope_, true));
+    if (inlined_arguments_) {
+      parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
+          *compilation_unit_, caller_bytecode_offset_, *inlined_arguments_,
+          parent_deopt_frame_);
+    }
   }
   return parent_deopt_frame_;
 }
@@ -3337,7 +3345,8 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
   StartPrologue();
 
   // Set receiver.
-  SetArgument(0, GetConvertReceiver(function(), args));
+  ValueNode* receiver = GetConvertReceiver(function(), args);
+  SetArgument(0, receiver);
   // Set remaining arguments.
   RootConstant* undefined_constant =
       GetRootConstant(RootIndex::kUndefinedValue);
@@ -3346,6 +3355,15 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
     if (arg_value == nullptr) arg_value = undefined_constant;
     SetArgument(i, arg_value);
   }
+
+  if (static_cast<int>(args.count()) > parameter_count()) {
+    inlined_arguments_.emplace(zone()->NewVector<ValueNode*>(args.count() + 1));
+    (*inlined_arguments_)[0] = receiver;
+    for (int i = 0; i < static_cast<int>(args.count()); i++) {
+      (*inlined_arguments_)[i + 1] = args[i];
+    }
+  }
+
   BuildRegisterFrameInitialization(GetConstant(function().context(broker())),
                                    GetConstant(function()));
   BuildMergeStates();
@@ -3504,8 +3522,9 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   // function.
   MaglevCompilationUnit* inner_unit =
       MaglevCompilationUnit::NewInner(zone(), compilation_unit_, function);
-  MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
-                                         call_frequency, this);
+  MaglevGraphBuilder inner_graph_builder(
+      local_isolate_, inner_unit, graph_, call_frequency,
+      BytecodeOffset(iterator_.current_offset()), this);
 
   // Propagate catch block.
   inner_graph_builder.parent_catch_block_ = GetCurrentTryCatchBlockOffset();
@@ -5375,7 +5394,7 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
 void MaglevGraphBuilder::VisitCreateMappedArguments() {
   compiler::SharedFunctionInfoRef shared =
       compilation_unit_->shared_function_info();
-  if (shared.object()->has_duplicate_parameters()) {
+  if (is_inline() || shared.object()->has_duplicate_parameters()) {
     SetAccumulator(
         BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
   } else {
@@ -5385,13 +5404,23 @@ void MaglevGraphBuilder::VisitCreateMappedArguments() {
 }
 
 void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
-  SetAccumulator(
-      BuildCallBuiltin<Builtin::kFastNewStrictArguments>({GetClosure()}));
+  if (is_inline()) {
+    SetAccumulator(
+        BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}));
+  } else {
+    SetAccumulator(
+        BuildCallBuiltin<Builtin::kFastNewStrictArguments>({GetClosure()}));
+  }
 }
 
 void MaglevGraphBuilder::VisitCreateRestParameter() {
-  SetAccumulator(
-      BuildCallBuiltin<Builtin::kFastNewRestArguments>({GetClosure()}));
+  if (is_inline()) {
+    SetAccumulator(
+        BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}));
+  } else {
+    SetAccumulator(
+        BuildCallBuiltin<Builtin::kFastNewRestArguments>({GetClosure()}));
+  }
 }
 
 void MaglevGraphBuilder::VisitJumpLoop() {

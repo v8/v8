@@ -188,10 +188,11 @@ struct FastLiteralField {
 
 class MaglevGraphBuilder {
  public:
-  explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
-                              MaglevCompilationUnit* compilation_unit,
-                              Graph* graph, float call_frequency = 1.0f,
-                              MaglevGraphBuilder* parent = nullptr);
+  explicit MaglevGraphBuilder(
+      LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
+      Graph* graph, float call_frequency = 1.0f,
+      BytecodeOffset bytecode_offset = BytecodeOffset::None(),
+      MaglevGraphBuilder* parent = nullptr);
 
   void Build() {
     DCHECK(!is_inline());
@@ -1797,6 +1798,12 @@ class MaglevGraphBuilder {
 
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
+
+  // TODO(victorgomes): Refactor all inlined data to a
+  // base::Optional<InlinedGraphBuilderData>.
+  // base::Vector<ValueNode*>* inlined_arguments_ = nullptr;
+  base::Optional<base::Vector<ValueNode*>> inlined_arguments_;
+  BytecodeOffset caller_bytecode_offset_;
 
   LazyDeoptContinuationScope* current_lazy_deopt_continuation_scope_ = nullptr;
 

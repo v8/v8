@@ -859,11 +859,13 @@ class Input : public InputLocation {
 };
 
 class InterpretedDeoptFrame;
+class InlinedArgumentsDeoptFrame;
 class BuiltinContinuationDeoptFrame;
 class DeoptFrame {
  public:
   enum class FrameType {
     kInterpretedFrame,
+    kInlinedArgumentsFrame,
     kBuiltinContinuationFrame,
   };
 
@@ -871,6 +873,7 @@ class DeoptFrame {
   const DeoptFrame* parent() const { return parent_; }
 
   inline const InterpretedDeoptFrame& as_interpreted() const;
+  inline const InlinedArgumentsDeoptFrame& as_inlined_arguments() const;
   inline const BuiltinContinuationDeoptFrame& as_builtin_continuation() const;
 
  protected:
@@ -879,6 +882,11 @@ class DeoptFrame {
     const CompactInterpreterFrameState* frame_state;
     BytecodeOffset bytecode_position;
     SourcePosition source_position;
+  };
+  struct InlinedArgumentsFrameData {
+    const MaglevCompilationUnit& unit;
+    BytecodeOffset bytecode_position;
+    base::Vector<ValueNode*> arguments;
   };
   struct BuiltinContinuationFrameData {
     Builtin builtin_id;
@@ -890,6 +898,10 @@ class DeoptFrame {
       : interpreted_frame_data_(data),
         type_(FrameType::kInterpretedFrame),
         parent_(parent) {}
+  DeoptFrame(InlinedArgumentsFrameData data, const DeoptFrame* parent)
+      : inlined_arguments_frame_data_(data),
+        type_(FrameType::kInlinedArgumentsFrame),
+        parent_(parent) {}
   DeoptFrame(BuiltinContinuationFrameData data, const DeoptFrame* parent)
       : builtin_continuation_frame_data_(data),
         type_(FrameType::kBuiltinContinuationFrame),
@@ -897,6 +909,7 @@ class DeoptFrame {
 
   union {
     const InterpretedFrameData interpreted_frame_data_;
+    const InlinedArgumentsFrameData inlined_arguments_frame_data_;
     const BuiltinContinuationFrameData builtin_continuation_frame_data_;
   };
   FrameType type_;
@@ -934,6 +947,36 @@ static_assert(sizeof(InterpretedDeoptFrame) == sizeof(DeoptFrame));
 inline const InterpretedDeoptFrame& DeoptFrame::as_interpreted() const {
   DCHECK_EQ(type(), FrameType::kInterpretedFrame);
   return static_cast<const InterpretedDeoptFrame&>(*this);
+}
+
+class InlinedArgumentsDeoptFrame : public DeoptFrame {
+ public:
+  InlinedArgumentsDeoptFrame(const MaglevCompilationUnit& unit,
+                             BytecodeOffset bytecode_position,
+                             base::Vector<ValueNode*> arguments,
+                             const DeoptFrame* parent)
+      : DeoptFrame(
+            InlinedArgumentsFrameData{unit, bytecode_position, arguments},
+            parent) {}
+
+  const MaglevCompilationUnit& unit() const {
+    return interpreted_frame_data_.unit;
+  }
+  BytecodeOffset bytecode_position() const {
+    return inlined_arguments_frame_data_.bytecode_position;
+  }
+  base::Vector<ValueNode*> arguments() const {
+    return inlined_arguments_frame_data_.arguments;
+  }
+};
+
+// Make sure storing/passing deopt frames by value doesn't truncate them.
+static_assert(sizeof(InlinedArgumentsDeoptFrame) == sizeof(DeoptFrame));
+
+inline const InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments()
+    const {
+  DCHECK_EQ(type(), FrameType::kInlinedArgumentsFrame);
+  return static_cast<const InlinedArgumentsDeoptFrame&>(*this);
 }
 
 class BuiltinContinuationDeoptFrame : public DeoptFrame {

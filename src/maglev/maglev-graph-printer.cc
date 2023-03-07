@@ -403,6 +403,28 @@ void PrintSingleDeoptFrame(
       os << "}";
       break;
     }
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
+      os << "@" << frame.as_inlined_arguments().bytecode_position();
+      if (!v8_flags.print_maglev_deopt_verbose) return;
+      os << " : {";
+      auto arguments = frame.as_inlined_arguments().arguments();
+      DCHECK_GT(arguments.size(), 0);
+      os << "<this>:" << PrintNodeLabel(graph_labeller, arguments[0]) << ":"
+         << current_input_location->operand();
+      current_input_location++;
+      if (arguments.size() > 1) {
+        os << ", ";
+      }
+      for (size_t i = 1; i < arguments.size(); i++) {
+        os << "a" << (i - 1) << ":"
+           << PrintNodeLabel(graph_labeller, arguments[i]) << ":"
+           << current_input_location->operand();
+        current_input_location++;
+        os << ", ";
+      }
+      os << "}";
+      break;
+    }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
       os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id());
       if (!v8_flags.print_maglev_deopt_verbose) return;

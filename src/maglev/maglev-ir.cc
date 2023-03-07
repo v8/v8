@@ -190,6 +190,9 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
         size += frame->as_interpreted().frame_state()->size(
             frame->as_interpreted().unit());
         break;
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        size += frame->as_inlined_arguments().arguments().size();
+        break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         size += frame->as_builtin_continuation().parameters().size() + 1;
         break;
