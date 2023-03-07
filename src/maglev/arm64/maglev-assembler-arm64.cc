@@ -90,7 +90,7 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
   // `Allocate` is done and not before.
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadRoot(scratch, RootIndex::kHeapNumberMap);
+  LoadTaggedRoot(scratch, RootIndex::kHeapNumberMap);
   StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
   Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
 }
@@ -426,9 +426,8 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
   Allocate(register_snapshot, result, size);
   ScratchRegisterScope scope(this);
   Register scratch = scope.Acquire();
-  Move(scratch, 0);
-  StoreTaggedField(scratch, FieldMemOperand(result, size - kObjectAlignment));
-  LoadRoot(scratch, RootIndex::kStringMap);
+  StoreTaggedField(xzr, FieldMemOperand(result, size - kObjectAlignment));
+  LoadTaggedRoot(scratch, RootIndex::kStringMap);
   StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
   Move(scratch, Name::kEmptyHashField);
   StoreTaggedField(scratch, FieldMemOperand(result, Name::kRawHashFieldOffset));

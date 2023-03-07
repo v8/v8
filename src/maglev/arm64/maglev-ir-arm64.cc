@@ -191,12 +191,12 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
   __ Move(scratch, map().object());
   __ StoreTaggedField(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ LoadRoot(scratch, RootIndex::kEmptyFixedArray);
+  __ LoadTaggedRoot(scratch, RootIndex::kEmptyFixedArray);
   __ StoreTaggedField(
       scratch, FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
   __ StoreTaggedField(scratch,
                       FieldMemOperand(object, JSObject::kElementsOffset));
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+  __ LoadTaggedRoot(scratch, RootIndex::kUndefinedValue);
   for (int i = 0; i < map().GetInObjectProperties(); i++) {
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
