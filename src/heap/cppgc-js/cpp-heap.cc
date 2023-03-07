@@ -796,7 +796,7 @@ void CppHeap::WriteBarrier(JSObject js_object) {
       ->mark_compact_collector()
       ->local_marking_worklists()
       ->cpp_marking_state()
-      ->MarkAndPush(type_slot, instance_slot);
+      ->MarkAndPushForWriteBarrier(type_slot, instance_slot);
 }
 
 namespace {
