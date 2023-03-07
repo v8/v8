@@ -3476,16 +3476,6 @@ void Isolate::Deinit() {
   metrics_recorder_->NotifyIsolateDisposal();
   recorder_context_id_map_.clear();
 
-#if defined(V8_OS_WIN64)
-  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      heap()->memory_allocator() && RequiresCodeRange() &&
-      heap()->code_range()->AtomicDecrementUnwindInfoUseCount() == 1) {
-    const base::AddressRegion& code_region = heap()->code_region();
-    void* start = reinterpret_cast<void*>(code_region.begin());
-    win64_unwindinfo::UnregisterNonABICompliantCodeRange(start);
-  }
-#endif  // V8_OS_WIN64
-
   FutexEmulation::IsolateDeinit(this);
 
   debug()->Unload();
@@ -4501,16 +4491,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     heap_profiler()->StartSamplingHeapProfiler(sample_interval, stack_depth,
                                                sampling_flags);
   }
-
-#if defined(V8_OS_WIN64)
-  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      heap()->code_range()->AtomicIncrementUnwindInfoUseCount() == 0) {
-    const base::AddressRegion& code_region = heap()->code_region();
-    void* start = reinterpret_cast<void*>(code_region.begin());
-    size_t size_in_bytes = code_region.size();
-    win64_unwindinfo::RegisterNonABICompliantCodeRange(start, size_in_bytes);
-  }
-#endif  // V8_OS_WIN64
 
   if (create_heap_objects && v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
