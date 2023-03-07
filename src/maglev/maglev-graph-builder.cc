@@ -4024,38 +4024,28 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
       target_node, native_context.function_prototype_apply(broker())));
   ValueNode* receiver_node = GetTaggedOrUndefined(args.receiver());
   RETURN_IF_ABORT(BuildCheckValue(receiver_node, receiver));
-  ReduceResult call;
-  if (args.count() == 0) {
-    // No need for spread.
-    CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
-    call = ReduceCall(receiver, empty_args, feedback_source, speculation_mode);
-  } else if ((args.count() == 1 || IsNullValue(args[1]) ||
-              IsUndefinedValue(args[1])) &&
-             args.mode() == CallArguments::kDefault) {
-    // No need for spread. We have only the new receiver.
-    CallArguments new_args(ConvertReceiverMode::kAny, {GetTaggedValue(args[0])},
-                           args.mode());
-    call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
-  } else {
-    // FunctionPrototypeApply only consider two arguments: the new receiver and
-    // an array-like arguments_list. All others shall be ignored.
-    if (args.count() > 1 && IsConstantNode(args[1]->opcode())) {
-      DCHECK(!IsNullValue(args[1]) && !IsUndefinedValue(args[1]));
-      // The arguments_list is not null, nor undefined, we can do a call with
-      // array like.
-      // TODO(victorgomes): Consider checking if arguments_list is an array-like
-      // constant and unfold the arguments.
+  if (args.mode() == CallArguments::kDefault) {
+    if (args.count() == 0) {
+      // No need for spread.
+      CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
+      return ReduceCall(receiver, empty_args, feedback_source,
+                        speculation_mode);
+    }
+    if (args.count() == 1 || IsNullValue(args[1]) ||
+        IsUndefinedValue(args[1])) {
+      // No need for spread. We have only the new receiver.
       CallArguments new_args(ConvertReceiverMode::kAny,
-                             {GetTaggedValue(args[0]), GetTaggedValue(args[1])},
-                             CallArguments::kWithArrayLike);
-      call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
-    } else {
+                             {GetTaggedValue(args[0])});
+      return ReduceCall(receiver, new_args, feedback_source, speculation_mode);
+    }
+    if (args.count() > 2) {
+      // FunctionPrototypeApply only consider two arguments: the new receiver
+      // and an array-like arguments_list. All others shall be ignored.
       args.Truncate(2);
-      call = ReduceCall(native_context.function_prototype_apply(broker()), args,
-                        feedback_source, speculation_mode);
     }
   }
-  return call;
+  return ReduceCall(native_context.function_prototype_apply(broker()), args,
+                    feedback_source, speculation_mode);
 }
 
 void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
