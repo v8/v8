@@ -2045,6 +2045,8 @@ struct ValidateFunctionsStreamingJobData {
     // Use release semantics, so whoever loads this pointer (using acquire
     // semantics) sees all our previous stores.
     end_of_units.store(ptr + 1, std::memory_order_release);
+    // Remember to increase concurrency after finishing the current chunk.
+    has_increased_concurrency = true;
   }
 
   size_t NumOutstandingUnits() const {
@@ -2071,10 +2073,22 @@ struct ValidateFunctionsStreamingJobData {
     return {};
   }
 
+  void MaybeNotifyConcurrencyIncrease(JobHandle* job_handle) {
+    if (!has_increased_concurrency) return;
+    job_handle->NotifyConcurrencyIncrease();
+    has_increased_concurrency = false;
+  }
+
   std::unique_ptr<Unit[]> units;
   std::atomic<Unit*> next_unit;
   std::atomic<Unit*> end_of_units;
   std::atomic<bool> found_error{false};
+
+  // Remember whether we added new units in the current chunk. If so, we need to
+  // call {NotifyConcurrencyIncrease} later.
+  // This field is only accessed by the main thread, so does not need
+  // atomic access.
+  bool has_increased_concurrency = false;
 };
 
 class ValidateFunctionsStreamingJob final : public JobTask {
@@ -2822,7 +2836,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
               module, enabled_features, &validate_functions_job_data_));
     }
     validate_functions_job_data_.AddUnit(func_index, bytes);
-    validate_functions_job_handle_->NotifyConcurrencyIncrease();
+    // Note: {NotifyConcurrencyIncrease} will be called in {OnFinishedChunk}.
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
@@ -2839,6 +2853,9 @@ void AsyncStreamingProcessor::CommitCompilationUnits() {
 void AsyncStreamingProcessor::OnFinishedChunk() {
   TRACE_STREAMING("FinishChunk...\n");
   if (compilation_unit_builder_) CommitCompilationUnits();
+  if (auto* job_handle = validate_functions_job_handle_.get()) {
+    validate_functions_job_data_.MaybeNotifyConcurrencyIncrease(job_handle);
+  }
 }
 
 // Finish the processing of the stream.
