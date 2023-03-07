@@ -113,7 +113,7 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
   } else {
     UseRegister(code_input());
   }
-  set_temporaries_needed(1);
+  set_temporaries_needed(2);
   DefineAsRegister(this);
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
@@ -126,10 +126,19 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
+      // Ensure that {result_string} never aliases {scratch}, otherwise the
+      // store will fail.
+      if (scratch.Aliases(result_string)) {
+        result_string = temps.Acquire();
+      }
+      DCHECK(!scratch.Aliases(result_string));
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ Move(scratch, char_code & 0xFFFF);
       __ Strh(scratch.W(),
               FieldMemOperand(result_string, SeqTwoByteString::kHeaderSize));
+      if (scratch.Aliases(result_string)) {
+        __ Move(ToRegister(result()), result_string);
+      }
     }
   } else {
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,

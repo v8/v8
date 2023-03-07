@@ -463,21 +463,30 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register char_code,
          Register scratch) {
+        ScratchRegisterScope temps(masm);
+        // Ensure that {result} never aliases {scratch}, otherwise the store
+        // will fail.
+        Register string = result;
+        if (scratch.Aliases(result)) {
+          string = temps.Acquire();
+        }
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
-        if (char_code == result) {
-          // This is guaranteed to be true since we've already checked
-          // char_code != scratch.
-          DCHECK_NE(scratch, result);
+        if (char_code.Aliases(result)) {
           __ Move(scratch, char_code);
           char_code = scratch;
         }
+        DCHECK(!char_code.Aliases(string));
+        DCHECK(!scratch.Aliases(string));
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
-        __ AllocateTwoByteString(register_snapshot, result, 1);
+        __ AllocateTwoByteString(register_snapshot, string, 1);
         __ And(scratch, char_code, Immediate(0xFFFF));
         __ Strh(scratch.W(),
-                FieldMemOperand(result, SeqTwoByteString::kHeaderSize));
+                FieldMemOperand(string, SeqTwoByteString::kHeaderSize));
+        if (scratch.Aliases(result)) {
+          __ Move(result, string);
+        }
         __ B(*done);
       },
       register_snapshot, done, result, char_code, scratch);
