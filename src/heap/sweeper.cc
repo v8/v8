@@ -149,9 +149,6 @@ void AssertMainThreadOrSharedMainThread(Heap* heap) {
 
 void Sweeper::LocalSweeper::Finalize() {
   AssertMainThreadOrSharedMainThread(sweeper_->heap_);
-  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
-      pretenuring_feedback_);
-  pretenuring_feedback_.clear();
   for (auto it : old_to_new_remembered_sets_) {
     MemoryChunk* chunk = it.first;
     RememberedSet<OLD_TO_NEW>::MergeAndDelete(chunk, it.second);
@@ -218,8 +215,7 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
         Heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
                                  : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
     max_freed =
-        sweeper_->RawSweep(page, free_space_treatment_mode, sweeping_mode,
-                           guard, &pretenuring_feedback_);
+        sweeper_->RawSweep(page, free_space_treatment_mode, sweeping_mode);
     DCHECK(page->SweepingDone());
   }
 
@@ -245,7 +241,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPageForRememberedSets(
   chunk->set_concurrent_sweeping_state(
       Page::ConcurrentSweepingState::kInProgress);
   sweeper_->RawIteratePromotedPageForRememberedSets(
-      chunk, &pretenuring_feedback_, &old_to_new_remembered_sets_);
+      chunk, &old_to_new_remembered_sets_);
   DCHECK(chunk->SweepingDone());
   if (++sweeper_->iterated_promoted_pages_count_ ==
       sweeper_->promoted_pages_for_iteration_count_) {
@@ -258,7 +254,6 @@ Sweeper::Sweeper(Heap* heap)
       marking_state_(heap_->non_atomic_marking_state()),
       sweeping_in_progress_(false),
       should_reduce_memory_(false),
-      pretenuring_handler_(heap_->pretenuring_handler()),
       main_thread_local_sweeper_(this) {}
 
 Sweeper::~Sweeper() {
@@ -630,10 +625,8 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
   DCHECK_EQ(live_bytes, page->allocated_bytes());
 }
 
-int Sweeper::RawSweep(
-    Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-    SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
+int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
+                      SweepingMode sweeping_mode) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -718,11 +711,6 @@ int Sweeper::RawSweep(
     int size = ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
     live_bytes += size;
     free_start = free_end + size;
-
-    if (p->InYoungGeneration()) {
-      pretenuring_handler_->UpdateAllocationSite(map, object,
-                                                 local_pretenuring_feedback);
-    }
 
     if (active_system_pages_after_sweeping) {
       active_system_pages_after_sweeping->Add(
@@ -908,13 +896,10 @@ class PromotedPageRecordMigratedSlotVisitor
 
 inline void HandlePromotedObject(
     HeapObject object, NonAtomicMarkingState* marking_state,
-    PretenuringHandler* pretenuring_handler, PtrComprCageBase cage_base,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+    PtrComprCageBase cage_base,
     PromotedPageRecordMigratedSlotVisitor* record_visitor,
     bool should_update_rememebered_sets) {
   DCHECK(marking_state->IsBlack(object));
-  pretenuring_handler->UpdateAllocationSite(object.map(), object,
-                                            local_pretenuring_feedback);
   DCHECK(!IsCodeSpaceObject(object));
   if (should_update_rememebered_sets) {
     object.IterateFast(cage_base, record_visitor);
@@ -928,7 +913,6 @@ inline void HandlePromotedObject(
 
 void Sweeper::RawIteratePromotedPageForRememberedSets(
     MemoryChunk* chunk,
-    PretenuringHandler::PretenuringFeedbackMap* pretenuring_feedback,
     CachedOldToNewRememberedSets* old_to_new_remembered_sets) {
   DCHECK(v8_flags.minor_mc);
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
@@ -946,8 +930,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   DCHECK(!heap_->incremental_marking()->IsMarking());
   if (chunk->IsLargePage()) {
     HandlePromotedObject(static_cast<LargePage*>(chunk)->GetObject(),
-                         marking_state_, pretenuring_handler_, cage_base,
-                         pretenuring_feedback, &record_visitor,
+                         marking_state_, cage_base, &record_visitor,
                          should_update_remembered_sets_);
   } else {
     bool should_make_iterable = heap_->ShouldZapGarbage();
@@ -956,8 +939,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
     for (auto object_and_size :
          LiveObjectRange<kBlackObjects>(chunk, marking_state_->bitmap(chunk))) {
       HeapObject object = object_and_size.first;
-      HandlePromotedObject(object, marking_state_, pretenuring_handler_,
-                           cage_base, pretenuring_feedback, &record_visitor,
+      HandlePromotedObject(object, marking_state_, cage_base, &record_visitor,
                            should_update_remembered_sets_);
       Address free_end = object.address();
       if (should_make_iterable && (free_end != free_start)) {

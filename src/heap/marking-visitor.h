@@ -10,6 +10,7 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/objects/string.h"
@@ -204,6 +205,10 @@ class YoungGenerationMarkingVisitorBase
   YoungGenerationMarkingVisitorBase(Isolate* isolate,
                                     MarkingWorklists::Local* worklists_local);
 
+  ~YoungGenerationMarkingVisitorBase() override {
+    DCHECK(local_pretenuring_feedback_.empty());
+  }
+
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
@@ -249,6 +254,13 @@ class YoungGenerationMarkingVisitorBase
       Map map, JSDataViewOrRabGsabDataView object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
+  V8_INLINE int VisitJSObject(Map map, JSObject object);
+  V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  V8_INLINE int VisitJSObjectSubclass(Map map, T object);
+
+  V8_INLINE void Finalize();
+
  protected:
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);
@@ -271,6 +283,8 @@ class YoungGenerationMarkingVisitorBase
   void VisitPointerImpl(HeapObject host, TSlot slot);
 
   MarkingWorklists::Local* worklists_local_;
+  PretenuringHandler* const pretenuring_handler_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };
 
 }  // namespace internal

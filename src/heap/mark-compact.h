@@ -758,14 +758,16 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
                             MarkingWorklists* global_worklists,
                             std::vector<PageMarkingItem> marking_items,
-                            YoungMarkingJobType young_marking_job_type)
+                            YoungMarkingJobType young_marking_job_type,
+                            std::vector<YoungGenerationMarkingTask>& tasks)
       : isolate_(isolate),
         heap_(heap),
         global_worklists_(global_worklists),
         marking_items_(std::move(marking_items)),
         remaining_marking_items_(marking_items_.size()),
         generator_(marking_items_.size()),
-        young_marking_job_type_(young_marking_job_type) {}
+        young_marking_job_type_(young_marking_job_type),
+        tasks_(tasks) {}
 
   void Run(JobDelegate* delegate) override;
   size_t GetMaxConcurrency(size_t worker_count) const override;
@@ -785,6 +787,30 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
   YoungMarkingJobType young_marking_job_type_;
+  std::vector<YoungGenerationMarkingTask>& tasks_;
+};
+
+class YoungGenerationMarkingTask final {
+ public:
+  YoungGenerationMarkingTask(Isolate* isolate, Heap* heap,
+                             MarkingWorklists* global_worklists);
+
+  void MarkYoungObject(HeapObject heap_object);
+
+  void DrainMarkingWorklist();
+
+  void PublishMarkingWorklist();
+
+  MarkingWorklists::Local* marking_worklists_local() {
+    return marking_worklists_local_.get();
+  }
+
+  void Finalize();
+
+ private:
+  std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
+  MarkingState* marking_state_;
+  YoungGenerationMainMarkingVisitor visitor_;
 };
 
 }  // namespace internal

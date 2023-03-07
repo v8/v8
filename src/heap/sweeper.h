@@ -98,10 +98,7 @@ class Sweeper {
   // the main thread's local sweeper without risk of data races.
   class LocalSweeper final {
    public:
-    explicit LocalSweeper(Sweeper* sweeper)
-        : sweeper_(sweeper),
-          pretenuring_handler_(sweeper_->pretenuring_handler_),
-          pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity) {
+    explicit LocalSweeper(Sweeper* sweeper) : sweeper_(sweeper) {
       DCHECK_NOT_NULL(sweeper_);
     }
     ~LocalSweeper() { DCHECK(IsEmpty()); }
@@ -111,10 +108,7 @@ class Sweeper {
     void ContributeAndWaitForPromotedPagesIteration();
     void Finalize();
 
-    bool IsEmpty() const {
-      return pretenuring_feedback_.empty() &&
-             old_to_new_remembered_sets_.empty();
-    }
+    bool IsEmpty() const { return old_to_new_remembered_sets_.empty(); }
 
    private:
     int ParallelSweepPage(Page* page, AllocationSpace identity,
@@ -124,8 +118,6 @@ class Sweeper {
     void ParallelIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
 
     Sweeper* const sweeper_;
-    PretenuringHandler* const pretenuring_handler_;
-    PretenuringHandler::PretenuringFeedbackMap pretenuring_feedback_;
     CachedOldToNewRememberedSets old_to_new_remembered_sets_;
 
     friend class Sweeper;
@@ -178,14 +170,11 @@ class Sweeper {
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
-  int RawSweep(
-      Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-      SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
+  int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
+               SweepingMode sweeping_mode);
 
   void RawIteratePromotedPageForRememberedSets(
       MemoryChunk* chunk,
-      PretenuringHandler::PretenuringFeedbackMap* pretenuring_feedback,
       CachedOldToNewRememberedSets* old_to_new_remembered_sets);
 
   void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode,
@@ -290,7 +279,6 @@ class Sweeper {
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
   bool should_sweep_non_new_spaces_ = false;
-  PretenuringHandler* const pretenuring_handler_;
   base::Optional<GarbageCollector> current_new_space_collector_;
   LocalSweeper main_thread_local_sweeper_;
 

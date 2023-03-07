@@ -11,6 +11,7 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/descriptor-array.h"
@@ -610,7 +611,10 @@ YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     YoungGenerationMarkingVisitorBase(Isolate* isolate,
                                       MarkingWorklists::Local* worklists_local)
     : NewSpaceVisitor<ConcreteVisitor>(isolate),
-      worklists_local_(worklists_local) {}
+      worklists_local_(worklists_local),
+      pretenuring_handler_(isolate->heap()->pretenuring_handler()),
+      local_pretenuring_feedback_(
+          PretenuringHandler::kInitialFeedbackCapacity) {}
 
 template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
@@ -655,6 +659,47 @@ int YoungGenerationMarkingVisitorBase<
     ConcreteVisitor, MarkingState>::VisitJSTypedArray(Map map,
                                                       JSTypedArray object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObject(Map map, JSObject object) {
+  int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObject(map, object);
+  DCHECK_LT(0, result);
+  pretenuring_handler_->UpdateAllocationSite(map, object,
+                                             &local_pretenuring_feedback_);
+  return result;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObjectFast(Map map,
+                                                      JSObject object) {
+  int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObjectFast(map, object);
+  DCHECK_LT(0, result);
+  pretenuring_handler_->UpdateAllocationSite(map, object,
+                                             &local_pretenuring_feedback_);
+  return result;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+template <typename T, typename TBodyDescriptor>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObjectSubclass(Map map, T object) {
+  int result = NewSpaceVisitor<ConcreteVisitor>::template VisitJSObjectSubclass<
+      T, TBodyDescriptor>(map, object);
+  DCHECK_LT(0, result);
+  pretenuring_handler_->UpdateAllocationSite(map, object,
+                                             &local_pretenuring_feedback_);
+  return result;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
+                                       MarkingState>::Finalize() {
+  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
+  local_pretenuring_feedback_.clear();
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

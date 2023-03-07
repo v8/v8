@@ -2316,12 +2316,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
-  DCHECK_IMPLIES(collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-                     !ShouldReduceMemory() && v8_flags.concurrent_sweeping,
-                 !pretenuring_handler_.HasPretenuringFeedback());
-  if (collector != GarbageCollector::MINOR_MARK_COMPACTOR ||
-      pretenuring_handler_.HasPretenuringFeedback())
-    pretenuring_handler_.ProcessPretenuringFeedback();
+  pretenuring_handler_.ProcessPretenuringFeedback();
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
@@ -7211,8 +7206,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   CompleteArrayBufferSweeping(this);
 
   if (sweeper()->sweeping_in_progress()) {
-    GarbageCollector collector = tracer_->GetCurrentCollector();
-
     // Get the scope id before finishing sweeping since it will be reset
     // afterwards.
     const auto new_space_sweeping_scope_id =
@@ -7246,20 +7239,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       verifier.Run();
     }
 #endif
-
-    DCHECK_IMPLIES(pretenuring_handler_.HasPretenuringFeedback(),
-                   collector == GarbageCollector::MINOR_MARK_COMPACTOR);
-    DCHECK_IMPLIES(collector != GarbageCollector::MINOR_MARK_COMPACTOR,
-                   !pretenuring_handler_.HasPretenuringFeedback());
-    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
-      DCHECK(v8_flags.minor_mc);
-      // Pretenuring feedback processing for MinorMC requires that sweeping is
-      // not active. Otherwise we may miss some feedback and/or get data races
-      // with concurrent tracing.
-      DCHECK(!sweeper()->AreSweeperTasksRunning());
-      DCHECK(!array_buffer_sweeper()->sweeping_in_progress());
-      pretenuring_handler_.ProcessPretenuringFeedback();
-    }
   }
 
   if (mode == SweepingForcedFinalizationMode::kUnifiedHeap && cpp_heap()) {
@@ -7275,38 +7254,21 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 }
 
 void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
-  if (sweeper()->sweeping_in_progress()) {
-    GarbageCollector collector = tracer_->GetCurrentCollector();
+  if (!sweeper()->sweeping_in_progress()) return;
+  TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
+                 ThreadKind::kMain);
 
-    TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
-                   ThreadKind::kMain);
+  sweeper()->PauseAndEnsureNewSpaceCompleted();
+  paged_new_space()->paged_space()->RefillFreeList();
 
-    sweeper()->PauseAndEnsureNewSpaceCompleted();
-    paged_new_space()->paged_space()->RefillFreeList();
-
-    tracer()->NotifyYoungSweepingCompleted();
+  tracer()->NotifyYoungSweepingCompleted();
 
 #ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap) {
-      YoungGenerationEvacuationVerifier verifier(this);
-      verifier.Run();
-    }
-#endif
-
-    DCHECK_IMPLIES(pretenuring_handler_.HasPretenuringFeedback(),
-                   collector == GarbageCollector::MINOR_MARK_COMPACTOR);
-    DCHECK_IMPLIES(collector != GarbageCollector::MINOR_MARK_COMPACTOR,
-                   !pretenuring_handler_.HasPretenuringFeedback());
-    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
-      DCHECK(v8_flags.minor_mc);
-      // Pretenuring feedback processing for MinorMC requires that sweeping is
-      // not active. Otherwise we may miss some feedback and/or get data races
-      // with concurrent tracing.
-      DCHECK(!sweeper()->AreSweeperTasksRunning());
-      DCHECK(!array_buffer_sweeper()->sweeping_in_progress());
-      pretenuring_handler_.ProcessPretenuringFeedback();
-    }
+  if (v8_flags.verify_heap) {
+    YoungGenerationEvacuationVerifier verifier(this);
+    verifier.Run();
   }
+#endif
 }
 
 void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
