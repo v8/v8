@@ -3586,7 +3586,8 @@ void Float64Constant::PrintParams(std::ostream& os,
     if (value().is_hole_nan()) {
       os << ", the hole";
     } else if (value().get_bits() ==
-               Float64(std::numeric_limits<double>::quiet_NaN()).get_bits()) {
+               base::bit_cast<uint64_t>(
+                   std::numeric_limits<double>::quiet_NaN())) {
       os << ", quiet NaN";
     }
     os << ")";
