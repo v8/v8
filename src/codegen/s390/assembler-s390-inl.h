@@ -91,7 +91,7 @@ Address RelocInfo::target_internal_reference_address() {
 
 Address RelocInfo::target_address() {
   DCHECK(IsRelativeCodeTarget(rmode_) || IsCodeTarget(rmode_) ||
-         IsWasmCall(rmode_));
+         IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
