@@ -80,6 +80,8 @@ luci.builder(
     executable = "recipe:v8",
     properties = {
         "$build/reclient": RECLIENT.DEFAULT,
+        "$build/v8": {"use_remoteexec": True},
+        "use_goma": False,
         "builder_group": "client.v8",
         "recipe": "v8",
     },
