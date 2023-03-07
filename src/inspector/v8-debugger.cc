@@ -335,14 +335,18 @@ void V8Debugger::terminateExecution(
 
 void V8Debugger::installTerminateExecutionCallbacks(
     v8::Local<v8::Context> context) {
-  m_terminateExecutionCallbackContext.Reset(m_isolate, context);
-  m_terminateExecutionCallbackContext.SetWeak();
   m_isolate->AddCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
-  microtask_queue->AddMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-      microtask_queue);
+
+  if (!context.IsEmpty()) {
+    m_terminateExecutionCallbackContext.Reset(m_isolate, context);
+    m_terminateExecutionCallbackContext.SetWeak();
+    v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
+    microtask_queue->AddMicrotasksCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+        microtask_queue);
+  }
+
   DCHECK(m_terminateExecutionReported);
   m_terminateExecutionReported = false;
 }
