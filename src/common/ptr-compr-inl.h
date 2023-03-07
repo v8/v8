@@ -64,7 +64,9 @@ V8_CONST Address V8HeapCompressionScheme::base() {
 Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+#endif
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
@@ -156,7 +158,9 @@ V8_CONST Address ExternalCodeCompressionScheme::base() {
 Tagged_t ExternalCodeCompressionScheme::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+#endif
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 

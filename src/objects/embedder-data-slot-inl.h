@@ -58,8 +58,9 @@ void EmbedderDataSlot::store_smi(Smi value) {
 void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
                                     Object value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() || V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
-                             value.ptr()) == V8HeapCompressionScheme::base());
+  CHECK(value.IsSmi() ||
+        V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
   ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
@@ -76,8 +77,9 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
                                     Object value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() || V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
-                             value.ptr()) == V8HeapCompressionScheme::base());
+  CHECK(value.IsSmi() ||
+        V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(object.ptr()));
 #endif
   int slot_offset = object.GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
