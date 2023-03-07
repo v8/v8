@@ -316,6 +316,23 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
+  switch (kind) {
+    case ChangeOrDeoptOp::Kind::kUint32ToInt32:
+      return os << "Uint32ToInt32";
+    case ChangeOrDeoptOp::Kind::kInt64ToInt32:
+      return os << "Int64ToInt32";
+    case ChangeOrDeoptOp::Kind::kUint64ToInt32:
+      return os << "Uint64ToInt32";
+    case ChangeOrDeoptOp::Kind::kUint64ToInt64:
+      return os << "Uint64ToInt64";
+    case ChangeOrDeoptOp::Kind::kFloat64ToInt32:
+      return os << "Float64ToInt32";
+    case ChangeOrDeoptOp::Kind::kFloat64ToInt64:
+      return os << "Float64ToInt64";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
   switch (kind) {
     case TryChangeOp::Kind::kSignedFloatTruncateOverflowUndefined:
@@ -796,6 +813,36 @@ std::ostream& operator<<(
       return os << "Smi";
     case ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
+  }
+}
+
+std::ostream& operator<<(
+    std::ostream& os, ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind kind) {
+  switch (kind) {
+    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt32:
+      return os << "Int32";
+    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt64:
+      return os << "Int64";
+    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kFloat64:
+      return os << "Float64";
+    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kArrayIndex:
+      return os << "ArrayIndex";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         ConvertObjectToPrimitiveOrDeoptOp::ObjectKind kind) {
+  switch (kind) {
+    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumber:
+      return os << "Number";
+    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrBoolean:
+      return os << "NumberOrBoolean";
+    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrString:
+      return os << "NumberOrString";
+    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kSmi:
+      return os << "Smi";
   }
 }
 

@@ -751,6 +751,102 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
+#define CHANGE_OR_DEOPT_INT_CASE(kind)                                     \
+  case IrOpcode::kChecked##kind: {                                         \
+    DCHECK(dominating_frame_state.valid());                                \
+    const CheckParameters& params = CheckParametersOf(node->op());         \
+    return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state, \
+                            ChangeOrDeoptOp::Kind::k##kind,                \
+                            CheckForMinusZeroMode::kDontCheckForMinusZero, \
+                            params.feedback());                            \
+  }
+      CHANGE_OR_DEOPT_INT_CASE(Uint32ToInt32)
+      CHANGE_OR_DEOPT_INT_CASE(Int64ToInt32)
+      CHANGE_OR_DEOPT_INT_CASE(Uint64ToInt32)
+      CHANGE_OR_DEOPT_INT_CASE(Uint64ToInt64)
+#undef CHANGE_OR_DEOPT_INT_CASE
+
+    case IrOpcode::kCheckedFloat64ToInt32: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kFloat64ToInt32,
+                              params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedFloat64ToInt64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kFloat64ToInt64,
+                              params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedTaggedToInt32: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ConvertObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumber,
+          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt32,
+          params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedTaggedToInt64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ConvertObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumber,
+          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt64,
+          params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedTaggedToFloat64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckTaggedInputParameters& params =
+          CheckTaggedInputParametersOf(node->op());
+      ConvertObjectToPrimitiveOrDeoptOp::ObjectKind from_kind;
+      switch (params.mode()) {
+#define CASE(mode)                                                      \
+  case CheckTaggedInputMode::k##mode:                                   \
+    from_kind = ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::k##mode; \
+    break;
+        CASE(Number)
+        CASE(NumberOrBoolean)
+        CASE(NumberOrOddball)
+#undef CASE
+      }
+      return __ ConvertObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state, from_kind,
+          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kFloat64,
+          CheckForMinusZeroMode::kDontCheckForMinusZero, params.feedback());
+    }
+
+    case IrOpcode::kCheckedTaggedToArrayIndex: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ConvertObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrString,
+          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kArrayIndex,
+          CheckForMinusZeroMode::kCheckForMinusZero, params.feedback());
+    }
+
+    case IrOpcode::kCheckedTaggedSignedToInt32: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ConvertObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kSmi,
+          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt32,
+          CheckForMinusZeroMode::kDontCheckForMinusZero, params.feedback());
+    }
+
     case IrOpcode::kSelect: {
       OpIndex cond = Map(node->InputAt(0));
       OpIndex vtrue = Map(node->InputAt(1));
@@ -959,11 +1055,9 @@ OpIndex GraphBuilder::Process(
         *bailout = BailoutReason::kTooManyArguments;
         return OpIndex::Invalid();
       }
-      dominating_frame_state =
-          __ FrameState(builder.Inputs(), builder.inlined(),
-                        builder.AllocateFrameStateData(
-                            frame_state.frame_state_info(), graph_zone));
-      return dominating_frame_state;
+      return __ FrameState(builder.Inputs(), builder.inlined(),
+                           builder.AllocateFrameStateData(
+                               frame_state.frame_state_info(), graph_zone));
     }
 
     case IrOpcode::kDeoptimizeIf:

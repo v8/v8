@@ -17,6 +17,7 @@
 #include "src/base/template-utils.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/reloc-info.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matching.h"
@@ -883,6 +884,18 @@ class AssemblerOpInterface {
                                                   input_assumptions);
   }
 
+  OpIndex ConvertObjectToPrimitiveOrDeopt(
+      V<Tagged> object, OpIndex frame_state,
+      ConvertObjectToPrimitiveOrDeoptOp::ObjectKind from_kind,
+      ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind to_kind,
+      CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvertObjectToPrimitiveOrDeopt(
+        object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
+  }
+
   OpIndex Word32Constant(uint32_t value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -1115,6 +1128,32 @@ class AssemblerOpInterface {
 #undef DECL_CHANGE_V
 #undef DECL_TRY_CHANGE
 
+  OpIndex ChangeOrDeopt(OpIndex input, OpIndex frame_state,
+                        ChangeOrDeoptOp::Kind kind,
+                        CheckForMinusZeroMode minus_zero_mode,
+                        const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceChangeOrDeopt(input, frame_state, kind,
+                                       minus_zero_mode, feedback);
+  }
+
+  V<Word32> ChangeFloat64ToInt32OrDeopt(V<Float64> input, OpIndex frame_state,
+                                        CheckForMinusZeroMode minus_zero_mode,
+                                        const FeedbackSource& feedback) {
+    return ChangeOrDeopt(input, frame_state,
+                         ChangeOrDeoptOp::Kind::kFloat64ToInt32,
+                         minus_zero_mode, feedback);
+  }
+  V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input, OpIndex frame_state,
+                                        CheckForMinusZeroMode minus_zero_mode,
+                                        const FeedbackSource& feedback) {
+    return ChangeOrDeopt(input, frame_state,
+                         ChangeOrDeoptOp::Kind::kFloat64ToInt64,
+                         minus_zero_mode, feedback);
+  }
+
   OpIndex Tag(OpIndex input, TagKind kind) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -1184,6 +1223,93 @@ class AssemblerOpInterface {
                     MemoryRepresentation rep, int32_t offset) {
     Store(address, index, value, StoreOp::Kind::RawAligned(), rep,
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());
+  }
+
+  template <typename Rep = Any>
+  V<Rep> LoadField(V<Tagged> object, const FieldAccess& access) {
+    MachineType machine_type = access.machine_type;
+    if (machine_type.IsMapWord()) {
+      machine_type = MachineType::TaggedPointer();
+#ifdef V8_MAP_PACKING
+      UNIMPLEMENTED();
+#endif
+    }
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(machine_type);
+#ifdef V8_ENABLE_SANDBOX
+    bool is_sandboxed_external =
+        access.type.Is(compiler::Type::ExternalPointer());
+    if (is_sandboxed_external) {
+      // Fields for sandboxed external pointer contain a 32-bit handle, not a
+      // 64-bit raw pointer.
+      rep = MemoryRepresentation::Uint32();
+    }
+#endif  // V8_ENABLE_SANDBOX
+    V<Rep> value = Load(object, LoadOp::Kind::Aligned(access.base_is_tagged),
+                        rep, access.offset);
+#ifdef V8_ENABLE_SANDBOX
+    if (is_sandboxed_external) {
+      value = DecodeExternalPointer(value, access.external_pointer_tag);
+    }
+    if (access.is_bounded_size_access) {
+      DCHECK(!is_sandboxed_external);
+      value = ShiftRightLogical(value, kBoundedSizeShift,
+                                WordRepresentation::PointerSized());
+    }
+#endif  // V8_ENABLE_SANDBOX
+    return value;
+  }
+
+  V<Tagged> LoadMapField(V<Tagged> object) {
+    return LoadField<Tagged>(object, AccessBuilder::ForMap());
+  }
+
+  void StoreField(V<Tagged> object, const FieldAccess& access, V<Any> value) {
+    // External pointer must never be stored by optimized code.
+    DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
+           !V8_ENABLE_SANDBOX_BOOL);
+    // SandboxedPointers are not currently stored by optimized code.
+    DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
+
+#ifdef V8_ENABLE_SANDBOX
+    if (access.is_bounded_size_access) {
+      value = ShiftLeft(value, kBoundedSizeShift,
+                        WordRepresentation::PointerSized());
+    }
+#endif  // V8_ENABLE_SANDBOX
+
+    StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
+    MachineType machine_type = access.machine_type;
+    if (machine_type.IsMapWord()) {
+      machine_type = MachineType::TaggedPointer();
+#ifdef V8_MAP_PACKING
+      UNIMPLEMENTED();
+#endif
+    }
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(machine_type);
+    Store(object, value, kind, rep, access.write_barrier_kind, access.offset);
+  }
+
+  template <typename Rep = Any>
+  V<Rep> LoadElement(V<Tagged> object, const ElementAccess& access,
+                     V<WordPtr> index) {
+    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(access.machine_type);
+    return Load(object, index, kind, rep, access.header_size,
+                rep.SizeInBytesLog2());
+  }
+
+  void StoreElement(V<Tagged> object, const ElementAccess& access,
+                    V<WordPtr> index, V<Any> value) {
+    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(access.machine_type);
+    Store(object, index, value, kind, rep, access.write_barrier_kind,
+          access.header_size, rep.SizeInBytesLog2());
   }
 
   V<Tagged> Allocate(
@@ -1466,6 +1592,10 @@ class AssemblerOpInterface {
     }
     return stack().ReduceProjection(tuple, index, rep);
   }
+  template <typename Rep>
+  V<Rep> Projection(OpIndex tuple, uint16_t index) {
+    return Projection(tuple, index, Rep::Rep);
+  }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -1624,11 +1754,15 @@ class AssemblerOpInterface {
     GotoIfNot(condition, label.block(), hint);
   }
 
-  bool ControlFlowHelper_If(V<Word32> condition, BranchHint hint) {
+  bool ControlFlowHelper_If(V<Word32> condition, bool negate, BranchHint hint) {
     Block* then_block = stack().NewBlock();
     Block* else_block = stack().NewBlock();
     Block* end_block = stack().NewBlock();
-    this->Branch(condition, then_block, else_block, hint);
+    if (negate) {
+      this->Branch(condition, else_block, then_block, hint);
+    } else {
+      this->Branch(condition, then_block, else_block, hint);
+    }
     if_scope_stack_.emplace_back(else_block, end_block);
     return stack().Bind(then_block);
   }

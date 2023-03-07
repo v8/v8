@@ -648,6 +648,11 @@ class GraphVisitor {
     return assembler().ReduceChange(MapToNewGraph(op.input()), op.kind,
                                     op.assumption, op.from, op.to);
   }
+  OpIndex AssembleOutputGraphChangeOrDeopt(const ChangeOrDeoptOp& op) {
+    return assembler().ReduceChangeOrDeopt(
+        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
+        op.minus_zero_mode, op.feedback);
+  }
   OpIndex AssembleOutputGraphTryChange(const TryChangeOp& op) {
     return assembler().ReduceTryChange(MapToNewGraph(op.input()), op.kind,
                                        op.from, op.to);
@@ -681,6 +686,12 @@ class GraphVisitor {
       const ConvertObjectToPrimitiveOp& op) {
     return assembler().ReduceConvertObjectToPrimitive(
         MapToNewGraph(op.input()), op.kind, op.input_assumptions);
+  }
+  OpIndex AssembleOutputGraphConvertObjectToPrimitiveOrDeopt(
+      const ConvertObjectToPrimitiveOrDeoptOp& op) {
+    return assembler().ReduceConvertObjectToPrimitiveOrDeopt(
+        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()),
+        op.from_kind, op.to_kind, op.minus_zero_mode, op.feedback);
   }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(

@@ -1042,6 +1042,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckString(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToInt64:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint64ToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedBigIntToBigInt64:
@@ -1145,6 +1149,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64ToInt32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedInt64ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedInt64ToTaggedSigned:
@@ -1154,6 +1162,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedUint32Bounds(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32ToInt32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint32ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32ToTaggedSigned:
@@ -1163,15 +1175,27 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedUint64Bounds(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToInt32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint64ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToTaggedSigned:
       result = LowerCheckedUint64ToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedFloat64ToInt32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedFloat64ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedFloat64ToInt64:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedFloat64ToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedSignedToInt32:
@@ -1179,18 +1203,38 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
         FATAL("No frame state (zapped by #%d: %s)", frame_state_zapper_->id(),
               frame_state_zapper_->op()->mnemonic());
       }
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedSignedToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToArrayIndex:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToArrayIndex(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToInt32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToInt64:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToFloat64:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToFloat64(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToTaggedSigned:
@@ -2645,6 +2689,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedInt64ToInt32(Node* node,
                                                         Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2700,6 +2745,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
                                                          Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
   Node* unsafe = __ Int32LessThan(value, __ Int32Constant(0));
@@ -2745,6 +2791,7 @@ Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
                                                          Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2756,6 +2803,7 @@ Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToInt64(Node* node,
                                                          Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2840,6 +2888,7 @@ Node* EffectControlLinearizer::BuildCheckedFloat64ToIndex(
 
 Node* EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
                                                           Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   const CheckMinusZeroParameters& params =
       CheckMinusZeroParametersOf(node->op());
   Node* value = node->InputAt(0);
@@ -2880,6 +2929,7 @@ Node* EffectControlLinearizer::BuildCheckedFloat64ToInt64(
 
 Node* EffectControlLinearizer::LowerCheckedFloat64ToInt64(Node* node,
                                                           Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   const CheckMinusZeroParameters& params =
       CheckMinusZeroParametersOf(node->op());
   Node* value = node->InputAt(0);
@@ -2889,6 +2939,7 @@ Node* EffectControlLinearizer::LowerCheckedFloat64ToInt64(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedTaggedSignedToInt32(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
   Node* check = ObjectIsSmi(value);
@@ -2899,6 +2950,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedSignedToInt32(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   CheckParameters const& params = CheckParametersOf(node->op());
   Node* value = node->InputAt(0);
 
@@ -2951,6 +3003,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
                                                          Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   const CheckMinusZeroParameters& params =
       CheckMinusZeroParametersOf(node->op());
   Node* value = node->InputAt(0);
@@ -2980,6 +3033,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToInt64(Node* node,
                                                          Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   const CheckMinusZeroParameters& params =
       CheckMinusZeroParametersOf(node->op());
   Node* value = node->InputAt(0);
@@ -3058,6 +3112,7 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
                                                            Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   CheckTaggedInputParameters const& p =
       CheckTaggedInputParametersOf(node->op());
   Node* value = node->InputAt(0);

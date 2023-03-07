@@ -78,6 +78,7 @@ class Graph;
   V(Equal)                           \
   V(Comparison)                      \
   V(Change)                          \
+  V(ChangeOrDeopt)                   \
   V(TryChange)                       \
   V(Float64InsertWord32)             \
   V(TaggedBitcast)                   \
@@ -115,6 +116,7 @@ class Graph;
   V(ObjectIs)                        \
   V(ConvertToObject)                 \
   V(ConvertObjectToPrimitive)        \
+  V(ConvertObjectToPrimitiveOrDeopt) \
   V(Tag)                             \
   V(Untag)                           \
   V(NewConsString)                   \
@@ -1104,9 +1106,72 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
 std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption);
 
+struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
+  enum class Kind : uint8_t {
+    kUint32ToInt32,
+    kInt64ToInt32,
+    kUint64ToInt32,
+    kUint64ToInt64,
+    kFloat64ToInt32,
+    kFloat64ToInt64,
+  };
+  Kind kind;
+  CheckForMinusZeroMode minus_zero_mode;
+  FeedbackSource feedback;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kUint32ToInt32:
+      case Kind::kInt64ToInt32:
+      case Kind::kUint64ToInt32:
+      case Kind::kFloat64ToInt32:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case Kind::kUint64ToInt64:
+      case Kind::kFloat64ToInt64:
+        return RepVector<RegisterRepresentation::Word64()>();
+    }
+  }
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  ChangeOrDeoptOp(OpIndex input, OpIndex frame_state, Kind kind,
+                  CheckForMinusZeroMode minus_zero_mode,
+                  const FeedbackSource& feedback)
+      : Base(input, frame_state),
+        kind(kind),
+        minus_zero_mode(minus_zero_mode),
+        feedback(feedback) {}
+
+  void Validate(const Graph& graph) const {
+    switch (kind) {
+      case Kind::kUint32ToInt32:
+        DCHECK(
+            ValidOpInputRep(graph, input(), RegisterRepresentation::Word32()));
+        break;
+      case Kind::kInt64ToInt32:
+      case Kind::kUint64ToInt32:
+      case Kind::kUint64ToInt64:
+        DCHECK(
+            ValidOpInputRep(graph, input(), RegisterRepresentation::Word64()));
+        break;
+      case Kind::kFloat64ToInt32:
+      case Kind::kFloat64ToInt64:
+        DCHECK(
+            ValidOpInputRep(graph, input(), RegisterRepresentation::Float64()));
+        break;
+    }
+  }
+  auto options() const { return std::tuple{kind, minus_zero_mode, feedback}; }
+};
+std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind);
+
 // Perform a conversion and return a pair of the result and a bit if it was
 // successful.
 struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
+  static constexpr uint32_t kSuccessValue = 1;
+  static constexpr uint32_t kFailureValue = 0;
   enum class Kind : uint8_t {
     // The result of the truncation is undefined if the result is out of range.
     kSignedFloatTruncateOverflowUndefined,
@@ -2515,6 +2580,66 @@ std::ostream& operator<<(std::ostream& os,
 std::ostream& operator<<(
     std::ostream& os,
     ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions);
+
+struct ConvertObjectToPrimitiveOrDeoptOp
+    : FixedArityOperationT<2, ConvertObjectToPrimitiveOrDeoptOp> {
+  enum class PrimitiveKind : uint8_t {
+    kInt32,
+    kInt64,
+    kFloat64,
+    kArrayIndex,
+  };
+  enum class ObjectKind : uint8_t {
+    kNumber,
+    kNumberOrBoolean,
+    kNumberOrOddball,
+    kNumberOrString,
+    kSmi,
+  };
+  ObjectKind from_kind;
+  PrimitiveKind to_kind;
+  CheckForMinusZeroMode minus_zero_mode;
+  FeedbackSource feedback;
+
+  static constexpr OpProperties properties = OpProperties::ReadingAndCanAbort();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (to_kind) {
+      case PrimitiveKind::kInt32:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case PrimitiveKind::kInt64:
+        return RepVector<RegisterRepresentation::Word64()>();
+      case PrimitiveKind::kFloat64:
+        return RepVector<RegisterRepresentation::Float64()>();
+      case PrimitiveKind::kArrayIndex:
+        return Is64() ? RepVector<RegisterRepresentation::Word64()>()
+                      : RepVector<RegisterRepresentation::Word32()>();
+    }
+  }
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  ConvertObjectToPrimitiveOrDeoptOp(OpIndex input, OpIndex frame_state,
+                                    ObjectKind from_kind, PrimitiveKind to_kind,
+                                    CheckForMinusZeroMode minus_zero_mode,
+                                    const FeedbackSource& feedback)
+      : Base(input, frame_state),
+        from_kind(from_kind),
+        to_kind(to_kind),
+        minus_zero_mode(minus_zero_mode),
+        feedback(feedback) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const {
+    return std::tuple{from_kind, to_kind, minus_zero_mode, feedback};
+  }
+};
+std::ostream& operator<<(std::ostream& os,
+                         ConvertObjectToPrimitiveOrDeoptOp::ObjectKind kind);
+std::ostream& operator<<(std::ostream& os,
+                         ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind kind);
 
 enum class TagKind {
   kSmiTag,

@@ -181,8 +181,10 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   Node* ScheduleBuilder::ProcessOperation(const op##Op&) { UNREACHABLE(); }
 // These operations should have been lowered in previous reducers already.
 SHOULD_HAVE_BEEN_LOWERED(Allocate)
+SHOULD_HAVE_BEEN_LOWERED(ChangeOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(ConvertToObject)
 SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitive)
+SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitiveOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(ObjectIs)
 SHOULD_HAVE_BEEN_LOWERED(Tag)

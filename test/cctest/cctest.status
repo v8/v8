@@ -1096,6 +1096,13 @@
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
 
+##############################################################################
+['variant == turboshaft', {
+  # TODO(v8:12783, nicohartmann@): FastApiCalls temporarily disabled on
+  # Turboshaft until support has been properly ported.
+  'test-api/FastApiCalls': [SKIP],
+}],  # variant == turboshaft
+
 ['arch != ia32 and arch != x64', {
   # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
   'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],

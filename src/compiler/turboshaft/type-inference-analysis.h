@@ -200,6 +200,7 @@ class TypeInferenceAnalysis {
         case Opcode::kShift:
         case Opcode::kEqual:
         case Opcode::kChange:
+        case Opcode::kChangeOrDeopt:
         case Opcode::kTryChange:
         case Opcode::kFloat64InsertWord32:
         case Opcode::kTaggedBitcast:
@@ -219,6 +220,7 @@ class TypeInferenceAnalysis {
         case Opcode::kObjectIs:
         case Opcode::kConvertToObject:
         case Opcode::kConvertObjectToPrimitive:
+        case Opcode::kConvertObjectToPrimitiveOrDeopt:
         case Opcode::kTag:
         case Opcode::kUntag:
         case Opcode::kNewConsString:
