@@ -407,7 +407,7 @@ Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
 
 Node* WasmGraphAssembler::StructGet(Node* object, const wasm::StructType* type,
                                     int field_index, bool is_signed,
-                                    bool null_check) {
+                                    CheckForNull null_check) {
   return AddNode(graph()->NewNode(
       simplified_.WasmStructGet(type, field_index, is_signed, null_check),
       object, effect(), control()));
@@ -415,7 +415,7 @@ Node* WasmGraphAssembler::StructGet(Node* object, const wasm::StructType* type,
 
 void WasmGraphAssembler::StructSet(Node* object, Node* value,
                                    const wasm::StructType* type,
-                                   int field_index, bool null_check) {
+                                   int field_index, CheckForNull null_check) {
   AddNode(
       graph()->NewNode(simplified_.WasmStructSet(type, field_index, null_check),
                        object, value, effect(), control()));
@@ -434,7 +434,7 @@ void WasmGraphAssembler::ArraySet(Node* array, Node* index, Node* value,
                            effect(), control()));
 }
 
-Node* WasmGraphAssembler::ArrayLength(Node* array, bool null_check) {
+Node* WasmGraphAssembler::ArrayLength(Node* array, CheckForNull null_check) {
   return AddNode(graph()->NewNode(simplified_.WasmArrayLength(null_check),
                                   array, effect(), control()));
 }

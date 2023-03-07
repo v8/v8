@@ -259,10 +259,10 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* WasmExternExternalize(Node* object);
 
   Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
-                  bool is_signed, bool null_check);
+                  bool is_signed, CheckForNull null_check);
 
   void StructSet(Node* object, Node* value, const wasm::StructType* type,
-                 int field_index, bool null_check);
+                 int field_index, CheckForNull null_check);
 
   Node* ArrayGet(Node* array, Node* index, const wasm::ArrayType* type,
                  bool is_signed);
@@ -270,7 +270,7 @@ class WasmGraphAssembler : public GraphAssembler {
   void ArraySet(Node* array, Node* index, Node* value,
                 const wasm::ArrayType* type);
 
-  Node* ArrayLength(Node* array, bool null_check);
+  Node* ArrayLength(Node* array, CheckForNull null_check);
 
   void ArrayInitializeLength(Node* array, Node* length);
 

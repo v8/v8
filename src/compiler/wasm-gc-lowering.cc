@@ -472,16 +472,18 @@ Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
 
   Node* offset = gasm_.FieldOffset(info.type, info.field_index);
 
-  if (null_check_strategy_ == kExplicitNullChecks && info.null_check) {
+  if (null_check_strategy_ == kExplicitNullChecks &&
+      info.null_check == kWithNullCheck) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
   }
 
-  Node* load = null_check_strategy_ == kTrapHandler && info.null_check
-                   ? gasm_.LoadTrapOnNull(type, object, offset)
-               : info.type->mutability(info.field_index)
-                   ? gasm_.LoadFromObject(type, object, offset)
-                   : gasm_.LoadImmutableFromObject(type, object, offset);
+  Node* load =
+      null_check_strategy_ == kTrapHandler && info.null_check == kWithNullCheck
+          ? gasm_.LoadTrapOnNull(type, object, offset)
+      : info.type->mutability(info.field_index)
+          ? gasm_.LoadFromObject(type, object, offset)
+          : gasm_.LoadImmutableFromObject(type, object, offset);
 
   ReplaceWithValue(node, load, gasm_.effect(), gasm_.control());
   node->Kill();
@@ -498,7 +500,8 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
 
-  if (null_check_strategy_ == kExplicitNullChecks && info.null_check) {
+  if (null_check_strategy_ == kExplicitNullChecks &&
+      info.null_check == kWithNullCheck) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
   }
@@ -507,7 +510,7 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
   Node* offset = gasm_.FieldOffset(info.type, info.field_index);
 
   Node* store =
-      null_check_strategy_ == kTrapHandler && info.null_check
+      null_check_strategy_ == kTrapHandler && info.null_check == kWithNullCheck
           ? gasm_.StoreTrapOnNull({field_type.machine_representation(),
                                    field_type.is_reference() ? kFullWriteBarrier
                                                              : kNoWriteBarrier},
@@ -576,13 +579,14 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
 
   bool null_check = OpParameter<bool>(node->op());
 
-  if (null_check_strategy_ == kExplicitNullChecks && null_check) {
+  if (null_check_strategy_ == kExplicitNullChecks &&
+      null_check == kWithNullCheck) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
   }
 
   Node* length =
-      null_check_strategy_ == kTrapHandler && null_check
+      null_check_strategy_ == kTrapHandler && null_check == kWithNullCheck
           ? gasm_.LoadTrapOnNull(
                 MachineType::Uint32(), object,
                 gasm_.IntPtrConstant(

@@ -116,7 +116,7 @@ class WasmGraphBuildingInterface {
   using ValidationTag = Decoder::NoValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, WasmGraphBuildingInterface>;
-  using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+  using CheckForNull = compiler::CheckForNull;
 
   struct Value : public ValueBase<ValidationTag> {
     TFNode* node = nullptr;

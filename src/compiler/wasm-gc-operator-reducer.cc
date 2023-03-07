@@ -141,9 +141,10 @@ Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
     const Operator* new_op =
         node->opcode() == IrOpcode::kWasmStructGet
             ? simplified()->WasmStructGet(op_params.type, op_params.field_index,
-                                          op_params.is_signed, false)
+                                          op_params.is_signed,
+                                          kWithoutNullCheck)
             : simplified()->WasmStructSet(op_params.type, op_params.field_index,
-                                          false);
+                                          kWithoutNullCheck);
     NodeProperties::ChangeOp(node, new_op);
   }
 
@@ -165,7 +166,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmArrayLength(Node* node) {
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
     // check.
-    const Operator* new_op = simplified()->WasmArrayLength(false);
+    const Operator* new_op = simplified()->WasmArrayLength(kWithoutNullCheck);
     NodeProperties::ChangeOp(node, new_op);
   }
 

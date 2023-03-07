@@ -3100,7 +3100,7 @@ void WasmGraphBuilder::CompareToInternalFunctionAtIndex(Node* func_ref,
 Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* sig,
                                 base::Vector<Node*> args,
                                 base::Vector<Node*> rets,
-                                WasmGraphBuilder::CheckForNull null_check,
+                                CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
   return BuildCallRef(sig, args, rets, null_check, IsReturnCall::kCallContinues,
                       position);
@@ -3108,7 +3108,7 @@ Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* sig,
 
 Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* sig,
                                       base::Vector<Node*> args,
-                                      WasmGraphBuilder::CheckForNull null_check,
+                                      CheckForNull null_check,
                                       wasm::WasmCodePosition position) {
   return BuildCallRef(sig, args, {}, null_check, IsReturnCall::kReturnCall,
                       position);
@@ -5329,7 +5329,7 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    gasm_->StructSet(s, fields[i], type, i, false);
+    gasm_->StructSet(s, fields[i], type, i, kWithoutNullCheck);
   }
   // If this assert fails then initialization of padding field might be
   // necessary.
@@ -5881,7 +5881,7 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   bool is_signed,
                                   wasm::WasmCodePosition position) {
   Node* result = gasm_->StructGet(struct_object, struct_type, field_index,
-                                  is_signed, null_check == kWithNullCheck);
+                                  is_signed, null_check);
   SetSourcePosition(result, position);
   return result;
 }
@@ -5892,7 +5892,7 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
                                  CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
   gasm_->StructSet(struct_object, field_value, struct_type, field_index,
-                   null_check == kWithNullCheck);
+                   null_check);
   SetSourcePosition(effect(), position);
 }
 
@@ -5904,7 +5904,7 @@ void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
       AssertNotNull(array, wasm::kWasmArrayRef, position);
     }
   } else {
-    Node* length = gasm_->ArrayLength(array, null_check == kWithNullCheck);
+    Node* length = gasm_->ArrayLength(array, null_check);
     TrapIfFalse(wasm::kTrapArrayOutOfBounds,
                 gasm_->Uint32LessThan(index, length), position);
   }
@@ -5915,7 +5915,7 @@ void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
                                             CheckForNull null_check,
                                             wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* array_length = gasm_->ArrayLength(array, null_check == kWithNullCheck);
+  Node* array_length = gasm_->ArrayLength(array, null_check);
   SetSourcePosition(array_length, position);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
@@ -5942,7 +5942,7 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
 
 Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
-  Node* result = gasm_->ArrayLength(array_object, null_check == kWithNullCheck);
+  Node* result = gasm_->ArrayLength(array_object, null_check);
   SetSourcePosition(result, position);
   return result;
 }

@@ -211,10 +211,6 @@ class WasmGraphBuilder {
     kNeedsBoundsCheck = true,
     kCanOmitBoundsCheck = false
   };
-  enum CheckForNull : bool {  // --
-    kWithNullCheck = true,
-    kWithoutNullCheck = false
-  };
   enum BoundsCheckResult {
     // Statically OOB.
     kOutOfBounds,

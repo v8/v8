@@ -24,6 +24,10 @@
 #include "src/objects/objects.h"
 #include "src/zone/zone-handle-set.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler-definitions.h"
+#endif
+
 namespace v8 {
 class CFunctionInfo;
 
@@ -71,7 +75,7 @@ struct WasmFieldInfo {
   const wasm::StructType* type;
   int field_index;
   bool is_signed;
-  bool null_check;
+  CheckForNull null_check;
 };
 
 V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const&, WasmFieldInfo const&);
@@ -1173,12 +1177,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmExternExternalize();
   // TODO(manoskouk): Use {CheckForNull} over bool.
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
-                                bool is_signed, bool null_check);
+                                bool is_signed, CheckForNull null_check);
   const Operator* WasmStructSet(const wasm::StructType* type, int field_index,
-                                bool null_check);
+                                CheckForNull null_check);
   const Operator* WasmArrayGet(const wasm::ArrayType* type, bool is_signed);
   const Operator* WasmArraySet(const wasm::ArrayType* type);
-  const Operator* WasmArrayLength(bool null_check);
+  const Operator* WasmArrayLength(CheckForNull);
   const Operator* WasmArrayInitializeLength();
   const Operator* StringAsWtf16();
   const Operator* StringPrepareForGetCodeunit();

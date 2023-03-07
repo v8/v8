@@ -169,7 +169,8 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     uint32_t field_index = consume_u32v();
     DCHECK_GT(struct_type->field_count(), field_index);
     const bool is_signed = opcode == wasm::kExprStructGetS;
-    const bool null_check = struct_val.type.is_nullable();
+    const CheckForNull null_check =
+        struct_val.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* member = gasm_.StructGet(struct_val.node, struct_type, field_index,
                                    is_signed, null_check);
     return {member, struct_type->field(field_index).Unpacked()};

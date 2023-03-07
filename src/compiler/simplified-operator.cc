@@ -170,7 +170,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            WasmFieldInfo const& info) {
   return os << info.field_index << ", "
             << (info.is_signed ? "signed" : "unsigned") << ", "
-            << (info.null_check ? "null check" : "no null check");
+            << (info.null_check == kWithNullCheck ? "null check"
+                                                  : "no null check");
 }
 
 V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const& lhs,
@@ -1568,14 +1569,14 @@ const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
 
 const Operator* SimplifiedOperatorBuilder::WasmStructGet(
     const wasm::StructType* type, int field_index, bool is_signed,
-    bool null_check) {
+    CheckForNull null_check) {
   return zone()->New<Operator1<WasmFieldInfo>>(
       IrOpcode::kWasmStructGet, Operator::kEliminatable, "WasmStructGet", 1, 1,
       1, 1, 1, 1, WasmFieldInfo{type, field_index, is_signed, null_check});
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmStructSet(
-    const wasm::StructType* type, int field_index, bool null_check) {
+    const wasm::StructType* type, int field_index, CheckForNull null_check) {
   return zone()->New<Operator1<WasmFieldInfo>>(
       IrOpcode::kWasmStructSet,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
@@ -1598,9 +1599,10 @@ const Operator* SimplifiedOperatorBuilder::WasmArraySet(
       "WasmArraySet", 3, 1, 1, 0, 1, 0, type);
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmArrayLength(bool null_check) {
-  return null_check ? &cache_.kWasmArrayLengthNullCheck
-                    : &cache_.kWasmArrayLengthNoNullCheck;
+const Operator* SimplifiedOperatorBuilder::WasmArrayLength(
+    CheckForNull null_check) {
+  return null_check == kWithNullCheck ? &cache_.kWasmArrayLengthNullCheck
+                                      : &cache_.kWasmArrayLengthNoNullCheck;
 }
 
 const Operator* SimplifiedOperatorBuilder::WasmArrayInitializeLength() {

@@ -28,8 +28,6 @@ struct WasmTypeCheckConfig {
   const wasm::ValueType to;
 };
 
-enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
-
 V8_INLINE std::ostream& operator<<(std::ostream& os,
                                    WasmTypeCheckConfig const& p) {
   return os << p.from.name() << " -> " << p.to.name();
@@ -45,6 +43,12 @@ V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
 }
 
 static constexpr int kCharWidthBailoutSentinel = 3;
+
+enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+
+// Static knowledge about whether a wasm-gc operation, such as struct.get, needs
+// a null check.
+enum CheckForNull { kWithoutNullCheck, kWithNullCheck };
 
 }  // namespace compiler
 }  // namespace internal
