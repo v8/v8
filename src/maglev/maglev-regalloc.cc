@@ -679,12 +679,18 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
 
 #ifdef DEBUG
 namespace {
-Register GetNodeResultRegister(Node* node) {
-  ValueNode* value_node = node->TryCast<ValueNode>();
-  if (!value_node) return Register::no_reg();
-  if (!value_node->result().operand().IsRegister()) return Register::no_reg();
-  return value_node->result().AssignedGeneralRegister();
-}
+#define GET_NODE_RESULT_REGISTER_T(RegisterT, AssignedRegisterT) \
+  RegisterT GetNodeResult##RegisterT(Node* node) {               \
+    ValueNode* value_node = node->TryCast<ValueNode>();          \
+    if (!value_node) return RegisterT::no_reg();                 \
+    if (!value_node->result().operand().Is##RegisterT()) {       \
+      return RegisterT::no_reg();                                \
+    }                                                            \
+    return value_node->result().AssignedRegisterT();             \
+  }
+GET_NODE_RESULT_REGISTER_T(Register, AssignedGeneralRegister)
+GET_NODE_RESULT_REGISTER_T(DoubleRegister, AssignedDoubleRegister)
+#undef GET_NODE_RESULT_REGISTER_T
 }  // namespace
 #endif  // DEBUG
 
@@ -759,7 +765,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   DCHECK_EQ(general_registers_.free() |
                 (node->general_temporaries() - GetNodeResultRegister(node)),
             general_registers_.free());
-  DCHECK_EQ(double_registers_.free() | node->double_temporaries(),
+  DCHECK_EQ(double_registers_.free() | (node->double_temporaries() -
+                                        GetNodeResultDoubleRegister(node)),
             double_registers_.free());
   general_registers_.clear_blocked();
   double_registers_.clear_blocked();
