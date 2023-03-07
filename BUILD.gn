@@ -6268,11 +6268,12 @@ if (v8_check_header_includes) {
 #
 
 if (v8_monolithic) {
-  # A component build is not monolithic.
-  assert(!is_component_build)
+  assert(!is_component_build,
+         "Set `is_component_build = false` for v8_monolithic.")
 
   # Using external startup data would produce separate files.
-  assert(!v8_use_external_startup_data)
+  assert(!v8_use_external_startup_data,
+         "Set `v8_use_external_startup_data = false` for v8_monolithic.")
   v8_static_library("v8_monolith") {
     deps = [
       ":v8",
