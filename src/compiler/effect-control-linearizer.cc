@@ -4217,8 +4217,7 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs);
 }
 
 Node* EffectControlLinearizer::LowerSameValueNumbersOnly(Node* node) {
@@ -4232,8 +4231,7 @@ Node* EffectControlLinearizer::LowerSameValueNumbersOnly(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs);
 }
 
 Node* EffectControlLinearizer::LowerNumberSameValue(Node* node) {
@@ -4767,8 +4765,7 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs);
 }
 
 Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {

@@ -149,8 +149,7 @@ struct WasmModule;
   V(WasmStringViewIterAdvance)           \
   V(WasmStringViewIterRewind)            \
   V(WasmStringViewIterSlice)             \
-  V(WasmStringCompare)                   \
-  V(WasmStringCompareLiftoff)            \
+  V(StringCompare)                       \
   V(WasmStringFromCodePoint)             \
   V(WasmStringHash)                      \
   V(WasmExternInternalize)

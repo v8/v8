@@ -55,6 +55,7 @@ namespace internal {
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
   V(Compare)                                         \
+  V(CompareNoContext)                                \
   V(StringEqual)                                     \
   V(Compare_Baseline)                                \
   V(Compare_WithFeedback)                            \
@@ -1623,6 +1624,15 @@ class CompareDescriptor
  public:
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(CompareDescriptor)
+
+  static constexpr inline auto registers();
+};
+
+class CompareNoContextDescriptor
+    : public StaticCallInterfaceDescriptor<CompareNoContextDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight)
+  DECLARE_DESCRIPTOR(CompareNoContextDescriptor)
 
   static constexpr inline auto registers();
 };

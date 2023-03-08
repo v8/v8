@@ -1261,12 +1261,6 @@ builtin WasmStringViewIterSlice(
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
 }
 
-extern builtin WasmStringCompare(NoContext, String, String): Smi;
-
-builtin WasmStringCompareLiftoff(lhs: String, rhs: String): Smi {
-  tail WasmStringCompare(kNoContext, lhs, rhs);
-}
-
 builtin WasmStringFromCodePoint(codePoint: uint32): String {
   tail runtime::WasmStringFromCodePoint(
       LoadContextFromFrame(), WasmUint32ToNumber(codePoint));

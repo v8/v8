@@ -6354,9 +6354,8 @@ Node* WasmGraphBuilder::StringCompare(Node* lhs, CheckForNull null_check_lhs,
   if (null_check_rhs == kWithNullCheck) {
     rhs = AssertNotNull(rhs, wasm::kWasmStringRef, position);
   }
-  return gasm_->BuildChangeSmiToInt32(
-      gasm_->CallBuiltin(Builtin::kWasmStringCompare, Operator::kEliminatable,
-                         lhs, rhs, NoContextConstant()));
+  return gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltin(
+      Builtin::kStringCompare, Operator::kEliminatable, lhs, rhs));
 }
 
 Node* WasmGraphBuilder::StringFromCodePoint(Node* code_point) {

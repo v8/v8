@@ -802,7 +802,8 @@ extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
 extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
 extern runtime StringEqual(Context, String, String): Oddball;
-extern builtin StringLessThan(Context, String, String): Boolean;
+extern builtin StringLessThan(String, String): Boolean;
+extern builtin StringCompare(String, String): Smi;
 extern macro StringCharCodeAt(String, uintptr): char16;
 extern macro StringFromSingleCharCode(char8): String;
 extern macro StringFromSingleCharCode(char16): String;

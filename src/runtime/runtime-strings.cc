@@ -393,6 +393,17 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 
+RUNTIME_FUNCTION(Runtime_StringCompare) {
+  CLEAR_THREAD_IN_WASM_SCOPE;
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  Handle<String> lhs(String::cast(args[0]), isolate);
+  Handle<String> rhs(String::cast(args[1]), isolate);
+  ComparisonResult result = String::Compare(isolate, lhs, rhs);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return Smi::FromInt(static_cast<int>(result));
+}
+
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

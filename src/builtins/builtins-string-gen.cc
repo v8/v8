@@ -805,12 +805,8 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
                         lhs, rhs);
         break;
       case StringComparison::kCompare:
-#if V8_ENABLE_WEBASSEMBLY
-        TailCallRuntime(Runtime::kWasmStringCompare, NoContextConstant(), lhs,
-                        rhs);
-#else
-        UNREACHABLE();
-#endif
+        TailCallRuntime(Runtime::kStringCompare, NoContextConstant(), lhs, rhs);
+        break;
     }
   }
 
@@ -845,6 +841,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
     case StringComparison::kCompare:
       Return(SmiConstant(0));
+      break;
   }
 
   BIND(&if_greater);
@@ -861,6 +858,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
     case StringComparison::kCompare:
       Return(SmiConstant(1));
+      break;
   }
 }
 
@@ -891,13 +889,11 @@ TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
                                      StringComparison::kGreaterThan);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
+TF_BUILTIN(StringCompare, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
 }
-#endif
 
 TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);

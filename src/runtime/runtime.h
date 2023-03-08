@@ -461,6 +461,7 @@ namespace internal {
   F(StringAdd, 2, 1)                      \
   F(StringBuilderConcat, 3, 1)            \
   F(StringCharCodeAt, 2, 1)               \
+  F(StringCompare, 2, 1)                  \
   F(StringEqual, 2, 1)                    \
   F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
@@ -652,7 +653,6 @@ namespace internal {
   F(WasmStringAsWtf8, 1, 1)           \
   F(WasmStringViewWtf8Encode, 6, 1)   \
   F(WasmStringViewWtf8Slice, 3, 1)    \
-  F(WasmStringCompare, 2, 1)          \
   F(WasmStringFromCodePoint, 1, 1)    \
   F(WasmStringHash, 1, 1)
 

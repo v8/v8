@@ -56,6 +56,11 @@ constexpr auto StaticJSCallInterfaceDescriptor<DerivedDescriptor>::registers() {
   return CallInterfaceDescriptor::DefaultJSRegisterArray();
 }
 
+// static
+constexpr auto CompareNoContextDescriptor::registers() {
+  return CompareDescriptor::registers();
+}
+
 template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
     CallInterfaceDescriptorData* data) {

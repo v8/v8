@@ -1370,17 +1370,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
               .ToHandleChecked();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmStringCompare) {
-  ClearThreadInWasmScope flag_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  Handle<String> lhs(String::cast(args[0]), isolate);
-  Handle<String> rhs(String::cast(args[1]), isolate);
-  ComparisonResult result = String::Compare(isolate, lhs, rhs);
-  DCHECK_NE(result, ComparisonResult::kUndefined);
-  return Smi::FromInt(static_cast<int>(result));
-}
-
 RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
