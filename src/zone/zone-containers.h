@@ -421,12 +421,14 @@ class ZoneVector {
     }
   }
 
-#define EMIT_TRIVIAL_CASE(memcpy_function)         \
-  DCHECK_LE(src, src_end);                         \
-  if constexpr (std::is_trivially_copyable_v<T>) { \
-    size_t count = src_end - src;                  \
-    memcpy_function(dst, src, count * sizeof(T));  \
-    return;                                        \
+#define EMIT_TRIVIAL_CASE(memcpy_function)                 \
+  DCHECK_LE(src, src_end);                                 \
+  if constexpr (std::is_trivially_copyable_v<T>) {         \
+    size_t count = src_end - src;                          \
+    /* Add V8_ASSUME to silence gcc null check warning. */ \
+    V8_ASSUME(src != nullptr);                             \
+    memcpy_function(dst, src, count * sizeof(T));          \
+    return;                                                \
   }
 
   V8_INLINE void CopyToNewStorage(T* dst, const T* src, const T* src_end) {
@@ -522,6 +524,8 @@ class ZoneVector {
       *assignable = assignable_slots;
       if constexpr (std::is_trivially_copyable_v<T>) {
         if (to_shift > 0) {
+          // Add V8_ASSUME to silence gcc null check warning.
+          V8_ASSUME(pos != nullptr);
           memmove(const_cast<T*>(pos + count), pos, to_shift * sizeof(T));
         }
         end_ += count;
