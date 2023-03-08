@@ -1321,6 +1321,16 @@ class NodeBase : public ZoneObject {
     }
   }
 
+  enum class InputAllocationPolicy { kFixedRegister, kArbitraryRegister, kAny };
+
+  // Some parts of Maglev require a specific iteration order of the inputs (such
+  // as UseMarkingProcessor::MarkInputUses or
+  // StraightForwardRegisterAllocator::AssignInputs). For such cases,
+  // `ForAllInputsInRegallocAssignmentOrder` can be called with a callback `f`
+  // that will be called for each input in the "correct" order.
+  template <typename Function>
+  void ForAllInputsInRegallocAssignmentOrder(Function&& f);
+
   void Print(std::ostream& os, MaglevGraphLabeller*,
              bool skip_targets = false) const;
 
@@ -6720,6 +6730,41 @@ constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode) {
     NODE_BASE_LIST(CASE)
 #undef CASE
   }
+}
+
+template <typename Function>
+inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
+  auto iterate_inputs = [&](InputAllocationPolicy category) {
+    for (Input& input : *this) {
+      switch (compiler::UnallocatedOperand::cast(input.operand())
+                  .extended_policy()) {
+        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+          if (category == InputAllocationPolicy::kArbitraryRegister)
+            f(category, &input);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          if (category == InputAllocationPolicy::kAny) f(category, &input);
+          break;
+
+        case compiler::UnallocatedOperand::FIXED_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
+          if (category == InputAllocationPolicy::kFixedRegister)
+            f(category, &input);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+        case compiler::UnallocatedOperand::SAME_AS_INPUT:
+        case compiler::UnallocatedOperand::NONE:
+        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
+          UNREACHABLE();
+      }
+    }
+  };
+
+  iterate_inputs(InputAllocationPolicy::kFixedRegister);
+  iterate_inputs(InputAllocationPolicy::kArbitraryRegister);
+  iterate_inputs(InputAllocationPolicy::kAny);
 }
 
 }  // namespace maglev

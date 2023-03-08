@@ -171,8 +171,6 @@ class StraightForwardRegisterAllocator {
   void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
   void UpdateUse(ValueNode* node, InputLocation* input_location);
 
-  void UpdateAllInputUses(Node* node);
-
   void MarkAsClobbered(ValueNode* node,
                        const compiler::AllocatedOperand& location);
 

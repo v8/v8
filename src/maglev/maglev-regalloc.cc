@@ -555,7 +555,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           // skipped during use marking, and their inputs are thus not aware
           // that they were used by this node.
           DCHECK(!node->properties().can_deopt());
-          UpdateAllInputUses(node);
+          node->ForAllInputsInRegallocAssignmentOrder(
+              [&](NodeBase::InputAllocationPolicy, Input* input) {
+                UpdateUse(input);
+              });
         }
 
         node_it_ = block->nodes().RemoveAt(node_it_);
@@ -612,44 +615,6 @@ void StraightForwardRegisterAllocator::UpdateUse(
       slots.free_slots.emplace_back(slot.index(), node->live_range().end);
     }
   }
-}
-
-void StraightForwardRegisterAllocator::UpdateAllInputUses(Node* node) {
-  // Uses need to be iterated in the same order as
-  // UseMarkingProcessor::MarkInputUses iterated them (which is what
-  // AssignInputs does for instance): the ones that go in a fixed fegister, the
-  // ones that go in an arbitrary register, then the ones that go anywhere.
-  enum class Category { kFixedRegister, kArbitraryRegister, kAny };
-
-  auto iterate_inputs = [&](Category category) {
-    for (Input& input : *node) {
-      switch (compiler::UnallocatedOperand::cast(input.operand())
-                  .extended_policy()) {
-        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-          if (category == Category::kArbitraryRegister) UpdateUse(&input);
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-          if (category == Category::kAny) UpdateUse(&input);
-          break;
-
-        case compiler::UnallocatedOperand::FIXED_REGISTER:
-        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
-          if (category == Category::kFixedRegister) UpdateUse(&input);
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
-        case compiler::UnallocatedOperand::SAME_AS_INPUT:
-        case compiler::UnallocatedOperand::NONE:
-        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
-          UNREACHABLE();
-      }
-    }
-  };
-
-  iterate_inputs(Category::kFixedRegister);
-  iterate_inputs(Category::kArbitraryRegister);
-  iterate_inputs(Category::kAny);
 }
 
 void StraightForwardRegisterAllocator::AllocateEagerDeopt(
@@ -1394,6 +1359,10 @@ void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // the inputs could be assigned a register in AssignArbitraryRegisterInput
   // (and respectivelly its node location), therefore we wait until all
   // registers are allocated before assigning any location for these inputs.
+  // TODO(dmercadier): consider using `ForAllInputsInRegallocAssignmentOrder` to
+  // iterate the inputs. Since UseMarkingProcessor uses this helper to iterate
+  // inputs, and it has to iterate them in the same order as this function,
+  // using the iteration helper in both places would be better.
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
   for (Input& input : *node) AssignArbitraryRegisterInput(node, input);

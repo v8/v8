@@ -170,63 +170,10 @@ class UseMarkingProcessor {
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     // Mark input uses in the same order as inputs are assigned in the register
     // allocator (see StraightForwardRegisterAllocator::AssignInputs).
-    for (Input& input : *node) {
-      switch (compiler::UnallocatedOperand::cast(input.operand())
-                  .extended_policy()) {
-        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-          break;
-
-        case compiler::UnallocatedOperand::FIXED_REGISTER:
-        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
-          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
-        case compiler::UnallocatedOperand::SAME_AS_INPUT:
-        case compiler::UnallocatedOperand::NONE:
-        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
-          UNREACHABLE();
-      }
-    }
-    for (Input& input : *node) {
-      switch (compiler::UnallocatedOperand::cast(input.operand())
-                  .extended_policy()) {
-        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-        case compiler::UnallocatedOperand::FIXED_REGISTER:
-        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
-        case compiler::UnallocatedOperand::SAME_AS_INPUT:
-        case compiler::UnallocatedOperand::NONE:
-        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
-          UNREACHABLE();
-      }
-    }
-    for (Input& input : *node) {
-      switch (compiler::UnallocatedOperand::cast(input.operand())
-                  .extended_policy()) {
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
-          break;
-
-        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-        case compiler::UnallocatedOperand::FIXED_REGISTER:
-        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
-          break;
-
-        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
-        case compiler::UnallocatedOperand::SAME_AS_INPUT:
-        case compiler::UnallocatedOperand::NONE:
-        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
-          UNREACHABLE();
-      }
-    }
+    node->ForAllInputsInRegallocAssignmentOrder(
+        [&](NodeBase::InputAllocationPolicy, Input* input) {
+          MarkUse(input->node(), node->id(), input, loop_used_nodes);
+        });
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       MarkCheckpointNodes(node, node->eager_deopt_info(), loop_used_nodes,
                           state);
