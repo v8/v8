@@ -113,12 +113,32 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
           stack.back() = ParseArrayGet(array, index, opcode);
           continue;
         }
+        case wasm::kExprArraySet: {
+          DCHECK_GE(stack.size(), 3);
+          Value value = stack.back();
+          stack.pop_back();
+          Value index = stack.back();
+          stack.pop_back();
+          Value array = stack.back();
+          stack.pop_back();
+          ParseArraySet(array, index, value);
+          continue;
+        }
         case wasm::kExprStructGet:
         case wasm::kExprStructGetS:
         case wasm::kExprStructGetU:
           DCHECK(!stack.empty());
           stack.back() = ParseStructGet(stack.back(), opcode);
           continue;
+        case wasm::kExprStructSet: {
+          DCHECK_GE(stack.size(), 2);
+          Value value = stack.back();
+          stack.pop_back();
+          Value wasm_struct = stack.back();
+          stack.pop_back();
+          ParseStructSet(wasm_struct, value);
+          continue;
+        }
         case wasm::kExprLocalGet:
           stack.push_back(ParseLocalGet());
           continue;
@@ -193,6 +213,18 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     return {member, struct_type->field(field_index).Unpacked()};
   }
 
+  void ParseStructSet(Value wasm_struct, Value value) {
+    uint32_t struct_index = consume_u32v();
+    DCHECK(module_->has_struct(struct_index));
+    const wasm::StructType* struct_type = module_->struct_type(struct_index);
+    uint32_t field_index = consume_u32v();
+    DCHECK_GT(struct_type->field_count(), field_index);
+    const CheckForNull null_check =
+        wasm_struct.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
+    gasm_.StructSet(wasm_struct.node, value.node, struct_type, field_index,
+                    null_check);
+  }
+
   Value ParseRefCast(Value input, bool null_succeeds) {
     auto [heap_index, length] = read_i33v<ValidationTag>(pc_);
     pc_ += length;
@@ -262,6 +294,20 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     Node* element =
         gasm_.ArrayGet(array.node, index.node, array_type, is_signed);
     return {element, array_type->element_type().Unpacked()};
+  }
+
+  void ParseArraySet(Value array, Value index, Value value) {
+    uint32_t array_index = consume_u32v();
+    DCHECK(module_->has_array(array_index));
+    const wasm::ArrayType* array_type = module_->array_type(array_index);
+    const CheckForNull null_check =
+        array.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
+    // Perform bounds check.
+    Node* length = gasm_.ArrayLength(array.node, null_check);
+    gasm_.TrapUnless(gasm_.Uint32LessThan(index.node, length),
+                     TrapId::kTrapArrayOutOfBounds);
+    // Perform array.set.
+    gasm_.ArraySet(array.node, index.node, value.node, array_type);
   }
 
   WasmOpcode ReadOpcode() {

@@ -527,3 +527,113 @@ function testOptimized(run, fctToOptimize) {
     () => assertTraps(trap, () => castArray(wasmStruct), castArray));
   testOptimized(() => assertEquals(0, castArray(wasmArray)), castArray);
 })();
+
+(function TestInliningArraySet() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI64, true);
+
+  builder.addFunction('createArray',
+      makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprArrayNewFixed, array, 3,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('get', makeSig([kWasmExternRef, kWasmI32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGet, array,
+    ])
+    .exportFunc();
+
+  builder.addFunction('set', makeSig([kWasmExternRef, kWasmI32, kWasmI64], []))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprArraySet, array,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmArray = wasm.createArray(0n, 1n, 2n);
+  let writeAndRead = (array, index, value) => {
+    wasm.set(array, index, value);
+    assertEquals(value, wasm.get(array, index));
+  };
+  testOptimized(() => writeAndRead(wasmArray, 0, 123n), writeAndRead);
+  testOptimized(() => writeAndRead(wasmArray, 1, -123n), writeAndRead);
+  testOptimized(() => writeAndRead(wasmArray, 2, 0n), writeAndRead);
+  testOptimized(
+    () => assertTraps(kTrapArrayOutOfBounds,
+                      () => writeAndRead(wasmArray, 3, 0n)),
+    writeAndRead);
+  testOptimized(
+    () => assertTraps(kTrapArrayOutOfBounds,
+                      () => writeAndRead(wasmArray, -1, 0n),
+    writeAndRead));
+  testOptimized(
+    () => assertTraps(kTrapNullDereference, () => writeAndRead(null, 0, 0n),
+    writeAndRead));
+})();
+
+(function TestInliningStructSet() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI64, true)]);
+
+  builder.addFunction('createStruct',
+      makeSig([kWasmI64], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('get', makeSig([kWasmExternRef], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  builder.addFunction('set', makeSig([kWasmExternRef, kWasmI64], []))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, struct,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStructSet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmStruct = wasm.createStruct(0n);
+  let writeAndRead = (struct, value) => {
+    wasm.set(struct, value);
+    assertEquals(value, wasm.get(struct));
+  };
+  testOptimized(() => writeAndRead(wasmStruct, 123n), writeAndRead);
+  testOptimized(() => writeAndRead(wasmStruct, -123n), writeAndRead);
+  testOptimized(() => writeAndRead(wasmStruct, 0n), writeAndRead);
+  testOptimized(
+    () => assertTraps(kTrapNullDereference, () => writeAndRead(null, 0n),
+    writeAndRead));
+})();
