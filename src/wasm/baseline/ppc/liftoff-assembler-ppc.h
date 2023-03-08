@@ -2241,7 +2241,42 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
-  bailout(kSimd, "Load transform unimplemented");
+  MemOperand src_op = MemOperand(src_addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
+  if (transform == LoadTransformationKind::kExtend) {
+    if (memtype == MachineType::Int8()) {
+      LoadAndExtend8x8SLE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Uint8()) {
+      LoadAndExtend8x8ULE(dst.fp().toSimd(), src_op, r0, kScratchSimd128Reg);
+    } else if (memtype == MachineType::Int16()) {
+      LoadAndExtend16x4SLE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Uint16()) {
+      LoadAndExtend16x4ULE(dst.fp().toSimd(), src_op, r0, kScratchSimd128Reg);
+    } else if (memtype == MachineType::Int32()) {
+      LoadAndExtend32x2SLE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Uint32()) {
+      LoadAndExtend32x2ULE(dst.fp().toSimd(), src_op, r0, kScratchSimd128Reg);
+    }
+  } else if (transform == LoadTransformationKind::kZeroExtend) {
+    if (memtype == MachineType::Int32()) {
+      LoadV32ZeroLE(dst.fp().toSimd(), src_op, r0, kScratchSimd128Reg);
+    } else {
+      DCHECK_EQ(MachineType::Int64(), memtype);
+      LoadV64ZeroLE(dst.fp().toSimd(), src_op, r0, kScratchSimd128Reg);
+    }
+  } else {
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    if (memtype == MachineType::Int8()) {
+      LoadAndSplat8x16LE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Int16()) {
+      LoadAndSplat16x8LE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Int32()) {
+      LoadAndSplat32x4LE(dst.fp().toSimd(), src_op, r0);
+    } else if (memtype == MachineType::Int64()) {
+      LoadAndSplat64x2LE(dst.fp().toSimd(), src_op, r0);
+    }
+  }
 }
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,

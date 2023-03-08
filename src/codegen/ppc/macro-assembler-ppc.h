@@ -1380,6 +1380,30 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                      Register scratch1, Simd128Register scratch2);
   void StoreLane8LE(Simd128Register src, const MemOperand& mem, int lane,
                     Register scratch1, Simd128Register scratch2);
+  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& me,
+                          Register scratch);
+  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch1, Simd128Register scratch2);
+  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch1, Simd128Register scratch2);
+  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem,
+                           Register scratch);
+  void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem,
+                           Register scratch1, Simd128Register scratch2);
+  void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch1, Simd128Register scratch2);
+  void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch1, Simd128Register scratch2);
   void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
   void F32x4Splat(Simd128Register dst, DoubleRegister src,
                   DoubleRegister scratch1, Register scratch2);
