@@ -256,7 +256,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // TODO(turbofan): Duplicate parameters are not handled yet.
       if (shared.has_duplicate_parameters()) return NoChange();
       // Choose the correct frame state and frame state info depending on
-      // whether there conceptually is an arguments adaptor frame in the call
+      // whether there conceptually is an inlined arguments frame in the call
       // chain.
       FrameState args_state = GetArgumentsFrameState(frame_state);
       if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {
@@ -298,7 +298,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // (i.e. non-outermost) frames, independent of the object size.
       Node* effect = NodeProperties::GetEffectInput(node);
       // Choose the correct frame state and frame state info depending on
-      // whether there conceptually is an arguments adaptor frame in the call
+      // whether there conceptually is an inlined arguments frame in the call
       // chain.
       FrameState args_state = GetArgumentsFrameState(frame_state);
       if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {
@@ -336,7 +336,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // (i.e. non-outermost) frames, independent of the object size.
       Node* effect = NodeProperties::GetEffectInput(node);
       // Choose the correct frame state and frame state info depending on
-      // whether there conceptually is an arguments adaptor frame in the call
+      // whether there conceptually is an inlined arguments frame in the call
       // chain.
       FrameState args_state = GetArgumentsFrameState(frame_state);
       if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {

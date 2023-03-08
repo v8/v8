@@ -503,7 +503,7 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
   Isolate* isolate = frame->isolate();
   Address requested_frame_fp = frame->fp();
   // Forward a frame iterator to the requested frame. This is needed because we
-  // potentially need for advance it to the arguments adaptor frame later.
+  // potentially need for advance it to the inlined arguments frame later.
   for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (it.frame()->fp() != requested_frame_fp) continue;
     return GetFrameArguments(isolate, &it, inlined_jsframe_index);

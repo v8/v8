@@ -827,7 +827,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
-        PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
+        PrintF(trace_file, "  reading inlined arguments frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
       return TranslatedFrame::InlinedExtraArguments(shared_info, height);

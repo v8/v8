@@ -1208,7 +1208,7 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
       (std::max(0, extra_argument_count) + padding) * kSystemPointerSize;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope_->file(),
-           "  translating arguments adaptor => variable_size=%d\n",
+           "  translating inlined arguments frame => variable_size=%d\n",
            output_frame_size);
   }
 

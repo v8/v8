@@ -63,7 +63,7 @@ struct FormalParametersBase {
   int num_parameters() const {
     // Don't include the rest parameter into the function's formal parameter
     // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
-    // which says whether we need to create an arguments adaptor frame).
+    // which says whether we need to create an inlined arguments frame).
     return arity - has_rest;
   }
 

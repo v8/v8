@@ -934,7 +934,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   TNode<Uint32T> unsigned_argc =
       Unsigned(TruncateIntPtrToInt32(arguments.GetLengthWithoutReceiver()));
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
-  // if the parent frame is not an arguments adaptor frame.
+  // if the parent frame is not an inlined arguments frame.
   Label if_oneargument(this), if_notoneargument(this);
   Branch(IntPtrEqual(arguments.GetLengthWithoutReceiver(), IntPtrConstant(1)),
          &if_oneargument, &if_notoneargument);

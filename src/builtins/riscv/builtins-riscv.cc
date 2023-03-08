@@ -2215,8 +2215,6 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
   __ Move(a6, fp);
   __ LoadWord(a7, MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
