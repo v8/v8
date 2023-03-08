@@ -419,10 +419,16 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
 
     ConcurrentAllocationMutex guard(this);
     Address old_max_limit = original_limit_relaxed();
-    DCHECK_IMPLIES(!SupportsExtendingLAB(), old_max_limit == old_limit);
-    SetTopAndLimit(top(), new_limit, new_limit);
-    Free(new_limit, old_max_limit - new_limit,
-         SpaceAccountingMode::kSpaceAccounted);
+    if (!SupportsExtendingLAB()) {
+      DCHECK_EQ(old_max_limit, old_limit);
+      SetTopAndLimit(top(), new_limit, new_limit);
+      Free(new_limit, old_max_limit - new_limit,
+           SpaceAccountingMode::kSpaceAccounted);
+    } else {
+      SetLimit(new_limit);
+      heap()->CreateFillerObjectAt(new_limit,
+                                   static_cast<int>(old_max_limit - new_limit));
+    }
     if (heap()->incremental_marking()->black_allocation() &&
         identity() != NEW_SPACE) {
       Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
