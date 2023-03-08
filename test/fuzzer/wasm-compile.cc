@@ -1986,12 +1986,6 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
       &WasmGenerator::simd_lane_memop<kExprS128Load32Lane, 4, kS128>,
       &WasmGenerator::simd_lane_memop<kExprS128Load64Lane, 2, kS128>,
 
-      // TODO(v8:12284) Enable when supported by liftoff on arm64.
-      // &WasmGenerator::op_with_prefix<kExprF32x4Qfma, kS128, kS128, kS128>,
-      // &WasmGenerator::op_with_prefix<kExprF32x4Qfms, kS128, kS128, kS128>,
-      // &WasmGenerator::op_with_prefix<kExprF64x2Qfma, kS128, kS128, kS128>,
-      // &WasmGenerator::op_with_prefix<kExprF64x2Qfms, kS128, kS128, kS128>,
-
       &WasmGenerator::op_with_prefix<kExprI8x16RelaxedSwizzle, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16RelaxedLaneSelect, kS128, kS128,
                                      kS128>,

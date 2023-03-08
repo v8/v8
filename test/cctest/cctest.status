@@ -1103,13 +1103,4 @@
   'test-api/FastApiCalls': [SKIP],
 }],  # variant == turboshaft
 
-['arch != ia32 and arch != x64', {
-  # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_RegressFmaReg_liftoff': [SKIP],
-}],
-
 ]
