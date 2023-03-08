@@ -2869,6 +2869,8 @@ filegroup(
         "src/compiler/state-values-utils.cc",
         "src/compiler/state-values-utils.h",
         "src/compiler/store-store-elimination.cc",
+        "src/compiler/string-builder-optimizer.cc",
+        "src/compiler/string-builder-optimizer.h",
         "src/compiler/store-store-elimination.h",
         "src/compiler/turbofan-enabled.cc",
         "src/compiler/turbofan.h",

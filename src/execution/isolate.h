@@ -1346,6 +1346,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef DEBUG
   static size_t non_disposed_isolates() { return non_disposed_isolates_; }
+
+  // Turbofan's string builder optimization can introduce SlicedString that are
+  // less than SlicedString::kMinLength characters. Their live range and scope
+  // are pretty limitted, but they can be visible to the GC, which shouldn't
+  // treat them as invalid. When such short SlicedString are introduced,
+  // Turbofan will set has_turbofan_string_builders_ to true, which
+  // SlicedString::SlicedStringVerify will check when verifying SlicedString to
+  // decide if a too-short SlicedString is an issue or not.
+  // See the compiler's StringBuilderOptimizer class for more details.
+  bool has_turbofan_string_builders() { return has_turbofan_string_builders_; }
+  void set_has_turbofan_string_builders() {
+    has_turbofan_string_builders_ = true;
+  }
 #endif
 
   v8::internal::Factory* factory() {
@@ -2281,6 +2294,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static std::atomic<size_t> non_disposed_isolates_;
 
   JSObject::SpillInformation js_spill_information_;
+
+  std::atomic<bool> has_turbofan_string_builders_ = false;
 #endif
 
   Debug* debug_ = nullptr;

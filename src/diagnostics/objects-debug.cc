@@ -892,7 +892,15 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SlicedStringVerify(*this, isolate);
   CHECK(!parent().IsConsString());
   CHECK(!parent().IsSlicedString());
-  CHECK_GE(length(), SlicedString::kMinLength);
+#ifdef DEBUG
+  if (!isolate->has_turbofan_string_builders()) {
+    // Turbofan's string builder optimization can introduce SlicedString that
+    // are less than SlicedString::kMinLength characters. Their live range and
+    // scope are pretty limitted, but they can be visible to the GC, which
+    // shouldn't treat them as invalid.
+    CHECK_GE(length(), SlicedString::kMinLength);
+  }
+#endif
 }
 
 USE_TORQUE_VERIFIER(ExternalString)

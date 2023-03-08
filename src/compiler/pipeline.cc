@@ -1904,6 +1904,9 @@ struct EffectControlLinearizationPhase {
       TraceScheduleAndVerify(data->info(), data, schedule,
                              "effect linearization schedule");
 
+      // LinearizeEffectControl accesses the heap for StringBuilderOptimizer.
+      UnparkedScopeIfNeeded scope(data->broker());
+
       // Post-pass for wiring the control/effects
       // - connect allocating representation changes into the control&effect
       //   chains and lower them,
