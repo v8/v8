@@ -5525,11 +5525,6 @@ bool YoungGenerationMainMarkingVisitor::ShouldVisit(HeapObject object) {
   return true;
 }
 
-bool YoungGenerationMainMarkingVisitor::ShouldVisitUnchecked(
-    HeapObject object) {
-  return marking_state_->GreyToBlack(object);
-}
-
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
 void MinorMarkCompactCollector::SetUp() {}

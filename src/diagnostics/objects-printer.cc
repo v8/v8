@@ -757,10 +757,11 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   }
   os << "\n - nof slack descriptors: " << number_of_slack_descriptors();
   os << "\n - nof descriptors: " << number_of_descriptors();
-  int16_t raw_marked = raw_number_of_marked_descriptors();
-  os << "\n - raw marked descriptors: mc epoch "
-     << NumberOfMarkedDescriptors::Epoch::decode(raw_marked) << ", marked "
-     << NumberOfMarkedDescriptors::Marked::decode(raw_marked);
+  const auto raw = raw_gc_state(kRelaxedLoad);
+  os << "\n - raw gc state: mc epoch "
+     << DescriptorArrayMarkingState::Epoch::decode(raw) << ", marked "
+     << DescriptorArrayMarkingState::Marked::decode(raw) << ", delta "
+     << DescriptorArrayMarkingState::Delta::decode(raw);
   PrintDescriptors(os);
 }
 

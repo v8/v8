@@ -105,54 +105,44 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   DCHECK(IsReadOnlyHeapObject(descriptor_array.map()));
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
-  // The DescriptorArray needs to be marked black here to ensure that slots are
-  // recorded by the Scavenger in case the DescriptorArray is promoted while
-  // incremental marking is running. This is needed as the regular marking
-  // visitor does not re-process any already marked descriptors. If we don't
-  // mark it black here, the Scavenger may promote a DescriptorArray and any
-  // already marked descriptors will not have any slots recorded.
+  // Only major GC uses custom liveness.
+  if (is_minor()) {
+    MarkValueLocal(descriptor_array);
+    return;
+  }
+
+  unsigned gc_epoch;
+  MarkingWorklist::Local* worklist;
+  if (V8_UNLIKELY(uses_shared_heap_) &&
+      descriptor_array.InSharedWritableHeap() && !is_shared_space_isolate_) {
+    gc_epoch = isolate()
+                   ->shared_space_isolate()
+                   ->heap()
+                   ->mark_compact_collector()
+                   ->epoch();
+    DCHECK(shared_heap_worklist_.has_value());
+    worklist = &*shared_heap_worklist_;
+  } else {
+    gc_epoch = major_collector_->epoch();
+    worklist = current_worklist_;
+  }
+
+  // The DescriptorArray needs to be marked black here to ensure that slots
+  // are recorded by the Scavenger in case the DescriptorArray is promoted
+  // while incremental marking is running. This is needed as the regular
+  // marking visitor does not re-process any already marked descriptors. If we
+  // don't mark it black here, the Scavenger may promote a DescriptorArray and
+  // any already marked descriptors will not have any slots recorded.
   if (!marking_state_.IsBlack(descriptor_array)) {
     marking_state_.WhiteToGrey(descriptor_array);
     marking_state_.GreyToBlack(descriptor_array);
-    MarkRange(descriptor_array, descriptor_array.GetFirstPointerSlot(),
-              descriptor_array.GetDescriptorSlot(0));
   }
 
-  int16_t old_marked = 0;
-  base::Optional<unsigned> gc_epoch;
-
-  if (V8_UNLIKELY(uses_shared_heap_) &&
-      descriptor_array.InSharedWritableHeap()) {
-    if (is_shared_space_isolate_) {
-      gc_epoch = major_collector_->epoch();
-    } else {
-      gc_epoch = isolate()
-                     ->shared_space_isolate()
-                     ->heap()
-                     ->mark_compact_collector()
-                     ->epoch();
-    }
-  } else if (is_major()) {
-    gc_epoch = major_collector_->epoch();
-  }
-
-  // Concurrent MinorMC always marks the full young generation DescriptorArray.
-  // We cannot use epoch like MajorMC does because only the lower 2 bits are
-  // used, and with many MinorMC cycles this could lead to correctness issues.
-  if (gc_epoch.has_value()) {
-    old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
-        *gc_epoch, number_of_own_descriptors);
-  }
-
-  if (old_marked < number_of_own_descriptors) {
-    // This marks the range from [old_marked, number_of_own_descriptors) instead
-    // of registering weak slots which may temporarily hold alive more objects
-    // for the current GC cycle. Weakness is not needed for actual trimming, see
-    // `MarkCompactCollector::TrimDescriptorArray()`.
-    MarkRange(descriptor_array,
-              MaybeObjectSlot(descriptor_array.GetDescriptorSlot(old_marked)),
-              MaybeObjectSlot(descriptor_array.GetDescriptorSlot(
-                  number_of_own_descriptors)));
+  // `TryUpdateIndicesToMark()` acts as a barrier that publishes the slots'
+  // values corresponding to `number_of_own_descriptors`.
+  if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
+          gc_epoch, descriptor_array, number_of_own_descriptors)) {
+    worklist->Push(descriptor_array);
   }
 }
 

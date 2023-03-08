@@ -4442,8 +4442,7 @@ void DescriptorArray::Initialize(EnumCache empty_enum_cache,
   DCHECK_LE(nof_descriptors + slack, kMaxNumberOfDescriptors);
   set_number_of_all_descriptors(nof_descriptors + slack);
   set_number_of_descriptors(nof_descriptors);
-  set_raw_number_of_marked_descriptors(0);
-  set_filler16bits(0);
+  set_raw_gc_state(DescriptorArrayMarkingState::kInitialGCState, kRelaxedStore);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
@@ -4546,28 +4545,6 @@ void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
     if (current_key.hash() != desc_hash) return;
     CHECK(current_key != *desc->GetKey());
   }
-}
-
-int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
-    unsigned mark_compact_epoch, int16_t new_marked) {
-  static_assert(kMaxNumberOfDescriptors <=
-                NumberOfMarkedDescriptors::kMaxNumberOfMarkedDescriptors);
-  int16_t old_raw_marked = raw_number_of_marked_descriptors();
-  int16_t old_marked =
-      NumberOfMarkedDescriptors::decode(mark_compact_epoch, old_raw_marked);
-  int16_t new_raw_marked =
-      NumberOfMarkedDescriptors::encode(mark_compact_epoch, new_marked);
-  while (old_marked < new_marked) {
-    int16_t actual_raw_marked = CompareAndSwapRawNumberOfMarkedDescriptors(
-        old_raw_marked, new_raw_marked);
-    if (actual_raw_marked == old_raw_marked) {
-      break;
-    }
-    old_raw_marked = actual_raw_marked;
-    old_marked =
-        NumberOfMarkedDescriptors::decode(mark_compact_epoch, old_raw_marked);
-  }
-  return old_marked;
 }
 
 Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,

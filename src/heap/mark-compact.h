@@ -206,10 +206,6 @@ class MainMarkingVisitor final
     return true;
   }
 
-  bool ShouldVisitUnchecked(HeapObject object) {
-    return marking_state_->GreyToBlack(object);
-  }
-
  private:
   // Functions required by MarkingVisitorBase.
 
@@ -245,7 +241,6 @@ class YoungGenerationMainMarkingVisitor final
                                     MarkingWorklists::Local* worklists_local);
 
   bool ShouldVisit(HeapObject object);
-  bool ShouldVisitUnchecked(HeapObject object);
 
  private:
   MarkingState* marking_state() { return marking_state_; }

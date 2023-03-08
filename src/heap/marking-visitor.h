@@ -63,6 +63,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
+  V8_INLINE int VisitDescriptorArrayStrongly(Map map, DescriptorArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
   V8_INLINE int VisitStrongDescriptorArray(Map map,
                                            StrongDescriptorArray object);
@@ -152,10 +153,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   // the slot.
   V8_INLINE void VisitCodePointerImpl(HeapObject host, CodeObjectSlot slot);
 
-  V8_INLINE void VisitDescriptors(DescriptorArray descriptors,
-                                  int number_of_own_descriptors);
-
-  V8_INLINE int VisitDescriptorsForMap(Map map);
+  V8_INLINE void VisitDescriptorsForMap(Map map);
 
   template <typename T>
   int VisitEmbedderTracingSubclass(Map map, T object);
@@ -167,10 +165,6 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
                                                ProgressBar& progress_bar);
   V8_INLINE int VisitFixedArrayRegularly(Map map, FixedArray object);
-  // Marks the descriptor array black without pushing it on the marking work
-  // list and visits its header. Returns the size of the descriptor array
-  // if it was successully marked as black.
-  V8_INLINE int MarkDescriptorArrayBlack(DescriptorArray descriptors);
 
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
                                                           HeapObject obj) {

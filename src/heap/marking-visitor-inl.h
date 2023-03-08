@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARKING_VISITOR_INL_H_
 #define V8_HEAP_MARKING_VISITOR_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
@@ -12,7 +13,9 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/objects.h"
+#include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
@@ -468,64 +471,69 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 // ===========================================================================
 
 template <typename ConcreteVisitor, typename MarkingState>
-int MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
-    DescriptorArray descriptors) {
-  if (descriptors.InReadOnlySpace()) return 0;
-  concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
-  if (concrete_visitor()->marking_state()->GreyToBlack(descriptors)) {
-    VisitMapPointer(descriptors);
-    VisitPointers(descriptors, descriptors.GetFirstPointerSlot(),
-                  descriptors.GetDescriptorSlot(0));
-    return DescriptorArray::BodyDescriptor::SizeOf(descriptors.map(),
-                                                   descriptors);
-  }
-  return 0;
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptors(
-    DescriptorArray descriptor_array, int number_of_own_descriptors) {
-  int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
-  int16_t old_marked = 0;
-  if (CanUpdateValuesInHeap()) {
-    old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
-        mark_compact_epoch_, new_marked);
-  }
-  if (old_marked < new_marked) {
-    VisitPointers(
-        descriptor_array,
-        MaybeObjectSlot(descriptor_array.GetDescriptorSlot(old_marked)),
-        MaybeObjectSlot(descriptor_array.GetDescriptorSlot(new_marked)));
-  }
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitDescriptorArrayStrongly(Map map, DescriptorArray array) {
+  concrete_visitor()->ShouldVisit(array);
+  this->VisitMapPointer(array);
+  int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+  VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
+  VisitPointers(
+      array, MaybeObjectSlot(array.GetDescriptorSlot(0)),
+      MaybeObjectSlot(array.GetDescriptorSlot(array.number_of_descriptors())));
+  return size;
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
     Map map, DescriptorArray array) {
-  if (!concrete_visitor()->ShouldVisitUnchecked(array)) return 0;
-  this->VisitMapPointer(array);
-  int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
-  VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
-  VisitDescriptors(array, array.number_of_descriptors());
-  return size;
+  if (!CanUpdateValuesInHeap()) {
+    // If we cannot update the values in the heap, we just treat the array
+    // strongly.
+    return VisitDescriptorArrayStrongly(map, array);
+  }
+
+  // The markbit is not used anymore. This is different from a checked
+  // transition in that the array is re-added to the worklist and thus there's
+  // many invocations of this transition. All cases (roots, marking via map,
+  // write barrier) are handled here as they all update the state accordingly.
+  concrete_visitor()->marking_state()->GreyToBlack(array);
+  const auto [start, end] =
+      DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
+          mark_compact_epoch_, array);
+  if (start != end) {
+    DCHECK_LT(start, end);
+    VisitPointers(array, MaybeObjectSlot(array.GetDescriptorSlot(start)),
+                  MaybeObjectSlot(array.GetDescriptorSlot(end)));
+    if (start == 0) {
+      // We are processing the object the first time. Visit the header and
+      // return a size for accounting.
+      int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+      VisitPointers(array, array.GetFirstPointerSlot(),
+                    array.GetDescriptorSlot(0));
+      if (concrete_visitor()->ShouldVisitMapPointer()) {
+        VisitMapPointer(array);
+      }
+      return size;
+    }
+  }
+  return 0;
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitStrongDescriptorArray(Map map, StrongDescriptorArray array) {
-  if (!concrete_visitor()->ShouldVisitUnchecked(array)) return 0;
-  int size = StrongDescriptorArray::BodyDescriptor::SizeOf(map, array);
-  if (concrete_visitor()->ShouldVisitMapPointer()) {
-    VisitMapPointer(array);
-  }
-  StrongDescriptorArray::BodyDescriptor::IterateBody(map, array, size, this);
-  return size;
+  concrete_visitor()->marking_state()->GreyToBlack(array);
+  // Swap in state to mark all descriptors.
+  DescriptorArrayMarkingState::TryUpdateIndicesToMark(
+      mark_compact_epoch_, array, array.number_of_descriptors());
+  // Delegate processing to regular descriptor array processing.
+  return VisitDescriptorArray(map, array);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
     Map map) {
-  if (!map.CanTransition()) return 0;
+  if (!CanUpdateValuesInHeap() || !map.CanTransition()) return;
 
   // Maps that can transition share their descriptor arrays and require
   // special visiting logic to avoid memory leaks.
@@ -534,7 +542,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   // non-empty descriptor array is marked, its header is also visited. The
   // slot holding the descriptor array will be implicitly recorded when the
   // pointer fields of this map are visited.
-
   Object maybe_descriptors =
       TaggedField<Object, Map::kInstanceDescriptorsOffset>::Acquire_Load(
           heap_->isolate(), map);
@@ -543,19 +550,19 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   // deserialized, and doesn't yet have an initialized descriptor field.
   if (maybe_descriptors.IsSmi()) {
     DCHECK_EQ(maybe_descriptors, Smi::uninitialized_deserialization_value());
-    return 0;
+    return;
   }
 
   DescriptorArray descriptors = DescriptorArray::cast(maybe_descriptors);
-
-  // Don't do any special processing of strong descriptor arrays, let them get
-  // marked through the normal visitor mechanism.
-  if (descriptors.IsStrongDescriptorArray()) {
-    return 0;
+  // Normal processing of descriptor arrays through the pointers iteration that
+  // follows this call:
+  // - Array in read only space;
+  // - StrongDescriptor array;
+  if (descriptors.InReadOnlySpace() || descriptors.IsStrongDescriptorArray()) {
+    return;
   }
-  SynchronizePageAccess(descriptors);
-  int size = MarkDescriptorArrayBlack(descriptors);
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+
+  const int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {
     // It is possible that the concurrent marker observes the
     // number_of_own_descriptors out of sync with the descriptors. In that
@@ -563,12 +570,14 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
     // that all required descriptors are marked. The concurrent marker
     // just should avoid crashing in that case. That's why we need the
     // std::min<int>() below.
-    VisitDescriptors(descriptors,
-                     std::min<int>(number_of_own_descriptors,
-                                   descriptors.number_of_descriptors()));
+    const auto descriptors_to_mark = std::min<int>(
+        number_of_own_descriptors, descriptors.number_of_descriptors());
+    concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
+    if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
+            mark_compact_epoch_, descriptors, descriptors_to_mark)) {
+      local_marking_worklists_->Push(descriptors);
+    }
   }
-
-  return size;
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
@@ -576,7 +585,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
   if (!concrete_visitor()->ShouldVisit(map)) return 0;
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
-  size += VisitDescriptorsForMap(map);
+  VisitDescriptorsForMap(map);
 
   // Mark the pointer fields of the Map. If there is a transitions array, it has
   // been marked already, so it is fine that one of these fields contains a

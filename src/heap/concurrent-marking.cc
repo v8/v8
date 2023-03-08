@@ -251,10 +251,6 @@ class YoungGenerationConcurrentMarkingVisitor final
     return true;
   }
 
-  bool ShouldVisitUnchecked(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
-  }
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 
@@ -371,10 +367,6 @@ class ConcurrentMarkingVisitor final
   bool ShouldVisit(HeapObject object) {
     CHECK(marking_state_.GreyToBlack(object));
     return true;
-  }
-
-  bool ShouldVisitUnchecked(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
   }
 
   template <typename TSlot>
