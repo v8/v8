@@ -30,7 +30,8 @@ class ScavengeJob::Task : public CancelableTask {
 };
 
 size_t ScavengeJob::YoungGenerationTaskTriggerSize(Heap* heap) {
-  return heap->new_space()->Capacity() * v8_flags.scavenge_task_trigger / 100;
+  return heap->new_space()->TotalCapacity() * v8_flags.scavenge_task_trigger /
+         100;
 }
 
 bool ScavengeJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {

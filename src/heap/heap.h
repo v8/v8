@@ -2266,8 +2266,7 @@ class Heap {
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<ScavengeJob> scavenge_job_;
-  std::unique_ptr<AllocationObserver> scavenge_task_observer_;
-  std::unique_ptr<AllocationObserver> minor_mc_task_observer_;
+  std::unique_ptr<AllocationObserver> minor_gc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
@@ -2400,7 +2399,6 @@ class Heap {
   friend class HeapAllocator;
   friend class HeapObjectIterator;
   friend class HeapVerifier;
-  friend class ScavengeTaskObserver;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
   friend class IncrementalMarkingRootMarkingVisitor;
@@ -2413,8 +2411,9 @@ class Heap {
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
+  friend class MinorGCTaskObserver;
   friend class MinorMarkCompactCollector;
-  friend class MinorMCTaskObserver;
+  friend class MinorMCIncrementalMarkingTaskObserver;
   friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;
@@ -2425,6 +2424,7 @@ class Heap {
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
+  friend class ScheduleMinorGCTaskObserver;
   friend class StressConcurrentAllocationObserver;
   friend class Space;
   friend class Sweeper;

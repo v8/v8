@@ -37,6 +37,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/traced-handles.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/base/worklist.h"
@@ -190,27 +191,89 @@ void Heap::SetSerializedGlobalProxySizes(FixedArray sizes) {
 void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
-class ScavengeTaskObserver final : public AllocationObserver {
- public:
-  ScavengeTaskObserver(Heap* heap, intptr_t step_size)
-      : AllocationObserver(step_size), heap_(heap) {}
 
-  void Step(int bytes_allocated, Address, size_t) override {
-    heap_->ScheduleScavengeTaskIfNeeded();
+class ScheduleMinorGCTaskObserver : public AllocationObserver {
+ public:
+  explicit ScheduleMinorGCTaskObserver(Heap* heap)
+      : AllocationObserver(kNotUsingFixedStepSize), heap_(heap) {
+    heap_->main_thread_local_heap()->AddGCEpilogueCallback(
+        &GCEpilogueCallback, this, GCType::kGCTypeAll);
+  }
+  ~ScheduleMinorGCTaskObserver() override {
+    RemoveFromNewSpace();
+    heap_->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        &GCEpilogueCallback, this);
   }
 
- private:
+  intptr_t GetNextStepSize() final {
+    size_t new_space_threshold = GetThreshold();
+    size_t new_space_size = heap_->new_space()->Size();
+    if (new_space_size < new_space_threshold) {
+      return new_space_threshold - new_space_size;
+    }
+    // Force a step on next allocation.
+    return 1;
+  }
+
+  void Step(int, Address, size_t) final {
+    StepImpl();
+    // Remove this observer. It will be re-added after a GC.
+    DCHECK(was_added_to_space_);
+    heap_->new_space()->RemoveAllocationObserver(this);
+    was_added_to_space_ = false;
+  }
+
+ protected:
+  static void GCEpilogueCallback(LocalIsolate*, GCType, GCCallbackFlags,
+                                 void* observer) {
+    reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)
+        ->RemoveFromNewSpace();
+    reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)->AddToNewSpace();
+  }
+
+  void AddToNewSpace() {
+    DCHECK(!was_added_to_space_);
+    heap_->new_space()->AddAllocationObserver(this);
+    was_added_to_space_ = true;
+  }
+
+  void RemoveFromNewSpace() {
+    if (!was_added_to_space_) return;
+    heap_->new_space()->RemoveAllocationObserver(this);
+    was_added_to_space_ = false;
+  }
+
+  virtual size_t GetThreshold() const = 0;
+  virtual void StepImpl() = 0;
+
   Heap* heap_;
+  bool was_added_to_space_ = false;
 };
 
-class MinorMCTaskObserver final : public AllocationObserver {
+class MinorGCTaskObserver final : public ScheduleMinorGCTaskObserver {
  public:
-  static constexpr size_t kStepSize = 64 * KB;
+  explicit MinorGCTaskObserver(Heap* heap) : ScheduleMinorGCTaskObserver(heap) {
+    AddToNewSpace();
+  }
 
-  MinorMCTaskObserver(Heap* heap, intptr_t step_size)
-      : AllocationObserver(step_size), heap_(heap) {}
+ protected:
+  void StepImpl() final { heap_->ScheduleScavengeTaskIfNeeded(); }
 
-  void Step(int bytes_allocated, Address, size_t) override {
+  size_t GetThreshold() const final {
+    return ScavengeJob::YoungGenerationTaskTriggerSize(heap_);
+  }
+};
+
+class MinorMCIncrementalMarkingTaskObserver final
+    : public ScheduleMinorGCTaskObserver {
+ public:
+  explicit MinorMCIncrementalMarkingTaskObserver(Heap* heap)
+      : ScheduleMinorGCTaskObserver(heap) {
+    AddToNewSpace();
+  }
+
+ protected:
+  void StepImpl() final {
     if (v8_flags.concurrent_minor_mc_marking) {
       if (heap_->incremental_marking()->IsMinorMarking()) {
         heap_->concurrent_marking()->RescheduleJobIfNeeded(
@@ -221,8 +284,7 @@ class MinorMCTaskObserver final : public AllocationObserver {
     heap_->StartMinorMCIncrementalMarkingIfNeeded();
   }
 
- private:
-  Heap* heap_;
+  size_t GetThreshold() const final { return heap_->MinorMCTaskTriggerSize(); }
 };
 
 Heap::Heap()
@@ -2241,6 +2303,10 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   size_t start_young_generation_size =
       NewSpaceSize() + (new_lo_space() ? new_lo_space()->SizeOfObjects() : 0);
 
+  // Make sure allocation observers are disabled until the new new space
+  // capacity is set in the epilogue.
+  PauseAllocationObserversScope pause_observers(this);
+
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     MarkCompact();
   } else if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
@@ -2281,13 +2347,13 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if (cpp_heap() && (collector == GarbageCollector::MARK_COMPACTOR ||
                      collector == GarbageCollector::MINOR_MARK_COMPACTOR)) {
     // TraceEpilogue may trigger operations that invalidate global handles. It
-    // has to be called *after* all other operations that potentially touch and
-    // reset global handles. It is also still part of the main garbage
-    // collection pause and thus needs to be called *before* any operation that
-    // can potentially trigger recursive garbage
+    // has to be called *after* all other operations that potentially touch
+    // and reset global handles. It is also still part of the main garbage
+    // collection pause and thus needs to be called *before* any operation
+    // that can potentially trigger recursive garbage
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
-    // Resetting to state unknown as there may be follow up garbage collections
-    // triggered from callbacks that have a different stack state.
+    // Resetting to state unknown as there may be follow up garbage
+    // collections triggered from callbacks that have a different stack state.
     embedder_stack_state_ = cppgc::EmbedderStackState::kMayContainHeapPointers;
     CppHeap::From(cpp_heap())->TraceEpilogue();
   }
@@ -2483,8 +2549,6 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags,
 }
 
 void Heap::MarkCompact() {
-  PauseAllocationObserversScope pause_observers(this);
-
   SetGCState(MARK_COMPACT);
 
   PROFILE(isolate_, CodeMovingGCEvent());
@@ -2525,7 +2589,6 @@ void Heap::MinorMarkCompact() {
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
 
-  PauseAllocationObserversScope pause_observers(this);
   AlwaysAllocateScope always_allocate(this);
 
   SetGCState(MINOR_MARK_COMPACT);
@@ -2577,7 +2640,6 @@ void Heap::Scavenge() {
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
-  PauseAllocationObserversScope pause_observers(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
@@ -5574,15 +5636,12 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
       // MinorMC, and to finalize concurrent MinorMC. The condition
       // v8_flags.concurrent_minor_mc_marking can then be changed to
       // v8_flags.minor_mc (here and at the RemoveAllocationObserver call site).
-      minor_mc_task_observer_.reset(
-          new MinorMCTaskObserver(this, MinorMCTaskObserver::kStepSize));
-      new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
+      minor_gc_task_observer_.reset(
+          new MinorMCIncrementalMarkingTaskObserver(this));
     } else {
       // ScavengeJob is used by atomic MinorMC and Scavenger.
       scavenge_job_.reset(new ScavengeJob());
-      scavenge_task_observer_.reset(
-          new ScavengeTaskObserver(this, ScavengeJob::kStepSize));
-      new_space()->AddAllocationObserver(scavenge_task_observer_.get());
+      minor_gc_task_observer_.reset(new MinorGCTaskObserver(this));
     }
   }
 
@@ -5828,20 +5887,8 @@ void Heap::TearDown() {
     }
   }
 
-  if (new_space()) {
-    if (minor_mc_task_observer_) {
-      DCHECK_NULL(scavenge_task_observer_);
-      new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
-    } else {
-      DCHECK_NOT_NULL(scavenge_task_observer_);
-      new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
-    }
-  }
-
-  scavenge_task_observer_.reset();
+  minor_gc_task_observer_.reset();
   scavenge_job_.reset();
-
-  minor_mc_task_observer_.reset();
 
   if (need_to_remove_stress_concurrent_allocation_observer_) {
     RemoveAllocationObserversFromAllSpaces(

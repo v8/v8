@@ -769,9 +769,11 @@ void SemiSpaceNewSpace::MakeUnusedPagesInToSpaceIterable() {
 
   // Fix the current page, above the LAB.
   DCHECK_NOT_NULL(*it);
-  DCHECK((*it)->Contains(limit()));
-  heap()->CreateFillerObjectAt(limit(),
-                               static_cast<int>((*it)->area_end() - limit()));
+  if (limit() != (*it)->area_end()) {
+    DCHECK((*it)->Contains(limit()));
+    heap()->CreateFillerObjectAt(limit(),
+                                 static_cast<int>((*it)->area_end() - limit()));
+  }
 
   // Fix the remaining unused pages in the "to" semispace.
   for (Page* page = *(++it); page != nullptr; page = *(++it)) {

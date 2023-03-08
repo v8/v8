@@ -17,9 +17,8 @@ namespace internal {
 // Observer for allocations that is aware of LAB-based allocation.
 class AllocationObserver {
  public:
-  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {
-    DCHECK_LE(kTaggedSize, step_size);
-  }
+  static constexpr intptr_t kNotUsingFixedStepSize = -1;
+  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {}
   virtual ~AllocationObserver() = default;
   AllocationObserver(const AllocationObserver&) = delete;
   AllocationObserver& operator=(const AllocationObserver&) = delete;
@@ -30,7 +29,7 @@ class AllocationObserver {
   // result for a request of `size` bytes.
   //
   // Some caveats:
-  // 1. `soon_object` will be nullptr in cases where the allocation returns a
+  // 1. `soon_object` will be nullptr in cases zwhere the allocation returns a
   //    filler object, which is e.g. needed at page boundaries.
   // 2. `soon_object`  may actually be the first object in an
   //    allocation-folding group. In such a case size is the size of the group
@@ -40,7 +39,10 @@ class AllocationObserver {
   virtual void Step(int bytes_allocated, Address soon_object, size_t size) = 0;
 
   // Subclasses can override this method to make step size dynamic.
-  virtual intptr_t GetNextStepSize() { return step_size_; }
+  virtual intptr_t GetNextStepSize() {
+    DCHECK_NE(kNotUsingFixedStepSize, step_size_);
+    return step_size_;
+  }
 
  private:
   const intptr_t step_size_;
