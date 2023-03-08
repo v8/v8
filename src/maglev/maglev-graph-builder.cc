@@ -3980,7 +3980,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(
-    ValueNode* node, const compiler::HeapObjectRef& ref) {
+    ValueNode* node, const compiler::ObjectRef& ref) {
   if (node->Is<Constant>()) {
     if (node->Cast<Constant>()->object().equals(ref))
       return ReduceResult::Done();

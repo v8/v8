@@ -573,11 +573,10 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
 
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
-  CmpTagged(reg, Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
-}
-
-inline void MaglevAssembler::CompareTagged(Register src1, Register src2) {
-  CmpTagged(src1, src2);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, obj);
+  Cmp(reg, scratch);
 }
 
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {

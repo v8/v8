@@ -1496,10 +1496,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadTaggedField(const Register& destination,
                        const MemOperand& field_operand);
 
-  // Loads a field containing any tagged value but never decompresses it.
-  void LoadTaggedFieldWithoutDecompressing(const Register& destination,
-                                           const MemOperand& field_operand);
-
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
   void LoadTaggedSignedField(const Register& destination,

@@ -816,9 +816,7 @@ void MacroAssembler::AddSubMacro(const Register& rd, const Register& rn,
 
   if (operand.NeedsRelocation(this)) {
     UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireSameSizeAs(rn);
-    DCHECK_IMPLIES(temp.IsW(), RelocInfo::IsCompressedEmbeddedObject(
-                                   operand.ImmediateRMode()));
+    Register temp = temps.AcquireX();
     Ldr(temp, operand.immediate());
     AddSubMacro(rd, rn, temp, S, op);
   } else if ((operand.IsImmediate() &&
@@ -3131,15 +3129,6 @@ void MacroAssembler::LoadTaggedField(const Register& destination,
                                      const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(destination, field_operand);
-  } else {
-    Ldr(destination, field_operand);
-  }
-}
-
-void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-    const Register& destination, const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    Ldr(destination.W(), field_operand);
   } else {
     Ldr(destination, field_operand);
   }

@@ -246,12 +246,11 @@ void MacroAssembler::LoadTaggedField(Register destination,
 
 void MacroAssembler::LoadTaggedField(TaggedRegister destination,
                                      Operand field_operand) {
-  LoadTaggedFieldWithoutDecompressing(destination.reg(), field_operand);
-}
-
-void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-    Register destination, Operand field_operand) {
-  mov_tagged(destination, field_operand);
+  if (COMPRESS_POINTERS_BOOL) {
+    movl(destination.reg(), field_operand);
+  } else {
+    mov_tagged(destination.reg(), field_operand);
+  }
 }
 
 #ifdef V8_MAP_PACKING
