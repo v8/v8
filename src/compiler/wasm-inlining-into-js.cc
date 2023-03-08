@@ -10,6 +10,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8::internal::compiler {
 
@@ -93,9 +94,25 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
           stack.back() = ParseExternExternalize(stack.back());
           continue;
         case wasm::kExprRefCast:
+        case wasm::kExprRefCastNull:
           DCHECK(!stack.empty());
-          stack.back() = ParseRefCast(stack.back());
+          stack.back() =
+              ParseRefCast(stack.back(), opcode == wasm::kExprRefCastNull);
           continue;
+        case wasm::kExprArrayLen:
+          DCHECK(!stack.empty());
+          stack.back() = ParseArrayLen(stack.back());
+          continue;
+        case wasm::kExprArrayGet:
+        case wasm::kExprArrayGetS:
+        case wasm::kExprArrayGetU: {
+          DCHECK_GE(stack.size(), 2);
+          Value index = stack.back();
+          stack.pop_back();
+          Value array = stack.back();
+          stack.back() = ParseArrayGet(array, index, opcode);
+          continue;
+        }
         case wasm::kExprStructGet:
         case wasm::kExprStructGetS:
         case wasm::kExprStructGetU:
@@ -176,21 +193,75 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     return {member, struct_type->field(field_index).Unpacked()};
   }
 
-  Value ParseRefCast(Value input) {
+  Value ParseRefCast(Value input, bool null_succeeds) {
     auto [heap_index, length] = read_i33v<ValidationTag>(pc_);
     pc_ += length;
-    if (heap_index < 0 ||
-        module_->has_signature(static_cast<uint32_t>(heap_index))) {
-      // Abstract and function casts are not supported.
+    if (heap_index < 0) {
+      if ((heap_index & 0x7f) != wasm::kArrayRefCode) {
+        // Abstract casts for non array type are not supported.
+        is_inlineable_ = false;
+        return {};
+      }
+      auto done = gasm_.MakeLabel();
+      // Abstract cast to array.
+      if (input.type.is_nullable() && null_succeeds) {
+        gasm_.GotoIf(gasm_.IsNull(input.node, input.type), &done);
+      }
+      gasm_.TrapIf(gasm_.IsSmi(input.node), TrapId::kTrapIllegalCast);
+      gasm_.TrapUnless(gasm_.HasInstanceType(input.node, WASM_ARRAY_TYPE),
+                       TrapId::kTrapIllegalCast);
+      gasm_.Goto(&done);
+      gasm_.Bind(&done);
+      // Add TypeGuard for graph typing.
+      Graph* graph = mcgraph_->graph();
+      wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
+          wasm::HeapType::kArray,
+          null_succeeds ? wasm::kNullable : wasm::kNonNullable);
+      Node* type_guard =
+          graph->NewNode(mcgraph_->common()->TypeGuard(
+                             Type::Wasm(result_type, module_, graph->zone())),
+                         input.node, gasm_.effect(), gasm_.control());
+      gasm_.InitializeEffectControl(type_guard, gasm_.control());
+      return {type_guard, result_type};
+    }
+    if (module_->has_signature(static_cast<uint32_t>(heap_index))) {
       is_inlineable_ = false;
       return {};
     }
-    wasm::ValueType target_type =
-        wasm::ValueType::Ref(static_cast<uint32_t>(heap_index));
-    Node* rtt = graph_->NewNode(
+    wasm::ValueType target_type = wasm::ValueType::RefMaybeNull(
+        static_cast<uint32_t>(heap_index),
+        null_succeeds ? wasm::kNullable : wasm::kNonNullable);
+    Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()), instance_node_);
     Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
     return {cast, target_type};
+  }
+
+  Value ParseArrayLen(Value input) {
+    DCHECK(wasm::IsHeapSubtypeOf(input.type.heap_type(),
+                                 wasm::HeapType(wasm::HeapType::kArray),
+                                 module_));
+    const CheckForNull null_check =
+        input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
+    Node* len = gasm_.ArrayLength(input.node, null_check);
+    return {len, wasm::kWasmI32};
+  }
+
+  Value ParseArrayGet(Value array, Value index, WasmOpcode opcode) {
+    uint32_t array_index = consume_u32v();
+    DCHECK(module_->has_array(array_index));
+    const wasm::ArrayType* array_type = module_->array_type(array_index);
+    const bool is_signed = opcode == WasmOpcode::kExprArrayGetS;
+    const CheckForNull null_check =
+        array.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
+    // Perform bounds check.
+    Node* length = gasm_.ArrayLength(array.node, null_check);
+    gasm_.TrapUnless(gasm_.Uint32LessThan(index.node, length),
+                     TrapId::kTrapArrayOutOfBounds);
+    // Perform array.get.
+    Node* element =
+        gasm_.ArrayGet(array.node, index.node, array_type, is_signed);
+    return {element, array_type->element_type().Unpacked()};
   }
 
   WasmOpcode ReadOpcode() {

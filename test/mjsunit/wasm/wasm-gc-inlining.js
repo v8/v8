@@ -328,3 +328,202 @@ function testOptimized(run, fctToOptimize) {
   let getRefGetVal = () => assertSame(1, wasm.getVal(wasm.getRef(structB)));
   testOptimized(getRefGetVal);
 })();
+
+(function TestArrayLen() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+
+  builder.addFunction('createArray', makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayNewDefault, array,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('arrayLen', makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kGCPrefix, kExprArrayLen,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let testLen = (expected, array) => assertSame(expected, wasm.arrayLen(array));
+  let array0 = wasm.createArray(0);
+  let array42 = wasm.createArray(42);
+  testOptimized(() => testLen(0, array0), testLen);
+  testOptimized(() => testLen(42, array42), testLen);
+  testOptimized(
+    () => assertTraps(kTrapNullDereference, () => testLen(-1, null)), testLen);
+})();
+
+(function TestArrayGet() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+
+  builder.addFunction('createArray',
+      makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprArrayNewFixed, array, 3,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('get', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGet, array,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmArray = wasm.createArray(10, -1, 1234567);
+  let get =
+    (expected, array, index) =>
+      assertEquals(expected, wasm.get(array, index));
+  testOptimized(() => get(10, wasmArray, 0), get);
+  testOptimized(() => get(-1, wasmArray, 1), get);
+  testOptimized(() => get(1234567, wasmArray, 2), get);
+  testOptimized(
+    () => assertTraps(kTrapArrayOutOfBounds, () => get(-1, wasmArray, -1)),
+    get);
+  testOptimized(
+    () => assertTraps(kTrapArrayOutOfBounds, () => get(-1, wasmArray, 3)), get);
+  testOptimized(
+    () => assertTraps(kTrapNullDereference, () => get(-1, null)), get);
+})();
+
+(function TestArrayGetPacked() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI8, true);
+
+  builder.addFunction('createArray',
+      makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprArrayNewFixed, array, 3,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('getS', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGetS, array,
+    ])
+    .exportFunc();
+
+  builder.addFunction('getU', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGetU, array,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmArray = wasm.createArray(10, -1, -123);
+  {
+    print("- test getS");
+    let getS =
+      (expected, array, index) =>
+        assertEquals(expected, wasm.getS(array, index));
+    testOptimized(() => getS(10, wasmArray, 0), getS);
+    testOptimized(() => getS(-1, wasmArray, 1), getS);
+    testOptimized(() => getS(-123, wasmArray, 2), getS);
+    testOptimized(
+      () => assertTraps(kTrapArrayOutOfBounds, () => getS(-1, wasmArray, -1)),
+      getS);
+    testOptimized(
+      () => assertTraps(kTrapArrayOutOfBounds, () => getS(-1, wasmArray, 3)),
+      getS);
+    testOptimized(
+      () => assertTraps(kTrapNullDereference, () => getS(-1, null)), getS);
+  }
+  {
+    print("- test getU");
+    let getU =
+      (expected, array, index) =>
+        assertEquals(expected, wasm.getU(array, index));
+    testOptimized(() => getU(10, wasmArray, 0), getU);
+    testOptimized(() => getU(255, wasmArray, 1), getU);
+    testOptimized(() => getU(133, wasmArray, 2), getU);
+    testOptimized(
+      () => assertTraps(kTrapArrayOutOfBounds, () => getU(-1, wasmArray, -1)),
+      getU);
+    testOptimized(
+      () => assertTraps(kTrapArrayOutOfBounds, () => getU(-1, wasmArray, 3)),
+      getU);
+    testOptimized(
+      () => assertTraps(kTrapNullDereference, () => getU(-1, null)), getU);
+  }
+})();
+
+(function TestCastArray() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('createArray', makeSig([], [kWasmExternRef]))
+    .addBody([
+      kGCPrefix, kExprArrayNewFixed, array, 0,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+  builder.addFunction('createStruct', makeSig([], [kWasmExternRef]))
+    .addBody([
+      kExprI32Const, 42,
+      kGCPrefix, kExprStructNew, struct,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('castArray', makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      // Generic cast to ref.array.
+      kGCPrefix, kExprRefCast, kArrayRefCode,
+      kGCPrefix, kExprArrayLen,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmArray = wasm.createArray();
+  let wasmStruct = wasm.createStruct();
+  let castArray = (value) => wasm.castArray(value);
+  let trap = kTrapIllegalCast;
+  testOptimized(() => assertTraps(trap, () => castArray(null), castArray));
+  testOptimized(() => assertTraps(trap, () => castArray(1), castArray));
+  testOptimized(
+    () => assertTraps(trap, () => castArray(wasmStruct), castArray));
+  testOptimized(() => assertEquals(0, castArray(wasmArray)), castArray);
+})();
