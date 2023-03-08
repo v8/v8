@@ -310,6 +310,11 @@ inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
   Mov(dst, src, 0);
 }
 
+inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
+  Adds(obj, obj, obj);
+  JumpIf(vs, fail);
+}
+
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
   ScratchRegisterScope temps(this);

@@ -150,6 +150,9 @@ class MaglevAssembler : public MacroAssembler {
                   bool fallthrough_when_true, Label* if_false,
                   Label::Distance false_distance, bool fallthrough_when_false);
 
+  // Smi-tags {obj} in place.
+  inline void SmiTagInt32(Register obj, Label* fail);
+
   inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);

@@ -192,6 +192,11 @@ inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
   Movq(dst, src);
 }
 
+inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
+  addl(obj, obj);
+  JumpIf(overflow, fail);
+}
+
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
   movq(kScratchRegister, kHoleNanInt64);

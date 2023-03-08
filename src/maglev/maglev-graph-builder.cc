@@ -2195,9 +2195,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else {
     value = GetAccumulatorTagged();
-    if (field_representation.IsSmi()) {
-      BuildCheckSmi(value);
-    } else if (field_representation.IsHeapObject()) {
+    if (field_representation.IsHeapObject()) {
       // Emit a map check for the field type, if needed, otherwise just a
       // HeapObject check.
       if (access_info.field_map().has_value()) {
@@ -2210,8 +2208,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsSmi()) {
-    BuildStoreTaggedFieldNoWriteBarrier(store_target, value,
-                                        field_index.offset());
+    AddNewNode<CheckedStoreSmiField>({store_target, value},
+                                     field_index.offset());
   } else if (value->use_double_register()) {
     DCHECK(field_representation.IsDouble());
     DCHECK(!access_info.HasTransitionMap());

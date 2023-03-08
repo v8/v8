@@ -45,7 +45,9 @@ class GraphProcessor;
 
 class ProcessingState {
  public:
-  explicit ProcessingState(BlockConstIterator block_it) : block_it_(block_it) {}
+  explicit ProcessingState(BlockConstIterator block_it,
+                           NodeIterator* node_it = nullptr)
+      : block_it_(block_it), node_it_(node_it) {}
 
   // Disallow copies, since the underlying frame states stay mutable.
   ProcessingState(const ProcessingState&) = delete;
@@ -54,8 +56,14 @@ class ProcessingState {
   BasicBlock* block() const { return *block_it_; }
   BasicBlock* next_block() const { return *(block_it_ + 1); }
 
+  NodeIterator* node_it() const {
+    DCHECK_NOT_NULL(node_it_);
+    return node_it_;
+  }
+
  private:
   BlockConstIterator block_it_;
+  NodeIterator* node_it_;
 };
 
 template <typename NodeProcessor, bool visit_identity_nodes>
@@ -122,7 +130,9 @@ class GraphProcessor {
   const NodeProcessor& node_processor() const { return node_processor_; }
 
  private:
-  ProcessingState GetCurrentState() { return ProcessingState(block_it_); }
+  ProcessingState GetCurrentState() {
+    return ProcessingState(block_it_, &node_it_);
+  }
 
   void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
@@ -145,7 +155,7 @@ class GraphProcessor {
   NodeProcessor node_processor_;
   Graph* graph_;
   BlockConstIterator block_it_;
-  NodeConstIterator node_it_;
+  NodeIterator node_it_;
 };
 
 // A NodeProcessor that wraps multiple NodeProcessors, and forwards to each of

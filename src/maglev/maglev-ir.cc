@@ -276,7 +276,7 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
   return FromConstantToBool(masm->isolate()->AsLocalIsolate(), node);
 }
 
-DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame,
+DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
                      compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame),
       feedback_to_update_(feedback_to_update),
@@ -2318,6 +2318,20 @@ void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+void CheckedSmiTagFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedSmiTagFloat64::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Register object = ToRegister(result());
+
+  __ TryTruncateDoubleToInt32(
+      object, value, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
+  __ SmiTagInt32(object, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
+}
+
 void StoreFloat64::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(value_input());
@@ -2329,6 +2343,21 @@ void StoreFloat64::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   __ Move(FieldMemOperand(object, offset()), value);
+}
+
+void CheckedStoreSmiField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void CheckedStoreSmiField::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  Condition is_smi = __ CheckSmi(value);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
+  __ StoreTaggedField(FieldMemOperand(object, offset()), value);
 }
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
@@ -3666,6 +3695,11 @@ void StoreDoubleField::PrintParams(std::ostream& os,
 
 void StoreFloat64::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void CheckedStoreSmiField::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << std::hex << offset() << std::dec << ")";
 }
 
