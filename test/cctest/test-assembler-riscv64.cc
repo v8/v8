@@ -1214,6 +1214,28 @@ TEST(NAN_BOX) {
     CHECK_EQ((uint64_t)base::bit_cast<uint32_t>(1234.56f), res);
   }
 
+  // Test NaN boxing in FMV.S
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ fmv_w_x(fa0, a0);
+      __ fmv_s(ft1, fa0);
+      __ fmv_s(fa0, ft1);
+    };
+    auto res = GenAndRunTest<uint32_t>(0x7f400000, fn);
+    CHECK_EQ((uint32_t)base::bit_cast<uint32_t>(0x7f400000), res);
+  }
+
+  // Test NaN boxing in FMV.D
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ fmv_d_x(fa0, a0);
+      __ fmv_d(ft1, fa0);
+      __ fmv_d(fa0, ft1);
+    };
+    auto res = GenAndRunTest<uint64_t>(0x7ff4000000000000, fn);
+    CHECK_EQ((uint64_t)base::bit_cast<uint64_t>(0x7ff4000000000000), res);
+  }
+
   // Test FLW and FSW
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

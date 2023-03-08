@@ -200,7 +200,7 @@ inline double fsgnj64(double rs1, double rs2, bool n, bool x) {
 }
 
 inline Float64 fsgnj64(Float64 rs1, Float64 rs2, bool n, bool x) {
-  u64_f64 a = {.d = rs1.get_scalar()}, b = {.d = rs2.get_scalar()};
+  u64_f64 a = {.u = rs1.get_bits()}, b = {.u = rs2.get_bits()};
   u64_f64 res;
   if (x) {  // RO_FSQNJX_D
     res.u = (a.u & ~F64_SIGN) | ((a.u ^ b.u) & F64_SIGN);
