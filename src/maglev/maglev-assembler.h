@@ -101,6 +101,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void LoadTaggedField(Register result, MemOperand operand);
   inline void LoadTaggedField(Register result, Register object, int offset);
+  inline void LoadTaggedFieldWithoutDecompressing(Register result,
+                                                  Register object, int offset);
   inline void LoadTaggedSignedField(Register result, MemOperand operand);
   inline void LoadTaggedSignedField(Register result, Register object,
                                     int offset);
@@ -221,6 +223,7 @@ class MaglevAssembler : public MacroAssembler {
                                        InstanceType higher_limit);
 
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
+  inline void CompareTagged(Register src1, Register src2);
 
   inline void CompareInt32(Register reg, int32_t imm);
   inline void CompareInt32(Register src1, Register src2);

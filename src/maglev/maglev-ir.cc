@@ -460,10 +460,22 @@ void Call::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
+void Call::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+
 void CallWithArrayLike::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallWithArrayLike::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 
@@ -473,9 +485,21 @@ void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
+void CallWithSpread::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+
 void CallSelf::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallSelf::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 
@@ -486,9 +510,21 @@ void CallKnownJSFunction::VerifyInputs(
   }
 }
 
+void CallKnownJSFunction::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+
 void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void Construct::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 
@@ -496,6 +532,12 @@ void ConstructWithSpread::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void ConstructWithSpread::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 
@@ -528,9 +570,35 @@ void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
+void CallBuiltin::MarkTaggedInputsAsDecompressing() {
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int count = input_count();
+  // Set context.
+  if (descriptor.HasContextParameter()) {
+    input(count - 1).node()->SetTaggedResultNeedsDecompress();
+    count--;
+  }
+  int i = 0;
+  // Set the rest of the tagged inputs.
+  for (; i < count; ++i) {
+    MachineType type = i < descriptor.GetParameterCount()
+                           ? descriptor.GetParameterType(i)
+                           : MachineType::AnyTagged();
+    if (type.IsTagged() && !type.IsTaggedSigned()) {
+      input(i).node()->SetTaggedResultNeedsDecompress();
+    }
+  }
+}
+
 void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallRuntime::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 
@@ -1107,7 +1175,12 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
-  __ DecompressTagged(ToRegister(result()), FieldMemOperand(object, offset()));
+  if (this->decompresses_tagged_result()) {
+    __ LoadTaggedField(ToRegister(result()), object, offset());
+  } else {
+    __ LoadTaggedFieldWithoutDecompressing(ToRegister(result()), object,
+                                           offset());
+  }
 }
 
 void LoadTaggedFieldByFieldIndex::SetValueLocationConstraints() {
@@ -1548,7 +1621,7 @@ void CheckValue::SetValueLocationConstraints() { UseRegister(target_input()); }
 void CheckValue::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register target = ToRegister(target_input());
-  __ Cmp(target, value().object());
+  __ CompareTagged(target, value().object());
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
 }
 
@@ -1565,7 +1638,7 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(D::GetRegisterParameter(D::kLeft), ToRegister(target_input()));
   Register target = D::GetRegisterParameter(D::kLeft);
   // Maybe the string is internalized already, do a fast reference check first.
-  __ Cmp(target, value().object());
+  __ CompareTagged(target, value().object());
   __ JumpIf(kEqual, *end, Label::kNear);
 
   __ EmitEagerDeoptIf(__ CheckSmi(target), DeoptimizeReason::kWrongValue, this);
@@ -1611,7 +1684,7 @@ void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   Register first = ToRegister(first_input());
   Register second = ToRegister(second_input());
-  __ CompareInt32(first, second);
+  __ CompareTagged(first, second);
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
 }
 
@@ -3680,12 +3753,35 @@ void CheckInt32Condition::PrintParams(
 
 void LoadTaggedField::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec;
+  // Print compression status only after the result is allocated, since that's
+  // when we do decompression marking.
+  if (!result().operand().IsUnallocated()) {
+    if (decompresses_tagged_result()) {
+      os << ", decompressed";
+    } else {
+      os << ", compressed";
+    }
+  }
+  os << ")";
 }
 
 void LoadDoubleField::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadFixedArrayElement::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  // Print compression status only after the result is allocated, since that's
+  // when we do decompression marking.
+  if (!result().operand().IsUnallocated()) {
+    if (decompresses_tagged_result()) {
+      os << "(decompressed)";
+    } else {
+      os << "(compressed)";
+    }
+  }
 }
 
 void StoreDoubleField::PrintParams(std::ostream& os,

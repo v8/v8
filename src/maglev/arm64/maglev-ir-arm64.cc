@@ -1409,15 +1409,19 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
     // register since it's a known temporary, and the write barrier slow path
     // generates better code when value == scratch.
-    Register value =
-        __ FromAnyToRegister(parameters_and_registers(i),
-                             WriteBarrierDescriptor::SlotAddressRegister());
+    Input value_input = parameters_and_registers(i);
+    Register value = __ FromAnyToRegister(
+        value_input, WriteBarrierDescriptor::SlotAddressRegister());
 
     ZoneLabelRef done(masm);
     Label* deferred_write_barrier = __ MakeDeferredCode(
-        [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
-           Register array, GeneratorStore* node, int32_t offset) {
+        [](MaglevAssembler* masm, ZoneLabelRef done, ValueNode* value_node,
+           Register value, Register array, GeneratorStore* node,
+           int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+          if (!value_node->decompresses_tagged_result()) {
+            __ DecompressTagged(value, value);
+          }
           __ CheckPageFlag(
               value, MemoryChunk::kPointersToHereAreInterestingMask, eq, *done);
 
@@ -1435,7 +1439,8 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
           __ B(*done);
         },
-        done, value, array, this, FixedArray::OffsetOfElementAt(i));
+        done, value_input.node(), value, array, this,
+        FixedArray::OffsetOfElementAt(i));
 
     __ StoreTaggedField(
         value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(i)));
@@ -1456,9 +1461,12 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
   ZoneLabelRef done(masm);
   Label* deferred_context_write_barrier = __ MakeDeferredCode(
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register context,
-         Register generator, GeneratorStore* node) {
+      [](MaglevAssembler* masm, ZoneLabelRef done, ValueNode* context_node,
+         Register context, Register generator, GeneratorStore* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        if (!context_node->decompresses_tagged_result()) {
+          __ DecompressTagged(context, context);
+        }
         // TODO(leszeks): The context is almost always going to be in
         // old-space, consider moving this check to the fast path, maybe even
         // as the first bailout.
@@ -1483,7 +1491,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
         __ B(*done);
       },
-      done, context, generator, this);
+      done, context_input().node(), context, generator, this);
   __ StoreTaggedField(
       context, FieldMemOperand(generator, JSGeneratorObject::kContextOffset));
   __ AssertNotSmi(context);
@@ -1804,8 +1812,13 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
   }
   Register result_reg = ToRegister(result());
   __ Add(result_reg, elements, Operand(index, LSL, kTaggedSizeLog2));
-  __ DecompressTagged(result_reg,
-                      FieldMemOperand(result_reg, FixedArray::kHeaderSize));
+  if (this->decompresses_tagged_result()) {
+    __ DecompressTagged(result_reg,
+                        FieldMemOperand(result_reg, FixedArray::kHeaderSize));
+  } else {
+    __ Ldr(result_reg.W(),
+           FieldMemOperand(result_reg, FixedArray::kHeaderSize));
+  }
 }
 
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
@@ -2161,6 +2174,9 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        if (!node->value_input().node()->decompresses_tagged_result()) {
+          __ DecompressTagged(value, value);
+        }
         __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                          eq, *done);
 

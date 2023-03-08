@@ -1508,7 +1508,8 @@ class MaglevGraphBuilder {
                       base::Vector<const compiler::MapRef> maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
-  ReduceResult BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
+  ReduceResult BuildCheckValue(ValueNode* node,
+                               const compiler::HeapObjectRef& ref);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);

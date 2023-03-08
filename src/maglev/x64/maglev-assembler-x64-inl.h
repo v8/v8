@@ -457,6 +457,10 @@ inline void MaglevAssembler::CompareTagged(Register reg,
   Cmp(reg, obj);
 }
 
+inline void MaglevAssembler::CompareTagged(Register src1, Register src2) {
+  cmp_tagged(src1, src2);
+}
+
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
   cmpl(reg, Immediate(imm));
 }

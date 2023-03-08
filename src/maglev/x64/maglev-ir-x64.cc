@@ -67,15 +67,19 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // register since it's a known temporary, and the write barrier slow path
     // generates better code when value == scratch. Can't use kScratchRegister
     // because CheckPageFlag uses it.
-    Register value =
-        __ FromAnyToRegister(parameters_and_registers(i),
-                             WriteBarrierDescriptor::SlotAddressRegister());
+    Input value_input = parameters_and_registers(i);
+    Register value = __ FromAnyToRegister(
+        value_input, WriteBarrierDescriptor::SlotAddressRegister());
 
     ZoneLabelRef done(masm);
     Label* deferred_write_barrier = __ MakeDeferredCode(
-        [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
-           Register array, GeneratorStore* node, int32_t offset) {
+        [](MaglevAssembler* masm, ZoneLabelRef done, ValueNode* value_node,
+           Register value, Register array, GeneratorStore* node,
+           int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+          if (!value_node->decompresses_tagged_result()) {
+            __ DecompressTagged(value, value);
+          }
           // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
           // register, see comment above.
           __ CheckPageFlag(value, WriteBarrierDescriptor::SlotAddressRegister(),
@@ -97,7 +101,8 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
           __ jmp(*done);
         },
-        done, value, array, this, FixedArray::OffsetOfElementAt(i));
+        done, value_input.node(), value, array, this,
+        FixedArray::OffsetOfElementAt(i));
 
     __ StoreTaggedField(FieldOperand(array, FixedArray::OffsetOfElementAt(i)),
                         value);
@@ -119,9 +124,12 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
   ZoneLabelRef done(masm);
   Label* deferred_context_write_barrier = __ MakeDeferredCode(
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register context,
-         Register generator, GeneratorStore* node) {
+      [](MaglevAssembler* masm, ZoneLabelRef done, ValueNode* context_node,
+         Register context, Register generator, GeneratorStore* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        if (!context_node->decompresses_tagged_result()) {
+          __ DecompressTagged(context, context);
+        }
         // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
         // register, see comment above.
         // TODO(leszeks): The context is almost always going to be in
@@ -149,7 +157,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
         __ jmp(*done);
       },
-      done, context, generator, this);
+      done, context_input().node(), context, generator, this);
   __ StoreTaggedField(
       FieldOperand(generator, JSGeneratorObject::kContextOffset), context);
   __ AssertNotSmi(context);
@@ -697,9 +705,14 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
     __ cmpq(index, Immediate(0));
     __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
   }
-  __ DecompressTagged(result_reg,
-                      FieldOperand(elements, index, times_tagged_size,
-                                   FixedArray::kHeaderSize));
+  if (this->decompresses_tagged_result()) {
+    __ DecompressTagged(result_reg,
+                        FieldOperand(elements, index, times_tagged_size,
+                                     FixedArray::kHeaderSize));
+  } else {
+    __ mov_tagged(result_reg, FieldOperand(elements, index, times_tagged_size,
+                                           FixedArray::kHeaderSize));
+  }
 }
 
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
@@ -1140,6 +1153,9 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        if (!node->value_input().node()->decompresses_tagged_result()) {
+          __ DecompressTagged(value, value);
+        }
         __ CheckPageFlag(value, kScratchRegister,
                          MemoryChunk::kPointersToHereAreInterestingMask, zero,
                          *done);
