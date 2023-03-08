@@ -147,7 +147,11 @@ in_category(
         name = "V8 Linux64 - coverage",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"enable_swarming": False, "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
+        properties = {
+            "enable_swarming": False,
+            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
+            "coverage": "llvm",
+        },
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         execution_timeout = 7200,

@@ -110,7 +110,11 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    properties = {"enable_swarming": False, "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
+    properties = {
+        "enable_swarming": False,
+        "gclient_vars": {"checkout_clang_coverage_tools": "True"},
+        "coverage": "llvm",
+    },
     execution_timeout = 7200,
     use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
