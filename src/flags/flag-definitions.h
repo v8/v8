@@ -240,7 +240,6 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_json_parse_with_source, "harmony json parse with source")          \
   V(harmony_array_from_async, "harmony Array.fromAsync")                       \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
@@ -256,7 +255,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)                                 \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer") \
-  V(harmony_array_grouping, "harmony array grouping")
+  V(harmony_array_grouping, "harmony array grouping")          \
+  V(harmony_json_parse_with_source, "harmony json parse with source")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
