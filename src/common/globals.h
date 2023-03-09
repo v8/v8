@@ -2147,6 +2147,7 @@ class PtrComprCageBase {
 #else
 class PtrComprCageBase {
  public:
+  explicit constexpr PtrComprCageBase(Address address) {}
   PtrComprCageBase() = default;
   // NOLINTNEXTLINE
   PtrComprCageBase(const Isolate* isolate) {}
