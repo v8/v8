@@ -893,7 +893,7 @@ class PromotedPageRecordMigratedSlotVisitor
 #ifdef THREAD_SANITIZER
     value_chunk->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
-    if (!value_chunk->InSharedHeap()) return;
+    if (!value_chunk->InWritableSharedSpace()) return;
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
         MemoryChunk::FromHeapObject(host), slot);
   }

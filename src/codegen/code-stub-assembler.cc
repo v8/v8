@@ -3242,9 +3242,10 @@ void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<Object> value) {
   CSA_DCHECK(
       this,
-      WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
-                           IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
-                   IntPtrConstant(0)));
+      WordNotEqual(
+          WordAnd(LoadBasicMemoryChunkFlags(object),
+                  IntPtrConstant(BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
+          IntPtrConstant(0)));
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -16907,9 +16908,10 @@ void CodeStubAssembler::SharedValueBarrier(
   BIND(&check_in_shared_heap);
   {
     Branch(
-        WordNotEqual(WordAnd(page_flags,
-                             IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
-                     IntPtrConstant(0)),
+        WordNotEqual(
+            WordAnd(page_flags,
+                    IntPtrConstant(BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
+            IntPtrConstant(0)),
         &skip_barrier, &slow);
   }
 
@@ -16929,7 +16931,7 @@ void CodeStubAssembler::SharedValueBarrier(
         WordNotEqual(
             WordAnd(LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
                     IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP |
-                                   BasicMemoryChunk::IN_SHARED_HEAP)),
+                                   BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
             IntPtrConstant(0)));
     Goto(&done);
   }

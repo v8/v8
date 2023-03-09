@@ -191,7 +191,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   // All pages of a shared heap need to be marked with this flag.
   if (owner()->identity() == SHARED_SPACE ||
       owner()->identity() == SHARED_LO_SPACE) {
-    SetFlag(MemoryChunk::IN_SHARED_HEAP);
+    SetFlag(MemoryChunk::IN_WRITABLE_SHARED_SPACE);
   }
 
 #ifdef DEBUG

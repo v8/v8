@@ -45,7 +45,7 @@ namespace heap_internals {
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = kSizetSize;
   static constexpr uintptr_t kHeapOffset = kSizetSize + kUIntptrSize;
-  static constexpr uintptr_t kInSharedHeapBit = uintptr_t{1} << 0;
+  static constexpr uintptr_t kInWritableSharedSpaceBit = uintptr_t{1} << 0;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 5;
@@ -60,7 +60,9 @@ struct MemoryChunk {
 
   V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
 
-  V8_INLINE bool InSharedHeap() const { return GetFlags() & kInSharedHeapBit; }
+  V8_INLINE bool InWritableSharedSpace() const {
+    return GetFlags() & kInWritableSharedSpaceBit;
+  }
 
   V8_INLINE bool InYoungGeneration() const {
     if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
@@ -72,7 +74,7 @@ struct MemoryChunk {
   V8_INLINE bool IsYoungOrSharedChunk() const {
     if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
     constexpr uintptr_t kYoungOrSharedChunkMask =
-        kFromPageBit | kToPageBit | kInSharedHeapBit;
+        kFromPageBit | kToPageBit | kInWritableSharedSpaceBit;
     return GetFlags() & kYoungOrSharedChunkMask;
   }
 
@@ -302,7 +304,7 @@ void WriteBarrier::Shared(InstructionStream host, RelocInfo* reloc_info,
 
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
-  if (!value_chunk->InSharedHeap()) return;
+  if (!value_chunk->InWritableSharedSpace()) return;
 
   SharedSlow(host, reloc_info, value);
 }

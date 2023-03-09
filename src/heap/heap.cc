@@ -6913,7 +6913,7 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
     Heap::GenerationalBarrierSlow(object, slot, value);
 
   } else {
-    DCHECK(value_chunk->InSharedHeap());
+    DCHECK(value_chunk->InWritableSharedSpace());
     DCHECK(!object.InWritableSharedSpace());
     Heap::SharedHeapBarrierSlow(object, slot);
   }
@@ -6928,7 +6928,7 @@ void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     table_chunk->heap()->RecordEphemeronKeyWrite(table, slot);
 
   } else {
-    DCHECK(value_chunk->InSharedHeap());
+    DCHECK(value_chunk->InWritableSharedSpace());
     DCHECK(!table.InWritableSharedSpace());
     Heap::SharedHeapBarrierSlow(table, slot);
   }
@@ -6942,7 +6942,7 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
 
 void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  DCHECK(!chunk->InSharedHeap());
+  DCHECK(!chunk->InWritableSharedSpace());
   RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, slot);
 }
 

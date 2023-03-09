@@ -204,7 +204,7 @@ bool HeapObject::InAnySharedSpace() const {
 }
 
 bool HeapObject::InWritableSharedSpace() const {
-  return BasicMemoryChunk::FromHeapObject(*this)->InSharedHeap();
+  return BasicMemoryChunk::FromHeapObject(*this)->InWritableSharedSpace();
 }
 
 bool HeapObject::InReadOnlySpace() const { return IsReadOnlyHeapObject(*this); }

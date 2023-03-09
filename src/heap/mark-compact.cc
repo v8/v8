@@ -1555,7 +1555,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
-      } else if (p->InSharedHeap() && !host.InWritableSharedSpace()) {
+      } else if (p->InWritableSharedSpace() && !host.InWritableSharedSpace()) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       }
@@ -4761,7 +4761,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(heap_->non_atomic_marking_state()),
         chunk_(chunk),
         record_old_to_shared_slots_(heap->isolate()->has_shared_space() &&
-                                    !chunk->InSharedHeap()) {}
+                                    !chunk->InWritableSharedSpace()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
