@@ -1101,7 +1101,8 @@ Reduction JSTypedLowering::ReduceJSToBigIntConvertNumber(Node* node) {
     node->TrimInputCount(1);
     Type node_type = NodeProperties::GetType(node);
     NodeProperties::SetType(
-        node, Type::Intersect(node_type, Type::BigInt(), graph()->zone()));
+        node,
+        Type::Intersect(node_type, Type::SignedBigInt64(), graph()->zone()));
     NodeProperties::ChangeOp(node,
                              simplified()->Integral32OrMinusZeroToBigInt());
     return Changed(node);
