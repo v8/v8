@@ -118,6 +118,78 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                                         FixedArray::kHeaderSize));
 }
 
+void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
+    Register object, int offset, Register value,
+    RegisterSnapshot register_snapshot, ValueIsCompressed value_is_compressed,
+    ValueCanBeSmi value_can_be_smi) {
+  DCHECK_NE(object, kScratchRegister);
+  DCHECK_NE(value, kScratchRegister);
+  AssertNotSmi(object);
+  StoreTaggedField(FieldOperand(object, offset), value);
+
+  ZoneLabelRef done(this);
+  Label* deferred_write_barrier = MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object, int offset,
+         Register value, RegisterSnapshot register_snapshot,
+         ValueIsCompressed value_is_compressed) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        if (value_is_compressed == kValueIsCompressed) {
+          __ DecompressTagged(value, value);
+        }
+
+        // Use the value as the scratch register if possible, since
+        // CheckPageFlag emits slightly better code when value == scratch.
+        Register scratch = kScratchRegister;
+        if (!register_snapshot.live_registers.has(value)) {
+          scratch = value;
+        }
+        __ CheckPageFlag(value, scratch,
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         *done);
+
+        Register stub_object_reg = WriteBarrierDescriptor::ObjectRegister();
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+
+        RegList saved;
+        if (object != stub_object_reg &&
+            register_snapshot.live_registers.has(stub_object_reg)) {
+          saved.set(stub_object_reg);
+        }
+        if (register_snapshot.live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+
+        if (object != stub_object_reg) {
+          __ Move(stub_object_reg, object);
+          object = stub_object_reg;
+        }
+        __ leaq(slot_reg, FieldOperand(object, offset));
+
+        SaveFPRegsMode const save_fp_mode =
+            !register_snapshot.live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ jmp(*done);
+      },
+      done, object, offset, value, register_snapshot, value_is_compressed);
+
+  if (value_can_be_smi == kValueCanBeSmi) {
+    JumpIfSmi(value, *done);
+  } else {
+    AssertNotSmi(value);
+  }
+  CheckPageFlag(object, kScratchRegister,
+                MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                deferred_write_barrier);
+  bind(*done);
+}
+
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,

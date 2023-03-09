@@ -15,6 +15,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -1369,6 +1370,52 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+int StoreMap::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void StoreMap::SetValueLocationConstraints() {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+  set_temporaries_needed(1);
+}
+void StoreMap::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+  Register value = temps.Acquire();
+  __ Move(value, map_.object());
+
+  __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
+                                      register_snapshot(),
+                                      MaglevAssembler::kValueIsDecompressed,
+                                      MaglevAssembler::kValueCannotBeSmi);
+}
+
+int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void StoreTaggedFieldWithWriteBarrier::SetValueLocationConstraints() {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+  UseRegister(value_input());
+}
+void StoreTaggedFieldWithWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+  Register value = ToRegister(value_input());
+
+  __ StoreTaggedFieldWithWriteBarrier(
+      object, offset(), value, register_snapshot(),
+      value_input().node()->decompresses_tagged_result()
+          ? MaglevAssembler::kValueIsDecompressed
+          : MaglevAssembler::kValueIsCompressed,
+      MaglevAssembler::kValueCanBeSmi);
+}
+
 namespace {
 
 template <typename NodeT, typename Function, typename... Args>
@@ -2324,6 +2371,70 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   if (value != result_reg) {
     __ Move(result_reg, value);
   }
+}
+
+int GeneratorStore::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void GeneratorStore::SetValueLocationConstraints() {
+  UseAny(context_input());
+  UseRegister(generator_input());
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    UseAny(parameters_and_registers(i));
+  }
+  RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+}
+void GeneratorStore::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register generator = ToRegister(generator_input());
+  Register array = WriteBarrierDescriptor::ObjectRegister();
+  __ LoadTaggedField(array, generator,
+                     JSGeneratorObject::kParametersAndRegistersOffset);
+
+  RegisterSnapshot register_snapshot_during_store = register_snapshot();
+  // Include the array and generator registers in the register snapshot while
+  // storing parameters and registers, to avoid the write barrier clobbering
+  // them.
+  register_snapshot_during_store.live_registers.set(array);
+  register_snapshot_during_store.live_tagged_registers.set(array);
+  register_snapshot_during_store.live_registers.set(generator);
+  register_snapshot_during_store.live_tagged_registers.set(generator);
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    // Use WriteBarrierDescriptor::SlotAddressRegister() as the temporary for
+    // the value -- it'll be clobbered by StoreTaggedFieldWithWriteBarrier since
+    // it's not in the register snapshot, but that's ok, and a clobberable value
+    // register lets the write barrier emit slightly better code.
+    Input value_input = parameters_and_registers(i);
+    Register value = __ FromAnyToRegister(
+        value_input, WriteBarrierDescriptor::SlotAddressRegister());
+    __ StoreTaggedFieldWithWriteBarrier(
+        array, FixedArray::OffsetOfElementAt(i), value,
+        register_snapshot_during_store,
+        value_input.node()->decompresses_tagged_result()
+            ? MaglevAssembler::kValueIsDecompressed
+            : MaglevAssembler::kValueIsCompressed,
+        MaglevAssembler::kValueCanBeSmi);
+  }
+
+  __ StoreTaggedSignedField(generator, JSGeneratorObject::kContinuationOffset,
+                            Smi::FromInt(suspend_id()));
+  __ StoreTaggedSignedField(generator,
+                            JSGeneratorObject::kInputOrDebugPosOffset,
+                            Smi::FromInt(bytecode_offset()));
+
+  // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+  // register, see comment above. At this point we no longer need to preserve
+  // the array or generator registers, so use the original register snapshot.
+  Register context = __ FromAnyToRegister(
+      context_input(), WriteBarrierDescriptor::SlotAddressRegister());
+  __ StoreTaggedFieldWithWriteBarrier(
+      generator, JSGeneratorObject::kContextOffset, context,
+      register_snapshot(),
+      context_input().node()->decompresses_tagged_result()
+          ? MaglevAssembler::kValueIsDecompressed
+          : MaglevAssembler::kValueIsCompressed,
+      MaglevAssembler::kValueCannotBeSmi);
 }
 
 int GetKeyedGeneric::MaxCallStackArgs() const {

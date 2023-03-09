@@ -291,6 +291,17 @@ inline void MaglevAssembler::LoadUnsignedField(Register result, Operand operand,
   }
 }
 
+inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
+                                                    Register value) {
+  AssertSmi(value);
+  mov_tagged(FieldOperand(object, offset), value);
+}
+
+inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
+                                                    Smi value) {
+  MacroAssembler::StoreTaggedSignedField(FieldOperand(object, offset), value);
+}
+
 inline void MaglevAssembler::StoreField(Operand operand, Register value,
                                         int size) {
   DCHECK(size == 1 || size == 2 || size == 4);

@@ -426,6 +426,20 @@ inline void MaglevAssembler::LoadUnsignedField(Register result,
   }
 }
 
+inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
+                                                    Register value) {
+  AssertSmi(value);
+  StoreTaggedField(value, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
+                                                    Smi value) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Mov(scratch, value);
+  StoreTaggedField(scratch, FieldMemOperand(object, offset));
+}
+
 inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
                                         int size) {
   DCHECK(size == 1 || size == 2 || size == 4);

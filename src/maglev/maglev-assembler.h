@@ -128,6 +128,26 @@ class MaglevAssembler : public MacroAssembler {
     DecodeField<BitField>(result);
   }
 
+  enum ValueIsCompressed { kValueIsDecompressed, kValueIsCompressed };
+  enum ValueCanBeSmi { kValueCannotBeSmi, kValueCanBeSmi };
+  // Preserves all registers that are in the register snapshot, but is otherwise
+  // allowed to clobber both input registers if they are not in the snapshot.
+  //
+  // For maximum efficiency, prefer:
+  //   * Having `object` == WriteBarrierDescriptor::ObjectRegister(),
+  //   * Not having WriteBarrierDescriptor::SlotAddressRegister() in the
+  //     register snapshot,
+  //   * Not having `value` in the register snapshot, allowing it to be
+  //     clobbered.
+  void StoreTaggedFieldWithWriteBarrier(Register object, int offset,
+                                        Register value,
+                                        RegisterSnapshot register_snapshot,
+                                        ValueIsCompressed value_is_compressed,
+                                        ValueCanBeSmi value_can_be_smi);
+  inline void StoreTaggedSignedField(Register object, int offset,
+                                     Register value);
+  inline void StoreTaggedSignedField(Register object, int offset, Smi value);
+
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 
