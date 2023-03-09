@@ -108,6 +108,9 @@ class SemiSpace final : public Space {
   void PrependPage(Page* page);
   void MovePageToTheEnd(Page* page);
 
+  void PauseAllocationObservers() override { UNREACHABLE(); }
+  void ResumeAllocationObservers() override { UNREACHABLE(); }
+
   Page* InitializePage(MemoryChunk* chunk) final;
 
   // Age mark accessors.

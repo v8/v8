@@ -355,11 +355,11 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
 
 void SpaceWithLinearArea::PauseAllocationObservers() {
   AdvanceAllocationObservers();
-  Space::PauseAllocationObservers();
+  allocation_counter_.Pause();
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
-  Space::ResumeAllocationObservers();
+  allocation_counter_.Resume();
   MarkLabStartInitialized();
   UpdateInlineAllocationLimit();
 }

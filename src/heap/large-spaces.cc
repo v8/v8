@@ -137,6 +137,14 @@ void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
   allocation_counter_.AdvanceAllocationObservers(object_size);
 }
 
+void LargeObjectSpace::PauseAllocationObservers() {
+  allocation_counter_.Pause();
+}
+
+void LargeObjectSpace::ResumeAllocationObservers() {
+  allocation_counter_.Resume();
+}
+
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocateRaw(object_size, NOT_EXECUTABLE);
 }
