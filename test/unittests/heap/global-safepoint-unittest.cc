@@ -72,7 +72,6 @@ class InfiniteLooperThread final : public ParkingThread {
     v8::Local<v8::String> source =
         v8::String::NewFromUtf8(v8_isolate, "for(;;) {}").ToLocalChecked();
     auto context = v8_isolate->GetCurrentContext();
-    v8::Local<v8::Value> result;
     v8::Local<v8::Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
 

@@ -795,7 +795,6 @@ V8StackTraceId V8Debugger::currentExternalParent() {
 v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     v8::Local<v8::Context> context, v8::Local<v8::Value> value,
     ScopeTargetKind kind) {
-  v8::Local<v8::Value> scopesValue;
   std::unique_ptr<v8::debug::ScopeIterator> iterator;
   switch (kind) {
     case FUNCTION:
@@ -925,7 +924,6 @@ v8::MaybeLocal<v8::Array> V8Debugger::privateMethods(
     return v8::MaybeLocal<v8::Array>();
   }
   v8::Isolate* isolate = context->GetIsolate();
-  v8::Local<v8::Array> private_methods;
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
   int filter =

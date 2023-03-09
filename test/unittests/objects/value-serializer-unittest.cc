@@ -1400,7 +1400,6 @@ TEST_F(ValueSerializerTest, RoundTripDate) {
 }
 
 TEST_F(ValueSerializerTest, DecodeDate) {
-  Local<Value> value;
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTestFutureVersions(
       {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84, 0x2E,

@@ -165,7 +165,6 @@ class WithIsolateScopeMixin : public TMixin {
 
   static MaybeLocal<Value> TryRunJS(Local<Context> context,
                                     Local<String> source) {
-    v8::Local<v8::Value> result;
     Local<Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
     return script->Run(context);

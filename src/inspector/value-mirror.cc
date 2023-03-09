@@ -1313,7 +1313,6 @@ void nativeSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
       !object->IsObject()) {
     return;
   }
-  v8::Local<v8::Value> value;
   if (!object.As<v8::Object>()->Set(context, name, info[0]).IsNothing()) return;
 }
 
@@ -1598,7 +1597,6 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::Array> privateProperties;
 
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;

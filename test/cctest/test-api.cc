@@ -2457,7 +2457,6 @@ THREADED_TEST(TestObjectTemplateReflectConstruct) {
   fun_B->SetClassName(class_name);
 
   v8::Local<v8::String> subclass_name = v8_str("C");
-  v8::Local<v8::Object> b_proto;
   v8::Local<v8::Object> c_proto;
   // Perform several iterations to make sure the cache doesn't break
   // subclassing.
@@ -21614,7 +21613,6 @@ TEST(EscapableHandleScope) {
     }
   }
   for (int i = 0; i < runs; i++) {
-    Local<String> expected;
     if (i != 0) {
       CHECK(v8_str("escape value")
                 ->Equals(context.local(), values[i])

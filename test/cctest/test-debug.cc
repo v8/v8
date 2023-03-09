@@ -583,8 +583,6 @@ TEST(BreakPointApiIntrinsics) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  v8::Local<v8::Function> builtin;
-
   // === Test that using API-exposed functions won't trigger breakpoints ===
   {
     v8::Local<v8::Function> weakmap_get =
@@ -2719,7 +2717,6 @@ TEST(DebugStepWith) {
                   v8::Object::New(env->GetIsolate()))
             .FromJust());
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
-  v8::Local<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = {};"
 
   run_step.set_step_action(StepInto);

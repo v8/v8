@@ -5486,7 +5486,6 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
 
 MaybeLocal<Value> Shell::DeserializeValue(
     Isolate* isolate, std::unique_ptr<SerializationData> data) {
-  Local<Value> value;
   Local<Context> context = isolate->GetCurrentContext();
   Deserializer deserializer(isolate, std::move(data));
   return deserializer.ReadValue(context);
