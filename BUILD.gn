@@ -5685,6 +5685,7 @@ v8_component("v8_libbase") {
     "src/base/platform/memory.h",
     "src/base/platform/mutex.cc",
     "src/base/platform/mutex.h",
+    "src/base/platform/platform.cc",
     "src/base/platform/platform.h",
     "src/base/platform/semaphore.cc",
     "src/base/platform/semaphore.h",

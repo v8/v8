@@ -136,7 +136,7 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
 }
 
 // static
-Stack::StackSlot Stack::GetStackStart() {
+Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   return pthread_get_stackaddr_np(pthread_self());
 }
 

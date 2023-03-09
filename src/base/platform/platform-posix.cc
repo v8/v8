@@ -1241,7 +1241,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
     !defined(V8_OS_SOLARIS)
 
 // static
-Stack::StackSlot Stack::GetStackStart() {
+Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (!error) {

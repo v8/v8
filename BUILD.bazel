@@ -670,6 +670,7 @@ filegroup(
         "src/base/platform/mutex.cc",
         "src/base/platform/mutex.h",
         "src/base/platform/platform.h",
+        "src/base/platform/platform.cc",
         "src/base/platform/semaphore.cc",
         "src/base/platform/semaphore.h",
         "src/base/platform/time.cc",

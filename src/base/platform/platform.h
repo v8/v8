@@ -660,6 +660,10 @@ class V8_BASE_EXPORT Stack {
 #endif  // V8_USE_ADDRESS_SANITIZER
     return slot;
   }
+
+ private:
+  // Returns the current thread stack start pointer.
+  static Stack::StackSlot ObtainCurrentThreadStackStart();
 };
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
