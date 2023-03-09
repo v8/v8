@@ -802,6 +802,22 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphDebugBreak(const DebugBreakOp& op) {
     return assembler().ReduceDebugBreak();
   }
+  OpIndex AssembleOutputGraphBigIntBinop(const BigIntBinopOp& op) {
+    return assembler().ReduceBigIntBinop(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()),
+        MapToNewGraph(op.frame_state()), op.kind);
+  }
+  OpIndex AssembleOutputGraphBigIntEqual(const BigIntEqualOp& op) {
+    return assembler().ReduceBigIntEqual(MapToNewGraph(op.left()),
+                                         MapToNewGraph(op.right()));
+  }
+  OpIndex AssembleOutputGraphBigIntComparison(const BigIntComparisonOp& op) {
+    return assembler().ReduceBigIntComparison(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind);
+  }
+  OpIndex AssembleOutputGraphBigIntUnary(const BigIntUnaryOp& op) {
+    return assembler().ReduceBigIntUnary(MapToNewGraph(op.input()), op.kind);
+  }
   OpIndex AssembleOutputGraphLoadRootRegister(const LoadRootRegisterOp& op) {
     return assembler().ReduceLoadRootRegister();
   }

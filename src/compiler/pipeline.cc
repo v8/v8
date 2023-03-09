@@ -2164,7 +2164,7 @@ struct TurboshaftMachineLoweringPhase {
         Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
             data->node_origins(),
             std::tuple{turboshaft::MachineLoweringReducerArgs{
-                data->isolate()->factory()}});
+                data->isolate()->factory(), data->isolate()}});
   }
 };
 

@@ -43,6 +43,7 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct GraphBuilder {
+  Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
   Zone* phase_zone;
@@ -1558,6 +1559,36 @@ OpIndex GraphBuilder::Process(
       return BuildUint32Mod(lhs, rhs);
     }
 
+#define BIGINT_BINOP_CASE(op, kind)                                     \
+  case IrOpcode::kBigInt##op:                                           \
+    DCHECK(dominating_frame_state.valid());                             \
+    return __ BigIntBinop(Map(node->InputAt(0)), Map(node->InputAt(1)), \
+                          dominating_frame_state,                       \
+                          BigIntBinopOp::Kind::k##kind);
+      BIGINT_BINOP_CASE(Add, Add)
+      BIGINT_BINOP_CASE(Subtract, Sub)
+      BIGINT_BINOP_CASE(Multiply, Mul)
+      BIGINT_BINOP_CASE(Divide, Div)
+      BIGINT_BINOP_CASE(Modulus, Mod)
+      BIGINT_BINOP_CASE(BitwiseAnd, BitwiseAnd)
+      BIGINT_BINOP_CASE(BitwiseOr, BitwiseOr)
+      BIGINT_BINOP_CASE(BitwiseXor, BitwiseXor)
+      BIGINT_BINOP_CASE(ShiftLeft, ShiftLeft)
+      BIGINT_BINOP_CASE(ShiftRight, ShiftRightArithmetic)
+#undef BIGINT_BINOP_CASE
+
+    case IrOpcode::kBigIntEqual:
+      return __ BigIntEqual(Map(node->InputAt(0)), Map(node->InputAt(1)));
+
+    case IrOpcode::kBigIntLessThan:
+      return __ BigIntLessThan(Map(node->InputAt(0)), Map(node->InputAt(1)));
+    case IrOpcode::kBigIntLessThanOrEqual:
+      return __ BigIntLessThanOrEqual(Map(node->InputAt(0)),
+                                      Map(node->InputAt(1)));
+
+    case IrOpcode::kBigIntNegate:
+      return __ BigIntNegate(Map(node->InputAt(0)));
+
     case IrOpcode::kLoadRootRegister:
       // Inlined usage of wasm root register operation in JS.
       return assembler.ReduceLoadRootRegister();
@@ -1582,7 +1613,8 @@ base::Optional<BailoutReason> BuildGraph(JSHeapBroker* broker,
                                          Graph* graph, Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
-  GraphBuilder builder{broker,
+  GraphBuilder builder{isolate,
+                       broker,
                        graph_zone,
                        phase_zone,
                        *schedule,

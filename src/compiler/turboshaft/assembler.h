@@ -1160,7 +1160,9 @@ class AssemblerOpInterface {
     }
     return stack().ReduceTag(input, kind);
   }
-  V<Tagged> SmiTag(V<Word32> input) { return Tag(input, TagKind::kSmiTag); }
+  V<Tagged> SmiTag(ConstOrV<Word32> input) {
+    return Tag(resolve(input), TagKind::kSmiTag);
+  }
 
   OpIndex Untag(OpIndex input, TagKind kind, RegisterRepresentation rep) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -1698,6 +1700,63 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceDebugBreak();
+  }
+
+  V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,
+                        BigIntBinopOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceBigIntBinop(left, right, frame_state, kind);
+  }
+#define BIGINT_BINOP(kind)                                \
+  V<Tagged> BigInt##kind(V<Tagged> left, V<Tagged> right, \
+                         OpIndex frame_state) {           \
+    return BigIntBinop(left, right, frame_state,          \
+                       BigIntBinopOp::Kind::k##kind);     \
+  }
+  BIGINT_BINOP(Add)
+  BIGINT_BINOP(Sub)
+  BIGINT_BINOP(Mul)
+  BIGINT_BINOP(Div)
+  BIGINT_BINOP(Mod)
+  BIGINT_BINOP(BitwiseAnd)
+  BIGINT_BINOP(BitwiseOr)
+  BIGINT_BINOP(BitwiseXor)
+  BIGINT_BINOP(ShiftLeft)
+  BIGINT_BINOP(ShiftRightArithmetic)
+#undef BIGINT_BINOP
+
+  V<Word32> BigIntEqual(V<Tagged> left, V<Tagged> right) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceBigIntEqual(left, right);
+  }
+
+  V<Word32> BigIntComparison(V<Tagged> left, V<Tagged> right,
+                             BigIntComparisonOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceBigIntComparison(left, right, kind);
+  }
+  V<Word32> BigIntLessThan(V<Tagged> left, V<Tagged> right) {
+    return BigIntComparison(left, right, BigIntComparisonOp::Kind::kLessThan);
+  }
+  V<Word32> BigIntLessThanOrEqual(V<Tagged> left, V<Tagged> right) {
+    return BigIntComparison(left, right,
+                            BigIntComparisonOp::Kind::kLessThanOrEqual);
+  }
+
+  V<Tagged> BigIntUnary(V<Tagged> input, BigIntUnaryOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceBigIntUnary(input, kind);
+  }
+  V<Tagged> BigIntNegate(V<Tagged> input) {
+    return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
   template <typename Rep>

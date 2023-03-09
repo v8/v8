@@ -187,7 +187,7 @@ class EffectControlLinearizer {
   Node* LowerBigIntDivide(Node* node, Node* frame_state);
   Node* LowerBigIntModulus(Node* node, Node* frame_state);
   Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
-  Node* LowerBigIntBitwiseOr(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseOr(Node* node);
   Node* LowerBigIntBitwiseXor(Node* node, Node* frame_state);
   Node* LowerBigIntShiftLeft(Node* node, Node* frame_state);
   Node* LowerBigIntShiftRight(Node* node, Node* frame_state);
@@ -339,6 +339,8 @@ class EffectControlLinearizer {
   // Tries to migrate |value| if its map |value_map| is deprecated, but doesn't
   // deopt on failure.
   void TryMigrateInstance(Node* value, Node* value_map);
+
+  Node* CallBuiltinForBigIntBinop(Node* left, Node* right, Builtin builtin);
 
   bool should_maintain_schedule() const {
     return maintain_schedule_ == MaintainSchedule::kMaintain;
@@ -1435,45 +1437,92 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringLessThanOrEqual(node);
       break;
     case IrOpcode::kBigIntAdd:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntAdd(node, frame_state);
       break;
     case IrOpcode::kBigIntSubtract:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntSubtract(node, frame_state);
       break;
     case IrOpcode::kBigIntMultiply:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntMultiply(node, frame_state);
       break;
     case IrOpcode::kBigIntDivide:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntDivide(node, frame_state);
       break;
     case IrOpcode::kBigIntModulus:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntModulus(node, frame_state);
       break;
     case IrOpcode::kBigIntBitwiseAnd:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntBitwiseAnd(node, frame_state);
       break;
     case IrOpcode::kBigIntBitwiseOr:
-      result = LowerBigIntBitwiseOr(node, frame_state);
+      if (v8_flags.turboshaft) {
+        // Although bitwise or doesn't need a FrameState (because it cannot
+        // deopt), we keep it here for Turboshaft, because this allows us to
+        // handle `or` uniformly with all other binary operations.
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
+      result = LowerBigIntBitwiseOr(node);
       break;
     case IrOpcode::kBigIntBitwiseXor:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntBitwiseXor(node, frame_state);
       break;
     case IrOpcode::kBigIntShiftLeft:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntShiftLeft(node, frame_state);
       break;
     case IrOpcode::kBigIntShiftRight:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerBigIntShiftRight(node, frame_state);
       break;
     case IrOpcode::kBigIntEqual:
+      if (v8_flags.turboshaft) return false;
       result = LowerBigIntEqual(node);
       break;
     case IrOpcode::kBigIntLessThan:
+      if (v8_flags.turboshaft) return false;
       result = LowerBigIntLessThan(node);
       break;
     case IrOpcode::kBigIntLessThanOrEqual:
+      if (v8_flags.turboshaft) return false;
       result = LowerBigIntLessThanOrEqual(node);
       break;
     case IrOpcode::kBigIntNegate:
+      if (v8_flags.turboshaft) return false;
       result = LowerBigIntNegate(node);
       break;
     case IrOpcode::kNumberIsFloat64Hole:
@@ -2186,6 +2235,18 @@ void EffectControlLinearizer::TryMigrateInstance(Node* value, Node* value_map) {
           __ Int32Constant(1), __ NoContextConstant());
   __ Goto(&done);
   __ Bind(&done);
+}
+
+Node* EffectControlLinearizer::CallBuiltinForBigIntBinop(Node* left,
+                                                         Node* right,
+                                                         Builtin builtin) {
+  Callable const callable = Builtins::CallableFor(isolate(), builtin);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), left, right,
+                 __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
@@ -4792,17 +4853,9 @@ Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerBigIntAdd(Node* node, Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntAddNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntAddNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -4813,17 +4866,9 @@ Node* EffectControlLinearizer::LowerBigIntAdd(Node* node, Node* frame_state) {
 
 Node* EffectControlLinearizer::LowerBigIntSubtract(Node* node,
                                                    Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntSubtractNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntSubtractNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -4834,17 +4879,9 @@ Node* EffectControlLinearizer::LowerBigIntSubtract(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntMultiply(Node* node,
                                                    Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntMultiplyNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntMultiplyNoThrow);
 
   auto if_termreq = __ MakeDeferredLabel();
   auto done = __ MakeLabel();
@@ -4878,17 +4915,9 @@ Node* EffectControlLinearizer::LowerBigIntMultiply(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
                                                  Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntDivideNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntDivideNoThrow);
 
   auto if_termreq = __ MakeDeferredLabel();
   auto done = __ MakeLabel();
@@ -4922,17 +4951,9 @@ Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntModulus(Node* node,
                                                   Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntModulusNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntModulusNoThrow);
 
   auto if_termreq = __ MakeDeferredLabel();
   auto done = __ MakeLabel();
@@ -4966,17 +4987,9 @@ Node* EffectControlLinearizer::LowerBigIntModulus(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
                                                      Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseAndNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntBitwiseAndNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -4985,36 +4998,17 @@ Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
   return value;
 }
 
-Node* EffectControlLinearizer::LowerBigIntBitwiseOr(Node* node,
-                                                    Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseOrNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
-
-  return value;
+Node* EffectControlLinearizer::LowerBigIntBitwiseOr(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
+  return CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                   Builtin::kBigIntBitwiseOrNoThrow);
 }
 
 Node* EffectControlLinearizer::LowerBigIntBitwiseXor(Node* node,
                                                      Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseXorNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntBitwiseXorNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -5025,17 +5019,9 @@ Node* EffectControlLinearizer::LowerBigIntBitwiseXor(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntShiftLeft(Node* node,
                                                     Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntShiftLeftNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntShiftLeftNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -5046,17 +5032,9 @@ Node* EffectControlLinearizer::LowerBigIntShiftLeft(Node* node,
 
 Node* EffectControlLinearizer::LowerBigIntShiftRight(Node* node,
                                                      Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntShiftRightNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                          Builtin::kBigIntShiftRightNoThrow);
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
@@ -5066,54 +5044,25 @@ Node* EffectControlLinearizer::LowerBigIntShiftRight(Node* node,
 }
 
 Node* EffectControlLinearizer::LowerBigIntEqual(Node* node) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntEqual);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
-
-  return value;
+  DCHECK(!v8_flags.turboshaft);
+  return CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                   Builtin::kBigIntEqual);
 }
 
 Node* EffectControlLinearizer::LowerBigIntLessThan(Node* node) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntLessThan);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
-
-  return value;
+  DCHECK(!v8_flags.turboshaft);
+  return CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                   Builtin::kBigIntLessThan);
 }
 
 Node* EffectControlLinearizer::LowerBigIntLessThanOrEqual(Node* node) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kBigIntLessThanOrEqual);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                        rhs, __ NoContextConstant());
-
-  return value;
+  DCHECK(!v8_flags.turboshaft);
+  return CallBuiltinForBigIntBinop(node->InputAt(0), node->InputAt(1),
+                                   Builtin::kBigIntLessThanOrEqual);
 }
 
 Node* EffectControlLinearizer::LowerBigIntNegate(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kBigIntUnaryMinus);
   auto call_descriptor = Linkage::GetStubCallDescriptor(

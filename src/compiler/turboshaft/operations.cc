@@ -864,6 +864,47 @@ std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind) {
+  switch (kind) {
+    case BigIntBinopOp::Kind::kAdd:
+      return os << "Add";
+    case BigIntBinopOp::Kind::kSub:
+      return os << "Sub";
+    case BigIntBinopOp::Kind::kMul:
+      return os << "Mul";
+    case BigIntBinopOp::Kind::kDiv:
+      return os << "Div";
+    case BigIntBinopOp::Kind::kMod:
+      return os << "Mod";
+    case BigIntBinopOp::Kind::kBitwiseAnd:
+      return os << "BitwiseAnd";
+    case BigIntBinopOp::Kind::kBitwiseOr:
+      return os << "BitwiseOr";
+    case BigIntBinopOp::Kind::kBitwiseXor:
+      return os << "BitwiseXor";
+    case BigIntBinopOp::Kind::kShiftLeft:
+      return os << "ShiftLeft";
+    case BigIntBinopOp::Kind::kShiftRightArithmetic:
+      return os << "ShiftRightArithmetic";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, BigIntComparisonOp::Kind kind) {
+  switch (kind) {
+    case BigIntComparisonOp::Kind::kLessThan:
+      return os << "LessThan";
+    case BigIntComparisonOp::Kind::kLessThanOrEqual:
+      return os << "LessThanOrEqual";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, BigIntUnaryOp::Kind kind) {
+  switch (kind) {
+    case BigIntUnaryOp::Kind::kNegate:
+      return os << "Negate";
+  }
+}
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;

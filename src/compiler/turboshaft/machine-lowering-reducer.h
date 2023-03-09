@@ -6,9 +6,12 @@
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 
 #include "src/base/v8-fallthrough.h"
+#include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
@@ -27,6 +30,7 @@ namespace v8::internal::compiler::turboshaft {
 
 struct MachineLoweringReducerArgs {
   Factory* factory;
+  Isolate* isolate;
 };
 
 // MachineLoweringReducer, formerly known as EffectControlLinearizer, lowers
@@ -42,7 +46,8 @@ class MachineLoweringReducer : public Next {
   template <typename... Args>
   explicit MachineLoweringReducer(const std::tuple<Args...>& args)
       : Next(args),
-        factory_(std::get<MachineLoweringReducerArgs>(args).factory) {}
+        factory_(std::get<MachineLoweringReducerArgs>(args).factory),
+        isolate_(std::get<MachineLoweringReducerArgs>(args).isolate) {}
 
   bool NeedsHeapObjectCheck(ObjectIsOp::InputAssumptions input_assumptions) {
     // TODO(nicohartmann@): Consider type information once we have that.
@@ -1092,6 +1097,84 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  OpIndex ReduceBigIntBinop(V<Tagged> left, V<Tagged> right,
+                            OpIndex frame_state, BigIntBinopOp::Kind kind) {
+    const Builtin builtin = GetBuiltinForBigIntBinop(kind);
+    switch (kind) {
+      case BigIntBinopOp::Kind::kAdd:
+      case BigIntBinopOp::Kind::kSub:
+      case BigIntBinopOp::Kind::kBitwiseAnd:
+      case BigIntBinopOp::Kind::kBitwiseXor:
+      case BigIntBinopOp::Kind::kShiftLeft:
+      case BigIntBinopOp::Kind::kShiftRightArithmetic: {
+        V<Tagged> result = CallBuiltinForBigIntOp(builtin, {left, right});
+
+        // Check for exception sentinel: Smi 0 is returned to signal
+        // BigIntTooBig.
+        __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+                        DeoptimizeReason::kBigIntTooBig, FeedbackSource{});
+        return result;
+      }
+      case BigIntBinopOp::Kind::kMul:
+      case BigIntBinopOp::Kind::kDiv:
+      case BigIntBinopOp::Kind::kMod: {
+        V<Tagged> result = CallBuiltinForBigIntOp(builtin, {left, right});
+
+        // Check for exception sentinel: Smi 1 is returned to signal
+        // TerminationRequested.
+        IF_UNLIKELY(__ TaggedEqual(result, __ SmiTag(1))) {
+          auto descriptor = Linkage::GetRuntimeCallDescriptor(
+              Asm().graph_zone(), Runtime::kTerminateExecution, 0,
+              Operator::kNoDeopt, CallDescriptor::kNeedsFrameState);
+          auto ts_descriptor =
+              TSCallDescriptor::Create(descriptor, Asm().graph_zone());
+          std::initializer_list<OpIndex> arguments{
+              __ ExternalConstant(
+                  ExternalReference::Create(Runtime::kTerminateExecution)),
+              __ Word32Constant(0), NoContextConstant()};
+          __ Call(CEntryStubConstant(1), frame_state, base::VectorOf(arguments),
+                  ts_descriptor);
+        }
+        END_IF
+
+        // Check for exception sentinel: Smi 0 is returned to signal
+        // BigIntTooBig or DivisionByZero.
+        __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+                        kind == BigIntBinopOp::Kind::kMul
+                            ? DeoptimizeReason::kBigIntTooBig
+                            : DeoptimizeReason::kDivisionByZero,
+                        FeedbackSource{});
+        return result;
+      }
+      case BigIntBinopOp::Kind::kBitwiseOr: {
+        return CallBuiltinForBigIntOp(builtin, {left, right});
+      }
+      default:
+        UNIMPLEMENTED();
+    }
+    UNREACHABLE();
+  }
+
+  V<Word32> ReduceBigIntEqual(V<Tagged> left, V<Tagged> right) {
+    return CallBuiltinForBigIntOp(Builtin::kBigIntEqual, {left, right});
+  }
+
+  V<Word32> ReduceBigIntComparison(V<Tagged> left, V<Tagged> right,
+                                   BigIntComparisonOp::Kind kind) {
+    if (kind == BigIntComparisonOp::Kind::kLessThan) {
+      return CallBuiltinForBigIntOp(Builtin::kBigIntLessThan, {left, right});
+    } else {
+      DCHECK_EQ(kind, BigIntComparisonOp::Kind::kLessThanOrEqual);
+      return CallBuiltinForBigIntOp(Builtin::kBigIntLessThanOrEqual,
+                                    {left, right});
+    }
+  }
+
+  V<Tagged> ReduceBigIntUnary(V<Tagged> input, BigIntUnaryOp::Kind kind) {
+    DCHECK_EQ(kind, BigIntUnaryOp::Kind::kNegate);
+    return CallBuiltinForBigIntOp(Builtin::kBigIntUnaryMinus, {input});
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
@@ -1110,6 +1193,27 @@ class MachineLoweringReducer : public Next {
  private:
   // TODO(nicohartmann@): Might move some of those helpers into the assembler
   // interface.
+  V<Tagged> NoContextConstant() { return __ SmiTag(Context::kNoContext); }
+
+  V<Tagged> CEntryStubConstant(int result_size,
+                               ArgvMode argv_mode = ArgvMode::kStack,
+                               bool builtin_exit_frame = false) {
+    if (argv_mode == ArgvMode::kStack) {
+      return __ HeapConstant(CodeFactory::CEntry(
+          isolate_, result_size, argv_mode, builtin_exit_frame));
+    }
+
+    DCHECK(result_size >= 1 && result_size <= 3);
+    DCHECK_IMPLIES(builtin_exit_frame, result_size == 1);
+    const int index = builtin_exit_frame ? 0 : result_size;
+    if (!cached_centry_stub_constants_[index].valid()) {
+      cached_centry_stub_constants_[index] =
+          __ HeapConstant(CodeFactory::CEntry(isolate_, result_size, argv_mode,
+                                              builtin_exit_frame));
+    }
+    return cached_centry_stub_constants_[index];
+  }
+
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical
   // 0n BigInt.
   V<Tagged> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
@@ -1217,7 +1321,54 @@ class MachineLoweringReducer : public Next {
                                           AccessBuilder::ForHeapNumberValue());
   }
 
+  OpIndex CallBuiltinForBigIntOp(Builtin builtin,
+                                 std::initializer_list<OpIndex> arguments) {
+    DCHECK_IMPLIES(builtin == Builtin::kBigIntUnaryMinus,
+                   arguments.size() == 1);
+    DCHECK_IMPLIES(builtin != Builtin::kBigIntUnaryMinus,
+                   arguments.size() == 2);
+    const Callable callable = Builtins::CallableFor(isolate_, builtin);
+    auto descriptor = Linkage::GetStubCallDescriptor(
+        Asm().graph_zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kFoldable | Operator::kNoThrow);
+    auto ts_descriptor =
+        TSCallDescriptor::Create(descriptor, Asm().graph_zone());
+    base::SmallVector<OpIndex, 3> args(arguments);
+    args.push_back(NoContextConstant());
+    return __ Call(__ HeapConstant(callable.code()), OpIndex::Invalid(),
+                   base::VectorOf(args), ts_descriptor);
+  }
+
+  Builtin GetBuiltinForBigIntBinop(BigIntBinopOp::Kind kind) {
+    switch (kind) {
+      case BigIntBinopOp::Kind::kAdd:
+        return Builtin::kBigIntAddNoThrow;
+      case BigIntBinopOp::Kind::kSub:
+        return Builtin::kBigIntSubtractNoThrow;
+      case BigIntBinopOp::Kind::kMul:
+        return Builtin::kBigIntMultiplyNoThrow;
+      case BigIntBinopOp::Kind::kDiv:
+        return Builtin::kBigIntDivideNoThrow;
+      case BigIntBinopOp::Kind::kMod:
+        return Builtin::kBigIntModulusNoThrow;
+      case BigIntBinopOp::Kind::kBitwiseAnd:
+        return Builtin::kBigIntBitwiseAndNoThrow;
+      case BigIntBinopOp::Kind::kBitwiseOr:
+        return Builtin::kBigIntBitwiseOrNoThrow;
+      case BigIntBinopOp::Kind::kBitwiseXor:
+        return Builtin::kBigIntBitwiseXorNoThrow;
+      case BigIntBinopOp::Kind::kShiftLeft:
+        return Builtin::kBigIntShiftLeftNoThrow;
+      case BigIntBinopOp::Kind::kShiftRightArithmetic:
+        return Builtin::kBigIntShiftRightNoThrow;
+    }
+  }
+
   Factory* factory_;
+  Isolate* isolate_;
+  // [0] contains the stub with exit frame.
+  V<Tagged> cached_centry_stub_constants_[4];
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

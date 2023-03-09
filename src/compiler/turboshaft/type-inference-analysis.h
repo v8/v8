@@ -227,6 +227,10 @@ class TypeInferenceAnalysis {
         case Opcode::kNewArray:
         case Opcode::kDoubleArrayMinMax:
         case Opcode::kLoadFieldByIndex:
+        case Opcode::kBigIntBinop:
+        case Opcode::kBigIntEqual:
+        case Opcode::kBigIntComparison:
+        case Opcode::kBigIntUnary:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {
