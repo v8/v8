@@ -84,6 +84,8 @@
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -4100,7 +4102,18 @@ void Isolate::VerifyStaticRoots() {
     INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
 
-    if (InstanceTypeChecker::IsString(map)) {
+    // This limit is used in various places as a fast IsJSReceiver check.
+    CHECK_IMPLIES(
+        InstanceTypeChecker::IsPrimitiveHeapObject(map.instance_type()),
+        V8HeapCompressionScheme::CompressObject(map.ptr()) <
+            InstanceTypeChecker::kNonJsReceiverMapLimit);
+    CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(map.instance_type()),
+                  V8HeapCompressionScheme::CompressObject(map.ptr()) >
+                      InstanceTypeChecker::kNonJsReceiverMapLimit);
+    CHECK(InstanceTypeChecker::kNonJsReceiverMapLimit <
+          read_only_heap()->read_only_space()->Size());
+
+    if (InstanceTypeChecker::IsString(map.instance_type())) {
       CHECK_EQ(InstanceTypeChecker::IsExternalString(map),
                InstanceTypeChecker::IsExternalString(map.instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsInternalizedString(map),

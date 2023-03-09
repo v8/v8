@@ -6337,12 +6337,7 @@ void CodeStubAssembler::ThrowIfNotJSReceiver(TNode<Context> context,
 
   GotoIf(TaggedIsSmi(value), &throw_exception);
 
-  // Load the instance type of the {value}.
-  TNode<Map> value_map = LoadMap(CAST(value));
-  const TNode<Uint16T> value_instance_type = LoadMapInstanceType(value_map);
-
-  Branch(IsJSReceiverInstanceType(value_instance_type), &done,
-         &throw_exception);
+  Branch(JSAnyIsNotPrimitive(CAST(value)), &done, &throw_exception);
 
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
@@ -6721,8 +6716,31 @@ TNode<BoolT> CodeStubAssembler::IsJSReceiverMap(TNode<Map> map) {
   return IsJSReceiverInstanceType(LoadMapInstanceType(map));
 }
 
+TNode<BoolT> CodeStubAssembler::JSAnyIsNotPrimitiveMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  // Assuming this is only called with primitive objects or js receivers.
+  CSA_DCHECK(this, Word32Or(IsPrimitiveInstanceType(LoadMapInstanceType(map)),
+                            IsJSReceiverMap(map)));
+  // All primitive object's maps are allocated at the start of the read only
+  // heap. Thus JS_RECEIVER's must have maps with larger (compressed) addresses.
+  return Int32GreaterThanOrEqual(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      Int32Constant(InstanceTypeChecker::kNonJsReceiverMapLimit));
+#else
+  return IsJSReceiverMap(map);
+#endif
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSReceiver(TNode<HeapObject> object) {
   return IsJSReceiverMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::JSAnyIsNotPrimitive(TNode<HeapObject> object) {
+#if V8_STATIC_ROOTS_BOOL
+  return JSAnyIsNotPrimitiveMap(LoadMap(object));
+#else
+  return IsJSReceiver(object);
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsNullOrJSReceiver(TNode<HeapObject> object) {

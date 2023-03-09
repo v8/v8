@@ -211,6 +211,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void IsObjectType(Register heap_object, InstanceType type);
   inline void CompareObjectType(Register heap_object, InstanceType type);
+  inline void JumpIfJSAnyIsNotPrimitive(Register heap_object, Label* target,
+                                        Label::Distance distance = Label::kFar);
   inline void CompareObjectType(Register heap_object, InstanceType type,
                                 Register scratch);
   inline void CompareObjectTypeRange(Register heap_object,

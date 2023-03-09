@@ -120,7 +120,7 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
 
   // 2. Return value.
   GotoIf(TaggedIsSmi(value), &if_primitive);
-  GotoIfNot(IsJSReceiver(CAST(value)), &if_primitive);
+  GotoIfNot(JSAnyIsNotPrimitive(CAST(value)), &if_primitive);
 
   // 1. If Type(value) is Object, then
   // 1a. If IsCallable(value) is false, throw a TypeError exception.
