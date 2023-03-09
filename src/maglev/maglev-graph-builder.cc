@@ -3425,10 +3425,14 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
     SetArgument(i, arg_value);
   }
 
-  if (static_cast<int>(args.count()) > parameter_count()) {
-    inlined_arguments_.emplace(zone()->NewVector<ValueNode*>(args.count() + 1));
+  int arg_count = static_cast<int>(args.count());
+  int formal_parameter_count =
+      compilation_unit_->shared_function_info()
+          .internal_formal_parameter_count_without_receiver();
+  if (arg_count != formal_parameter_count) {
+    inlined_arguments_.emplace(zone()->NewVector<ValueNode*>(arg_count + 1));
     (*inlined_arguments_)[0] = receiver;
-    for (int i = 0; i < static_cast<int>(args.count()); i++) {
+    for (int i = 0; i < arg_count; i++) {
       (*inlined_arguments_)[i + 1] = args[i];
     }
   }
@@ -3519,21 +3523,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
     TRACE_CANNOT_INLINE("use unsupported expection handlers");
     return false;
   }
-  // TODO(victorgomes): Support arguments object.
-  // We currently do not materialize the arguments object correctly, bailout
-  // if we have any bytecode that create the arguments object.
-  interpreter::BytecodeArrayIterator iterator(bytecode.object());
-  for (; !iterator.done(); iterator.Advance()) {
-    switch (iterator.current_bytecode()) {
-      case interpreter::Bytecode::kCreateMappedArguments:
-      case interpreter::Bytecode::kCreateUnmappedArguments:
-      case interpreter::Bytecode::kCreateRestParameter:
-        TRACE_CANNOT_INLINE("use unsupported arguments object");
-        return false;
-      default:
-        break;
-    }
-  }
   if (call_frequency < v8_flags.min_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
                         << call_frequency << ") < minimum thredshold ("
@@ -3568,6 +3557,7 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
 ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
+  DCHECK_EQ(args.mode(), CallArguments::kDefault);
   float feedback_frequency = 0.0f;
   if (feedback_source.IsValid()) {
     compiler::ProcessedFeedback const& feedback =
@@ -4107,33 +4097,38 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
     ValueNode* target_node, compiler::JSFunctionRef receiver,
     CallArguments& args, const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
-  compiler::NativeContextRef native_context = broker()->target_native_context();
-  RETURN_IF_ABORT(BuildCheckValue(
-      target_node, native_context.function_prototype_apply(broker())));
-  ValueNode* receiver_node = GetTaggedOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckValue(receiver_node, receiver));
-  if (args.mode() == CallArguments::kDefault) {
-    if (args.count() == 0) {
-      // No need for spread.
-      CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
-      return ReduceCall(receiver, empty_args, feedback_source,
-                        speculation_mode);
-    }
-    if (args.count() == 1 || IsNullValue(args[1]) ||
-        IsUndefinedValue(args[1])) {
-      // No need for spread. We have only the new receiver.
-      CallArguments new_args(ConvertReceiverMode::kAny,
-                             {GetTaggedValue(args[0])});
-      return ReduceCall(receiver, new_args, feedback_source, speculation_mode);
-    }
-    if (args.count() > 2) {
-      // FunctionPrototypeApply only consider two arguments: the new receiver
-      // and an array-like arguments_list. All others shall be ignored.
-      args.Truncate(2);
-    }
-  }
-  return ReduceCall(native_context.function_prototype_apply(broker()), args,
-                    feedback_source, speculation_mode);
+  // TODO(victorgomes): This has currently pretty limited usage and does not
+  // work with inlining. We need to implement arguments forwarding like TF
+  // ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments.
+  return ReduceResult::Fail();
+  // compiler::NativeContextRef native_context =
+  // broker()->target_native_context(); RETURN_IF_ABORT(BuildCheckValue(
+  //     target_node, native_context.function_prototype_apply(broker())));
+  // ValueNode* receiver_node = GetTaggedOrUndefined(args.receiver());
+  // RETURN_IF_ABORT(BuildCheckValue(receiver_node, receiver));
+  // if (args.mode() == CallArguments::kDefault) {
+  //   if (args.count() == 0) {
+  //     // No need for spread.
+  //     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
+  //     return ReduceCall(receiver, empty_args, feedback_source,
+  //                       speculation_mode);
+  //   }
+  //   if (args.count() == 1 || IsNullValue(args[1]) ||
+  //       IsUndefinedValue(args[1])) {
+  //     // No need for spread. We have only the new receiver.
+  //     CallArguments new_args(ConvertReceiverMode::kAny,
+  //                            {GetTaggedValue(args[0])});
+  //     return ReduceCall(receiver, new_args, feedback_source,
+  //     speculation_mode);
+  //   }
+  //   if (args.count() > 2) {
+  //     // FunctionPrototypeApply only consider two arguments: the new receiver
+  //     // and an array-like arguments_list. All others shall be ignored.
+  //     args.Truncate(2);
+  //   }
+  // }
+  // return ReduceCall(native_context.function_prototype_apply(broker()), args,
+  //                   feedback_source, speculation_mode);
 }
 
 void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
@@ -4165,8 +4160,6 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
     }
     PROCESS_AND_RETURN_IF_DONE(
         result, [&](ValueNode* value) { SetAccumulator(value); });
-    // We should always succeed.
-    UNREACHABLE();
   }
 
   // On fallthrough, create a generic call.

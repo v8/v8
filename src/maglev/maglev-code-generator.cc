@@ -971,6 +971,7 @@ compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().unit().shared_function_info();
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      return deopt_frame.as_inlined_arguments().unit().shared_function_info();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return GetSharedFunctionInfo(*deopt_frame.parent());
   }
