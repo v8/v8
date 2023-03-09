@@ -4309,9 +4309,6 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   } else {
     Jump(code.address(), rmode, cond);
   }
-
-  int32_t target_index = AddCodeTarget(code);
-  Jump(static_cast<intptr_t>(target_index), rmode, cond, rs, rt);
 }
 
 void MacroAssembler::Jump(const ExternalReference& reference) {
@@ -4382,9 +4379,6 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   } else {
     Call(code.address(), rmode);
   }
-
-  // int32_t target_index = AddCodeTarget(code);
-  // Call(static_cast<Address>(target_index), rmode, cond, rs, rt);
 }
 
 void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
