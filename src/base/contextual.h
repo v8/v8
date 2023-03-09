@@ -2,20 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TORQUE_CONTEXTUAL_H_
-#define V8_TORQUE_CONTEXTUAL_H_
+#ifndef V8_BASE_CONTEXTUAL_H_
+#define V8_BASE_CONTEXTUAL_H_
 
 #include <type_traits>
 
+#include "src/base/export-template.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
-
-template <class Variable>
-V8_EXPORT_PRIVATE typename Variable::Scope*& ContextualVariableTop();
+namespace v8::base {
 
 // {ContextualVariable} provides a clean alternative to a global variable.
 // The contextual variable is mutable, and supports managing the value of
@@ -28,8 +24,10 @@ V8_EXPORT_PRIVATE typename Variable::Scope*& ContextualVariableTop();
 // Note that contextual variables must only be used from the same thread,
 // i.e. {Scope} and Get() have to be in the same thread.
 template <class Derived, class VarType>
-class ContextualVariable {
+class V8_EXPORT_PRIVATE ContextualVariable {
  public:
+  using VarT = VarType;
+
   // A {Scope} contains a new object of type {VarType} and gives
   // ContextualVariable::Get() access to it. Upon destruction, the contextual
   // variable is restored to the state before the {Scope} was created. Scopes
@@ -47,6 +45,7 @@ class ContextualVariable {
       DCHECK_EQ(this, Top());
       Top() = previous_;
     }
+
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
 
@@ -62,32 +61,39 @@ class ContextualVariable {
     DISALLOW_NEW_AND_DELETE()
   };
 
-  // Access the most recent active {Scope}. There has to be an active {Scope}
-  // for this contextual variable.
   static VarType& Get() {
-    DCHECK_NOT_NULL(Top());
+    DCHECK(HasScope());
     return Top()->Value();
   }
 
- private:
-  template <class T>
-  friend V8_EXPORT_PRIVATE typename T::Scope*& ContextualVariableTop();
-  static Scope*& Top() { return ContextualVariableTop<Derived>(); }
-
   static bool HasScope() { return Top() != nullptr; }
-  friend class MessageBuilder;
+
+ private:
+  inline static thread_local Scope* top_ = nullptr;
+
+  // If there is a linking error for `Top()`, then the contextual variable
+  // probably needs to be exported using EXPORT_CONTEXTUAL_VARIABLE.
+#if defined(USING_V8_SHARED) && defined(V8_OS_WIN)
+  // Hide the definition from other DLLs on Windows to avoid access to `top_`,
+  // since Windows doesn't support access to thread_local variables from other
+  // DLLs.
+  static Scope*& Top();
+#else
+  static Scope*& Top() { return top_; }
+#endif
 };
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
-  struct VarName                                  \
-      : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {}
+  struct VarName : ::v8::base::ContextualVariable<VarName, __VA_ARGS__> {}
 
-#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                             \
-  template <>                                                           \
-  V8_EXPORT_PRIVATE VarName::Scope*& ContextualVariableTop<VarName>() { \
-    static thread_local VarName::Scope* top = nullptr;                  \
-    return top;                                                         \
+// Contextual variables that are accessed in tests need to be
+// exported. For this, place the following macro in the global namespace inside
+// of a .cc file.
+#define EXPORT_CONTEXTUAL_VARIABLE(VarName)                   \
+  namespace v8::base {                                        \
+  template V8_EXPORT_PRIVATE typename VarName::Scope*&        \
+  ContextualVariable<VarName, typename VarName::VarT>::Top(); \
   }
 
 // By inheriting from {ContextualClass} a class can become a contextual variable
@@ -95,8 +101,6 @@ class ContextualVariable {
 template <class T>
 using ContextualClass = ContextualVariable<T, T>;
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::base
 
-#endif  // V8_TORQUE_CONTEXTUAL_H_
+#endif  // V8_BASE_CONTEXTUAL_H_
