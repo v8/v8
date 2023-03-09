@@ -955,11 +955,12 @@ class Platform {
   virtual void OnCriticalMemoryPressure() {}
 
   /**
-   * Gets the number of worker threads used by
-   * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
-   * of tasks a work package should be split into. A return value of 0 means
-   * that there are no worker threads available. Note that a value of 0 won't
-   * prohibit V8 from posting tasks using |CallOnWorkerThread|.
+   * Gets the max number of worker threads that may be used to execute
+   * concurrent work scheduled for any single TaskPriority by
+   * Call(BlockingTask)OnWorkerThread() or PostJob(). This can be used to
+   * estimate the number of tasks a work package should be split into. A return
+   * value of 0 means that there are no worker threads available. Note that a
+   * value of 0 won't prohibit V8 from posting tasks using |CallOnWorkerThread|.
    */
   virtual int NumberOfWorkerThreads() = 0;
 
