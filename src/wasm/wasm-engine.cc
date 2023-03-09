@@ -665,7 +665,27 @@ void WasmEngine::AsyncCompile(
         StartStreamingCompilation(
             isolate, enabled, handle(isolate->context(), isolate),
             api_method_name_for_errors, std::move(resolver));
-    streaming_decoder->OnBytesReceived(bytes.module_bytes());
+
+    auto* rng = isolate->random_number_generator();
+    base::SmallVector<base::Vector<const uint8_t>, 16> ranges;
+    if (!bytes.module_bytes().empty()) ranges.push_back(bytes.module_bytes());
+    // Split into up to 16 ranges (2^4).
+    for (int round = 0; round < 4; ++round) {
+      for (auto it = ranges.begin(); it != ranges.end(); ++it) {
+        auto range = *it;
+        if (range.size() < 2 || !rng->NextBool()) continue;  // Do not split.
+        // Choose split point within [1, range.size() - 1].
+        static_assert(kV8MaxWasmModuleSize <= kMaxInt);
+        size_t split_point =
+            1 + rng->NextInt(static_cast<int>(range.size() - 1));
+        // Insert first sub-range *before* {it} and make {it} point after it.
+        it = ranges.insert(it, range.SubVector(0, split_point)) + 1;
+        *it = range.SubVectorFrom(split_point);
+      }
+    }
+    for (auto range : ranges) {
+      streaming_decoder->OnBytesReceived(range);
+    }
     streaming_decoder->Finish();
     return;
   }
