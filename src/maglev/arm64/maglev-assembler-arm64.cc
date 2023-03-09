@@ -527,7 +527,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         // Ensure that {result} never aliases {scratch}, otherwise the store
         // will fail.
         Register string = result;
-        if (scratch.Aliases(result)) {
+        bool reallocate_result = scratch.Aliases(result);
+        if (reallocate_result) {
           string = temps.Acquire();
         }
         // Be sure to save {char_code}. If it aliases with {result}, use
@@ -544,7 +545,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ And(scratch, char_code, Immediate(0xFFFF));
         __ Strh(scratch.W(),
                 FieldMemOperand(string, SeqTwoByteString::kHeaderSize));
-        if (scratch.Aliases(result)) {
+        if (reallocate_result) {
           __ Move(result, string);
         }
         __ B(*done);

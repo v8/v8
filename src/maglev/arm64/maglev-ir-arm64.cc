@@ -128,7 +128,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
     } else {
       // Ensure that {result_string} never aliases {scratch}, otherwise the
       // store will fail.
-      if (scratch.Aliases(result_string)) {
+      bool reallocate_result = scratch.Aliases(result_string);
+      if (reallocate_result) {
         result_string = temps.Acquire();
       }
       DCHECK(!scratch.Aliases(result_string));
@@ -136,7 +137,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ Move(scratch, char_code & 0xFFFF);
       __ Strh(scratch.W(),
               FieldMemOperand(result_string, SeqTwoByteString::kHeaderSize));
-      if (scratch.Aliases(result_string)) {
+      if (reallocate_result) {
         __ Move(ToRegister(result()), result_string);
       }
     }
