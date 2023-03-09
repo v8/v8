@@ -619,7 +619,12 @@ class MaglevGraphBuilder {
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
     AttachExceptionHandlerInfo(node);
-    if (NodeT::kProperties.has_any_side_effects()) {
+    if constexpr (std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
+                  std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier>) {
+      // Ignore for side effects -- the only relevant side effect is writes to
+      // and object invalidating loaded properties and context slots, and we
+      // invalidate these already as part of emitting the store.
+    } else if constexpr (NodeT::kProperties.has_any_side_effects()) {
       MarkPossibleSideEffect();
     }
     AddInitializedNodeToGraph(node);
@@ -679,8 +684,12 @@ class MaglevGraphBuilder {
       ContextSlotMutability slot_mutability);
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
                                      ContextSlotMutability slot_mutability);
+  void StoreAndCacheContextSlot(ValueNode* context, int offset,
+                                ValueNode* value);
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
+  void BuildStoreContextSlot(ValueNode* context, size_t depth, int slot_index,
+                             ValueNode* value);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
@@ -1249,47 +1258,9 @@ class MaglevGraphBuilder {
       bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
-  void MarkPossibleMapMigration() {
-    current_for_in_state.receiver_needs_map_check = true;
-  }
-
-  void MarkParentPossibleSideEffect() {
-    if (parent_) {
-      parent_->MarkParentPossibleSideEffect();
-    }
-
-    // If there was a potential side effect, invalidate the previous checkpoint.
-    latest_checkpointed_frame_.reset();
-
-    // Any side effect could also be a map migration.
-    MarkPossibleMapMigration();
-  }
-
-  void MarkPossibleSideEffect() {
-    // A side effect could change existing objects' maps. For stable maps we
-    // know this hasn't happened (because we added a dependency on the maps
-    // staying stable and therefore not possible to transition away from), but
-    // we can no longer assume that objects with unstable maps still have the
-    // same map. Unstable maps can also transition to stable ones, so the
-    // set of stable maps becomes invalid for a not that had a unstable map.
-    auto it = known_node_aspects().unstable_maps.begin();
-    while (it != known_node_aspects().unstable_maps.end()) {
-      if (it->second.size() == 0) {
-        it++;
-      } else {
-        known_node_aspects().stable_maps.erase(it->first);
-        it = known_node_aspects().unstable_maps.erase(it);
-      }
-    }
-    // Similarly, side-effects can change object contents, so we have to clear
-    // our known loaded properties -- however, constant properties are known
-    // to not change (and we added a dependency on this), so we don't have to
-    // clear those.
-    known_node_aspects().loaded_properties.clear();
-    known_node_aspects().loaded_context_slots.clear();
-
-    MarkParentPossibleSideEffect();
-  }
+  void MarkPossibleMapMigration();
+  void MarkParentPossibleSideEffect();
+  void MarkPossibleSideEffect();
 
   int next_offset() const {
     return iterator_.current_offset() + iterator_.current_bytecode_size();

@@ -3786,12 +3786,12 @@ void LoadFixedArrayElement::PrintParams(
 
 void StoreDoubleField::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreFloat64::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void CheckedStoreSmiField::PrintParams(
@@ -3801,7 +3801,7 @@ void CheckedStoreSmiField::PrintParams(
 
 void StoreTaggedFieldNoWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreMap::PrintParams(std::ostream& os,
@@ -3811,7 +3811,7 @@ void StoreMap::PrintParams(std::ostream& os,
 
 void StoreTaggedFieldWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void LoadNamedGeneric::PrintParams(std::ostream& os,

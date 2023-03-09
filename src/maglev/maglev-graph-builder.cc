@@ -378,6 +378,48 @@ void MaglevGraphBuilder::BuildMergeStates() {
   }
 }
 
+void MaglevGraphBuilder::MarkPossibleMapMigration() {
+  current_for_in_state.receiver_needs_map_check = true;
+}
+
+void MaglevGraphBuilder::MarkParentPossibleSideEffect() {
+  if (parent_) {
+    parent_->MarkParentPossibleSideEffect();
+  }
+
+  // If there was a potential side effect, invalidate the previous checkpoint.
+  latest_checkpointed_frame_.reset();
+
+  // Any side effect could also be a map migration.
+  MarkPossibleMapMigration();
+}
+
+void MaglevGraphBuilder::MarkPossibleSideEffect() {
+  // A side effect could change existing objects' maps. For stable maps we
+  // know this hasn't happened (because we added a dependency on the maps
+  // staying stable and therefore not possible to transition away from), but
+  // we can no longer assume that objects with unstable maps still have the
+  // same map. Unstable maps can also transition to stable ones, so the
+  // set of stable maps becomes invalid for a not that had a unstable map.
+  auto it = known_node_aspects().unstable_maps.begin();
+  while (it != known_node_aspects().unstable_maps.end()) {
+    if (it->second.size() == 0) {
+      it++;
+    } else {
+      known_node_aspects().stable_maps.erase(it->first);
+      it = known_node_aspects().unstable_maps.erase(it);
+    }
+  }
+  // Similarly, side-effects can change object contents, so we have to clear
+  // our known loaded properties -- however, constant properties are known
+  // to not change (and we added a dependency on this), so we don't have to
+  // clear those.
+  known_node_aspects().loaded_properties.clear();
+  known_node_aspects().loaded_context_slots.clear();
+
+  MarkParentPossibleSideEffect();
+}
+
 namespace {
 
 template <int index, interpreter::OperandType... operands>
@@ -1263,6 +1305,22 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
   return cached_value = AddNewNode<LoadTaggedField>({context}, offset);
 }
 
+void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
+                                                  int offset,
+                                                  ValueNode* value) {
+  DCHECK_EQ(
+      known_node_aspects().loaded_context_constants.count({context, offset}),
+      0);
+  BuildStoreTaggedField(context, GetTaggedValue(value), offset);
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  * Recording context slot store "
+              << PrintNodeLabel(graph_labeller(), context) << "[" << offset
+              << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+  }
+  known_node_aspects().loaded_context_slots[{context, offset}] = value;
+}
+
 void MaglevGraphBuilder::BuildLoadContextSlot(
     ValueNode* context, size_t depth, int slot_index,
     ContextSlotMutability slot_mutability) {
@@ -1286,6 +1344,30 @@ void MaglevGraphBuilder::BuildLoadContextSlot(
   // it's a load before initialization (e.g. var a = a + 42).
   current_interpreter_frame_.set_accumulator(LoadAndCacheContextSlot(
       context, Context::OffsetOfElementAt(slot_index), kMutable));
+}
+
+void MaglevGraphBuilder::BuildStoreContextSlot(ValueNode* context, size_t depth,
+                                               int slot_index,
+                                               ValueNode* value) {
+  MinimizeContextChainDepth(&context, &depth);
+
+  if (compilation_unit_->info()->specialize_to_function_context()) {
+    compiler::OptionalContextRef maybe_ref =
+        FunctionContextSpecialization::TryToRef(compilation_unit_, context,
+                                                &depth);
+    if (maybe_ref.has_value()) {
+      context = GetConstant(maybe_ref.value());
+    }
+  }
+
+  for (size_t i = 0; i < depth; ++i) {
+    context = LoadAndCacheContextSlot(
+        context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
+        kImmutable);
+  }
+
+  StoreAndCacheContextSlot(context, Context::OffsetOfElementAt(slot_index),
+                           value);
 }
 
 void MaglevGraphBuilder::VisitLdaContextSlot() {
@@ -1315,33 +1397,12 @@ void MaglevGraphBuilder::VisitStaContextSlot() {
   ValueNode* context = LoadRegisterTagged(0);
   int slot_index = iterator_.GetIndexOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
-
-  MinimizeContextChainDepth(&context, &depth);
-
-  if (compilation_unit_->info()->specialize_to_function_context()) {
-    compiler::OptionalContextRef maybe_ref =
-        FunctionContextSpecialization::TryToRef(compilation_unit_, context,
-                                                &depth);
-    if (maybe_ref.has_value()) {
-      context = GetConstant(maybe_ref.value());
-    }
-  }
-
-  for (size_t i = 0; i < depth; ++i) {
-    context = LoadAndCacheContextSlot(
-        context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-        kImmutable);
-  }
-
-  BuildStoreTaggedField(context, GetAccumulatorTagged(),
-                        Context::OffsetOfElementAt(slot_index));
+  BuildStoreContextSlot(context, depth, slot_index, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
-
-  BuildStoreTaggedField(context, GetAccumulatorTagged(),
-                        Context::OffsetOfElementAt(slot_index));
+  BuildStoreContextSlot(context, 0, slot_index, GetRawAccumulator());
 }
 
 void MaglevGraphBuilder::VisitStar() {
@@ -2737,10 +2798,20 @@ void MaglevGraphBuilder::RecordKnownProperty(
   } else {
     is_const = false;
   }
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
+              << " known property "
+              << PrintNodeLabel(graph_labeller(), lookup_start_object) << ": "
+              << PrintNode(graph_labeller(), lookup_start_object) << " ["
+              << *name.object()
+              << "] = " << PrintNodeLabel(graph_labeller(), value) << ": "
+              << PrintNode(graph_labeller(), value) << std::endl;
+  }
   auto& loaded_properties =
       is_const ? known_node_aspects().loaded_constant_properties
                : known_node_aspects().loaded_properties;
-  loaded_properties.emplace(std::make_pair(lookup_start_object, name), value);
+  loaded_properties[std::make_pair(lookup_start_object, name)] = value;
 }
 
 bool MaglevGraphBuilder::TryReuseKnownPropertyLoad(
