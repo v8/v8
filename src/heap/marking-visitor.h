@@ -126,7 +126,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   bool ShouldMarkObject(HeapObject object) const {
     if (object.InReadOnlySpace()) return false;
     if (should_mark_shared_heap_) return true;
-    return !object.InSharedHeap();
+    return !object.InAnySharedSpace();
   }
 
   // Marks the object grey and pushes it on the marking work list.

@@ -58,7 +58,7 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
 
 void MarkingBarrier::MarkValueShared(HeapObject value) {
   // Value is either in read-only space or shared heap.
-  DCHECK(value.InSharedHeap());
+  DCHECK(value.InAnySharedSpace());
 
   // We should only reach this on client isolates (= worker isolates).
   DCHECK(!is_shared_space_isolate_);

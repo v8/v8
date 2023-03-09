@@ -147,7 +147,7 @@ class YoungGenerationConcurrentMarkingVisitor final
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
   bool ShouldMarkObject(HeapObject object) const {
-    return !object.InSharedHeap() && !object.InReadOnlySpace();
+    return !object.InAnySharedSpace() && !object.InReadOnlySpace();
   }
 
   void SynchronizePageAccess(HeapObject heap_object) {

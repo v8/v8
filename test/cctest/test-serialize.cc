@@ -5102,7 +5102,7 @@ void CheckObjectsAreInSharedHeap(Isolate* isolate) {
         heap->MustBeInSharedOldSpace(obj) ||
         (obj.IsString() && String::IsInPlaceInternalizable(String::cast(obj)));
     if (expected_in_shared_old) {
-      CHECK(obj.InSharedHeap());
+      CHECK(obj.InAnySharedSpace());
     }
   }
 }
