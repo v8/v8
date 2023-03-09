@@ -21,6 +21,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+DEFINE_CONTEXTUAL_VARIABLE(CurrentAst)
+
 using TypeList = std::vector<TypeExpression*>;
 
 struct ExpressionWithSource {
@@ -40,7 +42,7 @@ struct EnumEntry {
   base::Optional<TypeExpression*> type;
 };
 
-class BuildFlags : public base::ContextualClass<BuildFlags> {
+class BuildFlags : public ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
@@ -85,6 +87,7 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
  private:
   std::unordered_map<std::string, bool> build_flags_;
 };
+DEFINE_CONTEXTUAL_VARIABLE(BuildFlags)
 
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<std::string>::id =

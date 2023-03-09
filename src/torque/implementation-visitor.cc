@@ -3414,6 +3414,12 @@ std::string ImplementationVisitor::ExternalParameterName(
   return std::string("p_") + name;
 }
 
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentFileStreams)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue)
+
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            size_t label_count) {
   auto i = sig.parameter_types.types.begin() + sig.implicit_count;

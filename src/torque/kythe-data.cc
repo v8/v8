@@ -8,6 +8,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+DEFINE_CONTEXTUAL_VARIABLE(KytheData)
+
 namespace {
 
 KythePosition MakeKythePosition(const SourcePosition& pos) {

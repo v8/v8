@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-#include "src/base/contextual.h"
+#include "src/torque/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -86,8 +86,7 @@ struct SourcePosition {
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition);
 
-class V8_EXPORT_PRIVATE SourceFileMap
-    : public base::ContextualClass<SourceFileMap> {
+class V8_EXPORT_PRIVATE SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
   explicit SourceFileMap(std::string v8_root) : v8_root_(std::move(v8_root)) {}
   static const std::string& PathFromV8Root(SourceId file);
