@@ -7376,9 +7376,9 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
     return inference.NoChange();
   }
 
-  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control,
-                                      CallParametersOf(node->op()).feedback());
+  if (!inference.RelyOnMapsViaStability(dependencies())) {
+    return inference.NoChange();
+  }
 
   JSCallReducerAssembler a(this, node);
   TNode<JSTypedArray> typed_array =
