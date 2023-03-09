@@ -80,8 +80,8 @@ bool Object::InSharedHeap() const {
   return IsHeapObject() && HeapObject::cast(*this).InAnySharedSpace();
 }
 
-bool Object::InSharedWritableHeap() const {
-  return IsHeapObject() && HeapObject::cast(*this).InSharedWritableHeap();
+bool Object::InWritableSharedSpace() const {
+  return IsHeapObject() && HeapObject::cast(*this).InWritableSharedSpace();
 }
 
 bool Object::IsJSObjectThatCanBeTrackedAsPrototype() const {
@@ -200,10 +200,10 @@ void Object::Relaxed_WriteField(size_t offset, T value) {
 
 bool HeapObject::InAnySharedSpace() const {
   if (IsReadOnlyHeapObject(*this)) return V8_SHARED_RO_HEAP_BOOL;
-  return InSharedWritableHeap();
+  return InWritableSharedSpace();
 }
 
-bool HeapObject::InSharedWritableHeap() const {
+bool HeapObject::InWritableSharedSpace() const {
   return BasicMemoryChunk::FromHeapObject(*this)->InSharedHeap();
 }
 
@@ -213,7 +213,7 @@ bool HeapObject::IsJSObjectThatCanBeTrackedAsPrototype() const {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
-  return IsJSObject() && !InSharedWritableHeap();
+  return IsJSObject() && !InWritableSharedSpace();
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
@@ -1265,7 +1265,7 @@ bool Object::IsShared() const {
       }
       return false;
     case HEAP_NUMBER_TYPE:
-      return object.InSharedWritableHeap();
+      return object.InWritableSharedSpace();
     default:
       return false;
   }

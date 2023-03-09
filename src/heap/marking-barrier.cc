@@ -57,7 +57,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   // objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // On client isolates (= worker isolates) shared values can be ignored.
-    if (value.InSharedWritableHeap()) {
+    if (value.InWritableSharedSpace()) {
       return;
     }
   }
@@ -68,7 +68,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
 void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
                            HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!host.InSharedWritableHeap());
+  DCHECK(!host.InWritableSharedSpace());
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
   MarkValue(host, value);
@@ -87,7 +87,7 @@ void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!host.InSharedWritableHeap());
+  DCHECK(!host.InWritableSharedSpace());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
@@ -114,7 +114,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   unsigned gc_epoch;
   MarkingWorklist::Local* worklist;
   if (V8_UNLIKELY(uses_shared_heap_) &&
-      descriptor_array.InSharedWritableHeap() && !is_shared_space_isolate_) {
+      descriptor_array.InWritableSharedSpace() && !is_shared_space_isolate_) {
     gc_epoch = isolate()
                    ->shared_space_isolate()
                    ->heap()

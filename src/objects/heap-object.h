@@ -93,7 +93,7 @@ class HeapObject : public Object {
   // writable shared heap.
   V8_INLINE bool InAnySharedSpace() const;
 
-  V8_INLINE bool InSharedWritableHeap() const;
+  V8_INLINE bool InWritableSharedSpace() const;
 
   V8_INLINE bool InReadOnlySpace() const;
 

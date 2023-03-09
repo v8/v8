@@ -1062,7 +1062,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     Handle<String> shared_string = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kSharedOld);
-    CHECK(shared_string->InSharedWritableHeap());
+    CHECK(shared_string->InWritableSharedSpace());
 
     young_object->set(0, *shared_string);
 
@@ -1983,7 +1983,7 @@ UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
   HandleScope handle_scope(i_isolate);
   Handle<String> shared_string =
       factory->NewStringFromAsciiChecked("foobar", AllocationType::kSharedOld);
-  CHECK(shared_string->InSharedWritableHeap());
+  CHECK(shared_string->InWritableSharedSpace());
   v8::Local<v8::String> lh_shared_string =
       Utils::Convert<String, v8::String>(shared_string);
   v8::Global<v8::String> gh_shared_string(test.main_isolate(),
@@ -2023,7 +2023,7 @@ class WorkerIsolateThread : public v8::base::Thread {
       HandleScope handle_scope(i_client);
       Handle<String> shared_string = factory->NewStringFromAsciiChecked(
           "foobar", AllocationType::kSharedOld);
-      CHECK(shared_string->InSharedWritableHeap());
+      CHECK(shared_string->InWritableSharedSpace());
       v8::Local<v8::String> lh_shared_string =
           Utils::Convert<String, v8::String>(shared_string);
       gh_shared_string.Reset(test_->main_isolate(), lh_shared_string);

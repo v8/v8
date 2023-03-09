@@ -1229,7 +1229,7 @@ class Heap {
   V8_EXPORT_PRIVATE bool ContainsCode(HeapObject value) const;
 
   // Checks whether object resides in the non-read-only shared heap.
-  static inline bool InSharedWritableHeap(MaybeObject object);
+  static inline bool InWritableSharedSpace(MaybeObject object);
 
   // Checks whether an address/object is in the non-read-only heap (including
   // auxiliary area and unused area). Use IsValidHeapObject if checking both

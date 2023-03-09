@@ -854,7 +854,7 @@ class PromotedPageRecordMigratedSlotVisitor
  protected:
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) {
-    DCHECK(!host.InSharedWritableHeap());
+    DCHECK(!host.InWritableSharedSpace());
     DCHECK(!Heap::InYoungGeneration(host));
     DCHECK(!MemoryChunk::FromHeapObject(host)->SweepingDone());
     if (value->IsStrongOrWeak()) {

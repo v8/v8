@@ -299,7 +299,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
   V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
-    const bool in_shared_heap = heap_object.InSharedWritableHeap();
+    const bool in_shared_heap = heap_object.InWritableSharedSpace();
     return heap_->isolate()->is_shared_space_isolate() ? in_shared_heap
                                                        : !in_shared_heap;
   }
@@ -1183,7 +1183,7 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
   V8_INLINE void MarkObject(HeapObject host, Object object) {
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (!heap_object.InSharedWritableHeap()) return;
+    if (!heap_object.InWritableSharedSpace()) return;
     collector_->MarkObject(host, heap_object);
   }
 
@@ -1248,8 +1248,8 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     DCHECK(!host.InAnySharedSpace());
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (!heap_object.InSharedWritableHeap()) return;
-    DCHECK(heap_object.InSharedWritableHeap());
+    if (!heap_object.InWritableSharedSpace()) return;
+    DCHECK(heap_object.InWritableSharedSpace());
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
     DCHECK(host_chunk->InYoungGeneration());
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
@@ -1511,7 +1511,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!Heap::InYoungGeneration(target));
-    DCHECK(!target.InSharedWritableHeap());
+    DCHECK(!target.InWritableSharedSpace());
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1555,7 +1555,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
-      } else if (p->InSharedHeap() && !host.InSharedWritableHeap()) {
+      } else if (p->InSharedHeap() && !host.InWritableSharedSpace()) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       }
@@ -1998,7 +1998,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (V8_UNLIKELY(collector->uses_shared_heap_) &&
       !collector->is_shared_space_isolate_) {
-    if (heap_object.InSharedWritableHeap()) return false;
+    if (heap_object.InWritableSharedSpace()) return false;
   }
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
@@ -2012,7 +2012,7 @@ bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
   Isolate* shared_space_isolate = heap->isolate()->shared_space_isolate();
   MarkCompactCollector* collector =
       shared_space_isolate->heap()->mark_compact_collector();
-  if (!heap_object.InSharedWritableHeap()) return false;
+  if (!heap_object.InWritableSharedSpace()) return false;
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
 
@@ -2104,7 +2104,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
           HeapObject heap_object;
 
           if (obj.GetHeapObject(&heap_object) &&
-              heap_object.InSharedWritableHeap()) {
+              heap_object.InWritableSharedSpace()) {
             collector->MarkRootObject(Root::kClientHeap, heap_object);
             return KEEP_SLOT;
           } else {
@@ -2118,7 +2118,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         chunk, [collector = this, heap](SlotType slot_type, Address slot) {
           HeapObject heap_object =
               UpdateTypedSlotHelper::GetTargetObject(heap, slot_type, slot);
-          if (heap_object.InSharedWritableHeap()) {
+          if (heap_object.InWritableSharedSpace()) {
             collector->MarkRootObject(Root::kClientHeap, heap_object);
             return KEEP_SLOT;
           } else {
@@ -2407,7 +2407,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   // Objects in the shared heap are prohibited from being used as keys in
   // WeakMaps and WeakSets and therefore cannot be ephemeron keys, because that
   // would enable thread local -> shared heap edges.
-  DCHECK(!key.InSharedWritableHeap());
+  DCHECK(!key.InWritableSharedSpace());
   // Usually values that should not be marked are not added to the ephemeron
   // worklist. However, minor collection during incremental marking may promote
   // strings from the younger generation into the shared heap. This
@@ -3767,7 +3767,7 @@ static inline SlotCallbackResult UpdateOldToSharedSlot(
           cage_base, slot, obj, heap_obj);
     }
 
-    return heap_obj.InSharedWritableHeap() ? KEEP_SLOT : REMOVE_SLOT;
+    return heap_obj.InWritableSharedSpace() ? KEEP_SLOT : REMOVE_SLOT;
   } else {
     return REMOVE_SLOT;
   }
@@ -3792,7 +3792,7 @@ static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
   if (obj.GetHeapObject(&heap_obj)) {
     UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::STRONG>(
         cage_base, slot, obj, heap_obj);
-    return heap_obj.InSharedWritableHeap() ? KEEP_SLOT : REMOVE_SLOT;
+    return heap_obj.InWritableSharedSpace() ? KEEP_SLOT : REMOVE_SLOT;
   }
 
   return REMOVE_SLOT;
@@ -4783,7 +4783,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     }
 
-    if (heap_object.InSharedWritableHeap()) {
+    if (heap_object.InWritableSharedSpace()) {
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
           chunk, slot.address());
     }
@@ -4803,7 +4803,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         });
 #endif  // DEBUG
 
-    if (heap_object.InSharedWritableHeap()) {
+    if (heap_object.InWritableSharedSpace()) {
       const uintptr_t offset = addr - chunk->address();
       DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
       RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,

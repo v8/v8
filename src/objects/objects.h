@@ -308,7 +308,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // writable shared heap.
   V8_INLINE bool InSharedHeap() const;
 
-  V8_INLINE bool InSharedWritableHeap() const;
+  V8_INLINE bool InWritableSharedSpace() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \

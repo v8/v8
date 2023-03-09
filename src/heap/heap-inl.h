@@ -297,10 +297,10 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
 }
 
 // static
-bool Heap::InSharedWritableHeap(MaybeObject object) {
+bool Heap::InWritableSharedSpace(MaybeObject object) {
   HeapObject heap_object;
   return object->GetHeapObject(&heap_object) &&
-         heap_object.InSharedWritableHeap();
+         heap_object.InWritableSharedSpace();
 }
 
 // static

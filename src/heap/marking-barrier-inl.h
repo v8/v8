@@ -19,7 +19,7 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
 
-  DCHECK_IMPLIES(!value.InSharedWritableHeap() || is_shared_space_isolate_,
+  DCHECK_IMPLIES(!value.InWritableSharedSpace() || is_shared_space_isolate_,
                  !marking_state_.IsImpossible(value));
 
   // Host may have an impossible markbit pattern if manual allocation folding
@@ -39,18 +39,18 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
       return;
     }
 
-    if (host.InSharedWritableHeap()) {
+    if (host.InWritableSharedSpace()) {
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
       return;
-    } else if (value.InSharedWritableHeap()) {
+    } else if (value.InWritableSharedSpace()) {
       // No marking needed when storing shared objects in local objects.
       return;
     }
   }
 
-  DCHECK_IMPLIES(host.InSharedWritableHeap(), is_shared_space_isolate_);
-  DCHECK_IMPLIES(value.InSharedWritableHeap(), is_shared_space_isolate_);
+  DCHECK_IMPLIES(host.InWritableSharedSpace(), is_shared_space_isolate_);
+  DCHECK_IMPLIES(value.InWritableSharedSpace(), is_shared_space_isolate_);
 
   DCHECK(is_activated_);
   MarkValueLocal(value);
@@ -112,7 +112,7 @@ bool MarkingBarrier::IsCompacting(HeapObject object) const {
     return true;
   }
 
-  return shared_heap_worklist_.has_value() && object.InSharedWritableHeap();
+  return shared_heap_worklist_.has_value() && object.InWritableSharedSpace();
 }
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {

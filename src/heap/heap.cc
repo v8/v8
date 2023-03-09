@@ -4794,10 +4794,10 @@ class ClientRootVisitor : public RootVisitor {
   void VisitRunningCode(FullObjectSlot code_slot,
                         FullObjectSlot maybe_istream_slot) final {
 #if DEBUG
-    DCHECK(!HeapObject::cast(*code_slot).InSharedWritableHeap());
+    DCHECK(!HeapObject::cast(*code_slot).InWritableSharedSpace());
     Object maybe_istream = *maybe_istream_slot;
     DCHECK(maybe_istream == Smi::zero() ||
-           !HeapObject::cast(maybe_istream).InSharedWritableHeap());
+           !HeapObject::cast(maybe_istream).InWritableSharedSpace());
 #endif
   }
 
@@ -4811,7 +4811,7 @@ class ClientRootVisitor : public RootVisitor {
     Object object = *slot;
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (heap_object.InSharedWritableHeap()) {
+    if (heap_object.InWritableSharedSpace()) {
       actual_visitor_->VisitRootPointer(root, description, slot);
     }
   }
@@ -6057,7 +6057,7 @@ void Heap::CompactWeakArrayLists() {
 }
 
 void Heap::AddRetainedMap(Handle<NativeContext> context, Handle<Map> map) {
-  if (map->is_in_retained_map_list() || map->InSharedWritableHeap()) {
+  if (map->is_in_retained_map_list() || map->InWritableSharedSpace()) {
     return;
   }
 
@@ -6914,7 +6914,7 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
 
   } else {
     DCHECK(value_chunk->InSharedHeap());
-    DCHECK(!object.InSharedWritableHeap());
+    DCHECK(!object.InWritableSharedSpace());
     Heap::SharedHeapBarrierSlow(object, slot);
   }
 }
@@ -6929,7 +6929,7 @@ void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
 
   } else {
     DCHECK(value_chunk->InSharedHeap());
-    DCHECK(!table.InSharedWritableHeap());
+    DCHECK(!table.InWritableSharedSpace());
     Heap::SharedHeapBarrierSlow(table, slot);
   }
 }
@@ -7003,7 +7003,7 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
       if (Heap::InYoungGeneration(value_heap_object)) {
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
             source_page, slot.address());
-      } else if (value_heap_object.InSharedWritableHeap()) {
+      } else if (value_heap_object.InWritableSharedSpace()) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
             source_page, slot.address());
       }

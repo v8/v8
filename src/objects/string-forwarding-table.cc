@@ -95,7 +95,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     if (!original.IsHeapObject()) continue;
     HeapObject object = HeapObject::cast(original);
     if (Heap::InFromPage(object)) {
-      DCHECK(!object.InSharedWritableHeap());
+      DCHECK(!object.InWritableSharedSpace());
       const bool was_forwarded = UpdateForwardedSlot(object, slot);
       if (!was_forwarded) {
         // The object died in young space.

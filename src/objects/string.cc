@@ -212,7 +212,7 @@ void String::MakeThin(
   bool may_contain_recorded_slots = initial_shape.IsIndirect();
   int old_size = SizeFromMap(initial_map);
   Map target_map = ReadOnlyRoots(isolate).thin_string_map();
-  const bool in_shared_heap = InSharedWritableHeap();
+  const bool in_shared_heap = InWritableSharedSpace();
   if (in_shared_heap) {
     // Objects in the shared heap are always direct, therefore they can't have
     // any invalidated slots.
@@ -466,8 +466,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     // Strings in the shared heap are never indirect and thus cannot have any
     // invalidated slots.
     const auto update_invalidated_object_size =
-        InSharedWritableHeap() ? UpdateInvalidatedObjectSize::kNo
-                               : UpdateInvalidatedObjectSize::kYes;
+        InWritableSharedSpace() ? UpdateInvalidatedObjectSize::kNo
+                                : UpdateInvalidatedObjectSize::kYes;
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,
@@ -549,15 +549,15 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     int new_size = this->SizeFromMap(new_map);
 
     if (has_pointers) {
-      DCHECK(!InSharedWritableHeap());
+      DCHECK(!InWritableSharedSpace());
       isolate->heap()->NotifyObjectLayoutChange(
           *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
     }
     // Strings in the shared heap are never indirect and thus cannot have any
     // invalidated slots.
     const auto update_invalidated_object_size =
-        InSharedWritableHeap() ? UpdateInvalidatedObjectSize::kNo
-                               : UpdateInvalidatedObjectSize::kYes;
+        InWritableSharedSpace() ? UpdateInvalidatedObjectSize::kNo
+                                : UpdateInvalidatedObjectSize::kYes;
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,

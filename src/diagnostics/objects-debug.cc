@@ -1233,7 +1233,7 @@ USE_TORQUE_VERIFIER(JSWrappedFunction)
 
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());
-  CHECK(InSharedWritableHeap());
+  CHECK(InWritableSharedSpace());
   JSObjectVerify(isolate);
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
@@ -1253,7 +1253,7 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
 
 void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsMutex());
-  CHECK(InSharedWritableHeap());
+  CHECK(InWritableSharedSpace());
   JSObjectVerify(isolate);
 }
 
