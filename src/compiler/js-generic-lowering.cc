@@ -269,6 +269,14 @@ void JSGenericLowering::LowerJSHasProperty(Node* node) {
   }
 }
 
+bool HasStringType(Node* key) {
+  if (key->opcode() == IrOpcode::kLoadElement) {
+    ElementAccess const& access = ElementAccessOf(key->op());
+    return access.type.Is(Type::String());
+  }
+  return false;
+}
+
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   JSLoadPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
@@ -281,14 +289,18 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
         node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
-                  ? Builtin::kKeyedLoadICTrampoline_Megamorphic
+                  ? (HasStringType(n->InputAt(1))
+                         ? Builtin::kKeyedLoadICTrampoline_MegamorphicStringKey
+                         : Builtin::kKeyedLoadICTrampoline_Megamorphic)
                   : Builtin::kKeyedLoadICTrampoline);
   } else {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
         node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
-                  ? Builtin::kKeyedLoadIC_Megamorphic
+                  ? (HasStringType(n->InputAt(1))
+                         ? Builtin::kKeyedLoadIC_MegamorphicStringKey
+                         : Builtin::kKeyedLoadIC_Megamorphic)
                   : Builtin::kKeyedLoadIC);
   }
 }

@@ -641,9 +641,11 @@ namespace internal {
   TFH(LoadSuperICBaseline, LoadWithReceiverBaseline)                           \
   TFH(KeyedLoadIC, KeyedLoadWithVector)                                        \
   TFH(KeyedLoadIC_Megamorphic, KeyedLoadWithVector)                            \
+  TFH(KeyedLoadIC_MegamorphicStringKey, KeyedLoadWithVector)                   \
   TFH(KeyedLoadICTrampoline, KeyedLoad)                                        \
   TFH(KeyedLoadICBaseline, KeyedLoadBaseline)                                  \
   TFH(KeyedLoadICTrampoline_Megamorphic, KeyedLoad)                            \
+  TFH(KeyedLoadICTrampoline_MegamorphicStringKey, KeyedLoad)                   \
   TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreGlobalICBaseline, StoreGlobalBaseline)                              \
