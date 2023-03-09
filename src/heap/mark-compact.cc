@@ -4595,7 +4595,8 @@ void MarkCompactCollector::Evacuate() {
         DCHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
         DCHECK(p->SweepingDone());
         PagedNewSpace* space = heap()->paged_new_space();
-        if (space->ShouldReleaseEmptyPage()) {
+        if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
+            space->ShouldReleaseEmptyPage()) {
           space->ReleasePage(p);
         } else {
           sweeper()->SweepEmptyNewSpacePage(p);
@@ -5336,7 +5337,8 @@ void MarkCompactCollector::StartSweepNewSpace() {
       continue;
     }
 
-    if (paged_space->ShouldReleaseEmptyPage()) {
+    if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
+        paged_space->ShouldReleaseEmptyPage()) {
       paged_space->ReleasePage(p);
     } else {
       empty_new_space_pages_to_be_swept_.push_back(p);
@@ -6176,7 +6178,8 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
 
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(p);
     if (live_bytes_on_page == 0) {
-      if (paged_space->ShouldReleaseEmptyPage()) {
+      if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
+          paged_space->ShouldReleaseEmptyPage()) {
         paged_space->ReleasePage(p);
       } else {
         sweeper()->SweepEmptyNewSpacePage(p);

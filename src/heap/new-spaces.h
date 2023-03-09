@@ -612,7 +612,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
     PagedSpaceBase::Verify(isolate, visitor);
 
-    DCHECK_LE(UsableCapacity(), TotalCapacity());
+    DCHECK_EQ(current_capacity_, target_capacity_);
     DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
   }
 #endif
@@ -623,13 +623,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   void RefillFreeList() final;
 
-  bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
-
  private:
-  size_t UsableCapacity() const {
-    return current_capacity_ - free_list_->wasted_bytes();
-  }
-
   bool PreallocatePages();
 
   const size_t initial_capacity_;

@@ -774,7 +774,7 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   const size_t kTargetStepCount = 256;
   const size_t kTargetStepCountAtOOM = 32;
   const size_t kMaxStepSizeInByte = 256 * KB;
-  size_t oom_slack = heap()->new_space()->TotalCapacity() + 64 * MB;
+  size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
 
   if (!heap()->CanExpandOldGeneration(oom_slack)) {
     return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
