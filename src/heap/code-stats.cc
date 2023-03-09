@@ -200,7 +200,8 @@ void CodeStatistics::CollectCommentStatistics(Isolate* isolate,
 void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo.
-  if (!obj.IsCode(PtrComprCageBase{isolate})) return;
+  PtrComprCageBase cage_base{isolate};
+  if (!obj.IsCode(cage_base)) return;
 
   Code code = Code::cast(obj);
 
@@ -209,8 +210,7 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
   // TODO(jgruber): We can change this to `IsBuiltin` once it's guaranteed that
   // non-builtin Code objects have an instruction_stream at all times (even
   // during initialization).
-  PtrComprCageBase code_cage_base{isolate->code_cage_base()};
-  if (!obj.has_instruction_stream(code_cage_base)) return;
+  if (!obj.has_instruction_stream(cage_base)) return;
 
   CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
   int delta = 0;
