@@ -461,6 +461,7 @@ namespace internal {
   F(StringAdd, 2, 1)                      \
   F(StringBuilderConcat, 3, 1)            \
   F(StringCharCodeAt, 2, 1)               \
+  F(StringCodePointAt, 2, 1)              \
   F(StringCompare, 2, 1)                  \
   F(StringEqual, 2, 1)                    \
   F(StringEscapeQuotes, 1, 1)             \

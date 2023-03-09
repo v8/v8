@@ -3645,7 +3645,32 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   AddNewNode<CheckInt32Condition>({index, length},
                                   AssertCondition::kUnsignedLessThan,
                                   DeoptimizeReason::kOutOfBounds);
-  return AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index});
+  return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+      {receiver, index},
+      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+  ValueNode* index;
+  if (args.count() == 0) {
+    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
+    index = GetInt32Constant(0);
+  } else {
+    index = GetInt32ElementIndex(args[0]);
+  }
+  // Any other argument is ignored.
+  // Ensure that {receiver} is actually a String.
+  BuildCheckString(receiver);
+  // And index is below length.
+  ValueNode* length = AddNewNode<StringLength>({receiver});
+  AddNewNode<CheckInt32Condition>({index, length},
+                                  AssertCondition::kUnsignedLessThan,
+                                  DeoptimizeReason::kOutOfBounds);
+  return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+      {receiver, index},
+      BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
 }
 
 template <typename LoadNode>

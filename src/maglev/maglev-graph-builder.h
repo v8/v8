@@ -1407,6 +1407,7 @@ class MaglevGraphBuilder {
   V(MathRound)                     \
   V(StringFromCharCode)            \
   V(StringPrototypeCharCodeAt)     \
+  V(StringPrototypeCodePointAt)    \
   MATH_UNARY_IEEE_BUILTIN(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name)                                   \

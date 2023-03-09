@@ -2469,8 +2469,9 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
   Label cached_one_byte_string;
 
   RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeAt(save_registers, char_code, string, index, scratch,
-                      &cached_one_byte_string);
+  __ StringCharCodeOrCodePointAt(
+      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt, save_registers,
+      char_code, string, index, scratch, &cached_one_byte_string);
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
                         char_code, scratch);
 }
@@ -3703,6 +3704,18 @@ void Abort::PrintParams(std::ostream& os,
 void AssertInt32::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
   os << "(" << condition_ << ")";
+}
+
+void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  switch (mode_) {
+    case BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt:
+      os << "(CharCodeAt)";
+      break;
+    case BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt:
+      os << "(CodePointAt)";
+      break;
+  }
 }
 
 void CheckMaps::PrintParams(std::ostream& os,

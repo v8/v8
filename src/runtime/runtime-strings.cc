@@ -229,6 +229,41 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return Smi::FromInt(subject->Get(i));
 }
 
+RUNTIME_FUNCTION(Runtime_StringCodePointAt) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  Handle<String> subject = args.at<String>(0);
+  uint32_t i = NumberToUint32(args[1]);
+
+  // Flatten the string.  If someone wants to get a char at an index
+  // in a cons string, it is likely that more indices will be
+  // accessed.
+  subject = String::Flatten(isolate, subject);
+
+  if (i >= static_cast<uint32_t>(subject->length())) {
+    return ReadOnlyRoots(isolate).nan_value();
+  }
+
+  int first_code_point = subject->Get(i);
+  if ((first_code_point & 0xFC00) != 0xD800) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  if (i + 1 >= static_cast<uint32_t>(subject->length())) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  int second_code_point = subject->Get(i + 1);
+  if ((second_code_point & 0xFC00) != 0xDC00) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  int surrogate_offset = 0x10000 - (0xD800 << 10) - 0xDC00;
+  return Smi::FromInt((first_code_point << 10) +
+                      (second_code_point + surrogate_offset));
+}
+
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

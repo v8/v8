@@ -146,24 +146,25 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int BuiltinStringPrototypeCharCodeAt::MaxCallStackArgs() const {
+int BuiltinStringPrototypeCharCodeOrCodePointAt::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
   return 2;
 }
-void BuiltinStringPrototypeCharCodeAt::SetValueLocationConstraints() {
+void BuiltinStringPrototypeCharCodeOrCodePointAt::
+    SetValueLocationConstraints() {
   UseAndClobberRegister(string_input());
   UseAndClobberRegister(index_input());
   DefineAsRegister(this);
 }
-void BuiltinStringPrototypeCharCodeAt::GenerateCode(
+void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Label done;
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeAt(save_registers, ToRegister(result()),
-                      ToRegister(string_input()), ToRegister(index_input()),
-                      scratch, &done);
+  __ StringCharCodeOrCodePointAt(mode_, save_registers, ToRegister(result()),
+                                 ToRegister(string_input()),
+                                 ToRegister(index_input()), scratch, &done);
   __ Bind(&done);
 }
 

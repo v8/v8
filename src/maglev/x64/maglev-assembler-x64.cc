@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/objects/heap-number.h"
 
 namespace v8 {
@@ -152,18 +154,20 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
-                                       Register result, Register string,
-                                       Register index, Register scratch,
-                                       Label* result_fits_one_byte) {
+void MaglevAssembler::StringCharCodeOrCodePointAt(
+    BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+    RegisterSnapshot& register_snapshot, Register result, Register string,
+    Register index, Register scratch, Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
   Label sliced_string;
 
   Label* deferred_runtime_call = MakeDeferredCode(
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         ZoneLabelRef done, Register result, Register string, Register index) {
+      [](MaglevAssembler* masm,
+         BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+         RegisterSnapshot register_snapshot, ZoneLabelRef done, Register result,
+         Register string, Register index) {
         DCHECK(!register_snapshot.live_registers.has(result));
         DCHECK(!register_snapshot.live_registers.has(string));
         DCHECK(!register_snapshot.live_registers.has(index));
@@ -174,14 +178,21 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
           __ Push(index);
           __ Move(kContextRegister, masm->native_context().object());
           // This call does not throw nor can deopt.
-          __ CallRuntime(Runtime::kStringCharCodeAt);
+          if (mode ==
+              BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+            __ CallRuntime(Runtime::kStringCodePointAt);
+          } else {
+            DCHECK_EQ(mode,
+                      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+            __ CallRuntime(Runtime::kStringCharCodeAt);
+          }
           save_register_state.DefineSafepoint();
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
         __ jmp(*done);
       },
-      register_snapshot, done, result, string, index);
+      mode, register_snapshot, done, result, string, index);
 
   Register instance_type = scratch;
 
@@ -254,12 +265,46 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     andl(instance_type, Immediate(kStringEncodingMask));
     cmpl(instance_type, Immediate(kTwoByteStringTag));
     j(equal, &two_byte_string, Label::kNear);
+    // The result of one-byte string will be the same for both modes
+    // (CharCodeAt/CodePointAt), since it cannot be the first half of a
+    // surrogate pair.
     movzxbl(result, FieldOperand(string, index, times_1,
                                  SeqOneByteString::kHeaderSize));
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
     movzxwl(result, FieldOperand(string, index, times_2,
                                  SeqTwoByteString::kHeaderSize));
+
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Register first_code_point = scratch;
+      movl(first_code_point, result);
+      andl(first_code_point, Immediate(0xfc00));
+      cmpl(first_code_point, Immediate(0xd800));
+      j(not_equal, *done);
+
+      Register length = scratch;
+      StringLength(length, string);
+      incl(index);
+      cmpl(index, length);
+      j(greater_equal, *done);
+
+      Register second_code_point = scratch;
+      movzxwl(second_code_point, FieldOperand(string, index, times_2,
+                                              SeqTwoByteString::kHeaderSize));
+
+      // {index} is not needed at this point.
+      Register scratch2 = index;
+      movl(scratch2, second_code_point);
+      andl(scratch2, Immediate(0xfc00));
+      cmpl(scratch2, Immediate(0xdc00));
+      j(not_equal, *done);
+
+      int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
+      addl(second_code_point, Immediate(surrogate_offset));
+      shll(result, Immediate(10));
+      addl(result, second_code_point);
+    }
+
     // Fallthrough.
   }
 

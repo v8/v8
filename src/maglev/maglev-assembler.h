@@ -136,9 +136,10 @@ class MaglevAssembler : public MacroAssembler {
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
   // {result} is an int32.
-  void StringCharCodeAt(RegisterSnapshot& register_snapshot, Register result,
-                        Register string, Register index, Register scratch,
-                        Label* result_fits_one_byte);
+  void StringCharCodeOrCodePointAt(
+      BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+      RegisterSnapshot& register_snapshot, Register result, Register string,
+      Register index, Register scratch, Label* result_fits_one_byte);
   // Warning: Input {char_code} will be scratched.
   void StringFromCharCode(RegisterSnapshot register_snapshot,
                           Label* char_code_fits_one_byte, Register result,

@@ -496,18 +496,20 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
-                                       Register result, Register string,
-                                       Register index, Register instance_type,
-                                       Label* result_fits_one_byte) {
+void MaglevAssembler::StringCharCodeOrCodePointAt(
+    BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+    RegisterSnapshot& register_snapshot, Register result, Register string,
+    Register index, Register instance_type, Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
   Label sliced_string;
 
   Label* deferred_runtime_call = MakeDeferredCode(
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         ZoneLabelRef done, Register result, Register string, Register index) {
+      [](MaglevAssembler* masm,
+         BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+         RegisterSnapshot register_snapshot, ZoneLabelRef done, Register result,
+         Register string, Register index) {
         DCHECK(!register_snapshot.live_registers.has(result));
         DCHECK(!register_snapshot.live_registers.has(string));
         DCHECK(!register_snapshot.live_registers.has(index));
@@ -517,14 +519,21 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
           __ Push(string, index);
           __ Move(kContextRegister, masm->native_context().object());
           // This call does not throw nor can deopt.
-          __ CallRuntime(Runtime::kStringCharCodeAt);
+          if (mode ==
+              BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+            __ CallRuntime(Runtime::kStringCodePointAt);
+          } else {
+            DCHECK_EQ(mode,
+                      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+            __ CallRuntime(Runtime::kStringCharCodeAt);
+          }
           save_register_state.DefineSafepoint();
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
         __ jmp(*done);
       },
-      register_snapshot, done, result, string, index);
+      mode, register_snapshot, done, result, string, index);
 
   // We might need to try more than one time for ConsString, SlicedString and
   // ThinString.
@@ -605,14 +614,46 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
   {
     Label two_byte_string;
     TestAndBranchIfAllClear(instance_type, kOneByteStringTag, &two_byte_string);
+    // The result of one-byte string will be the same for both modes
+    // (CharCodeAt/CodePointAt), since it cannot be the first half of a
+    // surrogate pair.
     Add(index, index, SeqOneByteString::kHeaderSize - kHeapObjectTag);
     Ldrb(result, MemOperand(string, index));
     B(result_fits_one_byte);
 
     bind(&two_byte_string);
-    Lsl(index, index, 1);
-    Add(index, index, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-    Ldrh(result, MemOperand(string, index));
+    // {instance_type} is unused from this point, so we can use as scratch.
+    Register scratch = instance_type;
+    Lsl(scratch, index, 1);
+    Add(scratch, scratch, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    Ldrh(result, MemOperand(string, scratch));
+
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Register first_code_point = scratch;
+      And(first_code_point.W(), result.W(), Immediate(0xfc00));
+      CompareAndBranch(first_code_point, Immediate(0xd800), kNotEqual, *done);
+
+      Register length = scratch;
+      Ldr(length.W(), FieldMemOperand(string, String::kLengthOffset));
+      Add(index.W(), index.W(), Immediate(1));
+      CompareAndBranch(index, length, kGreaterThanEqual, *done);
+
+      Register second_code_point = scratch;
+      Lsl(index, index, 1);
+      Add(index, index, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+      Ldrh(second_code_point, MemOperand(string, index));
+
+      // {index} is not needed at this point.
+      Register scratch2 = index;
+      And(scratch2.W(), second_code_point.W(), Immediate(0xfc00));
+      CompareAndBranch(scratch2, Immediate(0xdc00), kNotEqual, *done);
+
+      int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
+      Add(second_code_point, second_code_point, Immediate(surrogate_offset));
+      Lsl(result, result, 10);
+      Add(result, result, second_code_point);
+    }
+
     // Fallthrough.
   }
 

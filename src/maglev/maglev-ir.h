@@ -132,7 +132,7 @@ class MergePointInterpreterFrameState;
 
 #define INLINE_BUILTIN_NODE_LIST(V) \
   V(BuiltinStringFromCharCode)      \
-  V(BuiltinStringPrototypeCharCodeAt)
+  V(BuiltinStringPrototypeCharCodeOrCodePointAt)
 
 #define VALUE_NODE_LIST(V)                   \
   V(Identity)                                \
@@ -4513,13 +4513,21 @@ class BuiltinStringFromCharCode
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class BuiltinStringPrototypeCharCodeAt
-    : public FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeAt> {
-  using Base = FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeAt>;
+class BuiltinStringPrototypeCharCodeOrCodePointAt
+    : public FixedInputValueNodeT<2,
+                                  BuiltinStringPrototypeCharCodeOrCodePointAt> {
+  using Base =
+      FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeOrCodePointAt>;
 
  public:
-  explicit BuiltinStringPrototypeCharCodeAt(uint64_t bitfield)
-      : Base(bitfield) {}
+  enum Mode {
+    kCharCodeAt,
+    kCodePointAt,
+  };
+
+  explicit BuiltinStringPrototypeCharCodeOrCodePointAt(uint64_t bitfield,
+                                                       Mode mode)
+      : Base(bitfield), mode_(mode) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading() |
                                               OpProperties::DeferredCall() |
@@ -4535,7 +4543,10 @@ class BuiltinStringPrototypeCharCodeAt
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Mode mode_;
 };
 
 class PolymorphicAccessInfo {
