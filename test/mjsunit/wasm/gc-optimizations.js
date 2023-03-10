@@ -638,3 +638,38 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.instantiate({});
 })();
+
+(function RedundantExternalizeInternalize() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+
+  builder.addFunction('createArray',
+      makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayNewFixed, array, 1,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('get', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      // The following two operations are optimized away.
+      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternInternalize,
+      //
+      kGCPrefix, kExprRefCastNull, array,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGet, array,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmArray = wasm.createArray(10);
+  assertEquals(10, wasm.get(wasmArray, 0));
+})();

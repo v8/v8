@@ -39,6 +39,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceWasmTypeCheck(node);
     case IrOpcode::kWasmTypeCast:
       return ReduceWasmTypeCast(node);
+    case IrOpcode::kWasmExternInternalize:
+      return ReduceWasmExternInternalize(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kIfTrue:
@@ -326,6 +328,20 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
     return Replace(object);  // Irrelevant replacement.
   }
 
+  return NoChange();
+}
+
+Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
+  // Remove redundant extern.internalize(extern.externalize(...)) pattern.
+  if (NodeProperties::GetValueInput(node, 0)->opcode() ==
+      IrOpcode::kWasmExternExternalize) {
+    Node* externalize = node->InputAt(0);
+    Node* input = externalize->InputAt(0);
+    ReplaceWithValue(node, input);
+    node->Kill();
+    return Replace(input);
+  }
   return NoChange();
 }
 
