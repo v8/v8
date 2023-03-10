@@ -32,6 +32,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/elements-kind.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -1501,7 +1502,7 @@ class MaglevGraphBuilder {
   ValueNode* GetUint32ElementIndex(ValueNode* index_object);
 
   bool CanTreatHoleAsUndefined(
-      ZoneVector<compiler::MapRef> const& receiver_maps);
+      base::Vector<const compiler::MapRef> const& receiver_maps);
 
   compiler::OptionalObjectRef TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);
@@ -1532,19 +1533,32 @@ class MaglevGraphBuilder {
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
       compiler::AccessMode access_mode);
-
-  bool TryBuildElementAccessOnString(
-      ValueNode* object, ValueNode* index,
-      compiler::KeyedAccessMode const& keyed_mode);
-
   ReduceResult TryBuildNamedAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NamedAccessFeedback const& feedback,
       compiler::FeedbackSource const& feedback_source,
       compiler::AccessMode access_mode);
-  bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
-                             compiler::ElementAccessFeedback const& feedback,
-                             compiler::FeedbackSource const& feedback_source);
+
+  ValueNode* BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
+                                        ElementsKind elements_kind);
+  void BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
+                                   ElementsKind elements_kind);
+
+  ReduceResult TryBuildElementAccessOnString(
+      ValueNode* object, ValueNode* index,
+      compiler::KeyedAccessMode const& keyed_mode);
+  ReduceResult TryBuildElementAccessOnTypedArray(
+      ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessInfo& access_info,
+      compiler::KeyedAccessMode const& keyed_mode);
+  ReduceResult TryBuildElementAccessOnJSArrayOrJSObject(
+      ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessInfo& access_info,
+      compiler::KeyedAccessMode const& keyed_mode);
+  ReduceResult TryBuildElementAccess(
+      ValueNode* object, ValueNode* index,
+      compiler::ElementAccessFeedback const& feedback,
+      compiler::FeedbackSource const& feedback_source);
 
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be re-used on

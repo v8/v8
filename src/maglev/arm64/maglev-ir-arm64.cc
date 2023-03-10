@@ -1763,39 +1763,121 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   }
 }
 
-}  // namespace
-
-#define DEF_OPERATION(Name, ResultReg, ToResultReg, check_detached)     \
-  void Name::SetValueLocationConstraints() {                            \
-    UseRegister(object_input());                                        \
-    UseRegister(index_input());                                         \
-    DefineAsRegister(this);                                             \
-  }                                                                     \
-  void Name::GenerateCode(MaglevAssembler* masm,                        \
-                          const ProcessingState& state) {               \
-    Register object = ToRegister(object_input());                       \
-    Register index = ToRegister(index_input());                         \
-    ResultReg result_reg = ToResultReg(result());                       \
-                                                                        \
-    GenerateTypedArrayLoad<check_detached>(masm, this, object, index,   \
-                                           result_reg, elements_kind_); \
+template <bool check_detached, typename ValueReg, typename NodeT>
+void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
+                             Register object, Register index, ValueReg value,
+                             ElementsKind kind) {
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    __ IsObjectType(object, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
   }
 
-DEF_OPERATION(LoadSignedIntTypedArrayElement, Register, ToRegister,
-              /*check_detached*/ true)
-DEF_OPERATION(LoadSignedIntTypedArrayElementNoDeopt, Register, ToRegister,
-              /*check_detached*/ false)
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
-DEF_OPERATION(LoadUnsignedIntTypedArrayElement, Register, ToRegister,
-              /*check_detached*/ true)
-DEF_OPERATION(LoadUnsignedIntTypedArrayElementNoDeopt, Register, ToRegister,
-              /*check_detached*/ false)
+  if constexpr (check_detached) {
+    __ DeoptIfBufferDetached(object, scratch, node);
+  }
 
-DEF_OPERATION(LoadDoubleTypedArrayElement, DoubleRegister, ToDoubleRegister,
-              /*check_detached*/ true)
-DEF_OPERATION(LoadDoubleTypedArrayElementNoDeopt, DoubleRegister,
-              ToDoubleRegister, /*check_detached*/ false)
-#undef DEF_OPERATION
+  Register data_pointer = scratch;
+  __ BuildTypedArrayDataPointer(data_pointer, object);
+
+  if constexpr (std::is_same_v<ValueReg, Register>) {
+    int element_size = ElementsKindSize(kind);
+    __ Add(data_pointer, data_pointer,
+           Operand(index, LSL, ShiftFromScale(element_size)));
+    __ StoreField(MemOperand(data_pointer), value.W(), element_size);
+  } else {
+#ifdef DEBUG
+    bool value_is_double = std::is_same_v<ValueReg, DoubleRegister>;
+    DCHECK(value_is_double);
+    DCHECK(IsFloatTypedArrayElementsKind(kind));
+#endif
+    switch (kind) {
+      case FLOAT32_ELEMENTS: {
+        DoubleRegister double_scratch = temps.AcquireDouble();
+        __ Fcvt(double_scratch.S(), value);
+        __ Add(data_pointer, data_pointer, Operand(index, LSL, 2));
+        __ Str(double_scratch.S(), MemOperand(data_pointer));
+        break;
+      }
+      case FLOAT64_ELEMENTS:
+        __ Add(data_pointer, data_pointer, Operand(index, LSL, 3));
+        __ Str(value, MemOperand(data_pointer));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+}  // namespace
+
+#define DEF_LOAD_TYPED_ARRAY(Name, ResultReg, ToResultReg, check_detached) \
+  void Name::SetValueLocationConstraints() {                               \
+    UseRegister(object_input());                                           \
+    UseRegister(index_input());                                            \
+    DefineAsRegister(this);                                                \
+  }                                                                        \
+  void Name::GenerateCode(MaglevAssembler* masm,                           \
+                          const ProcessingState& state) {                  \
+    Register object = ToRegister(object_input());                          \
+    Register index = ToRegister(index_input());                            \
+    ResultReg result_reg = ToResultReg(result());                          \
+                                                                           \
+    GenerateTypedArrayLoad<check_detached>(masm, this, object, index,      \
+                                           result_reg, elements_kind_);    \
+  }
+
+DEF_LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement, Register, ToRegister,
+                     /*check_detached*/ true)
+DEF_LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElementNoDeopt, Register,
+                     ToRegister,
+                     /*check_detached*/ false)
+
+DEF_LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElement, Register, ToRegister,
+                     /*check_detached*/ true)
+DEF_LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElementNoDeopt, Register,
+                     ToRegister,
+                     /*check_detached*/ false)
+
+DEF_LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, DoubleRegister,
+                     ToDoubleRegister,
+                     /*check_detached*/ true)
+DEF_LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, DoubleRegister,
+                     ToDoubleRegister, /*check_detached*/ false)
+#undef DEF_LOAD_TYPED_ARRAY
+
+#define DEF_STORE_TYPED_ARRAY(Name, ValueReg, ToValueReg, check_detached)     \
+  void Name::SetValueLocationConstraints() {                                  \
+    UseRegister(object_input());                                              \
+    UseRegister(index_input());                                               \
+    UseRegister(value_input());                                               \
+  }                                                                           \
+  void Name::GenerateCode(MaglevAssembler* masm,                              \
+                          const ProcessingState& state) {                     \
+    Register object = ToRegister(object_input());                             \
+    Register index = ToRegister(index_input());                               \
+    ValueReg value = ToValueReg(value_input());                               \
+                                                                              \
+    GenerateTypedArrayStore<check_detached>(masm, this, object, index, value, \
+                                            elements_kind_);                  \
+  }
+
+DEF_STORE_TYPED_ARRAY(StoreIntTypedArrayElement, Register, ToRegister,
+                      /*check_detached*/ true)
+DEF_STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, Register, ToRegister,
+                      /*check_detached*/ false)
+
+DEF_STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, DoubleRegister,
+                      ToDoubleRegister,
+                      /*check_detached*/ true)
+DEF_STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, DoubleRegister,
+                      ToDoubleRegister, /*check_detached*/ false)
+
+#undef DEF_STORE_TYPED_ARRAY
 
 void LoadFixedArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());

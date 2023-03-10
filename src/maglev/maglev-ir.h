@@ -246,47 +246,51 @@ class MergePointInterpreterFrameState;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)                  \
-  V(AssertInt32)                      \
-  V(CheckDynamicValue)                \
-  V(CheckInt32IsSmi)                  \
-  V(CheckUint32IsSmi)                 \
-  V(CheckHeapObject)                  \
-  V(CheckInt32Condition)              \
-  V(CheckFixedArrayNonEmpty)          \
-  V(CheckJSArrayBounds)               \
-  V(CheckJSDataViewBounds)            \
-  V(CheckJSObjectElementsBounds)      \
-  V(CheckJSTypedArrayBounds)          \
-  V(CheckMaps)                        \
-  V(CheckMapsWithMigration)           \
-  V(CheckNumber)                      \
-  V(CheckSmi)                         \
-  V(CheckString)                      \
-  V(CheckSymbol)                      \
-  V(CheckValue)                       \
-  V(CheckValueEqualsString)           \
-  V(CheckInstanceType)                \
-  V(DebugBreak)                       \
-  V(FunctionEntryStackCheck)          \
-  V(GeneratorStore)                   \
-  V(JumpLoopPrologue)                 \
-  V(StoreMap)                         \
-  V(StoreDoubleField)                 \
-  V(StoreFloat64)                     \
-  V(StoreSignedIntDataViewElement)    \
-  V(StoreDoubleDataViewElement)       \
-  V(StoreTaggedFieldNoWriteBarrier)   \
-  V(StoreTaggedFieldWithWriteBarrier) \
-  V(CheckedStoreSmiField)             \
-  V(IncreaseInterruptBudget)          \
-  V(ReduceInterruptBudgetForLoop)     \
-  V(ReduceInterruptBudgetForReturn)   \
-  V(ThrowReferenceErrorIfHole)        \
-  V(ThrowSuperNotCalledIfHole)        \
-  V(ThrowSuperAlreadyCalledIfNotHole) \
-  V(ThrowIfNotSuperConstructor)       \
-  GAP_MOVE_NODE_LIST(V)               \
+#define NODE_LIST(V)                     \
+  V(AssertInt32)                         \
+  V(CheckDynamicValue)                   \
+  V(CheckInt32IsSmi)                     \
+  V(CheckUint32IsSmi)                    \
+  V(CheckHeapObject)                     \
+  V(CheckInt32Condition)                 \
+  V(CheckFixedArrayNonEmpty)             \
+  V(CheckJSArrayBounds)                  \
+  V(CheckJSDataViewBounds)               \
+  V(CheckJSObjectElementsBounds)         \
+  V(CheckJSTypedArrayBounds)             \
+  V(CheckMaps)                           \
+  V(CheckMapsWithMigration)              \
+  V(CheckNumber)                         \
+  V(CheckSmi)                            \
+  V(CheckString)                         \
+  V(CheckSymbol)                         \
+  V(CheckValue)                          \
+  V(CheckValueEqualsString)              \
+  V(CheckInstanceType)                   \
+  V(DebugBreak)                          \
+  V(FunctionEntryStackCheck)             \
+  V(GeneratorStore)                      \
+  V(JumpLoopPrologue)                    \
+  V(StoreMap)                            \
+  V(StoreDoubleField)                    \
+  V(StoreFloat64)                        \
+  V(StoreIntTypedArrayElement)           \
+  V(StoreIntTypedArrayElementNoDeopt)    \
+  V(StoreDoubleTypedArrayElement)        \
+  V(StoreDoubleTypedArrayElementNoDeopt) \
+  V(StoreSignedIntDataViewElement)       \
+  V(StoreDoubleDataViewElement)          \
+  V(StoreTaggedFieldNoWriteBarrier)      \
+  V(StoreTaggedFieldWithWriteBarrier)    \
+  V(CheckedStoreSmiField)                \
+  V(IncreaseInterruptBudget)             \
+  V(ReduceInterruptBudgetForLoop)        \
+  V(ReduceInterruptBudgetForReturn)      \
+  V(ThrowReferenceErrorIfHole)           \
+  V(ThrowSuperNotCalledIfHole)           \
+  V(ThrowSuperAlreadyCalledIfNotHole)    \
+  V(ThrowIfNotSuperConstructor)          \
+  GAP_MOVE_NODE_LIST(V)                  \
   VALUE_NODE_LIST(V)
 
 #define BRANCH_CONTROL_NODE_LIST(V) \
@@ -478,6 +482,27 @@ inline std::ostream& operator<<(std::ostream& os,
       os << "Word64";
   }
   return os;
+}
+
+inline bool HasOnlyJSTypedArrayMaps(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (!map.IsJSTypedArrayMap()) return false;
+  }
+  return true;
+}
+
+inline bool HasOnlyJSArrayMaps(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (!map.IsJSArrayMap()) return false;
+  }
+  return true;
+}
+
+inline bool HasOnlyJSObjectMaps(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (!map.IsJSObjectMap()) return false;
+  }
+  return true;
 }
 
 inline bool HasOnlyStringMaps(base::Vector<const compiler::MapRef> maps) {
@@ -4959,6 +4984,62 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, OpProperties::Float64(),
                  FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 
 #undef LOAD_TYPED_ARRAY
+
+#define STORE_TYPED_ARRAY(name, properties, type, ...)                     \
+  class name : public FixedInputNodeT<3, name> {                           \
+    using Base = FixedInputNodeT<3, name>;                                 \
+                                                                           \
+   public:                                                                 \
+    explicit name(uint64_t bitfield, ElementsKind elements_kind)           \
+        : Base(bitfield), elements_kind_(elements_kind) {                  \
+      DCHECK(elements_kind ==                                              \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));     \
+    }                                                                      \
+                                                                           \
+    static constexpr OpProperties kProperties = properties;                \
+    static constexpr typename Base::InputTypes kInputTypes{                \
+        ValueRepresentation::kTagged, ValueRepresentation::kUint32, type}; \
+                                                                           \
+    static constexpr int kObjectIndex = 0;                                 \
+    static constexpr int kIndexIndex = 1;                                  \
+    static constexpr int kValueIndex = 2;                                  \
+    Input& object_input() { return input(kObjectIndex); }                  \
+    Input& index_input() { return input(kIndexIndex); }                    \
+    Input& value_input() { return input(kValueIndex); }                    \
+                                                                           \
+    void SetValueLocationConstraints();                                    \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+                                                                           \
+   private:                                                                \
+    ElementsKind elements_kind_;                                           \
+  };
+
+// Nodes that can deopt are larger, since they contain the DeoptInfo. Thus, to
+// have better performance, we split the StorexxxTypedArrayElement nodes in two:
+// those who can deopt and those who can't. Deoptimization in a
+// StorexxxTypedArrayElement node is always because of a detached array buffer.
+// The NoDeopt versions of the nodes rely on the ArrayBufferDetachingProtector,
+// while the deopting versions have a runtime check that triggers a deopt if the
+// buffer is detached.
+STORE_TYPED_ARRAY(StoreIntTypedArrayElement,
+                  OpProperties::EagerDeopt() | OpProperties::Writing(),
+                  ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
+                  INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+                  UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
+STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, OpProperties::Writing(),
+                  ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
+                  INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+                  UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
+
+STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement,
+                  OpProperties::EagerDeopt() | OpProperties::Writing(),
+                  ValueRepresentation::kFloat64, FLOAT32_ELEMENTS,
+                  FLOAT64_ELEMENTS)
+STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, OpProperties::Writing(),
+                  ValueRepresentation::kFloat64, FLOAT32_ELEMENTS,
+                  FLOAT64_ELEMENTS)
+#undef STORE_TYPED_ARRAY
 
 class StoreSignedIntDataViewElement
     : public FixedInputNodeT<4, StoreSignedIntDataViewElement> {

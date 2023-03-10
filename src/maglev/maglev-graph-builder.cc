@@ -2045,7 +2045,7 @@ void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
 }
 
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
-    ZoneVector<compiler::MapRef> const& receiver_maps) {
+    base::Vector<const compiler::MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
@@ -2600,14 +2600,18 @@ ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   }
 }
 
-bool MaglevGraphBuilder::TryBuildElementAccessOnString(
+ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     ValueNode* object, ValueNode* index_object,
     compiler::KeyedAccessMode const& keyed_mode) {
   // Strings are immutable and `in` cannot be used on strings
-  if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) return false;
+  if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) {
+    return ReduceResult::Fail();
+  }
 
   // TODO(victorgomes): Deal with LOAD_IGNORE_OUT_OF_BOUNDS.
-  if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) return false;
+  if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) {
+    return ReduceResult::Fail();
+  }
 
   DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
 
@@ -2620,161 +2624,210 @@ bool MaglevGraphBuilder::TryBuildElementAccessOnString(
                                   AssertCondition::kUnsignedLessThan,
                                   DeoptimizeReason::kOutOfBounds);
 
-  SetAccumulator(AddNewNode<StringAt>({object, index}));
-  return true;
+  return AddNewNode<StringAt>({object, index});
 }
 
-bool MaglevGraphBuilder::TryBuildElementAccess(
+ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
+    ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
+#define BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Type, ...)                       \
+  if (broker()->dependencies()->DependOnArrayBufferDetachingProtector()) { \
+    return AddNewNode<Load##Type##TypedArrayElementNoDeopt>(__VA_ARGS__);  \
+  }                                                                        \
+  return AddNewNode<Load##Type##TypedArrayElement>(__VA_ARGS__);
+  switch (elements_kind) {
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(SignedInt, {object, index},
+                                        elements_kind);
+    case UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(UnsignedInt, {object, index},
+                                        elements_kind);
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Double, {object, index}, elements_kind);
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_AND_RETURN_LOAD_TYPED_ARRAY
+}
+
+void MaglevGraphBuilder::BuildStoreTypedArrayElement(
+    ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
+#define BUILD_STORE_TYPED_ARRAY(Type, ...)                                 \
+  if (broker()->dependencies()->DependOnArrayBufferDetachingProtector()) { \
+    AddNewNode<Store##Type##TypedArrayElementNoDeopt>(__VA_ARGS__);        \
+  } else {                                                                 \
+    AddNewNode<Store##Type##TypedArrayElement>(__VA_ARGS__);               \
+  }
+  switch (elements_kind) {
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_STORE_TYPED_ARRAY(Int, {object, index, GetAccumulatorInt32()},
+                              elements_kind)
+      break;
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_STORE_TYPED_ARRAY(Double, {object, index, GetAccumulatorFloat64()},
+                              elements_kind)
+      break;
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_STORE_TYPED_ARRAY
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
+    ValueNode* object, ValueNode* index_object,
+    const compiler::ElementAccessInfo& access_info,
+    compiler::KeyedAccessMode const& keyed_mode) {
+  DCHECK(HasOnlyJSTypedArrayMaps(
+      base::VectorOf(access_info.lookup_start_object_maps())));
+  ElementsKind elements_kind = access_info.elements_kind();
+  if (elements_kind == BIGUINT64_ELEMENTS ||
+      elements_kind == BIGINT64_ELEMENTS) {
+    return ReduceResult::Fail();
+  }
+  ValueNode* index = GetUint32ElementIndex(index_object);
+  AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
+  switch (keyed_mode.access_mode()) {
+    case compiler::AccessMode::kLoad:
+      DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
+      return BuildLoadTypedArrayElement(object, index, elements_kind);
+    case compiler::AccessMode::kStore:
+      DCHECK_EQ(keyed_mode.store_mode(), STANDARD_STORE);
+      BuildStoreTypedArrayElement(object, index, elements_kind);
+      return ReduceResult::Done();
+    case compiler::AccessMode::kHas:
+      // TODO(victorgomes): Implement has element access.
+      return ReduceResult::Fail();
+    case compiler::AccessMode::kStoreInLiteral:
+    case compiler::AccessMode::kDefine:
+      UNREACHABLE();
+  }
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
+    ValueNode* object, ValueNode* index_object,
+    const compiler::ElementAccessInfo& access_info,
+    compiler::KeyedAccessMode const& keyed_mode) {
+  ElementsKind elements_kind = access_info.elements_kind();
+  if (!IsFastElementsKind(elements_kind)) {
+    return ReduceResult::Fail();
+  }
+  base::Vector<const compiler::MapRef> maps =
+      base::VectorOf(access_info.lookup_start_object_maps());
+  if ((keyed_mode.access_mode() == compiler::AccessMode::kLoad) &&
+      IsHoleyElementsKind(elements_kind) && !CanTreatHoleAsUndefined(maps)) {
+    return ReduceResult::Fail();
+  }
+  ValueNode* index;
+  if (HasOnlyJSArrayMaps(maps)) {
+    index = GetInt32ElementIndex(index_object);
+    AddNewNode<CheckJSArrayBounds>({object, index});
+  } else {
+    DCHECK(HasOnlyJSObjectMaps(maps));
+    index = GetInt32ElementIndex(index_object);
+    AddNewNode<CheckJSObjectElementsBounds>({object, index});
+  }
+  switch (keyed_mode.access_mode()) {
+    case compiler::AccessMode::kLoad: {
+      DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
+      ValueNode* result;
+      if (IsDoubleElementsKind(elements_kind)) {
+        ValueNode* elements_array =
+            AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+        result =
+            AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
+        if (IsHoleyElementsKind(elements_kind)) {
+          // TODO(v8:7700): Add a representation for "Float64OrHole" and emit
+          // this boxing lazily.
+          result = AddNewNode<HoleyFloat64Box>({result});
+        }
+      } else {
+        ValueNode* elements_array =
+            AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+        result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
+        if (IsHoleyElementsKind(elements_kind)) {
+          result = AddNewNode<ConvertHoleToUndefined>({result});
+        }
+      }
+      return result;
+    }
+    default:
+      // TODO(victorgomes): Implement more access types.
+      return ReduceResult::Fail();
+  }
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     ValueNode* object, ValueNode* index_object,
     compiler::ElementAccessFeedback const& feedback,
     compiler::FeedbackSource const& feedback_source) {
-  // TODO(victorgomes): Implement other access modes.
-  if (feedback.keyed_mode().access_mode() != compiler::AccessMode::kLoad) {
-    return false;
-  }
-
+  const compiler::KeyedAccessMode& keyed_mode = feedback.keyed_mode();
   // Check for the megamorphic case.
   if (feedback.transition_groups().empty()) {
-    SetAccumulator(BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
-        {object, GetTaggedValue(index_object)}, feedback_source));
-    return true;
+    if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) {
+      return ReduceResult::Fail();
+    }
+    return BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
+        {object, GetTaggedValue(index_object)}, feedback_source);
   }
 
   // TODO(leszeks): Add non-deopting bounds check (has to support undefined
   // values).
-  if (feedback.keyed_mode().load_mode() != STANDARD_LOAD) {
-    return false;
+  if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
+      keyed_mode.load_mode() != STANDARD_LOAD) {
+    return ReduceResult::Fail();
+  }
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
+      keyed_mode.store_mode() != STANDARD_STORE) {
+    return ReduceResult::Fail();
   }
 
   // TODO(victorgomes): Add fast path for loading from HeapConstant.
 
   if (feedback.HasOnlyStringMaps(broker())) {
-    return TryBuildElementAccessOnString(object, index_object,
-                                         feedback.keyed_mode());
+    return TryBuildElementAccessOnString(object, index_object, keyed_mode);
   }
 
   compiler::AccessInfoFactory access_info_factory(broker(), zone());
   ZoneVector<compiler::ElementAccessInfo> access_infos(zone());
   if (!access_info_factory.ComputeElementAccessInfos(feedback, &access_infos) ||
       access_infos.empty()) {
-    return false;
+    return ReduceResult::Fail();
   }
 
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::ElementAccessInfo access_info = access_infos.front();
-
-    // TODO(victorgomes): Support elment kind transitions.
-    if (access_info.transition_sources().size() != 0) return false;
-
-    // TODO(victorgomes): Support more elements kind.
-    ElementsKind elements_kind = access_info.elements_kind();
-    if (IsRabGsabTypedArrayElementsKind(elements_kind)) {
-      // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
-      return false;
+    // TODO(victorgomes): Support element kind transitions.
+    if (access_info.transition_sources().size() != 0) {
+      return ReduceResult::Fail();
     }
-    if (IsTypedArrayElementsKind(elements_kind)) {
-      if (elements_kind == BIGUINT64_ELEMENTS ||
-          elements_kind == BIGINT64_ELEMENTS) {
-        return false;
-      }
-    } else if (!IsFastElementsKind(elements_kind)) {
-      return false;
-    }
-    if (IsHoleyElementsKind(elements_kind) &&
-        !CanTreatHoleAsUndefined(access_info.lookup_start_object_maps())) {
-      return false;
-    }
-
-    const compiler::MapRef& map =
-        access_info.lookup_start_object_maps().front();
-    if (access_info.lookup_start_object_maps().size() != 1) {
-      // TODO(victorgomes): polymorphic case.
-      return false;
+    // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
+    if (IsRabGsabTypedArrayElementsKind(access_info.elements_kind())) {
+      return ReduceResult::Fail();
     }
     BuildCheckMaps(object,
                    base::VectorOf(access_info.lookup_start_object_maps()));
-
-    // TODO(victorgomes): To support large typed array access, we should use
-    // Uint32 here.
-    ValueNode* index;
-    if (map.IsJSArrayMap()) {
-      index = GetInt32ElementIndex(index_object);
-      AddNewNode<CheckJSArrayBounds>({object, index});
-    } else if (map.IsJSTypedArrayMap()) {
-      index = GetUint32ElementIndex(index_object);
-      AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
-    } else {
-      DCHECK(map.IsJSObjectMap());
-      index = GetInt32ElementIndex(index_object);
-      AddNewNode<CheckJSObjectElementsBounds>({object, index});
+    if (IsTypedArrayElementsKind(access_info.elements_kind())) {
+      return TryBuildElementAccessOnTypedArray(object, index_object,
+                                               access_info, keyed_mode);
     }
-    if (IsDoubleElementsKind(elements_kind)) {
-      auto* elements_array =
-          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-      SetAccumulator(
-          AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index}));
-      if (IsHoleyElementsKind(elements_kind)) {
-        // TODO(v8:7700): Add a representation for "Float64OrHole" and emit this
-        // boxing lazily.
-        SetAccumulator(AddNewNode<HoleyFloat64Box>(
-            {current_interpreter_frame_.accumulator()}));
-      }
-    } else if (IsTypedArrayElementsKind(elements_kind)) {
-      bool depend_on_detaching_protector =
-          broker()->dependencies()->DependOnArrayBufferDetachingProtector();
-      switch (elements_kind) {
-        case INT8_ELEMENTS:
-        case INT16_ELEMENTS:
-        case INT32_ELEMENTS:
-          if (depend_on_detaching_protector) {
-            SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElementNoDeopt>(
-                {object, index}, elements_kind));
-          } else {
-            SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElement>(
-                {object, index}, elements_kind));
-          }
-          break;
-        case UINT8_CLAMPED_ELEMENTS:
-        case UINT8_ELEMENTS:
-        case UINT16_ELEMENTS:
-        case UINT32_ELEMENTS:
-          if (depend_on_detaching_protector) {
-            SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElementNoDeopt>(
-                {object, index}, elements_kind));
-          } else {
-            SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElement>(
-                {object, index}, elements_kind));
-          }
-          break;
-        case FLOAT32_ELEMENTS:
-        case FLOAT64_ELEMENTS:
-          if (depend_on_detaching_protector) {
-            SetAccumulator(AddNewNode<LoadDoubleTypedArrayElementNoDeopt>(
-                {object, index}, elements_kind));
-          } else {
-            SetAccumulator(AddNewNode<LoadDoubleTypedArrayElement>(
-                {object, index}, elements_kind));
-          }
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      ValueNode* elements_array =
-          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-      SetAccumulator(
-          AddNewNode<LoadFixedArrayElement>({elements_array, index}));
-      if (IsHoleyElementsKind(elements_kind)) {
-        SetAccumulator(AddNewNode<ConvertHoleToUndefined>(
-            {current_interpreter_frame_.accumulator()}));
-      }
-    }
-    return true;
-
+    return TryBuildElementAccessOnJSArrayOrJSObject(object, index_object,
+                                                    access_info, keyed_mode);
   } else {
     // TODO(victorgomes): polymorphic case.
-    return false;
+    return ReduceResult::Fail();
   }
 }
 
@@ -2964,11 +3017,10 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       // Get the accumulator without conversion. TryBuildElementAccess
       // will try to pick the best representation.
       ValueNode* index = current_interpreter_frame_.accumulator();
-      if (TryBuildElementAccess(object, index,
-                                processed_feedback.AsElementAccess(),
-                                feedback_source)) {
-        return;
-      }
+      ReduceResult result = TryBuildElementAccess(
+          object, index, processed_feedback.AsElementAccess(), feedback_source);
+      PROCESS_AND_RETURN_IF_DONE(
+          result, [&](ValueNode* value) { SetAccumulator(value); });
       break;
     }
 
@@ -3174,13 +3226,38 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
 void MaglevGraphBuilder::VisitSetKeyedProperty() {
   // SetKeyedProperty <object> <key> <slot>
   ValueNode* object = LoadRegisterTagged(0);
-  ValueNode* key = LoadRegisterTagged(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  // TODO(victorgomes): Add monomorphic fast path.
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+      return;
+
+    case compiler::ProcessedFeedback::kElementAccess: {
+      // Get the key without conversion. TryBuildElementAccess will try to pick
+      // the best representation.
+      ValueNode* index =
+          current_interpreter_frame_.get(iterator_.GetRegisterOperand(1));
+      if (TryBuildElementAccess(object, index,
+                                processed_feedback.AsElementAccess(),
+                                feedback_source)
+              .IsDone()) {
+        return;
+      }
+    } break;
+
+    default:
+      break;
+  }
 
   // Create a generic store in the fallthrough.
+  ValueNode* key = LoadRegisterTagged(1);
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
   AddNewNode<SetKeyedGeneric>({context, object, key, value}, feedback_source);
