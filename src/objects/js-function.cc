@@ -1269,18 +1269,20 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     return NativeCodeFunctionSourceString(shared_info);
   }
 
-  // Check if we should print {function} as a class.
-  Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-      isolate, function, isolate->factory()->class_positions_symbol());
-  if (maybe_class_positions->IsClassPositions()) {
-    ClassPositions class_positions =
-        ClassPositions::cast(*maybe_class_positions);
-    int start_position = class_positions.start();
-    int end_position = class_positions.end();
-    Handle<String> script_source(
-        String::cast(Script::cast(shared_info->script()).source()), isolate);
-    return isolate->factory()->NewSubString(script_source, start_position,
-                                            end_position);
+  if (IsClassConstructor(shared_info->kind())) {
+    // Check if we should print {function} as a class.
+    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+        isolate, function, isolate->factory()->class_positions_symbol());
+    if (maybe_class_positions->IsClassPositions()) {
+      ClassPositions class_positions =
+          ClassPositions::cast(*maybe_class_positions);
+      int start_position = class_positions.start();
+      int end_position = class_positions.end();
+      Handle<String> script_source(
+          String::cast(Script::cast(shared_info->script()).source()), isolate);
+      return isolate->factory()->NewSubString(script_source, start_position,
+                                              end_position);
+    }
   }
 
   // Check if we have source code for the {function}.
