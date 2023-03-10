@@ -46,11 +46,6 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
-#include "src/objects/primitive-heap-object.h"
-#include "src/utils/identity-map.h"
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/debug/debug-wasm-objects.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/embedder-state.h"
@@ -86,6 +81,7 @@
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -97,6 +93,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -117,6 +114,7 @@
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/regexp/regexp-utils.h"
+#include "src/roots/static-roots.h"
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/sandbox.h"
@@ -129,9 +127,11 @@
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/detachable-vector.h"
+#include "src/utils/identity-map.h"
 #include "src/utils/version.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
@@ -937,6 +937,41 @@ void CopyTracedReference(const internal::Address* const* from,
 void DisposeTracedReference(internal::Address* location) {
   TracedHandles::Destroy(location);
 }
+
+#if V8_STATIC_ROOTS_BOOL
+
+// Initialize static root constants exposed in v8-internal.h.
+
+namespace {
+constexpr InstanceTypeChecker::RootIndexRange kStringMapRange =
+    *InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(FIRST_STRING_TYPE,
+                                                            LAST_STRING_TYPE);
+constexpr Tagged_t kFirstStringMapPtr =
+    StaticReadOnlyRootsPointerTable[static_cast<size_t>(kStringMapRange.first)];
+constexpr Tagged_t kLastStringMapPtr =
+    StaticReadOnlyRootsPointerTable[static_cast<size_t>(
+        kStringMapRange.second)];
+}  // namespace
+
+#define EXPORTED_STATIC_ROOTS_MAPPING(V)                    \
+  V(UndefinedValue, i::StaticReadOnlyRoot::kUndefinedValue) \
+  V(NullValue, i::StaticReadOnlyRoot::kNullValue)           \
+  V(TrueValue, i::StaticReadOnlyRoot::kTrueValue)           \
+  V(FalseValue, i::StaticReadOnlyRoot::kFalseValue)         \
+  V(EmptyString, i::StaticReadOnlyRoot::kempty_string)      \
+  V(TheHoleValue, i::StaticReadOnlyRoot::kTheHoleValue)     \
+  V(FirstStringMap, kFirstStringMapPtr)                     \
+  V(LastStringMap, kLastStringMapPtr)
+
+static_assert(std::is_same<Internals::Tagged_t, Tagged_t>::value);
+#define DEF_STATIC_ROOT(name, internal_value)                        \
+  const Internals::Tagged_t Internals::StaticReadOnlyRoot::k##name = \
+      internal_value;
+EXPORTED_STATIC_ROOTS_MAPPING(DEF_STATIC_ROOT)
+#undef DEF_STATIC_ROOT
+#undef EXPORTED_STATIC_ROOTS_MAPPING
+
+#endif  // V8_STATIC_ROOTS_BOOL
 
 }  // namespace internal
 

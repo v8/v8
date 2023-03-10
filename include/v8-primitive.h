@@ -783,7 +783,7 @@ Local<String> String::Empty(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
+  S* slot = I::GetRootSlot(isolate, I::kEmptyStringRootIndex);
   return Local<String>::FromSlot(slot);
 }
 
@@ -836,7 +836,7 @@ V8_INLINE Local<Primitive> Undefined(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kUndefinedValueRootIndex);
+  S* slot = I::GetRootSlot(isolate, I::kUndefinedValueRootIndex);
   return Local<Primitive>::FromSlot(slot);
 }
 
@@ -844,7 +844,7 @@ V8_INLINE Local<Primitive> Null(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kNullValueRootIndex);
+  S* slot = I::GetRootSlot(isolate, I::kNullValueRootIndex);
   return Local<Primitive>::FromSlot(slot);
 }
 
@@ -852,7 +852,7 @@ V8_INLINE Local<Boolean> True(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kTrueValueRootIndex);
+  S* slot = I::GetRootSlot(isolate, I::kTrueValueRootIndex);
   return Local<Boolean>::FromSlot(slot);
 }
 
@@ -860,7 +860,7 @@ V8_INLINE Local<Boolean> False(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kFalseValueRootIndex);
+  S* slot = I::GetRootSlot(isolate, I::kFalseValueRootIndex);
   return Local<Boolean>::FromSlot(slot);
 }
 

@@ -65,40 +65,52 @@ inline constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
   return Map::TryGetMapRootIdxFor(type);
 }
 
-#if V8_STATIC_ROOTS_BOOL
-
 // Manually curated list of instance type ranges which are associated with a
 // unique range of map addresses on the read only heap. Both ranges are
 // inclusive.
 
 using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
 using RootIndexRange = std::pair<RootIndex, RootIndex>;
-constexpr std::initializer_list<std::pair<InstanceTypeRange, RootIndexRange>>
+constexpr std::array<std::pair<InstanceTypeRange, RootIndexRange>, 6>
     kUniqueMapRangeOfInstanceTypeRangeList = {
-        {{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
-         {RootIndex::kAllocationSiteWithWeakNextMap,
-          RootIndex::kAllocationSiteWithoutWeakNextMap}},
-        {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
-         {RootIndex::kStringMap, RootIndex::kSharedOneByteStringMap}},
-        {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
-         {RootIndex::kSymbolMap, RootIndex::kSharedOneByteStringMap}},
-        {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
-          LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
-         {RootIndex::kSmallOrderedHashMapMap,
-          RootIndex::kSmallOrderedNameDictionaryMap}},
-        {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
-          LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
-         {RootIndex::kAbstractInternalClassSubclass1Map,
-          RootIndex::kAbstractInternalClassSubclass2Map}},
-        {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
-         {RootIndex::kTurbofanBitsetTypeMap,
-          RootIndex::kTurbofanOtherNumberConstantTypeMap}}};
+        {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
+          {RootIndex::kAllocationSiteWithWeakNextMap,
+           RootIndex::kAllocationSiteWithoutWeakNextMap}},
+         {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
+          {RootIndex::kStringMap, RootIndex::kSharedOneByteStringMap}},
+         {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
+          {RootIndex::kSymbolMap, RootIndex::kSharedOneByteStringMap}},
+         {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
+           LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
+          {RootIndex::kSmallOrderedHashMapMap,
+           RootIndex::kSmallOrderedNameDictionaryMap}},
+         {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
+           LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
+          {RootIndex::kAbstractInternalClassSubclass1Map,
+           RootIndex::kAbstractInternalClassSubclass2Map}},
+         {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
+          {RootIndex::kTurbofanBitsetTypeMap,
+           RootIndex::kTurbofanOtherNumberConstantTypeMap}}}};
+
+struct kUniqueMapRangeOfStringType {
+  static constexpr RootIndexRange kInternalizedString = {
+      RootIndex::kExternalInternalizedStringMap,
+      RootIndex::kOneByteInternalizedStringMap};
+  static constexpr RootIndexRange kExternalString = {
+      RootIndex::kExternalStringMap,
+      RootIndex::kUncachedExternalOneByteInternalizedStringMap};
+};
+
+#if V8_STATIC_ROOTS_BOOL
 
 inline constexpr base::Optional<RootIndexRange>
 UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
-  for (auto& el : kUniqueMapRangeOfInstanceTypeRangeList) {
-    if (el.first.first == first && el.first.second == last) {
-      return {el.second};
+  // Doesn't use range based for loop due to LLVM <11 bug re. constexpr
+  // functions.
+  for (size_t i = 0; i < kUniqueMapRangeOfInstanceTypeRangeList.size(); ++i) {
+    if (kUniqueMapRangeOfInstanceTypeRangeList[i].first.first == first &&
+        kUniqueMapRangeOfInstanceTypeRangeList[i].first.second == last) {
+      return {kUniqueMapRangeOfInstanceTypeRangeList[i].second};
     }
   }
   return {};
@@ -258,8 +270,7 @@ V8_INLINE constexpr bool IsInternalizedString(InstanceType instance_type) {
 
 V8_INLINE bool IsInternalizedString(Map map_object) {
 #if V8_STATIC_ROOTS_BOOL
-  return CheckInstanceMapRange({RootIndex::kExternalInternalizedStringMap,
-                                RootIndex::kOneByteInternalizedStringMap},
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kInternalizedString,
                                map_object);
 #else
   return IsInternalizedString(map_object.instance_type());
@@ -273,10 +284,8 @@ V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
 
 V8_INLINE bool IsExternalString(Map map_object) {
 #if V8_STATIC_ROOTS_BOOL
-  return CheckInstanceMapRange(
-      {RootIndex::kExternalStringMap,
-       RootIndex::kUncachedExternalOneByteInternalizedStringMap},
-      map_object);
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kExternalString,
+                               map_object);
 #else
   return IsExternalString(map_object.instance_type());
 #endif

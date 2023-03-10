@@ -565,6 +565,29 @@ class Internals {
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif
 
+#if V8_STATIC_ROOTS_BOOL
+
+// These constants need to be initialized in api.cc.
+#define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
+  V(UndefinedValue)                       \
+  V(NullValue)                            \
+  V(TrueValue)                            \
+  V(FalseValue)                           \
+  V(EmptyString)                          \
+  V(TheHoleValue)
+
+  using Tagged_t = uint32_t;
+  struct StaticReadOnlyRoot {
+#define DEF_ROOT(name) V8_EXPORT static const Tagged_t k##name;
+    EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
+#undef DEF_ROOT
+
+    V8_EXPORT static const Tagged_t kFirstStringMap;
+    V8_EXPORT static const Tagged_t kLastStringMap;
+  };
+
+#endif  // V8_STATIC_ROOTS_BOOL
+
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
   static const int kNullValueRootIndex = 6;
@@ -633,6 +656,21 @@ class Internals {
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     return PlatformSmiTagging::IsValidSmi(value);
   }
+
+#if V8_STATIC_ROOTS_BOOL
+  V8_INLINE static bool is_identical(Address obj, Tagged_t constant) {
+    return static_cast<Tagged_t>(obj) == constant;
+  }
+
+  V8_INLINE static bool CheckInstanceMapRange(Address obj, Tagged_t first_map,
+                                              Tagged_t last_map) {
+    auto map = ReadRawField<Tagged_t>(obj, kHeapObjectMapOffset);
+#ifdef V8_MAP_PACKING
+    map = UnpackMapWord(map);
+#endif
+    return map >= first_map && map <= last_map;
+  }
+#endif
 
   V8_INLINE static int GetInstanceType(Address obj) {
     Address map = ReadTaggedPointerField(obj, kHeapObjectMapOffset);
@@ -704,10 +742,28 @@ class Internals {
     ++(*reinterpret_cast<size_t*>(addr));
   }
 
-  V8_INLINE static Address* GetRoot(v8::Isolate* isolate, int index) {
+  V8_INLINE static Address* GetRootSlot(v8::Isolate* isolate, int index) {
     Address addr = reinterpret_cast<Address>(isolate) + kIsolateRootsOffset +
                    index * kApiSystemPointerSize;
     return reinterpret_cast<Address*>(addr);
+  }
+
+  V8_INLINE static Address GetRoot(v8::Isolate* isolate, int index) {
+#if V8_STATIC_ROOTS_BOOL
+    Address base = *reinterpret_cast<Address*>(
+        reinterpret_cast<uintptr_t>(isolate) + kIsolateCageBaseOffset);
+    switch (index) {
+#define DECOMPRESS_ROOT(name) \
+  case k##name##RootIndex:    \
+    return base + StaticReadOnlyRoot::k##name;
+      EXPORTED_STATIC_ROOTS_PTR_LIST(DECOMPRESS_ROOT)
+#undef DECOMPRESS_ROOT
+      default:
+        break;
+    }
+#undef EXPORTED_STATIC_ROOTS_PTR_LIST
+#endif  // V8_STATIC_ROOTS_BOOL
+    return *GetRootSlot(isolate, index);
   }
 
 #ifdef V8_ENABLE_SANDBOX

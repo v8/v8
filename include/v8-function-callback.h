@@ -328,28 +328,28 @@ void ReturnValue<T>::Set(bool value) {
   } else {
     root_index = I::kFalseValueRootIndex;
   }
-  *value_ = *I::GetRoot(GetIsolate(), root_index);
+  *value_ = I::GetRoot(GetIsolate(), root_index);
 }
 
 template <typename T>
 void ReturnValue<T>::SetNull() {
   static_assert(std::is_base_of<T, Primitive>::value, "type check");
   using I = internal::Internals;
-  *value_ = *I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
+  *value_ = I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
 }
 
 template <typename T>
 void ReturnValue<T>::SetUndefined() {
   static_assert(std::is_base_of<T, Primitive>::value, "type check");
   using I = internal::Internals;
-  *value_ = *I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
+  *value_ = I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
 }
 
 template <typename T>
 void ReturnValue<T>::SetEmptyString() {
   static_assert(std::is_base_of<T, String>::value, "type check");
   using I = internal::Internals;
-  *value_ = *I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
+  *value_ = I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
 }
 
 template <typename T>
@@ -361,8 +361,13 @@ Isolate* ReturnValue<T>::GetIsolate() const {
 template <typename T>
 Local<Value> ReturnValue<T>::Get() const {
   using I = internal::Internals;
-  if (*value_ == *I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex))
+#if V8_STATIC_ROOTS_BOOL
+  if (I::is_identical(*value_, I::StaticReadOnlyRoot::kTheHoleValue)) {
+#else
+  if (*value_ == I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex)) {
+#endif
     return Undefined(GetIsolate());
+  }
   return Local<Value>::New(GetIsolate(), reinterpret_cast<Value*>(value_));
 }
 

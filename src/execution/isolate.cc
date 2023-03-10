@@ -40,10 +40,6 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/debug/debug-frames.h"
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/debug/debug-wasm-objects.h"
-#include "src/wasm/stacks.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
@@ -84,6 +80,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -127,7 +124,9 @@
 #endif  // V8_ENABLE_MAGLEV
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
@@ -4104,7 +4103,9 @@ void Isolate::VerifyStaticRoots() {
     INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
 
-    if (InstanceTypeChecker::IsString(map)) {
+    if (InstanceTypeChecker::IsString(map.instance_type())) {
+      CHECK_EQ(InstanceTypeChecker::IsString(map),
+               InstanceTypeChecker::IsString(map.instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsExternalString(map),
                InstanceTypeChecker::IsExternalString(map.instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsInternalizedString(map),
@@ -4114,6 +4115,11 @@ void Isolate::VerifyStaticRoots() {
     }
   }
 
+  // Sanity check the API
+  CHECK_EQ(
+      v8::internal::Internals::GetRoot(reinterpret_cast<v8::Isolate*>(this),
+                                       static_cast<int>(RootIndex::kNullValue)),
+      ReadOnlyRoots(this).null_value().ptr());
 #undef STATIC_ROOTS_FAILED_MSG
 #endif  // V8_STATIC_ROOTS_BOOL
 }

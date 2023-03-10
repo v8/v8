@@ -934,4 +934,10 @@ V8 shared library set USING_V8_SHARED.
 
 #undef V8_HAS_CPP_ATTRIBUTE
 
+#if !defined(V8_STATIC_ROOTS)
+#define V8_STATIC_ROOTS_BOOL false
+#else
+#define V8_STATIC_ROOTS_BOOL true
+#endif
+
 #endif  // V8CONFIG_H_
