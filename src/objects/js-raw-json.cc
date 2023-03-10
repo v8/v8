@@ -20,20 +20,21 @@ MaybeHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
   Handle<String> json_string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, json_string,
                              Object::ToString(isolate, text), JSRawJson);
-  if (String::IsOneByteRepresentationUnderneath(*json_string)) {
-    if (!JsonParser<uint8_t>::CheckRawJson(isolate, json_string)) {
+  Handle<String> flat = String::Flatten(isolate, json_string);
+  if (String::IsOneByteRepresentationUnderneath(*flat)) {
+    if (!JsonParser<uint8_t>::CheckRawJson(isolate, flat)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<JSRawJson>();
     }
   } else {
-    if (!JsonParser<uint16_t>::CheckRawJson(isolate, json_string)) {
+    if (!JsonParser<uint16_t>::CheckRawJson(isolate, flat)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<JSRawJson>();
     }
   }
   Handle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(isolate->js_raw_json_map());
-  result->InObjectPropertyAtPut(JSRawJson::kRawJsonIndex, *json_string);
+  result->InObjectPropertyAtPut(JSRawJson::kRawJsonIndex, *flat);
   JSObject::SetIntegrityLevel(isolate, result, FROZEN, kThrowOnError).Check();
   return Handle<JSRawJson>::cast(result);
 }
