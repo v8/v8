@@ -2647,23 +2647,7 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc,
                                 bool i64_offset) {
-  UseScratchRegisterScope temps(this);
-  if (offset_reg != no_reg && !i64_offset) {
-    // Clear the upper 32 bits of the 64 bit offset register.
-    llgfr(ip, offset_reg);
-    offset_reg = ip;
-  }
-  if (!is_int20(offset_imm)) {
-    if (offset_reg != no_reg) {
-      mov(r0, Operand(offset_imm));
-      AddS64(r0, offset_reg);
-      mov(ip, r0);
-    } else {
-      mov(ip, Operand(offset_imm));
-    }
-    offset_reg = ip;
-    offset_imm = 0;
-  }
+  PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   MemOperand src_op =
       MemOperand(addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
 
