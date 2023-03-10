@@ -1921,6 +1921,7 @@
 ['tsan and mode == debug', {
   'wasm/memory64': [SKIP],
   'wasm/huge-memory': [SKIP],
+  'wasm/simd-lane-memory64': [SKIP],
 }]
 
 ]
