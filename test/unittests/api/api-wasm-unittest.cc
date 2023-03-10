@@ -13,6 +13,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/wasm/wasm-features.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -180,9 +181,21 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   isolate()->SetWasmGCEnabledCallback([](auto) { return true; });
   EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
+  {
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
+    EXPECT_TRUE(enabled_features.has_gc());
+    EXPECT_TRUE(enabled_features.has_stringref());
+    EXPECT_TRUE(enabled_features.has_typed_funcref());
+  }
   isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
   EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
+  {
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
+    EXPECT_FALSE(enabled_features.has_gc());
+    EXPECT_FALSE(enabled_features.has_stringref());
+    EXPECT_FALSE(enabled_features.has_typed_funcref());
+  }
   isolate()->SetWasmGCEnabledCallback(nullptr);
 }
 

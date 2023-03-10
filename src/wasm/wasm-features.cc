@@ -35,6 +35,9 @@ WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
   WasmFeatures features = WasmFeatures::FromFlags();
   if (isolate->IsWasmGCEnabled(handle(isolate->context(), isolate))) {
     features.Add(kFeature_gc);
+    // Also enable typed function references, since the commandline flag
+    // implication won't do that for us in this case.
+    features.Add(kFeature_typed_funcref);
   }
   if (isolate->IsWasmStringRefEnabled(handle(isolate->context(), isolate))) {
     features.Add(kFeature_stringref);
