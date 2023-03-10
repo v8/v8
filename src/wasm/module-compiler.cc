@@ -2060,7 +2060,8 @@ struct ValidateFunctionsStreamingJobData {
     end_of_units.store(units.get(), std::memory_order_relaxed);
   }
 
-  void AddUnit(int declared_func_index, base::Vector<const uint8_t> code) {
+  void AddUnit(int declared_func_index, base::Vector<const uint8_t> code,
+               JobHandle* job_handle) {
     DCHECK_NOT_NULL(units);
     // Write new unit to {*end}, then increment {end}. There is only one thread
     // adding new units, so no further synchronization needed.
@@ -2071,8 +2072,14 @@ struct ValidateFunctionsStreamingJobData {
     // Use release semantics, so whoever loads this pointer (using acquire
     // semantics) sees all our previous stores.
     end_of_units.store(ptr + 1, std::memory_order_release);
-    // Remember to increase concurrency after finishing the current chunk.
-    has_increased_concurrency = true;
+    ++num_added_units_in_chunk;
+    // Chunks can be big, and only notifying concurrency increase after each
+    // chunk causes significant regressions. Hence we also notify from time to
+    // time within a chunk (on each power of two >= 16).
+    if (num_added_units_in_chunk >= 16 &&
+        base::bits::IsPowerOfTwo(num_added_units_in_chunk)) {
+      job_handle->NotifyConcurrencyIncrease();
+    }
   }
 
   size_t NumOutstandingUnits() const {
@@ -2100,9 +2107,9 @@ struct ValidateFunctionsStreamingJobData {
   }
 
   void MaybeNotifyConcurrencyIncrease(JobHandle* job_handle) {
-    if (!has_increased_concurrency) return;
+    if (num_added_units_in_chunk == 0) return;
+    num_added_units_in_chunk = 0;
     job_handle->NotifyConcurrencyIncrease();
-    has_increased_concurrency = false;
   }
 
   std::unique_ptr<Unit[]> units;
@@ -2110,11 +2117,11 @@ struct ValidateFunctionsStreamingJobData {
   std::atomic<Unit*> end_of_units;
   std::atomic<bool> found_error{false};
 
-  // Remember whether we added new units in the current chunk. If so, we need to
-  // call {NotifyConcurrencyIncrease} later.
+  // Remember how many units we added in the current chunk. From time to time,
+  // and after finishing one chunk, we call {NotifyConcurrencyIncrease}.
   // This field is only accessed by the main thread, so does not need
   // atomic access.
-  bool has_increased_concurrency = false;
+  size_t num_added_units_in_chunk = 0;
 };
 
 class ValidateFunctionsStreamingJob final : public JobTask {
@@ -2861,8 +2868,8 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
           std::make_unique<ValidateFunctionsStreamingJob>(
               module, enabled_features, &validate_functions_job_data_));
     }
-    validate_functions_job_data_.AddUnit(func_index, bytes);
-    // Note: {NotifyConcurrencyIncrease} will be called in {OnFinishedChunk}.
+    validate_functions_job_data_.AddUnit(func_index, bytes,
+                                         validate_functions_job_handle_.get());
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
