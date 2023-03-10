@@ -1475,7 +1475,7 @@ void Heap::ScheduleScavengeTaskIfNeeded() {
 }
 
 size_t Heap::MinorMCTaskTriggerSize() const {
-  return new_space()->Capacity() * v8_flags.minor_mc_task_trigger / 100;
+  return new_space()->TotalCapacity() * v8_flags.minor_mc_task_trigger / 100;
 }
 
 void Heap::StartMinorMCIncrementalMarkingIfNeeded() {

@@ -931,7 +931,7 @@ void PagedSpaceForNewSpace::Grow() {
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {
-  DCHECK_EQ(current_capacity_, target_capacity_);
+  DCHECK_GE(current_capacity_, target_capacity_);
   DCHECK(heap()->tracer()->IsInAtomicPause());
   size_t new_target_capacity =
       RoundUp(std::max(initial_capacity_, 2 * Size()), Page::kPageSize);
@@ -961,7 +961,7 @@ void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_LE(current_capacity_, target_capacity_);
+  DCHECK_LE(UsableCapacity(), TotalCapacity());
   return PagedSpaceBase::AddPage(page);
 }
 
@@ -981,7 +981,7 @@ bool PagedSpaceForNewSpace::PreallocatePages() {
   while (current_capacity_ < target_capacity_) {
     if (!TryExpandImpl()) return false;
   }
-  DCHECK_EQ(current_capacity_, target_capacity_);
+  DCHECK_GE(current_capacity_, target_capacity_);
   return true;
 }
 
@@ -1023,6 +1023,15 @@ void PagedSpaceForNewSpace::RefillFreeList() {
     RefineAllocatedBytesAfterSweeping(p);
     RelinkFreeListCategories(p);
   }
+}
+
+bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
+                                                  AllocationOrigin origin) {
+  DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+  if (TotalCapacity() - UsableCapacity() < Page::kPageSize) return false;
+  if (!TryExpandImpl()) return false;
+  return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                       origin);
 }
 
 // -----------------------------------------------------------------------------
