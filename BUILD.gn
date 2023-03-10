@@ -473,31 +473,6 @@ assert(!v8_jitless ||
            (!v8_enable_maglev && !v8_enable_turbofan && !v8_enable_webassembly),
        "Maglev, Turbofan and Wasm are not available in jitless mode")
 
-if (v8_builtins_profiling_log_file == "default") {
-  v8_builtins_profiling_log_file = ""
-
-  # Don't use existing profile when
-  # * generating a new one (i.e. v8_enable_builtins_profiling),
-  # * is_debug or dcheck_always_on because they add more checks to the
-  #   builtins control flow which we don't want to generate,
-  # * v8_enable_webassembly because it changes the set of opcodes which affects
-  #   graphs hashes,
-  # * !is_clang because it might affect argument evaluation order, which
-  #    makes node IDs not predictable for subgraphs like Op1(Op2(), Op3()) and
-  #    as a result different graph hash.
-  if (!v8_enable_builtins_profiling && is_clang && !is_debug &&
-      !dcheck_always_on && v8_enable_webassembly) {
-    if ((v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
-        v8_enable_pointer_compression && v8_enable_external_code_space) {
-      # Note, currently x64 profile can be applied to arm64 but not the other
-      # way round.
-      v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
-    } else if (v8_current_cpu == "x86" || v8_current_cpu == "arm") {
-      # Note, x86 profile can be applied to arm but not the other way round.
-      v8_builtins_profiling_log_file = "tools/builtins-pgo/x86.profile"
-    }
-  }
-}
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
 }
@@ -572,6 +547,35 @@ assert(!v8_enable_static_roots ||
                 v8_enable_external_code_space && v8_enable_webassembly &&
                 v8_enable_i18n_support),
        "Trying to enable static roots in a configuration that is not supported")
+
+if (v8_builtins_profiling_log_file == "default") {
+  v8_builtins_profiling_log_file = ""
+
+  # Don't use existing profile when
+  # * generating a new one (i.e. v8_enable_builtins_profiling),
+  # * is_debug or dcheck_always_on because they add more checks to the
+  #   builtins control flow which we don't want to generate,
+  # * !v8_enable_sandbox because it affects the way how external pointer values
+  #   are accessed,
+  # * v8_enable_webassembly because it changes the set of opcodes which affects
+  #   graphs hashes,
+  # * !is_clang because it might affect argument evaluation order, which
+  #    makes node IDs not predictable for subgraphs like Op1(Op2(), Op3()) and
+  #    as a result different graph hash.
+  if (!v8_enable_builtins_profiling && is_clang && !is_debug &&
+      !dcheck_always_on && v8_enable_webassembly) {
+    if ((v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
+        v8_enable_pointer_compression && v8_enable_external_code_space &&
+        v8_enable_sandbox) {
+      # Note, currently x64 profile can be applied to arm64 but not the other
+      # way round.
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
+    } else if (v8_current_cpu == "x86" || v8_current_cpu == "arm") {
+      # Note, x86 profile can be applied to arm but not the other way round.
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/x86.profile"
+    }
+  }
+}
 
 if (v8_enable_webassembly && !target_is_simulator && v8_current_cpu == "x64") {
   v8_enable_wasm_simd256_revec = true
