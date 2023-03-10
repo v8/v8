@@ -2041,15 +2041,13 @@ void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
 }
 
 void BaselineCompiler::VisitJumpIfJSReceiver() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+
   Label is_smi, dont_jump;
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-#if V8_STATIC_ROOTS_BOOL
-  __ JumpIfJSAnyIsPrimitive(kInterpreterAccumulatorRegister, &dont_jump);
-#else
   __ JumpIfObjectTypeFast(kLessThan, kInterpreterAccumulatorRegister,
                           FIRST_JS_RECEIVER_TYPE, &dont_jump);
-#endif
   UpdateInterruptBudgetAndDoInterpreterJump();
 
   __ Bind(&is_smi);

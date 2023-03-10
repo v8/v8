@@ -80,7 +80,6 @@ PromiseResolve(implicit context: Context)(
 }
 
 extern macro IsJSReceiverMap(Map): bool;
-extern macro JSAnyIsNotPrimitiveMap(Map): bool;
 
 extern macro IsPromiseThenProtectorCellInvalid(): bool;
 
@@ -116,7 +115,7 @@ ResolvePromise(implicit context: Context)(
 
     const heapResolution = UnsafeCast<HeapObject>(resolution);
     const resolutionMap = heapResolution.map;
-    if (!JSAnyIsNotPrimitiveMap(resolutionMap)) {
+    if (!IsJSReceiverMap(resolutionMap)) {
       return FulfillPromise(promise, resolution);
     }
 

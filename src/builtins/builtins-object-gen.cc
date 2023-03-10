@@ -702,7 +702,7 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
       // If {value} is a primitive HeapObject, we need to return
       // false instead of throwing an exception per order of the
       // steps in the specification, so check that first here.
-      GotoIfNot(JSAnyIsNotPrimitive(value_heap_object), &if_valueisnotreceiver);
+      GotoIfNot(IsJSReceiver(value_heap_object), &if_valueisnotreceiver);
 
       // Simulate the ToObject invocation on {receiver}.
       ToObject(context, receiver);
@@ -1023,7 +1023,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<HeapObject> handler =
         CAST(LoadObjectField(receiver_heap_object, JSProxy::kHandlerOffset));
     CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-    GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
+    GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
 
     // If {receiver_heap_object} is a proxy for a JSArray, we default to
     // "[object Array]", otherwise we default to "[object Object]" or "[object

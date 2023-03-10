@@ -48,7 +48,6 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
@@ -2063,11 +2062,6 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                     : isolate()->shared_space_isolate()->heap();
   result.set_map_after_allocation(ReadOnlyRoots(roots).meta_map(),
                                   SKIP_WRITE_BARRIER);
-#if V8_STATIC_ROOTS_BOOL
-  CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(type),
-                V8HeapCompressionScheme::CompressObject(result.ptr()) >
-                    InstanceTypeChecker::kNonJsReceiverMapLimit);
-#endif
   return handle(InitializeMap(Map::cast(result), type, instance_size,
                               elements_kind, inobject_properties, roots),
                 isolate());

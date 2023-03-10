@@ -546,14 +546,6 @@ inline void MaglevAssembler::CompareObjectType(Register heap_object,
   CompareObjectType(heap_object, type, scratch);
 }
 
-inline void MaglevAssembler::JumpIfJSAnyIsNotPrimitive(
-    Register heap_object, Label* target, Label::Distance distance) {
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  MacroAssembler::JumpIfJSAnyIsNotPrimitive(heap_object, scratch, target,
-                                            distance);
-}
-
 inline void MaglevAssembler::CompareObjectType(Register heap_object,
                                                InstanceType type,
                                                Register scratch) {

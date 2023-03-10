@@ -32,7 +32,6 @@
 #include "src/compiler/string-builder-optimizer.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
-#include "src/objects/instance-type-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/oddball.h"
@@ -322,7 +321,6 @@ class EffectControlLinearizer {
   Node* ChangeSmiToInt32(Node* value);
   Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
-  Node* JSAnyIsNotPrimitiveHeapObject(Node* value, Node* map = nullptr);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
   Node* TruncateWordToInt32(Node* value);
   Node* MakeWeakForComparison(Node* heap_object);
@@ -2374,7 +2372,14 @@ Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
 Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
                                                   Node* frame_state) {
   Node* value = node->InputAt(0);
-  Node* check = JSAnyIsNotPrimitiveHeapObject(value);
+
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  Node* check = __ Uint32LessThanOrEqual(
+      __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObject, FeedbackSource(),
                      check, frame_state);
   return value;
@@ -2384,17 +2389,6 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
     Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
 
-#if V8_STATIC_ROOTS_BOOL
-  Node* check0 = JSAnyIsNotPrimitiveHeapObject(value);
-  Node* check1 = __ TaggedEqual(value, __ UndefinedConstant());
-  Node* check2 = __ TaggedEqual(value, __ NullConstant());
-
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
-                     FeedbackSource(),
-                     __ Word32Or(check0, __ Word32Or(check1, check2)),
-                     frame_state);
-
-#else
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -2411,7 +2405,6 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
   Node* check1 = __ TaggedEqual(value_map, __ BooleanMapConstant());
   __ DeoptimizeIf(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
                   FeedbackSource(), check1, frame_state);
-#endif
   return value;
 }
 
@@ -4681,7 +4674,11 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
   __ GotoIf(check0, &if_primitive);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* check1 = JSAnyIsNotPrimitiveHeapObject(value, value_map);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  Node* check1 = __ Uint32LessThanOrEqual(
+      __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ GotoIfNot(check1, &if_primitive);
 
   Node* value_bit_field =
@@ -4726,7 +4723,13 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
 
   __ GotoIf(ObjectIsSmi(value), &if_smi);
 
-  __ Goto(&done, JSAnyIsNotPrimitiveHeapObject(value));
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* result = __ Uint32LessThanOrEqual(
+      __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
+  __ Goto(&done, result);
 
   __ Bind(&if_smi);
   __ Goto(&done, __ Int32Constant(0));
@@ -6098,26 +6101,6 @@ Node* EffectControlLinearizer::ChangeSmiToInt64(Node* value) {
 Node* EffectControlLinearizer::ObjectIsSmi(Node* value) {
   return __ Word32Equal(__ Word32And(value, __ Int32Constant(kSmiTagMask)),
                         __ Int32Constant(kSmiTag));
-}
-
-Node* EffectControlLinearizer::JSAnyIsNotPrimitiveHeapObject(Node* value,
-                                                             Node* value_map) {
-  if (value_map == nullptr) {
-    value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  }
-#if V8_STATIC_ROOTS_BOOL
-  // Assumes only primitive objects and JS_RECEIVER's are passed here.
-  // All primitive object's maps are allocated at the start of the read only
-  // heap. Thus JS_RECEIVER's must have maps with larger (compressed) addresses.
-  return __ Uint32LessThan(
-      __ Int32Constant(InstanceTypeChecker::kNonJsReceiverMapLimit), value_map);
-#else
-  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-  return __ Uint32LessThanOrEqual(__ Uint32Constant(FIRST_JS_RECEIVER_TYPE),
-                                  value_instance_type);
-#endif
 }
 
 Node* EffectControlLinearizer::SmiMaxValueConstant() {
@@ -7645,7 +7628,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      __ GotoIfNot(JSAnyIsNotPrimitiveHeapObject(value), &convert_to_object);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* value_instance_type =
+          __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+      Node* check = __ Uint32LessThan(
+          value_instance_type, __ Uint32Constant(FIRST_JS_RECEIVER_TYPE));
+      __ GotoIf(check, &convert_to_object);
       __ Goto(&done_convert, value);
 
       // Wrap the primitive {value} into a JSPrimitiveWrapper.
@@ -7672,7 +7661,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver, or null/undefined.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      __ GotoIfNot(JSAnyIsNotPrimitiveHeapObject(value), &convert_to_object);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* value_instance_type =
+          __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+      Node* check = __ Uint32LessThan(
+          value_instance_type, __ Uint32Constant(FIRST_JS_RECEIVER_TYPE));
+      __ GotoIf(check, &convert_to_object);
       __ Goto(&done_convert, value);
 
       // Wrap the primitive {value} into a JSPrimitiveWrapper.

@@ -1818,7 +1818,9 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   Label convert_to_object, done;
   Register receiver = ToRegister(receiver_input());
   __ JumpIfSmi(receiver, &convert_to_object, Label::Distance::kNear);
-  __ JumpIfJSAnyIsNotPrimitive(receiver, &done);
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CompareObjectType(receiver, FIRST_JS_RECEIVER_TYPE);
+  __ JumpIf(kUnsignedGreaterThanEqual, &done);
 
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
@@ -2670,7 +2672,8 @@ void ToObject::GenerateCode(MaglevAssembler* masm,
   Label call_builtin, done;
   // Avoid the builtin call if {value} is a JSReceiver.
   __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
-  __ JumpIfJSAnyIsNotPrimitive(value, &done, Label::Distance::kNear);
+  __ CompareObjectType(value, FIRST_JS_RECEIVER_TYPE);
+  __ JumpIf(kUnsignedGreaterThanEqual, &done, Label::Distance::kNear);
   __ bind(&call_builtin);
   __ CallBuiltin(Builtin::kToObject);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -3558,8 +3561,9 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   Register value = ToRegister(condition_input());
   __ JumpIfSmi(value, if_false()->label());
-  __ JumpIfJSAnyIsNotPrimitive(value, if_true()->label());
-  __ jmp(if_false()->label());
+  __ CompareObjectType(value, FIRST_JS_RECEIVER_TYPE);
+  __ Branch(kUnsignedGreaterThanEqual, if_true(), if_false(),
+            state.next_block());
 }
 
 void Switch::SetValueLocationConstraints() {

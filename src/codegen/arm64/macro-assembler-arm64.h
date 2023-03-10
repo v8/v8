@@ -2018,19 +2018,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         InstanceType type, Label* if_cond_pass,
                         Condition cond = eq);
 
-  // Fast check if the object is a js receiver type. Assumes only primitive
-  // objects or js receivers are passed.
-  void JumpIfJSAnyIsNotPrimitive(Register heap_object, Register scratch,
-                                 Label* target,
-                                 Label::Distance distance = Label::kFar,
-                                 Condition cc = Condition::kGreaterThanEqual);
-  void JumpIfJSAnyIsPrimitive(Register heap_object, Register scratch,
-                              Label* target,
-                              Label::Distance distance = Label::kFar) {
-    JumpIfJSAnyIsNotPrimitive(heap_object, scratch, target, distance,
-                              Condition::kLessThan);
-  }
-
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
