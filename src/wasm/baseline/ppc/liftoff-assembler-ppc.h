@@ -2255,7 +2255,12 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
-                                uint8_t laneidx, uint32_t* protected_load_pc) {
+                                uint8_t laneidx, uint32_t* protected_load_pc,
+                                bool i64_offset) {
+  if (!i64_offset && offset_reg != no_reg) {
+    ZeroExtWord32(r0, offset_reg);
+    offset_reg = r0;
+  }
   MemOperand src_op = MemOperand(addr, offset_reg, offset_imm);
 
   MachineType mem_type = type.mem_type();
@@ -2279,7 +2284,12 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
-                                 uint32_t* protected_store_pc) {
+                                 uint32_t* protected_store_pc,
+                                 bool i64_offset) {
+  if (!i64_offset && offset != no_reg) {
+    ZeroExtWord32(r0, offset);
+    offset = r0;
+  }
   MemOperand dst_op = MemOperand(dst, offset, offset_imm);
 
   if (protected_store_pc) *protected_store_pc = pc_offset();

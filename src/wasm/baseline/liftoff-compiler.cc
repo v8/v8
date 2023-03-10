@@ -3318,6 +3318,9 @@ class LiftoffCompiler {
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDontForceCheck);
 
+    DCHECK(_index.type.kind() == kI32 || _index.type.kind() == kI64);
+    bool i64_offset = _index.type.kind() == kI64;
+
     uintptr_t offset = imm.offset;
     pinned.set(index);
     CODE_COMMENT("load lane");
@@ -3326,7 +3329,7 @@ class LiftoffCompiler {
     uint32_t protected_load_pc = 0;
 
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
-                &protected_load_pc);
+                &protected_load_pc, i64_offset);
     if (env_->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
@@ -3400,12 +3403,16 @@ class LiftoffCompiler {
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDontForceCheck);
 
+    DCHECK(_index.type.kind() == kI32 || _index.type.kind() == kI64);
+    bool i64_offset = _index.type.kind() == kI64;
+
     uintptr_t offset = imm.offset;
     pinned.set(index);
     CODE_COMMENT("store lane to memory");
     Register addr = pinned.set(GetMemoryStart(pinned));
     uint32_t protected_store_pc = 0;
-    __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc);
+    __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc,
+                 i64_offset);
     if (env_->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);

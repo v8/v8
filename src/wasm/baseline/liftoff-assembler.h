@@ -1133,10 +1133,11 @@ class LiftoffAssembler : public MacroAssembler {
                             uint32_t* protected_load_pc);
   inline void LoadLane(LiftoffRegister dst, LiftoffRegister src, Register addr,
                        Register offset_reg, uintptr_t offset_imm, LoadType type,
-                       uint8_t lane, uint32_t* protected_load_pc);
+                       uint8_t lane, uint32_t* protected_load_pc,
+                       bool i64_offset);
   inline void StoreLane(Register dst, Register offset, uintptr_t offset_imm,
                         LiftoffRegister src, StoreType type, uint8_t lane,
-                        uint32_t* protected_store_pc);
+                        uint32_t* protected_store_pc, bool i64_offset);
   inline void emit_i8x16_shuffle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs, const uint8_t shuffle[16],
                                  bool is_swizzle);

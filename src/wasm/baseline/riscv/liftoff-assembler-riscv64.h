@@ -1430,8 +1430,10 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
-                                uint8_t laneidx, uint32_t* protected_load_pc) {
-  MemOperand src_op = liftoff::GetMemOp(this, addr, offset_reg, offset_imm);
+                                uint8_t laneidx, uint32_t* protected_load_pc,
+                                bool i64_offset) {
+  MemOperand src_op =
+      liftoff::GetMemOp(this, addr, offset_reg, offset_imm, i64_offset);
   MachineType mem_type = type.mem_type();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -1469,8 +1471,10 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
-                                 uint32_t* protected_store_pc) {
-  MemOperand dst_op = liftoff::GetMemOp(this, dst, offset, offset_imm);
+                                 uint32_t* protected_store_pc,
+                                 bool i64_offset) {
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst, offset, offset_imm, i64_offset);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   MachineRepresentation rep = type.mem_rep();
   if (rep == MachineRepresentation::kWord8) {

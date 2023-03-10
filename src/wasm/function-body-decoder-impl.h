@@ -4245,7 +4245,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
     Value v128 = Peek(0, 1, kWasmS128);
-    Value index = Peek(1, 0, kWasmI32);
+    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value index = Peek(1, 0, index_type);
 
     Value result = CreateValue(kWasmS128);
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), mem_imm.offset))) {
@@ -4266,7 +4267,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
     Value v128 = Peek(0, 1, kWasmS128);
-    Value index = Peek(1, 0, kWasmI32);
+    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value index = Peek(1, 0, index_type);
 
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), mem_imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, type, mem_imm, index, v128,

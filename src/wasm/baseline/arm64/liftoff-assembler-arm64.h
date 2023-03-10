@@ -123,12 +123,12 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
 inline Register GetEffectiveAddress(LiftoffAssembler* assm,
                                     UseScratchRegisterScope* temps,
                                     Register addr, Register offset,
-                                    uintptr_t offset_imm) {
+                                    uintptr_t offset_imm,
+                                    bool i64_offset = false) {
   if (!offset.is_valid() && offset_imm == 0) return addr;
   Register tmp = temps->AcquireX();
   if (offset.is_valid()) {
-    // TODO(clemensb): This needs adaption for memory64.
-    assm->Add(tmp, addr, Operand(offset, UXTW));
+    assm->Add(tmp, addr, i64_offset ? Operand(offset) : Operand(offset, UXTW));
     addr = tmp;
   }
   if (offset_imm != 0) assm->Add(tmp, addr, offset_imm);
@@ -1858,10 +1858,11 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
-                                uint8_t laneidx, uint32_t* protected_load_pc) {
+                                uint8_t laneidx, uint32_t* protected_load_pc,
+                                bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  MemOperand src_op{
-      liftoff::GetEffectiveAddress(this, &temps, addr, offset_reg, offset_imm)};
+  MemOperand src_op{liftoff::GetEffectiveAddress(this, &temps, addr, offset_reg,
+                                                 offset_imm, i64_offset)};
 
   MachineType mem_type = type.mem_type();
   if (dst != src) {
@@ -1885,10 +1886,11 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
-                                 uint32_t* protected_store_pc) {
+                                 uint32_t* protected_store_pc,
+                                 bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  MemOperand dst_op{
-      liftoff::GetEffectiveAddress(this, &temps, dst, offset, offset_imm)};
+  MemOperand dst_op{liftoff::GetEffectiveAddress(this, &temps, dst, offset,
+                                                 offset_imm, i64_offset)};
   if (protected_store_pc) *protected_store_pc = pc_offset();
 
   MachineRepresentation rep = type.mem_rep();

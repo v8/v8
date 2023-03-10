@@ -562,6 +562,7 @@
   'wasm/huge-memory': [SKIP],
   'wasm/huge-typedarray': [SKIP],
   'wasm/bigint-opt': [SKIP],
+  'wasm/simd-lane-memory64': [SKIP],
   'regress/regress-1320641': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
