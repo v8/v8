@@ -4727,7 +4727,7 @@ void MacroAssembler::LoadAndSplat32x4LE(Simd128Register dst,
                                         const MemOperand& mem,
                                         Register scratch) {
   LoadSimd128Uint32(dst, mem, scratch);
-  MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrw)
+  MAYBE_REVERSE_BYTES(dst, xxbrw)
   vspltw(dst, dst, Operand(1));
 }
 
@@ -4735,7 +4735,7 @@ void MacroAssembler::LoadAndSplat16x8LE(Simd128Register dst,
                                         const MemOperand& mem,
                                         Register scratch) {
   LoadSimd128Uint16(dst, mem, scratch);
-  MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrh)
+  MAYBE_REVERSE_BYTES(dst, xxbrh)
   vsplth(dst, dst, Operand(3));
 }
 
