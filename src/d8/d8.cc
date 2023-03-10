@@ -2883,8 +2883,12 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
 }
 
 void Shell::Terminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  auto v8_isolate = args.GetIsolate();
-  if (!v8_isolate->IsExecutionTerminating()) v8_isolate->TerminateExecution();
+  // Triggering termination from JS can cause some non-determinism thus we
+  // skip it for correctness fuzzing.
+  if (!i::v8_flags.correctness_fuzzer_suppressions) {
+    auto v8_isolate = args.GetIsolate();
+    if (!v8_isolate->IsExecutionTerminating()) v8_isolate->TerminateExecution();
+  }
 }
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
