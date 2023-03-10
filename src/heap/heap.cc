@@ -3845,7 +3845,7 @@ void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
 }
 
 namespace {
-thread_local Address pending_layout_change_object = kNullAddress;
+thread_local Address pending_layout_change_object_address = kNullAddress;
 }  // namespace
 
 void Heap::NotifyObjectLayoutChange(
@@ -3856,8 +3856,8 @@ void Heap::NotifyObjectLayoutChange(
 
     if (incremental_marking()->IsMarking()) {
       ExclusiveObjectLock::Lock(object);
-      DCHECK_EQ(pending_layout_change_object, kNullAddress);
-      pending_layout_change_object = object.address();
+      DCHECK_EQ(pending_layout_change_object_address, kNullAddress);
+      pending_layout_change_object_address = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
         MemoryChunk::FromHeapObject(object)
             ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, new_size);
@@ -3880,10 +3880,10 @@ void Heap::NotifyObjectLayoutChange(
 
 // static
 void Heap::NotifyObjectLayoutChangeDone(HeapObject object) {
-  if (pending_layout_change_object != kNullAddress) {
-    DCHECK_EQ(pending_layout_change_object, object.address());
+  if (pending_layout_change_object_address != kNullAddress) {
+    DCHECK_EQ(pending_layout_change_object_address, object.address());
     ExclusiveObjectLock::Unlock(object);
-    pending_layout_change_object = kNullAddress;
+    pending_layout_change_object_address = kNullAddress;
   }
 }
 
