@@ -102,7 +102,7 @@ def GenerateCCFiles():
 
 
 def StartGoma():
-  gomadir = gm.DetectGoma()
+  gomadir = gm.detect_goma()
   if (gomadir is not None and
       _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % gomadir)
