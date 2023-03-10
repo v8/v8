@@ -3523,6 +3523,19 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
     TRACE_CANNOT_INLINE("use unsupported expection handlers");
     return false;
   }
+  // TODO(victorgomes): Support inlined allocation of the arguments object.
+  interpreter::BytecodeArrayIterator iterator(bytecode.object());
+  for (; !iterator.done(); iterator.Advance()) {
+    switch (iterator.current_bytecode()) {
+      case interpreter::Bytecode::kCreateMappedArguments:
+      case interpreter::Bytecode::kCreateUnmappedArguments:
+      case interpreter::Bytecode::kCreateRestParameter:
+        TRACE_CANNOT_INLINE("not supported inlined arguments object");
+        return false;
+      default:
+        break;
+    }
+  }
   if (call_frequency < v8_flags.min_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
                         << call_frequency << ") < minimum thredshold ("
