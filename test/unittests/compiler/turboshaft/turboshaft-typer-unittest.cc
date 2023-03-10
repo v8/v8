@@ -22,6 +22,16 @@ class WordTyperTest : public TestWithNativeContextAndZone {
 };
 
 template <typename T>
+class FloatTyperTest : public TestWithNativeContextAndZone {
+ public:
+  CanonicalHandleScope canonical;
+  using float_t = typename T::float_t;
+  static constexpr size_t Bits = sizeof(float_t) * kBitsPerByte;
+
+  FloatTyperTest() : TestWithNativeContextAndZone(), canonical(isolate()) {}
+};
+
+template <typename T>
 struct Slices {
   Slices(std::initializer_list<T> slices) : slices(slices) {}
 
@@ -63,10 +73,7 @@ TYPED_TEST_SUITE(WordTyperTest, WordTypes);
   auto Range = [&](word_t from, word_t to) {                                  \
     return T::Range(from, to, this->zone());                                  \
   };                                                                          \
-  USE(Slices{});                                                              \
-  USE(Constant);                                                              \
-  USE(Set);                                                                   \
-  USE(Range);
+  USE(Slices{}, Constant, Set, Range);
 
 TYPED_TEST(WordTyperTest, Add) {
   DEFINE_TEST_HELPERS()
@@ -259,5 +266,81 @@ TYPED_TEST(WordTyperTest, WidenExponential) {
 
 #undef EXPECT_WEXP
 }
+
+#undef DEFINE_TEST_HELPERS
+
+using FloatTypes = ::testing::Types<Float32Type, Float64Type>;
+TYPED_TEST_SUITE(FloatTyperTest, FloatTypes);
+
+#define DEFINE_TEST_HELPERS()                                               \
+  using T = TypeParam;                                                      \
+  using float_t = typename TestFixture::float_t;                            \
+  using Slices = Slices<T>;                                                 \
+  auto Constant = [&](float_t value) { return T::Constant(value); };        \
+  auto Set = [&](std::initializer_list<float_t> elements,                   \
+                 uint32_t special_values = 0) {                             \
+    return T::Set(elements, special_values, this->zone());                  \
+  };                                                                        \
+  auto Range = [&](float_t from, float_t to, uint32_t special_values = 0) { \
+    return T::Range(from, to, special_values, this->zone());                \
+  };                                                                        \
+  constexpr uint32_t kNaN = T::kNaN;                                        \
+  constexpr uint32_t kMZ = T::kMinusZero;                                   \
+  constexpr float_t nan = nan_v<TestFixture::Bits>;                         \
+  constexpr float_t inf = std::numeric_limits<float_t>::infinity();         \
+  USE(Slices{}, Constant, Set, Range);                                      \
+  USE(kNaN, kMZ, nan, inf);
+
+TYPED_TEST(FloatTyperTest, Divide) {
+  DEFINE_TEST_HELPERS()
+#define EXPECT_DIV(lhs, rhs, result)                                \
+  EXPECT_LE(result, FloatOperationTyper<TestFixture::Bits>::Divide( \
+                        lhs, rhs, this->zone()))
+
+  // 0 / x
+  EXPECT_DIV(Constant(0.0), T::Any(), Set({0}, kNaN | kMZ));
+  EXPECT_DIV(T::MinusZero(), T::Any(), Set({0}, kNaN | kMZ));
+  EXPECT_DIV(Constant(0.0), Range(0.001, inf), Constant(0));
+  EXPECT_DIV(T::MinusZero(), Range(0.001, inf), T::MinusZero());
+  EXPECT_DIV(Constant(0.0), Range(-inf, -0.001), T::MinusZero());
+  EXPECT_DIV(T::MinusZero(), Range(-inf, -0.001), Constant(0));
+  EXPECT_DIV(Set({0.0}, kMZ), Constant(3), Set({0}, kMZ));
+  EXPECT_DIV(Set({0.0}), Set({-2.5, 0.0, 1.5}), Set({0.0}, kNaN | kMZ));
+  EXPECT_DIV(Set({0.0}, kMZ), Set({-2.5, 0.0, 1.5}), Set({0.0}, kNaN | kMZ));
+  EXPECT_DIV(Set({0.0}), Set({1.5}, kMZ), Set({0.0}, kNaN));
+  EXPECT_DIV(Set({0.0}, kMZ), Set({1.5}, kMZ), Set({0.0}, kNaN | kMZ));
+
+  // x / 0
+  EXPECT_DIV(Constant(1.0), Constant(0), Constant(inf));
+  EXPECT_DIV(Constant(1.0), T::MinusZero(), Constant(-inf));
+  EXPECT_DIV(Constant(inf), Constant(0), Constant(inf));
+  EXPECT_DIV(Constant(inf), T::MinusZero(), Constant(-inf));
+  EXPECT_DIV(Constant(-1.0), Constant(0), Constant(-inf));
+  EXPECT_DIV(Constant(-1.0), T::MinusZero(), Constant(inf));
+  EXPECT_DIV(Constant(-inf), Constant(0), Constant(-inf));
+  EXPECT_DIV(Constant(-inf), T::MinusZero(), Constant(inf));
+  EXPECT_DIV(Constant(1.5), Set({0.0}, kMZ), Set({-inf, inf}));
+  EXPECT_DIV(Constant(-1.5), Set({0.0}, kMZ), Set({-inf, inf}));
+  EXPECT_DIV(Set({1.5}, kMZ), Set({0.0}, kMZ), Set({-inf, inf}, kNaN));
+  EXPECT_DIV(Set({-1.5}, kMZ), Set({0.0}, kMZ), Set({-inf, inf}, kNaN));
+
+  // 0 / 0
+  EXPECT_DIV(Constant(0), Constant(0), T::NaN());
+  EXPECT_DIV(Constant(0), T::MinusZero(), T::NaN());
+  EXPECT_DIV(T::MinusZero(), Constant(0), T::NaN());
+  EXPECT_DIV(T::MinusZero(), T::MinusZero(), T::NaN());
+  EXPECT_DIV(Set({0}, kMZ), Set({1}, kMZ), Set({0}, kNaN | kMZ));
+
+  // inf / inf
+  EXPECT_DIV(Constant(inf), Constant(inf), T::NaN());
+  EXPECT_DIV(Constant(inf), Constant(-inf), T::NaN());
+  EXPECT_DIV(Constant(-inf), Constant(inf), T::NaN());
+  EXPECT_DIV(Constant(-inf), Constant(-inf), T::NaN());
+  EXPECT_DIV(Set({-inf, inf}), Constant(inf), T::NaN());
+  EXPECT_DIV(Set({-inf, inf}), Constant(-inf), T::NaN());
+  EXPECT_DIV(Set({-inf, inf}), Set({-inf, inf}), T::NaN());
+}
+
+#undef DEFINE_TEST_HELPERS
 
 }  // namespace v8::internal::compiler::turboshaft

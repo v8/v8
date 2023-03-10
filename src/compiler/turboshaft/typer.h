@@ -466,12 +466,22 @@ struct FloatOperationTyper {
                          std::function<float_t(float_t, float_t)> combine) {
     DCHECK(l.is_set());
     DCHECK(r.is_set());
+
     std::vector<float_t> results;
-    for (int i = 0; i < l.set_size(); ++i) {
+    auto CombineWithLeft = [&](float_t left) {
       for (int j = 0; j < r.set_size(); ++j) {
-        results.push_back(combine(l.set_element(i), r.set_element(j)));
+        results.push_back(combine(left, r.set_element(j)));
       }
+      if (r.has_minus_zero()) results.push_back(combine(left, -0.0));
+      if (r.has_nan()) results.push_back(combine(left, nan_v<Bits>));
+    };
+
+    for (int i = 0; i < l.set_size(); ++i) {
+      CombineWithLeft(l.set_element(i));
     }
+    if (l.has_minus_zero()) CombineWithLeft(-0.0);
+    if (l.has_nan()) CombineWithLeft(nan_v<Bits>);
+
     if (base::erase_if(results, [](float_t v) { return std::isnan(v); }) > 0) {
       special_values |= type_t::kNaN;
     }
@@ -660,6 +670,29 @@ struct FloatOperationTyper {
   static Type Divide(const type_t& l, const type_t& r, Zone* zone) {
     // Division is tricky, so all we do is try ruling out -0 and NaN.
     if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) {
+      if V8_UNLIKELY (!std::isfinite(a) && !std::isfinite(b)) {
+        return nan_v<Bits>;
+      }
+      if V8_UNLIKELY (IsMinusZero(b)) {
+        // +-0 / -0 ==> NaN
+        if (a == 0) return nan_v<Bits>;
+        return a > 0 ? -inf : inf;
+      }
+      if V8_UNLIKELY (b == 0) {
+        // +-0 / 0 ==> NaN
+        if (a == 0) return nan_v<Bits>;
+        return a > 0 ? inf : -inf;
+      }
+      return a / b;
+    };
+    if (l.is_set() && r.is_set()) {
+      auto result = ProductSet(l, r, 0, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
     auto [l_min, l_max] = l.minmax();
     auto [r_min, r_max] = r.minmax();
 
@@ -680,15 +713,6 @@ struct FloatOperationTyper {
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);
-    // If both sides are decently small sets, we produce the product set.
-    auto combine = [](float_t a, float_t b) {
-      if (b == 0) return nan_v<Bits>;
-      return a / b;
-    };
-    if (l.is_set() && r.is_set()) {
-      auto result = ProductSet(l, r, special_values, zone, combine);
-      if (!result.IsInvalid()) return result;
-    }
 
     const bool r_all_positive = r_min >= 0 && !r.has_minus_zero();
     const bool r_all_negative = r_max < 0;
