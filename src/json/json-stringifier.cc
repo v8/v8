@@ -586,10 +586,28 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case JS_RAW_JSON_TYPE:
       DCHECK(v8_flags.harmony_json_parse_with_source);
       if (deferred_string_key) SerializeDeferredKey(comma, key);
-      builder_.AppendString(Handle<String>::cast(
-          handle(Handle<JSRawJson>::cast(object)->InObjectPropertyAt(
-                     JSRawJson::kRawJsonIndex),
-                 isolate_)));
+      {
+        Handle<JSRawJson> raw_json_obj = Handle<JSRawJson>::cast(object);
+        Handle<String> raw_json;
+        if (raw_json_obj->HasInitialLayout(isolate_)) {
+          // Fast path: the object returned by JSON.rawJSON has its initial map
+          // intact.
+          raw_json = Handle<String>::cast(handle(
+              raw_json_obj->InObjectPropertyAt(JSRawJson::kRawJsonInitialIndex),
+              isolate_));
+        } else {
+          // Slow path: perform a property get for "rawJSON". Because raw JSON
+          // objects are created frozen, it is still guaranteed that there will
+          // be a property named "rawJSON" that is a String. Their initial maps
+          // only change due to VM-internal operations like being optimized for
+          // being used as a prototype.
+          raw_json = Handle<String>::cast(
+              JSObject::GetProperty(isolate_, raw_json_obj,
+                                    isolate_->factory()->raw_json_string())
+                  .ToHandleChecked());
+        }
+        builder_.AppendString(raw_json);
+      }
       return SUCCESS;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_STRUCT_TYPE:

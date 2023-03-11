@@ -4604,13 +4604,13 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
   if (!v8_flags.harmony_json_parse_with_source) return;
-  Handle<Map> map = factory()->NewMap(JS_RAW_JSON_TYPE, JSRawJson::kSize,
+  Handle<Map> map = factory()->NewMap(JS_RAW_JSON_TYPE, JSRawJson::kInitialSize,
                                       TERMINAL_FAST_ELEMENTS_KIND, 1);
   Map::EnsureDescriptorSlack(isolate_, map, 1);
   {
     Descriptor d = Descriptor::DataField(
-        isolate(), factory()->raw_json_string(), JSRawJson::kRawJsonIndex, NONE,
-        Representation::Tagged());
+        isolate(), factory()->raw_json_string(),
+        JSRawJson::kRawJsonInitialIndex, NONE, Representation::Tagged());
     map->AppendDescriptor(isolate(), &d);
   }
   map->SetPrototype(isolate(), map, isolate()->factory()->null_value());

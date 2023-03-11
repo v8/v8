@@ -34,7 +34,7 @@ MaybeHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
   }
   Handle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(isolate->js_raw_json_map());
-  result->InObjectPropertyAtPut(JSRawJson::kRawJsonIndex, *flat);
+  result->InObjectPropertyAtPut(JSRawJson::kRawJsonInitialIndex, *flat);
   JSObject::SetIntegrityLevel(isolate, result, FROZEN, kThrowOnError).Check();
   return Handle<JSRawJson>::cast(result);
 }
