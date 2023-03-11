@@ -286,10 +286,10 @@ def get_path(arch, mode):
 
 def prepare_mksnapshot_cmdline(orig_cmdline, path):
   mksnapshot_bin = path / "mksnapshot"
-  result = f"gdb --args {mksnapshot_bin}"
+  result = f"gdb --args {mksnapshot_bin} "
   for w in orig_cmdline.split(" "):
     if w.startswith("gen/") or w.startswith("snapshot_blob"):
-      result += str(path / w)
+      result += f"{str(path / w)} "
     elif w.startswith("../../"):
       result += f"{w[6:]} "
     else:
