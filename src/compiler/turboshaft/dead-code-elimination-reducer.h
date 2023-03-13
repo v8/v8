@@ -356,21 +356,9 @@ class DeadCodeAnalysis {
                 << "\n";
     }
 
-    // If this is a loop, we reset the control state to avoid jumps into the
-    // middle of the loop. In particular, this is required to prevent
-    // introducing new backedges when blocks towards the end of the loop body
-    // want to jump to a block at the beginning (past the header).
-    if (block.IsLoop()) {
-      control_state = ControlState::NotEliminatable();
-      if constexpr (trace_analysis) {
-        std::cout << "Block is loop header. Resetting control state: "
-                  << control_state << "\n";
-      }
-    }
-
     // If this block is a merge and we don't have any live phis, it is a
     // potential target for branch redirection.
-    if (block.IsLoopOrMerge()) {
+    if (block.IsMerge()) {
       if (!has_live_phis) {
         if (control_state.kind != ControlState::kBlock) {
           control_state = ControlState::Block(block.index());
@@ -384,8 +372,18 @@ class DeadCodeAnalysis {
                     << control_state << "\n";
         }
       }
-      if (block.IsLoop() &&
-          entry_control_state_[block.index()] != control_state) {
+    } else if (block.IsLoop()) {
+      // If this is a loop, we reset the control state to avoid jumps into the
+      // middle of the loop. In particular, this is required to prevent
+      // introducing new backedges when blocks towards the end of the loop body
+      // want to jump to a block at the beginning (past the header).
+      control_state = ControlState::NotEliminatable();
+      if constexpr (trace_analysis) {
+        std::cout << "Block is loop header. Resetting control state: "
+                  << control_state << "\n";
+      }
+
+      if (entry_control_state_[block.index()] != control_state) {
         if constexpr (trace_analysis) {
           std::cout << "Control state has changed. Need to revisit loop.\n";
         }
