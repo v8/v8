@@ -2374,8 +2374,9 @@ TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(
   }
 }
 
-TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
-  return ReinterpretCast<MaybeObject>(BitcastWordToTagged(
+TNode<HeapObjectReference> CodeStubAssembler::MakeWeak(
+    TNode<HeapObject> value) {
+  return ReinterpretCast<HeapObjectReference>(BitcastWordToTagged(
       WordOr(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectTag))));
 }
 
@@ -12236,7 +12237,7 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 TNode<MaybeObject> CodeStubAssembler::StoreWeakReferenceInFeedbackVector(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
     TNode<HeapObject> value, int additional_offset) {
-  TNode<MaybeObject> weak_value = MakeWeak(value);
+  TNode<HeapObjectReference> weak_value = MakeWeak(value);
   StoreFeedbackVectorSlot(feedback_vector, slot, weak_value,
                           UPDATE_WRITE_BARRIER, additional_offset);
   return weak_value;
