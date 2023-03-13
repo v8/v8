@@ -468,7 +468,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
 MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
                                        const InvokeParams& params) {
-  DCHECK(!isolate->is_execution_terminating());
+  DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                 !isolate->is_execution_terminating());
   bool is_termination = false;
   MaybeHandle<Object> maybe_result;
   if (params.exception_out != nullptr) {

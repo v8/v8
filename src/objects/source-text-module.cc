@@ -979,7 +979,8 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   if (ret.is_null()) {
     // The evaluation of async module can not throwing a JavaScript observable
     // exception.
-    DCHECK(isolate->is_execution_termination_pending());
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   isolate->is_execution_termination_pending());
     return Nothing<bool>();
   }
 

@@ -2047,6 +2047,11 @@ DEFINE_BOOL(
     "test runner turns on this flag to enable a check that the function was "
     "prepared for optimization before marking it for optimization")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    strict_termination_checks,
+    "Enable strict terminating DCHECKs to prevent accidentally "
+    "keeping on executing JS after terminating V8.")
+
 DEFINE_BOOL(
     fuzzing, false,
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "

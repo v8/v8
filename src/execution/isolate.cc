@@ -2403,10 +2403,12 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   DCHECK(has_scheduled_exception());
   if (reinterpret_cast<void*>(scheduled_exception().ptr()) ==
       handler->exception_) {
-    DCHECK(!is_execution_terminating());
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   !is_execution_terminating());
     clear_scheduled_exception();
   } else {
-    DCHECK(is_execution_terminating());
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   is_execution_terminating());
     // Clear termination once we returned from all V8 frames.
     if (thread_local_top()->CallDepthIsZero()) {
       thread_local_top()->external_caught_exception_ = false;
@@ -3733,7 +3735,9 @@ void Isolate::InitializeThreadLocal() {
 }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
-  DCHECK(is_execution_termination_pending() || is_execution_terminating());
+  DCHECK_IMPLIES(
+      v8_flags.strict_termination_checks,
+      is_execution_termination_pending() || is_execution_terminating());
   if (try_catch_handler() == nullptr) return;
   try_catch_handler()->can_continue_ = false;
   try_catch_handler()->has_terminated_ = true;
@@ -5434,7 +5438,8 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
 }
 
 void Isolate::OnTerminationDuringRunMicrotasks() {
-  DCHECK(is_execution_terminating());
+  DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                 is_execution_terminating());
   // This performs cleanup for when RunMicrotasks (in
   // builtins-microtask-queue-gen.cc) is aborted via a termination exception.
   // This has to be kept in sync with the code in said file. Currently this

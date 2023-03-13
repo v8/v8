@@ -154,7 +154,8 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   }
 
   // We should not enter V8 if it's marked for termination.
-  DCHECK(!isolate->is_execution_terminating());
+  DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                 !isolate->is_execution_terminating());
 
   intptr_t base_count = finished_microtask_count_;
   HandleScope handle_scope(isolate);
