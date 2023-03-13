@@ -693,14 +693,14 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(ArrayGetS, 0xfb14, _, "array.get_s")                                       \
   V(ArrayGetU, 0xfb15, _, "array.get_u")                                       \
   V(ArraySet, 0xfb16, _, "array.set")                                          \
-  V(ArrayCopy, 0xfb18, _,                                                      \
-    "array.copy") /* not standardized - V8 experimental */                     \
+  V(ArrayCopy, 0xfb18, _, "array.copy")                                        \
   V(ArrayLen, 0xfb19, _, "array.len")                                          \
   V(ArrayNewFixed, 0xfb1a, _, "array.new_fixed")                               \
   V(ArrayNew, 0xfb1b, _, "array.new")                                          \
   V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
   V(ArrayNewData, 0xfb1d, _, "array.new_data")                                 \
   V(ArrayNewElem, 0xfb1f, _, "array.new_elem")                                 \
+  V(ArrayFill, 0xfb0f, _, "array.init")                                        \
   V(I31New, 0xfb20, _, "i31.new")                                              \
   V(I31GetS, 0xfb21, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb22, _, "i31.get_u")                                           \

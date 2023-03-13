@@ -492,6 +492,9 @@ class WasmGraphBuilder {
   void ArrayCopy(Node* dst_array, Node* dst_index, CheckForNull dst_null_check,
                  Node* src_array, Node* src_index, CheckForNull src_null_check,
                  Node* length, wasm::WasmCodePosition position);
+  void ArrayFill(Node* array, Node* index, Node* value, Node* length,
+                 const wasm::ArrayType* type, CheckForNull null_check,
+                 wasm::WasmCodePosition position);
   Node* ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
                       base::Vector<Node*> elements);
   Node* ArrayNewSegment(const wasm::ArrayType* type, uint32_t data_segment,
@@ -794,9 +797,12 @@ class WasmGraphBuilder {
                    std::function<void(Callbacks)> type_checker);
   void BoundsCheckArray(Node* array, Node* index, CheckForNull null_check,
                         wasm::WasmCodePosition position);
-  void BoundsCheckArrayCopy(Node* array, Node* index, Node* length,
-                            CheckForNull null_check,
-                            wasm::WasmCodePosition position);
+  void BoundsCheckArrayWithLength(Node* array, Node* index, Node* length,
+                                  CheckForNull null_check,
+                                  wasm::WasmCodePosition position);
+  Node* StoreInInt64StackSlot(Node* value, wasm::ValueType type);
+  void ArrayFillImpl(Node* array, Node* index, Node* value, Node* length,
+                     const wasm::ArrayType* type, bool emit_write_barrier);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

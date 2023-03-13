@@ -5369,92 +5369,11 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   gasm_->ArrayInitializeLength(a, length);
 
-  // Initialize the array. Use an external function for large arrays with
-  // null/number initializer. Use a loop for small arrays and reference arrays
-  // with a non-null initial value.
-  auto done = gasm_->MakeLabel();
-  // TODO(manoskouk): If the loop is ever removed here, we have to update
-  // ArrayNew() in graph-builder-interface.cc to not mark the current
-  // loop as non-innermost.
-  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+  ArrayFillImpl(
+      a, gasm_->Int32Constant(0),
+      initial_value != nullptr ? initial_value : DefaultValue(element_type),
+      length, type, false);
 
-  if ((initial_value == nullptr && (element_type.kind() == wasm::kRefNull ||
-                                    element_type.kind() == wasm::kS128)) ||
-      (element_type.is_numeric() && element_type != wasm::kWasmS128)) {
-    constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
-    gasm_->GotoIf(gasm_->Uint32LessThan(
-                      length, Int32Constant(kArrayNewMinimumSizeForMemSet)),
-                  &loop, BranchHint::kNone, Int32Constant(0));
-    Node* function = gasm_->ExternalConstant(
-        ExternalReference::wasm_array_fill_with_number_or_null());
-
-    Node* initial_value_i64 = nullptr;
-    if (initial_value == nullptr && element_type.is_numeric()) {
-      initial_value_i64 = Int64Constant(0);
-    } else {
-      switch (element_type.kind()) {
-        case wasm::kI32:
-        case wasm::kI8:
-        case wasm::kI16:
-          initial_value_i64 = graph()->NewNode(
-              mcgraph()->machine()->ChangeInt32ToInt64(), initial_value);
-          break;
-        case wasm::kI64:
-          initial_value_i64 = initial_value;
-          break;
-        case wasm::kF32:
-          initial_value_i64 = graph()->NewNode(
-              mcgraph()->machine()->ChangeInt32ToInt64(),
-              graph()->NewNode(mcgraph()->machine()->BitcastFloat32ToInt32(),
-                               initial_value));
-          break;
-        case wasm::kF64:
-          initial_value_i64 = graph()->NewNode(
-              mcgraph()->machine()->BitcastFloat64ToInt64(), initial_value);
-          break;
-        case wasm::kRefNull:
-          initial_value_i64 = initial_value == nullptr
-                                  ? gasm_->Null(type->element_type())
-                                  : initial_value;
-          if (kSystemPointerSize == 4) {
-            initial_value_i64 = graph()->NewNode(
-                mcgraph()->machine()->ChangeInt32ToInt64(), initial_value_i64);
-          }
-          break;
-        case wasm::kS128:
-        case wasm::kRtt:
-        case wasm::kRef:
-        case wasm::kVoid:
-        case wasm::kBottom:
-          UNREACHABLE();
-      }
-    }
-
-    Node* stack_slot = StoreArgsInStackSlot(
-        {{MachineRepresentation::kWord64, initial_value_i64}});
-
-    MachineType arg_types[]{MachineType::TaggedPointer(), MachineType::Uint32(),
-                            MachineType::Uint32(), MachineType::Pointer()};
-    MachineSignature sig(0, 4, arg_types);
-    BuildCCall(&sig, function, a, length,
-               Int32Constant(element_type.raw_bit_field()), stack_slot);
-    gasm_->Goto(&done);
-  } else {
-    gasm_->Goto(&loop, Int32Constant(0));
-  }
-  gasm_->Bind(&loop);
-  {
-    Node* index = loop.PhiAt(0);
-    Node* check = gasm_->UintLessThan(index, length);
-    gasm_->GotoIfNot(check, &done);
-    gasm_->ArraySet(
-        a, index,
-        initial_value != nullptr ? initial_value : DefaultValue(element_type),
-        type);
-    index = gasm_->Int32Add(index, Int32Constant(1));
-    gasm_->Goto(&loop, index);
-  }
-  gasm_->Bind(&done);
   return a;
 }
 
@@ -5910,17 +5829,18 @@ void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
   }
 }
 
-void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
-                                            Node* length,
-                                            CheckForNull null_check,
-                                            wasm::WasmCodePosition position) {
+void WasmGraphBuilder::BoundsCheckArrayWithLength(
+    Node* array, Node* index, Node* length, CheckForNull null_check,
+    wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
   Node* array_length = gasm_->ArrayLength(array, null_check);
   SetSourcePosition(array_length, position);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
+      // OOB if (index + length > array.len).
       gasm_->Uint32LessThanOrEqual(range_end, array_length),
-      gasm_->Uint32LessThanOrEqual(index, range_end));  // No overflow
+      // OOB if (index + length) overflows.
+      gasm_->Uint32LessThanOrEqual(index, range_end));
   TrapIfFalse(wasm::kTrapArrayOutOfBounds, range_valid, position);
 }
 
@@ -5954,8 +5874,10 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
                                  Node* src_index, CheckForNull src_null_check,
                                  Node* length,
                                  wasm::WasmCodePosition position) {
-  BoundsCheckArrayCopy(dst_array, dst_index, length, dst_null_check, position);
-  BoundsCheckArrayCopy(src_array, src_index, length, src_null_check, position);
+  BoundsCheckArrayWithLength(dst_array, dst_index, length, dst_null_check,
+                             position);
+  BoundsCheckArrayWithLength(src_array, src_index, length, src_null_check,
+                             position);
 
   auto skip = gasm_->MakeLabel();
 
@@ -5973,6 +5895,111 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
              src_index, length);
   gasm_->Goto(&skip);
   gasm_->Bind(&skip);
+}
+
+Node* WasmGraphBuilder::StoreInInt64StackSlot(Node* value,
+                                              wasm::ValueType type) {
+  Node* value_int64;
+  switch (type.kind()) {
+    case wasm::kI32:
+    case wasm::kI8:
+    case wasm::kI16:
+      value_int64 =
+          graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), value);
+      break;
+    case wasm::kI64:
+      value_int64 = value;
+      break;
+    case wasm::kS128:
+      // We can only get here if {value} is the constant 0.
+      DCHECK_EQ(value->opcode(), IrOpcode::kS128Zero);
+      value_int64 = Int64Constant(0);
+      break;
+    case wasm::kF32:
+      value_int64 = graph()->NewNode(
+          mcgraph()->machine()->ChangeInt32ToInt64(),
+          graph()->NewNode(mcgraph()->machine()->BitcastFloat32ToInt32(),
+                           value));
+      break;
+    case wasm::kF64:
+      value_int64 = graph()->NewNode(
+          mcgraph()->machine()->BitcastFloat64ToInt64(), value);
+      break;
+    case wasm::kRefNull:
+    case wasm::kRef:
+      value_int64 = kSystemPointerSize == 4
+                        ? graph()->NewNode(
+                              mcgraph()->machine()->ChangeInt32ToInt64(), value)
+                        : value;
+      break;
+    case wasm::kRtt:
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+
+  return StoreArgsInStackSlot({{MachineRepresentation::kWord64, value_int64}});
+}
+
+void WasmGraphBuilder::ArrayFill(Node* array, Node* index, Node* value,
+                                 Node* length, const wasm::ArrayType* type,
+                                 CheckForNull null_check,
+                                 wasm::WasmCodePosition position) {
+  BoundsCheckArrayWithLength(array, index, length, null_check, position);
+  ArrayFillImpl(array, index, value, length, type,
+                type->element_type().is_reference());
+}
+
+void WasmGraphBuilder::ArrayFillImpl(Node* array, Node* index, Node* value,
+                                     Node* length, const wasm::ArrayType* type,
+                                     bool emit_write_barrier) {
+  DCHECK_NOT_NULL(value);
+  wasm::ValueType element_type = type->element_type();
+
+  // Initialize the array. Use an external function for large arrays with
+  // null/number initializer. Use a loop for small arrays and reference arrays
+  // with a non-null initial value.
+  auto done = gasm_->MakeLabel();
+  // TODO(manoskouk): If the loop is ever removed here, we have to update
+  // ArrayNew(), ArrayNewDefault(), and ArrayFill() in
+  // graph-builder-interface.cc to not mark the current loop as non-innermost.
+  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+
+  // The builtin cannot handle s128 values other than 0.
+  if (!(element_type == wasm::kWasmS128 &&
+        value->opcode() != IrOpcode::kS128Zero)) {
+    constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
+    gasm_->GotoIf(gasm_->Uint32LessThan(
+                      length, Int32Constant(kArrayNewMinimumSizeForMemSet)),
+                  &loop, BranchHint::kNone, index);
+    Node* function =
+        gasm_->ExternalConstant(ExternalReference::wasm_array_fill());
+
+    Node* stack_slot = StoreInInt64StackSlot(value, element_type);
+
+    MachineType arg_types[]{
+        MachineType::TaggedPointer(), MachineType::Uint32(),
+        MachineType::Uint32(),        MachineType::Uint32(),
+        MachineType::Uint32(),        MachineType::Pointer()};
+    MachineSignature sig(0, 6, arg_types);
+    BuildCCall(&sig, function, array, index, length,
+               Int32Constant(emit_write_barrier ? 1 : 0),
+               Int32Constant(element_type.raw_bit_field()), stack_slot);
+    gasm_->Goto(&done);
+  } else {
+    gasm_->Goto(&loop, index);
+  }
+  gasm_->Bind(&loop);
+  {
+    Node* current_index = loop.PhiAt(0);
+    Node* check =
+        gasm_->UintLessThan(current_index, gasm_->Int32Add(index, length));
+    gasm_->GotoIfNot(check, &done);
+    gasm_->ArraySet(array, current_index, value, type);
+    current_index = gasm_->Int32Add(current_index, Int32Constant(1));
+    gasm_->Goto(&loop, current_index);
+  }
+  gasm_->Bind(&done);
 }
 
 // General rules for operator properties for builtin calls:

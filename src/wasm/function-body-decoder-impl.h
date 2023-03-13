@@ -1101,6 +1101,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(ArrayLen, const Value& array_obj, Value* result)                           \
   F(ArrayCopy, const Value& src, const Value& src_index, const Value& dst,     \
     const Value& dst_index, const Value& length)                               \
+  F(ArrayFill, const ArrayIndexImmediate& imm, const Value& array,             \
+    const Value& index, const Value& value, const Value& length)               \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
   F(RefTest, const Value& obj, const Value& rtt, Value* result,                \
@@ -2213,6 +2215,11 @@ class WasmDecoder : public Decoder {
             (ios.ArrayCopy(dst_imm, src_imm), ...);
             return length + dst_imm.length + src_imm.length;
           }
+          case kExprArrayFill: {
+            ArrayIndexImmediate imm(decoder, pc + length, validate);
+            (ios.TypeIndex(imm), ...);
+            return length + imm.length;
+          }
           case kExprArrayNewData:
           case kExprArrayNewElem: {
             ArrayIndexImmediate array_imm(decoder, pc + length, validate);
@@ -2509,6 +2516,8 @@ class WasmDecoder : public Decoder {
             return {3, 0};
           case kExprArrayCopy:
             return {5, 0};
+          case kExprArrayFill:
+            return {4, 0};
           case kExprStructNewDefault:
             return {0, 1};
           case kExprStructNew: {
@@ -4872,6 +4881,26 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                            src_index, length);
         Drop(5);
         return opcode_length + dst_imm.length + src_imm.length;
+      }
+      case kExprArrayFill: {
+        NON_CONST_ONLY
+        ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
+                                      validate);
+        if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
+        if (!VALIDATE(array_imm.array_type->mutability())) {
+          this->DecodeError("array.init: immediate array type #%d is immutable",
+                            array_imm.index);
+          return 0;
+        }
+
+        Value array = Peek(3, 0, ValueType::RefNull(array_imm.index));
+        Value offset = Peek(2, 1, kWasmI32);
+        Value value = Peek(1, 2, array_imm.array_type->element_type());
+        Value length = Peek(0, 3, kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayFill, array_imm, array, offset,
+                                           value, length);
+        Drop(4);
+        return opcode_length + array_imm.length;
       }
       case kExprArrayNewFixed: {
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,

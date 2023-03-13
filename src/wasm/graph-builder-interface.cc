@@ -1195,7 +1195,7 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->ArrayNew(imm.index, imm.array_type,
                                               length.node, initial_value.node,
                                               rtt.node, decoder->position()));
-    // array.new_with_rtt introduces a loop. Therefore, we have to mark the
+    // array.new(_default) introduces a loop. Therefore, we have to mark the
     // immediately nesting loop (if any) as non-innermost.
     if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
   }
@@ -1207,6 +1207,9 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->ArrayNew(imm.index, imm.array_type,
                                               length.node, initial_value,
                                               rtt.node, decoder->position()));
+    // array.new(_default) introduces a loop. Therefore, we have to mark the
+    // immediately nesting loop (if any) as non-innermost.
+    if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -1237,6 +1240,17 @@ class WasmGraphBuildingInterface {
     builder_->ArrayCopy(dst.node, dst_index.node, NullCheckFor(dst.type),
                         src.node, src_index.node, NullCheckFor(src.type),
                         length.node, decoder->position());
+  }
+
+  void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
+                 const Value& array, const Value& index, const Value& value,
+                 const Value& length) {
+    builder_->ArrayFill(array.node, index.node, value.node, length.node,
+                        imm.array_type, NullCheckFor(array.type),
+                        decoder->position());
+    // array.fill introduces a loop. Therefore, we have to mark the immediately
+    // nesting loop (if any) as non-innermost.
+    if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,

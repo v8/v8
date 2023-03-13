@@ -616,7 +616,8 @@ class LiftoffAssembler : public MacroAssembler {
     return GetUnusedRegister(rc, pinned);
   }
 
-  // Get an unused register for class {rc}, potentially spilling to free one.
+  // Get an unused register for class {rc}, excluding registers from {pinned},
+  // potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned) {
     DCHECK(!cache_state_.frozen);
     if (kNeedI64RegPair && rc == kGpRegPair) {

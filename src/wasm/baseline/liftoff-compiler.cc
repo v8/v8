@@ -5700,41 +5700,16 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, elem_kind, "default value")) return;
       SetDefaultValue(value, elem_type, pinned);
     }
+
+    LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(index, WasmValue(int32_t{0}));
+
     // Initialize the array's elements.
-    LiftoffRegister offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(
-        offset,
-        WasmValue(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)));
-    LiftoffRegister end_offset = length;
-    if (value_kind_size_log2(elem_kind) != 0) {
-      __ emit_i32_shli(end_offset.gp(), length.gp(),
-                       value_kind_size_log2(elem_kind));
-    }
-    __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
-    Label loop, done;
-    __ bind(&loop);
-    {
-      // This is subtle: {StoreObjectField} can request a temp register, which
-      // is precisely what {FREEZE_STATE} (with non-trivial live range) is
-      // supposed to guard against. In this case it's fine though, because we've
-      // just done a call, so there are plenty of recently-spilled unused
-      // registers, so requesting a temp register won't actually cause any state
-      // changes.
-      // TODO(jkummerow): See if we can make this more elegant, e.g. by passing
-      // a temp register to {StoreObjectField}.
-      FREEZE_STATE(in_this_case_its_fine);
-      __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
-                        end_offset.gp(), in_this_case_its_fine);
-    }
     // Skipping the write barrier is safe as long as:
     // (1) {obj} is freshly allocated, and
     // (2) {obj} is in new-space (not pretenured).
-    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind,
-                     LiftoffAssembler::kSkipWriteBarrier);
-    __ emit_i32_addi(offset.gp(), offset.gp(), elem_size);
-    __ emit_jump(&loop);
-
-    __ bind(&done);
+    ArrayFillImpl(pinned, obj, index, value, length, elem_kind,
+                  LiftoffAssembler::kSkipWriteBarrier);
 
     __ PushRegister(kRef, obj);
   }
@@ -5748,6 +5723,48 @@ class LiftoffCompiler {
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, const Value& rtt, Value* result) {
     ArrayNew(decoder, imm, rtt.type.kind(), false);
+  }
+
+  void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
+                 const Value& array, const Value& /* index */,
+                 const Value& /* value */, const Value& /* length */) {
+    {
+      // Null check.
+      LiftoffRegList pinned;
+      LiftoffRegister array_reg = pinned.set(__ PeekToRegister(3, pinned));
+      MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
+
+      // Bounds checks.
+      Label* trap_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
+      LiftoffRegister array_length =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LoadObjectField(array_length, array_reg.gp(), no_reg,
+                      ObjectAccess::ToTagged(WasmArray::kLengthOffset), kI32,
+                      false, pinned);
+      LiftoffRegister index = pinned.set(__ PeekToRegister(2, pinned));
+      LiftoffRegister length = pinned.set(__ PeekToRegister(0, pinned));
+      LiftoffRegister index_plus_length =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      DCHECK(index_plus_length != array_length);
+      __ emit_i32_add(index_plus_length.gp(), length.gp(), index.gp());
+      FREEZE_STATE(frozen);
+      __ emit_cond_jump(kUnsignedGreaterThan, trap_label, kI32,
+                        index_plus_length.gp(), array_length.gp(), frozen);
+      // Guard against overflow.
+      __ emit_cond_jump(kUnsignedGreaterThan, trap_label, kI32, index.gp(),
+                        index_plus_length.gp(), frozen);
+    }
+
+    LiftoffRegList pinned;
+    LiftoffRegister length = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister index = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+
+    ArrayFillImpl(pinned, obj, index, value, length,
+                  imm.array_type->element_type().kind(),
+                  LiftoffAssembler::kNoSkipWriteBarrier);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -7986,6 +8003,52 @@ class LiftoffCompiler {
         WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
     __ emit_s128_set_if_nan(nondeterminism_addr.gp(), dst, tmp_gp.gp(),
                             tmp_s128, lane_kind);
+  }
+
+  void ArrayFillImpl(LiftoffRegList pinned, LiftoffRegister obj,
+                     LiftoffRegister index, LiftoffRegister value,
+                     LiftoffRegister length, ValueKind elem_kind,
+                     LiftoffAssembler::SkipWriteBarrier skip_write_barrier) {
+    // initial_offset = WasmArray::kHeaderSize + index * elem_size.
+    LiftoffRegister offset = index;
+    if (value_kind_size_log2(elem_kind) != 0) {
+      __ emit_i32_shli(offset.gp(), index.gp(),
+                       value_kind_size_log2(elem_kind));
+    }
+    __ emit_i32_addi(offset.gp(), offset.gp(),
+                     wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
+
+    // end_offset = initial_offset + length * elem_size.
+    LiftoffRegister end_offset = length;
+    if (value_kind_size_log2(elem_kind) != 0) {
+      __ emit_i32_shli(end_offset.gp(), length.gp(),
+                       value_kind_size_log2(elem_kind));
+    }
+    __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
+
+    Label loop, done;
+    __ bind(&loop);
+    {
+      // This is subtle: {StoreObjectField} can request a temp register, which
+      // is precisely what {FREEZE_STATE} (with non-trivial live range) is
+      // supposed to guard against. In this case it's fine though, because we
+      // are explicitly requesting {unused_and_unpinned} here, therefore we know
+      // a register is available, so requesting a temp register won't actually
+      // cause any state changes.
+      // TODO(jkummerow): See if we can make this more elegant, e.g. by passing
+      // a temp register to {StoreObjectField}.
+      LiftoffRegister unused_and_unpinned = __ GetUnusedRegister(pinned);
+      USE(unused_and_unpinned);
+      FREEZE_STATE(in_this_case_its_fine);
+      __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
+                        end_offset.gp(), in_this_case_its_fine);
+    }
+    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind,
+                     skip_write_barrier);
+    __ emit_i32_addi(offset.gp(), offset.gp(), value_kind_size(elem_kind));
+    __ emit_jump(&loop);
+
+    __ bind(&done);
   }
 
   bool has_outstanding_op() const {
