@@ -241,9 +241,13 @@ bool JSTypedArray::IsDetachedOrOutOfBounds() const {
   if (WasDetached()) {
     return true;
   }
-  bool out_of_bounds = false;
-  GetLengthOrOutOfBounds(out_of_bounds);
-  return out_of_bounds;
+  if (!is_backed_by_rab()) {
+    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
+    // This shortcut is load-bearing; this enables determining
+    // IsDetachedOrOutOfBounds without consulting the BackingStore.
+    return false;
+  }
+  return IsOutOfBounds();
 }
 
 // static
