@@ -3332,6 +3332,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Object> CreateAsyncFromSyncIterator(TNode<Context> context,
                                             TNode<Object> sync_iterator);
+  TNode<JSObject> CreateAsyncFromSyncIterator(TNode<Context> context,
+                                              TNode<JSReceiver> sync_iterator,
+                                              TNode<Object> next);
 
   template <class... TArgs>
   TNode<Object> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {

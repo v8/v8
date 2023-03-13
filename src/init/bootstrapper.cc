@@ -4535,8 +4535,35 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 void Genesis::InitializeGlobal_harmony_iterator_helpers() {
   if (!v8_flags.harmony_iterator_helpers) return;
 
+  // --- Iterator
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
   Handle<JSObject> iterator_prototype(
       native_context()->initial_iterator_prototype(), isolate());
+  Handle<JSFunction> iterator_function = InstallFunction(
+      isolate(), global, "Iterator", JS_OBJECT_TYPE, JSObject::kHeaderSize, 0,
+      iterator_prototype, Builtin::kIteratorConstructor);
+  iterator_function->shared().DontAdaptArguments();
+  iterator_function->shared().set_length(0);
+  SimpleInstallFunction(isolate(), iterator_function, "from",
+                        Builtin::kIteratorFrom, 1, true);
+  InstallWithIntrinsicDefaultProto(isolate(), iterator_function,
+                                   Context::ITERATOR_FUNCTION_INDEX);
+
+  // --- %WrapForValidIteratorPrototype%
+  Handle<JSObject> wrap_for_valid_iterator_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
+  JSObject::ForceSetPrototype(isolate(), wrap_for_valid_iterator_prototype,
+                              iterator_prototype);
+  SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "next",
+                        Builtin::kWrapForValidIteratorPrototypeNext, 0, true);
+  SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "return",
+                        Builtin::kWrapForValidIteratorPrototypeReturn, 0, true);
+  Handle<Map> valid_iterator_wrapper_map = factory()->NewMap(
+      JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
+      TERMINAL_FAST_ELEMENTS_KIND, 0);
+  Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
+                    wrap_for_valid_iterator_prototype);
+  native_context()->set_valid_iterator_wrapper_map(*valid_iterator_wrapper_map);
 
   // --- %IteratorHelperPrototype%
   Handle<JSObject> iterator_helper_prototype = factory()->NewJSObject(

@@ -138,4 +138,25 @@ transitioning macro IteratorCloseOnException(implicit context: Context)(
 
   // (If completion.[[Type]] is throw) return Completion(completion).
 }
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iterator
+transitioning javascript builtin IteratorConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(): JSObject {
+  const methodName: constexpr string = 'Iterator';
+
+  // 1. If NewTarget is undefined or the active function object, throw a
+  //    TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(MessageTemplate::kConstructorNotFunction, methodName);
+  }
+  if (newTarget == target) {
+    ThrowTypeError(MessageTemplate::kConstructAbstractClass, methodName);
+  }
+
+  // 2. Return ? OrdinaryCreateFromConstructor(NewTarget,
+  //    "%Iterator.prototype%").
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  return AllocateFastOrSlowJSObjectFromMap(map);
 }
+}  // namespace iterator

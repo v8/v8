@@ -9977,18 +9977,8 @@ TNode<Object> CodeStubAssembler::CreateAsyncFromSyncIterator(
 
   const TNode<Object> next =
       GetProperty(context, sync_iterator, factory()->next_string());
-
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Map> map = CAST(LoadContextElement(
-      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
-  const TNode<JSObject> iterator = AllocateJSObjectFromMap(map);
-
-  StoreObjectFieldNoWriteBarrier(
-      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
-  StoreObjectFieldNoWriteBarrier(iterator, JSAsyncFromSyncIterator::kNextOffset,
-                                 next);
-
-  return_value = iterator;
+  return_value =
+      CreateAsyncFromSyncIterator(context, CAST(sync_iterator), next);
   Goto(&done);
 
   BIND(&not_receiver);
@@ -10001,6 +9991,21 @@ TNode<Object> CodeStubAssembler::CreateAsyncFromSyncIterator(
 
   BIND(&done);
   return return_value.value();
+}
+
+TNode<JSObject> CodeStubAssembler::CreateAsyncFromSyncIterator(
+    TNode<Context> context, TNode<JSReceiver> sync_iterator,
+    TNode<Object> next) {
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
+  const TNode<JSObject> iterator = AllocateJSObjectFromMap(map);
+
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
+  StoreObjectFieldNoWriteBarrier(iterator, JSAsyncFromSyncIterator::kNextOffset,
+                                 next);
+  return iterator;
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(

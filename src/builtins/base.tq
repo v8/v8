@@ -394,6 +394,7 @@ extern enum MessageTemplate {
   kTypedArrayTooShort,
   kTypedArrayTooLargeToSort,
   kInvalidCountValue,
+  kConstructAbstractClass,
   kConstructorNotFunction,
   kSymbolToString,
   kSymbolIteratorInvalid,
@@ -1401,6 +1402,9 @@ macro GetArrayBufferFunction(implicit context: Context)(): Constructor {
 }
 macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
   return *NativeContextSlot(ContextSlot::ARRAY_BUFFER_NOINIT_FUN_INDEX);
+}
+macro GetIteratorFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::ITERATOR_FUNCTION_INDEX);
 }
 macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
   return *NativeContextSlot(ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);

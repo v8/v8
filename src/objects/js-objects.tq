@@ -173,6 +173,13 @@ extern class JSStringIterator extends JSObject {
   index: Smi;
 }
 
+// The wrapper returned by Iterator.from().
+// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+extern class JSValidIteratorWrapper extends JSObject {
+  // The [[Iterated]] slot.
+  underlying: iterator::IteratorRecord;
+}
+
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map,

@@ -1419,6 +1419,13 @@ void JSAsyncFromSyncIterator::JSAsyncFromSyncIteratorPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void JSValidIteratorWrapper::JSValidIteratorWrapperPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSValidIteratorWrapper");
+  os << "\n - underlying.object: " << Brief(underlying_object());
+  os << "\n - underlying.next: " << Brief(underlying_next());
+  JSObjectPrintBody(os, *this);
+}
+
 void JSPrimitiveWrapper::JSPrimitiveWrapperPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSPrimitiveWrapper");
   os << "\n - value: " << Brief(value());

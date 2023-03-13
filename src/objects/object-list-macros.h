@@ -187,6 +187,7 @@ class ZoneForwardList;
   V(JSTemporalTimeZone)                         \
   V(JSTemporalZonedDateTime)                    \
   V(JSTypedArray)                               \
+  V(JSValidIteratorWrapper)                     \
   V(JSWeakCollection)                           \
   V(JSWeakRef)                                  \
   V(JSWeakMap)                                  \

@@ -1287,6 +1287,18 @@ class JSStringIterator
   TQ_OBJECT_CONSTRUCTORS(JSStringIterator)
 };
 
+// The valid iterator wrapper is the wrapper object created by
+// Iterator.from(obj), which attempts to wrap iterator-like objects into an
+// actual iterator with %Iterator.prototype%.
+class JSValidIteratorWrapper
+    : public TorqueGeneratedJSValidIteratorWrapper<JSValidIteratorWrapper,
+                                                   JSObject> {
+ public:
+  DECL_PRINTER(JSValidIteratorWrapper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSValidIteratorWrapper)
+};
+
 }  // namespace internal
 }  // namespace v8
 

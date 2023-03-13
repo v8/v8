@@ -832,6 +832,7 @@ filegroup(
         "src/builtins/internal-coverage.tq",
         "src/builtins/internal.tq",
         "src/builtins/iterator.tq",
+        "src/builtins/iterator-from.tq",
         "src/builtins/iterator-helpers.tq",
         "src/builtins/math.tq",
         "src/builtins/number.tq",
