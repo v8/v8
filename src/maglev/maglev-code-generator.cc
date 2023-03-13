@@ -234,10 +234,27 @@ class ParallelMoveResolver {
     // There shouldn't have been another move to this register already.
     CheckNoExistingMoveToRegister(target_reg);
 
+    NeedsDecompression needs_decompression = kDoesNotNeedDecompression;
+    if constexpr (DecompressIfNeeded) {
+      if (target_needs_to_be_decompressed &&
+          !node->decompresses_tagged_result()) {
+        needs_decompression = kNeedsDecompression;
+      }
+    } else {
+      DCHECK_IMPLIES(target_needs_to_be_decompressed,
+                     node->decompresses_tagged_result());
+    }
+
     GapMoveTargets* targets;
     if (source.IsAnyRegister()) {
       RegisterT source_reg = ToRegisterT<RegisterT>(source);
-      if (target_reg == source_reg) return;
+      if (target_reg == source_reg) {
+        // We should never have a register aliasing case that needs
+        // decompression, since this path is only used by exception phis and
+        // they have no reg->reg moves.
+        DCHECK_EQ(needs_decompression, kDoesNotNeedDecompression);
+        return;
+      }
       targets = &moves_from_register_[source_reg.code()];
     } else if (source.IsAnyStackSlot()) {
       int32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
@@ -253,14 +270,8 @@ class ParallelMoveResolver {
     }
 
     targets->registers.set(target_reg);
-    if constexpr (DecompressIfNeeded) {
-      if (target_needs_to_be_decompressed &&
-          !node->decompresses_tagged_result()) {
-        targets->needs_decompression = kNeedsDecompression;
-      }
-    } else {
-      DCHECK_IMPLIES(target_needs_to_be_decompressed,
-                     node->decompresses_tagged_result());
+    if (needs_decompression == kNeedsDecompression) {
+      targets->needs_decompression = kNeedsDecompression;
     }
   }
 
@@ -271,6 +282,17 @@ class ParallelMoveResolver {
     // There shouldn't have been another move to this stack slot already.
     CheckNoExistingMoveToStackSlot(target_slot);
 
+    NeedsDecompression needs_decompression = kDoesNotNeedDecompression;
+    if constexpr (DecompressIfNeeded) {
+      if (target_needs_to_be_decompressed &&
+          !node->decompresses_tagged_result()) {
+        needs_decompression = kNeedsDecompression;
+      }
+    } else {
+      DCHECK_IMPLIES(target_needs_to_be_decompressed,
+                     node->decompresses_tagged_result());
+    }
+
     GapMoveTargets* targets;
     if (source.IsAnyRegister()) {
       RegisterT source_reg = ToRegisterT<RegisterT>(source);
@@ -278,7 +300,10 @@ class ParallelMoveResolver {
     } else if (source.IsAnyStackSlot()) {
       int32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
           compiler::AllocatedOperand::cast(source));
-      if (source_slot == target_slot) return;
+      if (source_slot == target_slot &&
+          needs_decompression == kDoesNotNeedDecompression) {
+        return;
+      }
       targets = &moves_from_stack_slot_[source_slot];
     } else {
       DCHECK(source.IsConstant());
@@ -290,14 +315,8 @@ class ParallelMoveResolver {
     }
 
     targets->stack_slots.push_back(target_slot);
-    if constexpr (DecompressIfNeeded) {
-      if (target_needs_to_be_decompressed &&
-          !node->decompresses_tagged_result()) {
-        targets->needs_decompression = kNeedsDecompression;
-      }
-    } else {
-      DCHECK_IMPLIES(target_needs_to_be_decompressed,
-                     node->decompresses_tagged_result());
+    if (needs_decompression == kNeedsDecompression) {
+      targets->needs_decompression = kNeedsDecompression;
     }
   }
 
@@ -431,16 +450,18 @@ class ParallelMoveResolver {
       }
       register_with_slot_value = scratch_;
     }
-    if constexpr (DecompressIfNeeded) {
-      if (targets.needs_decompression == kNeedsDecompression) {
-        __ DecompressTagged(register_with_slot_value, register_with_slot_value);
-      }
-    }
-
     // Now emit moves from that cached register instead of from the stack slot.
     DCHECK(register_with_slot_value.is_valid());
     DCHECK(moves_from_register_[register_with_slot_value.code()].is_empty());
     __ Move(register_with_slot_value, StackSlot{source_slot});
+    // Decompress after the first move, subsequent moves reuse this register so
+    // they're guaranteed to be decompressed.
+    if constexpr (DecompressIfNeeded) {
+      if (targets.needs_decompression == kNeedsDecompression) {
+        __ DecompressTagged(register_with_slot_value, register_with_slot_value);
+        targets.needs_decompression = kDoesNotNeedDecompression;
+      }
+    }
     EmitMovesFromSource(register_with_slot_value, std::move(targets));
   }
 
@@ -835,7 +856,7 @@ class MaglevCodeGeneratingNodeProcessor {
           double_register_moves.RecordMove(node, source, target, false);
         } else {
           register_moves.RecordMove(node, source, target,
-                                    phi->decompresses_tagged_result());
+                                    kDoesNotNeedDecompression);
         }
         if (target.IsAnyRegister()) {
           if (phi->value_representation() == ValueRepresentation::kFloat64) {

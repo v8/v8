@@ -633,6 +633,13 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
     }
     os_ << ")";
   }
+  if (phi->is_tagged() && !phi->result().operand().IsUnallocated()) {
+    if (phi->decompresses_tagged_result()) {
+      os_ << " (decompressed)";
+    } else {
+      os_ << " (compressed)";
+    }
+  }
   os_ << " → " << phi->result().operand() << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
