@@ -377,8 +377,7 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
                                          Handle<BigInt> exponent) {
   // 1. If exponent is < 0, throw a RangeError exception.
   if (exponent->sign()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kBigIntNegativeExponent),
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kMustBePositive),
                     BigInt);
   }
   // 2. If base is 0n and exponent is 0n, return 1n.

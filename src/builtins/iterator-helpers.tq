@@ -47,6 +47,9 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
     case (filterHelper: JSIteratorFilterHelper): {
       return IteratorFilterHelperNext(filterHelper);
     }
+    case (takeHelper: JSIteratorTakeHelper): {
+      return IteratorTakeHelperNext(takeHelper);
+    }
     case (Object): {
       ThrowTypeError(
           MessageTemplate::kIncompatibleMethodReceiver,
@@ -257,6 +260,100 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
     }
   }
   unreachable;
+}
+
+// --- Take helper
+
+macro NewJSIteratorTakeHelper(implicit context: Context)(
+    underlying: IteratorRecord, limit: Number): JSIteratorTakeHelper {
+  return new JSIteratorTakeHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_TAKE_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    underlying: underlying,
+    remaining: limit
+  };
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.take
+transitioning javascript builtin IteratorPrototypeTake(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(limit: JSAny): JSIteratorTakeHelper {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.take';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let numLimit be ? ToNumber(limit).
+    const numLimit = ToNumber_Inline(limit);
+
+    // 4. If numLimit is NaN, throw a RangeError exception.
+    if (NumberIsNaN(numLimit)) goto RangeError;
+
+    // 5. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    const integerLimit = ToInteger_Inline(numLimit);
+
+    // 6. If integerLimit < 0, throw a RangeError exception.
+    if (integerLimit < 0) goto RangeError;
+
+    // 5. Let iterated be ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 6 implemented in IteratorTakeHelperNext
+
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
+    // 9. Return result.
+    return NewJSIteratorTakeHelper(iterated, integerLimit);
+  } label RangeError deferred {
+    ThrowRangeError(MessageTemplate::kMustBePositive, limit);
+  }
+}
+
+transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
+    helper: JSIteratorTakeHelper): JSAny {
+  // a. Let remaining be integerLimit.
+  // (Done when creating JSIteratorTakeHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  const underlying = helper.underlying;
+  const remaining = helper.remaining;
+
+  // b. Repeat,
+  let next: JSReceiver;
+
+  // i. If remaining is 0, then
+  if (remaining == 0) {
+    // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
+    IteratorClose(underlying);
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  // ii. If remaining is not +∞, then
+  if (!NumberIsSomeInfinity(remaining)) {
+    // 1. Set remaining to remaining - 1.
+    helper.remaining = remaining - 1;
+  }
+
+  try {
+    // iii. Let next be ? IteratorStep(iterated).
+    next = IteratorStep(underlying, fastIteratorResultMap)
+        otherwise Done;
+  } label Done {
+    // iv. If next is false, return undefined.
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  // v. Let completion be Completion(Yield(? IteratorValue(next))).
+  const value = IteratorValue(next, fastIteratorResultMap);
+  return AllocateJSIteratorResult(value, False);
+
+  // vi. IfAbruptCloseIterator(completion, iterated).
+  // (Done in IteratorHelperPrototypeReturn.)
 }
 
 }  // namespace iterator

@@ -359,7 +359,6 @@ namespace internal {
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
-  T(BigIntNegativeExponent, "Exponent must be positive")                       \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
   T(CantSetOptionXWhenYIsUsed, "Can't set option % when % is used")            \
   T(DateRange, "Provided date is not in valid range.")                         \
@@ -423,6 +422,7 @@ namespace internal {
     "Custom comparefn not supported for huge TypedArrays")                     \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
+  T(MustBePositive, "% must be positive")                                      \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \

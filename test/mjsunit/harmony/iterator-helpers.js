@@ -81,3 +81,106 @@ function TestHelperPrototypeSurface(helper) {
   TestHelperPrototypeSurface(filterIter);
   assertEquals({value: undefined, done: true }, filterIter.next());
 })();
+
+(function TestTake() {
+  const iter = gen();
+  assertEquals('function', typeof iter.take);
+  assertEquals(1, iter.take.length);
+  assertEquals('take', iter.take.name);
+  const takeIter = iter.take(1);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 42, done: false }, takeIter.next());
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestTakeAllElements() {
+  const iter = gen();
+  const takeIter = iter.take(2);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 42, done: false }, takeIter.next());
+  assertEquals({value: 43, done: false }, takeIter.next());
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestTakeNoElements() {
+  const iter = gen();
+  const takeIter = iter.take(0);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestTakeMoreElements() {
+  const iter = gen();
+  const takeIter = iter.take(4);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 42, done: false }, takeIter.next());
+  assertEquals({value: 43, done: false }, takeIter.next());
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestTakeNegativeLimit() {
+  const iter = gen();
+  assertThrows(() => {iter.take(-3);});
+})();
+
+(function TestTakeInfinityLimit() {
+  const iter = gen();
+  const takeIter = iter.take(Number.POSITIVE_INFINITY);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 42, done: false }, takeIter.next());
+  assertEquals({value: 43, done: false }, takeIter.next());
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestReturnInNormalIterator() {
+  const NormalIterator = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+                return {value: this.i++, done: false};
+              } else {
+                return {value: undefined, done: true};
+              }
+    },
+    return() {return {value: undefined, done: true};},
+  };
+
+  Object.setPrototypeOf(NormalIterator, Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  const takeIter = NormalIterator.take(1);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 1, done: false }, takeIter.next());
+  assertEquals({value: undefined, done: true }, takeIter.next());
+})();
+
+(function TestNoReturnInIterator() {
+  const NormalIterator = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+                return {value: this.i++, done: false};
+              } else {
+                return {value: undefined, done: true};
+              }
+    },
+  };
+
+  Object.setPrototypeOf(NormalIterator, Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertThrows(() => {iter.take(1);});
+})();
+
+(function TestNonObjectReturnInIterator() {
+  const NormalIterator = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+                return {value: this.i++, done: false};
+              } else {
+                return {value: undefined, done: true};
+              }
+    },
+    return() {throw new Error('Non-object return');},
+  };
+
+  Object.setPrototypeOf(NormalIterator, Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertThrows(() => {iter.take(1);});
+})();

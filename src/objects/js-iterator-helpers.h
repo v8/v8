@@ -80,6 +80,18 @@ class JSIteratorFilterHelper
   TQ_OBJECT_CONSTRUCTORS(JSIteratorFilterHelper)
 };
 
+// The iterator helper returned by Iterator.prototype.take.
+class JSIteratorTakeHelper
+    : public TorqueGeneratedJSIteratorTakeHelper<JSIteratorTakeHelper,
+                                                 JSIteratorHelper> {
+ public:
+  DECL_CAST(JSIteratorTakeHelper)
+  DECL_PRINTER(JSIteratorTakeHelper)
+  DECL_VERIFIER(JSIteratorTakeHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorTakeHelper)
+};
+
 }  // namespace internal
 }  // namespace v8
 

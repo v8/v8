@@ -456,6 +456,7 @@ extern enum MessageTemplate {
   kObjectGetterCallable,
   kObjectSetterCallable,
   kPropertyDescObject,
+  kMustBePositive,
   ...
 }
 
@@ -1957,6 +1958,17 @@ macro IsIntegerOrSomeInfinity(o: Object): bool {
     }
     case (Object): {
       return false;
+    }
+  }
+}
+
+macro NumberIsSomeInfinity(n: Number): bool {
+  typeswitch (n) {
+    case (Smi): {
+      return false;
+    }
+    case (hn: HeapNumber): {
+      return Float64IsSomeInfinity(Convert<float64>(hn));
     }
   }
 }

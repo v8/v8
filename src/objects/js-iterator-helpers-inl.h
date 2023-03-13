@@ -19,9 +19,11 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorMapHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFilterHelper)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
 
 CAST_ACCESSOR(JSIteratorMapHelper)
 CAST_ACCESSOR(JSIteratorFilterHelper)
+CAST_ACCESSOR(JSIteratorTakeHelper)
 
 }  // namespace internal
 }  // namespace v8

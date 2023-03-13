@@ -1605,6 +1605,12 @@ void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
+  os << "\n - remaining: " << remaining();
+  JSObjectPrintBody(os, *this);
+}
+
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSWeakMap");
   os << "\n - table: " << Brief(table());

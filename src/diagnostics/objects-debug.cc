@@ -1297,6 +1297,11 @@ void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
   CHECK_GE(counter().Number(), 0);
 }
 
+void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorTakeHelperVerify(*this, isolate);
+  CHECK_GE(remaining().Number(), 0);
+}
+
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());
 
