@@ -1329,7 +1329,8 @@ void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
   Sub(sp, sp, size);
 }
 
-void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
+void MacroAssembler::Claim(const Register& count, uint64_t unit_size,
+                           bool assume_sp_aligned) {
   if (unit_size == 0) return;
   DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
@@ -1357,7 +1358,13 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
   Bind(&touch_next_page);
   Sub(sp, sp, kStackPageSize);
   // Just to touch the page, before we increment further.
-  Str(xzr, MemOperand(sp));
+  if (assume_sp_aligned) {
+    Str(xzr, MemOperand(sp));
+  } else {
+    Register sp_copy = temps.AcquireX();
+    Mov(sp_copy, sp);
+    Str(xzr, MemOperand(sp_copy));
+  }
   Sub(bytes_scratch, bytes_scratch, kStackPageSize);
 
   Bind(&check_offset);

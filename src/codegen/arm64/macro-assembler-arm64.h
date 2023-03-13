@@ -814,7 +814,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Note that unit_size must be specified in bytes. For variants which take a
   // Register count, the unit size must be a power of two.
   inline void Claim(int64_t count, uint64_t unit_size = kXRegSize);
-  inline void Claim(const Register& count, uint64_t unit_size = kXRegSize);
+  inline void Claim(const Register& count, uint64_t unit_size = kXRegSize,
+                    bool assume_sp_aligned = true);
   inline void Drop(int64_t count, uint64_t unit_size = kXRegSize);
   inline void Drop(const Register& count, uint64_t unit_size = kXRegSize);
 

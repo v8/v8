@@ -5639,7 +5639,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Ldr(current_frame, MemOperand(x0, kSystemPointerSize, PostIndex));
   __ Ldr(x3, MemOperand(current_frame, FrameDescription::frame_size_offset()));
   __ Lsr(frame_size, x3, kSystemPointerSizeLog2);
-  __ Claim(frame_size);
+  __ Claim(frame_size, kXRegSize, /*assume_sp_aligned=*/false);
 
   __ Add(x7, current_frame, FrameDescription::frame_content_offset());
   __ SlotAddress(x6, 0);
