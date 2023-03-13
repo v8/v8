@@ -621,14 +621,7 @@ class MaglevGraphBuilder {
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
     AttachExceptionHandlerInfo(node);
-    if constexpr (std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
-                  std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier>) {
-      // Ignore for side effects -- the only relevant side effect is writes to
-      // and object invalidating loaded properties and context slots, and we
-      // invalidate these already as part of emitting the store.
-    } else if constexpr (NodeT::kProperties.has_any_side_effects()) {
-      MarkPossibleSideEffect();
-    }
+    MarkPossibleSideEffect(node);
     AddInitializedNodeToGraph(node);
     return node;
   }
@@ -1260,9 +1253,74 @@ class MaglevGraphBuilder {
       bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
-  void MarkPossibleMapMigration();
-  void MarkParentPossibleSideEffect();
-  void MarkPossibleSideEffect();
+  template <typename NodeT>
+  void MarkPossibleSideEffect(NodeT* node) {
+    // Don't do anything for nodes without side effects.
+    if constexpr (!NodeT::kProperties.has_any_side_effects()) return;
+
+    // Simple field stores are stores which do nothing but change a field value
+    // (i.e. no map transitions or calls into user code).
+    static constexpr bool is_simple_field_store =
+        std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
+        std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
+        std::is_same_v<NodeT, StoreDoubleField> ||
+        std::is_same_v<NodeT, CheckedStoreSmiField>;
+
+    // Don't change known node aspects for:
+    //
+    //   * Simple field stores -- the only relevant side effect on these is
+    //     writes to objects which invalidate loaded properties and context
+    //     slots, and we invalidate these already as part of emitting the store.
+    //
+    //   * CheckMapsWithMigration -- this only migrates representations of
+    //     values, not the values themselves, so cached values are still valid.
+    static constexpr bool should_clear_unstable_node_aspects =
+        !is_simple_field_store &&
+        !std::is_same_v<NodeT, CheckMapsWithMigration>;
+
+    // Simple field stores can't possibly change or migrate the map.
+    static constexpr bool is_possible_map_change = !is_simple_field_store;
+
+    // We only need to clear unstable node aspects on the current builder, not
+    // the parent, since we'll anyway copy the known_node_aspects to the parent
+    // once we finish the inlined function.
+    if constexpr (should_clear_unstable_node_aspects) {
+      // A side effect could change existing objects' maps. For stable maps we
+      // know this hasn't happened (because we added a dependency on the maps
+      // staying stable and therefore not possible to transition away from), but
+      // we can no longer assume that objects with unstable maps still have the
+      // same map. Unstable maps can also transition to stable ones, so the
+      // set of stable maps becomes invalid for a not that had a unstable map.
+      auto it = known_node_aspects().unstable_maps.begin();
+      while (it != known_node_aspects().unstable_maps.end()) {
+        if (it->second.size() == 0) {
+          it++;
+        } else {
+          known_node_aspects().stable_maps.erase(it->first);
+          it = known_node_aspects().unstable_maps.erase(it);
+        }
+      }
+      // Similarly, side-effects can change object contents, so we have to clear
+      // our known loaded properties -- however, constant properties are known
+      // to not change (and we added a dependency on this), so we don't have to
+      // clear those.
+      known_node_aspects().loaded_properties.clear();
+      known_node_aspects().loaded_context_slots.clear();
+    }
+
+    // Other kinds of side effect have to be propagated up to the parent.
+    for (MaglevGraphBuilder* builder = this; builder != nullptr;
+         builder = builder->parent_) {
+      // All user-observable side effects need to clear the checkpointed frame.
+      // TODO(leszeks): What side effects aren't observable? Maybe migrations?
+      builder->latest_checkpointed_frame_.reset();
+
+      // If a map might have changed, then we need to re-check it for for-in.
+      if (is_possible_map_change) {
+        builder->current_for_in_state.receiver_needs_map_check = true;
+      }
+    }
+  }
 
   int next_offset() const {
     return iterator_.current_offset() + iterator_.current_bytecode_size();

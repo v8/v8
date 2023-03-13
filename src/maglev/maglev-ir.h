@@ -4252,8 +4252,9 @@ class CheckMapsWithMigration
                                   CheckType check_type)
       : Base(bitfield), maps_(maps), check_type_(check_type) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::Writing();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

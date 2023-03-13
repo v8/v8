@@ -378,48 +378,6 @@ void MaglevGraphBuilder::BuildMergeStates() {
   }
 }
 
-void MaglevGraphBuilder::MarkPossibleMapMigration() {
-  current_for_in_state.receiver_needs_map_check = true;
-}
-
-void MaglevGraphBuilder::MarkParentPossibleSideEffect() {
-  if (parent_) {
-    parent_->MarkParentPossibleSideEffect();
-  }
-
-  // If there was a potential side effect, invalidate the previous checkpoint.
-  latest_checkpointed_frame_.reset();
-
-  // Any side effect could also be a map migration.
-  MarkPossibleMapMigration();
-}
-
-void MaglevGraphBuilder::MarkPossibleSideEffect() {
-  // A side effect could change existing objects' maps. For stable maps we
-  // know this hasn't happened (because we added a dependency on the maps
-  // staying stable and therefore not possible to transition away from), but
-  // we can no longer assume that objects with unstable maps still have the
-  // same map. Unstable maps can also transition to stable ones, so the
-  // set of stable maps becomes invalid for a not that had a unstable map.
-  auto it = known_node_aspects().unstable_maps.begin();
-  while (it != known_node_aspects().unstable_maps.end()) {
-    if (it->second.size() == 0) {
-      it++;
-    } else {
-      known_node_aspects().stable_maps.erase(it->first);
-      it = known_node_aspects().unstable_maps.erase(it);
-    }
-  }
-  // Similarly, side-effects can change object contents, so we have to clear
-  // our known loaded properties -- however, constant properties are known
-  // to not change (and we added a dependency on this), so we don't have to
-  // clear those.
-  known_node_aspects().loaded_properties.clear();
-  known_node_aspects().loaded_context_slots.clear();
-
-  MarkParentPossibleSideEffect();
-}
-
 namespace {
 
 template <int index, interpreter::OperandType... operands>
@@ -1990,7 +1948,6 @@ void MaglevGraphBuilder::BuildCheckMaps(
   if (merger.emit_check_with_migration()) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
                                        GetCheckType(known_info->type));
-    MarkPossibleMapMigration();
   } else {
     AddNewNode<CheckMaps>({object}, merger.intersect_set(),
                           GetCheckType(known_info->type));
