@@ -10,6 +10,7 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/foreign-inl.h"
@@ -237,7 +238,8 @@ class V8_NODISCARD CallDepthScope {
     bool did_perform_microtask_checkpoint =
         isolate_->thread_local_top()->CallDepthIsZero() && do_callback &&
         microtask_queue &&
-        microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto;
+        microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto &&
+        !isolate_->is_execution_terminating();
     return !did_perform_microtask_checkpoint ||
            isolate_->heap()->weak_refs_keep_during_job().IsUndefined(isolate_);
   }
