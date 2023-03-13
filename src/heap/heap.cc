@@ -196,8 +196,12 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
  public:
   explicit ScheduleMinorGCTaskObserver(Heap* heap)
       : AllocationObserver(kNotUsingFixedStepSize), heap_(heap) {
+    // Register GC callback for all atomic pause types.
     heap_->main_thread_local_heap()->AddGCEpilogueCallback(
-        &GCEpilogueCallback, this, GCType::kGCTypeAll);
+        &GCEpilogueCallback, this,
+        static_cast<GCType>(GCType::kGCTypeScavenge |
+                            GCType::kGCTypeMinorMarkCompact |
+                            GCType::kGCTypeMarkSweepCompact));
   }
   ~ScheduleMinorGCTaskObserver() override {
     RemoveFromNewSpace();
