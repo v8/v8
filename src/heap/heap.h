@@ -529,6 +529,11 @@ class Heap {
   // this would race on background threads.
   void CreateFillerObjectAtBackground(Address addr, int size);
 
+  // This method is used by the sweeper on free memory ranges to make the page
+  // iterable again. Unlike `CreateFillerObjectAt` this method will not verify
+  // slots since the sweeper can run concurrently.
+  void CreateFillerObjectAtSweeper(Address addr, int size);
+
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
 
@@ -1781,11 +1786,6 @@ class Heap {
   void UpdateInvalidatedObjectSize(HeapObject object, int new_size);
 
   enum class VerifyNoSlotsRecorded { kYes, kNo };
-
-  // This method is used by the sweeper on free memory ranges to make the page
-  // iterable again. Unlike `CreateFillerObjectAt` this method will not verify
-  // slots since the sweeper can run concurrently.
-  void CreateFillerObjectAtSweeper(Address addr, int size);
 
   // Creates a filler object in the specified memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.

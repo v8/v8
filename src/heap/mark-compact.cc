@@ -1014,8 +1014,11 @@ void MarkCompactCollector::Finish() {
 
 void MarkCompactCollector::SweepArrayBufferExtensions() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS);
+  DCHECK_IMPLIES(heap_->new_space(), heap_->new_space()->Size() == 0);
+  DCHECK_IMPLIES(heap_->new_lo_space(), heap_->new_lo_space()->Size() == 0);
   heap_->array_buffer_sweeper()->RequestSweep(
-      ArrayBufferSweeper::SweepingType::kFull);
+      ArrayBufferSweeper::SweepingType::kFull,
+      ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes);
 }
 
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
@@ -6284,8 +6287,12 @@ void MinorMarkCompactCollector::Sweep() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP_START_JOBS);
     sweeper()->StartSweeperTasks();
+    DCHECK_EQ(0, heap_->new_lo_space()->Size());
     heap_->array_buffer_sweeper()->RequestSweep(
-        ArrayBufferSweeper::SweepingType::kYoung);
+        ArrayBufferSweeper::SweepingType::kYoung,
+        (heap_->new_space()->Size() == 0)
+            ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
+            : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
   }
 }
 

@@ -78,11 +78,13 @@ bool ArrayBufferList::IsEmpty() const {
 }
 
 struct ArrayBufferSweeper::SweepingJob final {
-  SweepingJob(ArrayBufferList young, ArrayBufferList old, SweepingType type)
+  SweepingJob(ArrayBufferList young, ArrayBufferList old, SweepingType type,
+              TreatAllYoungAsPromoted treat_all_young_as_promoted)
       : state_(SweepingState::kInProgress),
         young_(std::move(young)),
         old_(std::move(old)),
-        type_(type) {}
+        type_(type),
+        treat_all_young_as_promoted_(treat_all_young_as_promoted) {}
 
   void Sweep();
   void SweepYoung();
@@ -96,6 +98,7 @@ struct ArrayBufferSweeper::SweepingJob final {
   ArrayBufferList old_;
   const SweepingType type_;
   size_t freed_bytes_{0};
+  TreatAllYoungAsPromoted treat_all_young_as_promoted_;
 
   friend class ArrayBufferSweeper;
 };
@@ -149,14 +152,15 @@ void ArrayBufferSweeper::FinishIfDone() {
   }
 }
 
-void ArrayBufferSweeper::RequestSweep(SweepingType type) {
+void ArrayBufferSweeper::RequestSweep(
+    SweepingType type, TreatAllYoungAsPromoted treat_all_young_as_promoted) {
   DCHECK(!sweeping_in_progress());
   DCHECK(local_sweeper_.IsEmpty());
 
   if (young_.IsEmpty() && (old_.IsEmpty() || type == SweepingType::kYoung))
     return;
 
-  Prepare(type);
+  Prepare(type, treat_all_young_as_promoted);
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       v8_flags.concurrent_array_buffer_sweeping) {
     auto task = MakeCancelableTask(heap_->isolate(), [this, type] {
@@ -183,22 +187,29 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
 
 void ArrayBufferSweeper::DoSweep() {
   DCHECK_NOT_NULL(job_);
-  local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
-  DCHECK(!heap_->sweeper()->IsIteratingPromotedPages());
+  if (job_->treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::kNo) {
+    // Waiting for promoted page iteration is only needed when not all young
+    // array buffers are promoted.
+    local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+    DCHECK(!heap_->sweeper()->IsIteratingPromotedPages());
+  }
   job_->Sweep();
 }
 
-void ArrayBufferSweeper::Prepare(SweepingType type) {
+void ArrayBufferSweeper::Prepare(
+    SweepingType type, TreatAllYoungAsPromoted treat_all_young_as_promoted) {
   DCHECK(!sweeping_in_progress());
+  DCHECK_IMPLIES(type == SweepingType::kFull,
+                 treat_all_young_as_promoted == TreatAllYoungAsPromoted::kYes);
   switch (type) {
     case SweepingType::kYoung: {
       job_ = std::make_unique<SweepingJob>(std::move(young_), ArrayBufferList(),
-                                           type);
+                                           type, treat_all_young_as_promoted);
       young_ = ArrayBufferList();
     } break;
     case SweepingType::kFull: {
       job_ = std::make_unique<SweepingJob>(std::move(young_), std::move(old_),
-                                           type);
+                                           type, treat_all_young_as_promoted);
       young_ = ArrayBufferList();
       old_ = ArrayBufferList();
     } break;
@@ -348,7 +359,9 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
       size_t bytes = current->accounting_length();
       delete current;
       if (bytes) freed_bytes_ += bytes;
-    } else if (current->IsYoungPromoted()) {
+    } else if ((treat_all_young_as_promoted_ ==
+                TreatAllYoungAsPromoted::kYes) ||
+               current->IsYoungPromoted()) {
       current->YoungUnmark();
       new_old.Append(current);
     } else {

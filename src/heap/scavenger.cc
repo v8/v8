@@ -537,8 +537,12 @@ void ScavengerCollector::IterateStackAndScavenge(
 }
 
 void ScavengerCollector::SweepArrayBufferExtensions() {
+  DCHECK_EQ(0, heap_->new_lo_space()->Size());
   heap_->array_buffer_sweeper()->RequestSweep(
-      ArrayBufferSweeper::SweepingType::kYoung);
+      ArrayBufferSweeper::SweepingType::kYoung,
+      (heap_->new_space()->Size() == 0)
+          ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
+          : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {

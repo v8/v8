@@ -47,11 +47,13 @@ struct ArrayBufferList final {
 class ArrayBufferSweeper final {
  public:
   enum class SweepingType { kYoung, kFull };
+  enum class TreatAllYoungAsPromoted { kNo, kYes };
 
   explicit ArrayBufferSweeper(Heap* heap);
   ~ArrayBufferSweeper();
 
-  void RequestSweep(SweepingType sweeping_type);
+  void RequestSweep(SweepingType sweeping_type,
+                    TreatAllYoungAsPromoted treat_young_as_promoted);
   void EnsureFinished();
 
   // Track the given ArrayBufferExtension for the given JSArrayBuffer.
@@ -86,7 +88,8 @@ class ArrayBufferSweeper final {
   void IncrementExternalMemoryCounters(size_t bytes);
   void DecrementExternalMemoryCounters(size_t bytes);
 
-  void Prepare(SweepingType type);
+  void Prepare(SweepingType type,
+               TreatAllYoungAsPromoted treat_all_young_as_promoted);
   void Finalize();
 
   void ReleaseAll(ArrayBufferList* extension);
