@@ -149,6 +149,12 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void TierUpAllFunctions();
 
+  // By default, only one top-tier compilation task will be executed for each
+  // function. These functions allow resetting that counter, to be used when
+  // optimized code is intentionally thrown away and should be re-created.
+  void AllowAnotherTopTierJob(uint32_t func_index);
+  void AllowAnotherTopTierJobForAllFunctions();
+
   bool failed() const;
   bool baseline_compilation_finished() const;
 

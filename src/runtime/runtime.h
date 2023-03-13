@@ -681,6 +681,7 @@ namespace internal {
   F(WasmGetNumberOfInstances, 1, 1)        \
   F(WasmNumCodeSpaces, 1, 1)               \
   F(WasmEnterDebugging, 0, 1)              \
+  F(WasmLeaveDebugging, 0, 1)              \
   F(WasmTierUpFunction, 1, 1)              \
   F(WasmTraceEnter, 0, 1)                  \
   F(WasmTraceExit, 1, 1)                   \

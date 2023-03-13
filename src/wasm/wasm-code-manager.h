@@ -799,6 +799,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kRemoveDebugCode,
     kRemoveNonDebugCode,
     kRemoveLiftoffCode,
+    kRemoveTurbofanCode,
     kRemoveAllCode,
   };
   // Remove all compiled code from the {NativeModule} and replace it with

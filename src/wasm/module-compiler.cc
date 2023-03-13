@@ -271,6 +271,16 @@ class CompilationUnitQueues {
     return total;
   }
 
+  void AllowAnotherTopTierJob(uint32_t func_index) {
+    top_tier_compiled_[func_index].store(false, std::memory_order_relaxed);
+  }
+
+  void AllowAnotherTopTierJobForAllFunctions() {
+    for (int i = 0; i < num_declared_functions_; i++) {
+      AllowAnotherTopTierJob(i);
+    }
+  }
+
  private:
   // Store tier in int so we can easily loop over it:
   static constexpr int kBaseline = 0;
@@ -634,6 +644,14 @@ class CompilationStateImpl {
 
   void TierUpAllFunctions();
 
+  void AllowAnotherTopTierJob(uint32_t func_index) {
+    compilation_unit_queues_.AllowAnotherTopTierJob(func_index);
+  }
+
+  void AllowAnotherTopTierJobForAllFunctions() {
+    compilation_unit_queues_.AllowAnotherTopTierJobForAllFunctions();
+  }
+
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
   }
@@ -840,6 +858,14 @@ void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::TierUpAllFunctions() {
   Impl(this)->TierUpAllFunctions();
+}
+
+void CompilationState::AllowAnotherTopTierJob(uint32_t func_index) {
+  Impl(this)->AllowAnotherTopTierJob(func_index);
+}
+
+void CompilationState::AllowAnotherTopTierJobForAllFunctions() {
+  Impl(this)->AllowAnotherTopTierJobForAllFunctions();
 }
 
 void CompilationState::InitializeAfterDeserialization(

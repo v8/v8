@@ -447,6 +447,13 @@ RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmLeaveDebugging) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  wasm::GetWasmEngine()->LeaveDebuggingForIsolate(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

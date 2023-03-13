@@ -1044,8 +1044,9 @@
   # Tier down/up Wasm functions is non-deterministic with
   # multiple isolates, as dynamic tiering relies on a array shared
   # in the module, that can be modified by all instances.
-  'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/code-flushing': [SKIP],
+  'wasm/enter-and-leave-debug-state': [SKIP],
+  'wasm/wasm-dynamic-tiering': [SKIP],
 
   # The test relies on precise switching of code kinds of wasm functions. With
   # multiple isolates that share the wasm functions, the precise switching is
@@ -1339,6 +1340,9 @@
   # This test uses --wasm-speculative-inlining which is incompatible with
   # stressing.
   'regress/wasm/regress-1364036': [SKIP],
+
+  # Makes assumptions about tiering, which don't hold when we TF everything.
+  'wasm/enter-and-leave-debug-state': [SKIP],
 }],  # variant == stress
 
 ##############################################################################

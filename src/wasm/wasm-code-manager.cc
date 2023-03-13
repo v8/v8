@@ -2250,6 +2250,10 @@ bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
       !code->is_liftoff()) {
     return false;
   }
+  if (filter == NativeModule::RemoveFilter::kRemoveTurbofanCode &&
+      !code->is_turbofan()) {
+    return false;
+  }
   return true;
 }
 }  // namespace
@@ -2271,6 +2275,13 @@ void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
       uint32_t func_index = i + num_imports;
       UseLazyStubLocked(func_index);
     }
+  }
+  // When resuming optimized execution after a debugging session ends, or when
+  // discarding optimized code that made outdated assumptions, allow another
+  // tier-up task to get scheduled.
+  if (filter == RemoveFilter::kRemoveDebugCode ||
+      filter == RemoveFilter::kRemoveTurbofanCode) {
+    compilation_state_->AllowAnotherTopTierJobForAllFunctions();
   }
 }
 
