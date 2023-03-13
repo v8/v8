@@ -352,4 +352,8 @@
   'WasmDisassemblerTest.Simd': [SKIP],
 }],  # no_simd_hardware == True
 
+['tsan and mode == debug', {
+  'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+}]
+
 ]
