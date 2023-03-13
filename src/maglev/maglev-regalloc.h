@@ -214,7 +214,8 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegistersUsedBy(ValueNode* node);
   template <typename RegisterT>
-  RegisterT FreeUnblockedRegister();
+  RegisterT FreeUnblockedRegister(
+      RegListBase<RegisterT> reserved = RegListBase<RegisterT>());
   template <typename RegisterT>
   RegisterT PickRegisterToFree(RegListBase<RegisterT> reserved);
 
