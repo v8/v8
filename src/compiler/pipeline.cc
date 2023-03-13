@@ -70,6 +70,7 @@
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/osr.h"
+#include "src/compiler/phase.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/redundancy-elimination.h"
 #include "src/compiler/schedule.h"
@@ -80,29 +81,24 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/assert-types-reducer.h"
-#include "src/compiler/turboshaft/branch-elimination-reducer.h"
-#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
-#include "src/compiler/turboshaft/decompression-optimization.h"
-#include "src/compiler/turboshaft/graph-builder.h"
+#include "src/compiler/turboshaft/build-graph-phase.h"
+#include "src/compiler/turboshaft/dead-code-elimination-phase.h"
+#include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
-#include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
-#include "src/compiler/turboshaft/machine-lowering-reducer.h"
-#include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/memory-optimization.h"
+#include "src/compiler/turboshaft/late-optimization-phase.h"
+#include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
-#include "src/compiler/turboshaft/recreate-schedule.h"
-#include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/optimize-phase.h"
+#include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/recreate-schedule-phase.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
-#include "src/compiler/turboshaft/tag-untag-lowering-reducer.h"
+#include "src/compiler/turboshaft/tag-untag-lowering-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
-#include "src/compiler/turboshaft/type-inference-reducer.h"
-#include "src/compiler/turboshaft/typed-optimizations-reducer.h"
+#include "src/compiler/turboshaft/type-assertions-phase.h"
+#include "src/compiler/turboshaft/typed-optimizations-phase.h"
 #include "src/compiler/turboshaft/types.h"
-#include "src/compiler/turboshaft/value-numbering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
@@ -377,12 +373,15 @@ class PipelineData {
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
-  void CreateTurboshaftGraph() {
-    DCHECK_NULL(turboshaft_graph_);
-    turboshaft_graph_ = std::make_unique<turboshaft::Graph>(graph_zone_);
+  turboshaft::PipelineData* InitializeTurboshaftPipeline() {
+    DCHECK_EQ(turboshaft_data_, base::nullopt);
+    turboshaft_data_.emplace(info_, schedule_, graph_zone_, broker_, isolate_,
+                             source_positions_, node_origins_);
+    return &turboshaft_data_.value();
   }
-  bool HasTurboshaftGraph() const { return turboshaft_graph_ != nullptr; }
-  turboshaft::Graph& turboshaft_graph() const { return *turboshaft_graph_; }
+  turboshaft::PipelineData* turboshaft_data() {
+    return turboshaft_data_.has_value() ? &turboshaft_data_.value() : nullptr;
+  }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
   MachineOperatorBuilder* machine() const { return machine_; }
@@ -503,7 +502,6 @@ class PipelineData {
     if (graph_zone_ == nullptr) return;
     graph_zone_ = nullptr;
     graph_ = nullptr;
-    turboshaft_graph_ = nullptr;
     source_positions_ = nullptr;
     node_origins_ = nullptr;
     simplified_ = nullptr;
@@ -513,6 +511,7 @@ class PipelineData {
     jsgraph_ = nullptr;
     mcgraph_ = nullptr;
     schedule_ = nullptr;
+    if (turboshaft_data_) turboshaft_data_->DeleteGraphZone();
     graph_zone_scope_.Destroy();
   }
 
@@ -682,7 +681,6 @@ class PipelineData {
   ZoneStats::Scope graph_zone_scope_;
   Zone* graph_zone_ = nullptr;
   Graph* graph_ = nullptr;
-  std::unique_ptr<turboshaft::Graph> turboshaft_graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
   NodeOriginTable* node_origins_ = nullptr;
   SimplifiedOperatorBuilder* simplified_ = nullptr;
@@ -734,6 +732,8 @@ class PipelineData {
   const ProfileDataFromFile* profile_data_ = nullptr;
 
   bool has_js_wasm_calls_ = false;
+
+  base::Optional<turboshaft::PipelineData> turboshaft_data_ = base::nullopt;
 };
 
 class PipelineImpl final {
@@ -755,6 +755,7 @@ class PipelineImpl final {
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
+  void InitializeTurboshaftPipeline();
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void Revectorize();
@@ -1363,25 +1364,28 @@ auto PipelineImpl::Run(Args&&... args) {
   PipelineRunScope scope(this->data_, Phase::phase_name());
 #endif
   Phase phase;
-  return phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
+  if constexpr (Phase::kKind == PhaseKind::kTurbofan) {
+    return phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
+  } else if constexpr (Phase::kKind == PhaseKind::kTurboshaft) {
+    turboshaft::PipelineData* data = this->data_->turboshaft_data();
+    using result_t =
+        decltype(phase.Run(data, scope.zone(), std::forward<Args>(args)...));
+    if constexpr (std::is_same_v<result_t, void>) {
+      phase.Run(data, scope.zone(), std::forward<Args>(args)...);
+      turboshaft::PrintTurboshaftGraph(data, scope.zone(),
+                                       this->data_->GetCodeTracer(),
+                                       Phase::phase_name());
+      return;
+    } else {
+      auto result = phase.Run(data, scope.zone(), std::forward<Args>(args)...);
+      turboshaft::PrintTurboshaftGraph(data, scope.zone(),
+                                       this->data_->GetCodeTracer(),
+                                       Phase::phase_name());
+      return result;
+    }
+  }
+  UNREACHABLE();
 }
-
-#ifdef V8_RUNTIME_CALL_STATS
-#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Mode)        \
-  static const char* phase_name() { return "V8.TF" #Name; }     \
-  static constexpr RuntimeCallCounterId kRuntimeCallCounterId = \
-      RuntimeCallCounterId::kOptimize##Name;                    \
-  static constexpr RuntimeCallStats::CounterMode kCounterMode = Mode;
-#else  // V8_RUNTIME_CALL_STATS
-#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Mode) \
-  static const char* phase_name() { return "V8.TF" #Name; }
-#endif  // V8_RUNTIME_CALL_STATS
-
-#define DECL_PIPELINE_PHASE_CONSTANTS(Name) \
-  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, RuntimeCallStats::kThreadSpecific)
-
-#define DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(Name) \
-  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, RuntimeCallStats::kExact)
 
 struct GraphBuilderPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BytecodeGraphBuilder)
@@ -2031,52 +2035,39 @@ struct LateOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LateOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (data->HasTurboshaftGraph()) {
-      // TODO(dmercadier,tebbi): add missing CommonOperatorReducer.
-      turboshaft::OptimizationPhase<
-          turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
-          turboshaft::SelectLoweringReducer,
-          turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-          turboshaft::ValueNumberingReducer>::Run(data->isolate(),
-                                                  &data->turboshaft_graph(),
-                                                  temp_zone,
-                                                  data->node_origins());
-    } else {
-      GraphReducer graph_reducer(temp_zone, data->graph(),
-                                 &data->info()->tick_counter(), data->broker(),
-                                 data->jsgraph()->Dead(),
-                                 data->observe_node_manager());
-      LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
-                                         data->common(), temp_zone);
-      BranchElimination branch_condition_elimination(
-          &graph_reducer, data->jsgraph(), temp_zone);
-      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                                data->common(), temp_zone);
-      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-      MachineOperatorReducer machine_reducer(
-          &graph_reducer, data->jsgraph(),
-          MachineOperatorReducer::kPropagateSignallingNan);
-      CommonOperatorReducer common_reducer(
-          &graph_reducer, data->graph(), data->broker(), data->common(),
-          data->machine(), temp_zone, BranchSemantics::kMachine);
-      JSGraphAssembler graph_assembler(data->broker(), data->jsgraph(),
-                                       temp_zone, BranchSemantics::kMachine);
-      SelectLowering select_lowering(&graph_assembler, data->graph());
-      if (!v8_flags.turboshaft) {
-        AddReducer(data, &graph_reducer, &escape_analysis);
-        AddReducer(data, &graph_reducer, &branch_condition_elimination);
-      }
-      AddReducer(data, &graph_reducer, &dead_code_elimination);
-      if (!v8_flags.turboshaft) {
-        AddReducer(data, &graph_reducer, &machine_reducer);
-      }
-      AddReducer(data, &graph_reducer, &common_reducer);
-      if (!v8_flags.turboshaft) {
-        AddReducer(data, &graph_reducer, &select_lowering);
-        AddReducer(data, &graph_reducer, &value_numbering);
-      }
-      graph_reducer.ReduceGraph();
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
+                                       data->common(), temp_zone);
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+    MachineOperatorReducer machine_reducer(
+        &graph_reducer, data->jsgraph(),
+        MachineOperatorReducer::kPropagateSignallingNan);
+    CommonOperatorReducer common_reducer(
+        &graph_reducer, data->graph(), data->broker(), data->common(),
+        data->machine(), temp_zone, BranchSemantics::kMachine);
+    JSGraphAssembler graph_assembler(data->broker(), data->jsgraph(), temp_zone,
+                                     BranchSemantics::kMachine);
+    SelectLowering select_lowering(&graph_assembler, data->graph());
+    if (!v8_flags.turboshaft) {
+      AddReducer(data, &graph_reducer, &escape_analysis);
+      AddReducer(data, &graph_reducer, &branch_condition_elimination);
     }
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    if (!v8_flags.turboshaft) {
+      AddReducer(data, &graph_reducer, &machine_reducer);
+    }
+    AddReducer(data, &graph_reducer, &common_reducer);
+    if (!v8_flags.turboshaft) {
+      AddReducer(data, &graph_reducer, &select_lowering);
+      AddReducer(data, &graph_reducer, &value_numbering);
+    }
+    graph_reducer.ReduceGraph();
   }
 };
 
@@ -2117,14 +2108,9 @@ struct DecompressionOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (!COMPRESS_POINTERS_BOOL) return;
-    if (data->HasTurboshaftGraph()) {
-      turboshaft::RunDecompressionOptimization(data->turboshaft_graph(),
-                                               temp_zone);
-    } else {
-      DecompressionOptimizer decompression_optimizer(
-          temp_zone, data->graph(), data->common(), data->machine());
-      decompression_optimizer.Reduce();
-    }
+    DecompressionOptimizer decompression_optimizer(
+        temp_zone, data->graph(), data->common(), data->machine());
+    decompression_optimizer.Reduce();
   }
 };
 
@@ -2135,142 +2121,6 @@ struct BranchConditionDuplicationPhase {
     BranchConditionDuplicator compare_zero_branch_optimizer(temp_zone,
                                                             data->graph());
     compare_zero_branch_optimizer.Reduce();
-  }
-};
-
-struct BuildTurboshaftPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboshaft)
-
-  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
-                                    Linkage* linkage) {
-    Schedule* schedule = data->schedule();
-    data->reset_schedule();
-    data->CreateTurboshaftGraph();
-
-    UnparkedScopeIfNeeded scope(data->broker());
-
-    if (auto bailout = turboshaft::BuildGraph(
-            data->broker(), schedule, data->isolate(), data->graph_zone(),
-            temp_zone, &data->turboshaft_graph(), linkage,
-            data->source_positions(), data->node_origins())) {
-      return bailout;
-    }
-    return {};
-  }
-};
-
-struct TurboshaftMachineLoweringPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftMachineLowering)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    turboshaft::OptimizationPhase<turboshaft::MachineLoweringReducer,
-                                  turboshaft::VariableReducer>::
-        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
-            data->node_origins(),
-            std::tuple{turboshaft::MachineLoweringReducerArgs{
-                data->isolate()->factory(), data->isolate()}});
-  }
-};
-
-struct OptimizeTurboshaftPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(OptimizeTurboshaft)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    UnparkedScopeIfNeeded scope(data->broker(),
-                                v8_flags.turboshaft_trace_reduction);
-    turboshaft::OptimizationPhase<
-        turboshaft::LateEscapeAnalysisReducer,
-        turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
-        turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-        turboshaft::ValueNumberingReducer>::
-        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
-            data->node_origins(),
-            std::tuple{
-                turboshaft::MemoryOptimizationReducerArgs{data->isolate()}});
-  }
-};
-
-struct TurboshaftTypedOptimizationsPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftTypedOptimizations)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(data->HasTurboshaftGraph());
-#ifdef DEBUG
-    UnparkedScopeIfNeeded scope(data->broker(),
-                                v8_flags.turboshaft_trace_typing);
-#endif
-
-    turboshaft::TypeInferenceReducerArgs typing_args{
-        data->isolate(),
-        turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
-        turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::kNone};
-
-    turboshaft::OptimizationPhase<
-        turboshaft::TypedOptimizationsReducer,
-        turboshaft::TypeInferenceReducer>::Run(data->isolate(),
-                                               &data->turboshaft_graph(),
-                                               temp_zone, data->node_origins(),
-                                               {typing_args});
-  }
-};
-
-struct TurboshaftTypeAssertionsPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftTypeAssertions)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(data->HasTurboshaftGraph());
-    UnparkedScopeIfNeeded scope(data->broker());
-
-    turboshaft::TypeInferenceReducerArgs typing_args{
-        data->isolate(),
-        turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
-        turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::
-            kPreserveFromInputGraph};
-
-    turboshaft::OptimizationPhase<turboshaft::AssertTypesReducer,
-                                  turboshaft::ValueNumberingReducer,
-                                  turboshaft::TypeInferenceReducer>::
-        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
-            data->node_origins(),
-            std::tuple{typing_args,
-                       turboshaft::AssertTypesReducerArgs{data->isolate()}});
-  }
-};
-
-struct TurboshaftDeadCodeEliminationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftDeadCodeElimination)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(data->HasTurboshaftGraph());
-    UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
-
-    turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer>::Run(
-        data->isolate(), &data->turboshaft_graph(), temp_zone,
-        data->node_origins());
-  }
-};
-
-struct TurboshaftTagUntagLoweringPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftTagUntagLowering)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(data->HasTurboshaftGraph());
-    turboshaft::OptimizationPhase<turboshaft::TagUntagLoweringReducer>::Run(
-        data->isolate(), &data->turboshaft_graph(), temp_zone,
-        data->node_origins());
-  }
-};
-
-struct TurboshaftRecreateSchedulePhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftRecreateSchedule)
-
-  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    auto result = turboshaft::RecreateSchedule(
-        data->turboshaft_graph(), data->broker(),
-        linkage->GetIncomingDescriptor(), data->graph_zone(), temp_zone,
-        data->source_positions(), data->node_origins());
-    data->set_graph(result.graph);
-    data->set_schedule(result.schedule);
   }
 };
 
@@ -2831,76 +2681,6 @@ struct PrintGraphPhase {
   }
 };
 
-struct PrintTurboshaftGraphPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(PrintTurboshaftGraph)
-
-  void Run(PipelineData* data, Zone* temp_zone, const char* phase) {
-    if (data->info()->trace_turbo_json()) {
-      UnparkedScopeIfNeeded scope(data->broker());
-      AllowHandleDereference allow_deref;
-
-      {
-        TurboJsonFile json_of(data->info(), std::ios_base::app);
-        json_of << "{\"name\":\"" << phase
-                << "\",\"type\":\"turboshaft_graph\",\"data\":"
-                << AsJSON(data->turboshaft_graph(), data->node_origins(),
-                          temp_zone)
-                << "},\n";
-      }
-      PrintTurboshaftCustomDataPerOperation(
-          data->info(), "Properties", data->turboshaft_graph(),
-          [](std::ostream& stream, const turboshaft::Graph& graph,
-             turboshaft::OpIndex index) -> bool {
-            const auto& op = graph.Get(index);
-            op.PrintOptions(stream);
-            return true;
-          });
-      PrintTurboshaftCustomDataPerOperation(
-          data->info(), "Types", data->turboshaft_graph(),
-          [](std::ostream& stream, const turboshaft::Graph& graph,
-             turboshaft::OpIndex index) -> bool {
-            turboshaft::Type type = graph.operation_types()[index];
-            if (!type.IsInvalid() && !type.IsNone()) {
-              type.PrintTo(stream);
-              return true;
-            }
-            return false;
-          });
-      PrintTurboshaftCustomDataPerOperation(
-          data->info(), "Use Count (saturated)", data->turboshaft_graph(),
-          [](std::ostream& stream, const turboshaft::Graph& graph,
-             turboshaft::OpIndex index) -> bool {
-            stream << static_cast<int>(graph.Get(index).saturated_use_count);
-            return true;
-          });
-#ifdef DEBUG
-      PrintTurboshaftCustomDataPerBlock(
-          data->info(), "Type Refinements", data->turboshaft_graph(),
-          [](std::ostream& stream, const turboshaft::Graph& graph,
-             turboshaft::BlockIndex index) -> bool {
-            const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
-                refinements = graph.block_type_refinement()[index];
-            if (refinements.empty()) return false;
-            stream << "\\n";
-            for (const auto& [op, type] : refinements) {
-              stream << op << " : " << type << "\\n";
-            }
-            return true;
-          });
-#endif  // DEBUG
-    }
-
-    if (data->info()->trace_turbo_graph()) {
-      UnparkedScopeIfNeeded scope(data->broker());
-      AllowHandleDereference allow_deref;
-
-      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-      tracing_scope.stream() << "\n----- " << phase << " -----\n"
-                             << data->turboshaft_graph();
-    }
-  }
-};
-
 struct VerifyGraphPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(VerifyGraph)
 
@@ -3247,52 +3027,40 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
 
+    data->InitializeTurboshaftPipeline();
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
     if (base::Optional<BailoutReason> bailout =
-            Run<BuildTurboshaftPhase>(linkage)) {
+            Run<turboshaft::BuildGraphPhase>(linkage)) {
       info()->AbortOptimization(*bailout);
       data->EndPhaseKind();
       return false;
     }
 
-    Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
+    Run<turboshaft::MachineLoweringPhase>();
 
-    Run<TurboshaftMachineLoweringPhase>();
-    Run<PrintTurboshaftGraphPhase>(
-        TurboshaftMachineLoweringPhase::phase_name());
+    Run<turboshaft::LateOptimizationPhase>();
 
-    Run<LateOptimizationPhase>();
-    Run<PrintTurboshaftGraphPhase>(LateOptimizationPhase::phase_name());
+    Run<turboshaft::OptimizePhase>();
 
-    Run<OptimizeTurboshaftPhase>();
-    Run<PrintTurboshaftGraphPhase>(OptimizeTurboshaftPhase::phase_name());
+    Run<turboshaft::DecompressionOptimizationPhase>();
 
-    Run<DecompressionOptimizationPhase>();
-    Run<PrintTurboshaftGraphPhase>(
-        DecompressionOptimizationPhase::phase_name());
-
-    Run<TurboshaftTypedOptimizationsPhase>();
-    Run<PrintTurboshaftGraphPhase>(
-        TurboshaftTypedOptimizationsPhase::phase_name());
+    Run<turboshaft::TypedOptimizationsPhase>();
 
     if (v8_flags.turboshaft_assert_types) {
-      Run<TurboshaftTypeAssertionsPhase>();
-      Run<PrintTurboshaftGraphPhase>(
-          TurboshaftTypeAssertionsPhase::phase_name());
+      Run<turboshaft::TypeAssertionsPhase>();
     }
 
-    Run<TurboshaftDeadCodeEliminationPhase>();
-    Run<PrintTurboshaftGraphPhase>(
-        TurboshaftDeadCodeEliminationPhase::phase_name());
+    Run<turboshaft::DeadCodeEliminationPhase>();
 
-    Run<TurboshaftTagUntagLoweringPhase>();
-    Run<PrintTurboshaftGraphPhase>(
-        TurboshaftTagUntagLoweringPhase::phase_name());
+    Run<turboshaft::TagUntagLoweringPhase>();
 
-    Run<TurboshaftRecreateSchedulePhase>(linkage);
+    auto [new_graph, new_schedule] =
+        Run<turboshaft::RecreateSchedulePhase>(linkage);
+    data->set_graph(new_graph);
+    data->set_schedule(new_schedule);
     TraceSchedule(data->info(), data, data->schedule(),
-                  TurboshaftRecreateSchedulePhase::phase_name());
+                  turboshaft::RecreateSchedulePhase::phase_name());
   }
 
   return SelectInstructions(linkage);
@@ -3774,26 +3542,26 @@ void Pipeline::GenerateCodeForWasmFunction(
   Linkage linkage(call_descriptor);
 
   if (v8_flags.turboshaft_wasm) {
+    pipeline.InitializeTurboshaftPipeline();
+
     if (base::Optional<BailoutReason> bailout =
-            pipeline.Run<BuildTurboshaftPhase>(&linkage)) {
+            pipeline.Run<turboshaft::BuildGraphPhase>(&linkage)) {
       pipeline.info()->AbortOptimization(*bailout);
       data.EndPhaseKind();
       info->SetWasmCompilationResult({});
       return;
     }
-    pipeline.Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
 
-    pipeline.Run<OptimizeTurboshaftPhase>();
-    pipeline.Run<PrintTurboshaftGraphPhase>(
-        OptimizeTurboshaftPhase::phase_name());
+    pipeline.Run<turboshaft::OptimizePhase>();
 
-    pipeline.Run<DecompressionOptimizationPhase>();
-    pipeline.Run<PrintTurboshaftGraphPhase>(
-        DecompressionOptimizationPhase::phase_name());
+    pipeline.Run<turboshaft::DecompressionOptimizationPhase>();
 
-    pipeline.Run<TurboshaftRecreateSchedulePhase>(&linkage);
+    auto [new_graph, new_schedule] =
+        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+    data.set_graph(new_graph);
+    data.set_schedule(new_schedule);
     TraceSchedule(data.info(), &data, data.schedule(),
-                  TurboshaftRecreateSchedulePhase::phase_name());
+                  turboshaft::RecreateSchedulePhase::phase_name());
   }
 
   if (!pipeline.SelectInstructions(&linkage)) return;
@@ -3993,6 +3761,10 @@ void PipelineImpl::ComputeScheduledGraph() {
 
   Run<ComputeSchedulePhase>();
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
+}
+
+void PipelineImpl::InitializeTurboshaftPipeline() {
+  this->data_->InitializeTurboshaftPipeline();
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
