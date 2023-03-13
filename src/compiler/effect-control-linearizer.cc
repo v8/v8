@@ -1100,18 +1100,38 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCompareMaps(node);
       break;
     case IrOpcode::kCheckNumber:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckNumber(node, frame_state);
       break;
     case IrOpcode::kCheckReceiver:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckReceiver(node, frame_state);
       break;
     case IrOpcode::kCheckReceiverOrNullOrUndefined:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckReceiverOrNullOrUndefined(node, frame_state);
       break;
     case IrOpcode::kCheckSymbol:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckSymbol(node, frame_state);
       break;
     case IrOpcode::kCheckString:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckString(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToInt64:
@@ -1129,6 +1149,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckInternalizedString(node, frame_state);
       break;
     case IrOpcode::kCheckIf:
@@ -2348,6 +2372,7 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2371,6 +2396,7 @@ Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
 
 Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
                                                   Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -2387,6 +2413,7 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -2409,6 +2436,7 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
 }
 
 Node* EffectControlLinearizer::LowerCheckSymbol(Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -2421,6 +2449,7 @@ Node* EffectControlLinearizer::LowerCheckSymbol(Node* node, Node* frame_state) {
 }
 
 Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2437,6 +2466,7 @@ Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
 
 Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
                                                             Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);

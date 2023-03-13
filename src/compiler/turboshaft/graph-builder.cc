@@ -685,27 +685,34 @@ OpIndex GraphBuilder::Process(
       OBJECT_IS_CASE(Undetectable)
 #undef OBJECT_IS_CASE
 
-    case IrOpcode::kCheckBigInt: {
-      DCHECK(dominating_frame_state.valid());
-      OpIndex input = Map(node->InputAt(0));
-      OpIndex check = __ ObjectIs(input, ObjectIsOp::Kind::kBigInt,
-                                  ObjectIsOp::InputAssumptions::kNone);
-      __ DeoptimizeIfNot(check, dominating_frame_state,
-                         DeoptimizeReason::kNotABigInt,
-                         CheckParametersOf(op).feedback());
-      return input;
-    }
-    case IrOpcode::kCheckedBigIntToBigInt64: {
-      DCHECK(dominating_frame_state.valid());
-      OpIndex input = Map(node->InputAt(0));
-      OpIndex check =
-          __ ObjectIs(Map(node->InputAt(0)), ObjectIsOp::Kind::kBigInt64,
-                      ObjectIsOp::InputAssumptions::kBigInt);
-      __ DeoptimizeIfNot(check, dominating_frame_state,
-                         DeoptimizeReason::kNotABigInt64,
-                         CheckParametersOf(op).feedback());
-      return input;
-    }
+#define CHECK_OBJECT_IS_CASE(code, kind, input_assumptions, reason, feedback) \
+  case IrOpcode::k##code: {                                                   \
+    DCHECK(dominating_frame_state.valid());                                   \
+    V<Tagged> input = Map(node->InputAt(0));                                  \
+    V<Word32> check =                                                         \
+        __ ObjectIs(input, ObjectIsOp::Kind::k##kind,                         \
+                    ObjectIsOp::InputAssumptions::k##input_assumptions);      \
+    __ DeoptimizeIfNot(check, dominating_frame_state,                         \
+                       DeoptimizeReason::k##reason, feedback);                \
+    return input;                                                             \
+  }
+      CHECK_OBJECT_IS_CASE(CheckInternalizedString, InternalizedString,
+                           HeapObject, WrongInstanceType, {})
+      CHECK_OBJECT_IS_CASE(CheckNumber, Number, None, NotANumber,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckReceiver, Receiver, HeapObject,
+                           NotAJavaScriptObject, {})
+      CHECK_OBJECT_IS_CASE(CheckReceiverOrNullOrUndefined,
+                           ReceiverOrNullOrUndefined, HeapObject,
+                           NotAJavaScriptObjectOrNullOrUndefined, {})
+      CHECK_OBJECT_IS_CASE(CheckString, String, HeapObject, NotAString,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckSymbol, Symbol, HeapObject, NotASymbol, {})
+      CHECK_OBJECT_IS_CASE(CheckBigInt, BigInt, None, NotABigInt,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckedBigIntToBigInt64, BigInt64, BigInt,
+                           NotABigInt64, CheckParametersOf(op).feedback())
+#undef CHECK_OBJECT_IS_CASE
 
 #define CONVERT_TO_OBJECT_CASE(name, kind, input_rep, input_interpretation) \
   case IrOpcode::k##name:                                                   \

@@ -205,6 +205,7 @@ class MachineLoweringReducer : public Next {
       case ObjectIsOp::Kind::kDetectableCallable:
       case ObjectIsOp::Kind::kNonCallable:
       case ObjectIsOp::Kind::kReceiver:
+      case ObjectIsOp::Kind::kReceiverOrNullOrUndefined:
       case ObjectIsOp::Kind::kUndetectable: {
         Label<Word32> done(this);
 
@@ -252,6 +253,22 @@ class MachineLoweringReducer : public Next {
                 map, AccessBuilder::ForMapInstanceType());
             check =
                 __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE, instance_type);
+            break;
+          }
+          case ObjectIsOp::Kind::kReceiverOrNullOrUndefined: {
+            static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
+            static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            // Rule out all primitives except oddballs (true, false, undefined,
+            // null).
+            V<Word32> instance_type = __ template LoadField<Word32>(
+                map, AccessBuilder::ForMapInstanceType());
+            GOTO_IF_NOT(__ Uint32LessThanOrEqual(ODDBALL_TYPE, instance_type),
+                        done, 0);
+
+            // Rule out booleans.
+            check = __ Word32Equal(
+                0,
+                __ TaggedEqual(map, __ HeapConstant(factory_->boolean_map())));
             break;
           }
           case ObjectIsOp::Kind::kUndetectable:
@@ -326,6 +343,18 @@ class MachineLoweringReducer : public Next {
 
         BIND(done, result);
         return result;
+      }
+      case ObjectIsOp::Kind::kInternalizedString: {
+        DCHECK_EQ(input_assumptions, ObjectIsOp::InputAssumptions::kHeapObject);
+        // Load instance type from map.
+        V<Tagged> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ template LoadField<Word32>(
+            map, AccessBuilder::ForMapInstanceType());
+
+        return __ Word32Equal(
+            __ Word32BitwiseAnd(instance_type,
+                                (kIsNotStringMask | kIsNotInternalizedMask)),
+            kInternalizedTag);
       }
     }
 

@@ -728,12 +728,16 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "Constructor";
     case ObjectIsOp::Kind::kDetectableCallable:
       return os << "DetectableCallable";
+    case ObjectIsOp::Kind::kInternalizedString:
+      return os << "InternalizedString";
     case ObjectIsOp::Kind::kNonCallable:
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
     case ObjectIsOp::Kind::kReceiver:
       return os << "Receiver";
+    case ObjectIsOp::Kind::kReceiverOrNullOrUndefined:
+      return os << "ReceiverOrNullOrUndefined";
     case ObjectIsOp::Kind::kSmi:
       return os << "Smi";
     case ObjectIsOp::Kind::kString:
