@@ -259,7 +259,9 @@ class CodeAssemblerParameterizedLabel;
   V(Int32Mul, Word32T, Word32T, Word32T)                                \
   V(Int32MulWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Div, Int32T, Int32T, Int32T)                                   \
+  V(Uint32Div, Uint32T, Uint32T, Uint32T)                               \
   V(Int32Mod, Int32T, Int32T, Int32T)                                   \
+  V(Uint32Mod, Uint32T, Uint32T, Uint32T)                               \
   V(Int64Add, Word64T, Word64T, Word64T)                                \
   V(Int64Sub, Word64T, Word64T, Word64T)                                \
   V(Int64SubWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T, Int64T)     \
@@ -981,6 +983,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<IntPtrT> WordNot(TNode<IntPtrT> a) {
     return Signed(WordNot(static_cast<TNode<WordT>>(a)));
   }
+  TNode<Int32T> Word32BitwiseNot(TNode<Int32T> a) {
+    return Signed(Word32BitwiseNot(static_cast<TNode<Word32T>>(a)));
+  }
   TNode<BoolT> Word32Or(TNode<BoolT> left, TNode<BoolT> right) {
     return UncheckedCast<BoolT>(Word32Or(static_cast<TNode<Word32T>>(left),
                                          static_cast<TNode<Word32T>>(right)));
@@ -1013,6 +1018,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> Int32Mul(TNode<Int32T> left, TNode<Int32T> right) {
     return Signed(Int32Mul(static_cast<TNode<Word32T>>(left),
                            static_cast<TNode<Word32T>>(right)));
+  }
+
+  TNode<Uint32T> Uint32Mul(TNode<Uint32T> left, TNode<Uint32T> right) {
+    return Unsigned(Int32Mul(static_cast<TNode<Word32T>>(left),
+                             static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Int64T> Int64Add(TNode<Int64T> left, TNode<Int64T> right) {

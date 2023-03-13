@@ -1163,6 +1163,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                          kExternalStringResourceDataTag);
   }
 
+  TNode<RawPtr<Uint64T>> Log10OffsetTable() {
+    return ReinterpretCast<RawPtr<Uint64T>>(
+        ExternalConstant(ExternalReference::address_of_log10_offset_table()));
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   TNode<RawPtrT> LoadWasmInternalFunctionCallTargetPtr(
       TNode<WasmInternalFunction> object) {
@@ -1211,6 +1216,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadBufferData<IntPtrT>(buffer, offset);
   }
   TNode<Uint8T> LoadUint8Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> offset);
+  TNode<Uint64T> LoadUint64Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> index);
 
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
@@ -4001,6 +4007,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   uint8_t ConstexprIntegerLiteralToUint8(const IntegerLiteral& i) {
     return i.To<uint8_t>();
+  }
+  int64_t ConstexprIntegerLiteralToInt64(const IntegerLiteral& i) {
+    return i.To<int64_t>();
   }
   uint64_t ConstexprIntegerLiteralToUint64(const IntegerLiteral& i) {
     return i.To<uint64_t>();

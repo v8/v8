@@ -1795,6 +1795,13 @@ TNode<Uint8T> CodeStubAssembler::LoadUint8Ptr(TNode<RawPtrT> ptr,
   return Load<Uint8T>(IntPtrAdd(ReinterpretCast<IntPtrT>(ptr), offset));
 }
 
+TNode<Uint64T> CodeStubAssembler::LoadUint64Ptr(TNode<RawPtrT> ptr,
+                                                TNode<IntPtrT> index) {
+  return Load<Uint64T>(
+      IntPtrAdd(ReinterpretCast<IntPtrT>(ptr),
+                IntPtrMul(index, IntPtrConstant(sizeof(uint64_t)))));
+}
+
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     TNode<HeapObject> object, int offset) {
   // Please use LoadMap(object) instead.
@@ -7700,8 +7707,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
       BIND(&store_to_cache);
       {
         // Generate string and update string hash field.
-        result = NumberToStringSmi(SmiToInt32(smi_input.value()),
-                                   Int32Constant(10), bailout);
+        result = IntToDecimalString(SmiToInt32(smi_input.value()));
 
         // Store string into cache.
         StoreFixedArrayElement(number_string_cache, entry_index,

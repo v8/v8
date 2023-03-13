@@ -1060,6 +1060,22 @@ FUNCTION_REFERENCE(external_one_byte_string_get_chars,
 FUNCTION_REFERENCE(external_two_byte_string_get_chars,
                    ExternalTwoByteStringGetChars)
 
+// See:
+// https://lemire.me/blog/2021/06/03/computing-the-number-of-digits-of-an-integer-even-faster/
+static constexpr uint64_t kLog10OffsetTable[] = {
+    0x100000000, 0x1fffffff6, 0x1fffffff6, 0x1fffffff6, 0x2ffffff9c,
+    0x2ffffff9c, 0x2ffffff9c, 0x3fffffc18, 0x3fffffc18, 0x3fffffc18,
+    0x4ffffd8f0, 0x4ffffd8f0, 0x4ffffd8f0, 0x4ffffd8f0, 0x5fffe7960,
+    0x5fffe7960, 0x5fffe7960, 0x6fff0bdc0, 0x6fff0bdc0, 0x6fff0bdc0,
+    0x7ff676980, 0x7ff676980, 0x7ff676980, 0x7ff676980, 0x8fa0a1f00,
+    0x8fa0a1f00, 0x8fa0a1f00, 0x9c4653600, 0x9c4653600, 0x9c4653600,
+    0xa00000000, 0xa00000000,
+};
+
+ExternalReference ExternalReference::address_of_log10_offset_table() {
+  return ExternalReference(reinterpret_cast<Address>(&kLog10OffsetTable[0]));
+}
+
 FUNCTION_REFERENCE(orderedhashmap_gethash_raw, OrderedHashMap::GetHash)
 
 Address GetOrCreateHash(Isolate* isolate, Address raw_key) {

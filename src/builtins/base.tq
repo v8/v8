@@ -893,6 +893,7 @@ extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro UintPtrGreaterThanOrEqual(uintptr, uintptr): bool;
 extern operator '~' macro WordNot(intptr): intptr;
 extern operator '~' macro WordNot(uintptr): uintptr;
+extern operator '~' macro Word32BitwiseNot(int32): int32;
 extern operator '~' macro Word64Not(uint64): uint64;
 extern operator '~' macro Word64Not(int64): int64;
 extern operator '~' macro ConstexprWordNot(constexpr intptr): constexpr intptr;
@@ -1013,7 +1014,9 @@ extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '*' macro Uint32Mul(uint32, uint32): uint32;
 extern operator '/' macro Int32Div(int32, int32): int32;
+extern operator '/' macro Uint32Div(uint32, uint32): uint32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
+extern operator '%' macro Uint32Mod(uint32, uint32): uint32;
 extern operator '&' macro Word32And(int32, int32): int32;
 extern operator '&' macro Word32And(uint32, uint32): uint32;
 extern operator '==' macro
@@ -1039,6 +1042,8 @@ extern macro ConstexprIntegerLiteralToInt32(constexpr IntegerLiteral):
     constexpr int32;
 extern macro ConstexprIntegerLiteralToUint32(constexpr IntegerLiteral):
     constexpr uint32;
+extern macro ConstexprIntegerLiteralToInt64(constexpr IntegerLiteral):
+    constexpr int64;
 extern macro ConstexprIntegerLiteralToUint64(constexpr IntegerLiteral):
     constexpr uint64;
 extern macro ConstexprIntegerLiteralToIntptr(constexpr IntegerLiteral):
@@ -1238,7 +1243,7 @@ extern macro ChangeBoolToInt32(bool): int32;
 extern macro ChangeInt32ToFloat64(int32): float64;
 extern macro ChangeInt32ToIntPtr(int32): intptr;    // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;   // Doesn't sign-extend.
-extern macro ChangeInt32ToInt64(int32): intptr;     // Sign-extends.
+extern macro ChangeInt32ToInt64(int32): int64;      // Sign-extends.
 extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
@@ -2008,6 +2013,7 @@ extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
 
 extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
+extern operator '[]' macro LoadUint64Ptr(RawPtr<uint64>, intptr): uint64;
 
 extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
   kHash,
