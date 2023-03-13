@@ -345,8 +345,9 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
-    // validity.
+    // and for-in state validity.
     latest_checkpointed_frame_.reset();
+    current_for_in_state.receiver_needs_map_check = true;
 
     if (merge_state.predecessor_count() == 1) return;
 
