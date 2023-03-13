@@ -614,6 +614,12 @@ class GraphVisitor {
         MapToNewGraph(op.input()), op.kind, op.input_rep,
         op.input_interpretation, op.minus_zero_mode);
   }
+  OpIndex AssembleOutputGraphConvertToObjectOrDeopt(
+      const ConvertToObjectOrDeoptOp& op) {
+    return assembler().ReduceConvertToObjectOrDeopt(
+        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
+        op.input_rep, op.input_interpretation, op.feedback);
+  }
   OpIndex AssembleOutputGraphConvertObjectToPrimitive(
       const ConvertObjectToPrimitiveOp& op) {
     return assembler().ReduceConvertObjectToPrimitive(

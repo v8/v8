@@ -647,6 +647,62 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
+  OpIndex ReduceConvertToObjectOrDeopt(
+      OpIndex input, OpIndex frame_state, ConvertToObjectOrDeoptOp::Kind kind,
+      RegisterRepresentation input_rep,
+      ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation,
+      const FeedbackSource& feedback) {
+    DCHECK_EQ(kind, ConvertToObjectOrDeoptOp::Kind::kSmi);
+    if (input_rep == RegisterRepresentation::Word32()) {
+      if (input_interpretation ==
+          ConvertToObjectOrDeoptOp::InputInterpretation::kSigned) {
+        if constexpr (SmiValuesAre32Bits()) {
+          return __ SmiTag(input);
+        } else {
+          OpIndex test = __ Int32AddCheckOverflow(input, input);
+          __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
+                          DeoptimizeReason::kLostPrecision, feedback);
+          return __ SmiTag(input);
+        }
+      } else {
+        DCHECK_EQ(input_interpretation,
+                  ConvertToObjectOrDeoptOp::InputInterpretation::kUnsigned);
+        V<Word32> check = __ Uint32LessThanOrEqual(input, Smi::kMaxValue);
+        __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kLostPrecision,
+                           feedback);
+        return __ SmiTag(input);
+      }
+    } else {
+      DCHECK_EQ(input_rep, RegisterRepresentation::Word64());
+      if (input_interpretation ==
+          ConvertToObjectOrDeoptOp::InputInterpretation::kSigned) {
+        // Word32 truncation is implicit.
+        V<Word32> i32 = input;
+        V<Word32> check = __ Word64Equal(__ ChangeInt32ToInt64(i32), input);
+        __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kLostPrecision,
+                           feedback);
+        if constexpr (SmiValuesAre32Bits()) {
+          return __ SmiTag(input);
+        } else {
+          OpIndex test = __ Int32AddCheckOverflow(i32, i32);
+          __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
+                          DeoptimizeReason::kLostPrecision, feedback);
+          return __ SmiTag(i32);
+        }
+      } else {
+        DCHECK_EQ(input_interpretation,
+                  ConvertToObjectOrDeoptOp::InputInterpretation::kUnsigned);
+        V<Word32> check = __ Uint64LessThanOrEqual(
+            input, static_cast<uint64_t>(Smi::kMaxValue));
+        __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kLostPrecision,
+                           feedback);
+        return __ SmiTag(input);
+      }
+    }
+
+    UNREACHABLE();
+  }
+
   OpIndex ReduceConvertObjectToPrimitive(
       OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
       ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {

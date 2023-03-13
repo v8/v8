@@ -794,6 +794,25 @@ std::ostream& operator<<(
 }
 
 std::ostream& operator<<(std::ostream& os,
+                         ConvertToObjectOrDeoptOp::Kind kind) {
+  switch (kind) {
+    case ConvertToObjectOrDeoptOp::Kind::kSmi:
+      return os << "Smi";
+  }
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation) {
+  switch (input_interpretation) {
+    case ConvertToObjectOrDeoptOp::InputInterpretation::kSigned:
+      return os << "Signed";
+    case ConvertToObjectOrDeoptOp::InputInterpretation::kUnsigned:
+      return os << "Unsigned";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
                          ConvertObjectToPrimitiveOp::Kind kind) {
   switch (kind) {
     case ConvertObjectToPrimitiveOp::Kind::kInt32:

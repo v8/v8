@@ -874,6 +874,18 @@ class AssemblerOpInterface {
                            minus_zero_mode);
   }
 
+  OpIndex ConvertToObjectOrDeopt(
+      OpIndex input, OpIndex frame_state, ConvertToObjectOrDeoptOp::Kind kind,
+      RegisterRepresentation input_rep,
+      ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation,
+      const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvertToObjectOrDeopt(
+        input, frame_state, kind, input_rep, input_interpretation, feedback);
+  }
+
   OpIndex ConvertObjectToPrimitive(
       OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
       ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {

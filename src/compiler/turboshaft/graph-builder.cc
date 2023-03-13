@@ -743,6 +743,28 @@ OpIndex GraphBuilder::Process(
                                 CheckMinusZeroModeOf(node->op()));
 #undef CONVERT_TO_OBJECT_CASE
 
+#define CONVERT_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_rep,     \
+                                        input_interpretation)      \
+  case IrOpcode::k##name: {                                        \
+    DCHECK(dominating_frame_state.valid());                        \
+    const CheckParameters& params = CheckParametersOf(node->op()); \
+    return __ ConvertToObjectOrDeopt(                              \
+        Map(node->InputAt(0)), dominating_frame_state,             \
+        ConvertToObjectOrDeoptOp::Kind::k##kind, input_rep::Rep,   \
+        ConvertToObjectOrDeoptOp::InputInterpretation::            \
+            k##input_interpretation,                               \
+        params.feedback());                                        \
+  }
+      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned, Smi, Word32,
+                                      Signed)
+      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedUint32ToTaggedSigned, Smi, Word32,
+                                      Unsigned)
+      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedInt64ToTaggedSigned, Smi, Word64,
+                                      Signed)
+      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedUint64ToTaggedSigned, Smi, Word64,
+                                      Unsigned)
+#undef CONVERT_TO_OBJECT_OR_DEOPT_CASE
+
 #define CONVERT_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions)   \
   case IrOpcode::k##name:                                                 \
     return __ ConvertObjectToPrimitive(                                   \

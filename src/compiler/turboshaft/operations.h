@@ -116,6 +116,7 @@ struct FrameStateOp;
   V(CheckTurboshaftTypeOf)           \
   V(ObjectIs)                        \
   V(ConvertToObject)                 \
+  V(ConvertToObjectOrDeopt)          \
   V(ConvertObjectToPrimitive)        \
   V(ConvertObjectToPrimitiveOrDeopt) \
   V(Tag)                             \
@@ -2492,15 +2493,15 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  explicit ConvertToObjectOp(OpIndex input, Kind kind,
-                             RegisterRepresentation input_rep,
-                             InputInterpretation input_interpretation,
-                             CheckForMinusZeroMode minus_zero_mode)
+  ConvertToObjectOp(OpIndex input, Kind kind, RegisterRepresentation input_rep,
+                    InputInterpretation input_interpretation,
+                    CheckForMinusZeroMode minus_zero_mode)
       : Base(input),
         kind(kind),
         input_rep(input_rep),
         input_interpretation(input_interpretation),
         minus_zero_mode(minus_zero_mode) {}
+
   void Validate(const Graph& graph) const {
     switch (kind) {
       case Kind::kBigInt:
@@ -2543,6 +2544,51 @@ struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   }
 };
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind);
+
+struct ConvertToObjectOrDeoptOp
+    : FixedArityOperationT<2, ConvertToObjectOrDeoptOp> {
+  enum class Kind : uint8_t {
+    kSmi,
+  };
+  enum class InputInterpretation : uint8_t {
+    kSigned,
+    kUnsigned,
+  };
+  Kind kind;
+  RegisterRepresentation input_rep;
+  InputInterpretation input_interpretation;
+  FeedbackSource feedback;
+
+  static constexpr OpProperties properties = OpProperties::CanAbort();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  ConvertToObjectOrDeoptOp(OpIndex input, OpIndex frame_state, Kind kind,
+                           RegisterRepresentation input_rep,
+                           InputInterpretation input_interpretation,
+                           const FeedbackSource& feedback)
+      : Base(input, frame_state),
+        kind(kind),
+        input_rep(input_rep),
+        input_interpretation(input_interpretation),
+        feedback(feedback) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), input_rep));
+  }
+
+  auto options() const {
+    return std::tuple{kind, input_rep, input_interpretation, feedback};
+  }
+};
+std::ostream& operator<<(std::ostream& os, ConvertToObjectOrDeoptOp::Kind kind);
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation);
 
 struct ConvertObjectToPrimitiveOp
     : FixedArityOperationT<1, ConvertObjectToPrimitiveOp> {
