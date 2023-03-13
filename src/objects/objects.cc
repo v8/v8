@@ -6120,6 +6120,23 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::UncheckedAtPut(Isolate* isolate,
+                                                Handle<Derived> dictionary,
+                                                Key key, Handle<Object> value,
+                                                PropertyDetails details) {
+  InternalIndex entry = dictionary->FindEntry(isolate, key);
+
+  // If the entry is present set the value;
+  if (entry.is_not_found()) {
+    Derived::UncheckedAdd(isolate, dictionary, key, value, details);
+  } else {
+    // We don't need to copy over the enumeration index.
+    dictionary->ValueAtPut(entry, *value);
+    if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
+  }
+}
+
+template <typename Derived, typename Shape>
 template <typename IsolateT>
 Handle<Derived>
 BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
@@ -6175,6 +6192,27 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
 }
 
 template <typename Derived, typename Shape>
+template <typename IsolateT>
+void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
+                                              Handle<Derived> dictionary,
+                                              Key key, Handle<Object> value,
+                                              PropertyDetails details) {
+  ReadOnlyRoots roots(isolate);
+  uint32_t hash = Shape::Hash(roots, key);
+  // Validate that the key is absent and we capacity is sufficient.
+  SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
+  DCHECK(dictionary->HasSufficientCapacityToAdd(1));
+
+  // Compute the key object.
+  Handle<Object> k = Shape::AsHandle(isolate, key);
+
+  InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
+  dictionary->SetEntry(entry, *k, *value, details);
+  DCHECK(dictionary->KeyAt(isolate, entry).IsNumber() ||
+         Shape::Unwrap(dictionary->KeyAt(isolate, entry)).IsUniqueName());
+}
+
+template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
     Isolate* isolate, Handle<Derived> dictionary) {
   return Handle<Derived>::cast(isolate->factory()->CopyFixedArrayWithMap(
@@ -6222,6 +6260,13 @@ Handle<NumberDictionary> NumberDictionary::Set(
       AtPut(isolate, dictionary, key, value, details);
   new_dictionary->UpdateMaxNumberKey(key, dictionary_holder);
   return new_dictionary;
+}
+
+// static
+void NumberDictionary::UncheckedSet(Isolate* isolate,
+                                    Handle<NumberDictionary> dictionary,
+                                    uint32_t key, Handle<Object> value) {
+  UncheckedAtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
 }
 
 void NumberDictionary::CopyValuesTo(FixedArray elements) {

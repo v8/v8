@@ -630,7 +630,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
   Handle<Map> map = initial_map;
 
-  Handle<FixedArrayBase> elements = factory()->empty_fixed_array();
+  Handle<FixedArrayBase> elements;
 
   // First store the elements.
   if (cont.elements > 0) {
@@ -643,8 +643,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
         Handle<Object> value = property.value;
-        elms = NumberDictionary::Set(isolate_, elms, index, value);
+        NumberDictionary::UncheckedSet(isolate_, elms, index, value);
       }
+      elms->SetInitialNumberOfElements(length);
+      elms->UpdateMaxNumberKey(cont.max_index, Handle<JSObject>::null());
       map = Map::AsElementsKind(isolate_, map, DICTIONARY_ELEMENTS);
       elements = elms;
     } else {
@@ -664,6 +666,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       }
       elements = elms;
     }
+  } else {
+    elements = factory()->empty_fixed_array();
   }
 
   int feedback_descriptors = 0;
@@ -828,8 +832,6 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
               ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
         } else {
           DCHECK(value.IsHeapNumber());
-          HeapObject::cast(value).set_map(roots().heap_number_map(),
-                                          kReleaseStore);
         }
       }
       raw_object.RawFastInobjectPropertyAtPut(index, value, mode);
@@ -1004,6 +1006,10 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
   int start_position;
   int end_position;
 
+  // Workaround for -Wunused-but-set-variable on old gcc versions (version < 8).
+  USE(start_position);
+  USE(end_position);
+
   // element_val_node_stack is used to track all the elements's
   // parse nodes. And we use this to construct the JSArray's
   // parse node and value snapshot.
@@ -1023,14 +1029,14 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
       // The switch is immediately followed by 'break' so we can use 'break' to
       // break out of the loop, and 'continue' to continue the loop.
 
-      if (should_track_json_source) {
+      if constexpr (should_track_json_source) {
         start_position = position();
       }
       switch (peek()) {
         case JsonToken::STRING:
           Consume(JsonToken::STRING);
           value = MakeString(ScanJsonString(false));
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             end_position = position();
             val_node = isolate_->factory()->NewSubString(
                 source_, start_position, end_position);
@@ -1039,7 +1045,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
 
         case JsonToken::NUMBER:
           value = ParseJsonNumber();
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             end_position = position();
             val_node = isolate_->factory()->NewSubString(
                 source_, start_position, end_position);
@@ -1051,7 +1057,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           if (Check(JsonToken::RBRACE)) {
             // TODO(verwaest): Directly use the map instead.
             value = factory()->NewJSObject(object_constructor_);
-            val_node = ObjectTwoHashTable::New(isolate_, 0);
+            if constexpr (should_track_json_source) {
+              val_node = ObjectTwoHashTable::New(isolate_, 0);
+            }
             break;
           }
 
@@ -1064,7 +1072,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           ExpectNext(JsonToken::STRING,
                      MessageTemplate::kJsonParseExpectedPropNameOrRBrace);
           property_stack.emplace_back(ScanJsonPropertyKey(&cont));
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             property_val_node_stack.emplace_back(Handle<Object>());
           }
 
@@ -1079,7 +1087,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           Consume(JsonToken::LBRACK);
           if (Check(JsonToken::RBRACK)) {
             value = factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
-            val_node = factory()->NewFixedArray(0);
+            if constexpr (should_track_json_source) {
+              val_node = factory()->NewFixedArray(0);
+            }
             break;
           }
 
@@ -1094,7 +1104,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::TRUE_LITERAL:
           ScanLiteral("true");
           value = factory()->true_value();
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             val_node = isolate_->factory()->true_string();
           }
           break;
@@ -1102,7 +1112,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::FALSE_LITERAL:
           ScanLiteral("false");
           value = factory()->false_value();
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             val_node = isolate_->factory()->false_string();
           }
           break;
@@ -1110,7 +1120,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::NULL_LITERAL:
           ScanLiteral("null");
           value = factory()->null_value();
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             val_node = isolate_->factory()->null_string();
           }
           break;
@@ -1145,7 +1155,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
       // break out of the loop, and 'continue' to continue the loop.
       switch (cont.type()) {
         case JsonContinuation::kReturn:
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             DCHECK(!val_node.is_null());
             auto raw_value = *value;
             parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
@@ -1157,7 +1167,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonContinuation::kObjectProperty: {
           // Store the previous property value into its property info.
           property_stack.back().value = value;
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             property_val_node_stack.back() = val_node;
           }
 
@@ -1168,7 +1178,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
                 MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName);
 
             property_stack.emplace_back(ScanJsonPropertyKey(&cont));
-            if (should_track_json_source) {
+            if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
             ExpectNext(JsonToken::COLON);
@@ -1196,7 +1206,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           Expect(JsonToken::RBRACE,
                  MessageTemplate::kJsonParseExpectedCommaOrRBrace);
           // Return the object.
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             size_t start = cont.index;
             int num_properties =
                 static_cast<int>(property_stack.size() - start);
@@ -1237,7 +1247,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonContinuation::kArrayElement: {
           // Store the previous element on the stack.
           element_stack.emplace_back(value);
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             element_val_node_stack.emplace_back(val_node);
           }
           // Break to start producing the subsequent element value.
@@ -1247,7 +1257,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           Expect(JsonToken::RBRACK,
                  MessageTemplate::kJsonParseExpectedCommaOrRBrack);
           // Return the array.
-          if (should_track_json_source) {
+          if constexpr (should_track_json_source) {
             size_t start = cont.index;
             int num_elements = static_cast<int>(element_stack.size() - start);
             Handle<FixedArray> val_node_and_snapshot_array =

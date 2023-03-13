@@ -84,6 +84,15 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
+  // This method is only safe to use when it is guaranteed that the dictionary
+  // doesn't need to grow.
+  // The number of elements stored is not upted. Use
+  // |SetInitialNumberOfElements| to update the number in one go.
+  template <typename IsolateT>
+  static void UncheckedAdd(IsolateT* isolate, Handle<Derived> dictionary,
+                           Key key, Handle<Object> value,
+                           PropertyDetails details);
+
   static Handle<Derived> ShallowCopy(Isolate* isolate,
                                      Handle<Derived> dictionary);
 
@@ -94,6 +103,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                                                      Key key,
                                                      Handle<Object> value,
                                                      PropertyDetails details);
+  static void UncheckedAtPut(Isolate* isolate, Handle<Derived> dictionary,
+                             Key key, Handle<Object> value,
+                             PropertyDetails details);
 
   OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
 };
@@ -353,6 +365,14 @@ class NumberDictionary
       Handle<Object> value,
       Handle<JSObject> dictionary_holder = Handle<JSObject>::null(),
       PropertyDetails details = PropertyDetails::Empty());
+  // This method is only safe to use when it is guaranteed that the dictionary
+  // doesn't need to grow.
+  // The number of elements stored and the maximum index is not updated. Use
+  // |SetInitialNumberOfElements| and |UpdateMaxNumberKey| to update the number
+  // in one go.
+  static void UncheckedSet(Isolate* isolate,
+                           Handle<NumberDictionary> dictionary, uint32_t key,
+                           Handle<Object> value);
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
   void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);

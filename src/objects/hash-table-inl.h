@@ -132,6 +132,11 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   return std::max({capacity, kMinCapacity});
 }
 
+void HashTableBase::SetInitialNumberOfElements(int nof) {
+  DCHECK_EQ(NumberOfElements(), 0);
+  set(kNumberOfElementsIndex, Smi::FromInt(nof));
+}
+
 void HashTableBase::SetNumberOfElements(int nof) {
   set(kNumberOfElementsIndex, Smi::FromInt(nof));
 }

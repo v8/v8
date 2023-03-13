@@ -101,6 +101,10 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   // Minimum capacity for newly created hash tables.
   static const int kMinCapacity = 4;
 
+  // Set the number of elements in the hash table after a bulk of elements was
+  // added.
+  inline void SetInitialNumberOfElements(int nof);
+
  protected:
   // Update the number of elements in the hash table.
   inline void SetNumberOfElements(int nof);
