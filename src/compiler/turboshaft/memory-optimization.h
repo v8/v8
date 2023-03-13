@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_H_
+#define V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_H_
 
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
@@ -266,4 +266,4 @@ class MemoryOptimizationReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_MEMORY_OPTIMIZATION_H_

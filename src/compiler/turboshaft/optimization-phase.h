@@ -24,6 +24,27 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+template <typename>
+class TypeInferenceReducer;
+
+struct TypeInferenceReducerArgs {
+  enum class InputGraphTyping {
+    kNone,     // Do not compute types for the input graph.
+    kPrecise,  // Run a complete fixpoint analysis on the input graph.
+  };
+  enum class OutputGraphTyping {
+    kNone,                    // Do not compute types for the output graph.
+    kPreserveFromInputGraph,  // Reuse types of the input graph where
+                              // possible.
+    kRefineFromInputGraph,  // Reuse types of the input graph and compute types
+                            // for new nodes and more precise types where
+                            // possible.
+  };
+  Isolate* isolate;
+  InputGraphTyping input_graph_typing;
+  OutputGraphTyping output_graph_typing;
+};
+
 using Variable =
     SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
 using MaybeVariable = base::Optional<Variable>;
@@ -78,13 +99,60 @@ class OptimizationPhaseImpl {
 template <template <typename> typename... Reducers>
 class OptimizationPhase {
   using impl_t = OptimizationPhaseImpl<Reducers...>;
+#ifdef DEBUG
+  // In Debug builds we provide two different versions of the reducer stack:
+  //
+  //   1. As specified by the pipeline (see impl_t).
+  //   2. With an additional TypeInferenceReducer added that computes and
+  //      verifies the types of the output graph with respect to the input
+  //      graph (see impl_with_verification_t). If the stack for a particular
+  //      phase already contains a TypeInferenceReducer, we don't add another
+  //      one and impl_t and impl_with_verification_t are identical.
+  //
+
+  // Check if the reducer stack already contains a TypeInferenceReducer.
+  static constexpr bool has_type_inference =
+      reducer_list_contains<reducer_list<Reducers...>,
+                            TypeInferenceReducer>::value;
+  // If it does not, add a TypeInferenceReducer at the bottom of the stack.
+  // Otherwise just use the stack (impl_t) for the verification.
+  using impl_with_verification_t = std::conditional_t<
+      has_type_inference, impl_t,
+      OptimizationPhaseImpl<Reducers..., TypeInferenceReducer>>;
+  // If the stack (impl_t) did not yet contain a TypeInferenceReducer and we
+  // added one, we also have to add the appropriate arguments to the tuple.
+  template <typename... Args>
+  static auto AdaptArgsForVerification(std::tuple<Args...> args,
+                                       Isolate* isolate) {
+    if constexpr (has_type_inference) {
+      return args;
+    } else {
+      return std::tuple_cat(
+          std::make_tuple(TypeInferenceReducerArgs{
+              isolate, TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
+              TypeInferenceReducerArgs::OutputGraphTyping::
+                  kRefineFromInputGraph}),
+          args);
+    }
+  }
+#endif
 
  public:
   static void Run(Isolate* isolate, Graph* input, Zone* phase_zone,
                   NodeOriginTable* origins,
                   const typename Assembler<reducer_list<Reducers...>>::ArgT&
                       reducer_args = std::tuple<>{}) {
-    impl_t::Run(input, phase_zone, origins, reducer_args);
+#ifdef DEBUG
+    if (v8_flags.turboshaft_verify_reductions) {
+      impl_with_verification_t::Run(
+          input, phase_zone, origins,
+          AdaptArgsForVerification(reducer_args, isolate));
+    } else {
+#endif  // DEBUG
+      impl_t::Run(input, phase_zone, origins, reducer_args);
+#ifdef DEBUG
+    }
+#endif  // DEBUG
   }
 };
 

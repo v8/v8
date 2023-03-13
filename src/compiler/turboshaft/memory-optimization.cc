@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/turboshaft/memory-optimization-reducer.h"
+#include "src/compiler/turboshaft/memory-optimization.h"
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"

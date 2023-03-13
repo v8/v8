@@ -29,24 +29,6 @@ V8_INLINE bool CanBeTyped(const Op& operation) {
   return operation.outputs_rep().size() > 0;
 }
 
-struct TypeInferenceReducerArgs {
-  enum class InputGraphTyping {
-    kNone,     // Do not compute types for the input graph.
-    kPrecise,  // Run a complete fixpoint analysis on the input graph.
-  };
-  enum class OutputGraphTyping {
-    kNone,                    // Do not compute types for the output graph.
-    kPreserveFromInputGraph,  // Reuse types of the input graph where
-                              // possible.
-    kRefineFromInputGraph,  // Reuse types of the input graph and compute types
-                            // for new nodes and more precise types where
-                            // possible.
-  };
-  Isolate* isolate;
-  InputGraphTyping input_graph_typing;
-  OutputGraphTyping output_graph_typing;
-};
-
 // TypeInferenceReducer is the central component to infer types for Turboshaft
 // graphs. It comes with different options for how the input and output graph
 // should be typed:
