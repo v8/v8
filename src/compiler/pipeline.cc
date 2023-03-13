@@ -97,6 +97,7 @@
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/tag-untag-lowering-reducer.h"
+#include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/typed-optimizations-reducer.h"
 #include "src/compiler/turboshaft/types.h"
@@ -3245,6 +3246,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   if (v8_flags.turboshaft) {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
+
+    turboshaft::Tracing::Scope tracing_scope(data->info());
 
     if (base::Optional<BailoutReason> bailout =
             Run<BuildTurboshaftPhase>(linkage)) {

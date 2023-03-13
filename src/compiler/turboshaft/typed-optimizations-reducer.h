@@ -32,15 +32,6 @@ class TypedOptimizationsReducer
   explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)
       : Adapter(args) {}
 
-  ~TypedOptimizationsReducer() {
-    // Copy type refinements to input graph after they have been swapped
-    // to be able to --trace-turbo them.
-#ifdef DEBUG
-    Asm().modifiable_input_graph().block_type_refinement() =
-        Asm().output_graph().block_type_refinement();
-#endif  // DEBUG
-  }
-
   OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& operation) {
     Type condition_type = GetType(operation.condition());
     if (!condition_type.IsInvalid()) {

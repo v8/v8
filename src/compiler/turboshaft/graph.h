@@ -763,12 +763,11 @@ class Graph {
   // Store refined types per block here for --trace-turbo printing.
   // TODO(nicohartmann@): Remove this once we have a proper way to print
   // type information inside the reducers.
-  const GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>&
-  block_type_refinement() const {
+  using TypeRefinements = std::vector<std::pair<OpIndex, Type>>;
+  const GrowingBlockSidetable<TypeRefinements>& block_type_refinement() const {
     return block_type_refinement_;
   }
-  GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>&
-  block_type_refinement() {
+  GrowingBlockSidetable<TypeRefinements>& block_type_refinement() {
     return block_type_refinement_;
   }
 #endif  // DEBUG
@@ -868,8 +867,7 @@ class Graph {
   uint32_t dominator_tree_depth_ = 0;
   GrowingSidetable<Type> operation_types_;
 #ifdef DEBUG
-  GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>
-      block_type_refinement_;
+  GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
 #endif
 
   std::unique_ptr<Graph> companion_ = {};

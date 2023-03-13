@@ -16,6 +16,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
+#include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-inference-analysis.h"
 #include "src/compiler/turboshaft/typer.h"
 #include "src/compiler/turboshaft/types.h"
@@ -63,6 +64,7 @@ class TypeInferenceReducer
   explicit TypeInferenceReducer(const std::tuple<Ts...>& args)
       : Adapter(args),
         args_(std::get<Args>(args)),
+        input_graph_types_(Asm().graph_zone()),
         output_graph_types_(Asm().output_graph().operation_types()),
         table_(Asm().phase_zone()),
         op_to_key_mapping_(Asm().phase_zone()),
@@ -78,28 +80,47 @@ class TypeInferenceReducer
 
   void Analyze() {
     if (args_.input_graph_typing == Args::InputGraphTyping::kPrecise) {
-      analyzer_.Run();
+#ifdef DEBUG
+      GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>
+          block_refinements(Asm().input_graph().block_count(), {},
+                            Asm().phase_zone());
+      input_graph_types_ = analyzer_.Run(&block_refinements);
+      Tracing::Get().PrintPerBlockData(
+          "Type Refinements", Asm().input_graph(),
+          [&](std::ostream& stream, const turboshaft::Graph& graph,
+              turboshaft::BlockIndex index) -> bool {
+            const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
+                refinements = block_refinements[index];
+            if (refinements.empty()) return false;
+            stream << "\\n";
+            for (const auto& [op, type] : refinements) {
+              stream << op << " : " << type << "\\n";
+            }
+            return true;
+          });
+#else
+      input_graph_types_ = analyzer_.Run(nullptr);
+#endif  // DEBUG
+      Tracing::Get().PrintPerOperationData(
+          "Types", Asm().input_graph(),
+          [&](std::ostream& stream, const turboshaft::Graph& graph,
+              turboshaft::OpIndex index) -> bool {
+            turboshaft::Type type = input_graph_types_[index];
+            if (!type.IsInvalid() && !type.IsNone()) {
+              type.PrintTo(stream);
+              return true;
+            }
+            return false;
+          });
     }
     Next::Analyze();
   }
 
   Type GetInputGraphType(OpIndex ig_index) {
-    // TODO(nicohartmann@): Idealy, we want to provide those types form a
-    // reducer owned table, rather than storing them on the graphs. For now, we
-    // use the graph because it is easier to print the types with
-    // --trace-turbo this way. Should change this when we have a proper
-    // in-reducer graph printing implemented.
-    return Asm().input_graph().operation_types()[ig_index];
+    return input_graph_types_[ig_index];
   }
 
-  Type GetOutputGraphType(OpIndex og_index) {
-    // TODO(nicohartmann@): Idealy, we want to provide those types form a
-    // reducer owned table, rather than storing them on the graphs. For now, we
-    // use the graph because it is easier to print the types with
-    // --trace-turbo this way. Should change this when we have a proper
-    // in-reducer graph printing implemented.
-    return GetType(og_index);
-  }
+  Type GetOutputGraphType(OpIndex og_index) { return GetType(og_index); }
 
   template <Opcode opcode, typename Continuation, typename... Ts>
   OpIndex ReduceOperation(Ts... args) {
@@ -500,6 +521,7 @@ class TypeInferenceReducer
   }
 
   Args args_;
+  GrowingSidetable<Type> input_graph_types_;
   GrowingSidetable<Type>& output_graph_types_;
   table_t table_;
   const Block* current_block_ = nullptr;

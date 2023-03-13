@@ -37,7 +37,7 @@ namespace v8::internal::compiler::turboshaft {
 // information.
 class TypeInferenceAnalysis {
  public:
-  explicit TypeInferenceAnalysis(Graph& graph, Zone* phase_zone)
+  explicit TypeInferenceAnalysis(const Graph& graph, Zone* phase_zone)
       : graph_(graph),
         // TODO(nicohartmann@): Might put types back into phase_zone once we
         // don't store them in the graph anymore.
@@ -49,7 +49,12 @@ class TypeInferenceAnalysis {
         predecessors_(phase_zone),
         graph_zone_(graph.graph_zone()) {}
 
-  void Run() {
+  GrowingSidetable<Type> Run(
+      GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>*
+          block_refinements = nullptr) {
+#ifdef DEBUG
+    block_refinements_ = block_refinements;
+#endif  // DEBUG
     TURBOSHAFT_TRACE_TYPING("=== Running Type Inference Analysis ===\n");
     for (uint32_t unprocessed_index = 0;
          unprocessed_index < graph_.block_count();) {
@@ -61,7 +66,7 @@ class TypeInferenceAnalysis {
     }
     TURBOSHAFT_TRACE_TYPING("=== Completed Type Inference Analysis ===\n");
 
-    std::swap(graph_.operation_types(), types_);
+    return std::move(types_);
   }
 
   template <bool revisit_loop_header>
@@ -426,9 +431,9 @@ class TypeInferenceAnalysis {
     table_.Set(*key_opt, type);
 
 #ifdef DEBUG
-    std::vector<std::pair<OpIndex, Type>>& refinement =
-        graph_.block_type_refinement()[new_block->index()];
-    refinement.push_back(std::make_pair(op, type));
+    if (block_refinements_) {
+      (*block_refinements_)[new_block->index()].emplace_back(op, type);
+    }
 #endif
 
     // TODO(nicohartmann@): One could push the refined type deeper into the
@@ -523,7 +528,7 @@ class TypeInferenceAnalysis {
   }
 
  private:
-  Graph& graph_;
+  const Graph& graph_;
   GrowingSidetable<Type> types_;
   using table_t = SnapshotTable<Type>;
   table_t table_;
@@ -535,6 +540,12 @@ class TypeInferenceAnalysis {
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<table_t::Snapshot> predecessors_;
   Zone* graph_zone_;
+
+#ifdef DEBUG
+  // {block_refinements_} are only stored for tracing in Debug builds.
+  GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>*
+      block_refinements_ = nullptr;
+#endif
 };
 
 }  // namespace v8::internal::compiler::turboshaft
