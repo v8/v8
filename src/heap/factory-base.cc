@@ -1021,28 +1021,9 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   HeapObject obj = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().descriptor_array_map());
   DescriptorArray array = DescriptorArray::cast(obj);
-
-  auto raw_gc_state = DescriptorArrayMarkingState::kInitialGCState;
-  if (allocation != AllocationType::kYoung &&
-      allocation != AllocationType::kReadOnly &&
-      isolate()->heap()->AsHeap()->incremental_marking()->IsMajorMarking()) {
-    const auto epoch =
-        allocation == AllocationType::kSharedOld
-            ? isolate()
-                  ->AsIsolate()
-                  ->shared_space_isolate()
-                  ->heap()
-                  ->mark_compact_collector()
-                  ->epoch()
-            : isolate()->heap()->AsHeap()->mark_compact_collector()->epoch();
-    // Black allocation: We must create a full marked state.
-    raw_gc_state = DescriptorArrayMarkingState::GetFullyMarkedState(
-        epoch, number_of_descriptors);
-  }
-
   array.Initialize(read_only_roots().empty_enum_cache(),
                    read_only_roots().undefined_value(), number_of_descriptors,
-                   slack, raw_gc_state);
+                   slack);
   return handle(array, isolate());
 }
 
