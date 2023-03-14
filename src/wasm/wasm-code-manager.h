@@ -422,8 +422,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
            ExecutionTier tier, ForDebugging for_debugging)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
-               ForDebuggingField::encode(for_debugging)),
         meta_data_(
             ConcatenateBytes({protected_instructions_data, reloc_info,
                               source_position_table, inlining_positions})),
@@ -439,7 +437,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         code_comments_offset_(code_comments_offset),
-        unpadded_binary_size_(unpadded_binary_size) {
+        unpadded_binary_size_(unpadded_binary_size),
+        flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
+               ForDebuggingField::encode(for_debugging)) {
     DCHECK_LE(safepoint_table_offset, unpadded_binary_size);
     DCHECK_LE(handler_table_offset, unpadded_binary_size);
     DCHECK_LE(code_comments_offset, unpadded_binary_size);
@@ -476,7 +476,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   NativeModule* const native_module_ = nullptr;
   byte* const instructions_;
-  const uint8_t flags_;  // Bit field, see below.
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
@@ -503,6 +502,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int unpadded_binary_size_;
   int trap_handler_index_ = -1;
 
+  const uint8_t flags_;  // Bit field, see below.
   // Bits encoded in {flags_}:
   using KindField = base::BitField8<Kind, 0, 2>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
@@ -520,14 +520,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // machine code is freed.
   std::atomic<int> ref_count_{1};
 };
-
-// Check that {WasmCode} objects are sufficiently small. We create many of them,
-// often for rather small functions.
-// Increase the limit if needed, but first check if the size increase is
-// justified.
-#ifndef V8_GC_MOLE
-static_assert(sizeof(WasmCode) <= 96);
-#endif
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
 

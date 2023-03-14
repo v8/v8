@@ -58,6 +58,14 @@ namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
 
+// Check that {WasmCode} objects are sufficiently small. We create many of them,
+// often for rather small functions.
+// Increase the limit if needed, but first check if the size increase is
+// justified.
+#ifndef V8_GC_MOLE
+static_assert(sizeof(WasmCode) <= 88);
+#endif
+
 base::AddressRegion DisjointAllocationPool::Merge(
     base::AddressRegion new_region) {
   // Find the possible insertion position by identifying the first region whose
