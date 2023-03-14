@@ -417,6 +417,8 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.ValidateFunctionsTask");
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
@@ -486,6 +488,9 @@ WasmError ValidateFunctions(const WasmModule* module,
                             WasmFeatures enabled_features,
                             base::Vector<const uint8_t> wire_bytes,
                             std::function<bool(int)> filter) {
+  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.ValidateFunctions", "num_declared_functions",
+               module->num_declared_functions, "has_filter", filter != nullptr);
   DCHECK_EQ(kWasmOrigin, module->origin);
 
   class NeverYieldDelegate final : public JobDelegate {
