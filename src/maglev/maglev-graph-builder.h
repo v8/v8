@@ -1006,6 +1006,10 @@ class MaglevGraphBuilder {
     UNREACHABLE();
   }
 
+  ValueNode* GetTruncatedInt32FromNumber(interpreter::Register reg) {
+    return GetTruncatedInt32FromNumber(current_interpreter_frame_.get(reg));
+  }
+
   ValueNode* GetTruncatedInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kWord64:
@@ -1134,6 +1138,11 @@ class MaglevGraphBuilder {
 
   ValueNode* GetAccumulatorTruncatedInt32() {
     return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorTruncatedInt32FromNumber() {
+    return GetTruncatedInt32FromNumber(
+        interpreter::Register::virtual_accumulator());
   }
 
   ValueNode* GetAccumulatorFloat64() {

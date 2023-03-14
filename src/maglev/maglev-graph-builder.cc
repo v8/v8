@@ -2645,8 +2645,9 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(Int, {object, index, GetAccumulatorInt32()},
-                              elements_kind)
+      BUILD_STORE_TYPED_ARRAY(
+          Int, {object, index, GetAccumulatorTruncatedInt32FromNumber()},
+          elements_kind)
       break;
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
