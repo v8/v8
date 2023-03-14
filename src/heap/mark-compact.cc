@@ -5818,9 +5818,8 @@ void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
   if (marking_state_->TryMark(heap_object)) {
     const auto visited_size = visitor_.Visit(heap_object);
     if (visited_size) {
-      marking_state_->IncrementLiveBytes(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
+          heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
     }
     // Objects transition to black when visited.
     DCHECK(marking_state_->IsMarked(heap_object));
@@ -5833,9 +5832,8 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
          marking_worklists_local_->PopOnHold(&heap_object)) {
     const auto visited_size = visitor_.Visit(heap_object);
     if (visited_size) {
-      marking_state_->IncrementLiveBytes(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
+          heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
     }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
@@ -5846,7 +5844,12 @@ void YoungGenerationMarkingTask::PublishMarkingWorklist() {
   marking_worklists_local_->Publish();
 }
 
-void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
+void YoungGenerationMarkingTask::Finalize() {
+  visitor_.Finalize();
+  for (auto& pair : live_bytes_) {
+    marking_state_->IncrementLiveBytes(pair.first, pair.second);
+  }
+}
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
   base::MutexGuard guard(chunk_->mutex());

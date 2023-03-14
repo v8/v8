@@ -811,6 +811,7 @@ class YoungGenerationMarkingTask final {
   std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
   MarkingState* marking_state_;
   YoungGenerationMainMarkingVisitor visitor_;
+  std::unordered_map<MemoryChunk*, size_t, MemoryChunk::Hasher> live_bytes_;
 };
 
 }  // namespace internal
