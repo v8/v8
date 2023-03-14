@@ -485,28 +485,28 @@
 
     # Official configs for arm
     'official_arm': [
-      'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
+      'release_bot', 'arm', 'hard_float', 'official', 'disable_chrome_pgo'],
     'official_arm_pgo': [
-      'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo',
+      'release_bot', 'arm', 'hard_float', 'official', 'disable_chrome_pgo',
       'builtins_optimization'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official', 'disable_pgo'],
+      'android_strip_outputs', 'official', 'disable_chrome_pgo'],
     'official_android_arm_pgo': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official', 'disable_pgo',
+      'android_strip_outputs', 'official', 'disable_chrome_pgo',
       'builtins_optimization'],
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official', 'disable_pgo'],
+      'android_strip_outputs', 'official', 'disable_chrome_pgo'],
     'official_android_arm64_pgo': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official', 'disable_pgo',
+      'android_strip_outputs', 'official', 'disable_chrome_pgo',
       'builtins_optimization'],
     'official_mac_arm64': [
-      'release_bot', 'arm64', 'official', 'disable_pgo'],
+      'release_bot', 'arm64', 'official', 'disable_chrome_pgo'],
     'official_mac_arm64_pgo': [
-      'release_bot', 'arm64', 'official', 'disable_pgo',
+      'release_bot', 'arm64', 'official', 'disable_chrome_pgo',
       'builtins_optimization'],
 
     # Release configs for x64.
@@ -600,9 +600,10 @@
 
     # Official configs for x64.
     'official_x64': [
-      'release_bot', 'x64', 'official', 'disable_pgo'],
+      'release_bot', 'x64', 'official', 'disable_chrome_pgo'],
     'official_x64_pgo': [
-      'release_bot', 'x64', 'official', 'disable_pgo', 'builtins_optimization'],
+      'release_bot', 'x64', 'official', 'disable_chrome_pgo',
+      'builtins_optimization'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -692,9 +693,9 @@
 
     # Official configs for x86.
     'official_x86': [
-        'release_bot', 'x86', 'official', 'disable_pgo'],
+        'release_bot', 'x86', 'official', 'disable_chrome_pgo'],
     'official_x86_pgo': [
-        'release_bot', 'x86', 'official', 'disable_pgo',
+        'release_bot', 'x86', 'official', 'disable_chrome_pgo',
         'builtins_optimization'],
 
     # Torque compare test
@@ -804,7 +805,7 @@
                  'v8_enable_atomic_object_field_writes=false ',
     },
 
-    'disable_pgo': {
+    'disable_chrome_pgo': {
       'gn_args': 'chrome_pgo_phase=0',
     },
 
