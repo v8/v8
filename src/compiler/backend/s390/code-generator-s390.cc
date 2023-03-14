@@ -1725,7 +1725,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(MulHighU64), nullInstr, nullInstr);
       break;
     case kS390_MulHighS64:
-      ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
+      } else {
+        __ Push(r2, r3, i.InputRegister(0), i.InputRegister(1));
+        __ Pop(r2, r3);
+        {
+          FrameScope scope(masm(), StackFrame::INTERNAL);
+          __ PrepareCallCFunction(2, 0, kScratchReg);
+          __ CallCFunction(ExternalReference::int64_mul_high_function(), 2, 0);
+        }
+        __ mov(kScratchReg, r2);
+        __ Pop(r2, r3);
+        __ mov(i.OutputRegister(), kScratchReg);
+      }
       break;
     case kS390_MulFloat:
       ASSEMBLE_BIN_OP(DDInstr(meebr), DMTInstr(MulFloat32), nullInstr);

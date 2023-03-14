@@ -321,6 +321,7 @@ class StatsCounter;
   V(shared_barrier_from_code_function, "WriteBarrier::SharedFromCode")         \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \
+  V(int64_mul_high_function, "int64_mul_high_function")                        \
   V(atomic_pair_load_function, "atomic_pair_load_function")                    \
   V(atomic_pair_store_function, "atomic_pair_store_function")                  \
   V(atomic_pair_add_function, "atomic_pair_add_function")                      \

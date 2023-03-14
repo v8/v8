@@ -6,6 +6,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
+#include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
@@ -1370,6 +1371,11 @@ ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,
                    MicrotaskQueue::CallEnqueueMicrotask)
+
+ExternalReference ExternalReference::int64_mul_high_function() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::bits::SignedMulHigh64)));
+}
 
 static int64_t atomic_pair_load(intptr_t address) {
   return std::atomic_load(reinterpret_cast<std::atomic<int64_t>*>(address));
