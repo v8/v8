@@ -2288,9 +2288,10 @@ unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
   return GetInlinedBytecodeSizeImpl(*object());
 }
 
-unsigned CodeRef::GetInlinedBytecodeSize() const {
+unsigned CodeRef::GetInlinedBytecodeSize(JSHeapBroker* broker) const {
   Code code = *object();
-  Object maybe_istream = code.raw_instruction_stream(kRelaxedLoad);
+  Object maybe_istream =
+      code.raw_instruction_stream(broker->isolate(), kRelaxedLoad);
   if (maybe_istream == Smi::zero()) return 0;
 
   // Safe to do a relaxed conversion to InstructionStream here since

@@ -591,7 +591,8 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
   // Visit.
   GcSafeCode visited_holder = holder;
-  const Object old_istream = holder.raw_instruction_stream();
+  PtrComprCageBase code_cage_base{isolate()->code_cage_base()};
+  const Object old_istream = holder.raw_instruction_stream(code_cage_base);
   Object visited_istream = old_istream;
   v->VisitRunningCode(FullObjectSlot{&visited_holder},
                       FullObjectSlot{&visited_istream});

@@ -441,10 +441,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       // Rehash strings before read-only space is sealed. Strings outside
       // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
       if (space == SnapshotSpace::kReadOnlyHeap) {
-        to_rehash_.push_back(obj);
+        PushObjectToRehash(obj);
       }
     } else if (raw_obj.NeedsRehashing(instance_type)) {
-      to_rehash_.push_back(obj);
+      PushObjectToRehash(obj);
     }
 
     if (deserializing_user_code()) {

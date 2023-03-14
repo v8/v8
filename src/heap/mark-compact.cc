@@ -1045,7 +1045,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     Object istream_or_smi_zero = *istream_or_smi_zero_slot;
     DCHECK(istream_or_smi_zero == Smi::zero() ||
            istream_or_smi_zero.IsInstructionStream());
-    DCHECK_EQ(Code::cast(*code_slot).raw_instruction_stream(),
+    DCHECK_EQ(Code::cast(*code_slot)
+                  .raw_instruction_stream(PtrComprCageBase{
+                      collector_->isolate()->code_cage_base()}),
               istream_or_smi_zero);
 
     if (istream_or_smi_zero != Smi::zero()) {
