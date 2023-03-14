@@ -209,9 +209,6 @@ class MainMarkingVisitor final
  private:
   // Functions required by MarkingVisitorBase.
 
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitJSObjectSubclass(Map map, T object);
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
 

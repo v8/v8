@@ -32,7 +32,6 @@ struct EphemeronMarking {
 // - ConcreteVisitor::retaining_path_mode method,
 // - ConcreteVisitor::RecordSlot method,
 // - ConcreteVisitor::RecordRelocSlot method,
-// - ConcreteVisitor::VisitJSObjectSubclass method,
 // These methods capture the difference between the concurrent and main thread
 // marking visitors. For example, the concurrent visitor has to use the
 // snapshotting protocol to visit JSObject and left-trimmable FixedArrays.

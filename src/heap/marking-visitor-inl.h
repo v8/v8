@@ -274,9 +274,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
     Map map, FixedArray object) {
   if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  if (concrete_visitor()->ShouldVisitMapPointer()) {
-    VisitMapPointer(object);
-  }
+  concrete_visitor()->VisitMapPointerIfNeeded(object);
   FixedArray::BodyDescriptor::IterateBody(map, object, size,
                                           concrete_visitor());
   return size;
@@ -511,9 +509,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
       int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
       VisitPointers(array, array.GetFirstPointerSlot(),
                     array.GetDescriptorSlot(0));
-      if (concrete_visitor()->ShouldVisitMapPointer()) {
-        VisitMapPointer(array);
-      }
+      concrete_visitor()->VisitMapPointerIfNeeded(array);
       return size;
     }
   }

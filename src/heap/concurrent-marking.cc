@@ -81,37 +81,11 @@ class ConcurrentMarkingState final
 
 class ConcurrentMarkingVisitorUtility {
  public:
-  template <typename Visitor, typename T,
-            typename TBodyDescriptor = typename T::BodyDescriptor>
-  static int VisitJSObjectSubclass(Visitor* visitor, Map map, T object) {
-    if (!visitor->ShouldVisit(object)) return 0;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    int used_size = map.UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
-    if (visitor->ShouldVisitMapPointer()) {
-      visitor->VisitMapPointer(object);
-    }
-    // It is important to visit only the used field and ignore the slack fields
-    // because the slack fields may be trimmed concurrently.
-    TBodyDescriptor::IterateBody(map, object, used_size, visitor);
-    return size;
-  }
-
-  template <typename Visitor, typename T>
-  static int VisitJSObjectSubclassFast(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::FastBodyDescriptor;
-    return VisitJSObjectSubclass<Visitor, T, TBodyDescriptor>(visitor, map,
-                                                              object);
-  }
-
   template <typename Visitor, typename T>
   static int VisitStringLocked(Visitor* visitor, T object) {
     SharedObjectLockGuard guard(object);
     CHECK(visitor->ShouldVisit(object));
-    if (visitor->ShouldVisitMapPointer()) {
-      visitor->VisitMapPointer(object);
-    }
+    visitor->VisitMapPointerIfNeeded(object);
     // The object has been locked. At this point exclusive access is guaranteed
     // but we must re-read the map and check whether the string has
     // transitioned.
@@ -171,60 +145,50 @@ class YoungGenerationConcurrentMarkingVisitor final
     }
   }
 
-  // HeapVisitor overrides to implement the snapshotting protocol.
-
-  bool AllowDefaultJSObjectVisit() { return false; }
+  using YoungGenerationMarkingVisitorBase<
+      YoungGenerationConcurrentMarkingVisitor,
+      ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   int VisitJSObject(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSObjectFast(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclassFast(this, map,
-                                                                      object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
   int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSDataViewOrRabGsabDataView(Map map,
                                        JSDataViewOrRabGsabDataView object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSFunction(Map map, JSFunction object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSTypedArray(Map map, JSTypedArray object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
@@ -244,7 +208,7 @@ class YoungGenerationConcurrentMarkingVisitor final
     return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
   }
 
-  void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
+  void VisitMapPointer(HeapObject host) final { UNREACHABLE(); }
 
   bool ShouldVisit(HeapObject object) {
     CHECK(marking_state_.GreyToBlack(object));
@@ -284,50 +248,41 @@ class ConcurrentMarkingVisitor final
     return T::cast(object);
   }
 
-  // HeapVisitor overrides to implement the snapshotting protocol.
-
-  bool AllowDefaultJSObjectVisit() { return false; }
+  using MarkingVisitorBase<ConcurrentMarkingVisitor,
+                           ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   int VisitJSObject(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSObjectFast(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclassFast(this, map,
-                                                                      object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
   int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSSynchronizationPrimitive(Map map,
                                       JSSynchronizationPrimitive object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+    return VisitJSObjectSubclass(map, object);
   }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
@@ -375,12 +330,6 @@ class ConcurrentMarkingVisitor final
   }
 
  private:
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitJSObjectSubclass(Map map, T object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass<
-        ConcurrentMarkingVisitor, T, TBodyDescriptor>(this, map, object);
-  }
-
   void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
                        HeapObject target) {
     if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
