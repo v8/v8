@@ -40,8 +40,10 @@ class Isolate;
   V(kBuiltinsTier0TableOffset,                                                \
     Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)    \
   /* Misc. fields. */                                                         \
-  V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
-  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
+  V(kNewAllocationInfoOffset, LinearAllocationArea::kSize,                    \
+    new_allocation_info)                                                      \
+  V(kOldAllocationInfoOffset, LinearAllocationArea::kSize,                    \
+    old_allocation_info)                                                      \
   V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)      \
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \

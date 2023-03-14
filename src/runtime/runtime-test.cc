@@ -989,7 +989,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
+  DCHECK_IMPLIES(!heap->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
   int space_remaining = GetSpaceRemainingOnCurrentPage(space);
   while (space_remaining > 0) {

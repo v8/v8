@@ -238,7 +238,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
   // During GCs we always use the full LAB.
   if (heap()->IsInGC()) return end;
 
-  if (!allocation_info_.enabled()) {
+  if (!heap()->IsInlineAllocationEnabled()) {
     // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
   }
@@ -265,20 +265,6 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
 
   DCHECK_LE(start + step_size, end);
   return start + std::max(step_size, min_size);
-}
-
-void SpaceWithLinearArea::DisableInlineAllocation() {
-  if (!allocation_info_.enabled()) return;
-
-  allocation_info_.SetEnabled(false);
-  FreeLinearAllocationArea();
-}
-
-void SpaceWithLinearArea::EnableInlineAllocation() {
-  if (allocation_info_.enabled()) return;
-
-  allocation_info_.SetEnabled(true);
-  AdvanceAllocationObservers();
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {

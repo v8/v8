@@ -520,7 +520,7 @@ class Internals {
   static const int kStackGuardSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
-  static const int kLinearAllocationAreaSize = 4 * kApiSystemPointerSize;
+  static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
   static const int kThreadLocalTopSize = 25 * kApiSystemPointerSize;
 
   // ExternalPointerTable layout guarantees.

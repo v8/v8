@@ -570,10 +570,6 @@ class SpaceWithLinearArea : public Space {
   Address ComputeLimit(Address start, Address end, size_t min_size) const;
   V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit() = 0;
 
-  void DisableInlineAllocation();
-  void EnableInlineAllocation();
-  bool IsInlineAllocationEnabled() const { return allocation_info_.enabled(); }
-
   void PrintAllocationsOrigins() const;
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult

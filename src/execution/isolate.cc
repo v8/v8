@@ -3402,6 +3402,12 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.builtin_tier0_table_)),
       Internals::kBuiltinTier0TableOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.new_allocation_info_)),
+      Internals::kNewAllocationInfoOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.old_allocation_info_)),
+      Internals::kOldAllocationInfoOffset);
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_fp_)),
            Internals::kIsolateFastCCallCallerFpOffset);

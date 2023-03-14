@@ -244,7 +244,7 @@ void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
+  DCHECK_IMPLIES(!space->heap()->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
   int space_remaining = GetSpaceRemainingOnCurrentSemiSpacePage(space);
   if (space_remaining == 0) return;

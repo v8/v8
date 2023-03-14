@@ -1658,6 +1658,8 @@ class Heap {
 
   PretenuringHandler* pretenuring_handler() { return &pretenuring_handler_; }
 
+  bool IsInlineAllocationEnabled() const { return inline_allocation_enabled_; }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1749,6 +1751,9 @@ class Heap {
 
   // Free all LABs in the heap.
   void FreeLinearAllocationAreas();
+
+  // Frees all LABs owned by the main thread.
+  void FreeMainThreadLinearAllocationAreas();
 
   // Free all shared LABs.
   void FreeSharedLinearAllocationAreas();
@@ -2353,6 +2358,8 @@ class Heap {
   bool deserialization_complete_ = false;
 
   int max_regular_code_object_size_ = 0;
+
+  bool inline_allocation_enabled_ = true;
 
   // Used for testing purposes.
   bool force_oom_ = false;

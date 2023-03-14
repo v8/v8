@@ -3573,6 +3573,8 @@ void Heap::MakeHeapIterable() {
 }
 
 void Heap::FreeLinearAllocationAreas() {
+  FreeMainThreadLinearAllocationAreas();
+
   safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
@@ -3582,10 +3584,13 @@ void Heap::FreeLinearAllocationAreas() {
           client->heap()->FreeSharedLinearAllocationAreas();
         });
   }
+}
 
+void Heap::FreeMainThreadLinearAllocationAreas() {
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
+    base::MutexGuard guard(space->mutex());
     space->FreeLinearAllocationArea();
   }
 
@@ -5393,33 +5398,11 @@ bool Heap::ShouldStressCompaction() const {
   return v8_flags.stress_compaction && (gc_count_ & 1) != 0;
 }
 
-void Heap::EnableInlineAllocation() {
-  // Update inline allocation limit for new space.
-  if (new_space()) {
-    new_space()->EnableInlineAllocation();
-  }
-  // Update inline allocation limit for old spaces.
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    base::MutexGuard guard(space->mutex());
-    space->EnableInlineAllocation();
-  }
-}
+void Heap::EnableInlineAllocation() { inline_allocation_enabled_ = true; }
 
 void Heap::DisableInlineAllocation() {
-  // Update inline allocation limit for new space.
-  if (new_space()) {
-    new_space()->DisableInlineAllocation();
-  }
-  // Update inline allocation limit for old spaces.
-  PagedSpaceIterator spaces(this);
-  CodePageCollectionMemoryModificationScope modification_scope(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    base::MutexGuard guard(space->mutex());
-    space->DisableInlineAllocation();
-  }
+  inline_allocation_enabled_ = false;
+  FreeMainThreadLinearAllocationAreas();
 }
 
 void Heap::SetUp(LocalHeap* main_thread_local_heap) {

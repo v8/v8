@@ -84,7 +84,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
 #endif  // V8_COMPRESS_POINTERS
 {
   heap->MakeHeapIterable();
-  DCHECK_IMPLIES(space->IsInlineAllocationEnabled(),
+  DCHECK_IMPLIES(!heap->IsInlineAllocationEnabled(),
                  !page->Contains(space->top()));
   DCHECK(page->Contains(start_address));
   DCHECK(page->SweepingDone());
@@ -499,6 +499,13 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
   DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
 
   AdvanceAllocationObservers();
+
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+
+  if (identity() == CODE_SPACE) {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(allocation_info_.top());
+    optional_scope.emplace(chunk);
+  }
 
   if (identity() != NEW_SPACE && current_top != current_limit &&
       heap()->incremental_marking()->black_allocation()) {
