@@ -506,7 +506,7 @@ class Shell : public i::AllStatic {
                                      bool should_throw = true);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,
                                                  const char* name);
-  static Local<Context> CreateEvaluationContext(Isolate* isolate);
+  static MaybeLocal<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
@@ -760,6 +760,7 @@ class Shell : public i::AllStatic {
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void RunShell(Isolate* isolate);
+  static bool RunMainIsolate(Isolate* isolate, bool last_run);
   static bool SetOptions(int argc, char* argv[]);
 
   static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+#include "v8-isolate.h"
+
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
@@ -3623,7 +3625,7 @@ Local<String> Shell::WasmLoadSourceMapCallback(Isolate* isolate,
   return Shell::ReadFile(isolate, path, false).ToLocalChecked();
 }
 
-Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
+MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   // This needs to be a critical section since this is not thread-safe
   i::ParkedMutexGuard lock_guard(
       reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
@@ -3632,8 +3634,10 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
-  DCHECK_IMPLIES(context.IsEmpty(), isolate->IsExecutionTerminating());
-  if (context.IsEmpty()) return {};
+  if (context.IsEmpty()) {
+    DCHECK(isolate->IsExecutionTerminating());
+    return {};
+  }
   if (i::v8_flags.perf_prof_annotate_wasm ||
       i::v8_flags.vtune_prof_annotate_wasm) {
     isolate->SetWasmLoadSourceMapCallback(Shell::WasmLoadSourceMapCallback);
@@ -4343,13 +4347,17 @@ void SourceGroup::ExecuteInThread() {
           reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
     }
     {
-      Isolate::Scope iscope(isolate);
+      Isolate::Scope isolate_scope(isolate);
       PerIsolateData data(isolate);
       {
         HandleScope scope(isolate);
-        Local<Context> context = Shell::CreateEvaluationContext(isolate);
+        Local<Context> context;
+        if (!Shell::CreateEvaluationContext(isolate).ToLocal(&context)) {
+          DCHECK(isolate->IsExecutionTerminating());
+          break;
+        }
         {
-          Context::Scope cscope(context);
+          Context::Scope context_scope(context);
           InspectorClient inspector_client(context,
                                            Shell::options.enable_inspector);
           PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
@@ -4534,7 +4542,7 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   DCHECK_NOT_NULL(isolate_);
   HandleScope scope(isolate_);
   Local<Context> context = context_.Get(isolate_);
-  Context::Scope cscope(context);
+  Context::Scope context_scope(context);
   Local<Object> global = context->Global();
 
   // Get the message handler.
@@ -4589,15 +4597,18 @@ void Worker::ExecuteInThread() {
   // This is not really a loop, but the loop allows us to break out of this
   // block easily.
   for (bool execute = true; execute; execute = false) {
-    Isolate::Scope iscope(isolate_);
+    Isolate::Scope isolate_scope(isolate_);
     {
       HandleScope scope(isolate_);
       PerIsolateData data(isolate_);
-      Local<Context> context = Shell::CreateEvaluationContext(isolate_);
-      if (context.IsEmpty()) break;
+      Local<Context> context;
+      if (!Shell::CreateEvaluationContext(isolate_).ToLocal(&context)) {
+        DCHECK(isolate_->IsExecutionTerminating());
+        break;
+      }
       context_.Reset(isolate_, context);
       {
-        Context::Scope cscope(context);
+        Context::Scope context_scope(context);
         PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
 
         Local<Object> global = context->Global();
@@ -5010,44 +5021,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-int Shell::RunMain(Isolate* isolate, bool last_run) {
+int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
-  bool success = true;
-  {
-    SetWaitUntilDone(isolate, false);
-    if (options.lcov_file) {
-      debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
-    }
-    HandleScope scope(isolate);
-    Local<Context> context = CreateEvaluationContext(isolate);
-    bool use_existing_context = last_run && use_interactive_shell();
-    if (use_existing_context) {
-      // Keep using the same context in the interactive shell.
-      evaluation_context_.Reset(isolate, context);
-    }
-    {
-      Context::Scope cscope(context);
-      InspectorClient inspector_client(context, options.enable_inspector);
-      PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-      if (!options.isolate_sources[0].Execute(isolate)) success = false;
-      if (!CompleteMessageLoop(isolate)) success = false;
-    }
-    WriteLcovData(isolate, options.lcov_file);
-    if (last_run && i::v8_flags.stress_snapshot) {
-      static constexpr bool kClearRecompilableData = true;
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-      // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
-      // of optimized code.
-      i::Deoptimizer::DeoptimizeAll(i_isolate);
-      i::Snapshot::ClearReconstructableDataForSerialization(
-          i_isolate, kClearRecompilableData);
-      i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate,
-                                                           i_context);
-    }
-  }
+  bool success = RunMainIsolate(isolate, last_run);
   CollectGarbage(isolate);
 
   // Park the main thread here to prevent deadlocks in shared GCs when waiting
@@ -5076,6 +5054,44 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
   return (success == Shell::options.expected_to_throw ? 1 : 0);
 }
 
+bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
+  Shell::SetWaitUntilDone(isolate, false);
+  if (options.lcov_file) {
+    debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
+  }
+  HandleScope scope(isolate);
+  Local<Context> context;
+  if (!CreateEvaluationContext(isolate).ToLocal(&context)) {
+    DCHECK(isolate->IsExecutionTerminating());
+    return false;
+  }
+  bool use_existing_context = last_run && use_interactive_shell();
+  if (use_existing_context) {
+    // Keep using the same context in the interactive shell.
+    evaluation_context_.Reset(isolate, context);
+  }
+  bool success = true;
+  {
+    Context::Scope context_scope(context);
+    InspectorClient inspector_client(context, options.enable_inspector);
+    PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+    if (!options.isolate_sources[0].Execute(isolate)) success = false;
+    if (!CompleteMessageLoop(isolate)) success = false;
+  }
+  WriteLcovData(isolate, options.lcov_file);
+  if (last_run && i::v8_flags.stress_snapshot) {
+    static constexpr bool kClearRecompilableData = true;
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+    // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
+    // of optimized code.
+    i::Deoptimizer::DeoptimizeAll(i_isolate);
+    i::Snapshot::ClearReconstructableDataForSerialization(
+        i_isolate, kClearRecompilableData);
+    i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate, i_context);
+  }
+  return success;
+}
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
     const double kLongIdlePauseInSeconds = 1.0;
