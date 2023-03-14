@@ -98,8 +98,8 @@ class ValueNumberingReducer : public Next {
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
 
-  void Bind(Block* block, const Block* origin = nullptr) {
-    Next::Bind(block, origin);
+  void Bind(Block* block) {
+    Next::Bind(block);
     ResetToBlock(block);
     dominator_path_.push_back(block);
     depths_heads_.push_back(nullptr);

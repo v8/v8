@@ -65,8 +65,8 @@ class VariableReducer : public Next {
                                    base::nullopt, Asm().phase_zone()),
         predecessors_(Asm().phase_zone()) {}
 
-  void Bind(Block* new_block, const Block* origin = nullptr) {
-    Next::Bind(new_block, origin);
+  void Bind(Block* new_block) {
+    Next::Bind(new_block);
 
     SealAndSave();
 

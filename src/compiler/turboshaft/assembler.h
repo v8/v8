@@ -319,7 +319,7 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
   template <class... Args>
   explicit ReducerBase(const std::tuple<Args...>&) {}
 
-  void Bind(Block*, const Block*) {}
+  void Bind(Block* block) {}
 
   void Analyze() {}
 
@@ -1920,7 +1920,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   using OperationMatching<Assembler<Reducers>>::Get;
   using Stack::Get;
 
-  V8_INLINE bool Bind(Block* block, const Block* origin = nullptr) {
+  V8_INLINE bool Bind(Block* block) {
     if (!this->output_graph().Add(block)) {
       generating_unreachable_operations_ = true;
       return false;
@@ -1928,15 +1928,14 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     DCHECK_NULL(current_block_);
     current_block_ = block;
     generating_unreachable_operations_ = false;
-    if (origin == nullptr) origin = this->current_input_block();
-    if (origin != nullptr) block->SetOrigin(origin);
-    Stack::Bind(block, origin);
+    block->SetOrigin(this->current_input_block());
+    Stack::Bind(block);
     return true;
   }
 
   // TODO(nicohartmann@): Remove this.
-  V8_INLINE void BindReachable(Block* block, const Block* origin = nullptr) {
-    bool bound = Bind(block, origin);
+  V8_INLINE void BindReachable(Block* block) {
+    bool bound = Bind(block);
     DCHECK(bound);
     USE(bound);
   }
@@ -2118,7 +2117,8 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
         UNREACHABLE();
     }
 
-    BindReachable(intermediate_block, source->Origin());
+    BindReachable(intermediate_block);
+    intermediate_block->SetOrigin(source->Origin());
     // Inserting a Goto in {intermediate_block} to {destination}. This will
     // create the edge from {intermediate_block} to {destination}. Note that
     // this will call AddPredecessor, but we've already removed the eventual

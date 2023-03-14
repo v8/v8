@@ -177,8 +177,8 @@ class TypeInferenceReducer
     return og_index;
   }
 
-  void Bind(Block* new_block, const Block* origin) {
-    Next::Bind(new_block, origin);
+  void Bind(Block* new_block) {
+    Next::Bind(new_block);
 
     // Seal the current block first.
     if (table_.IsSealed()) {

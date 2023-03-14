@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/source-position.h"
@@ -350,10 +351,17 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   // The block from the previous graph which produced the current block. This is
   // used for translating phi nodes from the previous graph.
   void SetOrigin(const Block* origin) {
-    DCHECK_EQ(origin->graph_generation_ + 1, graph_generation_);
+    DCHECK_IMPLIES(origin != nullptr,
+                   origin->graph_generation_ + 1 == graph_generation_);
     origin_ = origin;
   }
-  const Block* Origin() const { return origin_; }
+  // The origin refers to the block from the input graph that is equivalent as a
+  // predecessor. It is only available for bound blocks and it does *not* refer
+  // to an equivalent block as a branch destination.
+  const Block* Origin() const {
+    DCHECK(IsBound());
+    return origin_;
+  }
 
   OpIndex begin() const {
     DCHECK(begin_.valid());

@@ -122,7 +122,6 @@ class GraphVisitor {
       Block* new_block = input_block.IsLoop() ? assembler().NewLoopHeader()
                                               : assembler().NewBlock();
       block_mapping_[input_block.index().id()] = new_block;
-      new_block->SetOrigin(&input_graph().Get(input_block.index()));
       DCHECK_EQ(block_mapping_[input_block.index().id()]->LastPredecessor(),
                 nullptr);
       DCHECK_EQ(
@@ -261,7 +260,7 @@ class GraphVisitor {
           << "\n";
     }
     Block* new_block = MapToNewGraph(input_block->index());
-    if (assembler().Bind(new_block, input_block)) {
+    if (assembler().Bind(new_block)) {
       for (OpIndex index : input_graph().OperationIndices(*input_block)) {
         if (!VisitOp<trace_reduction>(index, input_block)) break;
       }
