@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/ios/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
@@ -36,6 +37,9 @@ declare_args() {
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
+
+  # Includes profiles to optimize builtins.
+  v8_enable_builtins_optimization = ""
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
@@ -141,6 +145,15 @@ if (v8_enable_backtrace == "") {
 # use perfetto for tracing.
 if (build_with_chromium && use_perfetto_client_library) {
   v8_use_perfetto = true
+}
+
+# Includes profiles to optimize builtins if
+#   * it is a Chromium build, and
+#   * Chromium builds with optimization.
+# If no profiles are downloaded during gclient runhooks, optimization fails
+# silently.
+if (v8_enable_builtins_optimization == "") {
+  v8_enable_builtins_optimization = build_with_chromium && chrome_pgo_phase == 2
 }
 
 # TODO(jgruber): Move v8_jitless from BUILD.gn here as these

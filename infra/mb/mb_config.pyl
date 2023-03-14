@@ -177,17 +177,17 @@
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
-      'V8 Arm - builder - pgo - perf': 'official_arm',
+      'V8 Arm - builder - pgo - perf': 'official_arm_pgo',
       'V8 Android Arm - builder - perf': 'official_android_arm',
-      'V8 Android Arm - builder - pgo - perf': 'official_android_arm',
+      'V8 Android Arm - builder - pgo - perf': 'official_android_arm_pgo',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
-      'V8 Android Arm64 - builder - pgo - perf': 'official_android_arm64',
+      'V8 Android Arm64 - builder - pgo - perf': 'official_android_arm64_pgo',
       'V8 Linux - builder - perf': 'official_x86',
-      'V8 Linux - builder - pgo - perf': 'official_x86',
+      'V8 Linux - builder - pgo - perf': 'official_x86_pgo',
       'V8 Linux64 - builder - perf': 'official_x64',
-      'V8 Linux64 - builder - pgo - perf': 'official_x64',
+      'V8 Linux64 - builder - pgo - perf': 'official_x64_pgo',
       'V8 Mac Arm64 - builder - perf': 'official_mac_arm64',
-      'V8 Mac Arm64 - builder - pgo - perf': 'official_mac_arm64',
+      'V8 Mac Arm64 - builder - pgo - perf': 'official_mac_arm64_pgo',
     },
     'client.v8.ports': {
       # Arm.
@@ -486,14 +486,28 @@
     # Official configs for arm
     'official_arm': [
       'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
+    'official_arm_pgo': [
+      'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo',
+      'builtins_optimization'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
+    'official_android_arm_pgo': [
+      'release_bot', 'arm', 'android', 'minimal_symbols',
+      'android_strip_outputs', 'official', 'disable_pgo',
+      'builtins_optimization'],
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
+    'official_android_arm64_pgo': [
+      'release_bot', 'arm64', 'android', 'minimal_symbols',
+      'android_strip_outputs', 'official', 'disable_pgo',
+      'builtins_optimization'],
     'official_mac_arm64': [
       'release_bot', 'arm64', 'official', 'disable_pgo'],
+    'official_mac_arm64_pgo': [
+      'release_bot', 'arm64', 'official', 'disable_pgo',
+      'builtins_optimization'],
 
     # Release configs for x64.
     'release_x64': [
@@ -587,6 +601,8 @@
     # Official configs for x64.
     'official_x64': [
       'release_bot', 'x64', 'official', 'disable_pgo'],
+    'official_x64_pgo': [
+      'release_bot', 'x64', 'official', 'disable_pgo', 'builtins_optimization'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -677,6 +693,9 @@
     # Official configs for x86.
     'official_x86': [
         'release_bot', 'x86', 'official', 'disable_pgo'],
+    'official_x86_pgo': [
+        'release_bot', 'x86', 'official', 'disable_pgo',
+        'builtins_optimization'],
 
     # Torque compare test
     'torque_compare': [
@@ -712,6 +731,10 @@
     'builtins_profiling': {
       'mixins' : ['release_bot_reclient'],
       'gn_args': 'v8_enable_builtins_profiling=true',
+    },
+
+    'builtins_optimization': {
+      'gn_args': 'v8_enable_builtins_optimization=true',
     },
 
     'cfi': {
