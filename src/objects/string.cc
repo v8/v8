@@ -224,8 +224,9 @@ void String::MakeThin(
     // from ConsStrings without having had the recorded slots cleared.
     // In the shared heap no such transitions are possible, as it can't contain
     // indirect strings.
+    // Indirect strings also don't get large enough to be in LO space.
     // TODO(v8:13374): Fix this more uniformly.
-    may_contain_recorded_slots = !in_shared_heap;
+    may_contain_recorded_slots = !in_shared_heap && !Heap::IsLargeObject(*this);
 
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
