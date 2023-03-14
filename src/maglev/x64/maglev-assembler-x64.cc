@@ -140,7 +140,7 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
         // Use the value as the scratch register if possible, since
         // CheckPageFlag emits slightly better code when value == scratch.
         Register scratch = kScratchRegister;
-        if (!register_snapshot.live_registers.has(value)) {
+        if (value != object && !register_snapshot.live_registers.has(value)) {
           scratch = value;
         }
         __ CheckPageFlag(value, scratch,
