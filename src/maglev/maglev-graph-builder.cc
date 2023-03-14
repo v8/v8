@@ -2001,6 +2001,23 @@ void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
   AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset);
 }
 
+void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
+                                                     ValueNode* index,
+                                                     ValueNode* value) {
+  if (CanElideWriteBarrier(elements, value)) {
+    AddNewNode<StoreFixedArrayElementNoWriteBarrier>({elements, index, value});
+  } else {
+    AddNewNode<StoreFixedArrayElementWithWriteBarrier>(
+        {elements, index, value});
+  }
+}
+
+void MaglevGraphBuilder::BuildStoreFixedArrayElementNoWriteBarrier(
+    ValueNode* elements, ValueNode* index, ValueNode* value) {
+  DCHECK(CanElideWriteBarrier(elements, value));
+  AddNewNode<StoreFixedArrayElementNoWriteBarrier>({elements, index, value});
+}
+
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
     base::Vector<const compiler::MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
@@ -2653,6 +2670,11 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
       elements_kind == BIGINT64_ELEMENTS) {
     return ReduceResult::Fail();
   }
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
+      keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS) {
+    // TODO(victorgomes): Handle STORE_IGNORE_OUT_OF_BOUNDS mode.
+    return ReduceResult::Fail();
+  }
   ValueNode* index = GetUint32ElementIndex(index_object);
   AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
   switch (keyed_mode.access_mode()) {
@@ -2686,6 +2708,11 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
       IsHoleyElementsKind(elements_kind) && !CanTreatHoleAsUndefined(maps)) {
     return ReduceResult::Fail();
   }
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
+      keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
+    // TODO(victorgomes): Handle growable elements.
+    return ReduceResult::Fail();
+  }
   ValueNode* index;
   if (HasOnlyJSArrayMaps(maps)) {
     index = GetInt32ElementIndex(index_object);
@@ -2698,10 +2725,10 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad: {
       DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
+      ValueNode* elements_array =
+          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
       ValueNode* result;
       if (IsDoubleElementsKind(elements_kind)) {
-        ValueNode* elements_array =
-            AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
         result =
             AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
         if (IsHoleyElementsKind(elements_kind)) {
@@ -2710,14 +2737,33 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
           result = AddNewNode<HoleyFloat64Box>({result});
         }
       } else {
-        ValueNode* elements_array =
-            AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
         result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
         if (IsHoleyElementsKind(elements_kind)) {
           result = AddNewNode<ConvertHoleToUndefined>({result});
         }
       }
       return result;
+    }
+    case compiler::AccessMode::kStore: {
+      ValueNode* elements_array =
+          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+      if (IsDoubleElementsKind(elements_kind)) {
+        AddNewNode<StoreFixedDoubleArrayElement>(
+            {elements_array, index, GetAccumulatorFloat64()});
+      } else {
+        if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
+          AddNewNode<EnsureWritableFastElements>({object, elements_array});
+        }
+        ValueNode* value = GetAccumulatorTagged();
+        if (IsSmiElementsKind(elements_kind)) {
+          BuildCheckSmi(value);
+          BuildStoreFixedArrayElementNoWriteBarrier(elements_array, index,
+                                                    value);
+        } else {
+          BuildStoreFixedArrayElement(elements_array, index, value);
+        }
+      }
+      return ReduceResult::Done();
     }
     default:
       // TODO(victorgomes): Implement more access types.
@@ -2743,10 +2789,6 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   // values).
   if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
       keyed_mode.load_mode() != STANDARD_LOAD) {
-    return ReduceResult::Fail();
-  }
-  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
-      keyed_mode.store_mode() != STANDARD_STORE) {
     return ReduceResult::Fail();
   }
 

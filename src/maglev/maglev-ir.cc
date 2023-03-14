@@ -2262,6 +2262,37 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void EnsureWritableFastElements::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(elements_input());
+  set_temporaries_needed(1);
+}
+void EnsureWritableFastElements::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register elements = ToRegister(elements_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ CompareMapWithRoot(elements, RootIndex::kFixedArrayMap, scratch);
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      kNotEqual,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
+         RegisterSnapshot snapshot) {
+        {
+          using D = CallInterfaceDescriptorFor<
+              Builtin::kCopyFastSmiOrObjectElements>::type;
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          __ Move(D::GetRegisterParameter(D::kObject), object);
+          __ CallBuiltin(Builtin::kCopyFastSmiOrObjectElements);
+          save_register_state.DefineSafepoint();
+        }
+        __ Jump(*done);
+      },
+      done, object, register_snapshot());
+  __ bind(*done);
+}
+
 int SetKeyedGeneric::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
   return D::GetStackParameterCount();

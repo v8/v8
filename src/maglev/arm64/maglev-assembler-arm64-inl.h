@@ -576,6 +576,18 @@ inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
   CompareInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
 }
 
+inline void MaglevAssembler::CompareMapWithRoot(Register object,
+                                                RootIndex index,
+                                                Register scratch) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    Ldr(scratch.W(), FieldMemOperand(object, HeapObject::kMapOffset));
+    CmpTagged(scratch, Immediate(ReadOnlyRootPtr(index)));
+    return;
+  }
+  LoadMap(scratch, object);
+  CompareRoot(scratch, index);
+}
+
 inline void MaglevAssembler::CompareInstanceTypeRange(
     Register map, InstanceType lower_limit, InstanceType higher_limit) {
   ScratchRegisterScope temps(this);

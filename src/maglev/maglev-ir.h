@@ -246,51 +246,55 @@ class MergePointInterpreterFrameState;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)                     \
-  V(AssertInt32)                         \
-  V(CheckDynamicValue)                   \
-  V(CheckInt32IsSmi)                     \
-  V(CheckUint32IsSmi)                    \
-  V(CheckHeapObject)                     \
-  V(CheckInt32Condition)                 \
-  V(CheckFixedArrayNonEmpty)             \
-  V(CheckJSArrayBounds)                  \
-  V(CheckJSDataViewBounds)               \
-  V(CheckJSObjectElementsBounds)         \
-  V(CheckJSTypedArrayBounds)             \
-  V(CheckMaps)                           \
-  V(CheckMapsWithMigration)              \
-  V(CheckNumber)                         \
-  V(CheckSmi)                            \
-  V(CheckString)                         \
-  V(CheckSymbol)                         \
-  V(CheckValue)                          \
-  V(CheckValueEqualsString)              \
-  V(CheckInstanceType)                   \
-  V(DebugBreak)                          \
-  V(FunctionEntryStackCheck)             \
-  V(GeneratorStore)                      \
-  V(JumpLoopPrologue)                    \
-  V(StoreMap)                            \
-  V(StoreDoubleField)                    \
-  V(StoreFloat64)                        \
-  V(StoreIntTypedArrayElement)           \
-  V(StoreIntTypedArrayElementNoDeopt)    \
-  V(StoreDoubleTypedArrayElement)        \
-  V(StoreDoubleTypedArrayElementNoDeopt) \
-  V(StoreSignedIntDataViewElement)       \
-  V(StoreDoubleDataViewElement)          \
-  V(StoreTaggedFieldNoWriteBarrier)      \
-  V(StoreTaggedFieldWithWriteBarrier)    \
-  V(CheckedStoreSmiField)                \
-  V(IncreaseInterruptBudget)             \
-  V(ReduceInterruptBudgetForLoop)        \
-  V(ReduceInterruptBudgetForReturn)      \
-  V(ThrowReferenceErrorIfHole)           \
-  V(ThrowSuperNotCalledIfHole)           \
-  V(ThrowSuperAlreadyCalledIfNotHole)    \
-  V(ThrowIfNotSuperConstructor)          \
-  GAP_MOVE_NODE_LIST(V)                  \
+#define NODE_LIST(V)                        \
+  V(AssertInt32)                            \
+  V(CheckDynamicValue)                      \
+  V(CheckInt32IsSmi)                        \
+  V(CheckUint32IsSmi)                       \
+  V(CheckHeapObject)                        \
+  V(CheckInt32Condition)                    \
+  V(CheckFixedArrayNonEmpty)                \
+  V(CheckJSArrayBounds)                     \
+  V(CheckJSDataViewBounds)                  \
+  V(CheckJSObjectElementsBounds)            \
+  V(CheckJSTypedArrayBounds)                \
+  V(CheckMaps)                              \
+  V(CheckMapsWithMigration)                 \
+  V(CheckNumber)                            \
+  V(CheckSmi)                               \
+  V(CheckString)                            \
+  V(CheckSymbol)                            \
+  V(CheckValue)                             \
+  V(CheckValueEqualsString)                 \
+  V(CheckInstanceType)                      \
+  V(DebugBreak)                             \
+  V(EnsureWritableFastElements)             \
+  V(FunctionEntryStackCheck)                \
+  V(GeneratorStore)                         \
+  V(JumpLoopPrologue)                       \
+  V(StoreMap)                               \
+  V(StoreDoubleField)                       \
+  V(StoreFixedArrayElementWithWriteBarrier) \
+  V(StoreFixedArrayElementNoWriteBarrier)   \
+  V(StoreFixedDoubleArrayElement)           \
+  V(StoreFloat64)                           \
+  V(StoreIntTypedArrayElement)              \
+  V(StoreIntTypedArrayElementNoDeopt)       \
+  V(StoreDoubleTypedArrayElement)           \
+  V(StoreDoubleTypedArrayElementNoDeopt)    \
+  V(StoreSignedIntDataViewElement)          \
+  V(StoreDoubleDataViewElement)             \
+  V(StoreTaggedFieldNoWriteBarrier)         \
+  V(StoreTaggedFieldWithWriteBarrier)       \
+  V(CheckedStoreSmiField)                   \
+  V(IncreaseInterruptBudget)                \
+  V(ReduceInterruptBudgetForLoop)           \
+  V(ReduceInterruptBudgetForReturn)         \
+  V(ThrowReferenceErrorIfHole)              \
+  V(ThrowSuperNotCalledIfHole)              \
+  V(ThrowSuperAlreadyCalledIfNotHole)       \
+  V(ThrowIfNotSuperConstructor)             \
+  GAP_MOVE_NODE_LIST(V)                     \
   VALUE_NODE_LIST(V)
 
 #define BRANCH_CONTROL_NODE_LIST(V) \
@@ -4836,6 +4840,80 @@ class LoadFixedArrayElement
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 };
 
+class EnsureWritableFastElements
+    : public FixedInputNodeT<2, EnsureWritableFastElements> {
+  using Base = FixedInputNodeT<2, EnsureWritableFastElements>;
+
+ public:
+  explicit EnsureWritableFastElements(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kElementsIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& elements_input() { return input(kElementsIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StoreFixedArrayElementWithWriteBarrier
+    : public FixedInputNodeT<3, StoreFixedArrayElementWithWriteBarrier> {
+  using Base = FixedInputNodeT<3, StoreFixedArrayElementWithWriteBarrier>;
+
+ public:
+  explicit StoreFixedArrayElementWithWriteBarrier(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kTagged};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StoreFixedArrayElementNoWriteBarrier
+    : public FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier> {
+  using Base = FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier>;
+
+ public:
+  explicit StoreFixedArrayElementNoWriteBarrier(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kTagged};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class LoadFixedDoubleArrayElement
     : public FixedInputValueNodeT<2, LoadFixedDoubleArrayElement> {
   using Base = FixedInputValueNodeT<2, LoadFixedDoubleArrayElement>;
@@ -4852,6 +4930,30 @@ class LoadFixedDoubleArrayElement
   static constexpr int kIndexIndex = 1;
   Input& elements_input() { return input(kElementsIndex); }
   Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StoreFixedDoubleArrayElement
+    : public FixedInputNodeT<3, StoreFixedDoubleArrayElement> {
+  using Base = FixedInputNodeT<3, StoreFixedDoubleArrayElement>;
+
+ public:
+  explicit StoreFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kFloat64};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

@@ -1779,6 +1779,95 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void StoreFixedArrayElementWithWriteBarrier::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+  RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+}
+void StoreFixedArrayElementWithWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  Register scratch = WriteBarrierDescriptor::SlotAddressRegister();
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(elements);
+    __ IsObjectType(elements, FIXED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ Add(scratch, elements, Operand(index, LSL, kTaggedSizeLog2));
+  __ Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
+
+  ZoneLabelRef done(masm);
+  Label* deferred_write_barrier = masm->MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
+         Register index, Register value, RegisterSnapshot register_snapshot) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                         eq, *done);
+
+        Register stub_object_reg = WriteBarrierDescriptor::ObjectRegister();
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+
+        RegList saved;
+        if (object != stub_object_reg &&
+            register_snapshot.live_registers.has(stub_object_reg)) {
+          saved.set(stub_object_reg);
+        }
+        if (register_snapshot.live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+
+        if (object != stub_object_reg) {
+          __ Move(stub_object_reg, object);
+          object = stub_object_reg;
+        }
+        __ Add(slot_reg, object, FixedArray::kHeaderSize - kHeapObjectTag);
+        __ Add(slot_reg, slot_reg, Operand(index, LSL, kTaggedSizeLog2));
+
+        SaveFPRegsMode const save_fp_mode =
+            !register_snapshot.live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ B(*done);
+      },
+      done, elements, index, value, register_snapshot());
+
+  __ JumpIfSmi(value, *done);
+  __ CheckPageFlag(elements, MemoryChunk::kPointersFromHereAreInterestingMask,
+                   ne, deferred_write_barrier);
+  __ bind(*done);
+}
+
+void StoreFixedArrayElementNoWriteBarrier::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+}
+void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(elements);
+    __ IsObjectType(elements, FIXED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ Add(scratch, elements, Operand(index, LSL, kTaggedSizeLog2));
+  __ Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
+}
+
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseAndClobberRegister(elements_input());
   UseRegister(index_input());
@@ -1796,6 +1885,28 @@ void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
   __ Ldr(ToDoubleRegister(result()),
          FieldMemOperand(elements, FixedArray::kHeaderSize));
+}
+
+void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+  set_temporaries_needed(1);
+}
+void StoreFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(elements);
+    __ IsObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ Add(scratch, elements, Operand(index, LSL, kDoubleSizeLog2));
+  __ Str(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
 void StoreDoubleField::SetValueLocationConstraints() {
