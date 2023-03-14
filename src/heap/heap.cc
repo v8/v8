@@ -6933,6 +6933,7 @@ void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
   if (v8_flags.minor_mc) {
     // Minor MC lacks support for specialized generational ephemeron barriers.
     // The regular write barrier works as well but keeps more memory alive.
+    // TODO(v8:12612): Add support to MinorMC.
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(table);
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
   } else {

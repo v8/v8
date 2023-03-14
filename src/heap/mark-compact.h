@@ -398,7 +398,6 @@ class MarkCompactCollector final : public CollectorBase {
                                    HeapObject target);
   V8_INLINE static void RecordSlot(MemoryChunk* source_page,
                                    HeapObjectSlot slot, HeapObject target);
-  void RecordLiveSlotsOnPage(Page* page);
 
   bool is_compacting() const { return compacting_; }
 

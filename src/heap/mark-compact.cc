@@ -1493,6 +1493,14 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     DCHECK(host.IsEphemeronHashTable());
     DCHECK(!Heap::InYoungGeneration(host));
 
+    if (v8_flags.minor_mc) {
+      // Minor MC lacks support for specialized generational ephemeron barriers.
+      // The regular write barrier works as well but keeps more memory alive.
+      // TODO(v8:12612): Add support to MinorMC.
+      ObjectVisitorWithCageBases::VisitEphemeron(host, index, key, value);
+      return;
+    }
+
     VisitPointer(host, value);
 
     if (ephemeron_remembered_set_ && Heap::InYoungGeneration(*key)) {
@@ -4187,6 +4195,7 @@ void Evacuator::Finalize() {
   heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
 
+  DCHECK_IMPLIES(v8_flags.minor_mc, ephemeron_remembered_set_.empty());
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {
     auto insert_result =
@@ -4505,12 +4514,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
     return object;
   }
 };
-
-void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
-  EvacuateRecordOnlyVisitor visitor(heap());
-  LiveObjectVisitor::VisitBlackObjectsNoFail(page, non_atomic_marking_state(),
-                                             &visitor);
-}
 
 template <class Visitor, typename MarkingState>
 bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
