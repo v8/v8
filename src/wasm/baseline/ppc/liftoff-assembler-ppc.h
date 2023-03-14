@@ -2294,8 +2294,8 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 uint8_t laneidx, uint32_t* protected_load_pc,
                                 bool i64_offset) {
   if (!i64_offset && offset_reg != no_reg) {
-    ZeroExtWord32(r0, offset_reg);
-    offset_reg = r0;
+    ZeroExtWord32(ip, offset_reg);
+    offset_reg = ip;
   }
   MemOperand src_op = MemOperand(addr, offset_reg, offset_imm);
 
@@ -2306,14 +2306,14 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 
   if (protected_load_pc) *protected_load_pc = pc_offset();
   if (mem_type == MachineType::Int8()) {
-    LoadLane8LE(dst.fp().toSimd(), src_op, laneidx, ip, kScratchSimd128Reg);
+    LoadLane8LE(dst.fp().toSimd(), src_op, laneidx, r0, kScratchSimd128Reg);
   } else if (mem_type == MachineType::Int16()) {
-    LoadLane16LE(dst.fp().toSimd(), src_op, laneidx, ip, kScratchSimd128Reg);
+    LoadLane16LE(dst.fp().toSimd(), src_op, laneidx, r0, kScratchSimd128Reg);
   } else if (mem_type == MachineType::Int32()) {
-    LoadLane32LE(dst.fp().toSimd(), src_op, laneidx, ip, kScratchSimd128Reg);
+    LoadLane32LE(dst.fp().toSimd(), src_op, laneidx, r0, kScratchSimd128Reg);
   } else {
     DCHECK_EQ(MachineType::Int64(), mem_type);
-    LoadLane64LE(dst.fp().toSimd(), src_op, laneidx, ip, kScratchSimd128Reg);
+    LoadLane64LE(dst.fp().toSimd(), src_op, laneidx, r0, kScratchSimd128Reg);
   }
 }
 
@@ -2323,8 +2323,8 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uint32_t* protected_store_pc,
                                  bool i64_offset) {
   if (!i64_offset && offset != no_reg) {
-    ZeroExtWord32(r0, offset);
-    offset = r0;
+    ZeroExtWord32(ip, offset);
+    offset = ip;
   }
   MemOperand dst_op = MemOperand(dst, offset, offset_imm);
 
@@ -2332,14 +2332,14 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
 
   MachineRepresentation rep = type.mem_rep();
   if (rep == MachineRepresentation::kWord8) {
-    StoreLane8LE(src.fp().toSimd(), dst_op, lane, ip, kScratchSimd128Reg);
+    StoreLane8LE(src.fp().toSimd(), dst_op, lane, r0, kScratchSimd128Reg);
   } else if (rep == MachineRepresentation::kWord16) {
-    StoreLane16LE(src.fp().toSimd(), dst_op, lane, ip, kScratchSimd128Reg);
+    StoreLane16LE(src.fp().toSimd(), dst_op, lane, r0, kScratchSimd128Reg);
   } else if (rep == MachineRepresentation::kWord32) {
-    StoreLane32LE(src.fp().toSimd(), dst_op, lane, ip, kScratchSimd128Reg);
+    StoreLane32LE(src.fp().toSimd(), dst_op, lane, r0, kScratchSimd128Reg);
   } else {
     DCHECK_EQ(MachineRepresentation::kWord64, rep);
-    StoreLane64LE(src.fp().toSimd(), dst_op, lane, ip, kScratchSimd128Reg);
+    StoreLane64LE(src.fp().toSimd(), dst_op, lane, r0, kScratchSimd128Reg);
   }
 }
 
