@@ -32,8 +32,8 @@ Reduction WasmInliner::Reduce(Node* node) {
   if (v8_flags.trace_wasm_inlining) PrintF(__VA_ARGS__)
 
 void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
-  TRACE("[function %d: considering node %d, call to %d: %s]\n", function_index_,
-        call->id(), inlinee, decision);
+  TRACE("[function %d: considering node %d, call to %d: %s]\n",
+        data_.func_index, call->id(), inlinee, decision);
 }
 
 int WasmInliner::GetCallCount(Node* call) {
@@ -48,8 +48,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
          call->opcode() == IrOpcode::kTailCall);
 
   if (seen_.find(call) != seen_.end()) {
-    TRACE("function %d: have already seen node %d, skipping\n", function_index_,
-          call->id());
+    TRACE("function %d: have already seen node %d, skipping\n",
+          data_.func_index, call->id());
     return NoChange();
   }
   seen_.insert(call);
@@ -60,7 +60,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
                                      : IrOpcode::kRelocatableInt64Constant;
   if (callee->opcode() != reloc_opcode) {
     TRACE("[function %d: considering node %d... not a relocatable constant]\n",
-          function_index_, call->id());
+          data_.func_index, call->id());
     return NoChange();
   }
   auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
@@ -88,7 +88,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
-  base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
+  base::Vector<const byte> function_bytes =
+      data_.wire_bytes_storage->GetCode(inlinee->code);
 
   int call_count = GetCallCount(call);
 
@@ -129,13 +130,13 @@ void WasmInliner::Trace(const CandidateInfo& candidate, const char* decision) {
   TRACE(
       "  [function %d: considering candidate {@%d, index=%d, count=%d, "
       "size=%d}: %s]\n",
-      function_index_, candidate.node->id(), candidate.inlinee_index,
+      data_.func_index, candidate.node->id(), candidate.inlinee_index,
       candidate.call_count, candidate.wire_byte_size, decision);
 }
 
 void WasmInliner::Finalize() {
   TRACE("function %d %s: going though inlining candidates...\n",
-        function_index_, debug_name_);
+        data_.func_index, debug_name_);
   if (inlining_candidates_.empty()) return;
   while (!inlining_candidates_.empty()) {
     CandidateInfo candidate = inlining_candidates_.top();
@@ -170,7 +171,7 @@ void WasmInliner::Finalize() {
 #endif
 
     base::Vector<const byte> function_bytes =
-        wire_bytes_->GetCode(inlinee->code);
+        data_.wire_bytes_storage->GetCode(inlinee->code);
 
     const wasm::FunctionBody inlinee_body{inlinee->sig, inlinee->code.offset(),
                                           function_bytes.begin(),
@@ -201,19 +202,19 @@ void WasmInliner::Finalize() {
     Node* inlinee_start;
     Node* inlinee_end;
     SourcePosition caller_pos =
-        source_positions_->GetSourcePosition(candidate.node);
+        data_.source_positions->GetSourcePosition(candidate.node);
     inlining_positions_->push_back(
         {static_cast<int>(candidate.inlinee_index), caller_pos});
     int inlining_position_id =
         static_cast<int>(inlining_positions_->size()) - 1;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
-                             source_positions_);
+                             data_.source_positions);
     builder.set_inlining_id(inlining_position_id);
     {
       Graph::SubgraphScope scope(graph());
       wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features, module(),
                          &builder, &detected, inlinee_body, &inlinee_loop_infos,
-                         &dangling_exceptions, node_origins_,
+                         &dangling_exceptions, data_.node_origins,
                          candidate.inlinee_index,
                          NodeProperties::IsExceptionalCall(call)
                              ? wasm::kInlinedHandledCall
@@ -235,8 +236,9 @@ void WasmInliner::Finalize() {
       InlineTailCall(call, inlinee_start, inlinee_end);
     }
     call->Kill();
-    loop_infos_->insert(loop_infos_->end(), inlinee_loop_infos.begin(),
-                        inlinee_loop_infos.end());
+    data_.loop_infos->insert(data_.loop_infos->end(),
+                             inlinee_loop_infos.begin(),
+                             inlinee_loop_infos.end());
     // Returning after only one inlining has been tried and found worse.
   }
 }

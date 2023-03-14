@@ -39,6 +39,7 @@ class Node;
 class NodeOriginTable;
 class Operator;
 class SourcePositionTable;
+struct WasmCompilationData;
 class WasmDecorator;
 class WasmGraphAssembler;
 enum class TrapId : uint32_t;
@@ -61,9 +62,8 @@ enum Suspend : bool;
 namespace compiler {
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv*, const wasm::WireBytesStorage* wire_bytes_storage,
-    const wasm::FunctionBody&, int func_index, Counters*,
-    wasm::AssemblerBufferCache* buffer_cache, wasm::WasmFeatures* detected);
+    wasm::CompilationEnv*, WasmCompilationData& compilation_data, Counters*,
+    wasm::WasmFeatures* detected);
 
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
@@ -189,6 +189,21 @@ struct WasmLoopInfo {
       : header(header),
         nesting_depth(nesting_depth),
         can_be_innermost(can_be_innermost) {}
+};
+
+struct WasmCompilationData {
+  explicit WasmCompilationData(const wasm::FunctionBody& func_body)
+      : func_body(func_body) {}
+
+  size_t body_size() { return func_body.end - func_body.start; }
+
+  const wasm::FunctionBody& func_body;
+  const wasm::WireBytesStorage* wire_bytes_storage;
+  wasm::AssemblerBufferCache* buffer_cache;
+  NodeOriginTable* node_origins{nullptr};
+  std::vector<WasmLoopInfo>* loop_infos{nullptr};
+  SourcePositionTable* source_positions{nullptr};
+  int func_index;
 };
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate

@@ -23,12 +23,8 @@ class RegisterConfiguration;
 struct WasmInliningPosition;
 
 namespace wasm {
-class AssemblerBufferCache;
 struct CompilationEnv;
-struct FunctionBody;
 struct WasmCompilationResult;
-struct WasmModule;
-class WireBytesStorage;
 }  // namespace wasm
 
 namespace compiler {
@@ -39,10 +35,9 @@ class InstructionSequence;
 class JSGraph;
 class JSHeapBroker;
 class MachineGraph;
-class NodeOriginTable;
 class Schedule;
 class SourcePositionTable;
-struct WasmLoopInfo;
+struct WasmCompilationData;
 
 class Pipeline : public AllStatic {
  public:
@@ -55,12 +50,8 @@ class Pipeline : public AllStatic {
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
-      const wasm::WireBytesStorage* wire_bytes_storage, MachineGraph* mcgraph,
-      CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      NodeOriginTable* node_origins, wasm::FunctionBody function_body,
-      const wasm::WasmModule* module, int function_index,
-      std::vector<compiler::WasmLoopInfo>* loop_infos,
-      wasm::AssemblerBufferCache* buffer_cache,
+      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
+      CallDescriptor* call_descriptor,
       ZoneVector<WasmInliningPosition>* inlining_positions);
 
   // Run the pipeline on a machine graph and generate code.

@@ -8687,19 +8687,17 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
 namespace {
 
 void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
-                               const wasm::FunctionBody& func_body,
-                               int func_index, wasm::WasmFeatures* detected,
-                               MachineGraph* mcgraph,
-                               std::vector<compiler::WasmLoopInfo>* loop_infos,
-                               NodeOriginTable* node_origins,
-                               SourcePositionTable* source_positions) {
+                               WasmCompilationData& data,
+                               wasm::WasmFeatures* detected,
+                               MachineGraph* mcgraph) {
   // Create a TF graph during decoding.
-  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
-                           source_positions);
+  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, data.func_body.sig,
+                           data.source_positions);
   auto* allocator = wasm::GetWasmEngine()->allocator();
   wasm::BuildTFGraph(allocator, env->enabled_features, env->module, &builder,
-                     detected, func_body, loop_infos, nullptr, node_origins,
-                     func_index, wasm::kRegularFunction);
+                     detected, data.func_body, data.loop_infos, nullptr,
+                     data.node_origins, data.func_index,
+                     wasm::kRegularFunction);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   if (v8_flags.experimental_wasm_revectorize && builder.has_simd()) {
@@ -8741,16 +8739,15 @@ base::Vector<const char> GetDebugName(Zone* zone,
 }  // namespace
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_byte_storage,
-    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
-    wasm::AssemblerBufferCache* buffer_cache, wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, WasmCompilationData& data, Counters* counters,
+    wasm::WasmFeatures* detected) {
   // Check that we do not accidentally compile a Wasm function to TurboFan if
   // --liftoff-only is set.
   DCHECK(!v8_flags.liftoff_only);
 
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileTopTier", "func_index", func_index, "body_size",
-               func_body.end - func_body.start);
+               "wasm.CompileTopTier", "func_index", data.func_index,
+               "body_size", data.body_size());
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
   MachineGraph* mcgraph = zone.New<MachineGraph>(
       zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
@@ -8760,8 +8757,9 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
           InstructionSelector::AlignmentRequirements()));
 
   OptimizedCompilationInfo info(
-      GetDebugName(&zone, env->module, wire_byte_storage, func_index), &zone,
-      CodeKind::WASM_FUNCTION);
+      GetDebugName(&zone, env->module, data.wire_bytes_storage,
+                   data.func_index),
+      &zone, CodeKind::WASM_FUNCTION);
   if (env->runtime_exception_support) {
     info.set_wasm_runtime_exception_support();
   }
@@ -8773,45 +8771,44 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     tcf << AsC1VCompilation(&info);
   }
 
-  NodeOriginTable* node_origins =
-      info.trace_turbo_json() ? zone.New<NodeOriginTable>(mcgraph->graph())
-                              : nullptr;
-  SourcePositionTable* source_positions =
+  if (info.trace_turbo_json()) {
+    data.node_origins = zone.New<NodeOriginTable>(mcgraph->graph());
+  }
+
+  data.source_positions =
       mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
   ZoneVector<WasmInliningPosition> inlining_positions(&zone);
 
   std::vector<WasmLoopInfo> loop_infos;
+  data.loop_infos = &loop_infos;
 
   wasm::WasmFeatures unused_detected_features;
   if (!detected) detected = &unused_detected_features;
-  BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
-                            &loop_infos, node_origins, source_positions);
+  BuildGraphForWasmFunction(env, data, detected, mcgraph);
 
-  if (node_origins) {
-    node_origins->AddDecorator();
+  if (data.node_origins) {
+    data.node_origins->AddDecorator();
   }
 
   // Run the compiler pipeline to generate machine code.
-  auto call_descriptor = GetWasmCallDescriptor(&zone, func_body.sig);
+  auto call_descriptor = GetWasmCallDescriptor(&zone, data.func_body.sig);
   if (mcgraph->machine()->Is32()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  if (ContainsSimd(func_body.sig) && !CpuFeatures::SupportsWasmSimd128()) {
+  if (ContainsSimd(data.func_body.sig) && !CpuFeatures::SupportsWasmSimd128()) {
     // Fail compilation if hardware does not support SIMD.
     return wasm::WasmCompilationResult{};
   }
 
-  Pipeline::GenerateCodeForWasmFunction(
-      &info, env, wire_byte_storage, mcgraph, call_descriptor, source_positions,
-      node_origins, func_body, env->module, func_index, &loop_infos,
-      buffer_cache, &inlining_positions);
+  Pipeline::GenerateCodeForWasmFunction(&info, env, data, mcgraph,
+                                        call_descriptor, &inlining_positions);
 
   if (counters) {
     int zone_bytes =
         static_cast<int>(mcgraph->graph()->zone()->allocation_size());
     counters->wasm_compile_function_peak_memory_bytes()->AddSample(zone_bytes);
-    if (func_body.end - func_body.start >= 100 * KB) {
+    if (data.body_size() >= 100 * KB) {
       counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
           zone_bytes);
     }

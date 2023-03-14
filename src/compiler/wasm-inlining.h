@@ -15,44 +15,30 @@
 namespace v8 {
 namespace internal {
 
-class SourcePosition;
 struct WasmInliningPosition;
 
 namespace wasm {
 struct CompilationEnv;
 struct DanglingExceptions;
 struct WasmModule;
-struct WasmFunction;
-class WireBytesStorage;
 }  // namespace wasm
-
-class BytecodeOffset;
-class OptimizedCompilationInfo;
 
 namespace compiler {
 
-class NodeOriginTable;
-class SourcePositionTable;
-struct WasmLoopInfo;
+struct WasmCompilationData;
 
 // The WasmInliner provides the core graph inlining machinery for Webassembly
 // graphs.
 class WasmInliner final : public AdvancedReducer {
  public:
   WasmInliner(Editor* editor, wasm::CompilationEnv* env,
-              uint32_t function_index, SourcePositionTable* source_positions,
-              NodeOriginTable* node_origins, MachineGraph* mcgraph,
-              const wasm::WireBytesStorage* wire_bytes,
-              std::vector<WasmLoopInfo>* loop_infos, const char* debug_name,
+              WasmCompilationData& data, MachineGraph* mcgraph,
+              const char* debug_name,
               ZoneVector<WasmInliningPosition>* inlining_positions)
       : AdvancedReducer(editor),
         env_(env),
-        function_index_(function_index),
-        source_positions_(source_positions),
-        node_origins_(node_origins),
+        data_(data),
         mcgraph_(mcgraph),
-        wire_bytes_(wire_bytes),
-        loop_infos_(loop_infos),
         debug_name_(debug_name),
         initial_graph_size_(mcgraph->graph()->NodeCount()),
         current_graph_size_(initial_graph_size_),
@@ -109,12 +95,8 @@ class WasmInliner final : public AdvancedReducer {
   void Trace(const CandidateInfo& candidate, const char* decision);
 
   wasm::CompilationEnv* const env_;
-  uint32_t function_index_;
-  SourcePositionTable* const source_positions_;
-  NodeOriginTable* const node_origins_;
+  WasmCompilationData& data_;
   MachineGraph* const mcgraph_;
-  const wasm::WireBytesStorage* const wire_bytes_;
-  std::vector<WasmLoopInfo>* const loop_infos_;
   const char* debug_name_;
   const size_t initial_graph_size_;
   size_t current_graph_size_;

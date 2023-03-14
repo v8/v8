@@ -149,9 +149,12 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       V8_FALLTHROUGH;
 
     case ExecutionTier::kTurbofan:
-      result = compiler::ExecuteTurbofanWasmCompilation(
-          env, wire_bytes_storage, func_body, func_index_, counters,
-          buffer_cache, detected);
+      compiler::WasmCompilationData data(func_body);
+      data.func_index = func_index_;
+      data.wire_bytes_storage = wire_bytes_storage;
+      data.buffer_cache = buffer_cache;
+      result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
+                                                        detected);
       result.for_debugging = for_debugging_;
       break;
   }
