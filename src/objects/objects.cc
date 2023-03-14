@@ -4436,13 +4436,14 @@ template Handle<DescriptorArray> DescriptorArray::Allocate(
 
 void DescriptorArray::Initialize(EnumCache empty_enum_cache,
                                  HeapObject undefined_value,
-                                 int nof_descriptors, int slack) {
+                                 int nof_descriptors, int slack,
+                                 uint32_t raw_gc_state) {
   DCHECK_GE(nof_descriptors, 0);
   DCHECK_GE(slack, 0);
   DCHECK_LE(nof_descriptors + slack, kMaxNumberOfDescriptors);
   set_number_of_all_descriptors(nof_descriptors + slack);
   set_number_of_descriptors(nof_descriptors);
-  set_raw_gc_state(DescriptorArrayMarkingState::kInitialGCState, kRelaxedStore);
+  set_raw_gc_state(raw_gc_state, kRelaxedStore);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
