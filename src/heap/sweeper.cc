@@ -973,7 +973,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
 }
 
 bool Sweeper::IsIteratingPromotedPages() const {
-  return promoted_page_iteration_in_progress_.load(std::memory_order_relaxed);
+  return promoted_page_iteration_in_progress_.load(std::memory_order_acquire);
 }
 
 void Sweeper::ContributeAndWaitForPromotedPagesIteration() {
@@ -986,7 +986,7 @@ void Sweeper::IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded() {
   DCHECK_EQ(iterated_promoted_pages_count_,
             promoted_pages_for_iteration_count_);
   base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
-  promoted_page_iteration_in_progress_.store(false, std::memory_order_relaxed);
+  promoted_page_iteration_in_progress_.store(false, std::memory_order_release);
   promoted_pages_iteration_notification_variable_.NotifyAll();
 }
 
