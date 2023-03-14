@@ -1044,16 +1044,15 @@ class CompilationUnitBuilder {
     tiering_units_.emplace_back(func_index, tier, kNotForDebugging);
   }
 
-  bool Commit() {
+  void Commit() {
     if (baseline_units_.empty() && tiering_units_.empty() &&
         js_to_wasm_wrapper_units_.empty()) {
-      return false;
+      return;
     }
     compilation_state()->CommitCompilationUnits(
         base::VectorOf(baseline_units_), base::VectorOf(tiering_units_),
         base::VectorOf(js_to_wasm_wrapper_units_));
     Clear();
-    return true;
   }
 
   void Clear() {
@@ -3367,6 +3366,10 @@ void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> top_tier_units,
     base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
         js_to_wasm_wrapper_units) {
+  // This method should only be called with non-empty input, because we
+  // unconditionally call {NotifyConcurrencyIncrease} below.
+  DCHECK(!baseline_units.empty() || !top_tier_units.empty() ||
+         !js_to_wasm_wrapper_units.empty());
   if (!js_to_wasm_wrapper_units.empty()) {
     // |js_to_wasm_wrapper_units_| will only be initialized once.
     DCHECK_EQ(0, outstanding_js_to_wasm_wrappers_.load());
