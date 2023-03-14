@@ -21,6 +21,7 @@
 #include "src/base/macros.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/source-position.h"
 #include "src/common/code-memory-access.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
@@ -282,6 +283,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   base::Vector<const byte> source_positions() const {
     return {reloc_info().end(), static_cast<size_t>(source_positions_size_)};
   }
+  base::Vector<const byte> inlining_positions() const {
+    return {source_positions().end(),
+            static_cast<size_t>(inlining_positions_size_)};
+  }
 
   int index() const { return index_; }
   // Anonymous functions are functions that don't carry an index.
@@ -388,7 +393,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   static void DecrementRefCount(base::Vector<WasmCode* const>);
 
   // Returns the last source position before {offset}.
-  int GetSourcePositionBefore(int offset);
+  SourcePosition GetSourcePositionBefore(int code_offset);
+  int GetSourceOffsetBefore(int code_offset);
+
+  std::pair<int, SourcePosition> GetInliningPosition(int inlining_id) const;
 
   // Returns whether this code was generated for debugging. If this returns
   // {kForDebugging}, but {tier()} is not {kLiftoff}, then Liftoff compilation
@@ -409,17 +417,20 @@ class V8_EXPORT_PRIVATE WasmCode final {
            int code_comments_offset, int unpadded_binary_size,
            base::Vector<const byte> protected_instructions_data,
            base::Vector<const byte> reloc_info,
-           base::Vector<const byte> source_position_table, Kind kind,
+           base::Vector<const byte> source_position_table,
+           base::Vector<const byte> inlining_positions, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
                ForDebuggingField::encode(for_debugging)),
-        meta_data_(ConcatenateBytes(
-            {protected_instructions_data, reloc_info, source_position_table})),
+        meta_data_(
+            ConcatenateBytes({protected_instructions_data, reloc_info,
+                              source_position_table, inlining_positions})),
         instructions_size_(instructions.length()),
         reloc_info_size_(reloc_info.length()),
         source_positions_size_(source_position_table.length()),
+        inlining_positions_size_(inlining_positions.length()),
         protected_instructions_size_(protected_instructions_data.length()),
         index_(index),
         constant_pool_offset_(constant_pool_offset),
@@ -475,6 +486,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int instructions_size_;
   const int reloc_info_size_;
   const int source_positions_size_;
+  const int inlining_positions_size_;
   const int protected_instructions_size_;
   const int index_;
   const int constant_pool_offset_;
@@ -514,7 +526,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // Increase the limit if needed, but first check if the size increase is
 // justified.
 #ifndef V8_GC_MOLE
-static_assert(sizeof(WasmCode) <= 88);
+static_assert(sizeof(WasmCode) <= 96);
 #endif
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
@@ -637,7 +649,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int code_comments_offset, int unpadded_binary_size,
       base::Vector<const byte> protected_instructions_data,
       base::Vector<const byte> reloc_info,
-      base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+      base::Vector<const byte> source_position_table,
+      base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
@@ -859,7 +872,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int index, const CodeDesc& desc, int stack_slots,
       uint32_t tagged_parameter_slots,
       base::Vector<const byte> protected_instructions_data,
-      base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+      base::Vector<const byte> source_position_table,
+      base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
       base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
 

@@ -20,6 +20,7 @@ class OptimizedCompilationInfo;
 class TurbofanCompilationJob;
 class ProfileDataFromFile;
 class RegisterConfiguration;
+struct WasmInliningPosition;
 
 namespace wasm {
 class AssemblerBufferCache;
@@ -59,7 +60,8 @@ class Pipeline : public AllStatic {
       NodeOriginTable* node_origins, wasm::FunctionBody function_body,
       const wasm::WasmModule* module, int function_index,
       std::vector<compiler::WasmLoopInfo>* loop_infos,
-      wasm::AssemblerBufferCache* buffer_cache);
+      wasm::AssemblerBufferCache* buffer_cache,
+      ZoneVector<WasmInliningPosition>* inlining_positions);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
@@ -71,8 +73,7 @@ class Pipeline : public AllStatic {
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
       Isolate* isolate, CallDescriptor* call_descriptor,
       std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
-      SourcePositionTable* source_positions = nullptr);
+      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 
   // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(

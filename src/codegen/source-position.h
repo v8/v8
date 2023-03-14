@@ -175,6 +175,13 @@ struct InliningPosition {
   int inlined_function_id;
 };
 
+struct WasmInliningPosition {
+  // Non-canonicalized (module-specific) index of the inlined function.
+  int inlinee_func_index;
+  // Source location of the caller.
+  SourcePosition caller_pos;
+};
+
 struct SourcePositionInfo {
   SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 

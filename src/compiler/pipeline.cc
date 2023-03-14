@@ -1725,7 +1725,8 @@ struct WasmInliningPhase {
 
   void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
            uint32_t function_index, const wasm::WireBytesStorage* wire_bytes,
-           std::vector<compiler::WasmLoopInfo>* loop_info) {
+           std::vector<compiler::WasmLoopInfo>* loop_info,
+           ZoneVector<WasmInliningPosition>* inlining_positions) {
     if (!WasmInliner::graph_size_allows_inlining(data->graph()->NodeCount())) {
       return;
     }
@@ -1738,7 +1739,7 @@ struct WasmInliningPhase {
     WasmInliner inliner(&graph_reducer, env, function_index,
                         data->source_positions(), data->node_origins(),
                         data->mcgraph(), wire_bytes, loop_info,
-                        debug_name.get());
+                        debug_name.get(), inlining_positions);
     AddReducer(data, &graph_reducer, &dead);
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
@@ -2719,8 +2720,7 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
   WasmHeapStubCompilationJob(Isolate* isolate, CallDescriptor* call_descriptor,
                              std::unique_ptr<Zone> zone, Graph* graph,
                              CodeKind kind, std::unique_ptr<char[]> debug_name,
-                             const AssemblerOptions& options,
-                             SourcePositionTable* source_positions)
+                             const AssemblerOptions& options)
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
@@ -2732,7 +2732,7 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
         zone_(std::move(zone)),
         graph_(graph),
         data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
-              graph_, nullptr, nullptr, source_positions,
+              graph_, nullptr, nullptr, nullptr,
               zone_->New<NodeOriginTable>(graph_), nullptr, options, nullptr),
         pipeline_(&data_) {}
 
@@ -2761,11 +2761,10 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
 std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
     Isolate* isolate, CallDescriptor* call_descriptor,
     std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
-    std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
-    SourcePositionTable* source_positions) {
+    std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
   return std::make_unique<WasmHeapStubCompilationJob>(
       isolate, call_descriptor, std::move(zone), graph, kind,
-      std::move(debug_name), options, source_positions);
+      std::move(debug_name), options);
 }
 
 CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
@@ -3413,6 +3412,24 @@ void LowerInt64(const wasm::FunctionSig* sig, MachineGraph* mcgraph,
   pipeline.RunPrintAndVerify("V8.Int64Lowering", true);
 }
 
+base::OwnedVector<byte> SerializeInliningPositions(
+    const ZoneVector<WasmInliningPosition>& positions) {
+  const size_t entry_size =
+      sizeof positions[0].inlinee_func_index + sizeof positions[0].caller_pos;
+  auto result = base::OwnedVector<byte>::New(positions.size() * entry_size);
+  byte* iter = result.begin();
+  for (const auto& [func_index, caller_pos] : positions) {
+    size_t index_size = sizeof func_index;
+    std::memcpy(iter, &func_index, index_size);
+    iter += index_size;
+    size_t pos_size = sizeof caller_pos;
+    std::memcpy(iter, &caller_pos, pos_size);
+    iter += pos_size;
+  }
+  DCHECK_EQ(iter, result.end());
+  return result;
+}
+
 }  // namespace
 
 // static
@@ -3423,7 +3440,8 @@ void Pipeline::GenerateCodeForWasmFunction(
     NodeOriginTable* node_origins, wasm::FunctionBody function_body,
     const wasm::WasmModule* module, int function_index,
     std::vector<compiler::WasmLoopInfo>* loop_info,
-    wasm::AssemblerBufferCache* buffer_cache) {
+    wasm::AssemblerBufferCache* buffer_cache,
+    ZoneVector<WasmInliningPosition>* inlining_positions) {
   auto* wasm_engine = wasm::GetWasmEngine();
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
@@ -3458,7 +3476,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   data.BeginPhaseKind("V8.WasmOptimization");
   if (v8_flags.wasm_inlining) {
     pipeline.Run<WasmInliningPhase>(env, function_index, wire_bytes_storage,
-                                    loop_info);
+                                    loop_info, inlining_positions);
     pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }
   if (v8_flags.wasm_loop_peeling) {
@@ -3582,6 +3600,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
+  result->inlining_positions = SerializeInliningPositions(*inlining_positions);
   result->protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
   result->result_tier = wasm::ExecutionTier::kTurbofan;

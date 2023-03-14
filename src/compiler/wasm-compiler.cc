@@ -4110,7 +4110,8 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);
   if (source_position_table_) {
-    source_position_table_->SetSourcePosition(node, SourcePosition(position));
+    source_position_table_->SetSourcePosition(
+        node, SourcePosition(position, inlining_id_));
   }
 }
 
@@ -5583,6 +5584,7 @@ Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 WasmTypeCheckConfig config,
                                 wasm::WasmCodePosition position) {
+  // TODO(mliedtke): What should happen with the position?
   return gasm_->WasmTypeCast(object, rtt, config);
 }
 
@@ -8776,6 +8778,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
                               : nullptr;
   SourcePositionTable* source_positions =
       mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
+  ZoneVector<WasmInliningPosition> inlining_positions(&zone);
 
   std::vector<WasmLoopInfo> loop_infos;
 
@@ -8799,10 +8802,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     return wasm::WasmCompilationResult{};
   }
 
-  Pipeline::GenerateCodeForWasmFunction(&info, env, wire_byte_storage, mcgraph,
-                                        call_descriptor, source_positions,
-                                        node_origins, func_body, env->module,
-                                        func_index, &loop_infos, buffer_cache);
+  Pipeline::GenerateCodeForWasmFunction(
+      &info, env, wire_byte_storage, mcgraph, call_descriptor, source_positions,
+      node_origins, func_body, env->module, func_index, &loop_infos,
+      buffer_cache, &inlining_positions);
 
   if (counters) {
     int zone_bytes =

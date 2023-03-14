@@ -15,6 +15,9 @@
 namespace v8 {
 namespace internal {
 
+class SourcePosition;
+struct WasmInliningPosition;
+
 namespace wasm {
 struct CompilationEnv;
 struct DanglingExceptions;
@@ -40,7 +43,8 @@ class WasmInliner final : public AdvancedReducer {
               uint32_t function_index, SourcePositionTable* source_positions,
               NodeOriginTable* node_origins, MachineGraph* mcgraph,
               const wasm::WireBytesStorage* wire_bytes,
-              std::vector<WasmLoopInfo>* loop_infos, const char* debug_name)
+              std::vector<WasmLoopInfo>* loop_infos, const char* debug_name,
+              ZoneVector<WasmInliningPosition>* inlining_positions)
       : AdvancedReducer(editor),
         env_(env),
         function_index_(function_index),
@@ -52,7 +56,8 @@ class WasmInliner final : public AdvancedReducer {
         debug_name_(debug_name),
         initial_graph_size_(mcgraph->graph()->NodeCount()),
         current_graph_size_(initial_graph_size_),
-        inlining_candidates_() {}
+        inlining_candidates_(),
+        inlining_positions_(inlining_positions) {}
 
   const char* reducer_name() const override { return "WasmInliner"; }
 
@@ -118,6 +123,7 @@ class WasmInliner final : public AdvancedReducer {
       inlining_candidates_;
   std::unordered_set<Node*> seen_;
   std::unordered_map<uint32_t, int> function_inlining_count_;
+  ZoneVector<WasmInliningPosition>* inlining_positions_;
 };
 
 }  // namespace compiler

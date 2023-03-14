@@ -200,8 +200,15 @@ void WasmInliner::Finalize() {
     size_t subgraph_min_node_id = graph()->NodeCount();
     Node* inlinee_start;
     Node* inlinee_end;
+    SourcePosition caller_pos =
+        source_positions_->GetSourcePosition(candidate.node);
+    inlining_positions_->push_back(
+        {static_cast<int>(candidate.inlinee_index), caller_pos});
+    int inlining_position_id =
+        static_cast<int>(inlining_positions_->size()) - 1;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
                              source_positions_);
+    builder.set_inlining_id(inlining_position_id);
     {
       Graph::SubgraphScope scope(graph());
       wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features, module(),

@@ -505,14 +505,30 @@ void WasmCode::DecrementRefCount(base::Vector<WasmCode* const> code_vec) {
   GetWasmEngine()->FreeDeadCode(dead_code);
 }
 
-int WasmCode::GetSourcePositionBefore(int offset) {
-  int position = kNoSourcePosition;
+SourcePosition WasmCode::GetSourcePositionBefore(int code_offset) {
+  SourcePosition position;
   for (SourcePositionTableIterator iterator(source_positions());
-       !iterator.done() && iterator.code_offset() < offset;
+       !iterator.done() && iterator.code_offset() < code_offset;
        iterator.Advance()) {
-    position = iterator.source_position().ScriptOffset();
+    position = iterator.source_position();
   }
   return position;
+}
+
+int WasmCode::GetSourceOffsetBefore(int code_offset) {
+  return GetSourcePositionBefore(code_offset).ScriptOffset();
+}
+
+std::pair<int, SourcePosition> WasmCode::GetInliningPosition(
+    int inlining_id) const {
+  const size_t elem_size = sizeof(int) + sizeof(SourcePosition);
+  const byte* start = inlining_positions().begin() + elem_size * inlining_id;
+  DCHECK_LE(start, inlining_positions().end());
+  std::pair<int, SourcePosition> result;
+  std::memcpy(&result.first, start, sizeof result.first);
+  std::memcpy(&result.second, start + sizeof result.first,
+              sizeof result.second);
+  return result;
 }
 
 WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
@@ -952,6 +968,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
+  // FIXME(mliedtke): Get inlining positions from input.
   std::unique_ptr<WasmCode> new_code{
       new WasmCode{this,                     // native_module
                    kAnonymousFuncIndex,      // index
@@ -966,6 +983,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
                    {},                       // protected_instructions
                    reloc_info.as_vector(),   // reloc_info
                    source_pos.as_vector(),   // source positions
+                   {},                       // inlining positions
                    WasmCode::kWasmFunction,  // kind
                    ExecutionTier::kNone,     // tier
                    kNotForDebugging}};       // for_debugging
@@ -1030,6 +1048,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     base::Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<byte> code_space;
+  base::Vector<byte> inlining_positions;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -1039,15 +1058,16 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
   }
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               protected_instructions_data,
-                              source_position_table, kind, tier, for_debugging,
-                              code_space, jump_table_ref);
+                              source_position_table, inlining_positions, kind,
+                              tier, for_debugging, code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
     base::Vector<const byte> protected_instructions_data,
-    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+    base::Vector<const byte> source_position_table,
+    base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
     base::Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   base::Vector<byte> reloc_info{
@@ -1105,7 +1125,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
-      source_position_table, kind, tier, for_debugging}};
+      source_position_table, inlining_positions, kind, tier, for_debugging}};
 
   code->MaybePrint();
   code->Validate();
@@ -1276,7 +1296,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     int code_comments_offset, int unpadded_binary_size,
     base::Vector<const byte> protected_instructions_data,
     base::Vector<const byte> reloc_info,
-    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+    base::Vector<const byte> source_position_table,
+    base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier) {
   UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
@@ -1284,7 +1305,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
       this, index, instructions, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
-      reloc_info, source_position_table, kind, tier, kNotForDebugging}};
+      reloc_info, source_position_table, inlining_positions, kind, tier,
+      kNotForDebugging}};
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
@@ -1365,6 +1387,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    {},                    // protected_instructions
                    {},                    // reloc_info
                    {},                    // source_pos
+                   {},                    // inlining pos
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
                    kNotForDebugging}};    // for_debugging
@@ -2215,7 +2238,8 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), GetCodeKind(result),
+        result.source_positions.as_vector(),
+        result.inlining_positions.as_vector(), GetCodeKind(result),
         result.result_tier, result.for_debugging, this_code_space,
         jump_tables));
   }

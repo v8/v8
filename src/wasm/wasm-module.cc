@@ -599,8 +599,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   return array_object;
 }
 
-// Get the source position from a given function index and byte offset,
-// for either asm.js or pure Wasm modules.
+// Get the source position from a given function index and wire bytes offset
+// (relative to the function entry), for either asm.js or pure Wasm modules.
 int GetSourcePosition(const WasmModule* module, uint32_t func_index,
                       uint32_t byte_offset, bool is_at_number_conversion) {
   DCHECK_EQ(is_asmjs_module(module),

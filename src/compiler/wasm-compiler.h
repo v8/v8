@@ -635,6 +635,11 @@ class WasmGraphBuilder {
   void StoreCallCount(Node* call, int count);
   void ReserveCallCounts(size_t num_call_instructions);
 
+  void set_inlining_id(int inlining_id) {
+    DCHECK_NE(inlining_id, -1);
+    inlining_id_ = inlining_id;
+  }
+
  protected:
   Node* NoContextConstant();
 
@@ -872,6 +877,7 @@ class WasmGraphBuilder {
   compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
+  int inlining_id_ = -1;
   Parameter0Mode parameter_mode_;
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;

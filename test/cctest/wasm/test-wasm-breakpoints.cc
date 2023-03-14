@@ -118,7 +118,7 @@ class BreakHandler : public debug::DebugDelegate {
     // Check the current position.
     DebuggableStackFrameIterator frame_it(isolate_);
     auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasm();
-    CHECK_EQ(expected_breaks_[count_].position, summ.byte_offset());
+    CHECK_EQ(expected_breaks_[count_].position, summ.code_offset());
 
     expected_breaks_[count_].pre_action();
     Action next_action = expected_breaks_[count_].action;
