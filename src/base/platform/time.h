@@ -493,9 +493,15 @@ class V8_BASE_EXPORT ThreadTicks final
   explicit constexpr ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
 
 #if V8_OS_WIN
+#if V8_HOST_ARCH_ARM64
+  // TSCTicksPerSecond is not supported on Windows on Arm systems because the
+  // cycle-counting methods use the actual CPU cycle count, and not a consistent
+  // incrementing counter.
+#else
   // Returns the frequency of the TSC in ticks per second, or 0 if it hasn't
   // been measured yet. Needs to be guarded with a call to IsSupported().
   static double TSCTicksPerSecond();
+#endif
   static bool IsSupportedWin();
   static void WaitUntilInitializedWin();
 #endif
