@@ -70,29 +70,14 @@ class AllocationCounter final {
                                                    size_t object_size,
                                                    size_t aligned_object_size);
 
-  bool IsActive() const { return !IsPaused() && observers_.size() > 0; }
-
   bool IsStepInProgress() const { return step_in_progress_; }
 
   size_t NextBytes() const {
-    DCHECK(IsActive());
+    if (observers_.empty()) return SIZE_MAX;
     return next_counter_ - current_counter_;
   }
 
-  void Pause() {
-    DCHECK(!step_in_progress_);
-    paused_++;
-  }
-
-  void Resume() {
-    DCHECK_NE(0, paused_);
-    DCHECK(!step_in_progress_);
-    paused_--;
-  }
-
  private:
-  bool IsPaused() const { return paused_; }
-
   struct AllocationObserverCounter final {
     AllocationObserverCounter(AllocationObserver* observer, size_t prev_counter,
                               size_t next_counter)
@@ -112,7 +97,6 @@ class AllocationCounter final {
   size_t current_counter_ = 0;
   size_t next_counter_ = 0;
   bool step_in_progress_ = false;
-  int paused_ = 0;
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD PauseAllocationObserversScope {

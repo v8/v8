@@ -126,7 +126,7 @@ void LargeObjectSpace::TearDown() {
 
 void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
                                                            size_t object_size) {
-  if (!allocation_counter_.IsActive()) return;
+  if (!heap()->IsAllocationObserverActive()) return;
 
   if (object_size >= allocation_counter_.NextBytes()) {
     allocation_counter_.InvokeAllocationObservers(soon_object, object_size,
@@ -135,14 +135,6 @@ void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
 
   // Large objects can be accounted immediately since no LAB is involved.
   allocation_counter_.AdvanceAllocationObservers(object_size);
-}
-
-void LargeObjectSpace::PauseAllocationObservers() {
-  allocation_counter_.Pause();
-}
-
-void LargeObjectSpace::ResumeAllocationObservers() {
-  allocation_counter_.Resume();
 }
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {

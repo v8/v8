@@ -667,6 +667,10 @@ class Heap {
     return ignore_local_gc_requests_depth_ > 0;
   }
 
+  bool IsAllocationObserverActive() const {
+    return pause_allocation_observers_depth_ == 0;
+  }
+
   bool IsGCWithStack() const;
   V8_EXPORT_PRIVATE void ForceSharedGCWithEmptyStackForTesting();
 
@@ -2361,6 +2365,8 @@ class Heap {
 
   bool inline_allocation_enabled_ = true;
 
+  int pause_allocation_observers_depth_ = 0;
+
   // Used for testing purposes.
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
@@ -2426,6 +2432,7 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpaceBase;
+  friend class PauseAllocationObserversScope;
   friend class PretenuringHandler;
   friend class ReadOnlyRoots;
   friend class DisableConservativeStackScanningScopeForTesting;
@@ -2434,6 +2441,7 @@ class Heap {
   friend class ScheduleMinorGCTaskObserver;
   friend class StressConcurrentAllocationObserver;
   friend class Space;
+  friend class SpaceWithLinearArea;
   friend class Sweeper;
   friend class UnifiedHeapMarkingState;
   friend class heap::TestMemoryAllocatorScope;

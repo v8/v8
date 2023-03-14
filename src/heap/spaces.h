@@ -140,9 +140,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   virtual void RemoveAllocationObserver(AllocationObserver* observer);
 
-  virtual void PauseAllocationObservers() = 0;
+  virtual void PauseAllocationObservers() {}
 
-  virtual void ResumeAllocationObservers() = 0;
+  virtual void ResumeAllocationObservers() {}
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
