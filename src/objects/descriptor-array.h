@@ -154,7 +154,7 @@ class DescriptorArray
       AllocationType allocation = AllocationType::kYoung);
 
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,
-                  int nof_descriptors, int slack);
+                  int nof_descriptors, int slack, uint32_t raw_gc_state);
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
@@ -275,6 +275,11 @@ class DescriptorArrayMarkingState final {
 
   static constexpr RawGCStateType kInitialGCState = 0;
 
+  static constexpr RawGCStateType GetFullyMarkedState(
+      unsigned epoch, DescriptorIndex number_of_descriptors) {
+    return NewState(epoch & Epoch::kMask, number_of_descriptors, 0);
+  }
+
   // Potentially updates the delta of to be marked descriptors. Returns true if
   // the update was successful and the object should be processed via a marking
   // visitor.
@@ -293,8 +298,9 @@ class DescriptorArrayMarkingState final {
   AcquireDescriptorRangeToMark(unsigned gc_epoch, DescriptorArray array);
 
  private:
-  static RawGCStateType NewState(unsigned masked_epoch, DescriptorIndex marked,
-                                 DescriptorIndex delta) {
+  static constexpr RawGCStateType NewState(unsigned masked_epoch,
+                                           DescriptorIndex marked,
+                                           DescriptorIndex delta) {
     return Epoch::encode(masked_epoch) | Marked::encode(marked) |
            Delta::encode(delta);
   }
