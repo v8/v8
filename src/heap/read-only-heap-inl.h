@@ -27,10 +27,6 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(HeapObject object) {
 
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  return ReadOnlyRoots(
-      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr())));
-#else
 #ifdef V8_SHARED_RO_HEAP
   auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   // If this check fails in code that runs during initialization use
@@ -40,7 +36,6 @@ ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
 #else
   return ReadOnlyRoots(GetHeapFromWritableObject(object));
 #endif  // V8_SHARED_RO_HEAP
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 }
 
 }  // namespace internal

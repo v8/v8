@@ -157,11 +157,6 @@ TEST_F(HeapTest, HeapLayout) {
     EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
   }
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  Address isolate_root = i_isolate()->isolate_root();
-  EXPECT_EQ(cage_base, isolate_root);
-#endif
-
   // Check that all memory chunks belong this region.
   base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
   base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);

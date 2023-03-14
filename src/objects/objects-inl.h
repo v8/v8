@@ -817,13 +817,9 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
 }
 
+// TODO(v8:13788): Remove this cage-ful accessor.
 ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  DCHECK_NE(cage_base.address(), 0);
-  return ReadOnlyRoots(Isolate::FromRootAddress(cage_base.address()));
-#else
   return GetReadOnlyRoots();
-#endif
 }
 
 Map HeapObject::map() const {

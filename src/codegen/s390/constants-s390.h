@@ -43,15 +43,7 @@ const int kNoRegister = -1;
 
 // The actual value of the kRootRegister is offset from the IsolateData's start
 // to take advantage of negative displacement values.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr int kRootRegisterBias = 128;
-// Problems with #include order prevent this static_assert:
-// static_assert(kRootRegister != kPtrComprCageBaseRegister);
-#else
-constexpr int kRootRegisterBias = 0;
-// Problems with #include order prevent this static_assert:
-// static_assert(kRootRegister == kPtrComprCageBaseRegister);
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)

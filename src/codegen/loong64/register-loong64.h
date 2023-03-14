@@ -210,7 +210,13 @@ constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
+#ifdef V8_COMPRESS_POINTERS
+// TODO(v8:13788): fix pointer compression. kPtrComprCageBaseRegister must be
+// different from kRootRegister.
 constexpr Register kPtrComprCageBaseRegister = kRootRegister;
+#else
+constexpr Register kPtrComprCageBaseRegister = no_reg;
+#endif
 
 constexpr DoubleRegister kFPReturnRegister0 = f0;
 

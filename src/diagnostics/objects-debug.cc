@@ -1108,29 +1108,25 @@ void Code::CodeVerify(Isolate* isolate) {
 
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-      if (istream.instruction_start() == code_entry_point()) {
-        // Most common case, all good.
-      } else {
-        // When shared pointer compression cage is enabled and it has the
-        // embedded code blob copy then the
-        // InstructionStream::instruction_start() might return the address of
-        // the remapped builtin regardless of whether the builtins copy existed
-        // when the code_entry_point value was cached in the Code (see
-        // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
-        // Code object lookup via code_entry_point value to ensure it
-        // corresponds to this current Code object.
-        Code lookup_result =
-            isolate->heap()->FindCodeForInnerPointer(code_entry_point());
-        CHECK_EQ(lookup_result, *this);
-      }
+#if defined(V8_COMPRESS_POINTERS) && defined(V8_SHORT_BUILTIN_CALLS)
+    if (istream.instruction_start() == code_entry_point()) {
+      // Most common case, all good.
     } else {
-      CHECK_EQ(istream.instruction_start(), code_entry_point());
+      // When shared pointer compression cage is enabled and it has the
+      // embedded code blob copy then the
+      // InstructionStream::instruction_start() might return the address of
+      // the remapped builtin regardless of whether the builtins copy existed
+      // when the code_entry_point value was cached in the Code (see
+      // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
+      // Code object lookup via code_entry_point value to ensure it
+      // corresponds to this current Code object.
+      Code lookup_result =
+          isolate->heap()->FindCodeForInnerPointer(code_entry_point());
+      CHECK_EQ(lookup_result, *this);
     }
 #else
     CHECK_EQ(istream.instruction_start(), code_entry_point());
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
 }
 

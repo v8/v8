@@ -144,15 +144,7 @@ constexpr unsigned kFloat16ExponentBias = 15;
 
 // The actual value of the kRootRegister is offset from the IsolateData's start
 // to take advantage of negative displacement values.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr int kRootRegisterBias = 256;
-// Problems with #include order prevent this static_assert:
-// static_assert(kRootRegister != kPtrComprCageBaseRegister);
-#else
-constexpr int kRootRegisterBias = 0;
-// Problems with #include order prevent this static_assert:
-// static_assert(kRootRegister == kPtrComprCageBaseRegister);
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 using float16 = uint16_t;
 
