@@ -1064,10 +1064,11 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     jump_table_ref =
         FindJumpTablesForRegionLocked(base::AddressRegionOf(code_space));
   }
-  return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
-                              protected_instructions_data,
-                              source_position_table, inlining_positions, kind,
-                              tier, for_debugging, code_space, jump_table_ref);
+  bool for_inlining = false;  // This path isn't used for Liftoff code.
+  return AddCodeWithCodeSpace(
+      index, desc, stack_slots, tagged_parameter_slots,
+      protected_instructions_data, source_position_table, inlining_positions,
+      kind, tier, for_debugging, for_inlining, code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
@@ -1076,7 +1077,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     base::Vector<const byte> protected_instructions_data,
     base::Vector<const byte> source_position_table,
     base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
-    ExecutionTier tier, ForDebugging for_debugging,
+    ExecutionTier tier, ForDebugging for_debugging, bool for_inlining,
     base::Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   base::Vector<byte> reloc_info{
       desc.buffer + desc.buffer_size - desc.reloc_size,
@@ -1133,7 +1134,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
-      source_position_table, inlining_positions, kind, tier, for_debugging}};
+      source_position_table, inlining_positions, kind, tier, for_debugging,
+      for_inlining}};
 
   code->MaybePrint();
   code->Validate();
@@ -2248,8 +2250,8 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(),
         result.inlining_positions.as_vector(), GetCodeKind(result),
-        result.result_tier, result.for_debugging, this_code_space,
-        jump_tables));
+        result.result_tier, result.for_debugging, result.for_inlining,
+        this_code_space, jump_tables));
   }
   DCHECK_EQ(0, code_space.size());
 

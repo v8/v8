@@ -132,11 +132,13 @@ WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
     const wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table,
-    Parameter0Mode parameter_mode, Isolate* isolate)
+    Parameter0Mode parameter_mode, Isolate* isolate,
+    wasm::WasmFeatures enabled_features)
     : gasm_(std::make_unique<WasmGraphAssembler>(mcgraph, zone)),
       zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
+      enabled_features_(enabled_features),
       has_simd_(ContainsSimd(sig)),
       sig_(sig),
       source_position_table_(source_position_table),
@@ -159,7 +161,7 @@ WasmGraphBuilder::~WasmGraphBuilder() = default;
 bool WasmGraphBuilder::TryWasmInlining(int fct_index,
                                        wasm::NativeModule* native_module) {
   DCHECK(v8_flags.experimental_wasm_js_inlining);
-  DCHECK(v8_flags.experimental_wasm_gc);
+  DCHECK(native_module->enabled_features().has_gc());
   DCHECK(native_module->HasWireBytes());
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& inlinee = module->functions[fct_index];
@@ -179,7 +181,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   // If the inlinee was not validated before, do that now.
   if (V8_UNLIKELY(!module->function_was_validated(fct_index))) {
     wasm::WasmFeatures unused_detected_features;
-    if (ValidateFunctionBody(env_->enabled_features, module,
+    if (ValidateFunctionBody(enabled_features_, module,
                              &unused_detected_features, inlinee_body)
             .failed()) {
       // At this point we cannot easily raise a compilation error any more.
@@ -329,7 +331,7 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 }
 
 Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
-  return (v8_flags.experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+  return (enabled_features_.has_gc() && parameter_mode_ == kInstanceMode)
              ? gasm_->Null(type)
          : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef)
              ? LOAD_ROOT(NullValue, null_value)
@@ -2649,7 +2651,7 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object, wasm::ValueType type) {
-  return (v8_flags.experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+  return (enabled_features_.has_gc() && parameter_mode_ == kInstanceMode)
              ? gasm_->IsNull(object, type)
              : gasm_->TaggedEqual(object, RefNull(type));
 }
@@ -2918,7 +2920,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                              int32_scaled_key);
     Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
-    if (v8_flags.experimental_wasm_gc &&
+    if (enabled_features_.has_gc() &&
         !env_->module->types[sig_index].is_final) {
       // Do a full subtyping check.
       auto end_label = gasm_->MakeLabel();
@@ -6531,10 +6533,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode, wasm::WasmFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt, parameter_mode,
-                         isolate),
+                         isolate, features),
         module_(module),
-        stub_mode_(stub_mode),
-        enabled_features_(features) {}
+        stub_mode_(stub_mode) {}
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     return wasm::GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
@@ -7958,7 +7959,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   SetOncePointer<const Operator> float32_to_number_operator_;
   SetOncePointer<const Operator> float64_to_number_operator_;
   SetOncePointer<const Operator> tagged_to_float64_operator_;
-  wasm::WasmFeatures enabled_features_;
 };
 
 }  // namespace
@@ -8764,7 +8764,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.set_wasm_runtime_exception_support();
   }
 
-  if (v8_flags.experimental_wasm_gc) info.set_allocation_folding();
+  if (env->enabled_features.has_gc()) info.set_allocation_folding();
 
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;

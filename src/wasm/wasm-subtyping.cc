@@ -218,9 +218,8 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
       return super_heap == sub_heap || super_heap == HeapType::kEq ||
              super_heap == HeapType::kAny;
     case HeapType::kString:
-      // stringref is a subtype of anyref under wasm-gc.
-      return sub_heap == super_heap ||
-             (v8_flags.experimental_wasm_gc && super_heap == HeapType::kAny);
+      // stringref is a subtype of anyref.
+      return sub_heap == super_heap || super_heap == HeapType::kAny;
     case HeapType::kStringViewWtf8:
     case HeapType::kStringViewWtf16:
     case HeapType::kStringViewIter:

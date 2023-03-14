@@ -136,7 +136,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
                 .set_detected_features(detected)
                 .set_assembler_buffer_cache(buffer_cache)
                 .set_debug_sidetable(debug_sidetable_ptr));
-        if (result.succeeded()) break;
+        if (result.succeeded()) {
+          result.for_inlining = env->enabled_features.has_inlining();
+          break;
+        }
       }
 
       // If --liftoff-only, do not fall back to turbofan, even if compilation

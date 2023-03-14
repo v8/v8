@@ -666,7 +666,6 @@ size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {
-  if (!v8_flags.wasm_speculative_inlining) return 0;
   // TODO(clemensb): Avoid the mutex once this ships, or at least switch to a
   // shared mutex.
   base::MutexGuard type_feedback_guard{&module->type_feedback.mutex};
