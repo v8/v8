@@ -28,6 +28,7 @@ export class ScheduleView extends TextView {
   public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
     this.divNode.innerHTML = "";
     this.schedule = schedule;
+    this.clearSelectionMaps();
     this.addBlocks(schedule.data.blocksRpo);
     this.show();
     if (rememberedSelection) {
@@ -37,8 +38,8 @@ export class ScheduleView extends TextView {
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.nodeSelection.detachSelection(),
-      this.blockSelection.detachSelection());
+    return new SelectionStorage(this.nodeSelections.current.detachSelection(),
+      this.blockSelections.current.detachSelection());
   }
 
   public adaptSelection(selection: SelectionStorage): SelectionStorage {
@@ -62,7 +63,7 @@ export class ScheduleView extends TextView {
         select.push(node.id);
       }
     }
-    this.nodeSelectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true, false);
   }
 
   private addBlocks(blocks: Array<ScheduleBlock>) {
@@ -74,10 +75,11 @@ export class ScheduleView extends TextView {
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
-    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+    this.nodeSelectionHandler.clear();
+    this.blockSelectionHandler.select(
+                Array.from(adaptedSelection.adaptedBocks).map(block => Number(block)), true, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true, true);
   }
 
   private createElementForBlock(block: ScheduleBlock): HTMLElement {
@@ -156,7 +158,7 @@ export class ScheduleView extends TextView {
       if (!e.shiftKey) {
         view.blockSelectionHandler.clear();
       }
-      view.blockSelectionHandler.select([blockId], true);
+      view.blockSelectionHandler.select([blockId], true, false);
     };
   }
 
@@ -167,7 +169,7 @@ export class ScheduleView extends TextView {
       if (!e.shiftKey) {
         view.nodeSelectionHandler.clear();
       }
-      view.nodeSelectionHandler.select([nodeId], true);
+      view.nodeSelectionHandler.select([nodeId], true, false);
     };
   }
 

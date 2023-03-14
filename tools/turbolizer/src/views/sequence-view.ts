@@ -47,13 +47,15 @@ export class SequenceView extends TextView {
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.nodeSelection.detachSelection(),
-      this.blockSelection.detachSelection());
+    return new SelectionStorage(this.nodeSelections.current.detachSelection(),
+                                this.blockSelections.current.detachSelection(),
+                                this.instructionSelections.current.detachSelection());
   }
 
   public adaptSelection(selection: SelectionStorage): SelectionStorage {
     for (const key of selection.nodes.keys()) selection.adaptedNodes.add(key);
     for (const key of selection.blocks.keys()) selection.adaptedBocks.add(key);
+    for (const key of selection.instructions.keys()) selection.adaptedInstructions.add(Number(key));
     return selection;
   }
 
@@ -114,15 +116,19 @@ export class SequenceView extends TextView {
         select.push(item);
       }
     }
-    this.nodeSelectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true, false);
   }
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
-    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+    this.nodeSelectionHandler.clear();
+    this.registerAllocationSelectionHandler.clear();
+    this.blockSelectionHandler.select(
+                Array.from(adaptedSelection.adaptedBocks).map(block => Number(block)), true, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true, true);
+    this.registerAllocationSelectionHandler.select(Array.from(adaptedSelection.adaptedInstructions),
+                                                   true, true);
   }
 
   private addBlocks(blocks: Array<SequenceBlock>): void {
@@ -137,6 +143,9 @@ export class SequenceView extends TextView {
     sequenceBlock.classList.toggle("deferred", block.deferred);
 
     const blockIdEl = createElement("div", "block-id com clickable", String(block.id));
+    // Select just the block id when any of the block's instructions or positions
+    // are selected.
+    this.addHtmlElementForBlockId(this.getSubId(block.id), blockIdEl);
     blockIdEl.onclick = this.mkBlockLinkHandler(block.id);
     sequenceBlock.appendChild(blockIdEl);
 
@@ -227,7 +236,10 @@ export class SequenceView extends TextView {
     const instId = createElement("div", "instruction-id", String(instruction.id));
     const offsets = this.sourceResolver.instructionsPhase.instructionToPcOffsets(instruction.id);
     instId.classList.add("clickable");
+    // Select instruction id for both when the instruction is selected and when any of its
+    // positions are selected.
     this.addHtmlElementForInstructionId(instruction.id, instId);
+    this.addHtmlElementForInstructionId(this.getSubId(instruction.id), instId);
     instId.onclick = this.mkInstructionLinkHandler(instruction.id);
     instId.dataset.instructionId = String(instruction.id);
     if (offsets) {

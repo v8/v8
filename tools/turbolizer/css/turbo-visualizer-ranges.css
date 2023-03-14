@@ -8,11 +8,26 @@
   --range-instr-border: 3px;
   --range-position-border: 1px;
   --range-flipped-position-height: 1em;
+  --range-axes-border-buffer: 6px;
 }
 
 .range-bold {
   font-weight: bold;
   color: black;
+}
+
+.selected.range-interval-position,
+.selected.range-interval-wrapper {
+  background-color: rgb(255, 224, 51);
+}
+
+.selected.range-interval,
+.selected.range-interval > .selected.range-interval-wrapper {
+  background-color: rgb(86, 235, 72);
+}
+
+.selected.range-instruction-id {
+  background-color: rgb(255, 133, 51);
 }
 
 #ranges {
@@ -99,11 +114,14 @@ input.range-toggle-setting {
 #ranges.not_flipped .range-register-labels,
 #ranges.flipped .range-position-labels {
   float: right;
+  border-bottom: var(--range-axes-border-buffer) solid white;
+
 }
 
 #ranges.not_flipped .range-position-labels,
 #ranges.flipped .range-register-labels {
   margin-top: auto;
+  border-right: var(--range-axes-border-buffer) solid white;
 }
 
 #ranges.flipped .range-register-labels {
@@ -243,22 +261,39 @@ input.range-toggle-setting {
   background-color: rgba(0, 0, 255, 0.10);
 }
 
-#ranges.not_flipped .range-position.range-header-element {
-  border-bottom: 2px solid rgb(109, 107, 107);
+.range-block-id.selected:hover {
+  background-color: rgb(153, 229, 179);
 }
 
-#ranges.flipped .range-position.range-header-element {
-  border-right: 2px solid rgb(109, 107, 107);
+.range-instruction-id.selected:hover {
+  background-color: rgb(229, 119, 72);
+}
+
+.range-reg.selected:hover,
+.range-position.selected:hover {
+  background-color: rgb(229, 229, 72);
+}
+
+.range-interval-position.selected:hover {
+  background-color: rgb(229, 201, 71);
+}
+
+.selected.range-interval,
+.selected.range-interval > .selected.range-interval-wrapper {
+  background-color: rgb(86, 235, 72);
 }
 
 .range-type-header,
 .range-block-id,
 .range-instruction-id,
 .range-reg,
-.range-interval,
 .range-position {
   position: relative;
   border: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+.range-interval {
+  position: relative;
 }
 
 #ranges.not_flipped .range-block-id,
@@ -291,12 +326,27 @@ input.range-toggle-setting {
   border: none;
 }
 
+#ranges.not_flipped .range-position.range-interval-position {
+  border-top: var(--range-position-border) solid rgb(109, 107, 107);
+  border-bottom: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-position.range-interval-position {
+  border-left: var(--range-position-border) solid rgb(109, 107, 107);
+  border-right: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
 #ranges.flipped .range-interval-position:first-child {
   padding-top: 0px;
 }
 
+#ranges.not_flipped .range-interval-position:last-child {
+  border-right: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
 #ranges.flipped .range-interval-position:last-child {
   padding-bottom: 0px;
+  border-bottom: var(--range-position-border) solid rgb(109, 107, 107);
 }
 
 .range-interval-text {
@@ -310,8 +360,8 @@ input.range-toggle-setting {
   width: 1ch;
   overflow-wrap: break-word;
   white-space: normal;
-  /* padding + border + 1ch + border + padding = width */
-  padding-left: calc(((var(--range-position-width) - 1ch) / 2.0) - var(--range-position-border));
+  /* padding + 1ch + padding = width */
+  padding-left: calc((var(--range-position-width) - 1ch) / 2.0);
 }
 
 #ranges.flipped .range-interval-text-behind {
@@ -337,11 +387,11 @@ input.range-toggle-setting {
 }
 
 #ranges.not_flipped .range-block-border.range-position.range-interval-position {
-  border-right: var(--range-block-border) solid transparent;
+  border-right: none;
 }
 
 #ranges.flipped .range-block-border.range-position.range-interval-position {
-  border-bottom: var(--range-block-border) solid transparent;
+  border-bottom: none;
 }
 
 #ranges.not_flipped .range-instr-border,
@@ -355,11 +405,11 @@ input.range-toggle-setting {
 }
 
 #ranges.not_flipped .range-instr-border.range-position.range-interval-position {
-  border-right: var(--range-instr-border) solid transparent;
+  border-right: none;
 }
 
 #ranges.flipped .range-instr-border.range-position.range-interval-position {
-  border-bottom: var(--range-instr-border) solid transparent;
+  border-bottom: none;
 }
 
 .range,
@@ -380,6 +430,7 @@ input.range-toggle-setting {
 #ranges.not_flipped .range-block-ids,
 #ranges.not_flipped .range-positions {
   grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-position-width) + var(--range-block-border)));
+  width: calc((var(--range-num-positions, 0) * (var(--range-position-width) + var(--range-block-border))) - var(--range-axes-border-buffer));
 }
 
 #ranges.flipped .range-instruction-ids,
@@ -387,6 +438,7 @@ input.range-toggle-setting {
 #ranges.flipped .range-positions {
   writing-mode: vertical-lr;
   grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-flipped-position-height) + var(--range-block-border)));
+  height: calc((var(--range-num-positions, 0) * (var(--range-flipped-position-height) + var(--range-block-border))) - var(--range-axes-border-buffer));
 }
 
 #ranges.flipped .range-instruction-id {

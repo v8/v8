@@ -41,6 +41,7 @@ export const SESSION_STORAGE_PREFIX = "ranges-setting-";
 export const INTERVAL_TEXT_FOR_NONE = "none";
 export const INTERVAL_TEXT_FOR_CONST = "const";
 export const INTERVAL_TEXT_FOR_STACK = "stack:";
+export const VIRTUAL_REGISTER_ID_PREFIX = "virt_";
 export const HISTORY_ID = "history";
 export const MULTIVIEW_ID = "multiview";
 export const RESIZER_RANGES_ID = "resizer-ranges";

@@ -9,6 +9,7 @@ import { InstructionsPhase } from "./instructions-phase";
 
 export class SequencePhase extends Phase {
   blocks: Array<SequenceBlock>;
+  instructions: Array<SequenceBlockInstruction>;
   instructionsPhase: InstructionsPhase;
   positions: PositionsContainer;
   registerAllocation: RegisterAllocation;
@@ -34,6 +35,7 @@ export class SequencePhase extends Phase {
   private parseBlocksFromJSON(blocksJSON): void {
     if (!blocksJSON || blocksJSON.length == 0) return;
     this.blocks = new Array<SequenceBlock>();
+    this.instructions = new Array<SequenceBlockInstruction>();
     for (const block of blocksJSON) {
       const newBlock = new SequenceBlock(block.id, block.deferred, block.loopHeader, block.loopEnd,
         block.predecessors, block.successors);
@@ -62,6 +64,7 @@ export class SequencePhase extends Phase {
         newInstruction.gaps.push(newGap);
       }
       this.lastBlock().instructions.push(newInstruction);
+      this.instructions.push(newInstruction);
     }
   }
 
@@ -214,28 +217,38 @@ export class ChildRange {
     this.uses = uses;
   }
 
-  public getTooltip(registerIndex: number): string {
+  public getTooltip(registerIndex: number): RangeToolTip {
     switch (this.type) {
       case "none":
-        return C.INTERVAL_TEXT_FOR_NONE;
+        return new RangeToolTip(C.INTERVAL_TEXT_FOR_NONE, false);
       case "spill_range":
-        return `${C.INTERVAL_TEXT_FOR_STACK}${registerIndex}`;
+        return new RangeToolTip(`${C.INTERVAL_TEXT_FOR_STACK}${registerIndex}`, true);
       default:
         if (this.op instanceof SequenceBlockOperand && this.op.type == "constant") {
-          return C.INTERVAL_TEXT_FOR_CONST;
+          new RangeToolTip(C.INTERVAL_TEXT_FOR_CONST, false);
         } else {
           if (this.op instanceof SequenceBlockOperand && this.op.text) {
-            return this.op.text;
+            new RangeToolTip(this.op.text, true);
           } else if (typeof this.op === "string") {
-            return this.op;
+            new RangeToolTip(this.op, true);
           }
         }
     }
-    return "";
+    return new RangeToolTip("", false);
   }
 
   public isFloatingPoint(): boolean {
     return this.op instanceof SequenceBlockOperand && this.op.tooltip.includes("Float");
+  }
+}
+
+export class RangeToolTip {
+  text: string;
+  isId: boolean;
+
+  constructor(text: string, isId: boolean) {
+    this.text = text;
+    this.isId = isId;
   }
 }
 
