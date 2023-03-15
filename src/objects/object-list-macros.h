@@ -155,6 +155,7 @@ class ZoneForwardList;
   V(JSIteratorFilterHelper)                     \
   V(JSIteratorMapHelper)                        \
   V(JSIteratorTakeHelper)                       \
+  V(JSIteratorDropHelper)                       \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \

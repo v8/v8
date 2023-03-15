@@ -4594,7 +4594,8 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 #define ITERATOR_HELPERS(V)    \
   V(map, Map, MAP, 1)          \
   V(filter, Filter, FILTER, 1) \
-  V(take, Take, TAKE, 1)
+  V(take, Take, TAKE, 1)       \
+  V(drop, Drop, DROP, 1)
 
   ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 

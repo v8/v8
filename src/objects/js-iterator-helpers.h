@@ -92,6 +92,18 @@ class JSIteratorTakeHelper
   TQ_OBJECT_CONSTRUCTORS(JSIteratorTakeHelper)
 };
 
+// The iterator helper returned by Iterator.prototype.drop.
+class JSIteratorDropHelper
+    : public TorqueGeneratedJSIteratorDropHelper<JSIteratorDropHelper,
+                                                 JSIteratorHelper> {
+ public:
+  DECL_CAST(JSIteratorDropHelper)
+  DECL_PRINTER(JSIteratorDropHelper)
+  DECL_VERIFIER(JSIteratorDropHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorDropHelper)
+};
+
 }  // namespace internal
 }  // namespace v8
 

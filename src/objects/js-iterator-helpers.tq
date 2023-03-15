@@ -20,3 +20,7 @@ extern class JSIteratorFilterHelper extends JSIteratorHelper {
 extern class JSIteratorTakeHelper extends JSIteratorHelper {
   remaining: Number;
 }
+
+extern class JSIteratorDropHelper extends JSIteratorHelper {
+  remaining: Number;
+}
