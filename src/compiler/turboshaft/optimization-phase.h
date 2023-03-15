@@ -104,7 +104,6 @@ class GraphVisitor {
         phase_zone_(phase_zone),
         origins_(origins),
         current_input_block_(nullptr),
-        block_mapping_(input_graph.block_count(), nullptr, phase_zone),
         op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone),
         blocks_needing_variables(phase_zone),
         old_opindex_to_variables(input_graph.op_id_count(), phase_zone) {
@@ -118,15 +117,8 @@ class GraphVisitor {
     assembler().Analyze();
 
     // Creating initial old-to-new Block mapping.
-    for (const Block& input_block : input_graph().blocks()) {
-      Block* new_block = input_block.IsLoop() ? assembler().NewLoopHeader()
-                                              : assembler().NewBlock();
-      block_mapping_[input_block.index().id()] = new_block;
-      DCHECK_EQ(block_mapping_[input_block.index().id()]->LastPredecessor(),
-                nullptr);
-      DCHECK_EQ(
-          block_mapping_[input_block.index().id()]->NeighboringPredecessor(),
-          nullptr);
+    for (Block& input_block : modifiable_input_graph().blocks()) {
+      output_graph().NewMappedBlock(&input_block);
     }
 
     // Visiting the graph.
@@ -166,8 +158,8 @@ class GraphVisitor {
     // Computing which input of Phi operations to use when visiting
     // {input_block} (since {input_block} doesn't really have predecessors
     // anymore).
-    int added_block_phi_input =
-        input_block->GetPredecessorIndex(assembler().current_block()->Origin());
+    int added_block_phi_input = input_block->GetPredecessorIndex(
+        assembler().current_block()->OriginForBlockEnd());
 
     // There is no guarantees that {input_block} will be entirely removed just
     // because it's cloned/inlined, since it's possible that it has predecessors
@@ -221,12 +213,6 @@ class GraphVisitor {
     return result;
   }
 
-  Block* MapToNewGraph(BlockIndex old_index) const {
-    Block* result = block_mapping_[old_index.id()];
-    DCHECK_NOT_NULL(result);
-    return result;
-  }
-
  private:
   template <bool trace_reduction>
   void VisitAllBlocks() {
@@ -255,11 +241,11 @@ class GraphVisitor {
       std::cout << "\nold " << PrintAsBlockHeader{*input_block} << "\n";
       std::cout
           << "new "
-          << PrintAsBlockHeader{*MapToNewGraph(input_block->index()),
+          << PrintAsBlockHeader{*input_block->MapToNextGraph(),
                                 assembler().output_graph().next_block_index()}
           << "\n";
     }
-    Block* new_block = MapToNewGraph(input_block->index());
+    Block* new_block = input_block->MapToNextGraph();
     if (assembler().Bind(new_block)) {
       for (OpIndex index : input_graph().OperationIndices(*input_block)) {
         if (!VisitOp<trace_reduction>(index, input_block)) break;
@@ -276,7 +262,7 @@ class GraphVisitor {
     if (auto* final_goto = last_op.TryCast<GotoOp>()) {
       if (final_goto->destination->IsLoop()) {
         if (input_block->index() > final_goto->destination->index()) {
-          Block* new_loop = MapToNewGraph(final_goto->destination->index());
+          Block* new_loop = final_goto->destination->MapToNextGraph();
           DCHECK(new_loop->IsLoop());
           if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
             output_graph_.TurnLoopIntoMerge(new_loop);
@@ -377,7 +363,7 @@ class GraphVisitor {
   // to emit a corresponding operation in the new graph, translating inputs and
   // blocks accordingly.
   V8_INLINE OpIndex AssembleOutputGraphGoto(const GotoOp& op) {
-    Block* destination = MapToNewGraph(op.destination->index());
+    Block* destination = op.destination->MapToNextGraph();
     assembler().ReduceGoto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
@@ -386,21 +372,20 @@ class GraphVisitor {
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
-    Block* if_true = MapToNewGraph(op.if_true->index());
-    Block* if_false = MapToNewGraph(op.if_false->index());
+    Block* if_true = op.if_true->MapToNextGraph();
+    Block* if_false = op.if_false->MapToNextGraph();
     return assembler().ReduceBranch(MapToNewGraph(op.condition()), if_true,
                                     if_false, op.hint);
   }
   OpIndex AssembleOutputGraphSwitch(const SwitchOp& op) {
     base::SmallVector<SwitchOp::Case, 16> cases;
     for (SwitchOp::Case c : op.cases) {
-      cases.emplace_back(c.value, MapToNewGraph(c.destination->index()),
-                         c.hint);
+      cases.emplace_back(c.value, c.destination->MapToNextGraph(), c.hint);
     }
     return assembler().ReduceSwitch(
         MapToNewGraph(op.input()),
         graph_zone()->CloneVector(base::VectorOf(cases)),
-        MapToNewGraph(op.default_case->index()), op.default_hint);
+        op.default_case->MapToNextGraph(), op.default_hint);
   }
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
     OpIndex ig_index = input_graph().Index(op);
@@ -429,7 +414,7 @@ class GraphVisitor {
     // inputs of the Phi.
     int predecessor_index = predecessor_count - 1;
     for (OpIndex input : base::Reversed(old_inputs)) {
-      if (new_pred && new_pred->Origin() == old_pred) {
+      if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
@@ -483,7 +468,7 @@ class GraphVisitor {
       int predecessor_index = predecessor_count - 1;
       for (new_pred = assembler().current_block()->LastPredecessor();
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
-        const Block* origin = new_pred->Origin();
+        const Block* origin = new_pred->OriginForBlockEnd();
         DCHECK_NOT_NULL(origin);
         DCHECK_NE(origin->custom_data(), invalid_custom_data);
         OpIndex input = old_inputs[origin->custom_data()];
@@ -527,8 +512,8 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphCallAndCatchException(
       const CallAndCatchExceptionOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());
-    Block* if_success = MapToNewGraph(op.if_success->index());
-    Block* if_exception = MapToNewGraph(op.if_exception->index());
+    Block* if_success = op.if_success->MapToNextGraph();
+    Block* if_exception = op.if_exception->MapToNextGraph();
     OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return assembler().ReduceCallAndCatchException(
@@ -834,7 +819,6 @@ class GraphVisitor {
   const Block* current_input_block_;
 
   // Mappings from the old graph to the new graph.
-  ZoneVector<Block*> block_mapping_;
   ZoneVector<OpIndex> op_mapping_;
 
   // {current_block_needs_variables_} is set to true if the current block should

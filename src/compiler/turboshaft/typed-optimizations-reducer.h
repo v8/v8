@@ -44,7 +44,7 @@ class TypedOptimizationsReducer
       DCHECK(condition_type.IsWord32());
       if (auto c = condition_type.AsWord32().try_get_constant()) {
         Block* goto_target = *c == 0 ? operation.if_false : operation.if_true;
-        Asm().Goto(Asm().MapToNewGraph(goto_target->index()));
+        Asm().Goto(goto_target->MapToNextGraph());
         return OpIndex::Invalid();
       }
     }

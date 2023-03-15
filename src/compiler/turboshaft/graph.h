@@ -348,19 +348,42 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   bool HasPredecessors() const { return last_predecessor_ != nullptr; }
   void ResetLastPredecessor() { last_predecessor_ = nullptr; }
 
-  // The block from the previous graph which produced the current block. This is
-  // used for translating phi nodes from the previous graph.
+  void SetMappingToNextGraph(Block* next_graph_block) {
+    DCHECK_NULL(next_graph_mapping_);
+    DCHECK_NOT_NULL(next_graph_block);
+    next_graph_mapping_ = next_graph_block;
+    next_graph_block->SetOrigin(this);
+  }
+  Block* MapToNextGraph() const {
+    DCHECK_NOT_NULL(next_graph_mapping_);
+    return next_graph_mapping_;
+  }
+  // The block from the previous graph which produced the current block. This
+  // has to be updated to be the last block that contributed operations to the
+  // current block to ensure that phi nodes are created correctly.git cl
   void SetOrigin(const Block* origin) {
     DCHECK_IMPLIES(origin != nullptr,
                    origin->graph_generation_ + 1 == graph_generation_);
     origin_ = origin;
   }
-  // The origin refers to the block from the input graph that is equivalent as a
-  // predecessor. It is only available for bound blocks and it does *not* refer
-  // to an equivalent block as a branch destination.
-  const Block* Origin() const {
+  // The block from the input graph that is equivalent as a predecessor. It is
+  // only available for bound blocks and it does *not* refer to an equivalent
+  // block as a branch destination.
+  const Block* OriginForBlockEnd() const {
     DCHECK(IsBound());
     return origin_;
+  }
+  // The block from the input graph that corresponds to the current block as a
+  // branch destination. Such a block might not exist, and this function uses a
+  // trick to compute such a block in almost all cases, but might rarely fail
+  // and return `nullptr` instead.
+  const Block* OriginForBlockStart() const {
+    // Check that `origin_` is still valid as a block start and was not changed
+    // to a semantically different block when inlining blocks.
+    if (origin_ && origin_->MapToNextGraph() == this) {
+      return origin_;
+    }
+    return nullptr;
   }
 
   OpIndex begin() const {
@@ -426,6 +449,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
   const Block* origin_ = nullptr;
+  Block* next_graph_mapping_ = nullptr;
   // The {custom_data_} field can be used by algorithms to temporarily store
   // block-specific data. This field is not preserved when constructing a new
   // output graph and algorithms cannot rely on this field being properly reset
@@ -574,6 +598,12 @@ class Graph {
     return NewBlock(Block::Kind::kLoopHeader);
   }
   V8_INLINE Block* NewBlock() { return NewBlock(Block::Kind::kMerge); }
+  V8_INLINE Block* NewMappedBlock(Block* origin) {
+    Block* new_block = NewBlock(origin->IsLoop() ? Block::Kind::kLoopHeader
+                                                 : Block::Kind::kMerge);
+    origin->SetMappingToNextGraph(new_block);
+    return new_block;
+  }
 
   V8_INLINE bool Add(Block* block) {
     DCHECK_EQ(block->graph_generation_, generation_);

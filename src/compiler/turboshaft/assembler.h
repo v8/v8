@@ -2125,7 +2125,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     }
 
     BindReachable(intermediate_block);
-    intermediate_block->SetOrigin(source->Origin());
+    intermediate_block->SetOrigin(source->OriginForBlockEnd());
     // Inserting a Goto in {intermediate_block} to {destination}. This will
     // create the edge from {intermediate_block} to {destination}. Note that
     // this will call AddPredecessor, but we've already removed the eventual
