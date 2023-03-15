@@ -1587,9 +1587,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
-  // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToOffHeapInstructionStream(Address entry);
-
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
     CompareRoot(with, index);
