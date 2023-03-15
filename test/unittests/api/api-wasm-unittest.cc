@@ -177,24 +177,31 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
     EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
     EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
   }
-  // When providing a callback, the callback will control GC and stringref.
+  // When providing a callback, the callback will control GC, stringref,
+  // and inlining.
   isolate()->SetWasmGCEnabledCallback([](auto) { return true; });
   EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
+  EXPECT_TRUE(i_isolate()->IsWasmInliningEnabled(context));
   {
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     EXPECT_TRUE(enabled_features.has_gc());
     EXPECT_TRUE(enabled_features.has_stringref());
     EXPECT_TRUE(enabled_features.has_typed_funcref());
+    EXPECT_TRUE(enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
   EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
+  // TODO(crbug.com/1424350): Change (or just drop) this expectation when
+  // we enable inlining by default.
+  EXPECT_FALSE(i_isolate()->IsWasmInliningEnabled(context));
   {
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     EXPECT_FALSE(enabled_features.has_gc());
     EXPECT_FALSE(enabled_features.has_stringref());
     EXPECT_FALSE(enabled_features.has_typed_funcref());
+    EXPECT_FALSE(enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback(nullptr);
 }
