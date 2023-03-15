@@ -108,9 +108,6 @@ class Deserializer : public SerializerDeserializer {
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool should_rehash() const { return should_rehash_; }
 
-  void PushObjectToRehash(Handle<HeapObject> object) {
-    to_rehash_.push_back(object);
-  }
   void Rehash();
 
   Handle<HeapObject> ReadObject();

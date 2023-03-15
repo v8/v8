@@ -2383,7 +2383,7 @@ void ExistingCodeLogger::LogCodeObject(AbstractCode object) {
 
 void ExistingCodeLogger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
-  CombinedHeapObjectIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   for (HeapObject obj = iterator.Next(); !obj.is_null();

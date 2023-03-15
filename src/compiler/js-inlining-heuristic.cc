@@ -228,7 +228,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       unsigned inlined_bytecode_size = 0;
       if (OptionalJSFunctionRef function = candidate.functions[i]) {
         if (OptionalCodeRef code = function->code(broker())) {
-          inlined_bytecode_size = code->GetInlinedBytecodeSize(broker());
+          inlined_bytecode_size = code->GetInlinedBytecodeSize();
           candidate.total_size += inlined_bytecode_size;
         }
       }
@@ -826,8 +826,7 @@ void JSInliningHeuristic::PrintCandidates() {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
         if (OptionalJSFunctionRef function = candidate.functions[i]) {
           if (OptionalCodeRef code = function->code(broker())) {
-            unsigned inlined_bytecode_size =
-                code->GetInlinedBytecodeSize(broker());
+            unsigned inlined_bytecode_size = code->GetInlinedBytecodeSize();
             if (inlined_bytecode_size > 0) {
               os << ", existing opt code's inlined bytecode size: "
                  << inlined_bytecode_size;

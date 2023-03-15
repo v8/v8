@@ -3887,36 +3887,6 @@ void Isolate::CreateAndSetEmbeddedBlob() {
   CreateOffHeapTrampolines(this);
 }
 
-void Isolate::InitializeIsShortBuiltinCallsEnabled() {
-  if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
-#if defined(V8_OS_ANDROID)
-    // On Android, the check is not operative to detect memory, and re-embedded
-    // builtins don't have a memory cost.
-    is_short_builtin_calls_enabled_ = true;
-#else
-    // Check if the system has more than 4GB of physical memory by comparing the
-    // old space size with respective threshold value.
-    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
-                                       kShortBuiltinCallsOldSpaceSizeThreshold);
-#endif  // defined(V8_OS_ANDROID)
-    // Additionally, enable if there is already a process-wide CodeRange that
-    // has re-embedded builtins.
-    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
-      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
-      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
-        is_short_builtin_calls_enabled_ = true;
-      }
-    }
-    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
-      // The short builtin calls could still be enabled if allocated code range
-      // is close enough to embedded builtins so that the latter could be
-      // reached using pc-relative (short) calls/jumps.
-      is_short_builtin_calls_enabled_ |=
-          GetShortBuiltinsCallRegion().contains(heap_.code_region());
-    }
-  }
-}
-
 void Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange() {
   if (!is_short_builtin_calls_enabled() || !RequiresCodeRange()) {
     return;
@@ -4289,16 +4259,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     heap_.SetIsMarkingFlag(true);
   }
 
-  // Set up the object heap.
+  // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
-  InitializeIsShortBuiltinCallsEnabled();
-  if (!create_heap_objects) {
-    // Must be done before deserializing RO space, since RO space may contain
-    // builtin Code objects which point into the (potentially remapped)
-    // embedded blob.
-    MaybeRemapEmbeddedBuiltinsIntoCodeRange();
-  }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
                     isolate_data_.old_allocation_info_);
@@ -4317,6 +4280,34 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     DCHECK(!is_shared_space_isolate());
     string_table_ = shared_space_isolate()->string_table_;
     string_forwarding_table_ = shared_space_isolate()->string_forwarding_table_;
+  }
+
+  if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
+#if defined(V8_OS_ANDROID)
+    // On Android, the check is not operative to detect memory, and re-embedded
+    // builtins don't have a memory cost.
+    is_short_builtin_calls_enabled_ = true;
+#else
+    // Check if the system has more than 4GB of physical memory by comparing the
+    // old space size with respective threshold value.
+    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
+                                       kShortBuiltinCallsOldSpaceSizeThreshold);
+#endif  // defined(V8_OS_ANDROID)
+    // Additionally, enable if there is already a process-wide CodeRange that
+    // has re-embedded builtins.
+    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        is_short_builtin_calls_enabled_ = true;
+      }
+    }
+    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
+      // The short builtin calls could still be enabled if allocated code range
+      // is close enough to embedded builtins so that the latter could be
+      // reached using pc-relative (short) calls/jumps.
+      is_short_builtin_calls_enabled_ |=
+          GetShortBuiltinsCallRegion().contains(heap_.code_region());
+    }
   }
 #ifdef V8_EXTERNAL_CODE_SPACE
   {
@@ -4408,6 +4399,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     CreateAndSetEmbeddedBlob();
   } else {
     setup_delegate_->SetupBuiltins(this, false);
+    MaybeRemapEmbeddedBuiltinsIntoCodeRange();
   }
 
   // Initialize custom memcopy and memmove functions (must happen after

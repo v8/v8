@@ -1120,7 +1120,7 @@ class CodeRef : public HeapObjectRef {
 
   Handle<Code> object() const;
 
-  unsigned GetInlinedBytecodeSize(JSHeapBroker* broker) const;
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {

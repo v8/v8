@@ -259,9 +259,9 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
   return code;
 }
 
-Handle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
+Handle<Code> WrapWithCFunction(Handle<Code> inner,
                                CallDescriptor* call_descriptor) {
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(inner->GetIsolate()->allocator(), ZONE_NAME, kCompressGraphZone);
   int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
@@ -534,7 +534,7 @@ static void TestInt32Sub(CallDescriptor* desc) {
   }
 
   Handle<Code> inner_code = CompileGraph("Int32Sub", desc, inner.graph());
-  Handle<Code> wrapper = WrapWithCFunction(isolate, inner_code, desc);
+  Handle<Code> wrapper = WrapWithCFunction(inner_code, desc);
   MachineSignature* msig = desc->GetMachineSignature(&zone);
   CodeRunner<int32_t> runnable(isolate, wrapper,
                                CSignature::FromMachine(&zone, msig));
