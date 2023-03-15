@@ -271,11 +271,13 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
 // barrier.
 void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     StoreTaggedFieldWithWriteBarrier* node, Phi* phi, int input_index,
-    const ProcessingState&) {
-  DCHECK_IMPLIES(input_index == StoreTaggedFieldWithWriteBarrier::kObjectIndex,
-                 phi->value_representation() == ValueRepresentation::kTagged);
+    const ProcessingState& state) {
   if (input_index == StoreTaggedFieldWithWriteBarrier::kObjectIndex) {
-    DCHECK_EQ(phi->value_representation(), ValueRepresentation::kTagged);
+    // The 1st input of a Store should usually not be untagged. However, it is
+    // possible to write `let x = a ? 4 : 2; x.c = 10`, which will produce a
+    // store whose receiver could be an untagged Phi. So, for such cases, we use
+    // the generic UpdateNodePhiInput method to tag `phi` if needed.
+    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
     return;
   }
   DCHECK_EQ(input_index, StoreTaggedFieldNoWriteBarrier::kValueIndex);
@@ -304,9 +306,13 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   if (input_index == CheckedStoreSmiField::kValueIndex) {
     node->change_input(input_index, SmiTagPhi(phi, node, state));
   } else {
-    // The `object` input should never be untagged.
     DCHECK_EQ(input_index, CheckedStoreSmiField::kObjectIndex);
-    DCHECK_EQ(phi->value_representation(), ValueRepresentation::kTagged);
+    // The 1st input of a Store should usually not be untagged. However, it is
+    // possible to write `let x = a ? 4 : 2; x.c = 10`, which will produce a
+    // store whose receiver could be an untagged Phi. So, for such cases, we use
+    // the generic UpdateNodePhiInput method to tag `phi` if needed.
+    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
+    return;
   }
 }
 
