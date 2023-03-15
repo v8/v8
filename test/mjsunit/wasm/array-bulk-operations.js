@@ -92,3 +92,40 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapNullDereference, () => wasm.array_get(array_obj, 6));
   assertTraps(kTrapNullDereference, () => wasm.array_get(array_obj, 7));
 })();
+
+(function TestArrayNewNonNullable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let array = builder.addArray(wasmRefType(struct), true);
+
+  builder.addFunction(
+      "make_array", makeSig([wasmRefType(struct), kWasmI32],
+                            [wasmRefType(array)]))
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayNew, array])
+    .exportFunc();
+
+  builder.addFunction(
+      "array_get", makeSig([wasmRefNullType(array), kWasmI32],
+                           [wasmRefType(struct)]))
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayGet, array])
+    .exportFunc();
+
+  builder.addFunction(
+      "make_struct", makeSig([], [wasmRefType(struct)]))
+    .addBody([kGCPrefix, kExprStructNewDefault, struct])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  let length = 50;  // Enough to go through initialization builtin.
+  let struct_obj = wasm.make_struct();
+  let array_obj = wasm.make_array(struct_obj, length);
+
+  for (let i = 0; i < length; i++) {
+    assertEquals(struct_obj, wasm.array_get(array_obj, i));
+  }
+})();

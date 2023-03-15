@@ -636,6 +636,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       break;
     }
     case kRefNull:
+    case kRef:
       if constexpr (kTaggedSize == 4) {
         int32_t* base = reinterpret_cast<int32_t*>(initial_element_address);
         base[0] = base[1] = static_cast<int32_t>(initial_value);
@@ -645,7 +646,6 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       break;
     case kS128:
     case kRtt:
-    case kRef:
     case kVoid:
     case kBottom:
       UNREACHABLE();
