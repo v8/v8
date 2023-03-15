@@ -3527,17 +3527,13 @@ void MaglevGraphBuilder::BuildLoadGlobal(
   const compiler::ProcessedFeedback& access_feedback =
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
-  if (access_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    return;
+  if (!access_feedback.IsInsufficient()) {
+    const compiler::GlobalAccessFeedback& global_access_feedback =
+        access_feedback.AsGlobalAccess();
+
+    if (TryBuildScriptContextAccess(global_access_feedback)) return;
+    if (TryBuildPropertyCellAccess(global_access_feedback)) return;
   }
-
-  const compiler::GlobalAccessFeedback& global_access_feedback =
-      access_feedback.AsGlobalAccess();
-
-  if (TryBuildScriptContextAccess(global_access_feedback)) return;
-  if (TryBuildPropertyCellAccess(global_access_feedback)) return;
 
   ValueNode* context = GetContext();
   SetAccumulator(
