@@ -111,13 +111,12 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
-    int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot) {
+    int offset, SafepointTableBuilder* safepoint_table_builder) {
   int frame_size =
       GetTotalFrameSize() -
       (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
   // The frame setup builtin also pushes the feedback vector.
-  if (feedback_vector_slot) {
+  if (v8_flags.wasm_speculative_inlining) {
     frame_size -= kSystemPointerSize;
   }
 

@@ -399,14 +399,14 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // TODO(7748): It would be useful to also support inlining of wasm functions
   // if they are surrounded by a try block which requires further work, so that
   // the wasm trap gets forwarded to the corresponding catch block.
-  if (native_module->enabled_features().has_gc() &&
-      v8_flags.experimental_wasm_js_inlining && fct_index != -1 &&
-      native_module && native_module->module() == wasm_module_ &&
+  if (v8_flags.experimental_wasm_gc && v8_flags.experimental_wasm_js_inlining &&
+      fct_index != -1 && native_module &&
+      native_module->module() == wasm_module_ &&
       !NodeProperties::IsExceptionalCall(node)) {
     Graph::SubgraphScope graph_scope(graph());
     WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                              WasmGraphBuilder::kNoSpecialParameterMode,
-                             isolate(), native_module->enabled_features());
+                             isolate());
     can_inline_body = builder.TryWasmInlining(fct_index, native_module);
     inlinee_body_start = graph()->start();
     inlinee_body_end = graph()->end();

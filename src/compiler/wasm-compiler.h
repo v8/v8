@@ -19,7 +19,6 @@
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -54,6 +53,7 @@ namespace wasm {
 class AssemblerBufferCache;
 struct DecodeStruct;
 class WasmCode;
+class WasmFeatures;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
 enum Suspend : bool;
@@ -241,16 +241,15 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       const wasm::FunctionSig* sig,
       compiler::SourcePositionTable* spt = nullptr)
-      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr,
-                         env->enabled_features) {}
+      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr) {
+  }
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
                                      MachineGraph* mcgraph,
                                      const wasm::FunctionSig* sig,
                                      compiler::SourcePositionTable* spt,
                                      Parameter0Mode parameter_mode,
-                                     Isolate* isolate,
-                                     wasm::WasmFeatures enabled_features);
+                                     Isolate* isolate);
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
@@ -877,10 +876,6 @@ class WasmGraphBuilder {
   Zone* const zone_;
   MachineGraph* const mcgraph_;
   wasm::CompilationEnv* const env_;
-  // For the main WasmGraphBuilder class, this is identical to the features
-  // field in {env_}, but the WasmWrapperGraphBuilder subclass doesn't have
-  // that, so common code should use this field instead.
-  wasm::WasmFeatures enabled_features_;
 
   Node** parameters_;
 

@@ -2956,19 +2956,6 @@ bool Isolate::IsWasmStringRefEnabled(Handle<Context> context) {
 #endif
 }
 
-bool Isolate::IsWasmInliningEnabled(Handle<Context> context) {
-  // If Wasm GC is explicitly enabled via a callback, also enable inlining.
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (wasm_gc_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_gc_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_inlining;
-#else
-  return false;
-#endif
-}
-
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptStackFrameIterator it(this);
 

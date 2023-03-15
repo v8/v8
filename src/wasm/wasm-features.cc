@@ -33,17 +33,14 @@ WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
 WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
                                        Handle<Context> context) {
   WasmFeatures features = WasmFeatures::FromFlags();
-  if (isolate->IsWasmGCEnabled(context)) {
+  if (isolate->IsWasmGCEnabled(handle(isolate->context(), isolate))) {
     features.Add(kFeature_gc);
     // Also enable typed function references, since the commandline flag
     // implication won't do that for us in this case.
     features.Add(kFeature_typed_funcref);
   }
-  if (isolate->IsWasmStringRefEnabled(context)) {
+  if (isolate->IsWasmStringRefEnabled(handle(isolate->context(), isolate))) {
     features.Add(kFeature_stringref);
-  }
-  if (isolate->IsWasmInliningEnabled(context)) {
-    features.Add(kFeature_inlining);
   }
   // This space intentionally left blank for future Wasm origin trials.
   return features;

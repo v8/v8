@@ -264,8 +264,8 @@ class WasmGraphBuildingInterface {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
-  void FinishFunction(FullDecoder* decoder) {
-    if (decoder->enabled_.has_inlining()) {
+  void FinishFunction(FullDecoder*) {
+    if (v8_flags.wasm_speculative_inlining) {
       DCHECK_EQ(feedback_instruction_index_, type_feedback_.size());
     }
     if (inlined_status_ == kRegularFunction) {
@@ -726,7 +726,7 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -738,7 +738,7 @@ class WasmGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     int maybe_call_count = -1;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -769,7 +769,7 @@ class WasmGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -866,7 +866,7 @@ class WasmGraphBuildingInterface {
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
