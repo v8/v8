@@ -2674,7 +2674,7 @@ class Uint32ToUint8Clamped
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
 
   Input& input() { return Node::input(0); }
 
