@@ -66,20 +66,20 @@ bool MarkingStateBase<ConcreteState, access_mode>::WhiteToGrey(HeapObject obj) {
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToBlack(
-    HeapObject obj) {
-  return WhiteToGrey(obj) && GreyToBlack(obj);
+bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(HeapObject obj) {
+  return Marking::GreyToBlack<access_mode>(MarkBitFrom(obj));
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(HeapObject obj) {
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
-  MarkBit markbit = MarkBitFrom(chunk, obj.address());
-  if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-  static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-      MemoryChunk::cast(chunk),
-      ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
-  return true;
+bool MarkingStateBase<ConcreteState, access_mode>::
+    FullyMarkObjectAndAccountLiveBytes(HeapObject obj) {
+  if (WhiteToGrey(obj) && GreyToBlack(obj)) {
+    static_cast<ConcreteState*>(this)->IncrementLiveBytes(
+        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(obj)),
+        ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
+    return true;
+  }
+  return false;
 }
 
 template <typename ConcreteState, AccessMode access_mode>

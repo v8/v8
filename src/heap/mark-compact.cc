@@ -1420,7 +1420,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
         // marking
         nested = current_site.nested_site();
         current_site.MarkZombie();
-        marking_state_->WhiteToBlack(current_site);
+        marking_state_->FullyMarkObjectAndAccountLiveBytes(current_site);
       }
 
       return object;
@@ -2386,7 +2386,12 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
         local_marking_worklists()->SwitchToContext(context);
       }
     }
-    size_t visited_size = marking_visitor_->Visit(map, object);
+    const auto visited_size = marking_visitor_->Visit(map, object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
     if (is_per_context_mode) {
       native_context_stats_.IncrementSize(local_marking_worklists()->Context(),
                                           map, object, visited_size);
@@ -2783,7 +2788,8 @@ class StringForwardingTableCleaner final {
           HeapObject::cast(forward).InReadOnlySpace()) {
         return;
       }
-      marking_state_->WhiteToBlack(HeapObject::cast(forward));
+      HeapObject forward_object = HeapObject::cast(forward);
+      marking_state_->FullyMarkObjectAndAccountLiveBytes(forward_object);
     } else {
       DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
@@ -2859,7 +2865,7 @@ class StringForwardingTableCleaner final {
 
     // Mark the forwarded string to keep it alive.
     if (!forward_string.InReadOnlySpace()) {
-      marking_state_->WhiteToBlack(forward_string);
+      marking_state_->FullyMarkObjectAndAccountLiveBytes(forward_string);
     }
     // Transition the original string to a ThinString and override the
     // forwarding index with the correct hash.
@@ -3125,7 +3131,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // marked.
   DCHECK(!ShouldMarkObject(inferred_name) ||
          marking_state()->IsBlackOrGrey(inferred_name));
-  marking_state()->WhiteToBlack(uncompiled_data);
+  marking_state_->FullyMarkObjectAndAccountLiveBytes(uncompiled_data);
 
   // Use the raw function data setter to avoid validity checks, since we're
   // performing the unusual task of decompiling.
@@ -5809,17 +5815,27 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
 
 void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
   if (marking_state_->WhiteToGrey(heap_object)) {
-    visitor_.Visit(heap_object);
+    const auto visited_size = visitor_.Visit(heap_object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
     // Objects transition to black when visited.
     DCHECK(marking_state_->IsBlack(heap_object));
   }
 }
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
-  HeapObject object;
-  while (marking_worklists_local_->Pop(&object) ||
-         marking_worklists_local_->PopOnHold(&object)) {
-    visitor_.Visit(object);
+  HeapObject heap_object;
+  while (marking_worklists_local_->Pop(&heap_object) ||
+         marking_worklists_local_->PopOnHold(&heap_object)) {
+    const auto visited_size = visitor_.Visit(heap_object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
   marking_worklists_local_->PublishWrapper();
@@ -6106,13 +6122,18 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
   do {
     PerformWrapperTracing();
 
-    HeapObject object;
-    while (local_marking_worklists_->Pop(&object)) {
-      DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
-      DCHECK(object.IsHeapObject());
-      DCHECK(heap()->Contains(object));
-      DCHECK(!non_atomic_marking_state()->IsWhite(object));
-      main_marking_visitor_->Visit(object);
+    HeapObject heap_object;
+    while (local_marking_worklists_->Pop(&heap_object)) {
+      DCHECK(!heap_object.IsFreeSpaceOrFiller(cage_base));
+      DCHECK(heap_object.IsHeapObject());
+      DCHECK(heap()->Contains(heap_object));
+      DCHECK(!non_atomic_marking_state()->IsWhite(heap_object));
+      const auto visited_size = main_marking_visitor_->Visit(heap_object);
+      if (visited_size) {
+        marking_state_->IncrementLiveBytes(
+            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+            visited_size);
+      }
     }
   } while (!IsCppHeapMarkingFinished());
   DCHECK(local_marking_worklists_->IsEmpty());

@@ -432,11 +432,9 @@ TEST_F(HeapTest, Regress978156) {
     marking->Start(GarbageCollector::MARK_COMPACTOR,
                    i::GarbageCollectionReason::kTesting);
   }
-  MarkingState* marking_state = heap->marking_state();
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
-  marking_state->WhiteToGrey(filler);
-  marking_state->GreyToBlack(filler);
+  heap->marking_state()->FullyMarkObjectAndAccountLiveBytes(filler);
 }
 
 }  // namespace internal
