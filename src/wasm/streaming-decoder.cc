@@ -222,13 +222,30 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
 
+  // Store the full wire bytes in a vector of vectors to avoid having to grow
+  // large vectors (measured up to 100ms delay in 2023-03).
   // TODO(clemensb): Avoid holding the wire bytes live twice (here and in the
   // section buffers).
-  std::vector<uint8_t> full_wire_bytes_;
+  std::vector<std::vector<uint8_t>> full_wire_bytes_{{}};
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
-  full_wire_bytes_.insert(full_wire_bytes_.end(), bytes.begin(), bytes.end());
+  // {full_wire_bytes_} is pre-filled with one empty vector.
+  DCHECK(!full_wire_bytes_.empty());
+  if (full_wire_bytes_.back().capacity() > 16 * KB &&
+      full_wire_bytes_.back().capacity() <
+          full_wire_bytes_.back().size() + bytes.size()) {
+    // The previous vector's capacity is not enough to hold the new bytes, and
+    // it's bigger than 16kB, so expensive to copy. Allocate a new vector.
+    // Grow exponentially, and over-allocated by {bytes.size()}.
+    size_t new_capacity =
+        std::max(2 * bytes.size(), 2 * full_wire_bytes_.back().capacity());
+    full_wire_bytes_.emplace_back();
+    full_wire_bytes_.back().reserve(new_capacity);
+  }
+  full_wire_bytes_.back().insert(full_wire_bytes_.back().end(), bytes.begin(),
+                                 bytes.end());
+
   if (deserializing()) return;
 
   TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
@@ -263,21 +280,38 @@ void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   // {Finish} cannot be called after {Finish}, {Abort}, {Fail}, or
   // {NotifyCompilationDiscarded}.
   CHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
+
+  // Create a final copy of the overall wire bytes; this will finally be
+  // transferred and stored in the NativeModule.
+  base::OwnedVector<const uint8_t> bytes_copy;
+  {
+    size_t total_length = 0;
+    for (auto& bytes : full_wire_bytes_) total_length += bytes.size();
+    auto all_bytes = base::OwnedVector<uint8_t>::NewForOverwrite(total_length);
+    uint8_t* ptr = all_bytes.begin();
+    for (auto& bytes : full_wire_bytes_) {
+      memcpy(ptr, bytes.data(), bytes.size());
+      ptr += bytes.size();
+    }
+    DCHECK_EQ(all_bytes.end(), ptr);
+    bytes_copy = std::move(all_bytes);
+  }
+
   if (ok() && deserializing()) {
     // Try to deserialize the module from wire bytes and module bytes.
     if (can_use_compiled_module &&
         processor_->Deserialize(compiled_module_bytes_,
-                                base::VectorOf(full_wire_bytes_))) {
+                                base::VectorOf(bytes_copy))) {
       return;
     }
 
     // Compiled module bytes are invalidated by can_use_compiled_module = false
-    // or the deserialization failed. Restart decoding using |full_wire_bytes_|.
-    std::vector<uint8_t> wire_bytes = std::move(full_wire_bytes_);
-    DCHECK(full_wire_bytes_.empty());
+    // or the deserialization failed. Restart decoding using |bytes_copy|.
+    // Reset {full_wire_bytes} to a single empty vector.
+    full_wire_bytes_.assign({{}});
     compiled_module_bytes_ = {};
     DCHECK(!deserializing());
-    OnBytesReceived(base::VectorOf(wire_bytes));
+    OnBytesReceived(base::VectorOf(bytes_copy));
     // The decoder has received all wire bytes; fall through and finish.
   }
 
@@ -285,9 +319,6 @@ void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
     // The byte stream ended too early, we report an error.
     Fail();
   }
-
-  base::OwnedVector<const uint8_t> bytes_copy =
-      base::OwnedVector<uint8_t>::Of(full_wire_bytes_);
 
   // Calling {OnFinishedStream} calls out to JS. Avoid further callbacks (by
   // aborting the stream) by resetting the processor field before calling

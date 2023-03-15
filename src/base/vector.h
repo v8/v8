@@ -242,6 +242,10 @@ class OwnedVector {
 
   constexpr T* end() const { return begin() + length_; }
 
+  // In addition to {begin}, do provide a {data()} accessor for API
+  // compatibility with other sequential containers.
+  constexpr T* data() const { return begin(); }
+
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
     DCHECK_LT(index, length_);
