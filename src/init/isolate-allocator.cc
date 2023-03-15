@@ -21,19 +21,16 @@ struct PtrComprCageReservationParams
   PtrComprCageReservationParams() {
     page_allocator = GetPlatformPageAllocator();
 
-    // Unused.
-    // TODO(v8:13788): Remove base_bias_size.
-    const size_t kIsolateRootBiasPageSize = 0;
-    reservation_size = kPtrComprCageReservationSize + kIsolateRootBiasPageSize;
+    reservation_size = kPtrComprCageReservationSize;
     base_alignment = kPtrComprCageBaseAlignment;
-    base_bias_size = kIsolateRootBiasPageSize;
 
     // Simplify BoundedPageAllocator's life by configuring it to use same page
     // size as the Heap will use (MemoryChunk::kPageSize).
     page_size =
         RoundUp(size_t{1} << kPageSizeBits, page_allocator->AllocatePageSize());
-    requested_start_hint =
-        reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr());
+    requested_start_hint = RoundDown(
+        reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr()),
+        base_alignment);
     jit = JitPermission::kNoJit;
   }
 };
