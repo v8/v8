@@ -478,12 +478,10 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
   V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
-  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final;
+  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final;
 
-  V8_INLINE void VisitCodeTarget(InstructionStream host,
-                                 RelocInfo* rinfo) final;
-  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
-                                      RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final;
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
@@ -508,7 +506,7 @@ void ScavengeVisitor::VisitPointers(HeapObject host, MaybeObjectSlot start,
   return VisitPointersImpl(host, start, end);
 }
 
-void ScavengeVisitor::VisitCodePointer(HeapObject host, CodeObjectSlot slot) {
+void ScavengeVisitor::VisitCodePointer(Code host, CodeObjectSlot slot) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   // InstructionStream slots never appear in new space because
   // Code objects, the only object that can contain code pointers, are
@@ -516,8 +514,7 @@ void ScavengeVisitor::VisitCodePointer(HeapObject host, CodeObjectSlot slot) {
   UNREACHABLE();
 }
 
-void ScavengeVisitor::VisitCodeTarget(InstructionStream host,
-                                      RelocInfo* rinfo) {
+void ScavengeVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
 #ifdef DEBUG
@@ -530,8 +527,7 @@ void ScavengeVisitor::VisitCodeTarget(InstructionStream host,
   DCHECK_EQ(old_target, target);
 }
 
-void ScavengeVisitor::VisitEmbeddedPointer(InstructionStream host,
-                                           RelocInfo* rinfo) {
+void ScavengeVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   HeapObject heap_object = rinfo->target_object(cage_base());
 #ifdef DEBUG
   HeapObject old_heap_object = heap_object;

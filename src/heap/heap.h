@@ -485,7 +485,7 @@ class Heap {
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      InstructionStream host, RelocInfo* rinfo, HeapObject value);
+      RelocInfo* rinfo, HeapObject value);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
 
   // Notifies the heap that is ok to start marking or other activities that
@@ -1168,10 +1168,6 @@ class Heap {
   void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
-  // Invalidates references in the given {code} object that are referenced
-  // transitively from the deoptimization data. Mutates write-protected code.
-  void InvalidateCodeDeoptimizationData(InstructionStream code);
-
   void DeoptMarkedAllocationSites();
 
   // ===========================================================================
@@ -1571,6 +1567,8 @@ class Heap {
   GcSafeCode GcSafeFindCodeForInnerPointer(Address inner_pointer);
   base::Optional<GcSafeCode> GcSafeTryFindCodeForInnerPointer(
       Address inner_pointer);
+  base::Optional<InstructionStream>
+  GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer);
   // Only intended for use from the `jco` gdb macro.
   base::Optional<Code> TryFindCodeForInnerPointerForPrinting(
       Address inner_pointer);

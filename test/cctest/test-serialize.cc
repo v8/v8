@@ -1597,9 +1597,7 @@ int CountBuiltins() {
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsInstructionStream() &&
-        InstructionStream::cast(obj).kind() == CodeKind::BUILTIN)
-      counter++;
+    if (obj.IsCode() && Code::cast(obj).kind() == CodeKind::BUILTIN) counter++;
   }
   return counter;
 }

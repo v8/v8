@@ -817,7 +817,7 @@ class PromotedPageRecordMigratedSlotVisitor
     }
   }
 
-  inline void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
+  inline void VisitCodePointer(Code host, CodeObjectSlot slot) final {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // This code is similar to the implementation of VisitPointer() modulo
     // new kind of slot.
@@ -835,18 +835,12 @@ class PromotedPageRecordMigratedSlotVisitor
     VisitPointer(host, key);
   }
 
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
-    UNREACHABLE();
-  }
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
-    UNREACHABLE();
-  }
+  void VisitCodeTarget(RelocInfo* rinfo) final { UNREACHABLE(); }
+  void VisitEmbeddedPointer(RelocInfo* rinfo) final { UNREACHABLE(); }
 
   // Entries that are skipped for recording.
-  inline void VisitExternalReference(InstructionStream host,
-                                     RelocInfo* rinfo) final {}
-  inline void VisitInternalReference(InstructionStream host,
-                                     RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(RelocInfo* rinfo) final {}
+  inline void VisitInternalReference(RelocInfo* rinfo) final {}
   inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                    ExternalPointerTag tag) final {}
 

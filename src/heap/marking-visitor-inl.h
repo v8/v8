@@ -103,7 +103,7 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
 template <typename ConcreteVisitor, typename MarkingState>
 V8_INLINE void
 MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
-    HeapObject host, CodeObjectSlot slot) {
+    Code host, CodeObjectSlot slot) {
   Object object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;
@@ -117,34 +117,35 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
-    InstructionStream host, RelocInfo* rinfo) {
+    RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!ShouldMarkObject(object)) return;
 
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
-    if (host.IsWeakObject(object)) {
+    if (rinfo->code().IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
-          std::make_pair(object, host));
-      AddWeakReferenceForReferenceSummarizer(host, object);
+          std::make_pair(object, rinfo->code()));
+      AddWeakReferenceForReferenceSummarizer(rinfo->instruction_stream(),
+                                             object);
     } else {
-      MarkObject(host, object);
+      MarkObject(rinfo->instruction_stream(), object);
     }
   }
-  concrete_visitor()->RecordRelocSlot(host, rinfo, object);
+  concrete_visitor()->RecordRelocSlot(rinfo, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
-    InstructionStream host, RelocInfo* rinfo) {
+    RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
-  MarkObject(host, target);
-  concrete_visitor()->RecordRelocSlot(host, rinfo, target);
+  MarkObject(rinfo->instruction_stream(), target);
+  concrete_visitor()->RecordRelocSlot(rinfo, target);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
@@ -216,16 +217,10 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     Code baseline_code = Code::cast(shared_info.function_data(kAcquireLoad));
-    // Safe to do a relaxed load here since the Code was
-    // acquire-loaded.
-    InstructionStream baseline_istream =
-        FromCode(baseline_code, ObjectVisitorWithCageBases::code_cage_base(),
-                 kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
-    VisitPointer(
-        baseline_istream,
-        baseline_istream.RawField(
-            InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
+    VisitPointer(baseline_code,
+                 baseline_code.RawField(
+                     Code::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old

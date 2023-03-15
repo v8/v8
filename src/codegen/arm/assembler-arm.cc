@@ -5254,7 +5254,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data,
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
                   InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }

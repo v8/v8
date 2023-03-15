@@ -188,7 +188,8 @@ class HeapEntryVerifier {
   // Objects that have been checked via a call to CheckStrongReference or
   // CheckWeakReference, or deliberately skipped via a call to
   // MarkReferenceCheckedWithoutChecking.
-  std::unordered_set<HeapObject, Object::Hasher> checked_objects_;
+  std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
+      checked_objects_;
 
   // Objects transitively retained by the primary object. The objects in the set
   // at index i are retained by the primary object via a chain of i+1
@@ -1075,19 +1076,19 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
     VisitSlotImpl(code_cage_base(), slot);
   }
 
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+  void VisitCodeTarget(RelocInfo* rinfo) override {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     VisitHeapObjectImpl(target, -1);
   }
 
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
     HeapObject object = rinfo->target_object(cage_base());
-    if (host.IsWeakObject(object)) {
+    if (rinfo->code().IsWeakObject(object)) {
       generator_->SetWeakReference(parent_, next_index_++, object, {});
     } else {
       VisitHeapObjectImpl(object, -1);
@@ -1169,8 +1170,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractAccessorInfoReferences(entry, AccessorInfo::cast(obj));
   } else if (obj.IsAccessorPair()) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
-  } else if (obj.IsInstructionStream()) {
-    ExtractCodeReferences(entry, InstructionStream::cast(obj));
+  } else if (obj.IsCode()) {
+    ExtractCodeReferences(entry, Code::cast(obj));
   } else if (obj.IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
   } else if (obj.IsFeedbackCell()) {
@@ -1580,29 +1581,29 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   }
 }
 
-void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
-                                           InstructionStream code) {
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
+  if (!code.has_instruction_stream()) return;
+
   TagObject(code.relocation_info(), "(code relocation info)", HeapEntry::kCode);
   SetInternalReference(entry, "relocation_info", code.relocation_info(),
-                       InstructionStream::kRelocationInfoOffset);
+                       Code::kRelocationInfoOffset);
 
   if (code.kind() == CodeKind::BASELINE) {
     TagObject(code.bytecode_or_interpreter_data(), "(interpreter data)");
-    SetInternalReference(
-        entry, "interpreter_data", code.bytecode_or_interpreter_data(),
-        InstructionStream::kDeoptimizationDataOrInterpreterDataOffset);
+    SetInternalReference(entry, "interpreter_data",
+                         code.bytecode_or_interpreter_data(),
+                         Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code.bytecode_offset_table(), "(bytecode offset table)",
               HeapEntry::kCode);
     SetInternalReference(entry, "bytecode_offset_table",
                          code.bytecode_offset_table(),
-                         InstructionStream::kPositionTableOffset);
+                         Code::kPositionTableOffset);
   } else {
     DeoptimizationData deoptimization_data =
         DeoptimizationData::cast(code.deoptimization_data());
     TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);
-    SetInternalReference(
-        entry, "deoptimization_data", deoptimization_data,
-        InstructionStream::kDeoptimizationDataOrInterpreterDataOffset);
+    SetInternalReference(entry, "deoptimization_data", deoptimization_data,
+                         Code::kDeoptimizationDataOrInterpreterDataOffset);
     if (deoptimization_data.length() > 0) {
       TagObject(deoptimization_data.TranslationByteArray(), "(code deopt data)",
                 HeapEntry::kCode);
@@ -1615,7 +1616,7 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
               HeapEntry::kCode);
     SetInternalReference(entry, "source_position_table",
                          code.source_position_table(),
-                         InstructionStream::kPositionTableOffset);
+                         Code::kPositionTableOffset);
   }
 }
 
@@ -2070,8 +2071,8 @@ class RootsReferencesExtractor : public RootVisitor {
                         FullObjectSlot istream_or_smi_zero_slot) final {
     Object istream_or_smi_zero = *istream_or_smi_zero_slot;
     if (istream_or_smi_zero != Smi::zero()) {
-      InstructionStream istream = InstructionStream::cast(istream_or_smi_zero);
-      istream.IterateDeoptimizationLiterals(this);
+      Code code = Code::cast(*code_slot);
+      code.IterateDeoptimizationLiterals(this);
       VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
     }
     VisitRootPointer(Root::kStackRoots, nullptr, code_slot);

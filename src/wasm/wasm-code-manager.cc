@@ -907,7 +907,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
           compilation_state()->dynamic_tiering()};
 }
 
-WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
+WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   CodeSpaceWriteScope code_space_write_scope(this);
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<byte> reloc_info;
@@ -916,7 +916,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
         base::Vector<byte>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->source_position_table(),
-                                     code->GetIsolate());
+                                     code->instruction_stream().GetIsolate());
   base::OwnedVector<byte> source_pos =
       base::OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
@@ -950,7 +950,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->instruction_start();
+                   code->InstructionStart();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =

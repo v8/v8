@@ -72,10 +72,6 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
 
   void GenerateCode() { Generate(); }
 
-  Handle<InstructionStream> GetInstructionStream() {
-    return handle(GetCode()->instruction_stream(), isolate_);
-  }
-
   Handle<Code> GetCode() {
     Generate();
     return code_.ToHandleChecked();

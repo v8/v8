@@ -276,7 +276,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(*code);
     if (info->HasBaselineCode()) {
-      FromCode(info->baseline_code(kAcquireLoad))
+      info->baseline_code(kAcquireLoad)
           .set_bytecode_or_interpreter_data(*interpreter_data);
     } else {
       info->set_interpreter_data(*interpreter_data);

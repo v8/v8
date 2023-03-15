@@ -625,7 +625,8 @@ void ExternalLogEventListener::CodeMoveEvent(InstructionStream from,
                                              InstructionStream to) {
   CodeEvent code_event;
   InitializeCodeEvent(isolate_, &code_event, from.instruction_start(),
-                      to.instruction_start(), to.instruction_size());
+                      to.instruction_start(),
+                      to.code(kAcquireLoad).instruction_size());
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
@@ -914,7 +915,7 @@ void JitLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type = JitCodeEvent::JIT_CODE;
   event.code_start = reinterpret_cast<void*>(from.instruction_start());
-  event.code_len = from.instruction_size();
+  event.code_len = from.unchecked_code().instruction_size();
   event.new_code_start = reinterpret_cast<void*>(to.instruction_start());
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
@@ -1623,12 +1624,11 @@ void V8FileLogger::CodeDisableOptEvent(Handle<AbstractCode> code,
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::ProcessDeoptEvent(Handle<InstructionStream> code,
-                                     SourcePosition position, const char* kind,
-                                     const char* reason) {
+void V8FileLogger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
+                                     const char* kind, const char* reason) {
   MSG_BUILDER();
   msg << Event::kCodeDeopt << kNext << Time() << kNext << code->CodeSize()
-      << kNext << reinterpret_cast<void*>(code->instruction_start());
+      << kNext << reinterpret_cast<void*>(code->InstructionStart());
 
   std::ostringstream deopt_location;
   int inlining_id = -1;
@@ -1646,16 +1646,15 @@ void V8FileLogger::ProcessDeoptEvent(Handle<InstructionStream> code,
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::CodeDeoptEvent(Handle<InstructionStream> code,
-                                  DeoptimizeKind kind, Address pc,
-                                  int fp_to_sp_delta) {
+void V8FileLogger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
+                                  Address pc, int fp_to_sp_delta) {
   if (!is_logging() || !v8_flags.log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 
-void V8FileLogger::CodeDependencyChangeEvent(Handle<InstructionStream> code,
+void V8FileLogger::CodeDependencyChangeEvent(Handle<Code> code,
                                              Handle<SharedFunctionInfo> sfi,
                                              const char* reason) {
   if (!is_logging() || !v8_flags.log_deopt) return;

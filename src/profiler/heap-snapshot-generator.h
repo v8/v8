@@ -433,7 +433,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorInfoReferences(HeapEntry* entry,
                                      AccessorInfo accessor_info);
   void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair accessors);
-  void ExtractCodeReferences(HeapEntry* entry, InstructionStream code);
+  void ExtractCodeReferences(HeapEntry* entry, Code code);
   void ExtractCellReferences(HeapEntry* entry, Cell cell);
   void ExtractJSWeakRefReferences(HeapEntry* entry, JSWeakRef js_weak_ref);
   void ExtractWeakCellReferences(HeapEntry* entry, WeakCell weak_cell);

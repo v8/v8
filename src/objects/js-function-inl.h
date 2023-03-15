@@ -80,11 +80,6 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-void JSFunction::set_code(InstructionStream code, ReleaseStoreTag,
-                          WriteBarrierMode mode) {
-  set_code(ToCode(code), kReleaseStore, mode);
-}
-
 Address JSFunction::code_entry_point() const {
   return Code::cast(code()).code_entry_point();
 }

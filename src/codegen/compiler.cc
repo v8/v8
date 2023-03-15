@@ -1731,18 +1731,13 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   }
 
   // The object graph for a newly compiled Script shouldn't yet contain any
-  // InstructionStream. If any of these functions are called, then that would
-  // indicate that the graph was not disjoint from the rest of the heap as
-  // expected.
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+  // Code. If any of these functions are called, then that would indicate that
+  // the graph was not disjoint from the rest of the heap as expected.
+  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
     UNREACHABLE();
   }
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
-    UNREACHABLE();
-  }
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
-    UNREACHABLE();
-  }
+  void VisitCodeTarget(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
 
  private:
   enum ObjectKind {

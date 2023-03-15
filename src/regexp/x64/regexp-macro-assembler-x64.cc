@@ -1123,10 +1123,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
-  Handle<InstructionStream> istream(code->instruction_stream(), isolate);
   PROFILE(isolate,
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(istream);
+  return Handle<HeapObject>::cast(code);
 }
 
 void RegExpMacroAssemblerX64::GoTo(Label* to) { BranchOrBacktrack(to); }

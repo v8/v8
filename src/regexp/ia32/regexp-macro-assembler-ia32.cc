@@ -1075,10 +1075,9 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
           .Build();
-  Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(istream);
+  return Handle<HeapObject>::cast(code);
 }
 
 void RegExpMacroAssemblerIA32::GoTo(Label* to) { BranchOrBacktrack(to); }
