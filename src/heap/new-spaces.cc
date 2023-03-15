@@ -1033,7 +1033,8 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
       ((UsableCapacity() >= TotalCapacity()) ||
        (TotalCapacity() - UsableCapacity() < Page::kPageSize)))
     return false;
-  if (!heap()->CanExpandOldGeneration(Size() + Page::kPageSize)) {
+  if (!heap()->CanExpandOldGeneration(Size() + heap()->new_lo_space()->Size() +
+                                      Page::kPageSize)) {
     // Assuming all of new space if alive, doing a full GC and promoting all
     // objects should still succeed. Don't let new space grow if it means it
     // will exceed the available size of old space.
