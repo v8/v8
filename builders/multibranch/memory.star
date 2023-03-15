@@ -52,6 +52,14 @@ in_category(
         name = "V8 Linux64 TSAN",
         parent_builder = "V8 Linux64 TSAN - builder",
     ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 TSAN - debug",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        notifies = ["TSAN debug failures"],
+        first_branch_version = "11.2",
+    ),
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - isolates",
         parent_builder = "V8 Linux64 TSAN - builder",
