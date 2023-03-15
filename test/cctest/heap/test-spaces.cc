@@ -318,6 +318,7 @@ TEST(SemiSpaceNewSpace) {
 
 TEST(PagedNewSpace) {
   if (v8_flags.single_generation) return;
+  ManualGCScope manual_gc_scope;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());

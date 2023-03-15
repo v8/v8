@@ -1342,6 +1342,7 @@ UNINITIALIZED_TEST(Regress10843) {
     for (int i = 0; i < 100; i++) {
       arrays.push_back(factory->NewFixedArray(10000));
     }
+    CcTest::CollectAllGarbage(i_isolate);
     CHECK(callback_was_invoked);
   }
   isolate->Dispose();
