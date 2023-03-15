@@ -268,6 +268,38 @@ class JobTask {
 };
 
 /**
+ * A "blocking call" refers to any call that causes the calling thread to wait
+ * off-CPU. It includes but is not limited to calls that wait on synchronous
+ * file I/O operations: read or write a file from disk, interact with a pipe or
+ * a socket, rename or delete a file, enumerate files in a directory, etc.
+ * Acquiring a low contention lock is not considered a blocking call.
+ */
+
+/**
+ * BlockingType indicates the likelihood that a blocking call will actually
+ * block.
+ */
+enum class BlockingType {
+  // The call might block (e.g. file I/O that might hit in memory cache).
+  kMayBlock,
+  // The call will definitely block (e.g. cache already checked and now pinging
+  // server synchronously).
+  kWillBlock
+};
+
+/**
+ * This class is instantiated with CreateBlockingScope() in every scope where a
+ * blocking call is made and serves as a precise annotation of the scope that
+ * may/will block. May be implemented by an embedder to adjust the thread count.
+ * CPU usage should be minimal within that scope. ScopedBlockingCalls can be
+ * nested.
+ */
+class ScopedBlockingCall {
+ public:
+  virtual ~ScopedBlockingCall() = default;
+};
+
+/**
  * The interface represents complex arguments to trace events.
  */
 class ConvertableToTraceFormat {
@@ -1074,6 +1106,14 @@ class Platform {
    */
   virtual std::unique_ptr<JobHandle> CreateJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
+
+  /**
+   * Instantiates a ScopedBlockingCall to annotate a scope that may/will block.
+   */
+  virtual std::unique_ptr<ScopedBlockingCall> CreateBlockingScope(
+      BlockingType blocking_type) {
+    return nullptr;
+  }
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
