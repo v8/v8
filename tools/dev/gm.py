@@ -176,7 +176,7 @@ v8_enable_verify_heap = true
 dcheck_always_on = false
 """
 
-DEBUG_ARGS_TEMPLATE = """\
+DEBUG_ARGS_TEMPLATE = f"""\
 is_component_build = true
 is_debug = true
 symbol_level = 2
