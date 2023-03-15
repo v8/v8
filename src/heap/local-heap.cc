@@ -488,5 +488,10 @@ void LocalHeap::NotifyObjectSizeChange(
                                  update_invalidated_object_size);
 }
 
+void LocalHeap::WeakenDescriptorArrays(
+    GlobalHandleVector<DescriptorArray> strong_descriptor_arrays) {
+  AsHeap()->WeakenDescriptorArrays(std::move(strong_descriptor_arrays));
+}
+
 }  // namespace internal
 }  // namespace v8

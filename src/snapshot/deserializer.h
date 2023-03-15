@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
@@ -94,10 +95,6 @@ class Deserializer : public SerializerDeserializer {
   }
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
-  }
-
-  const std::vector<Handle<DescriptorArray>>& new_descriptor_arrays() const {
-    return new_descriptor_arrays_;
   }
 
   std::shared_ptr<BackingStore> backing_store(size_t i) {
@@ -258,8 +255,11 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Handle<AccessorInfo>> accessor_infos_;
   std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
   std::vector<Handle<Script>> new_scripts_;
-  std::vector<Handle<DescriptorArray>> new_descriptor_arrays_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
+
+  // Roots vector as those arrays are passed to Heap, see
+  // WeakenDescriptorArrays().
+  GlobalHandleVector<DescriptorArray> new_descriptor_arrays_;
 
   // Vector of allocated objects that can be accessed by a backref, by index.
   std::vector<Handle<HeapObject>> back_refs_;

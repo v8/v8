@@ -2407,6 +2407,7 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
       SimpleNumberDictionary::cast(*this).Rehash(isolate);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
+    case STRONG_DESCRIPTOR_ARRAY_TYPE:
       DCHECK_LE(1, DescriptorArray::cast(*this).number_of_descriptors());
       DescriptorArray::cast(*this).Sort();
       break;

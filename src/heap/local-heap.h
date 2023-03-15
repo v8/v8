@@ -14,6 +14,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-callbacks.h"
@@ -179,6 +180,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                  GCType::kGCTypeScavenge |
                                  GCType::kGCTypeMinorMarkCompact));
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
+
+  // Weakens StrongDescriptorArray objects into regular DescriptorArray objects.
+  void WeakenDescriptorArrays(
+      GlobalHandleVector<DescriptorArray> strong_descriptor_arrays);
 
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();

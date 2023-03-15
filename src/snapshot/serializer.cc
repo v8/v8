@@ -11,6 +11,7 @@
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/map.h"
@@ -1235,10 +1236,12 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     } else if (object_->IsDescriptorArray(cage_base)) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.
-      static byte field_value[DescriptorArray::kSizeOfRawGcState] = {0};
+      const auto field_value = DescriptorArrayMarkingState::kInitialGCState;
+      static_assert(sizeof(field_value) == DescriptorArray::kSizeOfRawGcState);
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                DescriptorArray::kRawGcStateOffset,
-                               sizeof(field_value), field_value);
+                               sizeof(field_value),
+                               reinterpret_cast<const byte*>(&field_value));
     } else if (object_->IsCode(cage_base)) {
       // code_entry_point field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot

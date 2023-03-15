@@ -247,14 +247,18 @@ class GlobalHandleVector {
       return *this;
     }
     Handle<T> operator*() { return Handle<T>(&*it_); }
-    bool operator!=(Iterator& that) { return it_ != that.it_; }
+    bool operator==(const Iterator& that) { return it_ == that.it_; }
+    bool operator!=(const Iterator& that) { return it_ != that.it_; }
+
+    T raw() { return T::cast(Object(*it_)); }
 
    private:
     std::vector<Address, StrongRootBlockAllocator>::iterator it_;
   };
 
-  explicit GlobalHandleVector(Heap* heap)
-      : locations_(StrongRootBlockAllocator(heap)) {}
+  explicit inline GlobalHandleVector(Heap* heap);
+  // Usage with LocalHeap is safe.
+  explicit inline GlobalHandleVector(LocalHeap* local_heap);
 
   Handle<T> operator[](size_t i) { return Handle<T>(&locations_[i]); }
 

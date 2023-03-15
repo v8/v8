@@ -517,17 +517,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
-    VisitStrongDescriptorArray(Map map, StrongDescriptorArray array) {
-  concrete_visitor()->marking_state()->GreyToBlack(array);
-  // Swap in state to mark all descriptors.
-  DescriptorArrayMarkingState::TryUpdateIndicesToMark(
-      mark_compact_epoch_, array, array.number_of_descriptors());
-  // Delegate processing to regular descriptor array processing.
-  return VisitDescriptorArray(map, array);
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
     Map map) {
   if (!CanUpdateValuesInHeap() || !map.CanTransition()) return;

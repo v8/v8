@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -195,6 +196,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
     : isolate_(isolate),
       source_(payload),
       magic_number_(magic_number),
+      new_descriptor_arrays_(isolate->heap()),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
                      deserializing_user_code) {
@@ -272,14 +274,7 @@ void Deserializer<IsolateT>::LogNewMapEvents() {
 
 template <typename IsolateT>
 void Deserializer<IsolateT>::WeakenDescriptorArrays() {
-  DisallowGarbageCollection no_gc;
-  Map descriptor_array_map = ReadOnlyRoots(isolate()).descriptor_array_map();
-  for (Handle<DescriptorArray> descriptor_array : new_descriptor_arrays_) {
-    DescriptorArray raw = *descriptor_array;
-    DCHECK(raw.IsStrongDescriptorArray());
-    raw.set_map_safe_transition(descriptor_array_map);
-    WriteBarrier::Marking(raw, raw.number_of_descriptors());
-  }
+  isolate()->heap()->WeakenDescriptorArrays(std::move(new_descriptor_arrays_));
 }
 
 template <typename IsolateT>
@@ -532,7 +527,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
-    new_descriptor_arrays_.push_back(descriptors);
+    new_descriptor_arrays_.Push(*descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     NativeContext::cast(raw_obj).init_microtask_queue(main_thread_isolate(),
                                                       nullptr);

@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/v8-fallthrough.h"
@@ -2986,6 +2987,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // ClearFullMapTransitions must be called before weak references are
     // cleared.
     ClearFullMapTransitions();
+    // Weaken recorded strong DescriptorArray objects. This phase can
+    // potentially move everywhere after `ClearFullMapTransitions()`.
+    WeakenStrongDescriptorArrays();
   }
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
@@ -3411,6 +3415,26 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
     heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
   }
   array.set_number_of_all_descriptors(new_nof_all_descriptors);
+}
+
+void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
+    GlobalHandleVector<DescriptorArray> strong_descriptor_arrays) {
+  DCHECK(heap()->incremental_marking()->IsMajorMarking());
+  base::MutexGuard guard(&strong_descriptor_arrays_mutex_);
+  strong_descriptor_arrays_.push_back(std::move(strong_descriptor_arrays));
+}
+
+void MarkCompactCollector::WeakenStrongDescriptorArrays() {
+  Map descriptor_array_map = ReadOnlyRoots(isolate()).descriptor_array_map();
+  for (auto vec : strong_descriptor_arrays_) {
+    for (auto it = vec.begin(); it != vec.end(); ++it) {
+      DescriptorArray raw = it.raw();
+      DCHECK(raw.IsStrongDescriptorArray());
+      raw.set_map_safe_transition_no_write_barrier(descriptor_array_map);
+      DCHECK_EQ(raw.raw_gc_state(kRelaxedLoad), 0);
+    }
+  }
+  strong_descriptor_arrays_.clear();
 }
 
 void MarkCompactCollector::TrimDescriptorArray(Map map,
