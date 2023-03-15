@@ -2724,6 +2724,16 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     } else {
       for (const compiler::MapRef& map : feedback.maps()) {
         if (map.is_deprecated()) continue;
+
+        // TODO(v8:12547): Support writing to objects in shared space, which
+        // need a write barrier that calls Object::Share to ensure the RHS is
+        // shared.
+        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+                map.instance_type()) &&
+            access_mode == compiler::AccessMode::kStore) {
+          return ReduceResult::Fail();
+        }
+
         compiler::PropertyAccessInfo access_info =
             broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
         access_infos_for_feedback.push_back(access_info);
@@ -3148,6 +3158,45 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   if (!access_info_factory.ComputeElementAccessInfos(feedback, &access_infos) ||
       access_infos.empty()) {
     return ReduceResult::Fail();
+  }
+
+  // TODO(leszeks): This is copied without changes from TurboFan's native
+  // context specialization. We should figure out a way to share this code.
+  //
+  // For holey stores or growing stores, we need to check that the prototype
+  // chain contains no setters for elements, and we need to guard those checks
+  // via code dependencies on the relevant prototype maps.
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStore) {
+    // TODO(v8:7700): We could have a fast path here, that checks for the
+    // common case of Array or Object prototype only and therefore avoids
+    // the zone allocation of this vector.
+    ZoneVector<compiler::MapRef> prototype_maps(zone());
+    for (compiler::ElementAccessInfo const& access_info : access_infos) {
+      for (compiler::MapRef receiver_map :
+           access_info.lookup_start_object_maps()) {
+        // If the {receiver_map} has a prototype and its elements backing
+        // store is either holey, or we have a potentially growing store,
+        // then we need to check that all prototypes have stable maps with
+        // fast elements (and we need to guard against changes to that below).
+        if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
+             IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
+            !receiver_map.HasOnlyStablePrototypesWithFastElements(
+                broker(), &prototype_maps)) {
+          return ReduceResult::Fail();
+        }
+
+        // TODO(v8:12547): Support writing to objects in shared space, which
+        // need a write barrier that calls Object::Share to ensure the RHS is
+        // shared.
+        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+                receiver_map.instance_type())) {
+          return ReduceResult::Fail();
+        }
+      }
+    }
+    for (compiler::MapRef const& prototype_map : prototype_maps) {
+      broker()->dependencies()->DependOnStableMap(prototype_map);
+    }
   }
 
   // Check for monomorphic case.
