@@ -3100,6 +3100,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ jmp(&leave_exit_frame);
 }
 
+MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(
+      fp, (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+              kSystemPointerSize);
+}
+
 }  // namespace
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
@@ -3197,13 +3203,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ add(r0, sp, Operand(1 * kPointerSize));
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
-
-  // There are two stack slots above the arguments we constructed on the stack.
-  // TODO(jgruber): Document what these arguments are.
-  static constexpr int kStackSlotsAboveFCA = 2;
-  MemOperand return_value_operand(
-      fp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kPointerSize);
-
+  MemOperand return_value_operand =
+      ExitFrameCallerStackSlotOperand(FCA::kReturnValueOffset);
   static constexpr int kUseStackSpaceOperand = 0;
   MemOperand stack_space_operand(sp, 4 * kPointerSize);
 
@@ -3216,14 +3217,15 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
-  static_assert(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  static_assert(PropertyCallbackArguments::kHolderIndex == 1);
-  static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
-  static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
-  static_assert(PropertyCallbackArguments::kDataIndex == 5);
-  static_assert(PropertyCallbackArguments::kThisIndex == 6);
-  static_assert(PropertyCallbackArguments::kArgsLength == 7);
+  using PCA = PropertyCallbackArguments;
+  static_assert(PCA::kShouldThrowOnErrorIndex == 0);
+  static_assert(PCA::kHolderIndex == 1);
+  static_assert(PCA::kIsolateIndex == 2);
+  static_assert(PCA::kReturnValueDefaultValueIndex == 3);
+  static_assert(PCA::kReturnValueOffset == 4);
+  static_assert(PCA::kDataIndex == 5);
+  static_assert(PCA::kThisIndex == 6);
+  static_assert(PCA::kArgsLength == 7);
 
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
@@ -3245,13 +3247,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
   // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  constexpr int kNameHandleStackSize = 1;
+  constexpr int kStackUnwindSpace = PCA::kArgsLength + kNameHandleStackSize;
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
   __ mov(r0, sp);                             // r0 = Handle<Name>
   __ add(r1, r0, Operand(1 * kPointerSize));  // r1 = v8::PCI::args_
 
-  const int kApiStackSpace = 1;
+  constexpr int kApiStackSpace = 1;
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
 
@@ -3262,13 +3265,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
-
   __ ldr(api_function_address,
          FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
-
-  // +3 is to skip prolog, return address and name handle.
-  MemOperand return_value_operand(
-      fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+  MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
+      PCA::kReturnValueOffset + kNameHandleStackSize);
   MemOperand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,

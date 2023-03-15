@@ -5184,6 +5184,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ B(&leave_exit_frame);
 }
 
+MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(
+      fp, (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+              kSystemPointerSize);
+}
+
 }  // namespace
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
@@ -5291,12 +5297,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // The current frame needs to be aligned.
   DCHECK_EQ(FCA::kArgsLength % 2, 0);
 
-  // There are two stack slots above the arguments we constructed on the stack.
-  // TODO(jgruber): Document what these arguments are.
-  static constexpr int kStackSlotsAboveFCA = 2;
-  MemOperand return_value_operand(
-      fp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
-
+  MemOperand return_value_operand =
+      ExitFrameCallerStackSlotOperand(FCA::kReturnValueOffset);
   static constexpr int kSpillOffset = 1 + kApiStackSpace;
   static constexpr int kUseStackSpaceOperand = 0;
   MemOperand stack_space_operand(sp, 4 * kSystemPointerSize);
@@ -5308,14 +5310,15 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
-  static_assert(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  static_assert(PropertyCallbackArguments::kHolderIndex == 1);
-  static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
-  static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
-  static_assert(PropertyCallbackArguments::kDataIndex == 5);
-  static_assert(PropertyCallbackArguments::kThisIndex == 6);
-  static_assert(PropertyCallbackArguments::kArgsLength == 7);
+  using PCA = PropertyCallbackArguments;
+  static_assert(PCA::kShouldThrowOnErrorIndex == 0);
+  static_assert(PCA::kHolderIndex == 1);
+  static_assert(PCA::kIsolateIndex == 2);
+  static_assert(PCA::kReturnValueDefaultValueIndex == 3);
+  static_assert(PCA::kReturnValueOffset == 4);
+  static_assert(PCA::kDataIndex == 5);
+  static_assert(PCA::kThisIndex == 6);
+  static_assert(PCA::kArgsLength == 7);
 
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
@@ -5342,8 +5345,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Push(receiver, data, undef, undef, isolate_address, holder, xzr, name);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
-  static const int kStackUnwindSpace =
-      PropertyCallbackArguments::kArgsLength + 1;
+  static constexpr int kNameHandleStackSize = 1;
+  static const int kStackUnwindSpace = PCA::kArgsLength + kNameHandleStackSize;
   static_assert(kStackUnwindSpace % 2 == 0,
                 "slots must be a multiple of 2 for stack pointer alignment");
 
@@ -5363,24 +5366,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ SlotAddress(x1, 1);
   // x1 = v8::PropertyCallbackInfo&
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback();
-
   Register api_function_address = x2;
   __ LoadExternalPointerField(
       api_function_address,
       FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
       kAccessorInfoGetterTag);
 
-  const int spill_offset = 1 + kApiStackSpace;
-  // +3 is to skip prolog, return address and name handle.
-  MemOperand return_value_operand(
-      fp,
-      (PropertyCallbackArguments::kReturnValueOffset + 3) * kSystemPointerSize);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback();
+  static constexpr int kSpillOffset = 1 + kApiStackSpace;
+  MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
+      PCA::kReturnValueOffset + kNameHandleStackSize);
   MemOperand* const kUseStackSpaceConstant = nullptr;
+
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
-                           spill_offset, return_value_operand);
+                           kSpillOffset, return_value_operand);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

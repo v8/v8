@@ -148,6 +148,12 @@ Operand ExitFrameStackSlotOperand(int index) {
 #endif
 }
 
+Operand ExitFrameCallerStackSlotOperand(int index) {
+  return Operand(rbp,
+                 (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+                     kSystemPointerSize);
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -4824,13 +4830,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
-  // There are two stack slots above the arguments we constructed on the stack:
-  // the stored ebp (pushed by EnterExitFrame), and the return address.
-  static constexpr int kStackSlotsAboveFCA = 2;
-  Operand return_value_operand(
-      rbp,
-      (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
-
+  Operand return_value_operand =
+      ExitFrameCallerStackSlotOperand(FCA::kReturnValueOffset);
   static constexpr int kUseExitFrameStackSlotOperand = 0;
   Operand stack_space_operand = ExitFrameStackSlotOperand(3);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, callback_arg,
@@ -4853,14 +4854,15 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
-  static_assert(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  static_assert(PropertyCallbackArguments::kHolderIndex == 1);
-  static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
-  static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
-  static_assert(PropertyCallbackArguments::kDataIndex == 5);
-  static_assert(PropertyCallbackArguments::kThisIndex == 6);
-  static_assert(PropertyCallbackArguments::kArgsLength == 7);
+  using PCA = PropertyCallbackArguments;
+  static_assert(PCA::kShouldThrowOnErrorIndex == 0);
+  static_assert(PCA::kHolderIndex == 1);
+  static_assert(PCA::kIsolateIndex == 2);
+  static_assert(PCA::kReturnValueDefaultValueIndex == 3);
+  static_assert(PCA::kReturnValueOffset == 4);
+  static_assert(PCA::kDataIndex == 5);
+  static_assert(PCA::kThisIndex == 6);
+  static_assert(PCA::kArgsLength == 7);
 
   // Insert additional parameters into the stack frame above return address.
   __ PopReturnAddressTo(scratch);
@@ -4878,8 +4880,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ PushReturnAddressFrom(scratch);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
+  static constexpr int kNameHandleStackSize = 1;
   static constexpr int kStackUnwindSpace =
-      PropertyCallbackArguments::kArgsLength + 1;
+      PCA::kArgsLength + kNameHandleStackSize;
 
   // Load address of v8::PropertyAccessorInfo::args_ array.
   __ leaq(scratch, Operand(rsp, 2 * kSystemPointerSize));
@@ -4901,9 +4904,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // could be used to pass arguments.
   __ leaq(accessor_info_arg, info_object);
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback();
-
   // It's okay if api_function_address == getter_arg, but not accessor_info_arg
   // or name_arg.
   DCHECK(api_function_address != accessor_info_arg);
@@ -4913,11 +4913,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
       kAccessorInfoGetterTag, kScratchRegister);
 
-  // +3 is to skip prolog, return address and name handle.
-  Operand return_value_operand(
-      rbp,
-      (PropertyCallbackArguments::kReturnValueOffset + 3) * kSystemPointerSize);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback();
+  Operand return_value_operand = ExitFrameCallerStackSlotOperand(
+      PCA::kReturnValueOffset + kNameHandleStackSize);
   Operand* const kUseStackSpaceConstant = nullptr;
+
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, getter_arg,
                            kStackUnwindSpace, kUseStackSpaceConstant,
                            return_value_operand);

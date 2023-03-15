@@ -3266,6 +3266,12 @@ Operand ApiParameterOperand(int index) {
   return Operand(esp, index * kSystemPointerSize);
 }
 
+Operand ExitFrameCallerStackSlotOperand(int index) {
+  return Operand(ebp,
+                 (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+                     kSystemPointerSize);
+}
+
 // Prepares stack to put arguments (aligns and so on). Reserves
 // space for return value if needed (assumes the return value is a handle).
 // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
@@ -3526,14 +3532,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ mov(ApiParameterOperand(0), scratch);
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
-
-  // There are two stack slots above the arguments we constructed on the stack:
-  // the stored ebp (pushed by EnterExitFrame), and the return address.
-  static constexpr int kStackSlotsAboveFCA = 2;
-  Operand return_value_operand(
-      ebp,
-      (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
-
+  Operand return_value_operand =
+      ExitFrameCallerStackSlotOperand(FCA::kReturnValueOffset);
   static constexpr int kUseStackSpaceOperand = 0;
   Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
@@ -3544,14 +3544,15 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
-  static_assert(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  static_assert(PropertyCallbackArguments::kHolderIndex == 1);
-  static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
-  static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
-  static_assert(PropertyCallbackArguments::kDataIndex == 5);
-  static_assert(PropertyCallbackArguments::kThisIndex == 6);
-  static_assert(PropertyCallbackArguments::kArgsLength == 7);
+  using PCA = PropertyCallbackArguments;
+  static_assert(PCA::kShouldThrowOnErrorIndex == 0);
+  static_assert(PCA::kHolderIndex == 1);
+  static_assert(PCA::kIsolateIndex == 2);
+  static_assert(PCA::kReturnValueDefaultValueIndex == 3);
+  static_assert(PCA::kReturnValueOffset == 4);
+  static_assert(PCA::kDataIndex == 5);
+  static_assert(PCA::kThisIndex == 6);
+  static_assert(PCA::kArgsLength == 7);
 
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
@@ -3572,7 +3573,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ push(scratch);  // Restore return address.
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  const int kNameHandleStackSize = 1;
+  const int kStackUnwindSpace = PCA::kArgsLength + kNameHandleStackSize;
 
   // Allocate v8::PropertyCallbackInfo object, arguments for callback and
   // space for optional callback address parameter (in case CPU profiler is
@@ -3598,16 +3600,13 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // Reserve space for optional callback address parameter.
   Operand thunk_last_arg = ApiParameterOperand(2);
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback();
-
   Register function_address = edx;
   __ mov(function_address,
          FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
-  // +3 is to skip prolog, return address and name handle.
-  Operand return_value_operand(
-      ebp,
-      (PropertyCallbackArguments::kReturnValueOffset + 3) * kSystemPointerSize);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback();
+  Operand return_value_operand = ExitFrameCallerStackSlotOperand(
+      PCA::kReturnValueOffset + kNameHandleStackSize);
   Operand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, function_address, thunk_ref, thunk_last_arg,
                            kStackUnwindSpace, kUseStackSpaceConstant,
