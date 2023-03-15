@@ -3094,6 +3094,10 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
         if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
           elements_array =
               AddNewNode<EnsureWritableFastElements>({elements_array, object});
+        } else {
+          // Ensure that this is not a COW FixedArray.
+          BuildCheckMaps(elements_array,
+                         base::VectorOf({broker()->fixed_array_map()}));
         }
         ValueNode* value = GetAccumulatorTagged();
         if (IsSmiElementsKind(elements_kind)) {
