@@ -2080,11 +2080,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
-  mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  Jump(kOffHeapTrampolineRegister);
-}
-
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
   cmp(in, Operand(kClearedWeakHeapObjectLower32));

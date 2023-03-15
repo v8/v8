@@ -295,8 +295,6 @@ constexpr Register kPtrComprCageBaseRegister = r14;  // callee save
 constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
 
-constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
-
 constexpr DoubleRegister kFPReturnRegister0 = xmm0;
 
 }  // namespace internal

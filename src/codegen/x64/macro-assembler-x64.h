@@ -766,9 +766,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Pop(Operand dst);
   void PopQuad(Operand dst);
 
-  // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToOffHeapInstructionStream(Address entry);
-
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
   // Incoming register is heap_object and outgoing register is map.

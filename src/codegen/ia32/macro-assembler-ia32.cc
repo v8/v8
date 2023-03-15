@@ -1268,10 +1268,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
-  jmp(entry, RelocInfo::OFF_HEAP_TARGET);
-}
-
 void MacroAssembler::CompareStackLimit(Register with, StackLimitKind kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(root_array_available());

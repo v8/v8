@@ -2140,11 +2140,6 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
   j(cc, code_object, rmode);
 }
 
-void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
-  Move(kOffHeapTrampolineRegister, entry, RelocInfo::OFF_HEAP_TARGET);
-  jmp(kOffHeapTrampolineRegister);
-}
-
 void MacroAssembler::Call(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);

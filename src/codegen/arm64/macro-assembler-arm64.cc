@@ -1942,11 +1942,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
-  Ldr(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  Br(kOffHeapTrampolineRegister);
-}
-
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   ASM_CODE_COMMENT(this);
   const Runtime::Function* function = Runtime::FunctionForId(fid);

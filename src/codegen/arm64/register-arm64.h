@@ -593,7 +593,6 @@ constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = x3;
 constexpr Register kJavaScriptCallExtraArg1Register = x2;
 
-constexpr Register kOffHeapTrampolineRegister = ip0;
 constexpr Register kRuntimeCallFunctionRegister = x1;
 constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;

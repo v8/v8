@@ -1959,9 +1959,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
-  // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToOffHeapInstructionStream(Address entry);
-
   // Registers used through the invocation chain are hard-coded.
   // We force passing the parameters to ensure the contracts are correctly
   // honoured by the caller.

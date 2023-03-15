@@ -620,9 +620,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void JumpToExternalReference(const ExternalReference& ext,
                                bool builtin_exit_frame = false);
 
-  // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToOffHeapInstructionStream(Address entry);
-
   // ---------------------------------------------------------------------------
   // Utilities
 

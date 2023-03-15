@@ -179,39 +179,6 @@ void OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
 
 namespace {
 
-bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
-                                             InstructionStream code) {
-  DCHECK(Builtins::IsIsolateIndependent(code.builtin_id()));
-  switch (Builtins::KindOf(code.builtin_id())) {
-    case Builtins::CPP:
-    case Builtins::TFC:
-    case Builtins::TFH:
-    case Builtins::TFJ:
-    case Builtins::TFS:
-      break;
-
-    // Bytecode handlers will only ever be used by the interpreter and so there
-    // will never be a need to use trampolines with them.
-    case Builtins::BCH:
-    case Builtins::ASM:
-      // TODO(jgruber): Extend checks to remaining kinds.
-      return false;
-  }
-
-  static_assert(CallInterfaceDescriptor::ContextRegister() !=
-                kOffHeapTrampolineRegister);
-
-  Callable callable = Builtins::CallableFor(isolate, code.builtin_id());
-  CallInterfaceDescriptor descriptor = callable.descriptor();
-
-  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
-    Register reg = descriptor.GetRegisterParameter(i);
-    if (reg == kOffHeapTrampolineRegister) return true;
-  }
-
-  return false;
-}
-
 void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
@@ -290,16 +257,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
        ++builtin) {
     InstructionStream code = FromCode(builtins->code(builtin));
 
-    // Sanity-check that the given builtin is isolate-independent and does not
-    // use the trampoline register in its calling convention.
+    // Sanity-check that the given builtin is isolate-independent.
     if (!code.IsIsolateIndependent(isolate)) {
       saw_unsafe_builtin = true;
       fprintf(stderr, "%s is not isolate-independent.\n",
-              Builtins::name(builtin));
-    }
-    if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
-      saw_unsafe_builtin = true;
-      fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
               Builtins::name(builtin));
     }
 
