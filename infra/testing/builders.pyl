@@ -363,11 +363,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      # TODO(https://crbug.com/1265931): Speed things up for now. Later replace
-      # mjsunit and unittests with full v8testing.
-      # {'name': 'v8testing'},
-      {'name': 'mjsunit', 'variant': 'default'},
-      {'name': 'unittests', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'default'},
     ],
   },
   'v8_linux64_cppgc_non_default_dbg': {
@@ -1378,11 +1374,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      # TODO(https://crbug.com/1265931): Speed things up for now. Later replace
-      # mjsunit and unittests with full v8testing.
-      # {'name': 'v8testing'},
-      {'name': 'mjsunit', 'variant': 'default'},
-      {'name': 'unittests', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'default'},
     ],
   },
   'V8 Linux64 - custom snapshot - debug': {
