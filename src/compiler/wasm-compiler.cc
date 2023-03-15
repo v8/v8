@@ -5584,8 +5584,9 @@ Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 WasmTypeCheckConfig config,
                                 wasm::WasmCodePosition position) {
-  // TODO(mliedtke): What should happen with the position?
-  return gasm_->WasmTypeCast(object, rtt, config);
+  Node* cast = gasm_->WasmTypeCast(object, rtt, config);
+  SetSourcePosition(cast, position);
+  return cast;
 }
 
 Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
@@ -5826,6 +5827,7 @@ void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
     }
   } else {
     Node* length = gasm_->ArrayLength(array, null_check);
+    SetSourcePosition(length, position);
     TrapIfFalse(wasm::kTrapArrayOutOfBounds,
                 gasm_->Uint32LessThan(index, length), position);
   }

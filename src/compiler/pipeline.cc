@@ -1515,7 +1515,7 @@ struct JSWasmInliningPhase {
     const bool disable_trap_handler = true;
     WasmGCLowering lowering(&graph_reducer, data->jsgraph(),
                             data->wasm_module_for_inlining(),
-                            disable_trap_handler);
+                            disable_trap_handler, data->source_positions());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &inlining);
@@ -2182,7 +2182,8 @@ struct WasmGCLoweringPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module, false);
+    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module, false,
+                            data->source_positions());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     AddReducer(data, &graph_reducer, &lowering);

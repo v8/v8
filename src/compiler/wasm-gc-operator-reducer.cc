@@ -334,6 +334,9 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
 Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
   // Remove redundant extern.internalize(extern.externalize(...)) pattern.
+  // TODO(mliedtke): Currently this doesn't get fully removed, probably due to
+  // not running dead code elimination in this pipeline step. What would it cost
+  // us to run it here?
   if (NodeProperties::GetValueInput(node, 0)->opcode() ==
       IrOpcode::kWasmExternExternalize) {
     Node* externalize = node->InputAt(0);
