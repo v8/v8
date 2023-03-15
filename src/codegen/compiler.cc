@@ -3436,6 +3436,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
     AlignedCachedData* cached_data, BackgroundDeserializeTask* deserialize_task,
+    v8::CompileHintCallback compile_hint_callback,
+    void* compile_hint_callback_data,
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
@@ -3448,6 +3450,11 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   } else {
     DCHECK_NULL(cached_data);
     DCHECK_NULL(deserialize_task);
+  }
+
+  if (compile_options == ScriptCompiler::kConsumeCompileHints) {
+    DCHECK_NOT_NULL(compile_hint_callback);
+    DCHECK_NOT_NULL(compile_hint_callback_data);
   }
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
@@ -3583,8 +3590,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   return GetSharedFunctionInfoForScriptImpl(
-      isolate, source, script_details, nullptr, nullptr, nullptr,
-      compile_options, no_cache_reason, natives);
+      isolate, source, script_details, nullptr, nullptr, nullptr, nullptr,
+      nullptr, compile_options, no_cache_reason, natives);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3593,8 +3600,9 @@ Compiler::GetSharedFunctionInfoForScriptWithExtension(
     const ScriptDetails& script_details, v8::Extension* extension,
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
   return GetSharedFunctionInfoForScriptImpl(
-      isolate, source, script_details, extension, nullptr, nullptr,
-      compile_options, ScriptCompiler::kNoCacheBecauseV8Extension, natives);
+      isolate, source, script_details, extension, nullptr, nullptr, nullptr,
+      nullptr, compile_options, ScriptCompiler::kNoCacheBecauseV8Extension,
+      natives);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3604,8 +3612,8 @@ Compiler::GetSharedFunctionInfoForScriptWithCachedData(
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   return GetSharedFunctionInfoForScriptImpl(
-      isolate, source, script_details, nullptr, cached_data, nullptr,
-      compile_options, no_cache_reason, natives);
+      isolate, source, script_details, nullptr, cached_data, nullptr, nullptr,
+      nullptr, compile_options, no_cache_reason, natives);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3617,7 +3625,21 @@ Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, nullptr, nullptr, deserialize_task,
-      compile_options, no_cache_reason, natives);
+      nullptr, nullptr, compile_options, no_cache_reason, natives);
+}
+
+MaybeHandle<SharedFunctionInfo>
+Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details,
+    v8::CompileHintCallback compile_hint_callback,
+    void* compile_hint_callback_data,
+    ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+  return GetSharedFunctionInfoForScriptImpl(
+      isolate, source, script_details, nullptr, nullptr, nullptr,
+      compile_hint_callback, compile_hint_callback_data, compile_options,
+      no_cache_reason, natives);
 }
 
 // static

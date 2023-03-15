@@ -216,6 +216,16 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code);
 
+  static MaybeHandle<SharedFunctionInfo>
+  GetSharedFunctionInfoForScriptWithCompileHints(
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details,
+      v8::CompileHintCallback compile_hint_callback,
+      void* compile_hint_callback_data,
+      ScriptCompiler::CompileOptions compile_options,
+      ScriptCompiler::NoCacheReason no_cache_reason,
+      NativesFlag is_natives_code);
+
   // Create a shared function info object for a Script source that has already
   // been parsed and possibly compiled on a background thread while being loaded
   // from a streamed source. On return, the data held by |streaming_data| will

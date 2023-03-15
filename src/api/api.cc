@@ -2706,6 +2706,12 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
               no_cache_reason, i::NOT_NATIVES_CODE);
       source->cached_data->rejected = cached_data->rejected();
     }
+  } else if (options == kConsumeCompileHints) {
+    maybe_function_info =
+        i::Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
+            i_isolate, str, script_details, source->compile_hint_callback,
+            source->compile_hint_callback_data, options, no_cache_reason,
+            i::NOT_NATIVES_CODE);
   } else {
     // Compile without any cache.
     maybe_function_info = i::Compiler::GetSharedFunctionInfoForScript(

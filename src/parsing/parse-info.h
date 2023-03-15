@@ -347,6 +347,14 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   void set_is_streaming_compilation() { is_streaming_compilation_ = true; }
 
+  CompileHintCallback compile_hint_callback() const {
+    return compile_hint_callback_;
+  }
+
+  void* compile_hint_callback_data() const {
+    return compile_hint_callback_data_;
+  }
+
  private:
   ParseInfo(const UnoptimizedCompileFlags flags, UnoptimizedCompileState* state,
             ReusableUnoptimizedCompileState* reusable_state,
@@ -364,6 +372,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uintptr_t stack_limit_;
   int parameters_end_pos_;
   int max_function_literal_id_;
+
+  v8::CompileHintCallback compile_hint_callback_ = nullptr;
+  void* compile_hint_callback_data_ = nullptr;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;

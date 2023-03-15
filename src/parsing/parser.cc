@@ -2685,6 +2685,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), info()->flags().allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
+  if (eager_compile_hint == FunctionLiteral::kShouldLazyCompile) {
+    // Apply compile hints from the embedder.
+    int compile_hint_position = peek_position();
+    v8::CompileHintCallback callback = info()->compile_hint_callback();
+    if (callback != nullptr &&
+        callback(compile_hint_position, info()->compile_hint_callback_data())) {
+      eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
+    }
+  }
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;

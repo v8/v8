@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <functional>
 #include <string>
 
 #include "cppgc/common.h"
@@ -371,6 +372,13 @@ using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_assertions);
+
+/**
+ * Callback for requesting a compile hint for a function from the embedder. The
+ * first parameter is the position of the function in source code and the second
+ * parameter is embedder data to be passed back.
+ */
+using CompileHintCallback = bool (*)(int, void*);
 
 /**
  * HostInitializeImportMetaObjectCallback is called the first time import.meta
