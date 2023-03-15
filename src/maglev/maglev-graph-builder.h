@@ -1010,6 +1010,39 @@ class MaglevGraphBuilder {
     return GetTruncatedInt32FromNumber(current_interpreter_frame_.get(reg));
   }
 
+  ValueNode* GetUint32ClampedFromNumber(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          int32_t value = constant->value().value();
+          if (value < 0) return GetInt32Constant(0);
+          if (value > 255) return GetInt32Constant(255);
+          return GetInt32Constant(constant->value().value());
+        }
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative != nullptr) {
+          return AddNewNode<Int32ToUint8Clamped>(
+              {node_info->int32_alternative});
+        }
+        return AddNewNode<CheckedNumberToUint8Clamped>({value});
+      }
+      case ValueRepresentation::kFloat64: {
+        return AddNewNode<Float64ToUint8Clamped>({value});
+      }
+      case ValueRepresentation::kInt32:
+        return AddNewNode<Int32ToUint8Clamped>({value});
+      case ValueRepresentation::kUint32:
+        return AddNewNode<Uint32ToUint8Clamped>({value});
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetUint32ClampedFromNumber(interpreter::Register reg) {
+    return GetUint32ClampedFromNumber(current_interpreter_frame_.get(reg));
+  }
+
   ValueNode* GetTruncatedInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kWord64:
@@ -1142,6 +1175,11 @@ class MaglevGraphBuilder {
 
   ValueNode* GetAccumulatorTruncatedInt32FromNumber() {
     return GetTruncatedInt32FromNumber(
+        interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorUint32ClampedFromNumber() {
+    return GetUint32ClampedFromNumber(
         interpreter::Register::virtual_accumulator());
   }
 

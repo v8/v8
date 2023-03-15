@@ -523,6 +523,25 @@ inline void MaglevAssembler::NegateInt32(Register val) {
   Neg(val.W(), val.W());
 }
 
+inline void MaglevAssembler::ToUint8Clamped(Register result,
+                                            DoubleRegister value, Label* min,
+                                            Label* max, Label* done) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireDouble();
+  Move(scratch, 0.0);
+  Fcmp(scratch, value);
+  // Set to 0 if NaN.
+  B(vs, min);
+  B(ge, min);
+  Move(scratch, 255.0);
+  Fcmp(value, scratch);
+  B(ge, max);
+  // if value in [0, 255], then round up to the nearest.
+  Frintn(scratch, value);
+  TruncateDoubleToInt32(result, scratch);
+  B(done);
+}
+
 template <typename NodeT>
 inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
                                                    Register scratch,

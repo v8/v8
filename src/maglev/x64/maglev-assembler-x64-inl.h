@@ -404,6 +404,23 @@ inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
 }
 inline void MaglevAssembler::NegateInt32(Register val) { negl(val); }
 
+inline void MaglevAssembler::ToUint8Clamped(Register result,
+                                            DoubleRegister value, Label* min,
+                                            Label* max, Label* done) {
+  Move(kScratchDoubleReg, 0.0);
+  Ucomisd(kScratchDoubleReg, value);
+  // Set to 0 if NaN.
+  j(parity_even, min);
+  j(above_equal, min);
+  Move(kScratchDoubleReg, 255.0);
+  Ucomisd(value, kScratchDoubleReg);
+  j(above_equal, max);
+  // if value in [0, 255], then round up to the nearest.
+  Roundsd(kScratchDoubleReg, value, kRoundToNearest);
+  TruncateDoubleToInt32(result, kScratchDoubleReg);
+  jmp(done);
+}
+
 template <typename NodeT>
 inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
                                                    Register scratch,

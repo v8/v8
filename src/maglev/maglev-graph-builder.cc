@@ -2638,10 +2638,15 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     AddNewNode<Store##Type##TypedArrayElement>(__VA_ARGS__);               \
   }
   switch (elements_kind) {
+    case UINT8_CLAMPED_ELEMENTS: {
+      BUILD_STORE_TYPED_ARRAY(
+          Int, {object, index, GetAccumulatorUint32ClampedFromNumber()},
+          elements_kind)
+      break;
+    }
     case INT8_ELEMENTS:
     case INT16_ELEMENTS:
     case INT32_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:

@@ -2992,6 +2992,100 @@ void UnsafeTruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
+void Int32ToUint8Clamped::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Int32ToUint8Clamped::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  DCHECK_EQ(value, result_reg);
+  Label min, done;
+  __ CompareInt32(value, 0);
+  __ JumpIf(kLessThanEqual, &min);
+  __ CompareInt32(value, 255);
+  __ JumpIf(kLessThanEqual, &done);
+  __ Move(result_reg, 255);
+  __ Jump(&done, Label::Distance::kNear);
+  __ bind(&min);
+  __ Move(result_reg, 0);
+  __ bind(&done);
+}
+
+void Uint32ToUint8Clamped::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Uint32ToUint8Clamped::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register value = ToRegister(input());
+  DCHECK_EQ(value, ToRegister(result()));
+  Label done;
+  __ CompareInt32(value, 255);
+  __ JumpIf(kUnsignedLessThanEqual, &done, Label::Distance::kNear);
+  __ Move(value, 255);
+  __ bind(&done);
+}
+
+void Float64ToUint8Clamped::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToUint8Clamped::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Register result_reg = ToRegister(result());
+  Label min, max, done;
+  __ ToUint8Clamped(result_reg, value, &min, &max, &done);
+  __ bind(&min);
+  __ Move(result_reg, 0);
+  __ Jump(&done, Label::Distance::kNear);
+  __ bind(&max);
+  __ Move(result_reg, 255);
+  __ bind(&done);
+}
+
+void CheckedNumberToUint8Clamped::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
+}
+void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister double_value = temps.AcquireDouble();
+  Label is_not_smi, min, max, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi);
+  // If Smi, convert to Int32.
+  __ SmiToInt32(value);
+  // Clamp.
+  __ CompareInt32(value, 0);
+  __ JumpIf(kLessThanEqual, &min);
+  __ CompareInt32(value, 255);
+  __ JumpIf(kGreaterThanEqual, &max);
+  __ Jump(&done);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
+  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotANumber, this);
+  // If heap number, get double value.
+  __ LoadHeapNumberValue(double_value, value);
+  // Clamp.
+  __ ToUint8Clamped(value, double_value, &min, &max, &done);
+  __ bind(&min);
+  __ Move(result_reg, 0);
+  __ Jump(&done, Label::Distance::kNear);
+  __ bind(&max);
+  __ Move(result_reg, 255);
+  __ bind(&done);
+}
+
 // ---
 // Arch agnostic call nodes
 // ---

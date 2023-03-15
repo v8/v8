@@ -215,6 +215,10 @@ class MergePointInterpreterFrameState;
   V(TruncateFloat64ToInt32)                  \
   V(UnsafeTruncateUint32ToInt32)             \
   V(UnsafeTruncateFloat64ToInt32)            \
+  V(Int32ToUint8Clamped)                     \
+  V(Uint32ToUint8Clamped)                    \
+  V(Float64ToUint8Clamped)                   \
+  V(CheckedNumberToUint8Clamped)             \
   V(Int32ToNumber)                           \
   V(Uint32ToNumber)                          \
   V(Float64Box)                              \
@@ -2613,6 +2617,79 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
 
  private:
   const Float64 value_;
+};
+
+class Int32ToUint8Clamped
+    : public FixedInputValueNodeT<1, Int32ToUint8Clamped> {
+  using Base = FixedInputValueNodeT<1, Int32ToUint8Clamped>;
+
+ public:
+  explicit Int32ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Uint32ToUint8Clamped
+    : public FixedInputValueNodeT<1, Uint32ToUint8Clamped> {
+  using Base = FixedInputValueNodeT<1, Uint32ToUint8Clamped>;
+
+ public:
+  explicit Uint32ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64ToUint8Clamped
+    : public FixedInputValueNodeT<1, Float64ToUint8Clamped> {
+  using Base = FixedInputValueNodeT<1, Float64ToUint8Clamped>;
+
+ public:
+  explicit Float64ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedNumberToUint8Clamped
+    : public FixedInputValueNodeT<1, CheckedNumberToUint8Clamped> {
+  using Base = FixedInputValueNodeT<1, CheckedNumberToUint8Clamped>;
+
+ public:
+  explicit CheckedNumberToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {

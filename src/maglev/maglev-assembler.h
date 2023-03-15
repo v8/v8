@@ -225,6 +225,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void SignExtend32To64Bits(Register dst, Register src);
   inline void NegateInt32(Register val);
 
+  inline void ToUint8Clamped(Register result, DoubleRegister value, Label* min,
+                             Label* max, Label* done);
+
   template <typename NodeT>
   inline void DeoptIfBufferDetached(Register array, Register scratch,
                                     NodeT* node);
