@@ -1175,9 +1175,9 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   } else {
     __ Cmp(byte_length, index);
   }
-  // We use {lo} which does an unsigned comparison to handle negative
-  // indices as well.
-  __ EmitEagerDeoptIf(lo, DeoptimizeReason::kOutOfBounds, this);
+  // We use an unsigned comparison to handle negative indices as well.
+  __ EmitEagerDeoptIf(kUnsignedLessThanEqual, DeoptimizeReason::kOutOfBounds,
+                      this);
 }
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
