@@ -1429,6 +1429,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerObjectIsNaN(node);
       break;
     case IrOpcode::kNumberIsNaN:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsNaN(node);
       break;
     case IrOpcode::kObjectIsNonCallable:
@@ -4707,6 +4708,7 @@ Node* EffectControlLinearizer::LowerObjectIsNaN(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsNaN(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* number = node->InputAt(0);
   Node* diff = __ Float64Equal(number, number);
   Node* check = __ Word32Equal(diff, __ Int32Constant(0));

@@ -115,6 +115,7 @@ struct FrameStateOp;
   V(StaticAssert)                    \
   V(CheckTurboshaftTypeOf)           \
   V(ObjectIs)                        \
+  V(FloatIs)                         \
   V(ConvertToObject)                 \
   V(ConvertToObjectOrDeopt)          \
   V(ConvertObjectToPrimitive)        \
@@ -2465,6 +2466,29 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind);
 std::ostream& operator<<(std::ostream& os,
                          ObjectIsOp::InputAssumptions input_assumptions);
+
+struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
+  enum class Kind : uint8_t {
+    kNaN,
+  };
+  Kind kind;
+  FloatRepresentation input_rep;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  FloatIsOp(OpIndex input, Kind kind, FloatRepresentation input_rep)
+      : Base(input), kind(kind), input_rep(input_rep) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), input_rep));
+  }
+  auto options() const { return std::tuple{kind, input_rep}; }
+};
+std::ostream& operator<<(std::ostream& os, FloatIsOp::Kind kind);
 
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   enum class Kind : uint8_t {

@@ -665,6 +665,9 @@ OpIndex GraphBuilder::Process(
       return __ TaggedBitcast(Map(node->InputAt(0)),
                               RegisterRepresentation::PointerSized(),
                               RegisterRepresentation::Tagged());
+    case IrOpcode::kNumberIsNaN:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kNaN,
+                        FloatRepresentation::Float64());
 
 #define OBJECT_IS_CASE(kind)                                             \
   case IrOpcode::kObjectIs##kind: {                                      \

@@ -223,6 +223,7 @@ class TypeInferenceAnalysis {
         case Opcode::kLoadException:
         case Opcode::kTailCall:
         case Opcode::kObjectIs:
+        case Opcode::kFloatIs:
         case Opcode::kConvertToObject:
         case Opcode::kConvertToObjectOrDeopt:
         case Opcode::kConvertObjectToPrimitive:

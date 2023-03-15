@@ -850,6 +850,13 @@ class AssemblerOpInterface {
     }
     return stack().ReduceObjectIs(input, kind, input_assumptions);
   }
+  OpIndex FloatIs(OpIndex input, FloatIsOp::Kind kind,
+                  FloatRepresentation input_rep) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceFloatIs(input, kind, input_rep);
+  }
   V<Word32> ObjectIsSmi(V<Tagged> object) {
     return ObjectIs(object, ObjectIsOp::Kind::kSmi,
                     ObjectIsOp::InputAssumptions::kNone);
