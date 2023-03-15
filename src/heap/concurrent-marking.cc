@@ -38,6 +38,16 @@
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
 
+// These strings can be sources of safe string transitions. Transitions are safe
+// if they don't result in invalidated slots. It's safe to read the length field
+// on such strings as that's common for all.
+//
+// No special visitors are generated for such strings.
+// V(VisitorId, Typename)
+#define SAFE_STRING_TRANSITION_SOURCES(V) \
+  V(SeqOneByteString, SeqOneByteString)   \
+  V(SeqTwoByteString, SeqTwoByteString)
+
 // These strings can be sources of unsafe string transitions.
 // V(VisitorId, TypeName)
 #define UNSAFE_STRING_TRANSITION_SOURCES(V) \
@@ -120,75 +130,18 @@ class YoungGenerationConcurrentMarkingVisitor final
             heap->isolate(), worklists_local),
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
-  bool ShouldMarkObject(HeapObject object) const {
-    return !object.InAnySharedSpace() && !object.InReadOnlySpace();
-  }
-
-  void SynchronizePageAccess(HeapObject heap_object) {
-#ifdef THREAD_SANITIZER
-    // This is needed because TSAN does not process the memory fence
-    // emitted after page initialization.
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
-#endif
-  }
+  using YoungGenerationMarkingVisitorBase<
+      YoungGenerationConcurrentMarkingVisitor,
+      ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  // Used by utility functions
-  void MarkObject(HeapObject host, HeapObject object) {
-    if (Heap::InYoungGeneration(object)) {
-      SynchronizePageAccess(object);
-      MarkObjectViaMarkingWorklist(object);
-    }
-  }
-
-  using YoungGenerationMarkingVisitorBase<
-      YoungGenerationConcurrentMarkingVisitor,
-      ConcurrentMarkingState>::VisitMapPointerIfNeeded;
-
-  int VisitJSObject(Map map, JSObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSObjectFast(Map map, JSObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSDataViewOrRabGsabDataView(Map map,
-                                       JSDataViewOrRabGsabDataView object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSFunction(Map map, JSFunction object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSTypedArray(Map map, JSTypedArray object) {
-    return VisitJSObjectSubclass(map, object);
+  bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
   }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
@@ -198,22 +151,7 @@ class YoungGenerationConcurrentMarkingVisitor final
   UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
 
-  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
   void VisitMapPointer(HeapObject host) final { UNREACHABLE(); }
-
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
@@ -223,6 +161,17 @@ class YoungGenerationConcurrentMarkingVisitor final
  private:
   ConcurrentMarkingState marking_state_;
 };
+
+#define UNCHECKED_CAST(VisitorId, TypeName)                                   \
+  template <>                                                                 \
+  TypeName YoungGenerationConcurrentMarkingVisitor::Cast(HeapObject object) { \
+    return TypeName::unchecked_cast(object);                                  \
+  }
+SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+// Casts are also needed for unsafe ones for the initial dispatch in
+// HeapVisitor.
+UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+#undef UNCHECKED_CAST
 
 class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
@@ -243,46 +192,17 @@ class ConcurrentMarkingVisitor final
         marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
+  using MarkingVisitorBase<ConcurrentMarkingVisitor,
+                           ConcurrentMarkingState>::VisitMapPointerIfNeeded;
+
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  using MarkingVisitorBase<ConcurrentMarkingVisitor,
-                           ConcurrentMarkingState>::VisitMapPointerIfNeeded;
-
-  int VisitJSObject(Map map, JSObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSObjectFast(Map map, JSObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSSynchronizationPrimitive(Map map,
-                                      JSSynchronizationPrimitive object) {
-    return VisitJSObjectSubclass(map, object);
+  bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
   }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
@@ -291,18 +211,6 @@ class ConcurrentMarkingVisitor final
   }
   UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
-
-  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
@@ -319,15 +227,12 @@ class ConcurrentMarkingVisitor final
     return false;
   }
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
+
+  ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
   void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
@@ -345,8 +250,6 @@ class ConcurrentMarkingVisitor final
     data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
-  ConcurrentMarkingState* marking_state() { return &marking_state_; }
-
   TraceRetainingPathMode retaining_path_mode() {
     return TraceRetainingPathMode::kDisabled;
   }
@@ -358,32 +261,16 @@ class ConcurrentMarkingVisitor final
                                   ConcurrentMarkingState>;
 };
 
-// Strings can change maps due to conversion to thin string or external strings.
-// Use unchecked cast to avoid data race in slow dchecks.
-template <>
-ConsString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return ConsString::unchecked_cast(object);
-}
-
-template <>
-SlicedString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SlicedString::unchecked_cast(object);
-}
-
-template <>
-ThinString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return ThinString::unchecked_cast(object);
-}
-
-template <>
-SeqOneByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SeqOneByteString::unchecked_cast(object);
-}
-
-template <>
-SeqTwoByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SeqTwoByteString::unchecked_cast(object);
-}
+#define UNCHECKED_CAST(VisitorId, TypeName)                    \
+  template <>                                                  \
+  TypeName ConcurrentMarkingVisitor::Cast(HeapObject object) { \
+    return TypeName::unchecked_cast(object);                   \
+  }
+SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+// Casts are also needed for unsafe ones for the initial dispatch in
+// HeapVisitor.
+UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+#undef UNCHECKED_CAST
 
 // The Deserializer changes the map from StrongDescriptorArray to
 // DescriptorArray
