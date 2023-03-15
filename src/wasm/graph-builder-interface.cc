@@ -193,8 +193,8 @@ class WasmGraphBuildingInterface {
       if (branch_hints_it != decoder->module_->branch_hints.end()) {
         branch_hints_ = &branch_hints_it->second;
       }
-      TypeFeedbackStorage& feedbacks = decoder->module_->type_feedback;
-      base::MutexGuard mutex_guard(&feedbacks.mutex);
+      const TypeFeedbackStorage& feedbacks = decoder->module_->type_feedback;
+      base::SharedMutexGuard<base::kShared> mutex_guard(&feedbacks.mutex);
       auto feedback = feedbacks.feedback_for_function.find(func_index_);
       if (feedback != feedbacks.feedback_for_function.end()) {
         // This creates a copy of the vector, which is cheaper than holding on

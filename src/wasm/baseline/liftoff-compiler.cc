@@ -1100,7 +1100,8 @@ class LiftoffCompiler {
         !encountered_call_instructions_.empty()) {
       // Update the call targets stored in the WasmModule.
       TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
-      base::MutexGuard mutex_guard(&type_feedback.mutex);
+      base::SharedMutexGuard<base::kExclusive> mutex_guard(
+          &type_feedback.mutex);
       base::OwnedVector<uint32_t>& call_targets =
           type_feedback.feedback_for_function[func_index_].call_targets;
       if (call_targets.empty()) {

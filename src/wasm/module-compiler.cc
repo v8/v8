@@ -1270,7 +1270,9 @@ class TransitiveTypeFeedbackProcessor {
   DisallowGarbageCollection no_gc_scope_;
   WasmInstanceObject instance_;
   const WasmModule* const module_;
-  base::MutexGuard mutex_guard;
+  // TODO(jkummerow): Check if it makes a difference to apply any updates
+  // as a single batch at the end.
+  base::SharedMutexGuard<base::kExclusive> mutex_guard;
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
   std::set<int> queue_;
 };
@@ -1409,7 +1411,8 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
   const WasmModule* module = native_module->module();
   int priority;
   {
-    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+        &module->type_feedback.mutex);
     int array_index =
         wasm::declared_function_index(instance.module(), func_index);
     instance.tiering_budget_array()[array_index] = v8_flags.wasm_tiering_budget;
