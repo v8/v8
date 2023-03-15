@@ -9,6 +9,7 @@
 #include "src/execution/v8threads.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
+#include "src/logging/counters-scopes.h"
 #include "src/objects/slots.h"
 #include "src/roots/static-roots.h"
 #include "src/snapshot/snapshot-data.h"
@@ -23,6 +24,8 @@ ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                    can_rehash) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
+  NestedTimedHistogramScope histogram_timer(
+      isolate()->counters()->snapshot_deserialize_rospace());
   HandleScope scope(isolate());
 
   ReadOnlyHeap* ro_heap = isolate()->read_only_heap();

@@ -139,6 +139,14 @@ namespace internal {
   HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
+  /* Snapshot. */                                                             \
+  HT(snapshot_deserialize_rospace, V8.SnapshotDeserializeRoSpaceMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  HT(snapshot_deserialize_isolate, V8.SnapshotDeserializeIsolateMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  HT(snapshot_deserialize_context, V8.SnapshotDeserializeContextMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  /* ... and also see compile_deserialize above. */                           \
   /* Total compilation time incl. caching/parsing. */                         \
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
 
