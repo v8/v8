@@ -891,44 +891,7 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  ValueNode* GetTaggedValue(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged:
-        return value;
-      case ValueRepresentation::kInt32: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->tagged_alternative == nullptr) {
-          if (NodeTypeIsSmi(node_info->type)) {
-            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
-          } else {
-            node_info->tagged_alternative = AddNewNode<Int32ToNumber>({value});
-          }
-        }
-        return node_info->tagged_alternative;
-      }
-      case ValueRepresentation::kUint32: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->tagged_alternative == nullptr) {
-          if (NodeTypeIsSmi(node_info->type)) {
-            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
-          } else {
-            node_info->tagged_alternative = AddNewNode<Uint32ToNumber>({value});
-          }
-        }
-        return node_info->tagged_alternative;
-      }
-      case ValueRepresentation::kFloat64: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->tagged_alternative == nullptr) {
-          node_info->tagged_alternative = AddNewNode<Float64Box>({value});
-        }
-        return node_info->tagged_alternative;
-      }
-    }
-    UNREACHABLE();
-  }
+  ValueNode* GetTaggedValue(ValueNode* value);
 
   ValueNode* GetTaggedValue(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
@@ -940,220 +903,43 @@ class MaglevGraphBuilder {
     known_info->type = type;
   }
 
-  ValueNode* GetInternalizedString(interpreter::Register reg) {
-    ValueNode* node = GetTaggedValue(reg);
-    if (known_node_aspects()
-            .GetOrCreateInfoFor(node)
-            ->is_internalized_string()) {
-      return node;
-    }
-    if (Constant* constant = node->TryCast<Constant>()) {
-      if (constant->object().IsInternalizedString()) {
-        SetKnownType(constant, NodeType::kInternalizedString);
-        return constant;
-      }
-    }
-    node = AddNewNode<CheckedInternalizedString>({node});
-    SetKnownType(node, NodeType::kInternalizedString);
-    current_interpreter_frame_.set(reg, node);
-    return node;
+  ValueNode* GetInternalizedString(interpreter::Register reg);
+
+  ValueNode* GetTruncatedInt32FromNumber(
+      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+
+  ValueNode* GetTruncatedInt32FromNumber(
+      interpreter::Register reg,
+      TaggedToFloat64ConversionType conversion_type) {
+    return GetTruncatedInt32FromNumber(current_interpreter_frame_.get(reg),
+                                       conversion_type);
   }
 
-  ValueNode* GetTruncatedInt32FromNumber(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged: {
-        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          return GetInt32Constant(constant->value().value());
-        }
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative != nullptr) {
-          return node_info->int32_alternative;
-        }
-        if (node_info->truncated_int32_alternative != nullptr) {
-          return node_info->truncated_int32_alternative;
-        }
-        NodeType old_type;
-        EnsureType(value, NodeType::kNumber, &old_type);
-        if (NodeTypeIsSmi(old_type)) {
-          node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
-          return node_info->int32_alternative;
-        }
-        if (NodeTypeIsNumber(old_type)) {
-          node_info->truncated_int32_alternative =
-              AddNewNode<TruncateNumberToInt32>({value});
-        } else {
-          node_info->truncated_int32_alternative =
-              AddNewNode<CheckedTruncateNumberToInt32>({value});
-        }
-        return node_info->truncated_int32_alternative;
-      }
-      case ValueRepresentation::kFloat64: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->truncated_int32_alternative == nullptr) {
-          node_info->truncated_int32_alternative =
-              AddNewNode<TruncateFloat64ToInt32>({value});
-        }
-        return node_info->truncated_int32_alternative;
-      }
-      case ValueRepresentation::kInt32:
-        // Already good.
-        return value;
-      case ValueRepresentation::kUint32:
-        return AddNewNode<TruncateUint32ToInt32>({value});
-    }
-    UNREACHABLE();
-  }
-
-  ValueNode* GetTruncatedInt32FromNumber(interpreter::Register reg) {
-    return GetTruncatedInt32FromNumber(current_interpreter_frame_.get(reg));
-  }
-
-  ValueNode* GetUint32ClampedFromNumber(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged: {
-        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          int32_t value = constant->value().value();
-          if (value < 0) return GetInt32Constant(0);
-          if (value > 255) return GetInt32Constant(255);
-          return GetInt32Constant(constant->value().value());
-        }
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative != nullptr) {
-          return AddNewNode<Int32ToUint8Clamped>(
-              {node_info->int32_alternative});
-        }
-        return AddNewNode<CheckedNumberToUint8Clamped>({value});
-      }
-      case ValueRepresentation::kFloat64: {
-        return AddNewNode<Float64ToUint8Clamped>({value});
-      }
-      case ValueRepresentation::kInt32:
-        return AddNewNode<Int32ToUint8Clamped>({value});
-      case ValueRepresentation::kUint32:
-        return AddNewNode<Uint32ToUint8Clamped>({value});
-    }
-    UNREACHABLE();
-  }
+  ValueNode* GetUint32ClampedFromNumber(ValueNode* value);
 
   ValueNode* GetUint32ClampedFromNumber(interpreter::Register reg) {
     return GetUint32ClampedFromNumber(current_interpreter_frame_.get(reg));
   }
 
-  ValueNode* GetTruncatedInt32(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged:
-      case ValueRepresentation::kFloat64:
-        return GetInt32(value);
-      case ValueRepresentation::kInt32:
-        // Already good.
-        return value;
-      case ValueRepresentation::kUint32:
-        return AddNewNode<TruncateUint32ToInt32>({value});
-    }
-    UNREACHABLE();
-  }
+  ValueNode* GetTruncatedInt32(ValueNode* node);
 
   ValueNode* GetTruncatedInt32(interpreter::Register reg) {
     return GetTruncatedInt32(current_interpreter_frame_.get(reg));
   }
 
-  ValueNode* GetInt32(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged: {
-        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          return GetInt32Constant(constant->value().value());
-        }
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative == nullptr) {
-          node_info->int32_alternative = BuildSmiUntag(value);
-        }
-        return node_info->int32_alternative;
-      }
-      case ValueRepresentation::kInt32:
-        return value;
-      case ValueRepresentation::kUint32: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative == nullptr) {
-          if (node_info->is_smi()) {
-            node_info->int32_alternative =
-                AddNewNode<TruncateUint32ToInt32>({value});
-          } else {
-            node_info->int32_alternative =
-                AddNewNode<CheckedUint32ToInt32>({value});
-          }
-        }
-        return node_info->int32_alternative;
-      }
-      case ValueRepresentation::kFloat64: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative == nullptr) {
-          node_info->int32_alternative =
-              AddNewNode<CheckedTruncateFloat64ToInt32>({value});
-        }
-        return node_info->int32_alternative;
-      }
-    }
-    UNREACHABLE();
-  }
+  ValueNode* GetInt32(ValueNode* value);
 
   ValueNode* GetInt32(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
     return GetInt32(value);
   }
 
-  ValueNode* GetFloat64(ValueNode* value) {
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kWord64:
-        UNREACHABLE();
-      case ValueRepresentation::kTagged: {
-        if (Constant* constant = value->TryCast<Constant>()) {
-          if (constant->object().IsHeapNumber()) {
-            return GetFloat64Constant(
-                constant->object().AsHeapNumber().value());
-          }
-        }
-        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          return GetFloat64Constant(constant->value().value());
-        }
+  ValueNode* GetFloat64(ValueNode* value,
+                        TaggedToFloat64ConversionType conversion_type);
 
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->float64_alternative == nullptr) {
-          node_info->float64_alternative = BuildFloat64Unbox(value);
-        }
-        return node_info->float64_alternative;
-      }
-      case ValueRepresentation::kInt32: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->float64_alternative == nullptr) {
-          node_info->float64_alternative =
-              AddNewNode<ChangeInt32ToFloat64>({value});
-        }
-        return node_info->float64_alternative;
-      }
-      case ValueRepresentation::kUint32: {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->float64_alternative == nullptr) {
-          node_info->float64_alternative =
-              AddNewNode<ChangeUint32ToFloat64>({value});
-        }
-        return node_info->float64_alternative;
-      }
-      case ValueRepresentation::kFloat64:
-        return value;
-    }
-    UNREACHABLE();
-  }
-
-  ValueNode* GetFloat64(interpreter::Register reg) {
-    return GetFloat64(current_interpreter_frame_.get(reg));
+  ValueNode* GetFloat64(interpreter::Register reg,
+                        TaggedToFloat64ConversionType conversion_type) {
+    return GetFloat64(current_interpreter_frame_.get(reg), conversion_type);
   }
 
   ValueNode* GetRawAccumulator() {
@@ -1173,9 +959,10 @@ class MaglevGraphBuilder {
     return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorTruncatedInt32FromNumber() {
+  ValueNode* GetAccumulatorTruncatedInt32FromNumber(
+      TaggedToFloat64ConversionType conversion_type) {
     return GetTruncatedInt32FromNumber(
-        interpreter::Register::virtual_accumulator());
+        interpreter::Register::virtual_accumulator(), conversion_type);
   }
 
   ValueNode* GetAccumulatorUint32ClampedFromNumber() {
@@ -1183,8 +970,10 @@ class MaglevGraphBuilder {
         interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorFloat64() {
-    return GetFloat64(interpreter::Register::virtual_accumulator());
+  ValueNode* GetAccumulatorFloat64(
+      TaggedToFloat64ConversionType conversion_type) {
+    return GetFloat64(interpreter::Register::virtual_accumulator(),
+                      conversion_type);
   }
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
@@ -1210,8 +999,10 @@ class MaglevGraphBuilder {
     return GetTruncatedInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadRegisterFloat64(int operand_index) {
-    return GetFloat64(iterator_.GetRegisterOperand(operand_index));
+  ValueNode* LoadRegisterFloat64(
+      int operand_index, TaggedToFloat64ConversionType conversion_type) {
+    return GetFloat64(iterator_.GetRegisterOperand(operand_index),
+                      conversion_type);
   }
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* node, int index) {
@@ -1576,7 +1367,8 @@ class MaglevGraphBuilder {
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
-  ValueNode* BuildFloat64Unbox(ValueNode* node);
+  ValueNode* BuildNumberOrOddballToFloat64(
+      ValueNode* node, TaggedToFloat64ConversionType conversion_type);
 
   void BuildCheckSmi(ValueNode* object);
   void BuildCheckNumber(ValueNode* object);
@@ -1734,21 +1526,27 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   void BuildInt32UnaryOperationNode();
-  void BuildTruncatingInt32BitwiseNotForNumber();
+  void BuildTruncatingInt32BitwiseNotForNumber(
+      TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();
   template <Operation kOperation>
-  void BuildTruncatingInt32BinaryOperationNodeForNumber();
+  void BuildTruncatingInt32BinaryOperationNodeForNumber(
+      TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildTruncatingInt32BinarySmiOperationNodeForNumber();
+  void BuildTruncatingInt32BinarySmiOperationNodeForNumber(
+      TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildFloat64UnaryOperationNode();
+  void BuildFloat64UnaryOperationNode(
+      TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildFloat64BinaryOperationNode();
+  void BuildFloat64BinaryOperationNode(
+      TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildFloat64BinarySmiOperationNode();
+  void BuildFloat64BinarySmiOperationNode(
+      TaggedToFloat64ConversionType conversion_type);
 
   template <Operation kOperation>
   void VisitUnaryOperation();

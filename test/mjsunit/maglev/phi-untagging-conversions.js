@@ -30,7 +30,6 @@ unused_unneeded_CheckedSmiUntag(0);
 %OptimizeMaglevOnNextCall(unused_unneeded_CheckedSmiUntag);
 unused_unneeded_CheckedSmiUntag(1);
 
-
 // This example is similar as the previous one, except that the graph will
 // contain a CheckedTruncateNumberToInt32 instead of the CheckedSmiUntag:
 //
@@ -48,9 +47,10 @@ unused_unneeded_CheckedSmiUntag(1);
 //
 // A side-effect of have this truncation is that it ensures that its input is a
 // boxed Float64, which means that subsequent untagging can use
-// UnsafeFloat64Unbox instead of CheckedFloat64Unbox. This is what is used here
-// when doing `let as_double = phi + 0.6`. This UnsafeFloat64Unbox will just be
-// dropped, since the input (the phi) is already an unboxed Float64.
+// UncheckedNumberToFloat64 instead of CheckedNumberToFloat64. This is what is
+// used here when doing `let as_double = phi + 0.6`. This
+// UncheckedNumberToFloat64 will just be dropped, since the input (the phi) is
+// already an unboxed Float64.
 
 function unused_unneeded_CheckedTruncateNumberToInt32(x) {
   let c1 = x + 0.5;

@@ -8,10 +8,10 @@ function f(x) {
   x++; // Making sure {x} has a Float64 alternative
   let phi = x || 0;  // Creating a Phi whose inputs are Smi and Float64. Phi
                      // untagging will make this a Float64 phi.
-  phi + 1;  // Float64 operation with {phi}, which will cause insert a
-            // CheckedFloat64Unbox(phi). After phi untagging, the
-            // CheckedFloat64Unbox will be killed, resulting in the addition to
-            // take {phi} directly as input.
+  phi + 1;           // Float64 operation with {phi}, which will cause insert a
+                     // CheckedNumberToFloat64(phi). After phi untagging, the
+            // CheckedNumberToFloat64 will be killed, resulting in the addition
+            // to take {phi} directly as input.
   phi << 4;  // Int operation with {phi}, which will produce a
              // TruncateNumberToInt32(phi). TruncateNumberToInt32 doesn't check
              // if the input is a Number, and call into runtime if necessary to

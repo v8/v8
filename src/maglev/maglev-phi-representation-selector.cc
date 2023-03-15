@@ -138,10 +138,10 @@ bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
     case Opcode::kCheckedSmiUntag:
     case Opcode::kUnsafeSmiUntag:
     case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberToInt32:
-    case Opcode::kTruncateNumberToInt32:
-    case Opcode::kCheckedFloat64Unbox:
-    case Opcode::kUnsafeFloat64Unbox:
+    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
+    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kUncheckedNumberOrOddballToFloat64:
       return true;
     default:
       return false;
@@ -253,8 +253,8 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   // we have Float64 phi and will happily truncate it, but the 3rd one should
   // deopt if it cannot be converted without loss of precision.
   bool conversion_is_truncating_float64 =
-      old_untagging->Is<CheckedTruncateNumberToInt32>() ||
-      old_untagging->Is<TruncateNumberToInt32>();
+      old_untagging->Is<CheckedTruncateNumberOrOddballToInt32>() ||
+      old_untagging->Is<TruncateNumberOrOddballToInt32>();
 
   base::Optional<Opcode> needed_conversion = GetOpcodeForCheckedConversion(
       from_repr, to_repr, conversion_is_truncating_float64);

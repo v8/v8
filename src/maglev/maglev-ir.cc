@@ -1692,7 +1692,7 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
   __ CompareObjectTypeRange(target, FIRST_STRING_TYPE, LAST_STRING_TYPE);
 
   __ JumpToDeferredIf(
-      kLessThanEqual,
+      kUnsignedLessThanEqual,
       [](MaglevAssembler* masm, CheckValueEqualsString* node,
          ZoneLabelRef end) {
         Register target = D::GetRegisterParameter(D::kLeft);
@@ -4004,6 +4004,26 @@ void CheckMapsWithMigration::PrintParams(
 void CheckInt32Condition::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << condition_ << ")";
+}
+
+void CheckedNumberOrOddballToFloat64::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << conversion_type() << ")";
+}
+
+void UncheckedNumberOrOddballToFloat64::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << conversion_type() << ")";
+}
+
+void CheckedTruncateNumberOrOddballToInt32::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << conversion_type() << ")";
+}
+
+void TruncateNumberOrOddballToInt32::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << conversion_type() << ")";
 }
 
 void LoadTaggedField::PrintParams(std::ostream& os,

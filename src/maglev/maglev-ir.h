@@ -203,14 +203,14 @@ class MergePointInterpreterFrameState;
   V(UnsafeSmiUntag)                          \
   V(CheckedInternalizedString)               \
   V(CheckedObjectToIndex)                    \
-  V(CheckedTruncateNumberToInt32)            \
+  V(CheckedTruncateNumberOrOddballToInt32)   \
   V(CheckedInt32ToUint32)                    \
   V(CheckedUint32ToInt32)                    \
   V(ChangeInt32ToFloat64)                    \
   V(ChangeUint32ToFloat64)                   \
   V(CheckedTruncateFloat64ToInt32)           \
   V(CheckedTruncateFloat64ToUint32)          \
-  V(TruncateNumberToInt32)                   \
+  V(TruncateNumberOrOddballToInt32)          \
   V(TruncateUint32ToInt32)                   \
   V(TruncateFloat64ToInt32)                  \
   V(UnsafeTruncateUint32ToInt32)             \
@@ -224,8 +224,8 @@ class MergePointInterpreterFrameState;
   V(Float64Box)                              \
   V(HoleyFloat64Box)                         \
   V(CheckedSmiTagFloat64)                    \
-  V(CheckedFloat64Unbox)                     \
-  V(UnsafeFloat64Unbox)                      \
+  V(CheckedNumberOrOddballToFloat64)         \
+  V(UncheckedNumberOrOddballToFloat64)       \
   V(LogicalNot)                              \
   V(SetPendingMessage)                       \
   V(StringAt)                                \
@@ -440,6 +440,11 @@ enum class ValueRepresentation : uint8_t {
   kWord64
 };
 
+enum class TaggedToFloat64ConversionType : uint8_t {
+  kNumber,
+  kNumberOrOddball,
+};
+
 constexpr Condition ConditionFor(Operation cond);
 
 bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
@@ -475,21 +480,26 @@ inline std::ostream& operator<<(std::ostream& os,
                                 const ValueRepresentation& repr) {
   switch (repr) {
     case ValueRepresentation::kTagged:
-      os << "Tagged";
-      break;
+      return os << "Tagged";
     case ValueRepresentation::kInt32:
-      os << "Int32";
-      break;
+      return os << "Int32";
     case ValueRepresentation::kUint32:
-      os << "Uint32";
-      break;
+      return os << "Uint32";
     case ValueRepresentation::kFloat64:
-      os << "Float64";
-      break;
+      return os << "Float64";
     case ValueRepresentation::kWord64:
-      os << "Word64";
+      return os << "Word64";
   }
-  return os;
+}
+
+inline std::ostream& operator<<(
+    std::ostream& os, const TaggedToFloat64ConversionType& conversion_type) {
+  switch (conversion_type) {
+    case TaggedToFloat64ConversionType::kNumber:
+      return os << "Number";
+    case TaggedToFloat64ConversionType::kNumberOrOddball:
+      return os << "NumberOrOddball";
+  }
 }
 
 inline bool HasOnlyJSTypedArrayMaps(base::Vector<const compiler::MapRef> maps) {
@@ -2962,16 +2972,18 @@ DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, Float64, OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(UnsafeTruncateUint32ToInt32, Uint32, OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, Float64,
                      OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(TruncateNumberToInt32, Tagged, OpProperties::Int32())
 
 #undef DEFINE_TRUNCATE_NODE
 
-class CheckedFloat64Unbox
-    : public FixedInputValueNodeT<1, CheckedFloat64Unbox> {
-  using Base = FixedInputValueNodeT<1, CheckedFloat64Unbox>;
+class CheckedNumberOrOddballToFloat64
+    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
+  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64>;
 
  public:
-  explicit CheckedFloat64Unbox(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedNumberOrOddballToFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Float64() |
@@ -2983,14 +2995,26 @@ class CheckedFloat64Unbox
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+  }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      NextBitField<TaggedToFloat64ConversionType, 1>;
 };
 
-class UnsafeFloat64Unbox : public FixedInputValueNodeT<1, UnsafeFloat64Unbox> {
-  using Base = FixedInputValueNodeT<1, UnsafeFloat64Unbox>;
+class UncheckedNumberOrOddballToFloat64
+    : public FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64> {
+  using Base = FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64>;
 
  public:
-  explicit UnsafeFloat64Unbox(uint64_t bitfield) : Base(bitfield) {}
+  explicit UncheckedNumberOrOddballToFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::ConversionNode();
@@ -3001,15 +3025,55 @@ class UnsafeFloat64Unbox : public FixedInputValueNodeT<1, UnsafeFloat64Unbox> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+  }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      NextBitField<TaggedToFloat64ConversionType, 1>;
 };
 
-class CheckedTruncateNumberToInt32
-    : public FixedInputValueNodeT<1, CheckedTruncateNumberToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedTruncateNumberToInt32>;
+class TruncateNumberOrOddballToInt32
+    : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32>;
 
  public:
-  explicit CheckedTruncateNumberToInt32(uint64_t bitfield) : Base(bitfield) {}
+  explicit TruncateNumberOrOddballToInt32(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties ::Int32();
+  static constexpr
+      typename Base ::InputTypes kInputTypes{ValueRepresentation ::kTagged};
+
+  Input& input() { return Node ::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std ::ostream&, MaglevGraphLabeller*) const;
+
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+  }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      NextBitField<TaggedToFloat64ConversionType, 1>;
+};
+
+class CheckedTruncateNumberOrOddballToInt32
+    : public FixedInputValueNodeT<1, CheckedTruncateNumberOrOddballToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedTruncateNumberOrOddballToInt32>;
+
+ public:
+  explicit CheckedTruncateNumberOrOddballToInt32(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
@@ -3020,7 +3084,15 @@ class CheckedTruncateNumberToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+  }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      NextBitField<TaggedToFloat64ConversionType, 1>;
 };
 
 class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {

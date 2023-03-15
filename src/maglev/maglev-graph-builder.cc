@@ -40,6 +40,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/type-hints.h"
 
 namespace v8::internal::maglev {
 
@@ -608,6 +609,264 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       nullptr);
 }
 
+ValueNode* MaglevGraphBuilder::GetTaggedValue(ValueNode* value) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged:
+      return value;
+    case ValueRepresentation::kInt32: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->tagged_alternative == nullptr) {
+        if (NodeTypeIsSmi(node_info->type)) {
+          node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+        } else {
+          node_info->tagged_alternative = AddNewNode<Int32ToNumber>({value});
+        }
+      }
+      return node_info->tagged_alternative;
+    }
+    case ValueRepresentation::kUint32: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->tagged_alternative == nullptr) {
+        if (NodeTypeIsSmi(node_info->type)) {
+          node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+        } else {
+          node_info->tagged_alternative = AddNewNode<Uint32ToNumber>({value});
+        }
+      }
+      return node_info->tagged_alternative;
+    }
+    case ValueRepresentation::kFloat64: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->tagged_alternative == nullptr) {
+        node_info->tagged_alternative = AddNewNode<Float64Box>({value});
+      }
+      return node_info->tagged_alternative;
+    }
+  }
+  UNREACHABLE();
+}
+
+ValueNode* MaglevGraphBuilder::GetInternalizedString(
+    interpreter::Register reg) {
+  ValueNode* node = GetTaggedValue(reg);
+  if (known_node_aspects().GetOrCreateInfoFor(node)->is_internalized_string()) {
+    return node;
+  }
+  if (Constant* constant = node->TryCast<Constant>()) {
+    if (constant->object().IsInternalizedString()) {
+      SetKnownType(constant, NodeType::kInternalizedString);
+      return constant;
+    }
+  }
+  node = AddNewNode<CheckedInternalizedString>({node});
+  SetKnownType(node, NodeType::kInternalizedString);
+  current_interpreter_frame_.set(reg, node);
+  return node;
+}
+
+namespace {
+NodeType TaggedToFloat64ConversionTypeToNodeType(
+    TaggedToFloat64ConversionType conversion_type) {
+  switch (conversion_type) {
+    case TaggedToFloat64ConversionType::kNumber:
+      return NodeType::kNumber;
+    case TaggedToFloat64ConversionType::kNumberOrOddball:
+      return NodeType::kNumberOrOddball;
+  }
+}
+}  // namespace
+
+ValueNode* MaglevGraphBuilder::GetTruncatedInt32FromNumber(
+    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged: {
+      if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+        return GetInt32Constant(constant->value().value());
+      }
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->int32_alternative != nullptr) {
+        return node_info->int32_alternative;
+      }
+      if (node_info->truncated_int32_alternative != nullptr) {
+        return node_info->truncated_int32_alternative;
+      }
+      NodeType old_type;
+      NodeType desired_type =
+          TaggedToFloat64ConversionTypeToNodeType(conversion_type);
+      EnsureType(value, desired_type, &old_type);
+      if (NodeTypeIsSmi(old_type)) {
+        return node_info->int32_alternative =
+                   AddNewNode<UnsafeSmiUntag>({value});
+      }
+      if (NodeTypeIs(old_type, desired_type)) {
+        return node_info->truncated_int32_alternative =
+                   AddNewNode<TruncateNumberOrOddballToInt32>({value},
+                                                              conversion_type);
+      }
+      return node_info->truncated_int32_alternative =
+                 AddNewNode<CheckedTruncateNumberOrOddballToInt32>(
+                     {value}, conversion_type);
+      UNREACHABLE();
+    }
+    case ValueRepresentation::kFloat64: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->truncated_int32_alternative == nullptr) {
+        node_info->truncated_int32_alternative =
+            AddNewNode<TruncateFloat64ToInt32>({value});
+      }
+      return node_info->truncated_int32_alternative;
+    }
+    case ValueRepresentation::kInt32:
+      // Already good.
+      return value;
+    case ValueRepresentation::kUint32:
+      return AddNewNode<TruncateUint32ToInt32>({value});
+  }
+  UNREACHABLE();
+}
+
+ValueNode* MaglevGraphBuilder::GetTruncatedInt32(ValueNode* value) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kFloat64:
+      return GetInt32(value);
+    case ValueRepresentation::kInt32:
+      // Already good.
+      return value;
+    case ValueRepresentation::kUint32:
+      return AddNewNode<TruncateUint32ToInt32>({value});
+  }
+  UNREACHABLE();
+}
+
+ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged: {
+      if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+        return GetInt32Constant(constant->value().value());
+      }
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->int32_alternative == nullptr) {
+        node_info->int32_alternative = BuildSmiUntag(value);
+      }
+      return node_info->int32_alternative;
+    }
+    case ValueRepresentation::kInt32:
+      return value;
+    case ValueRepresentation::kUint32: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->int32_alternative == nullptr) {
+        if (node_info->is_smi()) {
+          node_info->int32_alternative =
+              AddNewNode<TruncateUint32ToInt32>({value});
+        } else {
+          node_info->int32_alternative =
+              AddNewNode<CheckedUint32ToInt32>({value});
+        }
+      }
+      return node_info->int32_alternative;
+    }
+    case ValueRepresentation::kFloat64: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->int32_alternative == nullptr) {
+        node_info->int32_alternative =
+            AddNewNode<CheckedTruncateFloat64ToInt32>({value});
+      }
+      return node_info->int32_alternative;
+    }
+  }
+  UNREACHABLE();
+}
+
+ValueNode* MaglevGraphBuilder::GetFloat64(
+    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged: {
+      if (Constant* constant = value->TryCast<Constant>()) {
+        if (constant->object().IsHeapNumber()) {
+          return GetFloat64Constant(constant->object().AsHeapNumber().value());
+        }
+      }
+      if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+        return GetFloat64Constant(constant->value().value());
+      }
+      if (conversion_type == TaggedToFloat64ConversionType::kNumberOrOddball) {
+        if (RootConstant* constant = value->TryCast<RootConstant>()) {
+          Object root_object = local_isolate_->root(constant->index());
+          if (root_object.IsOddball(local_isolate_)) {
+            return GetFloat64Constant(
+                Oddball::cast(root_object).to_number_raw());
+          }
+        }
+      }
+
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->float64_alternative == nullptr) {
+        node_info->float64_alternative =
+            BuildNumberOrOddballToFloat64(value, conversion_type);
+      }
+      return node_info->float64_alternative;
+    }
+    case ValueRepresentation::kInt32: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->float64_alternative == nullptr) {
+        node_info->float64_alternative =
+            AddNewNode<ChangeInt32ToFloat64>({value});
+      }
+      return node_info->float64_alternative;
+    }
+    case ValueRepresentation::kUint32: {
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->float64_alternative == nullptr) {
+        node_info->float64_alternative =
+            AddNewNode<ChangeUint32ToFloat64>({value});
+      }
+      return node_info->float64_alternative;
+    }
+    case ValueRepresentation::kFloat64:
+      return value;
+  }
+  UNREACHABLE();
+}
+
+ValueNode* MaglevGraphBuilder::GetUint32ClampedFromNumber(ValueNode* value) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged: {
+      if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+        int32_t value = constant->value().value();
+        if (value < 0) return GetInt32Constant(0);
+        if (value > 255) return GetInt32Constant(255);
+        return GetInt32Constant(constant->value().value());
+      }
+      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (node_info->int32_alternative != nullptr) {
+        return AddNewNode<Int32ToUint8Clamped>({node_info->int32_alternative});
+      }
+      return AddNewNode<CheckedNumberToUint8Clamped>({value});
+    }
+    case ValueRepresentation::kFloat64: {
+      return AddNewNode<Float64ToUint8Clamped>({value});
+    }
+    case ValueRepresentation::kInt32:
+      return AddNewNode<Int32ToUint8Clamped>({value});
+    case ValueRepresentation::kUint32:
+      return AddNewNode<Uint32ToUint8Clamped>({value});
+  }
+  UNREACHABLE();
+}
+
 namespace {
 template <Operation kOperation>
 struct NodeForOperationHelper;
@@ -776,10 +1035,11 @@ void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
   SetAccumulator(AddNewNode<OpNodeT>({value}));
 }
 
-void MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForNumber() {
+void MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForNumber(
+    TaggedToFloat64ConversionType conversion_type) {
   // TODO(v8:7700): Do constant folding.
-  ValueNode* value =
-      GetTruncatedInt32FromNumber(current_interpreter_frame_.accumulator());
+  ValueNode* value = GetTruncatedInt32FromNumber(
+      current_interpreter_frame_.accumulator(), conversion_type);
   SetAccumulator(AddNewNode<Int32BitwiseNot>({value}));
 }
 
@@ -844,19 +1104,22 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForNumber() {
+void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForNumber(
+    TaggedToFloat64ConversionType conversion_type) {
   DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
   ValueNode* left;
   ValueNode* right;
   if (IsRegisterEqualToAccumulator(0)) {
     left = right = GetTruncatedInt32FromNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)));
+        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
+        conversion_type);
   } else {
     left = GetTruncatedInt32FromNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)));
-    right =
-        GetTruncatedInt32FromNumber(current_interpreter_frame_.accumulator());
+        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
+        conversion_type);
+    right = GetTruncatedInt32FromNumber(
+        current_interpreter_frame_.accumulator(), conversion_type);
   }
 
   if (ValueNode* result =
@@ -900,11 +1163,12 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForNumber() {
+void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForNumber(
+    TaggedToFloat64ConversionType conversion_type) {
   DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left =
-      GetTruncatedInt32FromNumber(current_interpreter_frame_.accumulator());
+  ValueNode* left = GetTruncatedInt32FromNumber(
+      current_interpreter_frame_.accumulator(), conversion_type);
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
@@ -924,18 +1188,20 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForNumber() {
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
+void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode(
+    TaggedToFloat64ConversionType conversion_type) {
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = GetAccumulatorFloat64();
+  ValueNode* left = GetAccumulatorFloat64(conversion_type);
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   ValueNode* right = GetFloat64Constant(constant);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildFloat64UnaryOperationNode() {
+void MaglevGraphBuilder::BuildFloat64UnaryOperationNode(
+    TaggedToFloat64ConversionType conversion_type) {
   // TODO(v8:7700): Do constant folding.
-  ValueNode* value = GetAccumulatorFloat64();
+  ValueNode* value = GetAccumulatorFloat64(conversion_type);
   switch (kOperation) {
     case Operation::kNegate:
       SetAccumulator(AddNewNode<Float64Negate>({value}));
@@ -953,12 +1219,34 @@ void MaglevGraphBuilder::BuildFloat64UnaryOperationNode() {
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
+void MaglevGraphBuilder::BuildFloat64BinaryOperationNode(
+    TaggedToFloat64ConversionType conversion_type) {
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = LoadRegisterFloat64(0);
-  ValueNode* right = GetAccumulatorFloat64();
+  ValueNode* left = LoadRegisterFloat64(0, conversion_type);
+  ValueNode* right = GetAccumulatorFloat64(conversion_type);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
+
+namespace {
+TaggedToFloat64ConversionType HintToTaggedToFloat64ConversionType(
+    BinaryOperationHint hint) {
+  switch (hint) {
+    case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kNumber:
+      return TaggedToFloat64ConversionType::kNumber;
+    case BinaryOperationHint::kNumberOrOddball:
+      return TaggedToFloat64ConversionType::kNumberOrOddball;
+
+    case BinaryOperationHint::kNone:
+    case BinaryOperationHint::kSignedSmall:
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kBigInt:
+    case BinaryOperationHint::kBigInt64:
+    case BinaryOperationHint::kAny:
+      UNREACHABLE();
+  }
+}
+}  // namespace
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitUnaryOperation() {
@@ -971,13 +1259,21 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
       return BuildInt32UnaryOperationNode<kOperation>();
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
+    case BinaryOperationHint::kNumberOrOddball: {
+      TaggedToFloat64ConversionType conversion_type =
+          HintToTaggedToFloat64ConversionType(
+              nexus.GetBinaryOperationFeedback());
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         static_assert(kOperation == Operation::kBitwiseNot);
-        return BuildTruncatingInt32BitwiseNotForNumber();
+        return BuildTruncatingInt32BitwiseNotForNumber(conversion_type);
       }
-      return BuildFloat64UnaryOperationNode<kOperation>();
+      return BuildFloat64UnaryOperationNode<kOperation>(conversion_type);
       break;
-    default:
+    }
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kBigInt:
+    case BinaryOperationHint::kBigInt64:
+    case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
   }
@@ -1000,13 +1296,22 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
+    case BinaryOperationHint::kNumberOrOddball: {
+      TaggedToFloat64ConversionType conversion_type =
+          HintToTaggedToFloat64ConversionType(
+              nexus.GetBinaryOperationFeedback());
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
-        return BuildTruncatingInt32BinaryOperationNodeForNumber<kOperation>();
+        return BuildTruncatingInt32BinaryOperationNodeForNumber<kOperation>(
+            conversion_type);
       } else {
-        return BuildFloat64BinaryOperationNode<kOperation>();
+        return BuildFloat64BinaryOperationNode<kOperation>(conversion_type);
       }
       break;
-    default:
+    }
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kBigInt:
+    case BinaryOperationHint::kBigInt64:
+    case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
   }
@@ -1029,14 +1334,22 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
       }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
+    case BinaryOperationHint::kNumberOrOddball: {
+      TaggedToFloat64ConversionType conversion_type =
+          HintToTaggedToFloat64ConversionType(
+              nexus.GetBinaryOperationFeedback());
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
-        return BuildTruncatingInt32BinarySmiOperationNodeForNumber<
-            kOperation>();
+        return BuildTruncatingInt32BinarySmiOperationNodeForNumber<kOperation>(
+            conversion_type);
       } else {
-        return BuildFloat64BinarySmiOperationNode<kOperation>();
+        return BuildFloat64BinarySmiOperationNode<kOperation>(conversion_type);
       }
       break;
-    default:
+    }
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kBigInt:
+    case BinaryOperationHint::kBigInt64:
+    case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
   }
@@ -1115,8 +1428,13 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       return;
     }
     case CompareOperationHint::kNumber: {
-      ValueNode* left = LoadRegisterFloat64(0);
-      ValueNode* right = GetAccumulatorFloat64();
+      // TODO(leszeks): we could support kNumberOrOddball with
+      // BranchIfFloat64Compare, but we'd need to special case comparing
+      // oddballs with NaN value (e.g. undefined) against themselves.
+      ValueNode* left =
+          LoadRegisterFloat64(0, TaggedToFloat64ConversionType::kNumber);
+      ValueNode* right =
+          GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber);
       if (TryBuildBranchFor<BranchIfFloat64Compare>({left, right},
                                                     kOperation)) {
         return;
@@ -1158,7 +1476,14 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
       return;
     }
-    default:
+    case CompareOperationHint::kNumberOrOddball:
+    case CompareOperationHint::kNumberOrBoolean:
+    case CompareOperationHint::kString:
+    case CompareOperationHint::kBigInt:
+    case CompareOperationHint::kBigInt64:
+    case CompareOperationHint::kReceiver:
+    case CompareOperationHint::kReceiverOrNullOrUndefined:
+    case CompareOperationHint::kAny:
       // Fallback to generic node.
       break;
   }
@@ -1735,16 +2060,19 @@ ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   }
 }
 
-ValueNode* MaglevGraphBuilder::BuildFloat64Unbox(ValueNode* node) {
+ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
+    ValueNode* node, TaggedToFloat64ConversionType conversion_type) {
   NodeType old_type;
-  if (EnsureType(node, NodeType::kNumber, &old_type)) {
+  if (EnsureType(node, TaggedToFloat64ConversionTypeToNodeType(conversion_type),
+                 &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = AddNewNode<UnsafeSmiUntag>({node});
       return AddNewNode<ChangeInt32ToFloat64>({untagged_smi});
     }
-    return AddNewNode<UnsafeFloat64Unbox>({node});
+    return AddNewNode<UncheckedNumberOrOddballToFloat64>({node},
+                                                         conversion_type);
   } else {
-    return AddNewNode<CheckedFloat64Unbox>({node});
+    return AddNewNode<CheckedNumberOrOddballToFloat64>({node}, conversion_type);
   }
 }
 
@@ -2223,7 +2551,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
 
   ValueNode* value;
   if (field_representation.IsDouble()) {
-    value = GetAccumulatorFloat64();
+    value = GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber);
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
       value = AddNewNode<Float64Box>({value});
@@ -2650,14 +2978,19 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(
-          Int, {object, index, GetAccumulatorTruncatedInt32FromNumber()},
-          elements_kind)
+      BUILD_STORE_TYPED_ARRAY(Int,
+                              {object, index,
+                               GetAccumulatorTruncatedInt32FromNumber(
+                                   TaggedToFloat64ConversionType::kNumber)},
+                              elements_kind)
       break;
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(Double, {object, index, GetAccumulatorFloat64()},
-                              elements_kind)
+      BUILD_STORE_TYPED_ARRAY(
+          Double,
+          {object, index,
+           GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber)},
+          elements_kind)
       break;
     default:
       UNREACHABLE();
@@ -2755,7 +3088,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
           AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
       if (IsDoubleElementsKind(elements_kind)) {
         AddNewNode<StoreFixedDoubleArrayElement>(
-            {elements_array, index, GetAccumulatorFloat64()});
+            {elements_array, index,
+             GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber)});
       } else {
         if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
           elements_array =
@@ -3719,8 +4053,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
 ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() != 1) return ReduceResult::Fail();
-  return AddNewNode<BuiltinStringFromCharCode>(
-      {GetTruncatedInt32FromNumber(args[0])});
+  return AddNewNode<BuiltinStringFromCharCode>({GetTruncatedInt32FromNumber(
+      args[0], TaggedToFloat64ConversionType::kNumber)});
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
@@ -3857,7 +4191,7 @@ ReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreDoubleDataViewElement>(
       args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
-        return value ? GetFloat64(value)
+        return value ? GetFloat64(value, TaggedToFloat64ConversionType::kNumber)
                      : GetFloat64Constant(
                            std::numeric_limits<double>::quiet_NaN());
       });
@@ -3921,13 +4255,14 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
     case ValueRepresentation::kTagged:
       if (CheckType(arg, NodeType::kSmi)) return arg;
       if (CheckType(arg, NodeType::kNumber)) {
-        arg = GetFloat64(arg);
+        arg = GetFloat64(arg, TaggedToFloat64ConversionType::kNumber);
       } else {
         LazyDeoptContinuationScope continuation_scope(
             this, Float64Round::continuation(kind));
         ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
             {GetContext(), arg}, Object::Conversion::kToNumber);
-        arg = AddNewNode<UnsafeFloat64Unbox>({conversion});
+        arg = AddNewNode<UncheckedNumberOrOddballToFloat64>(
+            {conversion}, TaggedToFloat64ConversionType::kNumber);
       }
       break;
     case ValueRepresentation::kWord64:
@@ -3965,8 +4300,9 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     // The Math.pow call will be created in CallKnownJSFunction reduction.
     return ReduceResult::Fail();
   }
-  ValueNode* left = GetFloat64(args[0]);
-  ValueNode* right = GetFloat64(args[1]);
+  ValueNode* left = GetFloat64(args[0], TaggedToFloat64ConversionType::kNumber);
+  ValueNode* right =
+      GetFloat64(args[1], TaggedToFloat64ConversionType::kNumber);
   return AddNewNode<Float64Exponentiate>({left, right});
 }
 
@@ -3991,15 +4327,16 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
   V(MathTan, tan)                     \
   V(MathTanh, tanh)
 
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(Name, IeeeOp)               \
-  ReduceResult MaglevGraphBuilder::TryReduce##Name(                 \
-      compiler::JSFunctionRef target, CallArguments& args) {        \
-    if (args.count() < 1) {                                         \
-      return GetRootConstant(RootIndex::kNanValue);                 \
-    }                                                               \
-    ValueNode* value = GetFloat64(args[0]);                         \
-    return AddNewNode<Float64Ieee754Unary>(                         \
-        {value}, ExternalReference::ieee754_##IeeeOp##_function()); \
+#define MATH_UNARY_IEEE_BUILTIN_REDUCER(Name, IeeeOp)                \
+  ReduceResult MaglevGraphBuilder::TryReduce##Name(                  \
+      compiler::JSFunctionRef target, CallArguments& args) {         \
+    if (args.count() < 1) {                                          \
+      return GetRootConstant(RootIndex::kNanValue);                  \
+    }                                                                \
+    ValueNode* value =                                               \
+        GetFloat64(args[0], TaggedToFloat64ConversionType::kNumber); \
+    return AddNewNode<Float64Ieee754Unary>(                          \
+        {value}, ExternalReference::ieee754_##IeeeOp##_function());  \
   }
 
 MAP_MATH_UNARY_TO_IEEE_754(MATH_UNARY_IEEE_BUILTIN_REDUCER)
@@ -4984,7 +5321,11 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
       }
       AddNewNode<CheckNumber>({value}, mode);
       break;
-    default:
+    case BinaryOperationHint::kNone:
+    // TODO(leszeks): Faster ToNumber for kNumberOrOddball
+    case BinaryOperationHint::kNumberOrOddball:
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kAny:
       if (CheckType(value, NodeType::kNumber)) return;
       SetAccumulator(
           AddNewNode<ToNumberOrNumeric>({GetContext(), value}, mode));

@@ -70,15 +70,17 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
 // checked for AnyHeapObject with a single bit check.
 #define NODE_TYPE_LIST(V)                                         \
   V(Unknown, 0)                                                   \
-  V(Number, (1 << 0))                                             \
-  V(ObjectWithKnownMap, (1 << 1))                                 \
-  V(Smi, (1 << 2) | kObjectWithKnownMap | kNumber)                \
-  V(AnyHeapObject, (1 << 3))                                      \
-  V(Name, (1 << 4) | kAnyHeapObject)                              \
-  V(String, (1 << 5) | kName)                                     \
-  V(InternalizedString, (1 << 6) | kString)                       \
-  V(Symbol, (1 << 7) | kName)                                     \
-  V(JSReceiver, (1 << 8) | kAnyHeapObject)                        \
+  V(NumberOrOddball, (1 << 1))                                    \
+  V(Number, (1 << 2) | kNumberOrOddball)                          \
+  V(Oddball, (1 << 3) | kNumberOrOddball)                         \
+  V(ObjectWithKnownMap, (1 << 4))                                 \
+  V(Smi, (1 << 5) | kObjectWithKnownMap | kNumber)                \
+  V(AnyHeapObject, (1 << 6))                                      \
+  V(Name, (1 << 7) | kAnyHeapObject)                              \
+  V(String, (1 << 8) | kName)                                     \
+  V(InternalizedString, (1 << 9) | kString)                       \
+  V(Symbol, (1 << 10) | kName)                                    \
+  V(JSReceiver, (1 << 11) | kAnyHeapObject)                       \
   V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
   V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
   V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
