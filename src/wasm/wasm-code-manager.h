@@ -405,11 +405,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return ForDebuggingField::decode(flags_);
   }
 
-  // Returns {true} for Liftoff code that includes call count tracking for
-  // later (in Turbofan) inlining purposes.
-  // TODO(jkummerow): This can be dropped when we ship Wasm inlining.
-  bool for_inlining() const { return ForInliningField::decode(flags_); }
-
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
  private:
@@ -424,8 +419,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const byte> reloc_info,
            base::Vector<const byte> source_position_table,
            base::Vector<const byte> inlining_positions, Kind kind,
-           ExecutionTier tier, ForDebugging for_debugging,
-           bool for_inlining = false)
+           ExecutionTier tier, ForDebugging for_debugging)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         meta_data_(
@@ -445,8 +439,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         code_comments_offset_(code_comments_offset),
         unpadded_binary_size_(unpadded_binary_size),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
-               ForDebuggingField::encode(for_debugging) |
-               ForInliningField::encode(for_inlining)) {
+               ForDebuggingField::encode(for_debugging)) {
     DCHECK_LE(safepoint_table_offset, unpadded_binary_size);
     DCHECK_LE(handler_table_offset, unpadded_binary_size);
     DCHECK_LE(code_comments_offset, unpadded_binary_size);
@@ -514,7 +507,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   using KindField = base::BitField8<Kind, 0, 2>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
-  using ForInliningField = ForDebuggingField::Next<bool, 1>;
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
@@ -874,7 +866,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const byte> protected_instructions_data,
       base::Vector<const byte> source_position_table,
       base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
-      ExecutionTier tier, ForDebugging for_debugging, bool for_inlining,
+      ExecutionTier tier, ForDebugging for_debugging,
       base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableLocked(int jump_table_size);

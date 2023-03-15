@@ -769,8 +769,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void PrepareTailCall(int num_callee_stack_params,
                               int stack_param_delta);
   inline void AlignFrameSize();
-  inline void PatchPrepareStackFrame(int offset, SafepointTableBuilder*,
-                                     bool feedback_vector_slot);
+  inline void PatchPrepareStackFrame(int offset, SafepointTableBuilder*);
   inline void FinishCode();
   inline void AbortCompilation();
   inline static constexpr int StaticStackFrameSize();

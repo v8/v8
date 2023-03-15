@@ -1295,7 +1295,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
                 "WasmExitFrame has one slot more than WasmFrame");
 
   int frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
-  if (wasm_code->is_liftoff() && wasm_code->for_inlining()) {
+  if (wasm_code->is_liftoff() && v8_flags.wasm_speculative_inlining) {
     // Frame has Wasm feedback slot.
     frame_header_size += kSystemPointerSize;
   }

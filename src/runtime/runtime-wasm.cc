@@ -265,9 +265,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   ClearThreadInWasmScope wasm_flag(isolate);
+  DCHECK(v8_flags.wasm_speculative_inlining);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  DCHECK(wasm::WasmFeatures::FromIsolate(isolate).has_inlining());
   Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
                                       isolate);
   int declared_func_index = args.smi_value_at(1);
@@ -283,11 +283,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
   const wasm::WasmModule* module = native_module->module();
   int func_index = declared_func_index + module->num_imported_functions;
-  int num_slots = native_module->enabled_features().has_inlining()
-                      ? NumFeedbackSlots(module, func_index)
-                      : 0;
-  Handle<FixedArray> vector =
-      isolate->factory()->NewFixedArrayWithZeroes(num_slots);
+  Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+      NumFeedbackSlots(module, func_index));
   DCHECK_EQ(instance->feedback_vectors().get(declared_func_index), Smi::zero());
   instance->feedback_vectors().set(declared_func_index, *vector);
   return *vector;

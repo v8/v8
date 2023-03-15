@@ -37,7 +37,7 @@ void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
 }
 
 int WasmInliner::GetCallCount(Node* call) {
-  if (!env_->enabled_features.has_inlining()) return 0;
+  if (!v8_flags.wasm_speculative_inlining) return 0;
   return mcgraph()->GetCallCount(call->id());
 }
 
@@ -98,7 +98,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   // If liftoff ran and collected call counts, only inline calls that have been
   // invoked often, except for truly tiny functions.
-  if (v8_flags.liftoff && env_->enabled_features.has_inlining() &&
+  if (v8_flags.liftoff && v8_flags.wasm_speculative_inlining &&
       wire_byte_size >= 12 && call_count < min_count_for_inlining) {
     Trace(call, inlinee_index, "not called often enough");
     return NoChange();
