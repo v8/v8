@@ -2124,6 +2124,7 @@ ScriptCompiler::StreamedSource::~StreamedSource() = default;
 
 Local<Script> UnboundScript::BindToCurrentContext() {
   i::Handle<i::SharedFunctionInfo> function_info = Utils::OpenHandle(this);
+  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!function_info->InReadOnlySpace());
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*function_info);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -2136,6 +2137,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 
 int UnboundScript::GetId() const {
   i::Handle<i::SharedFunctionInfo> function_info = Utils::OpenHandle(this);
+  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!function_info->InReadOnlySpace());
   API_RCS_SCOPE(i::GetIsolateFromWritableObject(*function_info), UnboundScript,
                 GetId);
@@ -2145,6 +2147,8 @@ int UnboundScript::GetId() const {
 int UnboundScript::GetLineNumber(int code_pos) {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -2159,6 +2163,8 @@ int UnboundScript::GetLineNumber(int code_pos) {
 int UnboundScript::GetColumnNumber(int code_pos) {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -2173,6 +2179,8 @@ int UnboundScript::GetColumnNumber(int code_pos) {
 Local<Value> UnboundScript::GetScriptName() {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -2187,6 +2195,8 @@ Local<Value> UnboundScript::GetScriptName() {
 Local<Value> UnboundScript::GetSourceURL() {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceURL);
@@ -2201,6 +2211,8 @@ Local<Value> UnboundScript::GetSourceURL() {
 Local<Value> UnboundScript::GetSourceMappingURL() {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceMappingURL);
@@ -2215,6 +2227,8 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
 Local<Value> UnboundModuleScript::GetSourceURL() {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceURL);
@@ -2229,6 +2243,8 @@ Local<Value> UnboundModuleScript::GetSourceURL() {
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
   i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
+    // gone.
     DCHECK(!obj->InReadOnlySpace());
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceMappingURL);
@@ -2303,8 +2319,10 @@ Local<Data> ScriptOrModule::HostDefinedOptions() {
 Local<UnboundScript> Script::GetUnboundScript() {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::JSFunction> obj = Utils::OpenHandle(this);
-  return ToApiHandle<UnboundScript>(
-      i::handle(obj->shared(), obj->GetIsolate()));
+  i::Handle<i::SharedFunctionInfo> sfi =
+      i::handle(obj->shared(), obj->GetIsolate());
+  DCHECK(!sfi->InReadOnlySpace());
+  return ToApiHandle<UnboundScript>(sfi);
 }
 
 Local<Value> Script::GetResourceName() {
@@ -2720,6 +2738,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   }
 
   has_pending_exception = !maybe_function_info.ToHandle(&result);
+  DCHECK_IMPLIES(!has_pending_exception, !result->InReadOnlySpace());
   RETURN_ON_FAILED_EXECUTION(UnboundScript);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
@@ -3014,6 +3033,7 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundScript> unbound_script) {
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound_script);
+  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!shared->InReadOnlySpace());
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -3026,6 +3046,7 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundModuleScript> unbound_module_script) {
   i::Handle<i::SharedFunctionInfo> shared =
       Utils::OpenHandle(*unbound_module_script);
+  // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!shared->InReadOnlySpace());
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
