@@ -440,7 +440,7 @@ int NativeRegExpMacroAssembler::Execute(
           const byte* input_end, int* output, int output_size, int call_origin,
           Isolate* isolate, Address regexp);
 
-  auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(isolate, code);
+  auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(code);
   int result = fn.Call(input.ptr(), start_offset, input_start, input_end,
                        output, output_size, call_origin, isolate, regexp.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);

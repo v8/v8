@@ -717,7 +717,7 @@ TEST_F(AssemblerX64Test, AssemblerMultiByteNop) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
   CHECK_EQ(42, res);
 }
@@ -774,7 +774,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F0>::FromCode(i_isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
   args.GetReturnValue().Set(v8::Integer::New(isolate, res));
 }
@@ -840,7 +840,7 @@ TEST_F(AssemblerX64Test, AssemblerX64Extractps) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F3>::FromCode(*code);
   uint64_t value1 = 0x1234'5678'8765'4321;
   CHECK_EQ(0x12345678u, f.Call(base::uint64_to_double(value1)));
   uint64_t value2 = 0x8765'4321'1234'5678;
@@ -875,7 +875,7 @@ TEST_F(AssemblerX64Test, AssemblerX64SSE) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F6>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F6>::FromCode(*code);
   CHECK_EQ(2, f.Call(1.0, 2.0));
 }
 
@@ -905,7 +905,7 @@ TEST_F(AssemblerX64Test, AssemblerX64SSE3) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F6>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F6>::FromCode(*code);
   CHECK_EQ(4, f.Call(1.0, 2.0));
 }
 
@@ -1126,7 +1126,7 @@ TEST_F(AssemblerX64Test, AssemblerX64FMA_sd) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F7>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F7>::FromCode(*code);
   CHECK_EQ(
       0, f.Call(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
@@ -1348,7 +1348,7 @@ TEST_F(AssemblerX64Test, AssemblerX64FMA_ss) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F8>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F8>::FromCode(*code);
   CHECK_EQ(0, f.Call(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
 
@@ -1421,7 +1421,7 @@ TEST_F(AssemblerX64Test, AssemblerX64SSE_ss) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F8>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F8>::FromCode(*code);
   int res = f.Call(1.0f, 2.0f, 3.0f);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
@@ -1505,7 +1505,7 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX_ss) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F8>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F8>::FromCode(*code);
   int res = f.Call(1.0f, 2.0f, 3.0f);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
@@ -1743,7 +1743,7 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX_sd) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F7>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F7>::FromCode(*code);
   int res = f.Call(1.0, 2.0, 3.0);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
@@ -1933,7 +1933,7 @@ TEST_F(AssemblerX64Test, AssemblerX64BMI1) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -1991,7 +1991,7 @@ TEST_F(AssemblerX64Test, AssemblerX64LZCNT) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -2049,7 +2049,7 @@ TEST_F(AssemblerX64Test, AssemblerX64POPCNT) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -2310,7 +2310,7 @@ TEST_F(AssemblerX64Test, AssemblerX64BMI2) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F0>::FromCode(*code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -2352,7 +2352,7 @@ TEST_F(AssemblerX64Test, AssemblerX64JumpTables1) {
   code->Print(std::cout);
 #endif
 
-  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
     int res = f.Call(i);
     PrintF("f(%d) = %d\n", i, res);
@@ -2399,7 +2399,7 @@ TEST_F(AssemblerX64Test, AssemblerX64JumpTables2) {
   code->Print(std::cout);
 #endif
 
-  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
     int res = f.Call(i);
     PrintF("f(%d) = %d\n", i, res);
@@ -2455,7 +2455,7 @@ TEST_F(AssemblerX64Test, AssemblerX64vmovups) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F9>::FromCode(isolate, *code);
+  auto f = GeneratedCode<F9>::FromCode(*code);
   CHECK_EQ(-1.5, f.Call(1.5, -1.5));
 }
 
