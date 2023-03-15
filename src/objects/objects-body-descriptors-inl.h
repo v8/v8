@@ -906,7 +906,7 @@ class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    ExternalString string = ExternalString::cast(obj);
+    ExternalString string = ExternalString::unchecked_cast(obj);
     v->VisitExternalPointer(obj,
                             string.RawExternalPointerField(kResourceOffset),
                             kExternalStringResourceTag);
