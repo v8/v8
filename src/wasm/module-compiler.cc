@@ -2050,12 +2050,10 @@ struct ValidateFunctionsStreamingJobData {
 
   void Initialize(int num_declared_functions) {
     DCHECK_NULL(units);
-    if (num_declared_functions == 0) return;
-    // TODO(clemensb): Use {std::make_unique_for_overwrite} once we allow C++20.
-    units.reset(new Unit[num_declared_functions]);
+    units = base::OwnedVector<Unit>::NewForOverwrite(num_declared_functions);
     // Initially {next == end}.
-    next_unit.store(units.get(), std::memory_order_relaxed);
-    end_of_units.store(units.get(), std::memory_order_relaxed);
+    next_available_unit.store(units.begin(), std::memory_order_relaxed);
+    end_of_available_units.store(units.begin(), std::memory_order_relaxed);
   }
 
   void AddUnit(int declared_func_index, base::Vector<const uint8_t> code,
@@ -2063,26 +2061,32 @@ struct ValidateFunctionsStreamingJobData {
     DCHECK_NOT_NULL(units);
     // Write new unit to {*end}, then increment {end}. There is only one thread
     // adding new units, so no further synchronization needed.
-    Unit* ptr = end_of_units.load(std::memory_order_relaxed);
+    Unit* ptr = end_of_available_units.load(std::memory_order_relaxed);
     // Check invariant: {next <= end}.
-    DCHECK_LE(next_unit.load(std::memory_order_relaxed), ptr);
-    *ptr = {declared_func_index, code};
+    DCHECK_LE(next_available_unit.load(std::memory_order_relaxed), ptr);
+    *ptr++ = {declared_func_index, code};
     // Use release semantics, so whoever loads this pointer (using acquire
     // semantics) sees all our previous stores.
-    end_of_units.store(ptr + 1, std::memory_order_release);
-    ++num_added_units_in_chunk;
-    // Chunks can be big, and only notifying concurrency increase after each
-    // chunk causes significant regressions. Hence we also notify from time to
-    // time within a chunk (on each power of two >= 16).
-    if (num_added_units_in_chunk >= 16 &&
-        base::bits::IsPowerOfTwo(num_added_units_in_chunk)) {
+    end_of_available_units.store(ptr, std::memory_order_release);
+    size_t total_units_added = ptr - units.begin();
+    // Periodically notify concurrency increase. This has overhead, so avoid
+    // calling it too often. As long as threads are still running they will
+    // continue processing new units anyway, and if background threads validate
+    // faster than we can add units, then only notifying after increasingly long
+    // delays is the right thing to do to avoid too many small validation tasks.
+    // We notify on each power of two after 16 units, and every 16k units (just
+    // to have *some* upper limit and avoiding to pile up too many units).
+    // Additionally, notify after receiving the last unit of the module.
+    if ((total_units_added >= 16 &&
+         base::bits::IsPowerOfTwo(total_units_added)) ||
+        (total_units_added % (16 * 1024)) == 0 || ptr == units.end()) {
       job_handle->NotifyConcurrencyIncrease();
     }
   }
 
   size_t NumOutstandingUnits() const {
-    Unit* next = next_unit.load(std::memory_order_relaxed);
-    Unit* end = end_of_units.load(std::memory_order_relaxed);
+    Unit* next = next_available_unit.load(std::memory_order_relaxed);
+    Unit* end = end_of_available_units.load(std::memory_order_relaxed);
     DCHECK_LE(next, end);
     return end - next;
   }
@@ -2092,11 +2096,11 @@ struct ValidateFunctionsStreamingJobData {
   Unit GetUnit() {
     // Use an acquire load to synchronize with the store in {AddUnit}. All units
     // before this {end} are fully initialized and ready to execute.
-    Unit* end = end_of_units.load(std::memory_order_acquire);
-    Unit* next = next_unit.load(std::memory_order_relaxed);
+    Unit* end = end_of_available_units.load(std::memory_order_acquire);
+    Unit* next = next_available_unit.load(std::memory_order_relaxed);
     while (next < end) {
-      if (next_unit.compare_exchange_weak(next, next + 1,
-                                          std::memory_order_relaxed)) {
+      if (next_available_unit.compare_exchange_weak(
+              next, next + 1, std::memory_order_relaxed)) {
         return *next;
       }
       // Otherwise retry with updated {next} pointer.
@@ -2104,22 +2108,10 @@ struct ValidateFunctionsStreamingJobData {
     return {};
   }
 
-  void MaybeNotifyConcurrencyIncrease(JobHandle* job_handle) {
-    if (num_added_units_in_chunk == 0) return;
-    num_added_units_in_chunk = 0;
-    job_handle->NotifyConcurrencyIncrease();
-  }
-
-  std::unique_ptr<Unit[]> units;
-  std::atomic<Unit*> next_unit;
-  std::atomic<Unit*> end_of_units;
+  base::OwnedVector<Unit> units;
+  std::atomic<Unit*> next_available_unit;
+  std::atomic<Unit*> end_of_available_units;
   std::atomic<bool> found_error{false};
-
-  // Remember how many units we added in the current chunk. From time to time,
-  // and after finishing one chunk, we call {NotifyConcurrencyIncrease}.
-  // This field is only accessed by the main thread, so does not need
-  // atomic access.
-  size_t num_added_units_in_chunk = 0;
 };
 
 class ValidateFunctionsStreamingJob final : public JobTask {
@@ -2884,9 +2876,6 @@ void AsyncStreamingProcessor::CommitCompilationUnits() {
 void AsyncStreamingProcessor::OnFinishedChunk() {
   TRACE_STREAMING("FinishChunk...\n");
   if (compilation_unit_builder_) CommitCompilationUnits();
-  if (auto* job_handle = validate_functions_job_handle_.get()) {
-    validate_functions_job_data_.MaybeNotifyConcurrencyIncrease(job_handle);
-  }
 }
 
 // Finish the processing of the stream.
