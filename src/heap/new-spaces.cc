@@ -961,7 +961,8 @@ void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_LE(UsableCapacity(), TotalCapacity());
+  DCHECK_IMPLIES(!force_allocation_success_,
+                 UsableCapacity() <= TotalCapacity());
   return PagedSpaceBase::AddPage(page);
 }
 
@@ -1028,8 +1029,18 @@ void PagedSpaceForNewSpace::RefillFreeList() {
 bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
                                                   AllocationOrigin origin) {
   DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-  if (UsableCapacity() >= TotalCapacity()) return false;
-  if (TotalCapacity() - UsableCapacity() < Page::kPageSize) return false;
+  if (!force_allocation_success_ &&
+      ((UsableCapacity() >= TotalCapacity()) ||
+       (TotalCapacity() - UsableCapacity() < Page::kPageSize)))
+    return false;
+  if (!heap()->CanExpandOldGeneration(Size() + Page::kPageSize)) {
+    // Assuming all of new space if alive, doing a full GC and promoting all
+    // objects should still succeed. Don't let new space grow if it means it
+    // will exceed the available size of old space.
+    return false;
+  }
+  DCHECK_IMPLIES(heap()->incremental_marking()->IsMarking(),
+                 heap()->incremental_marking()->IsMajorMarking());
   if (!TryExpandImpl()) return false;
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                        origin);

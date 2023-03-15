@@ -336,6 +336,10 @@ void IncrementalMarking::StartMarkingMajor() {
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();
+
+  if (v8_flags.minor_mc && heap_->new_space()) {
+    heap_->paged_new_space()->ForceAllocationSuccessUntilNextGC();
+  }
 }
 
 void IncrementalMarking::StartMarkingMinor() {

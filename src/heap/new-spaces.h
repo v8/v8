@@ -8,7 +8,6 @@
 #include <atomic>
 #include <memory>
 
-#include "spaces.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -576,7 +575,10 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
   // Reset the allocation pointer.
-  void GarbageCollectionEpilogue() { allocated_linear_areas_ = 0; }
+  void GarbageCollectionEpilogue() {
+    allocated_linear_areas_ = 0;
+    force_allocation_success_ = false;
+  }
 
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
@@ -627,6 +629,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
 
+  void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
+
  private:
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
@@ -641,6 +645,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t current_capacity_ = 0;
 
   size_t allocated_linear_areas_ = 0;
+
+  bool force_allocation_success_ = false;
 };
 
 // TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and
@@ -799,6 +805,10 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.ShouldReleaseEmptyPage();
   }
   void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
+
+  void ForceAllocationSuccessUntilNextGC() {
+    paged_space_.ForceAllocationSuccessUntilNextGC();
+  }
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
