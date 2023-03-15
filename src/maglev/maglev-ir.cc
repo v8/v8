@@ -2263,14 +2263,17 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
 }
 
 void EnsureWritableFastElements::SetValueLocationConstraints() {
-  UseRegister(object_input());
   UseRegister(elements_input());
+  UseRegister(object_input());
   set_temporaries_needed(1);
+  DefineSameAsFirst(this);
 }
 void EnsureWritableFastElements::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register elements = ToRegister(elements_input());
+  Register result_reg = ToRegister(result());
+  DCHECK_EQ(elements, result_reg);
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   __ CompareMapWithRoot(elements, RootIndex::kFixedArrayMap, scratch);
@@ -2278,18 +2281,21 @@ void EnsureWritableFastElements::GenerateCode(MaglevAssembler* masm,
   __ JumpToDeferredIf(
       kNotEqual,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
-         RegisterSnapshot snapshot) {
+         Register result_reg, RegisterSnapshot snapshot) {
         {
           using D = CallInterfaceDescriptorFor<
               Builtin::kCopyFastSmiOrObjectElements>::type;
+          snapshot.live_registers.clear(result_reg);
+          snapshot.live_tagged_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
           __ Move(D::GetRegisterParameter(D::kObject), object);
           __ CallBuiltin(Builtin::kCopyFastSmiOrObjectElements);
           save_register_state.DefineSafepoint();
+          __ Move(result_reg, kReturnRegister0);
         }
         __ Jump(*done);
       },
-      done, object, register_snapshot());
+      done, object, result_reg, register_snapshot());
   __ bind(*done);
 }
 

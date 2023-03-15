@@ -2753,7 +2753,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
             {elements_array, index, GetAccumulatorFloat64()});
       } else {
         if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
-          AddNewNode<EnsureWritableFastElements>({object, elements_array});
+          elements_array =
+              AddNewNode<EnsureWritableFastElements>({elements_array, object});
         }
         ValueNode* value = GetAccumulatorTagged();
         if (IsSmiElementsKind(elements_kind)) {

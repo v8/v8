@@ -159,6 +159,7 @@ class MergePointInterpreterFrameState;
   V(FastCreateClosure)                       \
   V(CreateRegExpLiteral)                     \
   V(DeleteProperty)                          \
+  V(EnsureWritableFastElements)              \
   V(FoldedAllocation)                        \
   V(ForInPrepare)                            \
   V(ForInNext)                               \
@@ -268,7 +269,6 @@ class MergePointInterpreterFrameState;
   V(CheckValueEqualsString)                 \
   V(CheckInstanceType)                      \
   V(DebugBreak)                             \
-  V(EnsureWritableFastElements)             \
   V(FunctionEntryStackCheck)                \
   V(GeneratorStore)                         \
   V(JumpLoopPrologue)                       \
@@ -4841,8 +4841,8 @@ class LoadFixedArrayElement
 };
 
 class EnsureWritableFastElements
-    : public FixedInputNodeT<2, EnsureWritableFastElements> {
-  using Base = FixedInputNodeT<2, EnsureWritableFastElements>;
+    : public FixedInputValueNodeT<2, EnsureWritableFastElements> {
+  using Base = FixedInputValueNodeT<2, EnsureWritableFastElements>;
 
  public:
   explicit EnsureWritableFastElements(uint64_t bitfield) : Base(bitfield) {}
@@ -4851,10 +4851,10 @@ class EnsureWritableFastElements
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kElementsIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kObjectIndex = 1;
   Input& elements_input() { return input(kElementsIndex); }
+  Input& object_input() { return input(kObjectIndex); }
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
