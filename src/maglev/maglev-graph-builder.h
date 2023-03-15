@@ -976,6 +976,26 @@ class MaglevGraphBuilder {
                       conversion_type);
   }
 
+  ValueNode* GetSilencedNaN(ValueNode* value) {
+    DCHECK_EQ(value->properties().value_representation(),
+              ValueRepresentation::kFloat64);
+
+    // We only need to check for silenced NaN in non-conversion nodes, since
+    // conversions can't be signalling NaNs.
+    if (value->properties().is_conversion()) return value;
+
+    // Special case constants, since we know what they are.
+    Float64Constant* constant = value->TryCast<Float64Constant>();
+    if (constant) {
+      constexpr double quiet_NaN = std::numeric_limits<double>::quiet_NaN();
+      if (!constant->value().is_nan()) return constant;
+      return GetFloat64Constant(quiet_NaN);
+    }
+
+    // Silence all other values.
+    return AddNewNode<Float64SilenceNaN>({value});
+  }
+
   bool IsRegisterEqualToAccumulator(int operand_index) {
     interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
     return current_interpreter_frame_.get(source) ==

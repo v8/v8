@@ -1046,6 +1046,16 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
+void Float64SilenceNaN::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+
+void Float64SilenceNaN::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());

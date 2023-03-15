@@ -120,7 +120,8 @@ class MergePointInterpreterFrameState;
   V(Float64LessThanOrEqual)             \
   V(Float64GreaterThan)                 \
   V(Float64GreaterThanOrEqual)          \
-  V(Float64Ieee754Unary)
+  V(Float64Ieee754Unary)                \
+  V(Float64SilenceNaN)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
@@ -2439,6 +2440,23 @@ class Float64Ieee754Unary
 
  private:
   ExternalReference ieee_function_;
+};
+
+class Float64SilenceNaN : public FixedInputValueNodeT<1, Float64SilenceNaN> {
+  using Base = FixedInputValueNodeT<1, Float64SilenceNaN>;
+
+ public:
+  explicit Float64SilenceNaN(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {

@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-graph-builder.h"
 
+#include <limits>
+
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
@@ -3097,9 +3099,14 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
       ValueNode* elements_array =
           AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
       if (IsDoubleElementsKind(elements_kind)) {
+        ValueNode* value =
+            GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber);
+        // Make sure we do not store signalling NaNs into double arrays.
+        // TODO(leszeks): Consider making this a bit on
+        // StoreFixedDoubleArrayElement rather than a separate node.
+        value = GetSilencedNaN(value);
         AddNewNode<StoreFixedDoubleArrayElement>(
-            {elements_array, index,
-             GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber)});
+            {elements_array, index, value});
       } else {
         if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
           elements_array =
