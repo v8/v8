@@ -181,7 +181,7 @@ class Code : public HeapObject {
   DECL_GETTER(source_position_table, ByteArray)
   DECL_GETTER(bytecode_offset_table, ByteArray)
 
-  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+  inline ByteArray SourcePositionTable(Isolate* isolate,
                                        SharedFunctionInfo sfi) const;
 
   // Returns true if pc is inside this object's instructions.
@@ -511,7 +511,7 @@ class InstructionStream : public HeapObject {
 
   // If source positions have not been collected or an exception has been thrown
   // this will return empty_byte_array.
-  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+  inline ByteArray SourcePositionTable(Isolate* isolate,
                                        SharedFunctionInfo sfi) const;
 
   // [code]: The associated Code object.
@@ -857,7 +857,7 @@ class AbstractCode : public HeapObject {
   inline int InstructionSize(PtrComprCageBase cage_base);
 
   // Return the source position table for interpreter code.
-  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+  inline ByteArray SourcePositionTable(Isolate* isolate,
                                        SharedFunctionInfo sfi);
 
   void DropStackFrameCache(PtrComprCageBase cage_base);

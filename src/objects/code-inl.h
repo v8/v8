@@ -114,14 +114,14 @@ ByteArray AbstractCode::SourcePositionTableInternal(
   }
 }
 
-ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
+ByteArray AbstractCode::SourcePositionTable(Isolate* isolate,
                                             SharedFunctionInfo sfi) {
-  Map map_object = map(cage_base);
+  Map map_object = map(isolate);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().SourcePositionTable(cage_base, sfi);
+    return GetCode().SourcePositionTable(isolate, sfi);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().SourcePositionTable(cage_base);
+    return GetBytecodeArray().SourcePositionTable(isolate);
   }
 }
 
@@ -412,22 +412,21 @@ void InstructionStream::clear_padding() {
   memset(reinterpret_cast<void*>(body_end()), 0, trailing_padding_size);
 }
 
-ByteArray Code::SourcePositionTable(PtrComprCageBase cage_base,
+ByteArray Code::SourcePositionTable(Isolate* isolate,
                                     SharedFunctionInfo sfi) const {
   if (!has_instruction_stream()) {
     return GetReadOnlyRoots().empty_byte_array();
   }
-  return instruction_stream().SourcePositionTable(cage_base, sfi);
+  return instruction_stream().SourcePositionTable(isolate, sfi);
 }
 
-ByteArray InstructionStream::SourcePositionTable(PtrComprCageBase cage_base,
+ByteArray InstructionStream::SourcePositionTable(Isolate* isolate,
                                                  SharedFunctionInfo sfi) const {
   DisallowGarbageCollection no_gc;
   if (kind() == CodeKind::BASELINE) {
-    return sfi.GetBytecodeArray(sfi.GetIsolate())
-        .SourcePositionTable(cage_base);
+    return sfi.GetBytecodeArray(isolate).SourcePositionTable(isolate);
   }
-  return source_position_table(cage_base);
+  return source_position_table(isolate);
 }
 
 Address InstructionStream::body_start() const { return instruction_start(); }

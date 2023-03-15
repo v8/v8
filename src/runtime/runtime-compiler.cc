@@ -25,7 +25,7 @@ void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
   if (!function->has_feedback_vector()) return;
   if (!function->feedback_vector().log_next_execution()) return;
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  Handle<String> name = SharedFunctionInfo::DebugName(sfi);
+  Handle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
   auto raw_sfi = *sfi;
   std::string event_name = "first-execution";
@@ -163,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->shared(), "Runtime_HealOptimizedCodeSlot");
+      isolate, function->shared(), "Runtime_HealOptimizedCodeSlot");
   return function->code();
 }
 
@@ -488,7 +488,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
     // 2) synchronous compilation failed for some reason.
 
     if (!function->HasAttachedOptimizedCode()) {
-      function->set_code(function->shared().GetCode());
+      function->set_code(function->shared().GetCode(isolate));
     }
 
     return {};

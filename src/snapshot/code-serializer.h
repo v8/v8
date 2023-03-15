@@ -78,7 +78,7 @@ class CodeSerializer : public Serializer {
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
-      Handle<SharedFunctionInfo> info);
+      Isolate* isolate, Handle<SharedFunctionInfo> info);
 
   AlignedCachedData* SerializeSharedFunctionInfo(
       Handle<SharedFunctionInfo> info);

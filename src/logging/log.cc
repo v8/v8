@@ -1362,7 +1362,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   bool hasInlined = false;
   if (code->kind(cage_base) != CodeKind::BASELINE) {
     SourcePositionTableIterator iterator(
-        code->SourcePositionTable(cage_base, *shared));
+        code->SourcePositionTable(isolate_, *shared));
     for (; !iterator.done(); iterator.Advance()) {
       SourcePosition pos = iterator.source_position();
       msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
@@ -2487,7 +2487,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif
-      Handle<String> fun_name = SharedFunctionInfo::DebugName(shared);
+      Handle<String> fun_name = SharedFunctionInfo::DebugName(isolate_, shared);
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.

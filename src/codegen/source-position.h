@@ -82,7 +82,7 @@ class SourcePosition final {
   std::vector<SourcePositionInfo> InliningStack(Isolate* isolate,
                                                 Code code) const;
   std::vector<SourcePositionInfo> InliningStack(
-      OptimizedCompilationInfo* cinfo) const;
+      Isolate* isolate, OptimizedCompilationInfo* cinfo) const;
   SourcePositionInfo FirstInfo(Isolate* isolate, Code code) const;
 
   void Print(std::ostream& out, InstructionStream code) const;
@@ -183,7 +183,8 @@ struct WasmInliningPosition {
 };
 
 struct SourcePositionInfo {
-  SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
+  SourcePositionInfo(Isolate* isolate, SourcePosition pos,
+                     Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
   Handle<SharedFunctionInfo> shared;

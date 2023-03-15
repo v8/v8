@@ -584,8 +584,8 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
     if (maybe_constructor->IsJSFunction()) {
       Handle<JSFunction> constructor =
           Handle<JSFunction>::cast(maybe_constructor);
-      Handle<String> name =
-          SharedFunctionInfo::DebugName(handle(constructor->shared(), isolate));
+      Handle<String> name = SharedFunctionInfo::DebugName(
+          isolate, handle(constructor->shared(), isolate));
       if (name->length() != 0 &&
           !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(constructor, name);
@@ -626,7 +626,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
       if (maybe_constructor->IsJSFunction()) {
         auto constructor = Handle<JSFunction>::cast(maybe_constructor);
         auto name = SharedFunctionInfo::DebugName(
-            handle(constructor->shared(), isolate));
+            isolate, handle(constructor->shared(), isolate));
 
         if (name->length() != 0 &&
             !name->Equals(ReadOnlyRoots(isolate).Object_string())) {

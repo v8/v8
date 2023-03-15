@@ -128,7 +128,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 
     bool is_baseline = abstract_code->kind(cage_base) == CodeKind::BASELINE;
     Handle<ByteArray> source_position_table(
-        abstract_code->SourcePositionTable(cage_base, *shared), isolate_);
+        abstract_code->SourcePositionTable(isolate_, *shared), isolate_);
     std::unique_ptr<baseline::BytecodeOffsetIterator> baseline_iterator;
     if (is_baseline) {
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
@@ -193,7 +193,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
           // kLeafNodeLineNumbers mode. Creating a SourcePositionInfo is a handy
           // way of getting both easily.
           SourcePositionInfo start_pos_info(
-              SourcePosition(pos_info.shared->StartPosition()),
+              isolate_, SourcePosition(pos_info.shared->StartPosition()),
               pos_info.shared);
 
           CodeEntry* inline_entry = code_entries_.Create(

@@ -1809,7 +1809,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
-  os << Brief(GetCode());
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << Brief(GetCode(isolate));
+  } else {
+    os << "<unavailable>";
+  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());

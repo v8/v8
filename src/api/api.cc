@@ -2103,30 +2103,6 @@ void ObjectTemplate::SetCodeLike() {
 // Internally, UnboundScript and UnboundModuleScript are SharedFunctionInfos,
 // and Script is a JSFunction.
 
-namespace {
-inline Local<Value> GetSharedFunctionInfoSourceMappingURL(
-    i::Isolate* isolate, i::Handle<i::SharedFunctionInfo> obj) {
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (obj->script().IsScript()) {
-    i::Object url = i::Script::cast(obj->script()).source_mapping_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
-  } else {
-    return Local<String>();
-  }
-}
-
-inline Local<Value> GetSharedFunctionInfoSourceURL(
-    i::Isolate* isolate, i::Handle<i::SharedFunctionInfo> obj) {
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (obj->script().IsScript()) {
-    i::Object url = i::Script::cast(obj->script()).source_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
-  } else {
-    return Local<String>();
-  }
-}
-}  // namespace
-
 ScriptCompiler::CachedData::CachedData(const uint8_t* data_, int length_,
                                        BufferPolicy buffer_policy_)
     : data(data_),
@@ -2147,9 +2123,9 @@ ScriptCompiler::StreamedSource::StreamedSource(
 ScriptCompiler::StreamedSource::~StreamedSource() = default;
 
 Local<Script> UnboundScript::BindToCurrentContext() {
-  auto function_info =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = function_info->GetIsolate();
+  i::Handle<i::SharedFunctionInfo> function_info = Utils::OpenHandle(this);
+  DCHECK(!function_info->InReadOnlySpace());
+  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*function_info);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSFunction> function =
       i::Factory::JSFunctionBuilder{i_isolate, function_info,
@@ -2159,18 +2135,20 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 }
 
 int UnboundScript::GetId() const {
-  auto function_info = i::SharedFunctionInfo::cast(*Utils::OpenHandle(this));
-  API_RCS_SCOPE(function_info.GetIsolate(), UnboundScript, GetId);
-  return i::Script::cast(function_info.script()).id();
+  i::Handle<i::SharedFunctionInfo> function_info = Utils::OpenHandle(this);
+  DCHECK(!function_info->InReadOnlySpace());
+  API_RCS_SCOPE(i::GetIsolateFromWritableObject(*function_info), UnboundScript,
+                GetId);
+  return i::Script::cast(function_info->script()).id();
 }
 
 int UnboundScript::GetLineNumber(int code_pos) {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  API_RCS_SCOPE(i_isolate, UnboundScript, GetLineNumber);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    API_RCS_SCOPE(i_isolate, UnboundScript, GetLineNumber);
     i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
     return i::Script::GetLineNumber(script, code_pos);
   } else {
@@ -2179,12 +2157,12 @@ int UnboundScript::GetLineNumber(int code_pos) {
 }
 
 int UnboundScript::GetColumnNumber(int code_pos) {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  API_RCS_SCOPE(i_isolate, UnboundScript, GetColumnNumber);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    API_RCS_SCOPE(i_isolate, UnboundScript, GetColumnNumber);
     i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
     return i::Script::GetColumnNumber(script, code_pos);
   } else {
@@ -2193,12 +2171,12 @@ int UnboundScript::GetColumnNumber(int code_pos) {
 }
 
 Local<Value> UnboundScript::GetScriptName() {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  API_RCS_SCOPE(i_isolate, UnboundScript, GetName);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
   if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    API_RCS_SCOPE(i_isolate, UnboundScript, GetName);
     i::Object name = i::Script::cast(obj->script()).name();
     return Utils::ToLocal(i::Handle<i::Object>(name, i_isolate));
   } else {
@@ -2207,35 +2185,59 @@ Local<Value> UnboundScript::GetScriptName() {
 }
 
 Local<Value> UnboundScript::GetSourceURL() {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceURL);
-  return GetSharedFunctionInfoSourceURL(i_isolate, obj);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceURL);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    i::Object url = i::Script::cast(obj->script()).source_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+  } else {
+    return Local<String>();
+  }
 }
 
 Local<Value> UnboundScript::GetSourceMappingURL() {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceMappingURL);
-  return GetSharedFunctionInfoSourceMappingURL(i_isolate, obj);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceMappingURL);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    i::Object url = i::Script::cast(obj->script()).source_mapping_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+  } else {
+    return Local<String>();
+  }
 }
 
 Local<Value> UnboundModuleScript::GetSourceURL() {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceURL);
-  return GetSharedFunctionInfoSourceURL(i_isolate, obj);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceURL);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    i::Object url = i::Script::cast(obj->script()).source_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+  } else {
+    return Local<String>();
+  }
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
-  i::Handle<i::SharedFunctionInfo> obj =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
-  i::Isolate* i_isolate = obj->GetIsolate();
-  API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceMappingURL);
-  return GetSharedFunctionInfoSourceMappingURL(i_isolate, obj);
+  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  if (obj->script().IsScript()) {
+    DCHECK(!obj->InReadOnlySpace());
+    i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
+    API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceMappingURL);
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    i::Object url = i::Script::cast(obj->script()).source_mapping_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+  } else {
+    return Local<String>();
+  }
 }
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
@@ -2301,26 +2303,24 @@ Local<Data> ScriptOrModule::HostDefinedOptions() {
 Local<UnboundScript> Script::GetUnboundScript() {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::JSFunction> obj = Utils::OpenHandle(this);
-  i::SharedFunctionInfo sfi = (*obj).shared();
-  i::Isolate* i_isolate = sfi.GetIsolate();
-  return ToApiHandle<UnboundScript>(i::handle(sfi, i_isolate));
+  return ToApiHandle<UnboundScript>(
+      i::handle(obj->shared(), obj->GetIsolate()));
 }
 
 Local<Value> Script::GetResourceName() {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
-  i::SharedFunctionInfo sfi = (*func).shared();
-  i::Isolate* i_isolate = func->GetIsolate();
+  i::SharedFunctionInfo sfi = func->shared();
   CHECK(sfi.script().IsScript());
   return ToApiHandle<Value>(
-      i::handle(i::Script::cast(sfi.script()).name(), i_isolate));
+      i::handle(i::Script::cast(sfi.script()).name(), func->GetIsolate()));
 }
 
 std::vector<int> Script::GetProducedCompileHints() const {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   i::Isolate* i_isolate = func->GetIsolate();
-  i::SharedFunctionInfo sfi = (*func).shared();
+  i::SharedFunctionInfo sfi = func->shared();
   CHECK(sfi.script().IsScript());
   i::Script script = i::Script::cast(sfi.script());
   i::Object maybe_array_list = script.compiled_lazy_function_positions();
@@ -3007,36 +3007,37 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundScript> unbound_script) {
-  i::Handle<i::SharedFunctionInfo> shared =
-      i::Handle<i::SharedFunctionInfo>::cast(
-          Utils::OpenHandle(*unbound_script));
-  DCHECK_NO_SCRIPT_NO_EXCEPTION(shared->GetIsolate());
+  i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound_script);
+  DCHECK(!shared->InReadOnlySpace());
+  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(shared->is_toplevel());
-  return i::CodeSerializer::Serialize(shared);
+  return i::CodeSerializer::Serialize(i_isolate, shared);
 }
 
 // static
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundModuleScript> unbound_module_script) {
   i::Handle<i::SharedFunctionInfo> shared =
-      i::Handle<i::SharedFunctionInfo>::cast(
-          Utils::OpenHandle(*unbound_module_script));
-  DCHECK_NO_SCRIPT_NO_EXCEPTION(shared->GetIsolate());
+      Utils::OpenHandle(*unbound_module_script);
+  DCHECK(!shared->InReadOnlySpace());
+  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(shared->is_toplevel());
-  return i::CodeSerializer::Serialize(shared);
+  return i::CodeSerializer::Serialize(i_isolate, shared);
 }
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
     Local<Function> function) {
-  auto js_function =
+  i::Handle<i::JSFunction> js_function =
       i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function));
-  i::Handle<i::SharedFunctionInfo> shared(js_function->shared(),
-                                          js_function->GetIsolate());
-  DCHECK_NO_SCRIPT_NO_EXCEPTION(shared->GetIsolate());
+  i::Isolate* i_isolate = js_function->GetIsolate();
+  i::Handle<i::SharedFunctionInfo> shared(js_function->shared(), i_isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(shared->is_wrapped(),
                   "v8::ScriptCompiler::CreateCodeCacheForFunction",
                   "Expected SharedFunctionInfo with wrapped source code");
-  return i::CodeSerializer::Serialize(shared);
+  return i::CodeSerializer::Serialize(i_isolate, shared);
 }
 
 MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,
@@ -5613,10 +5614,10 @@ int Function::GetScriptColumnNumber() const {
 }
 
 MaybeLocal<UnboundScript> Function::GetUnboundScript() const {
-  i::Handle<i::Object> self = Utils::OpenHandle(this);
+  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   if (!self->IsJSFunction()) return MaybeLocal<UnboundScript>();
   i::SharedFunctionInfo sfi = i::JSFunction::cast(*self).shared();
-  i::Isolate* i_isolate = sfi.GetIsolate();
+  i::Isolate* i_isolate = self->GetIsolate();
   return ToApiHandle<UnboundScript>(i::handle(sfi, i_isolate));
 }
 
@@ -5643,7 +5644,7 @@ bool Function::Experimental_IsNopFunction() const {
   auto self = Utils::OpenHandle(this);
   if (!self->IsJSFunction()) return false;
   i::SharedFunctionInfo sfi = i::JSFunction::cast(*self).shared();
-  i::Isolate* i_isolate = sfi.GetIsolate();
+  i::Isolate* i_isolate = self->GetIsolate();
   i::IsCompiledScope is_compiled_scope(sfi.is_compiled_scope(i_isolate));
   if (!is_compiled_scope.is_compiled() &&
       !i::Compiler::Compile(i_isolate, i::handle(sfi, i_isolate),

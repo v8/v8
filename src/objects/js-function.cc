@@ -758,7 +758,7 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
   if (v8_flags.log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
-                              handle(function->shared(), isolate))));
+                              isolate, handle(function->shared(), isolate))));
   }
 }
 
@@ -1219,7 +1219,8 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
         GetDataProperty(isolate, function, isolate->factory()->name_string());
     if (name->IsString()) return Handle<String>::cast(name);
   }
-  return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
+  return SharedFunctionInfo::DebugName(isolate,
+                                       handle(function->shared(), isolate));
 }
 
 bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
@@ -1248,8 +1249,7 @@ bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
 namespace {
 
 Handle<String> NativeCodeFunctionSourceString(
-    Handle<SharedFunctionInfo> shared_info) {
-  Isolate* const isolate = shared_info->GetIsolate();
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
@@ -1266,7 +1266,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
 
   // Check if {function} should hide its source code.
   if (!shared_info->IsUserJavaScript()) {
-    return NativeCodeFunctionSourceString(shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info);
   }
 
   if (IsClassConstructor(shared_info->kind())) {
@@ -1287,7 +1287,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
 
   // Check if we have source code for the {function}.
   if (!shared_info->HasSourceCode()) {
-    return NativeCodeFunctionSourceString(shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info);
   }
 
   // If this function was compiled from asm.js, use the recorded offset
@@ -1315,10 +1315,10 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     // giving inconsistent call behaviour.
     isolate->CountUsage(
         v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
-    return NativeCodeFunctionSourceString(shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info);
   }
   return Handle<String>::cast(
-      SharedFunctionInfo::GetSourceCodeHarmony(shared_info));
+      SharedFunctionInfo::GetSourceCodeHarmony(isolate, shared_info));
 }
 
 // static

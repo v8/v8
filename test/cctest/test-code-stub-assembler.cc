@@ -3016,7 +3016,7 @@ TEST(AllocateFunctionWithMapAndContext) {
            fun->shared());
   CHECK_EQ(isolate->factory()
                ->promise_capability_default_resolve_shared_fun()
-               ->GetCode(),
+               ->GetCode(isolate),
            fun->code());
 }
 

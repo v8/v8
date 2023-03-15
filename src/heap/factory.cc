@@ -3387,16 +3387,14 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
     MaybeHandle<String> maybe_name,
     Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind) {
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      maybe_name, function_template_info, Builtin::kNoBuiltinId, kind);
-  return shared;
+  return NewSharedFunctionInfo(maybe_name, function_template_info,
+                               Builtin::kNoBuiltinId, kind);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, Builtin builtin, FunctionKind kind) {
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      maybe_name, MaybeHandle<InstructionStream>(), builtin, kind);
-  return shared;
+  return NewSharedFunctionInfo(maybe_name, MaybeHandle<InstructionStream>(),
+                               builtin, kind);
 }
 
 int Factory::NumberToStringCacheHash(Smi number) {
@@ -4065,7 +4063,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  Handle<Code> code = handle(sfi_->GetCode(), isolate_);
+  Handle<Code> code = handle(sfi_->GetCode(isolate_), isolate_);
   Handle<JSFunction> result = BuildRaw(code);
 
   if (code->kind() == CodeKind::BASELINE) {

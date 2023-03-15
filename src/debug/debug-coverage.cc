@@ -713,7 +713,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
         }
       }
 
-      Handle<String> name = SharedFunctionInfo::DebugName(info);
+      Handle<String> name = SharedFunctionInfo::DebugName(isolate, info);
       CoverageFunction function(start, end, count, name);
 
       if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {

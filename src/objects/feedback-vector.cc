@@ -429,7 +429,7 @@ void FeedbackVector::set_osr_tiering_state(TieringState marker) {
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    SharedFunctionInfo shared, const char* reason) {
+    Isolate* isolate, SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = maybe_optimized_code();
   if (slot->IsCleared()) {
     set_maybe_has_maglev_code(false);
@@ -439,7 +439,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 
   Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
-    Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
+    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
     ClearOptimizedCode();
   }
 }

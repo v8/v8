@@ -738,7 +738,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
     isolate->lazy_compile_dispatcher()->FinishNow(sfi);
   }
 
-  sfi->DisableOptimization(BailoutReason::kNeverOptimize);
+  sfi->DisableOptimization(isolate, BailoutReason::kNeverOptimize);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

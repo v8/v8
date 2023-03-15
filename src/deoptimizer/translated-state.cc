@@ -826,10 +826,9 @@ int TranslatedFrame::GetValueCount() {
   UNREACHABLE();
 }
 
-void TranslatedFrame::Handlify() {
+void TranslatedFrame::Handlify(Isolate* isolate) {
   if (!raw_shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(raw_shared_info_,
-                                              raw_shared_info_.GetIsolate());
+    shared_info_ = handle(raw_shared_info_, isolate);
     raw_shared_info_ = SharedFunctionInfo();
   }
   for (auto& value : values_) {
@@ -1581,11 +1580,12 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
 }
 
 void TranslatedState::Prepare(Address stack_frame_pointer) {
-  for (auto& frame : frames_) frame.Handlify();
+  for (auto& frame : frames_) {
+    frame.Handlify(isolate());
+  }
 
   if (!feedback_vector_.is_null()) {
-    feedback_vector_handle_ =
-        Handle<FeedbackVector>(feedback_vector_, isolate());
+    feedback_vector_handle_ = handle(feedback_vector_, isolate());
     feedback_vector_ = FeedbackVector();
   }
   stack_frame_pointer_ = stack_frame_pointer;

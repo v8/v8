@@ -98,7 +98,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
-NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
@@ -193,14 +192,13 @@ bool SharedFunctionInfo::needs_script_context() const {
   return is_script() && scope_info(kAcquireLoad).ContextLocalCount() > 0;
 }
 
-template <typename IsolateT>
-AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
+AbstractCode SharedFunctionInfo::abstract_code(Isolate* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
   if (HasBytecodeArray(isolate)) {
     return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(GetCode());
+    return AbstractCode::cast(GetCode(isolate));
   }
 }
 
@@ -227,7 +225,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
     IsolateT* isolate) const {
   if (!script().IsScript()) return kHasNoScript;
 
-  if (GetIsolate()->is_precise_binary_code_coverage() &&
+  if (isolate->is_precise_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
     return kNeedsBinaryCoverage;
@@ -564,9 +562,8 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
 
 template <typename IsolateT>
 BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
-  // TODO(ishell): access shared_function_info_access() via IsolateT.
   SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
-      GetIsolate()->shared_function_info_access(), isolate);
+      isolate->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {

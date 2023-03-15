@@ -330,7 +330,7 @@ SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Code code,
   if (code.is_turbofanned()) {
     return pos.FirstInfo(isolate, code);
   } else {
-    return SourcePositionInfo(pos, function);
+    return SourcePositionInfo(isolate, pos, function);
   }
 }
 

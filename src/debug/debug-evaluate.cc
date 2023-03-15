@@ -1067,8 +1067,9 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
                                    : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
-    if (info->GetCode().is_builtin()) {
-      return info->GetCode().builtin_id() == Builtin::kHandleApiCall
+    Code code = info->GetCode(isolate);
+    if (code.is_builtin()) {
+      return code.builtin_id() == Builtin::kHandleApiCall
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }

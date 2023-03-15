@@ -269,7 +269,8 @@ class FeedbackVector
   inline void set_maybe_has_turbofan_code(bool value);
 
   void SetOptimizedCode(Code code);
-  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
+  void EvictOptimizedCodeMarkedForDeoptimization(Isolate* isolate,
+                                                 SharedFunctionInfo shared,
                                                  const char* reason);
   void ClearOptimizedCode();
 

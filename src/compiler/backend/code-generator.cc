@@ -850,7 +850,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
       AllowGarbageCollection allocation;
       AllowHandleAllocation handles;
       AllowHandleDereference deref;
-      buffer << source_position.InliningStack(info);
+      buffer << source_position.InliningStack(masm()->isolate(), info);
     }
     buffer << " --";
     masm()->RecordComment(buffer.str().c_str());

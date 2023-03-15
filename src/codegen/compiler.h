@@ -115,7 +115,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                             ClearExceptionFlag flag);
 
   // Dispose a job without finalization.
-  static void DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
+  static void DisposeTurbofanCompilationJob(Isolate* isolate,
+                                            TurbofanCompilationJob* job,
                                             bool restore_function_code);
 
   // Finalize and install Turbofan code from a previously run job.

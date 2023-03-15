@@ -1500,7 +1500,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
-  Code code = shared.GetCode();
+  Code code = shared.GetCode(isolate());
   HeapObject maybe_code_obj =
       code.has_instruction_stream() ? FromCode(code) : HeapObject::cast(code);
   if (name[0] != '\0') {

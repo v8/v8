@@ -48,8 +48,7 @@ CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
-    Handle<SharedFunctionInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+    Isolate* isolate, Handle<SharedFunctionInfo> info) {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   NestedTimedHistogramScope histogram_timer(
       isolate->counters()->compile_serialize());

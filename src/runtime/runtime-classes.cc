@@ -650,7 +650,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
         MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
                  "init class constructor",
                  SharedFunctionInfo::DebugName(
-                     handle(constructor->shared(), isolate))));
+                     isolate, handle(constructor->shared(), isolate))));
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
                  "init class prototype"));

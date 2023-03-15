@@ -348,6 +348,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   DeoptimizeMarkedCode(isolate);
 }
 
+// static
 void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   Isolate* isolate = function.GetIsolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
@@ -364,15 +365,15 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // The code in the function's optimized code feedback vector slot might
     // be different from the code on the function - evict it if necessary.
     function.feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-        function.shared(), "unlinking code marked for deopt");
+        isolate, function.shared(), "unlinking code marked for deopt");
 
     DeoptimizeMarkedCode(isolate);
   }
 }
 
+// static
 void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
-    Handle<SharedFunctionInfo> function) {
-  Isolate* isolate = function->GetIsolate();
+    Isolate* isolate, Handle<SharedFunctionInfo> function) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
@@ -540,25 +541,6 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   }
 }
 
-bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                        DeoptimizeKind* type_out) {
-  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, addr);
-  if (!Builtins::IsBuiltinId(builtin)) return false;
-
-  switch (builtin) {
-    case Builtin::kDeoptimizationEntry_Eager:
-      *type_out = DeoptimizeKind::kEager;
-      return true;
-    case Builtin::kDeoptimizationEntry_Lazy:
-      *type_out = DeoptimizeKind::kLazy;
-      return true;
-    default:
-      return false;
-  }
-
-  UNREACHABLE();
-}
-
 namespace {
 
 int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
@@ -656,12 +638,13 @@ void Deoptimizer::TraceMarkForDeoptimization(InstructionStream code,
 }
 
 // static
-void Deoptimizer::TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
+void Deoptimizer::TraceEvictFromOptimizedCodeCache(Isolate* isolate,
+                                                   SharedFunctionInfo sfi,
                                                    const char* reason) {
   if (!v8_flags.trace_deopt_verbose) return;
 
   DisallowGarbageCollection no_gc;
-  CodeTracer::Scope scope(sfi.GetIsolate()->GetCodeTracer());
+  CodeTracer::Scope scope(isolate->GetCodeTracer());
   PrintF(scope.file(),
          "[evicting optimized code marked for deoptimization (%s) for ",
          reason);
@@ -685,13 +668,6 @@ void Deoptimizer::TraceDeoptAll(Isolate* isolate) {
   if (!v8_flags.trace_deopt_verbose) return;
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
-}
-
-// static
-void Deoptimizer::TraceDeoptMarked(Isolate* isolate) {
-  if (!v8_flags.trace_deopt_verbose) return;
-  CodeTracer::Scope scope(isolate->GetCodeTracer());
-  PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
 }
 
 // We rely on this function not causing a GC.  It is called from generated code
@@ -2014,15 +1990,6 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(InstructionStream code,
     }
   }
   return DeoptInfo(last_position, last_reason, last_node_id, last_deopt_id);
-}
-
-// static
-int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    Isolate* isolate, SharedFunctionInfo shared,
-    BytecodeOffset bytecode_offset) {
-  DCHECK(shared.HasBytecodeArray());
-  return AbstractCode::cast(shared.GetBytecodeArray(isolate))
-      .SourcePosition(isolate, bytecode_offset.ToInt());
 }
 
 }  // namespace internal

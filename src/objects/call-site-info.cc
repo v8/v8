@@ -221,7 +221,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   builder.AppendCStringLiteral("eval at ");
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> eval_shared(script->eval_from_shared(), isolate);
-    auto eval_name = SharedFunctionInfo::DebugName(eval_shared);
+    auto eval_name = SharedFunctionInfo::DebugName(isolate, eval_shared);
     if (eval_name->length() != 0) {
       builder.AppendString(eval_name);
     } else {

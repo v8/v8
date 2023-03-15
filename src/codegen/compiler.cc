@@ -372,7 +372,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
       UNREACHABLE();
   }
 
-  Handle<String> debug_name = SharedFunctionInfo::DebugName(shared);
+  Handle<String> debug_name = SharedFunctionInfo::DebugName(isolate, shared);
   DisallowGarbageCollection no_gc;
   LOG(isolate, FunctionEvent(name.c_str(), script->id(), time_taken_ms,
                              shared->StartPosition(), shared->EndPosition(),
@@ -942,7 +942,7 @@ class OptimizedCodeCache : public AllStatic {
       if (maybe_code.has_value()) code = maybe_code.value();
     } else {
       feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-          shared, "OptimizedCodeCache::Get");
+          isolate, shared, "OptimizedCodeCache::Get");
       code = feedback_vector.optimized_code();
     }
 
@@ -2582,7 +2582,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  Handle<Code> code = handle(shared_info->GetCode(), isolate);
+  Handle<Code> code = handle(shared_info->GetCode(isolate), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -3870,12 +3870,13 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
 }
 
 // static
-void Compiler::DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
+void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
+                                             TurbofanCompilationJob* job,
                                              bool restore_function_code) {
   Handle<JSFunction> function = job->compilation_info()->closure();
   ResetTieringState(*function, job->compilation_info()->osr_offset());
   if (restore_function_code) {
-    function->set_code(function->shared().GetCode());
+    function->set_code(function->shared().GetCode(isolate));
   }
 }
 
@@ -3940,7 +3941,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   if (V8_LIKELY(use_result)) {
     ResetTieringState(*function, osr_offset);
     if (!IsOSR(osr_offset)) {
-      function->set_code(shared->GetCode());
+      function->set_code(shared->GetCode(isolate));
     }
   }
 }
@@ -4008,7 +4009,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       // deoptimized the code on the feedback vector. So check for any
       // deoptimized code just before installing it on the funciton.
       function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-          *shared, "new function from shared function info");
+          isolate, *shared, "new function from shared function info");
       Code code = function->feedback_vector().optimized_code();
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.

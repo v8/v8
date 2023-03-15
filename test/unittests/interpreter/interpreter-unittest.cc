@@ -4760,7 +4760,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared().HasBytecodeArray());
-  i::Code code = f->shared().GetCode();
+  i::Code code = f->shared().GetCode(i_isolate());
   i::Handle<i::Code> interpreter_entry_trampoline =
       BUILTIN_CODE(i_isolate(), InterpreterEntryTrampoline);
 
