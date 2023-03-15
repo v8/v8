@@ -98,7 +98,11 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
 }
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
-#if DEBUG
+#ifdef DEBUG
+#ifdef V8_IS_TSAN
+  // TSan in debug mode is particularly slow. Skip this check for buffers >64MB.
+  if (byte_length > 64 * MB) return;
+#endif  // TSan debug build
   // Double check memory is zero-initialized. Despite being DEBUG-only,
   // this function is somewhat optimized for the benefit of test suite
   // execution times (some tests allocate several gigabytes).
