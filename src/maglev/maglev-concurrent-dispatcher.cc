@@ -165,8 +165,10 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       TRACE_EVENT_WITH_FLOW0(
           TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
           job.get(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-      RuntimeCallStats* rcs = nullptr;  // TODO(v8:7700): Implement.
-      CompilationJob::Status status = job->ExecuteJob(rcs, &local_isolate);
+      RCS_SCOPE(&local_isolate,
+                RuntimeCallCounterId::kOptimizeBackgroundMaglev);
+      CompilationJob::Status status =
+          job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
       if (status == CompilationJob::SUCCEEDED) {
         outgoing_queue()->Enqueue(std::move(job));
       }
@@ -209,8 +211,6 @@ MaglevConcurrentDispatcher::~MaglevConcurrentDispatcher() {
 void MaglevConcurrentDispatcher::EnqueueJob(
     std::unique_ptr<MaglevCompilationJob>&& job) {
   DCHECK(is_enabled());
-  // TODO(v8:7700): RCS.
-  // RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileMaglev);
   incoming_queue_.Enqueue(std::move(job));
   job_handle_->NotifyConcurrencyIncrease();
 }
@@ -223,6 +223,8 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
     TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                            "V8.MaglevConcurrentFinalize", job.get(),
                            TRACE_EVENT_FLAG_FLOW_IN);
+    RCS_SCOPE(isolate_,
+              RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
   }
 }

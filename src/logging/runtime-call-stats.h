@@ -479,10 +479,13 @@ class RuntimeCallTimer final {
   V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
   V(OptimizeConcurrentFinalize)                \
+  V(OptimizeConcurrentFinalizeMaglev)          \
   V(OptimizeConcurrentPrepare)                 \
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \
+  V(OptimizeNonConcurrentMaglev)               \
+  V(OptimizeBackgroundMaglev)                  \
   V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \
