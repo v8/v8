@@ -116,6 +116,7 @@ class Sweeper {
 
     void ParallelIteratePromotedPagesForRememberedSets();
     void ParallelIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
+    void CleanPromotedPages();
 
     Sweeper* const sweeper_;
     CachedOldToNewRememberedSets old_to_new_remembered_sets_;
@@ -241,6 +242,7 @@ class Sweeper {
 
   Page* GetSweepingPageSafe(AllocationSpace space);
   MemoryChunk* GetPromotedPageForIterationSafe();
+  std::vector<MemoryChunk*> GetAllPromotedPagesForIterationSafe();
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
 
   void PrepareToBeSweptPage(AllocationSpace space, Page* page);
@@ -257,6 +259,7 @@ class Sweeper {
   int NumberOfConcurrentSweepers() const;
 
   void IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
+  void NotifyPromotedPagesIterationFinished();
 
   void SnapshotPageSets();
 

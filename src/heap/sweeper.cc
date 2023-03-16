@@ -53,6 +53,10 @@ class Sweeper::ConcurrentSweeper final {
   }
 
   bool ConcurrentSweepForRememberedSet(JobDelegate* delegate) {
+    if (!sweeper_->should_iterate_promoted_pages_) {
+      local_sweeper_.CleanPromotedPages();
+      return true;
+    }
     while (!delegate->ShouldYield()) {
       MemoryChunk* chunk = sweeper_->GetPromotedPageForIterationSafe();
       if (chunk == nullptr) return true;
@@ -225,9 +229,13 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
 }
 
 void Sweeper::LocalSweeper::ParallelIteratePromotedPagesForRememberedSets() {
-  MemoryChunk* chunk = nullptr;
-  while ((chunk = sweeper_->GetPromotedPageForIterationSafe()) != nullptr) {
-    ParallelIteratePromotedPageForRememberedSets(chunk);
+  if (sweeper_->should_iterate_promoted_pages_) {
+    MemoryChunk* chunk = nullptr;
+    while ((chunk = sweeper_->GetPromotedPageForIterationSafe()) != nullptr) {
+      ParallelIteratePromotedPageForRememberedSets(chunk);
+    }
+  } else {
+    CleanPromotedPages();
   }
 }
 
@@ -240,15 +248,25 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPageForRememberedSets(
             chunk->concurrent_sweeping_state());
   chunk->set_concurrent_sweeping_state(
       Page::ConcurrentSweepingState::kInProgress);
-  if (sweeper_->should_iterate_promoted_pages_) {
-    sweeper_->RawIteratePromotedPageForRememberedSets(
-        chunk, &old_to_new_remembered_sets_);
-  } else {
+  DCHECK(sweeper_->should_iterate_promoted_pages_);
+  sweeper_->RawIteratePromotedPageForRememberedSets(
+      chunk, &old_to_new_remembered_sets_);
+  DCHECK(chunk->SweepingDone());
+  sweeper_->IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
+}
+
+void Sweeper::LocalSweeper::CleanPromotedPages() {
+  DCHECK(!sweeper_->should_iterate_promoted_pages_);
+  std::vector<MemoryChunk*> promoted_pages =
+      sweeper_->GetAllPromotedPagesForIterationSafe();
+  if (promoted_pages.empty()) return;
+  for (MemoryChunk* chunk : promoted_pages) {
     sweeper_->marking_state_->ClearLiveness(chunk);
     chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
   }
-  DCHECK(chunk->SweepingDone());
-  sweeper_->IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
+  DCHECK_EQ(0u, sweeper_->iterated_promoted_pages_count_);
+  sweeper_->iterated_promoted_pages_count_ = promoted_pages.size();
+  sweeper_->NotifyPromotedPagesIterationFinished();
 }
 
 Sweeper::Sweeper(Heap* heap)
@@ -385,9 +403,9 @@ void Sweeper::StartSweeperTasks() {
     DCHECK(snapshot_large_pages_set_.empty());
 
     DCHECK(!promoted_page_iteration_in_progress_);
-    if (ShouldUpdateRememberedSets(heap_)) {
+    should_iterate_promoted_pages_ = ShouldUpdateRememberedSets(heap_);
+    if (should_iterate_promoted_pages_) {
       SnapshotPageSets();
-      should_iterate_promoted_pages_ = true;
     }
     promoted_page_iteration_in_progress_.store(true, std::memory_order_release);
   }
@@ -977,6 +995,10 @@ void Sweeper::ContributeAndWaitForPromotedPagesIteration() {
 void Sweeper::IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded() {
   if (++iterated_promoted_pages_count_ < promoted_pages_for_iteration_count_)
     return;
+  NotifyPromotedPagesIterationFinished();
+}
+
+void Sweeper::NotifyPromotedPagesIterationFinished() {
   DCHECK_EQ(iterated_promoted_pages_count_,
             promoted_pages_for_iteration_count_);
   base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
@@ -985,9 +1007,14 @@ void Sweeper::IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded() {
 }
 
 size_t Sweeper::ConcurrentSweepingPageCount() {
+  DCHECK(sweeping_in_progress());
   base::MutexGuard guard(&mutex_);
   base::MutexGuard promoted_pages_guard(&promoted_pages_iteration_mutex_);
-  size_t count = sweeping_list_for_promoted_page_iteration_.size();
+  size_t promoted_pages_count =
+      sweeping_list_for_promoted_page_iteration_.size();
+  size_t count = should_iterate_promoted_pages_
+                     ? promoted_pages_count
+                     : std::min(static_cast<size_t>(1), promoted_pages_count);
   for (int i = 0; i < kNumberOfSweepingSpaces; i++) {
     count += sweeping_list_[i].size();
   }
@@ -1159,6 +1186,14 @@ MemoryChunk* Sweeper::GetPromotedPageForIterationSafe() {
     sweeping_list_for_promoted_page_iteration_.pop_back();
   }
   return chunk;
+}
+
+std::vector<MemoryChunk*> Sweeper::GetAllPromotedPagesForIterationSafe() {
+  base::MutexGuard guard(&promoted_pages_iteration_mutex_);
+  std::vector<MemoryChunk*> pages;
+  pages.swap(sweeping_list_for_promoted_page_iteration_);
+  DCHECK(sweeping_list_for_promoted_page_iteration_.empty());
+  return pages;
 }
 
 GCTracer::Scope::ScopeId Sweeper::GetTracingScope(AllocationSpace space,
