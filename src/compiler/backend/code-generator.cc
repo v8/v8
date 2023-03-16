@@ -145,7 +145,11 @@ uint32_t CodeGenerator::GetStackCheckOffset() {
     return 0;
   }
 
+  size_t incoming_parameter_count =
+      linkage_->GetIncomingDescriptor()->ParameterSlotCount();
+  DCHECK(is_int32(incoming_parameter_count));
   int32_t optimized_frame_height =
+      static_cast<int32_t>(incoming_parameter_count) * kSystemPointerSize +
       frame()->GetTotalFrameSlotCount() * kSystemPointerSize;
   DCHECK(is_int32(max_unoptimized_frame_height_));
   int32_t signed_max_unoptimized_frame_height =

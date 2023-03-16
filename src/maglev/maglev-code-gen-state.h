@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/execution/frame-constants.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -84,9 +85,13 @@ class MaglevCodeGenState {
   }
 
   uint32_t stack_check_offset() {
+    int32_t parameter_slots =
+        compilation_info_->toplevel_compilation_unit()->parameter_count();
     uint32_t stack_slots = tagged_slots_ + untagged_slots_;
     DCHECK(is_int32(stack_slots));
-    int32_t optimized_frame_height = stack_slots * kSystemPointerSize;
+    int32_t optimized_frame_height = parameter_slots * kSystemPointerSize +
+                                     StandardFrameConstants::kFixedFrameSize +
+                                     stack_slots * kSystemPointerSize;
     DCHECK(is_int32(max_deopted_stack_size_));
     int32_t signed_max_unoptimized_frame_height =
         static_cast<int32_t>(max_deopted_stack_size_);
