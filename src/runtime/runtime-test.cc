@@ -22,6 +22,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
+#include "src/flags/flags.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
@@ -490,7 +491,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
 // TODO(jgruber): Rename to OptimizeTurbofanOnNextCall.
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::TURBOFAN);
+  return OptimizeFunctionOnNextCall(
+      args, isolate,
+      v8_flags.optimize_on_next_call_optimizes_to_maglev ? CodeKind::MAGLEV
+                                                         : CodeKind::TURBOFAN);
 }
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
@@ -760,6 +764,10 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
   if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
+  }
+  if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
+    status |= static_cast<int>(
+        OptimizationStatus::kOptimizeOnNextCallOptimizesToMaglev);
   }
 
   Handle<Object> function_object = args.at(0);

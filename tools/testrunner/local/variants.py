@@ -17,7 +17,10 @@ ALL_VARIANT_FLAGS = {
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
     "maglev_inlining": [["--maglev", "--maglev-inlining"]],
-    "stress_maglev": [["--maglev", "--stress-maglev"]],
+    "stress_maglev": [[
+        "--maglev", "--stress-maglev",
+        "--optimize-on-next-call-optimizes-to-maglev"
+    ]],
     "turboshaft": [["--turboshaft"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],

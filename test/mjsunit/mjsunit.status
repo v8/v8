@@ -1918,4 +1918,72 @@
   'wasm/bigint-opt': [SKIP],
 }], # variant == always_sparkplug
 
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant == stress_maglev', {
+  # Maglev doesn't inline Array constructors, so it won't bake in allocation
+  # site feedback.
+  'array-constructor-feedback': [FAIL],
+  # Maglev deopts on non-int division, even if the result is truncated after.
+  'shift-for-integer-div': [FAIL],
+  # Maglev deopts on negative zero for int32, even if truncated afterward.
+  'compiler/number-abs': [FAIL],
+  'compiler/number-floor': [FAIL],
+  'compiler/number-ceil': [FAIL],
+  'compiler/number-min': [FAIL],
+  'compiler/number-max': [FAIL],
+  'compiler/number-round': [FAIL],
+  'compiler/number-trunc': [FAIL],
+  'compiler/number-modulus': [FAIL],
+  'compiler/number-toboolean': [FAIL],
+  'compiler/number-comparison-truncations': [FAIL],
+  'regress/regress-2132': [FAIL],
+  'compiler/regress-1199345': [FAIL],
+  # Maglev doesn't suppress BigInt size errors on truncation.
+  'compiler/bigint-shift-left': [FAIL],
+  'compiler/bigint-multiply-truncate': [FAIL],
+  'wasm/bigint-opt': [FAIL],
+  # Maglev doesn't promote Number to NumberOrOddball ops based on uses.
+  'getters-on-elements': [FAIL],
+  # Maglev doesn't inline the call being tested here.
+  'compiler/call-with-arraylike-or-spread': [FAIL],
+  'compiler/call-with-arraylike-or-spread-3': [FAIL],
+  'compiler/call-with-arraylike-or-spread-4': [FAIL],
+  'compiler/call-with-arraylike-or-spread-5': [FAIL],
+  'compiler/call-with-arraylike-or-spread-6': [FAIL],
+  'compiler/call-with-arraylike-or-spread-7': [FAIL],
+  'compiler/serializer-call': [FAIL],
+  'compiler/serializer-apply': [FAIL],
+  'compiler/serializer-accessors': [FAIL],
+  'compiler/serializer-transition-propagation': [FAIL],
+  'compiler/serializer-dead-after-jump': [FAIL],
+  'compiler/serializer-dead-after-return': [FAIL],
+  'es6/super-ic-opt-no-turboprop': [FAIL],
+  'regress/regress-1049982-1': [FAIL],
+  'regress/regress-1049982-2': [FAIL],
+  # Maglev doesn't support fast API calls.
+  'compiler/fast-api-annotations': [FAIL],
+  'compiler/fast-api-calls': [FAIL],
+  'compiler/fast-api-calls-8args': [FAIL],
+  'compiler/fast-api-calls-string': [FAIL],
+  'compiler/fast-api-calls-pointer': [FAIL],
+  'compiler/fast-api-interface-types': [FAIL],
+  'compiler/fast-api-sequences*': [FAIL],
+  # Maglev doesn't specialise the IsBeingInterpreted runtime func.
+  'compiler/is-being-interpreted-1': [FAIL],
+  # Maglev doesn't support elements transitions (yet!).
+  'compiler/regress-9945-1': [FAIL],
+  'compiler/regress-9945-2': [FAIL],
+  # Maglev doesn't support growing elements stores.
+  'array-store-and-grow': [FAIL],
+  # This test requires inlining, currently disabled in Maglev
+  'regress/regress-4578': [FAIL],
+  # This test appears to be relying on no adding a map stability check, but
+  # instead using a field representation dependency and allowing a read from
+  # the deprecated map. Wiring this through in Maglev would be too messy to be
+  # worth it.
+  'regress/regress-map-invalidation-2': [FAIL],
+}], # variant == stress_maglev
+
 ]
