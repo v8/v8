@@ -399,7 +399,7 @@ class CompactInterpreterFrameState {
     DCHECK(liveness_->AccumulatorIsLive());
     return live_registers_and_accumulator_[size(info) - 1];
   }
-  ValueNode* accumulator(const MaglevCompilationUnit& info) const {
+  ValueNode*& accumulator(const MaglevCompilationUnit& info) const {
     DCHECK(liveness_->AccumulatorIsLive());
     return live_registers_and_accumulator_[size(info) - 1];
   }
@@ -407,7 +407,7 @@ class CompactInterpreterFrameState {
   ValueNode*& context(const MaglevCompilationUnit& info) {
     return live_registers_and_accumulator_[info.parameter_count()];
   }
-  ValueNode* context(const MaglevCompilationUnit& info) const {
+  ValueNode*& context(const MaglevCompilationUnit& info) const {
     return live_registers_and_accumulator_[info.parameter_count()];
   }
 

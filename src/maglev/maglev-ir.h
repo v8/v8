@@ -937,7 +937,19 @@ class DeoptFrame {
   struct BuiltinContinuationFrameData {
     Builtin builtin_id;
     base::Vector<ValueNode*> parameters;
-    ValueNode* context;
+    // All of the ValueNode inputs in InterpretedFrameData,
+    // InlinedArgumentsFrameData and BuiltinContinuationFrameData are stored in
+    // non-const pointers (`frame_state.live_registers_and_accumulator_`,
+    // `arguments` and `parameters`), which allows DeepForEachInput and
+    // CompactInterpreterFrameState::ForEachValue to iterate over all of the
+    // inputs as ValueNode*&, allowing the callback function to mutate the frame
+    // state inputs. This is in particular useful for PhiRepresentationSelector,
+    // which may need to update some frame state inputs.
+    // However, the following `context` field is the only exception, as it is
+    // stored directly in the frame state. Thus, we made it mutable, so that we
+    // can update it in DeepForEachInput while still keeping as many `const`
+    // methods and fields as we can.
+    mutable ValueNode* context;
   };
 
   DeoptFrame(InterpretedFrameData data, const DeoptFrame* parent)
@@ -1040,7 +1052,7 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
   base::Vector<ValueNode*> parameters() const {
     return builtin_continuation_frame_data_.parameters;
   }
-  ValueNode* context() const {
+  ValueNode*& context() const {
     return builtin_continuation_frame_data_.context;
   }
 };

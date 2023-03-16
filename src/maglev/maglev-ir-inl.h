@@ -25,18 +25,18 @@ void DeepForEachInputImpl(const DeoptFrame& frame,
     case DeoptFrame::FrameType::kInterpretedFrame:
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
-          [&](ValueNode* node, interpreter::Register reg) {
+          [&](ValueNode*& node, interpreter::Register reg) {
             f(node, &input_locations[index++]);
           });
       break;
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      for (ValueNode* node : frame.as_inlined_arguments().arguments()) {
+      for (ValueNode*& node : frame.as_inlined_arguments().arguments()) {
         f(node, &input_locations[index++]);
       }
       break;
     }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
+      for (ValueNode*& node : frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);
       }
       f(frame.as_builtin_continuation().context(), &input_locations[index++]);
@@ -65,7 +65,7 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       top_frame.as_interpreted().frame_state()->ForEachValue(
           top_frame.as_interpreted().unit(),
-          [&](ValueNode* node, interpreter::Register reg) {
+          [&](ValueNode*& node, interpreter::Register reg) {
             // Skip over the result location since it is irrelevant for lazy
             // deopts (unoptimized code will recreate the result).
             if (deopt_info->IsResultRegister(reg)) return;
@@ -76,9 +76,10 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
       // The inlined arguments frame can never be the top frame.
       UNREACHABLE();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode* node : top_frame.as_builtin_continuation().parameters()) {
+      for (ValueNode*& node :
+           top_frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);
-      };
+      }
       f(top_frame.as_builtin_continuation().context(),
         &input_locations[index++]);
       break;

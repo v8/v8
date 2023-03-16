@@ -6,6 +6,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -441,6 +442,21 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
     }
   }
 }
+
+template <typename DeoptInfoT>
+void MaglevPhiRepresentationSelector::BypassIdentities(
+    const DeoptInfoT* deopt_info) {
+  detail::DeepForEachInput(deopt_info,
+                           [&](ValueNode*& node, InputLocation* input) {
+                             if (node->Is<Identity>()) {
+                               node = node->input(0).node();
+                             }
+                           });
+}
+template void MaglevPhiRepresentationSelector::BypassIdentities<EagerDeoptInfo>(
+    const EagerDeoptInfo*);
+template void MaglevPhiRepresentationSelector::BypassIdentities<LazyDeoptInfo>(
+    const LazyDeoptInfo*);
 
 ValueNode* MaglevPhiRepresentationSelector::AddNode(ValueNode* node,
                                                     BasicBlock* block,
