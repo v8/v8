@@ -661,10 +661,16 @@ DEFINE_INT(bytecode_size_allowance_per_tick, 150,
 DEFINE_INT(
     max_bytecode_size_for_early_opt, 81,
     "Maximum bytecode length for a function to be optimized on the first tick")
-DEFINE_BOOL(global_ic_updated_flag, true,
+DEFINE_BOOL(global_ic_updated_flag, false,
             "Track, globally, whether any IC changed, and use this in tierup "
             "heuristics.")
-DEFINE_BOOL(reset_interrupt_on_ic_update, false,
+DEFINE_INT(
+    minimum_invocations_after_ic_update_for_maglev, 5,
+    "How long to minimally wait after IC update before tier up to Maglev")
+DEFINE_INT(
+    minimum_invocations_after_ic_update, 10,
+    "How long to minimally wait after IC update before tier up to Turbofan")
+DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
 
 // Flags for inline caching and feedback vectors.

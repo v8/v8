@@ -97,10 +97,10 @@ static_assert(sizeof(OptimizationDecision) <= kInt32Size);
 
 namespace {
 
-void TraceInOptimizationQueue(JSFunction function, CodeKind calling_code_kind) {
+void TraceInOptimizationQueue(JSFunction function, CodeKind current_code_kind) {
   if (v8_flags.trace_opt_verbose) {
     PrintF("[not marking function %s (%s) for optimization: already queued]\n",
-           function.DebugNameCStr().get(), CodeKindToString(calling_code_kind));
+           function.DebugNameCStr().get(), CodeKindToString(current_code_kind));
   }
 }
 
@@ -271,7 +271,7 @@ void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
 }
 
 void TieringManager::MaybeOptimizeFrame(JSFunction function,
-                                        CodeKind calling_code_kind) {
+                                        CodeKind current_code_kind) {
   const TieringState tiering_state = function.feedback_vector().tiering_state();
   const TieringState osr_tiering_state =
       function.feedback_vector().osr_tiering_state();
@@ -281,7 +281,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
       V8_UNLIKELY(IsInProgress(osr_tiering_state))) {
     // Note: This effectively disables further tiering actions (e.g. OSR, or
     // tiering up into Maglev) for the function while it is being compiled.
-    TraceInOptimizationQueue(function, calling_code_kind);
+    TraceInOptimizationQueue(function, current_code_kind);
     return;
   }
 
@@ -308,7 +308,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
       function.HasAvailableCodeKind(CodeKind::TURBOFAN)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in a lower-tier frame (this implies a long-running loop).
-    if (SmallEnoughForOSR(isolate_, function, calling_code_kind)) {
+    if (SmallEnoughForOSR(isolate_, function, current_code_kind)) {
       TryIncrementOsrUrgency(isolate_, function);
     }
 
@@ -319,7 +319,8 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
   DCHECK(!IsRequestTurbofan(tiering_state));
   DCHECK(!function.HasAvailableCodeKind(CodeKind::TURBOFAN));
-  OptimizationDecision d = ShouldOptimize(function, calling_code_kind);
+  OptimizationDecision d =
+      ShouldOptimize(function.feedback_vector(), current_code_kind);
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
   // is in a loop, and can't OSR, because Maglev doesn't have OSR. Allow it to
   // skip over Maglev by re-checking ShouldOptimize as if we were in Maglev.
@@ -330,7 +331,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
         IsRequestMaglev(tiering_state) ||
         function.HasAvailableCodeKind(CodeKind::MAGLEV);
     if (is_marked_for_maglev_optimization) {
-      d = ShouldOptimize(function, CodeKind::MAGLEV);
+      d = ShouldOptimize(function.feedback_vector(), CodeKind::MAGLEV);
     }
   }
 
@@ -338,27 +339,29 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 }
 
 OptimizationDecision TieringManager::ShouldOptimize(
-    JSFunction function, CodeKind calling_code_kind) {
-  if (TiersUpToMaglev(calling_code_kind) &&
-      function.shared().PassesFilter(v8_flags.maglev_filter) &&
-      !function.shared(isolate_).maglev_compilation_failed()) {
+    FeedbackVector feedback_vector, CodeKind current_code_kind,
+    bool after_next_tick) {
+  SharedFunctionInfo shared = feedback_vector.shared_function_info();
+  if (TiersUpToMaglev(current_code_kind) &&
+      shared.PassesFilter(v8_flags.maglev_filter) &&
+      !shared.maglev_compilation_failed()) {
     if (any_ic_changed_) return OptimizationDecision::DoNotOptimize();
     return OptimizationDecision::Maglev();
-  } else if (calling_code_kind == CodeKind::TURBOFAN) {
+  } else if (current_code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
     return OptimizationDecision::DoNotOptimize();
   }
 
-  if (!v8_flags.turbofan ||
-      !function.shared().PassesFilter(v8_flags.turbo_filter)) {
+  if (!v8_flags.turbofan || !shared.PassesFilter(v8_flags.turbo_filter)) {
     return OptimizationDecision::DoNotOptimize();
   }
 
-  BytecodeArray bytecode = function.shared().GetBytecodeArray(isolate_);
+  BytecodeArray bytecode = shared.GetBytecodeArray(isolate_);
   if (bytecode.length() > v8_flags.max_optimized_bytecode_size) {
     return OptimizationDecision::DoNotOptimize();
   }
-  const int ticks = function.feedback_vector().profiler_ticks();
+  const int ticks =
+      feedback_vector.profiler_ticks() + (after_next_tick ? 1 : 0);
   const int ticks_for_optimization =
       v8_flags.ticks_before_optimization +
       (bytecode.length() / v8_flags.bytecode_size_allowance_per_tick);
@@ -371,7 +374,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
     return OptimizationDecision::TurbofanSmallFunction();
   } else if (v8_flags.trace_opt_verbose) {
     PrintF("[not yet optimizing %s, not enough ticks: %d/%d and ",
-           function.DebugNameCStr().get(), ticks, ticks_for_optimization);
+           shared.DebugNameCStr().get(), ticks, ticks_for_optimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
     } else {
@@ -394,9 +397,23 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
                          : vector.shared_function_info().HasBaselineCode()
                              ? CodeKind::BASELINE
                              : CodeKind::INTERPRETED_FUNCTION;
-    int interrupt_budget =
-        ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
-    vector.parent_feedback_cell().set_interrupt_budget(interrupt_budget);
+    OptimizationDecision decision = ShouldOptimize(vector, code_kind, true);
+    if (decision.should_optimize()) {
+      SharedFunctionInfo shared = vector.shared_function_info();
+      int bytecode_length = shared.GetBytecodeArray(isolate_).length();
+      FeedbackCell cell = vector.parent_feedback_cell();
+      int minimum =
+          decision.code_kind == CodeKind::MAGLEV
+              ? v8_flags.minimum_invocations_after_ic_update_for_maglev
+              : v8_flags.minimum_invocations_after_ic_update;
+      int minimum_budget = minimum * bytecode_length;
+      int current_budget = cell.interrupt_budget();
+      if (minimum_budget > current_budget) {
+        int maximum_budget =
+            ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
+        cell.set_interrupt_budget(std::min(minimum_budget, maximum_budget));
+      }
+    }
   }
 }
 
