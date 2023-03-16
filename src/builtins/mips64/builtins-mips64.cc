@@ -3197,7 +3197,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
   static_assert(FCA::kDataIndex == 4);
-  static_assert(FCA::kReturnValueOffset == 3);
+  static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kReturnValueDefaultValueIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
   static_assert(FCA::kHolderIndex == 0);
@@ -3282,7 +3282,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // TODO(jgruber): Document what these arguments are.
   static constexpr int kStackSlotsAboveFCA = 2;
   MemOperand return_value_operand(
-      fp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kPointerSize);
+      fp, (kStackSlotsAboveFCA + FCA::kReturnValueIndex) * kPointerSize);
 
   static constexpr int kUseStackSpaceOperand = 0;
   MemOperand stack_space_operand(sp, 4 * kPointerSize);
@@ -3300,7 +3300,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PropertyCallbackArguments::kHolderIndex == 1);
   static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
   static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
+  static_assert(PropertyCallbackArguments::kReturnValueIndex == 4);
   static_assert(PropertyCallbackArguments::kDataIndex == 5);
   static_assert(PropertyCallbackArguments::kThisIndex == 6);
   static_assert(PropertyCallbackArguments::kArgsLength == 7);
@@ -3320,7 +3320,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Ld(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ Sd(scratch, MemOperand(sp, (PCA::kDataIndex + 1) * kPointerSize));
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ Sd(scratch, MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
+  __ Sd(scratch, MemOperand(sp, (PCA::kReturnValueIndex + 1) * kPointerSize));
   __ Sd(scratch, MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
                                     kPointerSize));
   __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
@@ -3358,7 +3358,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
-      fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+      fp, (PropertyCallbackArguments::kReturnValueIndex + 3) * kPointerSize);
   MemOperand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,

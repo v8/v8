@@ -3460,7 +3460,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
   static_assert(FCA::kDataIndex == 4);
-  static_assert(FCA::kReturnValueOffset == 3);
+  static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kReturnValueDefaultValueIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
   static_assert(FCA::kHolderIndex == 0);
@@ -3533,7 +3533,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
   Operand return_value_operand =
-      ExitFrameCallerStackSlotOperand(FCA::kReturnValueOffset);
+      ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
   static constexpr int kUseStackSpaceOperand = 0;
   Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
@@ -3549,7 +3549,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kHolderIndex == 1);
   static_assert(PCA::kIsolateIndex == 2);
   static_assert(PCA::kReturnValueDefaultValueIndex == 3);
-  static_assert(PCA::kReturnValueOffset == 4);
+  static_assert(PCA::kReturnValueIndex == 4);
   static_assert(PCA::kDataIndex == 5);
   static_assert(PCA::kThisIndex == 6);
   static_assert(PCA::kArgsLength == 7);
@@ -3606,7 +3606,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
   Operand return_value_operand = ExitFrameCallerStackSlotOperand(
-      PCA::kReturnValueOffset + kNameHandleStackSize);
+      PCA::kReturnValueIndex + kNameHandleStackSize);
   Operand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, function_address, thunk_ref, thunk_last_arg,
                            kStackUnwindSpace, kUseStackSpaceConstant,

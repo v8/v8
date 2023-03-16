@@ -32,14 +32,14 @@ CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
 
 template <typename T>
 CustomArguments<T>::~CustomArguments() {
-  slot_at(kReturnValueOffset).store(Object(kHandleZapValue));
+  slot_at(kReturnValueIndex).store(Object(kHandleZapValue));
 }
 
 template <typename T>
 template <typename V>
 Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   // Check the ReturnValue.
-  FullObjectSlot slot = slot_at(kReturnValueOffset);
+  FullObjectSlot slot = slot_at(kReturnValueIndex);
   // Nothing was set, return empty handle as per previous behaviour.
   Object raw_object = *slot;
   if (raw_object.IsTheHole(isolate)) return Handle<V>();

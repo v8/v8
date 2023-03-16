@@ -75,7 +75,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
-    argv[-1] = js_receiver->ptr();
+    argv[BuiltinArguments::kReceiverArgsOffset] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
     DCHECK(receiver->IsJSReceiver());

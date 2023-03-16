@@ -6,6 +6,7 @@
 #define V8_API_API_ARGUMENTS_H_
 
 #include "include/v8-template.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/execution/isolate.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
@@ -24,7 +25,8 @@ class CustomArgumentsBase : public Relocatable {
 template <typename T>
 class CustomArguments : public CustomArgumentsBase {
  public:
-  static const int kReturnValueOffset = T::kReturnValueIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
+  static_assert(T::kSize == sizeof(T));
 
   ~CustomArguments() override;
 
@@ -51,6 +53,7 @@ class CustomArguments : public CustomArgumentsBase {
               static_cast<unsigned>(T::kArgsLength));
     return FullObjectSlot(values_ + index);
   }
+
   Address values_[T::kArgsLength];
 };
 
@@ -69,14 +72,14 @@ class PropertyCallbackArguments final
  public:
   using T = PropertyCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kThisIndex = T::kThisIndex;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
+  static constexpr int kArgsLength = T::kArgsLength;
+  static constexpr int kThisIndex = T::kThisIndex;
+  static constexpr int kHolderIndex = T::kHolderIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kReturnValueDefaultValueIndex =
       T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
                             JSObject holder, Maybe<ShouldThrow> should_throw);
@@ -167,7 +170,7 @@ class PropertyCallbackArguments final
 #ifdef DEBUG
   // This stores current value of Isolate::javascript_execution_counter().
   // It's used for detecting whether JavaScript code was executed between
-  // PropertyCallbackArguments's constructior and destructor.
+  // PropertyCallbackArguments's constructor and destructor.
   uint32_t javascript_execution_counter_;
 #endif  // DEBUG
 };
@@ -177,13 +180,21 @@ class FunctionCallbackArguments
  public:
   using T = FunctionCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
+  static constexpr int kArgsLength = T::kArgsLength;
+  static constexpr int kArgsLengthWithReceiver = T::kArgsLengthWithReceiver;
+
+  static constexpr int kHolderIndex = T::kHolderIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kReturnValueDefaultValueIndex =
       T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kNewTargetIndex = T::kNewTargetIndex;
+
+  static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
+  // Make sure all FunctionCallbackInfo constants are in sync.
+  static_assert(T::kImplicitArgsOffset == offsetof(T, implicit_args_));
+  static_assert(T::kValuesOffset == offsetof(T, values_));
+  static_assert(T::kLengthOffset == offsetof(T, length_));
 
   FunctionCallbackArguments(Isolate* isolate, Object data, Object holder,
                             HeapObject new_target, Address* argv, int argc);
@@ -204,6 +215,11 @@ class FunctionCallbackArguments
   internal::Address* argv_;
   int const argc_;
 };
+
+static_assert(BuiltinArguments::kNumExtraArgs ==
+              BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver);
+static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
+              BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
 }  // namespace internal
 }  // namespace v8

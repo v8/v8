@@ -3413,7 +3413,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
   static_assert(FCA::kDataIndex == 4);
-  static_assert(FCA::kReturnValueOffset == 3);
+  static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kReturnValueDefaultValueIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
   static_assert(FCA::kHolderIndex == 0);
@@ -3501,7 +3501,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // TODO(jgruber): Document what these arguments are.
   static constexpr int kStackSlotsAboveFCA = 2;
   MemOperand return_value_operand(
-      fp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
+      fp, (kStackSlotsAboveFCA + FCA::kReturnValueIndex) * kSystemPointerSize);
 
   static constexpr int kUseStackSpaceOperand = 0;
   MemOperand stack_space_operand(
@@ -3524,7 +3524,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PropertyCallbackArguments::kHolderIndex == 1);
   static_assert(PropertyCallbackArguments::kIsolateIndex == 2);
   static_assert(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  static_assert(PropertyCallbackArguments::kReturnValueOffset == 4);
+  static_assert(PropertyCallbackArguments::kReturnValueIndex == 4);
   static_assert(PropertyCallbackArguments::kDataIndex == 5);
   static_assert(PropertyCallbackArguments::kThisIndex == 6);
   static_assert(PropertyCallbackArguments::kArgsLength == 7);
@@ -3605,7 +3605,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
       fp,
-      (PropertyCallbackArguments::kReturnValueOffset + 3) * kSystemPointerSize);
+      (PropertyCallbackArguments::kReturnValueIndex + 3) * kSystemPointerSize);
   MemOperand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,

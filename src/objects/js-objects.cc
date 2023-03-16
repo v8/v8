@@ -4118,7 +4118,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
 
   DCHECK(result->IsBoolean());
   args.AcceptSideEffects();
-  // Rebox CustomArguments::kReturnValueOffset before returning.
+  // Rebox CustomArguments::kReturnValueIndex before returning.
   return Just(result->IsTrue(isolate));
 }
 
