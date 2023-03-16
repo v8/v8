@@ -514,6 +514,7 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual v8::Local<v8::String> GetFunctionDebugName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;
   virtual debug::Location GetSourceLocation() const = 0;
+  virtual debug::Location GetFunctionLocation() const = 0;
   virtual v8::Local<v8::Function> GetFunction() const = 0;
   virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
   virtual bool CanBeRestarted() const = 0;

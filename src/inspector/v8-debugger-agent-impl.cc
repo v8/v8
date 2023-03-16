@@ -1769,13 +1769,13 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                      .setCanBeRestarted(iterator->CanBeRestarted())
                      .build();
 
-    v8::Local<v8::Function> func = iterator->GetFunction();
-    if (!func.IsEmpty()) {
+    v8::debug::Location func_loc = iterator->GetFunctionLocation();
+    if (!func_loc.IsEmpty()) {
       frame->setFunctionLocation(
           protocol::Debugger::Location::create()
-              .setScriptId(String16::fromInteger(func->ScriptId()))
-              .setLineNumber(func->GetScriptLineNumber())
-              .setColumnNumber(func->GetScriptColumnNumber())
+              .setScriptId(String16::fromInteger(script->Id()))
+              .setLineNumber(func_loc.GetLineNumber())
+              .setColumnNumber(func_loc.GetColumnNumber())
               .build());
     }
 

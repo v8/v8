@@ -28,6 +28,7 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
   v8::Local<v8::String> GetFunctionDebugName() const override;
   v8::Local<v8::debug::Script> GetScript() const override;
   debug::Location GetSourceLocation() const override;
+  debug::Location GetFunctionLocation() const override;
   v8::Local<v8::Function> GetFunction() const override;
   std::unique_ptr<v8::debug::ScopeIterator> GetScopeIterator() const override;
   bool CanBeRestarted() const override;
