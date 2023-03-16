@@ -820,7 +820,7 @@
   'v8_win_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
+      'os': 'Windows-10-19045',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -830,7 +830,7 @@
   'v8_win_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
+      'os': 'Windows-10-19045',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1870,7 +1870,7 @@
   'V8 Win32': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
+      'os': 'Windows-10-19045',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1881,7 +1881,7 @@
   'V8 Win32 - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
+      'os': 'Windows-10-19045',
     },
     'tests': [
       {'name': 'mozilla'},
