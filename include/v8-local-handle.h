@@ -50,6 +50,10 @@ class TracedReference;
 class TracedReferenceBase;
 class Utils;
 
+namespace debug {
+class ConsoleCallArguments;
+}
+
 namespace internal {
 template <typename T>
 class CustomArguments;
@@ -322,6 +326,7 @@ class Local {
   friend class Traced;
   friend class internal::SamplingHeapProfiler;
   friend class internal::HandleHelper;
+  friend class debug::ConsoleCallArguments;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
 

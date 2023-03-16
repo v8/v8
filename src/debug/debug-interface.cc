@@ -1091,16 +1091,15 @@ void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
 
 ConsoleCallArguments::ConsoleCallArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info)
-    : v8::FunctionCallbackInfo<v8::Value>(nullptr, info.values_, info.length_) {
-}
+    : isolate_(info.GetIsolate()),
+      values_(info.values_),
+      length_(info.length_) {}
 
 ConsoleCallArguments::ConsoleCallArguments(
-    const internal::BuiltinArguments& args)
-    : v8::FunctionCallbackInfo<v8::Value>(
-          nullptr,
-          // Drop the first argument (receiver, i.e. the "console" object).
-          args.length() > 1 ? args.address_of_first_argument() : nullptr,
-          args.length() - 1) {}
+    internal::Isolate* isolate, const internal::BuiltinArguments& args)
+    : isolate_(reinterpret_cast<v8::Isolate*>(isolate)),
+      values_(args.length() > 1 ? args.address_of_first_argument() : nullptr),
+      length_(args.length() - 1) {}
 
 v8::Local<v8::Message> CreateMessageFromException(
     Isolate* v8_isolate, v8::Local<v8::Value> v8_error) {
