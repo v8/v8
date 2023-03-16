@@ -2673,10 +2673,9 @@ HEAP_TEST(Regress845060) {
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
   CHECK(Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
 
-  // Idle incremental marking sets the "kReduceMemoryFootprint" flag, which
-  // causes from_space to be unmapped after scavenging.
-  heap->StartIdleIncrementalMarking(GarbageCollectionReason::kTesting);
-  CHECK(heap->ShouldReduceMemory());
+  // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
+  heap->StartIncrementalMarking(i::Heap::kReduceMemoryFootprintMask,
+                                GarbageCollectionReason::kTesting);
 
   // Run the test (which allocates results) until the original string was
   // promoted to old space. Unmapping of from_space causes accesses to any

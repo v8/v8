@@ -2039,13 +2039,6 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
   }
 }
 
-void Heap::StartIdleIncrementalMarking(
-    GarbageCollectionReason gc_reason,
-    const GCCallbackFlags gc_callback_flags) {
-  StartIncrementalMarking(kReduceMemoryFootprintMask, gc_reason,
-                          gc_callback_flags);
-}
-
 void Heap::MoveRange(HeapObject dst_object, const ObjectSlot dst_slot,
                      const ObjectSlot src_slot, int len,
                      WriteBarrierMode mode) {

@@ -1099,12 +1099,6 @@ class Heap {
                                           : kNoGCFlags;
   }
 
-  // Start incremental marking and ensure that idle time handler can perform
-  // incremental steps.
-  V8_EXPORT_PRIVATE void StartIdleIncrementalMarking(
-      GarbageCollectionReason gc_reason,
-      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
-
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
