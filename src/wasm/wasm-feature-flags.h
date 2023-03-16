@@ -45,9 +45,6 @@
     false)                                                                     \
   V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
-  /* Not user-visible, defined here so an Origin Trial can control it.*/       \
-  V(inlining, "enable wasm-into-wasm inlining", false)                         \
-                                                                               \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
   /* V8 side owner: manoskouk */                                               \
@@ -97,7 +94,13 @@
   /* https://github.com/WebAssembly/extended-const */                          \
   /* V8 side owner: manoskouk */                                               \
   /* Staged in v11.3. */                                                       \
-  V(extended_const, "extended constant expressions", false)
+  V(extended_const, "extended constant expressions", false)                    \
+                                                                               \
+  /* Not user-visible, defined here so an Origin Trial can control it.*/       \
+  /* V8 side owner: manoskouk, clemensb */                                     \
+  /* Staged in v11.3 */                                                        \
+  /* Launch bug: https://crbug.com/1424350 */                                  \
+  V(inlining, "enable wasm-into-wasm inlining", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
