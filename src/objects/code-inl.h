@@ -38,9 +38,6 @@ OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
 
-NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
-NEVER_READ_ONLY_SPACE_IMPL(Code)
-
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(GcSafeCode)
 CAST_ACCESSOR(InstructionStream)
@@ -100,6 +97,11 @@ bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
     }
   }
   return false;
+}
+
+Object GcSafeCode::raw_instruction_stream(
+    PtrComprCageBase code_cage_base) const {
+  return UnsafeCastToCode().raw_instruction_stream(code_cage_base);
 }
 
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
@@ -725,7 +727,8 @@ bool Code::marked_for_deoptimization() const {
 
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(CodeKindCanDeoptimize(kind()));
-  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
+  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(
+                           GetIsolateFromWritableObject(*this)));
   int16_t previous = kind_specific_flags(kRelaxedLoad);
   int16_t updated = MarkedForDeoptimizationField::update(previous, flag);
   set_kind_specific_flags(updated, kRelaxedStore);
@@ -894,20 +897,31 @@ void Code::set_raw_instruction_stream(Object value, WriteBarrierMode mode) {
 }
 
 bool Code::has_instruction_stream() const {
-  return raw_instruction_stream() != Smi::zero();
+  const uint32_t value = ReadField<uint32_t>(kInstructionStreamOffset);
+  SLOW_DCHECK(value == 0 || !InReadOnlySpace());
+  return value != 0;
 }
 
 bool Code::has_instruction_stream(RelaxedLoadTag tag) const {
-  return raw_instruction_stream(tag) != Smi::zero();
+  const uint32_t value =
+      RELAXED_READ_INT32_FIELD(*this, kInstructionStreamOffset);
+  SLOW_DCHECK(value == 0 || !InReadOnlySpace());
+  return value != 0;
 }
 
 PtrComprCageBase Code::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
+  // Only available if the current Code object is not in RO space (otherwise we
+  // can't grab the current Isolate from it).
+  DCHECK(!InReadOnlySpace());
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   return PtrComprCageBase(isolate->code_cage_base());
-#else
+#else   // V8_EXTERNAL_CODE_SPACE
+  // Without external code space: `code_cage_base == main_cage_base`. We can
+  // get the main cage base from any heap object, including objects in RO
+  // space.
   return GetPtrComprCageBase(*this);
-#endif
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 InstructionStream Code::instruction_stream() const {
@@ -963,6 +977,10 @@ void Code::SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                           Address entry) {
   DCHECK(!has_instruction_stream());
   set_code_entry_point(isolate_for_sandbox, entry);
+}
+
+void Code::SetCodeEntryPointForSerialization(Isolate* isolate, Address entry) {
+  set_code_entry_point(isolate, entry);
 }
 
 void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,

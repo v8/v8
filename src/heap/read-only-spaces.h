@@ -276,6 +276,7 @@ class ReadOnlySpace : public BaseSpace {
   const size_t area_size_;
 
   friend class Heap;
+  friend class ReadOnlySerializer;  // For Unseal.
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {

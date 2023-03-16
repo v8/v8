@@ -1890,7 +1890,9 @@ void Code::CodePrint(std::ostream& os) {
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
   }
-  os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
+  if (has_instruction_stream()) {
+    os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
+  }
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);

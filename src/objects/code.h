@@ -74,18 +74,17 @@ class Register;
 // declarations in InstructionStream.
 class Code : public HeapObject {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
-  // all the other objects are allocated. This helper method returns code cage
-  // base value which is used for decompressing the reference to the respective
-  // InstructionStream. It loads the Isolate from the page header (since the
-  // Code objects are always writable) and then the code cage base value from
-  // there.
+  // all the other objects are allocated.
   inline PtrComprCageBase code_cage_base() const;
 
   // Back-reference to the InstructionStream object.
+  //
+  // Note the cage-less accessor versions may not be called if the current Code
+  // object is InReadOnlySpace. That may only be the case for Code objects
+  // representing builtins, or in other words, Code objects for which
+  // has_instruction_stream() is never true.
   DECL_GETTER(instruction_stream, InstructionStream)
   DECL_RELAXED_GETTER(instruction_stream, InstructionStream)
   DECL_ACCESSORS(raw_instruction_stream, Object)
@@ -113,6 +112,8 @@ class Code : public HeapObject {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                              Address entry);
+  inline void SetCodeEntryPointForSerialization(Isolate* isolate,
+                                                Address entry);
   // Updates the value of the code entry point. The code must be equal to
   // the code() value.
   inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
@@ -476,6 +477,7 @@ class Code : public HeapObject {
 
   template <typename IsolateT>
   friend class Deserializer;
+  friend class ReadOnlyDeserializer;  // For init_code_entry_point.
   friend class GcSafeCode;  // For OffHeapFoo functions.
   friend Factory;
   friend FactoryBase<Factory>;
@@ -533,6 +535,7 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
+  inline Object raw_instruction_stream(PtrComprCageBase code_cage_base) const;
 
   // Accessors that had to be modified to be used in GC settings.
   inline Address SafepointTableAddress() const;
@@ -543,6 +546,10 @@ class GcSafeCode : public HeapObject {
 
 // InstructionStream contains the instruction stream for V8-generated code
 // objects.
+//
+// When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
+// allocated in a separate pointer compression cage instead of the cage where
+// all the other objects are allocated.
 class InstructionStream : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -732,8 +739,6 @@ inline InstructionStream FromCode(Code code, PtrComprCageBase, RelaxedLoadTag);
 // AbstractCode is a helper wrapper around {Code|BytecodeArray}.
 class AbstractCode : public HeapObject {
  public:
-  NEVER_READ_ONLY_SPACE
-
   int SourcePosition(PtrComprCageBase cage_base, int offset);
   int SourceStatementPosition(PtrComprCageBase cage_base, int offset);
 

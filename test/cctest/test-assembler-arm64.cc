@@ -217,7 +217,7 @@ static void InitializeVM() {
   {                                                            \
     /* Reset the scope and thus make the buffer executable. */ \
     rw_buffer_scope.reset();                                   \
-    auto f = GeneratedCode<void>::FromCode(*code);             \
+    auto f = GeneratedCode<void>::FromCode(isolate, *code);    \
     f.Call();                                                  \
   }
 

@@ -1047,7 +1047,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     DCHECK(istream_or_smi_zero == Smi::zero() ||
            istream_or_smi_zero.IsInstructionStream());
     Code code = Code::cast(*code_slot);
-    DCHECK_EQ(code.raw_instruction_stream(), istream_or_smi_zero);
+    DCHECK_EQ(code.raw_instruction_stream(
+                  PtrComprCageBase{collector_->isolate()->code_cage_base()}),
+              istream_or_smi_zero);
 
     // We must not remove deoptimization literals which may be needed in
     // order to successfully deoptimize.

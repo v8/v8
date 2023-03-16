@@ -2272,13 +2272,11 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
 
 unsigned CodeRef::GetInlinedBytecodeSize() const {
   Code code = *object();
-  if (!code.has_instruction_stream()) return 0;
-
-  unsigned value = code.inlined_bytecode_size();
-  if (value > 0) {
+  const unsigned value = code.inlined_bytecode_size();
+  if (value != 0 && code.marked_for_deoptimization()) {
     // Don't report inlined bytecode size if the code object was already
     // deoptimized.
-    value = code.marked_for_deoptimization() ? 0 : value;
+    return 0;
   }
   return value;
 }
