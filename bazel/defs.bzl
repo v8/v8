@@ -156,9 +156,8 @@ def _default_args():
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
-        }),
-        cxxopts = select({
-            "//third_party/v8/HEAD/google3/config:is_opt": [
+        }) +  select({
+            "@v8//bazel/config:is_opt": [
                 "-fvisibility=hidden",
                 "-fvisibility-inlines-hidden",
             ],
