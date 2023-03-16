@@ -5462,8 +5462,7 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
 }
 
 void Isolate::OnTerminationDuringRunMicrotasks() {
-  DCHECK_IMPLIES(v8_flags.strict_termination_checks,
-                 is_execution_terminating());
+  DCHECK(is_execution_terminating());
   // This performs cleanup for when RunMicrotasks (in
   // builtins-microtask-queue-gen.cc) is aborted via a termination exception.
   // This has to be kept in sync with the code in said file. Currently this
