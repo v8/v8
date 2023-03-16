@@ -12,6 +12,7 @@ import ast
 import re
 import sys
 
+USE_PYTHON3 = True
 
 REQUIRED_FLAKO_PROPS = [
     'bisect_buildername',
@@ -67,7 +68,7 @@ def _ValidateFlakesPyl():
           errors.append(
               'value for `%s` must be a list, got %s' % (key, repr(entry[key])))
       else:
-        if not isinstance(entry[key], (basestring, int)):
+        if not isinstance(entry[key], (str, int)):
           errors.append(
               'value for `%s` must be an int or a string, got %s' %
               (key, repr(entry[key])))
