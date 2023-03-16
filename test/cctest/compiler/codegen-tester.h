@@ -72,10 +72,6 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
 
-  Handle<InstructionStream> GetInstructionStream() {
-    return handle(GetCode()->instruction_stream(), main_isolate());
-  }
-
   Handle<Code> GetCode() {
     Generate();
     return code_.ToHandleChecked();

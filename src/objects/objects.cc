@@ -2036,7 +2036,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case INSTRUCTION_STREAM_TYPE: {
-      InstructionStream code = InstructionStream::cast(*this);
+      InstructionStream istream = InstructionStream::cast(*this);
+      Code code = istream.code(kAcquireLoad);
       os << "<InstructionStream " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
         os << " " << Builtins::name(code.builtin_id());

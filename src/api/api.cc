@@ -6946,10 +6946,9 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
   void VisitMapPointer(i::HeapObject host) final {
     VisitPointer(host, host.map_slot());
   }
-  void VisitCodePointer(i::HeapObject host, i::CodeObjectSlot slot) final {}
-  void VisitCodeTarget(i::InstructionStream host, i::RelocInfo* rinfo) final {}
-  void VisitEmbeddedPointer(i::InstructionStream host,
-                            i::RelocInfo* rinfo) final {}
+  void VisitCodePointer(i::Code host, i::CodeObjectSlot slot) final {}
+  void VisitCodeTarget(i::RelocInfo* rinfo) final {}
+  void VisitEmbeddedPointer(i::RelocInfo* rinfo) final {}
   void VisitCustomWeakPointers(i::HeapObject host, i::ObjectSlot start,
                                i::ObjectSlot end) final {}
 

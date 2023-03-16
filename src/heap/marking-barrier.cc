@@ -77,9 +77,9 @@ void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
     if (is_main_thread_barrier_) {
       // An optimization to avoid allocating additional typed slots for the
       // main thread.
-      major_collector_->RecordRelocSlot(host, reloc_info, value);
+      major_collector_->RecordRelocSlot(reloc_info, value);
     } else {
-      RecordRelocSlot(host, reloc_info, value);
+      RecordRelocSlot(reloc_info, value);
     }
   }
 }
@@ -146,13 +146,12 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   }
 }
 
-void MarkingBarrier::RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                                     HeapObject target) {
-  DCHECK(IsCurrentMarkingBarrier(host));
-  if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
+void MarkingBarrier::RecordRelocSlot(RelocInfo* rinfo, HeapObject target) {
+  DCHECK(IsCurrentMarkingBarrier(rinfo->instruction_stream()));
+  if (!MarkCompactCollector::ShouldRecordRelocSlot(rinfo, target)) return;
 
   MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+      MarkCompactCollector::ProcessRelocInfo(rinfo, target);
 
   auto& typed_slots = typed_slots_map_[info.memory_chunk];
   if (!typed_slots) {

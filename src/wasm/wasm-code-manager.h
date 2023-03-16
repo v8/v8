@@ -656,7 +656,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(Handle<InstructionStream> code);
+  WasmCode* AddCodeForTesting(Handle<Code> code);
 
   // Allocates and initializes the {lazy_compile_table_} and initializes the
   // first jump table with jumps to the {lazy_compile_table_}.

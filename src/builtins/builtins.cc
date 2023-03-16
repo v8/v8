@@ -283,7 +283,7 @@ Address Builtins::CppEntryOf(Builtin builtin) {
 }
 
 // static
-bool Builtins::IsBuiltin(const InstructionStream code) {
+bool Builtins::IsBuiltin(const Code code) {
   return Builtins::IsBuiltinId(code.builtin_id());
 }
 

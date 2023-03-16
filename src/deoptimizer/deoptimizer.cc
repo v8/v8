@@ -338,9 +338,8 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
   // Mark all code, then deoptimize.
   {
-    InstructionStream::OptimizedCodeIterator it(isolate);
-    for (InstructionStream code = it.Next(); !code.is_null();
-         code = it.Next()) {
+    Code::OptimizedCodeIterator it(isolate);
+    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
       code.set_marked_for_deoptimization(true);
     }
   }
@@ -384,9 +383,8 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
   // Mark all code that inlines this function, then deoptimize.
   bool any_marked = false;
   {
-    InstructionStream::OptimizedCodeIterator it(isolate);
-    for (InstructionStream code = it.Next(); !code.is_null();
-         code = it.Next()) {
+    Code::OptimizedCodeIterator it(isolate);
+    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
       if (code.Inlines(*function)) {
         code.set_marked_for_deoptimization(true);
         any_marked = true;
@@ -449,10 +447,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   }
 
   DCHECK_NE(from, kNullAddress);
-  compiled_code_ =
-      isolate_->heap()->FindCodeForInnerPointer(from).instruction_stream();
+  compiled_code_ = isolate_->heap()->FindCodeForInnerPointer(from);
   DCHECK(!compiled_code_.is_null());
-  DCHECK(compiled_code_.IsInstructionStream());
+  DCHECK(compiled_code_.IsCode());
 
   DCHECK(function.IsJSFunction());
 #ifdef DEBUG
@@ -477,7 +474,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(compiled_code_.deoptimization_data());
   Address deopt_start =
-      compiled_code_.instruction_start() + deopt_data.DeoptExitStart().value();
+      compiled_code_.InstructionStart() + deopt_data.DeoptExitStart().value();
   int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
       deopt_start + eager_deopt_count * kEagerDeoptExitSize;
@@ -506,8 +503,8 @@ Handle<JSFunction> Deoptimizer::function() const {
   return Handle<JSFunction>(function_, isolate());
 }
 
-Handle<InstructionStream> Deoptimizer::compiled_code() const {
-  return Handle<InstructionStream>(compiled_code_, isolate());
+Handle<Code> Deoptimizer::compiled_code() const {
+  return Handle<Code>(compiled_code_, isolate());
 }
 
 Deoptimizer::~Deoptimizer() {
@@ -604,12 +601,11 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 }
 
 // static
-void Deoptimizer::TraceMarkForDeoptimization(InstructionStream code,
+void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate, Code code,
                                              const char* reason) {
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = code.GetIsolate();
   Object maybe_data = code.deoptimization_data();
   if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
 
@@ -1895,13 +1891,13 @@ namespace {
 // points to immediately after the deopt call).
 //
 // See also the Deoptimizer constructor.
-Address GetDeoptCallPCFromReturnPC(Address return_pc, InstructionStream code) {
+Address GetDeoptCallPCFromReturnPC(Address return_pc, Code code) {
   DCHECK_GT(Deoptimizer::kEagerDeoptExitSize, 0);
   DCHECK_GT(Deoptimizer::kLazyDeoptExitSize, 0);
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(code.deoptimization_data());
   Address deopt_start =
-      code.instruction_start() + deopt_data.DeoptExitStart().value();
+      code.InstructionStart() + deopt_data.DeoptExitStart().value();
   int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
       deopt_start + eager_deopt_count * Deoptimizer::kEagerDeoptExitSize;
@@ -1960,9 +1956,8 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   return parameter_slots * kSystemPointerSize;
 }
 
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(InstructionStream code,
-                                                 Address pc) {
-  CHECK(code.instruction_start() <= pc && pc <= code.instruction_end());
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
+  CHECK(code.InstructionStart() <= pc && pc <= code.InstructionEnd());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;
   uint32_t last_node_id = 0;

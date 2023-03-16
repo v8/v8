@@ -112,8 +112,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                    icache_flush_mode);
-  if (!host().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target, write_barrier_mode);
+  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
   }
 }
 
@@ -191,8 +191,8 @@ void Assembler::emit(Instr x) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, InstructionStream code, Address target) {
-  DCHECK(!Builtins::IsIsolateIndependentBuiltin(code.code(kAcquireLoad)));
+    Address constant_pool_entry, Code code, Address target) {
+  DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));
   Memory<Address>(constant_pool_entry) = target;
 }
 

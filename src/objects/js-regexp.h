@@ -68,8 +68,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline String atom_pattern() const;
   // This could be a Smi kUninitializedValue or InstructionStream.
   V8_EXPORT_PRIVATE Object code(bool is_latin1) const;
-  V8_EXPORT_PRIVATE void set_code(bool is_unicode,
-                                  Handle<InstructionStream> code);
+  V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
   // This could be a Smi kUninitializedValue or ByteArray.
   V8_EXPORT_PRIVATE Object bytecode(bool is_latin1) const;
   // Sets the bytecode as well as initializing trampoline slots to the

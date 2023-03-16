@@ -158,9 +158,8 @@ void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
   Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
 }
 
-void Heap_GenerationalBarrierForCodeSlow(InstructionStream host,
-                                         RelocInfo* rinfo, HeapObject object) {
-  Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
+void Heap_GenerationalBarrierForCodeSlow(RelocInfo* rinfo, HeapObject object) {
+  Heap::GenerationalBarrierForCodeSlow(rinfo, object);
 }
 
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
@@ -1261,19 +1260,14 @@ void Heap::PublishPendingAllocations() {
   code_lo_space_->ResetPendingObject();
 }
 
-void Heap::InvalidateCodeDeoptimizationData(InstructionStream code) {
-  CodePageMemoryModificationScope modification_scope(code);
-  code.set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
-}
-
 void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
   // performance issue, use a cache data structure in heap instead.
 
-  ForeachAllocationSite(allocation_sites_list(), [](AllocationSite site) {
+  ForeachAllocationSite(allocation_sites_list(), [this](AllocationSite site) {
     if (site.deopt_dependent_code()) {
       DependentCode::MarkCodeForDeoptimization(
-          site, DependentCode::kAllocationSiteTenuringChangedGroup);
+          isolate_, site, DependentCode::kAllocationSiteTenuringChangedGroup);
       site.set_deopt_dependent_code(false);
     }
   });
@@ -6289,7 +6283,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkPointers(start, end);
     }
 
-    void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    void VisitCodePointer(Code host, CodeObjectSlot slot) override {
       Object maybe_code = slot.load(code_cage_base());
       HeapObject heap_object;
       if (maybe_code.GetHeapObject(&heap_object)) {
@@ -6297,12 +6291,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       }
     }
 
-    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
+    void VisitCodeTarget(RelocInfo* rinfo) final {
       InstructionStream target =
           InstructionStream::FromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
-    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
+    void VisitEmbeddedPointer(RelocInfo* rinfo) final {
       MarkHeapObject(rinfo->target_object(cage_base()));
     }
 
@@ -6823,43 +6817,35 @@ GcSafeCode Heap::GcSafeGetCodeFromInstructionStream(
   return GcSafeCode::unchecked_cast(istream.raw_code(kAcquireLoad));
 }
 
-bool Heap::GcSafeInstructionStreamContains(InstructionStream instruction_stream,
+bool Heap::GcSafeInstructionStreamContains(InstructionStream istream,
                                            Address addr) {
-  Map map = GcSafeMapOfHeapObject(instruction_stream);
+  Map map = GcSafeMapOfHeapObject(istream);
   DCHECK_EQ(map, ReadOnlyRoots(this).instruction_stream_map());
 
   Builtin builtin_lookup_result =
       OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(builtin_lookup_result)) {
     // Builtins don't have InstructionStream objects.
-    DCHECK(!Builtins::IsBuiltinId(instruction_stream.builtin_id()));
+    DCHECK(!Builtins::IsBuiltinId(istream.code(kAcquireLoad).builtin_id()));
     return false;
   }
 
-  Address start = instruction_stream.address();
-  Address end = start + instruction_stream.SizeFromMap(map);
+  Address start = istream.address();
+  Address end = start + istream.SizeFromMap(map);
   return start <= addr && addr < end;
 }
 
-base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
-    Address inner_pointer) {
-  Builtin maybe_builtin =
-      OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
-  if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
-  }
-
+base::Optional<InstructionStream>
+Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
-    return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
-                                              inner_pointer);
+    return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
   }
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
-    return GcSafeGetCodeFromInstructionStream(large_page->GetObject(),
-                                              inner_pointer);
+    return InstructionStream::unchecked_cast(large_page->GetObject());
   }
 
   if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
@@ -6870,11 +6856,25 @@ base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
     Address start =
         page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
             inner_pointer);
-    return GcSafeGetCodeFromInstructionStream(HeapObject::FromAddress(start),
-                                              inner_pointer);
+    return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
   }
 
   return {};
+}
+
+base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
+    Address inner_pointer) {
+  Builtin maybe_builtin =
+      OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
+  if (Builtins::IsBuiltinId(maybe_builtin)) {
+    return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
+  }
+
+  base::Optional<InstructionStream> maybe_istream =
+      GcSafeTryFindInstructionStreamForInnerPointer(inner_pointer);
+  if (!maybe_istream) return {};
+
+  return GcSafeGetCodeFromInstructionStream(*maybe_istream, inner_pointer);
 }
 
 Code Heap::FindCodeForInnerPointer(Address inner_pointer) {
@@ -7079,11 +7079,10 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
   }
 }
 
-void Heap::GenerationalBarrierForCodeSlow(InstructionStream host,
-                                          RelocInfo* rinfo, HeapObject object) {
+void Heap::GenerationalBarrierForCodeSlow(RelocInfo* rinfo, HeapObject object) {
   DCHECK(InYoungGeneration(object));
   const MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
+      MarkCompactCollector::ProcessRelocInfo(rinfo, object);
 
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
                                          info.offset);

@@ -174,7 +174,7 @@ class Builtins {
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is InstructionStream::BUILTIN.
-  static bool IsBuiltin(const InstructionStream code);
+  static bool IsBuiltin(const Code code);
 
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.

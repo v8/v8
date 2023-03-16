@@ -462,14 +462,12 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* target) override;
-  void VisitExternalReference(InstructionStream host,
-                              RelocInfo* rinfo) override;
-  void VisitInternalReference(InstructionStream host,
-                              RelocInfo* rinfo) override;
-  void VisitCodeTarget(InstructionStream host, RelocInfo* target) override;
-  void VisitOffHeapTarget(InstructionStream host, RelocInfo* target) override;
+  void VisitCodePointer(Code host, CodeObjectSlot slot) override;
+  void VisitEmbeddedPointer(RelocInfo* target) override;
+  void VisitExternalReference(RelocInfo* rinfo) override;
+  void VisitInternalReference(RelocInfo* rinfo) override;
+  void VisitCodeTarget(RelocInfo* target) override;
+  void VisitOffHeapTarget(RelocInfo* target) override;
 
   void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                             ExternalPointerTag tag) override;
@@ -487,7 +485,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void OutputExternalReference(Address target, int target_size, bool sandboxify,
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);
-  void SerializeCode(Map map, int size);
+  void SerializeInstructionStream(Map map, int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
                                  Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();

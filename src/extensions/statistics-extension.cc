@@ -144,8 +144,8 @@ void StatisticsExtension::GetCounters(
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       Object maybe_source_positions;
-      if (obj.IsInstructionStream()) {
-        InstructionStream code = InstructionStream::cast(obj);
+      if (obj.IsCode()) {
+        Code code = Code::cast(obj);
         reloc_info_total += code.relocation_info().Size();
         // Baseline code doesn't have source positions since it uses
         // interpreter code positions.

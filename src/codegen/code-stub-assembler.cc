@@ -3179,8 +3179,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
     TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-        FromCodeNonBuiltin(code),
-        InstructionStream::kDeoptimizationDataOrInterpreterDataOffset);
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
   }
   Goto(&check_for_interpreter_data);
@@ -15687,8 +15686,8 @@ TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<Code> code) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
-  return IsSetWord32<InstructionStream::MarkedForDeoptimizationField>(
-      LoadObjectField<Int32T>(code, Code::kKindSpecificFlagsOffset));
+  return IsSetWord32<Code::MarkedForDeoptimizationField>(
+      LoadObjectField<Int16T>(code, Code::kKindSpecificFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(

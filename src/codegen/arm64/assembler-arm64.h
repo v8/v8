@@ -277,8 +277,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Address location, InstructionStream code, Address target);
+  inline static void deserialization_set_special_target_at(Address location,
+                                                           Code code,
+                                                           Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);

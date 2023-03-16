@@ -85,15 +85,11 @@ StartupSerializer::~StartupSerializer() {
 #ifdef DEBUG
 namespace {
 
-bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
+bool IsUnexpectedInstructionStreamObject(Isolate* isolate, HeapObject obj) {
   if (!obj.IsInstructionStream()) return false;
-
-  InstructionStream code = InstructionStream::cast(obj);
-  if (code.kind() == CodeKind::REGEXP) return false;
-  if (!code.is_builtin()) return true;
-
-  // An on-heap builtin.
-  return true;
+  // TODO(jgruber): Is REGEXP code still fully supported?
+  return InstructionStream::cast(obj).code(kAcquireLoad).kind() !=
+         CodeKind::REGEXP;
 }
 
 }  // namespace
@@ -113,7 +109,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   {
     DisallowGarbageCollection no_gc;
     HeapObject raw = *obj;
-    DCHECK(!IsUnexpectedCodeObject(isolate(), raw));
+    DCHECK(!IsUnexpectedInstructionStreamObject(isolate(), raw));
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }

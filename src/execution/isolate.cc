@@ -445,9 +445,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
     uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(code.address());
 
-    // These static asserts ensure we don't miss relevant fields. We don't
-    // hash code cage base and code entry point. Other data fields must
-    // remain the same.
+    // These static asserts ensure we don't miss relevant fields. We don't hash
+    // code cage base and code entry point. Other data fields must remain the
+    // same.
     static_assert(Code::kCodePointerFieldsStrongEndOffset ==
                   Code::kCodeEntryPointOffset);
 
@@ -456,6 +456,22 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     static_assert(Code::kBuiltinIdOffsetEnd + 1 ==
                   Code::kKindSpecificFlagsOffset);
     static_assert(Code::kKindSpecificFlagsOffsetEnd + 1 ==
+                  Code::kInstructionSizeOffset);
+    static_assert(Code::kInstructionSizeOffsetEnd + 1 ==
+                  Code::kMetadataSizeOffset);
+    static_assert(Code::kMetadataSizeOffsetEnd + 1 ==
+                  Code::kInlinedBytecodeSizeOffset);
+    static_assert(Code::kInlinedBytecodeSizeOffsetEnd + 1 ==
+                  Code::kOsrOffsetOffset);
+    static_assert(Code::kOsrOffsetOffsetEnd + 1 ==
+                  Code::kHandlerTableOffsetOffset);
+    static_assert(Code::kHandlerTableOffsetOffsetEnd + 1 ==
+                  Code::kUnwindingInfoOffsetOffset);
+    static_assert(Code::kUnwindingInfoOffsetOffsetEnd + 1 ==
+                  Code::kConstantPoolOffsetOffset);
+    static_assert(Code::kConstantPoolOffsetOffsetEnd + 1 ==
+                  Code::kCodeCommentsOffsetOffset);
+    static_assert(Code::kCodeCommentsOffsetOffsetEnd + 1 ==
                   Code::kUnalignedSize);
     constexpr int kStartOffset = Code::kFlagsOffset;
 
@@ -1986,7 +2002,7 @@ Object Isolate::UnwindAndFindHandler() {
       CHECK(frame->is_java_script());
 
       if (frame->is_turbofan()) {
-        InstructionStream code = frame->LookupCode().instruction_stream();
+        Code code = frame->LookupCode();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
         CHECK(code.marked_for_deoptimization());
@@ -1995,7 +2011,7 @@ Object Isolate::UnwindAndFindHandler() {
         // Jump directly to the optimized frames return, to immediately fall
         // into the deoptimizer.
         const int offset =
-            static_cast<int>(frame->pc() - code.instruction_start());
+            static_cast<int>(frame->pc() - code.InstructionStart());
 
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
@@ -2003,7 +2019,7 @@ Object Isolate::UnwindAndFindHandler() {
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code.stack_slots() * kSystemPointerSize;
-        return FoundHandler(Context(), code.instruction_start(), offset,
+        return FoundHandler(Context(), code.InstructionStart(), offset,
                             code.constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
@@ -2038,9 +2054,9 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
-        InstructionStream code = frame->LookupCode().instruction_stream();
+        Code code = frame->LookupCode();
         HandlerTable table(code);
-        Address instruction_start = code.instruction_start();
+        Address instruction_start = code.InstructionStart();
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
         int handler_offset = table.LookupReturn(return_offset);
         DCHECK_NE(-1, handler_offset);
@@ -2182,12 +2198,12 @@ Object Isolate::UnwindAndFindHandler() {
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
-          InstructionStream code = sp_frame->LookupCode().instruction_stream();
+          Code code = sp_frame->LookupCode();
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(Context(), code.instruction_start(), pc_offset,
+          return FoundHandler(Context(), code.InstructionStart(), pc_offset,
                               code.constant_pool(), return_sp, sp_frame->fp(),
                               visited_frames);
         } else {
@@ -4734,7 +4750,7 @@ bool Isolate::use_optimizer() {
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
   PtrComprCageBase cage_base(this);
-  DCHECK(code->IsInstructionStream(cage_base) || code->IsByteArray(cage_base));
+  DCHECK(code->IsCode(cage_base) || code->IsByteArray(cage_base));
   total_regexp_code_generated_ += code->Size(cage_base);
 }
 

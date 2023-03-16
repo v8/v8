@@ -235,13 +235,11 @@ class ConcurrentMarkingVisitor final
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
-  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                       HeapObject target) {
-    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
-      return;
+  void RecordRelocSlot(RelocInfo* rinfo, HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(rinfo, target)) return;
 
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+        MarkCompactCollector::ProcessRelocInfo(rinfo, target);
 
     MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
     if (!data.typed_slots) {

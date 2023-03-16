@@ -100,10 +100,9 @@ void MainMarkingVisitor<MarkingState>::RecordSlot(HeapObject object, TSlot slot,
 }
 
 template <typename MarkingState>
-void MainMarkingVisitor<MarkingState>::RecordRelocSlot(InstructionStream host,
-                                                       RelocInfo* rinfo,
+void MainMarkingVisitor<MarkingState>::RecordRelocSlot(RelocInfo* rinfo,
                                                        HeapObject target) {
-  MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
+  MarkCompactCollector::RecordRelocSlot(rinfo, target);
 }
 
 template <LiveObjectIterationMode mode>

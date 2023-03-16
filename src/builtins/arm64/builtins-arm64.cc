@@ -2005,14 +2005,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  __ LoadCodeInstructionStreamNonBuiltin(x0, x0);
-
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedField(
       x1,
-      FieldMemOperand(
-          x0, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
+      FieldMemOperand(x0, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -2020,10 +2017,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       x1, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(
                                   DeoptimizationData::kOsrPcOffsetIndex)));
 
-  // Compute the target address = code_obj + header_size + osr_offset
-  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-  __ Add(x0, x0, x1);
-  Generate_OSREntry(masm, x0, InstructionStream::kHeaderSize - kHeapObjectTag);
+  __ LoadCodeEntry(x0, x0);
+
+  // Compute the target address = code_entry + osr_offset
+  // <entry_addr> = <code_entry> + <osr_offset>
+  Generate_OSREntry(masm, x0, x1);
 }
 
 }  // namespace
@@ -5736,7 +5734,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, x3);
   }
-  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = x2;
@@ -5803,15 +5800,14 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
+  __ LoadCodeEntry(code_obj, code_obj);
   __ Add(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister, padreg);
 
   if (is_osr) {
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
-    Generate_OSREntry(masm, code_obj,
-                      InstructionStream::kHeaderSize - kHeapObjectTag);
+    Generate_OSREntry(masm, code_obj);
   } else {
-    __ Add(code_obj, code_obj, InstructionStream::kHeaderSize - kHeapObjectTag);
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.

@@ -185,9 +185,8 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
-void CheckEmbeddedObjectsAreEqual(Isolate* isolate,
-                                  Handle<InstructionStream> lhs,
-                                  Handle<InstructionStream> rhs) {
+void CheckEmbeddedObjectsAreEqual(Isolate* isolate, Handle<Code> lhs,
+                                  Handle<Code> rhs) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT);
   PtrComprCageBase cage_base(isolate);
   RelocIterator lhs_it(*lhs, mode_mask);
@@ -4338,7 +4337,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4362,7 +4361,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCode(bar->code()), isolate);
+    code = handle(bar->code(), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4387,7 +4386,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4409,7 +4408,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCode(bar->code()), isolate);
+    code = handle(bar->code(), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4434,7 +4433,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(isolate);
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(isolate);
@@ -4475,7 +4474,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
     CHECK(!bar->code().marked_for_deoptimization());
-    code = handle(FromCode(bar->code()), isolate);
+    code = handle(bar->code(), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4499,7 +4498,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4522,7 +4521,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCode(bar->code()), isolate);
+    code = handle(bar->code(), isolate);
     code = scope.CloseAndEscape(code);
   }
 
