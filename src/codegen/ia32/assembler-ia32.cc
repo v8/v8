@@ -3407,7 +3407,7 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data,
                   InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }

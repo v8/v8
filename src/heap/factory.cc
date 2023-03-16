@@ -115,33 +115,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
           : factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
   Handle<Code> code;
-
-  NewCodeOptions new_code_options = {
-      /*kind=*/kind_,
-      /*builtin=*/builtin_,
-      /*is_turbofanned=*/is_turbofanned_,
-      /*stack_slots=*/stack_slots_,
-      /*kind_specific_flags=*/kind_specific_flags_,
-      /*allocation=*/AllocationType::kOld,
-      /*instruction_size=*/code_desc_.instruction_size(),
-      /*metadata_size=*/code_desc_.metadata_size(),
-      /*inlined_bytecode_size=*/inlined_bytecode_size_,
-      /*osr_offset=*/osr_offset_,
-      /*handler_table_offset=*/code_desc_.handler_table_offset_relative(),
-      /*constant_pool_offset=*/code_desc_.constant_pool_offset_relative(),
-      /*code_comments_offset=*/code_desc_.code_comments_offset_relative(),
-      /*unwinding_info_offset=*/code_desc_.unwinding_info_offset_relative(),
-      /*reloc_info=*/reloc_info,
-      /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
-          ? interpreter_data_
-          : deoptimization_data_,
-      /*bytecode_offsets_or_source_position_table=*/position_table_};
-
   if (CompiledWithConcurrentBaseline()) {
-    code = local_isolate_->factory()->NewCode(new_code_options);
+    code = local_isolate_->factory()->NewCode(0, AllocationType::kOld);
   } else {
-    code = factory->NewCode(new_code_options);
+    code = factory->NewCode(0, AllocationType::kOld);
   }
+
+  code->initialize_flags(kind_, builtin_, is_turbofanned_);
+  code->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
@@ -178,10 +159,32 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     InstructionStream raw_istream = *instruction_stream;
     DisallowGarbageCollection no_gc;
 
+    raw_istream.set_instruction_size(code_desc_.instruction_size());
+    raw_istream.set_metadata_size(code_desc_.metadata_size());
+    raw_istream.set_relocation_info(*reloc_info);
+    raw_istream.initialize_flags(kind_, is_turbofanned_, stack_slots_);
+    raw_istream.set_builtin_id(builtin_);
     // This might impact direct concurrent reads from TF if we are resetting
     // this field. We currently assume it's immutable thus a relaxed read (after
     // passing IsPendingAllocation).
+    raw_istream.set_inlined_bytecode_size(inlined_bytecode_size_);
+    raw_istream.set_osr_offset(osr_offset_);
     raw_istream.set_code(*code, kReleaseStore);
+    if (kind_ == CodeKind::BASELINE) {
+      raw_istream.set_bytecode_or_interpreter_data(*interpreter_data_);
+      raw_istream.set_bytecode_offset_table(*position_table_);
+    } else {
+      raw_istream.set_deoptimization_data(*deoptimization_data_);
+      raw_istream.set_source_position_table(*position_table_);
+    }
+    raw_istream.set_handler_table_offset(
+        code_desc_.handler_table_offset_relative());
+    raw_istream.set_constant_pool_offset(
+        code_desc_.constant_pool_offset_relative());
+    raw_istream.set_code_comments_offset(
+        code_desc_.code_comments_offset_relative());
+    raw_istream.set_unwinding_info_offset(
+        code_desc_.unwinding_info_offset_relative());
 
     // Allow self references to created code object by patching the handle to
     // point to the newly allocated InstructionStream object.
@@ -206,21 +209,20 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
               handle(on_heap_profiler_data->counts(), isolate_));
     }
 
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      raw_istream.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
-    }
-    code->SetInstructionStreamAndEntryPoint(isolate_, raw_istream);
-
     // Migrate generated code.
     // The generated code can contain embedded objects (typically from
     // handles) in a pointer-to-tagged-value format (i.e. with indirection
     // like a handle) that are dereferenced during the copy to point directly
     // to the actual heap objects. These pointers can include references to
     // the code object itself, through the self_reference parameter.
-    code->CopyFromNoFlush(*reloc_info, heap, code_desc_);
+    raw_istream.CopyFromNoFlush(*reloc_info, heap, code_desc_);
 
-    code->ClearInstructionStreamPadding();
+    raw_istream.clear_padding();
 
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      raw_istream.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
+    }
+    code->SetInstructionStreamAndEntryPoint(isolate_, raw_istream);
 #ifdef VERIFY_HEAP
     if (v8_flags.verify_heap) {
       HeapObject::VerifyCodePointer(isolate_, raw_istream);
@@ -232,7 +234,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // some older ARM kernels there is a bug which causes an access error on
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    code->FlushICache();
+    raw_istream.FlushICache();
   }
 
   if (V8_UNLIKELY(profiler_data_ && v8_flags.turbo_profiling_verbose)) {
@@ -276,13 +278,13 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
   DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(
       *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
-  Handle<InstructionStream> istream =
+  Handle<InstructionStream> code =
       handle(InstructionStream::cast(result), isolate_);
-  DCHECK(IsAligned(istream->address(), kCodeAlignment));
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
   DCHECK_IMPLIES(
       !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
-      heap->code_region().contains(istream->address()));
-  return istream;
+      heap->code_region().contains(code->address()));
+  return code;
 }
 
 MaybeHandle<InstructionStream>
@@ -301,10 +303,10 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
   DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(
       *local_isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
-  Handle<InstructionStream> istream =
+  Handle<InstructionStream> code =
       handle(InstructionStream::cast(result), local_isolate_);
-  DCHECK(IsAligned(istream->address(), kCodeAlignment));
-  return istream;
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
+  return code;
 }
 
 MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
@@ -2500,38 +2502,16 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
-  NewCodeOptions new_code_options = {
-      /*kind=*/code->kind(),
-      /*builtin=*/code->builtin_id(),
-      /*is_turbofanned=*/code->is_turbofanned(),
-      /*stack_slots=*/code->stack_slots(),
-      /*kind_specific_flags=*/code->kind_specific_flags(kRelaxedLoad),
-      /*allocation=*/AllocationType::kOld,
-      /*instruction_size=*/code->instruction_size(),
-      /*metadata_size=*/code->metadata_size(),
-      /*inlined_bytecode_size=*/code->inlined_bytecode_size(),
-      /*osr_offset=*/code->osr_offset(),
-      /*handler_table_offset=*/code->handler_table_offset(),
-      /*constant_pool_offset=*/code->constant_pool_offset(),
-      /*code_comments_offset=*/code->code_comments_offset(),
-      /*unwinding_info_offset=*/code->unwinding_info_offset(),
-      /*reloc_info=*/
-      Handle<ByteArray>(read_only_roots().empty_byte_array(), isolate()),
-      /*bytecode_or_deoptimization_data=*/
-      Handle<FixedArray>(read_only_roots().empty_fixed_array(), isolate()),
-      /*bytecode_offsets_or_source_position_table=*/
-      Handle<ByteArray>(read_only_roots().empty_byte_array(), isolate())};
+  const int no_flags = 0;
+  Handle<Code> off_heap_trampoline = NewCode(no_flags, AllocationType::kOld);
 
-  Handle<Code> off_heap_trampoline = NewCode(new_code_options);
+  off_heap_trampoline->initialize_flags(code->kind(), code->builtin_id(),
+                                        code->is_turbofanned());
+  off_heap_trampoline->set_kind_specific_flags(
+      code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
   off_heap_trampoline->set_code_entry_point(isolate(),
                                             code->code_entry_point());
-
-  DCHECK_EQ(code->instruction_size(), code->OffHeapInstructionSize());
-  DCHECK_EQ(code->metadata_size(), code->OffHeapMetadataSize());
-  DCHECK_EQ(code->inlined_bytecode_size(), 0);
-  DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
-
-  return off_heap_trampoline;
+  return Handle<Code>::cast(off_heap_trampoline);
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
@@ -3400,8 +3380,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, Builtin builtin, FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, MaybeHandle<HeapObject>(), builtin,
-                               kind);
+  return NewSharedFunctionInfo(maybe_name, MaybeHandle<InstructionStream>(),
+                               builtin, kind);
 }
 
 int Factory::NumberToStringCacheHash(Smi number) {

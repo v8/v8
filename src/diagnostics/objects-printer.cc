@@ -1879,6 +1879,10 @@ void InstructionStream::InstructionStreamPrint(std::ostream& os) {
   PrintHeader(os, "InstructionStream");
   Code the_code = code(kAcquireLoad);
   os << "\n - code: " << Brief(the_code);
+  if (is_builtin()) {
+    os << "\n - builtin_id: " << Builtins::name(builtin_id());
+  }
+  os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   the_code.Disassemble(nullptr, os, GetIsolate());
 #endif

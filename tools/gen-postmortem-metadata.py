@@ -164,11 +164,11 @@ consts_misc = [
     },
     {
         'name': 'CodeKindFieldMask',
-        'value': 'Code::KindField::kMask'
+        'value': 'InstructionStream::KindField::kMask'
     },
     {
         'name': 'CodeKindFieldShift',
-        'value': 'Code::KindField::kShift'
+        'value': 'InstructionStream::KindField::kShift'
     },
     {
         'name': 'DeoptimizationDataInlinedFunctionCountIndex',
@@ -549,7 +549,10 @@ extras_accessors = [
     'SharedFunctionInfo, flags, int, kFlagsOffset',
     'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
+    'InstructionStream, flags, uint32_t, kFlagsOffset',
     'InstructionStream, instruction_start, uintptr_t, kHeaderSize',
+    'InstructionStream, instruction_size, int, kInstructionSizeOffset',
+    'InstructionStream, deoptimization_data, FixedArray, kDeoptimizationDataOrInterpreterDataOffset',
     'String, length, int32_t, kLengthOffset',
     'DescriptorArray, header_size, uintptr_t, kHeaderSize',
     'ConsString, first, String, kFirstOffset',

@@ -98,11 +98,13 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final {
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
     VisitCodePointerImpl(host, slot);
   }
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final;
   void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     // Weak list pointers should be ignored during marking. The lists are
@@ -147,7 +149,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   // Similar to VisitPointersImpl() but using code cage base for loading from
   // the slot.
-  V8_INLINE void VisitCodePointerImpl(Code host, CodeObjectSlot slot);
+  V8_INLINE void VisitCodePointerImpl(HeapObject host, CodeObjectSlot slot);
 
   V8_INLINE void VisitDescriptorsForMap(Map map);
 
@@ -214,7 +216,8 @@ class YoungGenerationMarkingVisitorBase
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  V8_INLINE void VisitCodePointer(HeapObject host,
+                                  CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // InstructionStream slots never appear in new space because
     // Code objects, the only object that can contain code pointers, are
@@ -230,13 +233,15 @@ class YoungGenerationMarkingVisitorBase
     VisitPointerImpl(host, slot);
   }
 
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final {
+    // InstructionStream objects are not expected in new space.
     UNREACHABLE();
   }
 
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final {
+    // InstructionStream objects are not expected in new space.
     UNREACHABLE();
   }
 

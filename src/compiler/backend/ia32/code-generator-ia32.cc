@@ -664,7 +664,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ push(eax);  // Push eax so we can use it as a scratch register.
   __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ test(FieldOperand(eax, Code::kKindSpecificFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
+          Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
   __ pop(eax);  // Restore eax.
 
   Label skip;

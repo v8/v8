@@ -331,12 +331,13 @@ void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                                      Address pc, int fp_to_sp_delta) {
+void ProfilerListener::CodeDeoptEvent(Handle<InstructionStream> code,
+                                      DeoptimizeKind kind, Address pc,
+                                      int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code->instruction_start();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
   rec->pc = pc;
@@ -385,7 +386,7 @@ const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
+void ProfilerListener::AttachDeoptInlinedFrames(Handle<InstructionStream> code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();
@@ -415,7 +416,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
       // scope limits their lifetime.
       HandleScope scope(isolate_);
       std::vector<SourcePositionInfo> stack =
-          last_position.InliningStack(isolate_, *code);
+          last_position.InliningStack(isolate_, code->code(kAcquireLoad));
       CpuProfileDeoptFrame* deopt_frames =
           new CpuProfileDeoptFrame[stack.size()];
 

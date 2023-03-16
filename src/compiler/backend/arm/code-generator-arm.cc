@@ -649,7 +649,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ ldr(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
-  __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ tst(scratch, Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
 }

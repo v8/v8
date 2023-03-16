@@ -4533,7 +4533,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   DCHECK(constpool_.IsBlocked());
 
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data,
                   InstructionStream());
 
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
@@ -4660,7 +4660,7 @@ intptr_t Assembler::MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) {
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   Assembler::BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip);
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code(),
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
                   InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }

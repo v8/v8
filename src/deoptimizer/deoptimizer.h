@@ -43,7 +43,7 @@ class Deoptimizer : public Malloced {
     const int deopt_id;
   };
 
-  static DeoptInfo GetDeoptInfo(Code code, Address from);
+  static DeoptInfo GetDeoptInfo(InstructionStream code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
   }
@@ -51,7 +51,7 @@ class Deoptimizer : public Malloced {
   static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
-  Handle<Code> compiled_code() const;
+  Handle<InstructionStream> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
@@ -130,7 +130,7 @@ class Deoptimizer : public Malloced {
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.
-  static void TraceMarkForDeoptimization(Isolate* isolate, Code code,
+  static void TraceMarkForDeoptimization(InstructionStream code,
                                          const char* reason);
   static void TraceEvictFromOptimizedCodeCache(Isolate* isolate,
                                                SharedFunctionInfo sfi,
@@ -189,7 +189,7 @@ class Deoptimizer : public Malloced {
 
   Isolate* isolate_;
   JSFunction function_;
-  Code compiled_code_;
+  InstructionStream compiled_code_;
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;

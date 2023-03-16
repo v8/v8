@@ -2264,6 +2264,14 @@ void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
   movq(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
 }
 
+void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
+  ASM_CODE_COMMENT(this);
+  // Compute the InstructionStream object pointer from the code entry point.
+  movq(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
+  subq(destination, Immediate(InstructionStream::kHeaderSize - kHeapObjectTag));
+}
+
 void MacroAssembler::CallCodeObject(Register code_object) {
   LoadCodeEntry(code_object, code_object);
   call(code_object);
@@ -2564,7 +2572,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
   testl(FieldOperand(code, Code::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+        Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
 Immediate MacroAssembler::ClearedValue() const {
@@ -3322,7 +3330,7 @@ void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
   testl(FieldOperand(scratch, Code::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+        Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);
 }

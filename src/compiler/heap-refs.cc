@@ -2270,10 +2270,9 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
   }
 }
 
-unsigned CodeRef::GetInlinedBytecodeSize() const {
-  Code code = *object();
-  if (!code.has_instruction_stream()) return 0;
+namespace {
 
+unsigned GetInlinedBytecodeSizeImpl(InstructionStream code) {
   unsigned value = code.inlined_bytecode_size();
   if (value > 0) {
     // Don't report inlined bytecode size if the code object was already
@@ -2281,6 +2280,23 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
     value = code.marked_for_deoptimization() ? 0 : value;
   }
   return value;
+}
+
+}  // namespace
+
+unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
+  return GetInlinedBytecodeSizeImpl(*object());
+}
+
+unsigned CodeRef::GetInlinedBytecodeSize() const {
+  Code code = *object();
+  Object maybe_istream = code.raw_instruction_stream(kRelaxedLoad);
+  if (maybe_istream == Smi::zero()) return 0;
+
+  // Safe to do a relaxed conversion to InstructionStream here since
+  // Code::instruction_stream field is modified only by GC and the Code was
+  // acquire-loaded.
+  return GetInlinedBytecodeSizeImpl(InstructionStream::cast(maybe_istream));
 }
 
 #undef BIMODAL_ACCESSOR

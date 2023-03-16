@@ -243,19 +243,19 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    InstructionStream code = FromCode(builtins->code(builtin));
     isolate->heap()->UnprotectAndRegisterMemoryChunk(
         code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
-        Code target_code = Code::FromTargetAddress(rinfo->target_address());
-        DCHECK_IMPLIES(
-            RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
-            Builtins::IsIsolateIndependent(target_code.builtin_id()));
-        if (!target_code.is_builtin()) continue;
-        Code new_target = builtins->code(target_code.builtin_id());
+        InstructionStream target =
+            InstructionStream::FromTargetAddress(rinfo->target_address());
+        DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
+                       Builtins::IsIsolateIndependent(target.builtin_id()));
+        if (!target.is_builtin()) continue;
+        Code new_target = builtins->code(target.builtin_id());
         rinfo->set_target_address(new_target.InstructionStart(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
@@ -271,7 +271,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code.InstructionStart(), code.instruction_size());
+      FlushInstructionCache(code.instruction_start(), code.instruction_size());
     }
   }
 }

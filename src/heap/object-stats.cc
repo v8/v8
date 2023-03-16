@@ -97,16 +97,17 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     *tagged_fields_count_ += (end - start);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  V8_INLINE void VisitCodePointer(HeapObject host,
+                                  CodeObjectSlot slot) override {
     *tagged_fields_count_ += 1;
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     // InstructionStream target is most likely encoded as a relative 32-bit
     // offset and not as a full tagged value, so there's nothing to count.
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     *tagged_fields_count_ += 1;
   }
 
@@ -1036,20 +1037,19 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
 }  // namespace
 
 void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
-    InstructionStream istream) {
-  Code code = istream.code(kAcquireLoad);
-  RecordSimpleVirtualObjectStats(HeapObject(), istream,
+    InstructionStream code) {
+  RecordSimpleVirtualObjectStats(HeapObject(), code,
                                  CodeKindToVirtualInstanceType(code.kind()));
-  RecordSimpleVirtualObjectStats(istream, code.relocation_info(),
+  RecordSimpleVirtualObjectStats(code, code.relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
   if (CodeKindIsOptimizedJSFunction(code.kind())) {
     Object source_position_table = code.source_position_table();
     if (source_position_table.IsHeapObject()) {
-      RecordSimpleVirtualObjectStats(istream,
+      RecordSimpleVirtualObjectStats(code,
                                      HeapObject::cast(source_position_table),
                                      ObjectStats::SOURCE_POSITION_TABLE_TYPE);
     }
-    RecordSimpleVirtualObjectStats(istream, code.deoptimization_data(),
+    RecordSimpleVirtualObjectStats(code, code.deoptimization_data(),
                                    ObjectStats::DEOPTIMIZATION_DATA_TYPE);
     DeoptimizationData input_data =
         DeoptimizationData::cast(code.deoptimization_data());
@@ -1065,7 +1065,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     Object target = it.rinfo()->target_object(cage_base());
     if (target.IsFixedArrayExact(cage_base())) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-          istream, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
+          code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
     }
   }
 }

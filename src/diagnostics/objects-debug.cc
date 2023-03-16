@@ -1102,15 +1102,9 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK(IsCode());
   if (raw_instruction_stream() != Smi::zero()) {
     InstructionStream istream = instruction_stream();
+    CHECK_EQ(istream.kind(), kind());
+    CHECK_EQ(istream.builtin_id(), builtin_id());
     CHECK_EQ(istream.code(kAcquireLoad), *this);
-    CHECK_EQ(safepoint_table_offset(), 0);
-    CHECK_LE(safepoint_table_offset(), handler_table_offset());
-    CHECK_LE(handler_table_offset(), constant_pool_offset());
-    CHECK_LE(constant_pool_offset(), code_comments_offset());
-    CHECK_LE(code_comments_offset(), unwinding_info_offset());
-    CHECK_LE(unwinding_info_offset(), metadata_size());
-
-    relocation_info().ObjectVerify(isolate);
 
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
@@ -1138,8 +1132,14 @@ void Code::CodeVerify(Isolate* isolate) {
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK(
-      IsAligned(code(kAcquireLoad).instruction_size(),
+      IsAligned(instruction_size(),
                 static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
+  CHECK_EQ(safepoint_table_offset(), 0);
+  CHECK_LE(safepoint_table_offset(), handler_table_offset());
+  CHECK_LE(handler_table_offset(), constant_pool_offset());
+  CHECK_LE(constant_pool_offset(), code_comments_offset());
+  CHECK_LE(code_comments_offset(), unwinding_info_offset());
+  CHECK_LE(unwinding_info_offset(), metadata_size());
 #if !defined(_MSC_VER) || defined(__clang__)
   // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
@@ -1148,12 +1148,13 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
+  relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
-  for (RelocIterator it(code(kAcquireLoad)); !it.done(); it.next()) {
+  for (RelocIterator it(*this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {

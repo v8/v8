@@ -8,7 +8,6 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
-#include "src/objects/code-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -61,26 +60,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
 #include "torque-generated/factory.inc"
 };
 
-struct NewCodeOptions {
-  CodeKind kind;
-  Builtin builtin;
-  bool is_turbofanned;
-  int stack_slots;
-  int kind_specific_flags;
-  AllocationType allocation;
-  int instruction_size;
-  int metadata_size;
-  unsigned int inlined_bytecode_size;
-  BytecodeOffset osr_offset;
-  int handler_table_offset;
-  int constant_pool_offset;
-  int code_comments_offset;
-  int32_t unwinding_info_offset;
-  Handle<ByteArray> reloc_info;
-  Handle<HeapObject> bytecode_or_deoptimization_data;
-  Handle<ByteArray> bytecode_offsets_or_source_position_table;
-};
-
 template <typename Impl>
 class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
@@ -120,7 +99,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<AccessorPair> NewAccessorPair();
 
   // Creates a new Code for a InstructionStream object.
-  Handle<Code> NewCode(const NewCodeOptions& options);
+  Handle<Code> NewCode(int flags, AllocationType allocation);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(

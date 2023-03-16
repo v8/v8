@@ -25,7 +25,8 @@ void EvacuationVerifier::VisitPointers(HeapObject host, MaybeObjectSlot start,
   VerifyPointers(start, end);
 }
 
-void EvacuationVerifier::VisitCodePointer(Code host, CodeObjectSlot slot) {
+void EvacuationVerifier::VisitCodePointer(HeapObject host,
+                                          CodeObjectSlot slot) {
   VerifyCodePointer(slot);
 }
 
@@ -111,12 +112,14 @@ void FullEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
     VerifyHeapObjectImpl(code);
   }
 }
-void FullEvacuationVerifier::VisitCodeTarget(RelocInfo* rinfo) {
+void FullEvacuationVerifier::VisitCodeTarget(InstructionStream host,
+                                             RelocInfo* rinfo) {
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
-void FullEvacuationVerifier::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void FullEvacuationVerifier::VisitEmbeddedPointer(InstructionStream host,
+                                                  RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 void FullEvacuationVerifier::VerifyRootPointers(FullObjectSlot start,
@@ -155,12 +158,14 @@ void YoungGenerationEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
     VerifyHeapObjectImpl(code);
   }
 }
-void YoungGenerationEvacuationVerifier::VisitCodeTarget(RelocInfo* rinfo) {
+void YoungGenerationEvacuationVerifier::VisitCodeTarget(InstructionStream host,
+                                                        RelocInfo* rinfo) {
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
-void YoungGenerationEvacuationVerifier::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void YoungGenerationEvacuationVerifier::VisitEmbeddedPointer(
+    InstructionStream host, RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 void YoungGenerationEvacuationVerifier::VerifyRootPointers(FullObjectSlot start,

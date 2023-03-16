@@ -85,7 +85,7 @@ class SourcePosition final {
       Isolate* isolate, OptimizedCompilationInfo* cinfo) const;
   SourcePositionInfo FirstInfo(Isolate* isolate, Code code) const;
 
-  void Print(std::ostream& out, Code code) const;
+  void Print(std::ostream& out, InstructionStream code) const;
   void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const {

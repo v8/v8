@@ -1667,9 +1667,9 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CodeMovingGCEvent() final {}
     void CodeDisableOptEvent(Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared) final {}
-    void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                        int fp_to_sp_delta) final {}
-    void CodeDependencyChangeEvent(Handle<Code> code,
+    void CodeDeoptEvent(Handle<InstructionStream> code, DeoptimizeKind kind,
+                        Address pc, int fp_to_sp_delta) final {}
+    void CodeDependencyChangeEvent(Handle<InstructionStream> code,
                                    Handle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
     void WeakCodeClearEvent() final {}

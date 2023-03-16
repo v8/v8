@@ -748,7 +748,7 @@ namespace {
 static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
                                              int bytecode_offset,
                                              Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
+  InstructionStream code_obj = InstructionStream::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
@@ -758,7 +758,7 @@ static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
+  InstructionStream code_obj = InstructionStream::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj.GetBaselinePCForNextExecutedBytecode(bytecode_offset,

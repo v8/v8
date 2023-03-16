@@ -548,7 +548,7 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Code code,
+                                                      InstructionStream code,
                                                       Address target) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -696,8 +696,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
+  if (!host().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
 }
 

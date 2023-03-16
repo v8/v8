@@ -344,6 +344,15 @@ void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
 }
 
+void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
+  ASM_CODE_COMMENT(this);
+  // Compute the InstructionStream object pointer from the code entry point.
+  ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  sub(destination, destination,
+      Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
+}
+
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadCodeEntry(code_object, code_object);
@@ -390,7 +399,7 @@ void MacroAssembler::Drop(Register count, Condition cond) {
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
   ldr(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
-  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  tst(scratch, Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
 Operand MacroAssembler::ClearedValue() const {

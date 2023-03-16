@@ -61,7 +61,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final {
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // InstructionStream slots never appear in new space because
     // Code objects, the only object that can contain code pointers, are
@@ -69,17 +69,17 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     UNREACHABLE();
   }
 
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final {
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    HandleSlot(rinfo->instruction_stream(), FullHeapObjectSlot(&target),
-               target);
+    HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final {
-    PtrComprCageBase cage_base = GetPtrComprCageBase(rinfo->code());
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final {
+    PtrComprCageBase cage_base = host.main_cage_base();
     HeapObject heap_object = rinfo->target_object(cage_base);
-    HandleSlot(rinfo->instruction_stream(), FullHeapObjectSlot(&heap_object),
-               heap_object);
+    HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
   }
 
   inline void VisitEphemeron(HeapObject obj, int entry, ObjectSlot key,

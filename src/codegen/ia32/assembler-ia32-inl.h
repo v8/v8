@@ -98,8 +98,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
+  if (!host().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
 }
 
@@ -224,7 +224,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);

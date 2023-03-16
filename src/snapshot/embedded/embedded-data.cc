@@ -187,7 +187,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = isolate->builtins()->code(builtin);
+    InstructionStream code = FromCode(isolate->builtins()->code(builtin));
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -204,12 +204,13 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
-      Code target_code = Code::FromTargetAddress(rinfo->target_address());
-      CHECK(Builtins::IsIsolateIndependentBuiltin(target_code));
+      InstructionStream target =
+          InstructionStream::FromTargetAddress(rinfo->target_address());
+      CHECK(Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad)));
 
       // Do not emit write-barrier for off-heap writes.
       off_heap_it.rinfo()->set_off_heap_target_address(
-          blob->InstructionStartOfBuiltin(target_code.builtin_id()));
+          blob->InstructionStartOfBuiltin(target.builtin_id()));
 
       on_heap_it.next();
       off_heap_it.next();
@@ -226,14 +227,15 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 }
 
 void EnsureRelocatable(Code code) {
-  if (code.relocation_size() == 0) return;
+  InstructionStream instruction_stream = FromCode(code);
+  if (instruction_stream.relocation_size() == 0) return;
 
   // On some architectures (arm) the builtin might have a non-empty reloc
   // info containing a CONST_POOL entry. These entries don't have to be
   // updated when InstructionStream object is relocated, so it's safe to drop
   // the reloc info alltogether. If it wasn't the case then we'd have to store
   // it in the metadata.
-  for (RelocIterator it(code); !it.done(); it.next()) {
+  for (RelocIterator it(instruction_stream); !it.done(); it.next()) {
     CHECK_EQ(it.rinfo()->rmode(), RelocInfo::CONST_POOL);
   }
 }
@@ -253,7 +255,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    InstructionStream code = FromCode(builtins->code(builtin));
 
     // Sanity-check that the given builtin is isolate-independent.
     if (!code.IsIsolateIndependent(isolate)) {
@@ -332,7 +334,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    InstructionStream code = FromCode(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
@@ -350,13 +352,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    InstructionStream code = FromCode(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
     DCHECK_LE(RawCodeOffset() + offset + code.instruction_size(),
               blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.InstructionStart()),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.instruction_start()),
                 code.instruction_size());
   }
 
@@ -386,7 +388,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   if (DEBUG_BOOL) {
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
-      Code code = builtins->code(builtin);
+      InstructionStream code = FromCode(builtins->code(builtin));
 
       CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.instruction_size());
       CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.metadata_size());

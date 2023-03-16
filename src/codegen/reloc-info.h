@@ -114,14 +114,12 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(Address pc, Mode rmode, intptr_t data, Code code,
-            InstructionStream instruction_stream,
+  RelocInfo(Address pc, Mode rmode, intptr_t data, InstructionStream host,
             Address constant_pool = kNullAddress)
       : pc_(pc),
         rmode_(rmode),
         data_(data),
-        code_(code),
-        instruction_stream_(instruction_stream),
+        host_(host),
         constant_pool_(constant_pool) {
     DCHECK_IMPLIES(!COMPRESS_POINTERS_BOOL,
                    rmode != COMPRESSED_EMBEDDED_OBJECT);
@@ -215,8 +213,7 @@ class RelocInfo {
   Address pc() const { return pc_; }
   Mode rmode() const { return rmode_; }
   intptr_t data() const { return data_; }
-  Code code() const { return code_; }
-  InstructionStream instruction_stream() const { return instruction_stream_; }
+  InstructionStream host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
@@ -320,17 +317,22 @@ class RelocInfo {
   void Visit(ObjectVisitor* visitor) {
     Mode mode = rmode();
     if (IsEmbeddedObjectMode(mode)) {
-      visitor->VisitEmbeddedPointer(this);
+      visitor->VisitEmbeddedPointer(host(), this);
     } else if (IsCodeTargetMode(mode)) {
-      visitor->VisitCodeTarget(this);
+      visitor->VisitCodeTarget(host(), this);
     } else if (IsExternalReference(mode)) {
-      visitor->VisitExternalReference(this);
+      visitor->VisitExternalReference(host(), this);
     } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
-      visitor->VisitInternalReference(this);
+      visitor->VisitInternalReference(host(), this);
     } else if (IsBuiltinEntryMode(mode)) {
-      visitor->VisitOffHeapTarget(this);
+      visitor->VisitOffHeapTarget(host(), this);
     }
   }
+
+  // Check whether the given code contains relocation information that
+  // either is position-relative or movable by the garbage collector.
+  static bool RequiresRelocationAfterCodegen(const CodeDesc& desc);
+  static bool RequiresRelocation(InstructionStream code);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -373,8 +375,7 @@ class RelocInfo {
   Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;
-  Code code_;
-  InstructionStream instruction_stream_;
+  InstructionStream host_;
   Address constant_pool_ = kNullAddress;
   friend class RelocIterator;
 };
@@ -428,15 +429,16 @@ class RelocInfoWriter {
 // A mask can be specified to skip unwanted modes.
 class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
  public:
-  // Create a new iterator positioned at the beginning of the reloc info.
-  // Relocation information with mode k is included in the iteration iff bit k
-  // of mode_mask is set.
+  // Create a new iterator positioned at
+  // the beginning of the reloc info.
+  // Relocation information with mode k is included in the
+  // iteration iff bit k of mode_mask is set.
+  explicit RelocIterator(InstructionStream code, int mode_mask = -1);
   explicit RelocIterator(Code code, int mode_mask = -1);
-  explicit RelocIterator(Code code, ByteArray relocation_info, int mode_mask);
-  explicit RelocIterator(Code code, InstructionStream instruction_stream,
-                         ByteArray relocation_info, Address constant_pool,
+  explicit RelocIterator(InstructionStream code, ByteArray relocation_info,
                          int mode_mask);
-  explicit RelocIterator(EmbeddedData* embedded_data, Code code, int mode_mask);
+  explicit RelocIterator(EmbeddedData* embedded_data, InstructionStream code,
+                         int mode_mask);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
                          int mode_mask = -1);
@@ -459,9 +461,8 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   }
 
  private:
-  RelocIterator(Code code, InstructionStream instruction_stream, Address pc,
-                Address constant_pool, const byte* pos, const byte* end,
-                int mode_mask);
+  RelocIterator(InstructionStream host, Address pc, Address constant_pool,
+                const byte* pos, const byte* end, int mode_mask);
 
   // Advance* moves the position before/after reading.
   // *Read* reads from current byte(s) into rinfo_.

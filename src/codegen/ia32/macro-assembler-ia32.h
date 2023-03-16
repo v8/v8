@@ -160,6 +160,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Load the code entry point from the Code object.
   void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
+  // InstructionStream object pointer out of it. Must not be used for
+  // Codes corresponding to builtins, because their entry points
+  // values point to the embedded instruction stream in .text section.
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);

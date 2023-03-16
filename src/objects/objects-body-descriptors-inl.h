@@ -940,8 +940,11 @@ class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {
 
 class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  static_assert(static_cast<int>(HeapObject::kHeaderSize) ==
-                static_cast<int>(kCodeOffset));
+  static_assert(kRelocationInfoOffset + kTaggedSize ==
+                kDeoptimizationDataOrInterpreterDataOffset);
+  static_assert(kDeoptimizationDataOrInterpreterDataOffset + kTaggedSize ==
+                kPositionTableOffset);
+  static_assert(kPositionTableOffset + kTaggedSize == kCodeOffset);
   static_assert(kCodeOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -963,12 +966,9 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
     // GC does not visit data/code in the header and in the body directly.
-    IteratePointers(obj, kCodeOffset, kDataStart, v);
+    IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    InstructionStream istream = InstructionStream::cast(obj);
-    Code code = istream.unchecked_code();
-    RelocIterator it(code, istream, code.unchecked_relocation_info(),
-                     code.constant_pool(), kRelocModeMask);
+    RelocIterator it(InstructionStream::cast(obj), kRelocModeMask);
     v->VisitRelocInfo(&it);
   }
 
@@ -1060,11 +1060,11 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    Code::kPointerFieldsStrongEndOffset, v);
+    // No strong pointers to iterate.
+    static_assert(static_cast<int>(HeapObject::kHeaderSize) ==
+                  static_cast<int>(Code::kPointerFieldsStrongEndOffset));
 
-    v->VisitCodePointer(Code::cast(obj),
-                        obj.RawCodeField(kInstructionStreamOffset));
+    v->VisitCodePointer(obj, obj.RawCodeField(kInstructionStreamOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return Code::kSize; }

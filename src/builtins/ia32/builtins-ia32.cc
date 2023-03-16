@@ -2741,9 +2741,13 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ leave();
   }
 
+  __ LoadCodeInstructionStreamNonBuiltin(eax, eax);
+
   // Load deoptimization data from the code object.
-  __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOrInterpreterDataOffset -
-                               kHeapObjectTag));
+  __ mov(ecx,
+         Operand(eax,
+                 InstructionStream::kDeoptimizationDataOrInterpreterDataOffset -
+                     kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ mov(ecx, Operand(ecx, FixedArray::OffsetOfElementAt(
@@ -2751,10 +2755,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                                kHeapObjectTag));
   __ SmiUntag(ecx);
 
-  __ LoadCodeEntry(eax, eax);
-
-  // Compute the target address = code_entry + osr_offset
-  __ add(eax, ecx);
+  // Compute the target address = code_obj + header_size + osr_offset
+  __ lea(eax, Operand(eax, ecx, times_1,
+                      InstructionStream::kHeaderSize - kHeapObjectTag));
 
   Generate_OSREntry(masm, eax);
 }
@@ -4247,6 +4250,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, ecx);
   }
+  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = ecx;
@@ -4312,8 +4316,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
            kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ LoadCodeEntry(code_obj, code_obj);
-  __ add(code_obj, kReturnRegister0);
+  __ lea(code_obj, FieldOperand(code_obj, kReturnRegister0, times_1,
+                                InstructionStream::kHeaderSize));
   __ pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {

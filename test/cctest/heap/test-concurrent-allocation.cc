@@ -470,7 +470,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
 class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
  public:
-  explicit ConcurrentRecordRelocSlotThread(Heap* heap, Code code,
+  explicit ConcurrentRecordRelocSlotThread(Heap* heap, InstructionStream code,
                                            HeapObject value)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
@@ -491,7 +491,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  Code code_;
+  InstructionStream code_;
   HeapObject value_;
 };
 
@@ -510,7 +510,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
   {
-    Code code;
+    InstructionStream code;
     HeapObject value;
     CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     {
@@ -529,8 +529,11 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
 #endif
       CodeDesc desc;
       masm.GetCode(i_isolate, &desc);
-      Handle<Code> code_handle =
-          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+      Handle<InstructionStream> code_handle(
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING)
+              .Build()
+              ->instruction_stream(),
+          i_isolate);
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       Handle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));

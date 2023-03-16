@@ -579,8 +579,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<FixedArray> data =
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
-    Code code = Code::cast(*compile_data.code);
-    data->set(JSRegExp::code_index(is_one_byte), code);
+    InstructionStream code = InstructionStream::cast(*compile_data.code);
+    data->set(JSRegExp::code_index(is_one_byte), ToCode(code));
 
     // Reset bytecode to uninitialized. In case we use tier-up we know that
     // tier-up has happened this way.
@@ -1023,9 +1023,10 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kNative) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Handle<Code> code = Handle<Code>::cast(result.code);
+      Code code =
+          Handle<InstructionStream>::cast(result.code)->code(kAcquireLoad);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
-      code->Disassemble(pattern_cstring.get(), os, isolate);
+      code.Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&

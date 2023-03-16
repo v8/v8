@@ -74,43 +74,19 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 }
 
 template <typename Impl>
-Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
+Handle<Code> FactoryBase<Impl>::NewCode(int flags, AllocationType allocation) {
   Map map = read_only_roots().code_map();
   int size = map.instance_size();
-  DCHECK_NE(options.allocation, AllocationType::kYoung);
-  Code code =
-      Code::cast(AllocateRawWithImmortalMap(size, options.allocation, map));
+  DCHECK_NE(allocation, AllocationType::kYoung);
+  Code data_container =
+      Code::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
-  code.initialize_flags(options.kind, options.builtin, options.is_turbofanned,
-                        options.stack_slots);
-  code.set_kind_specific_flags(options.kind_specific_flags, kRelaxedStore);
+  data_container.set_kind_specific_flags(flags, kRelaxedStore);
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
-  code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
-  code.init_code_entry_point(isolate_for_sandbox, kNullAddress);
-  code.set_instruction_size(options.instruction_size);
-  code.set_metadata_size(options.metadata_size);
-  code.set_relocation_info(*options.reloc_info);
-  code.set_inlined_bytecode_size(options.inlined_bytecode_size);
-  code.set_osr_offset(options.osr_offset);
-  code.set_handler_table_offset(options.handler_table_offset);
-  code.set_constant_pool_offset(options.constant_pool_offset);
-  code.set_code_comments_offset(options.code_comments_offset);
-  code.set_unwinding_info_offset(options.unwinding_info_offset);
-
-  if (options.kind == CodeKind::BASELINE) {
-    code.set_bytecode_or_interpreter_data(
-        *options.bytecode_or_deoptimization_data);
-    code.set_bytecode_offset_table(
-        *options.bytecode_offsets_or_source_position_table);
-  } else {
-    code.set_deoptimization_data(
-        FixedArray::cast(*options.bytecode_or_deoptimization_data));
-    code.set_source_position_table(
-        *options.bytecode_offsets_or_source_position_table);
-  }
-
-  code.clear_padding();
-  return handle(code, isolate());
+  data_container.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
+  data_container.init_code_entry_point(isolate_for_sandbox, kNullAddress);
+  data_container.clear_padding();
+  return handle(data_container, isolate());
 }
 
 template <typename Impl>
@@ -349,7 +325,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), MaybeHandle<HeapObject>(),
+      literal->GetName(isolate()), MaybeHandle<InstructionStream>(),
       Builtin::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
@@ -453,7 +429,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
-    DCHECK(!function_data->IsInstructionStream());
+    DCHECK_IMPLIES(function_data->IsInstructionStream(),
+                   !InstructionStream::cast(*function_data).is_builtin());
     raw.set_function_data(*function_data, kReleaseStore);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw.set_builtin_id(builtin);

@@ -369,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   Handle<JSFunction> function = deoptimizer->function();
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
+  Handle<InstructionStream> optimized_code = deoptimizer->compiled_code();
   const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
   const DeoptimizeReason deopt_reason =
       deoptimizer->GetDeoptInfo().deopt_reason;
@@ -415,11 +415,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the loop should pay for the deoptimization costs.
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(*function, ToCode(*optimized_code));
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
                                       osr_offset)) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(*function, ToCode(*optimized_code));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

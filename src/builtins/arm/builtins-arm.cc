@@ -1774,15 +1774,20 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
+  __ LoadCodeInstructionStreamNonBuiltin(r0, r0);
+
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ ldr(r1,
-         FieldMemOperand(r0, Code::kDeoptimizationDataOrInterpreterDataOffset));
-
-  __ LoadCodeEntry(r0, r0);
+  __ ldr(
+      r1,
+      FieldMemOperand(
+          r0, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+    __ add(r0, r0,
+           Operand(InstructionStream::kHeaderSize -
+                   kHeapObjectTag));  // InstructionStream start
 
     // Load the OSR entrypoint offset from the deoptimization data.
     // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -3603,6 +3608,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, r3);
   }
+  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r2;
@@ -3670,15 +3676,17 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(3, 0);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
-  __ LoadCodeEntry(code_obj, code_obj);
   __ add(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
     UseScratchRegisterScope temps(masm);
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, temps.Acquire());
-    Generate_OSREntry(masm, code_obj);
+    Generate_OSREntry(masm, code_obj,
+                      Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
+    __ add(code_obj, code_obj,
+           Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.
