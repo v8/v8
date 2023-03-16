@@ -247,8 +247,8 @@ class GlobalHandleVector {
       return *this;
     }
     Handle<T> operator*() { return Handle<T>(&*it_); }
-    bool operator==(const Iterator& that) { return it_ == that.it_; }
-    bool operator!=(const Iterator& that) { return it_ != that.it_; }
+    bool operator==(const Iterator& that) const { return it_ == that.it_; }
+    bool operator!=(const Iterator& that) const { return it_ != that.it_; }
 
     T raw() { return T::cast(Object(*it_)); }
 
