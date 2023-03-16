@@ -372,7 +372,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationDecision::TurbofanSmallFunction();
-  } else if (v8_flags.trace_opt_verbose) {
+  } else if (!after_next_tick && v8_flags.trace_opt_verbose) {
     PrintF("[not yet optimizing %s, not enough ticks: %d/%d and ",
            shared.DebugNameCStr().get(), ticks, ticks_for_optimization);
     if (any_ic_changed_) {
@@ -409,6 +409,10 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
       int minimum_budget = minimum * bytecode_length;
       int current_budget = cell.interrupt_budget();
       if (minimum_budget > current_budget) {
+        if (v8_flags.trace_opt_verbose) {
+          PrintF("[delaying optimization of %s, IC changed]\n",
+                 shared.DebugNameCStr().get());
+        }
         int maximum_budget =
             ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
         cell.set_interrupt_budget(std::min(minimum_budget, maximum_budget));
