@@ -766,8 +766,9 @@ void Code::set_constant_pool_offset(int value) {
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return V8_LIKELY(has_instruction_stream()) ? constant_pool()
-                                             : OffHeapConstantPoolAddress();
+  return V8_LIKELY(has_instruction_stream())
+             ? metadata_start() + constant_pool_offset()
+             : OffHeapConstantPoolAddress();
 }
 
 Address Code::code_comments() const {
