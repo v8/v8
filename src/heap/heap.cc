@@ -1863,7 +1863,8 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   // Start incremental marking for the next cycle. We do this only for scavenger
   // to avoid a loop where mark-compact causes another mark-compact.
-  if (IsYoungGenerationCollector(collector)) {
+  if (collector == GarbageCollector::SCAVENGER) {
+    DCHECK(!v8_flags.minor_mc);
     StartIncrementalMarkingIfAllocationLimitIsReached(
         GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -1900,6 +1901,14 @@ void Heap::StartIncrementalMarking(int gc_flags,
                                    GCCallbackFlags gc_callback_flags,
                                    GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
+
+  // Delay incremental marking start while concurrent sweeping still has work.
+  // This helps avoid large CompleteSweep blocks on the main thread when major
+  // incremental marking should be scheduled following a minor GC.
+  if (sweeper()->AreSweeperTasksRunning() &&
+      (!sweeper()->IsSweepingDoneForSpace(NEW_SPACE) ||
+       sweeper()->IsIteratingPromotedPages()))
+    return;
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung();
