@@ -2758,6 +2758,47 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue(
       "new Uint8Array(result.buffer, 0, 4).toString() === '0,1,128,255'");
 }
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
+       RoundTripWebAssemblyMemory_WithPreviousReference) {
+  // This is a regression test for crbug.com/1421524.
+  // It ensures that WasmMemoryObject can deserialize even if its underlying
+  // buffer was already encountered, and so will be encoded with an object
+  // backreference.
+  std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
+  data.resize(65536);
+  InitializeData(data, true);
+
+  EXPECT_CALL(serializer_delegate_,
+              GetSharedArrayBufferId(isolate(), input_buffer()))
+      .WillRepeatedly(Return(Just(0U)));
+  EXPECT_CALL(deserializer_delegate_, GetSharedArrayBufferFromId(isolate(), 0U))
+      .WillRepeatedly(Return(output_buffer()));
+
+  Local<Value> input;
+  {
+    Context::Scope scope(serialization_context());
+    const int32_t kMaxPages = 1;
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
+    i::Handle<i::WasmMemoryObject> wasm_memory =
+        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages)
+            .ToHandleChecked();
+    i::Handle<i::FixedArray> fixed_array =
+        i_isolate->factory()->NewFixedArray(2);
+    fixed_array->set(0, *buffer);
+    fixed_array->set(1, *wasm_memory);
+    input = Utils::ToLocal(i_isolate->factory()->NewJSArrayWithElements(
+        fixed_array, i::PACKED_ELEMENTS, 2));
+  }
+  RoundTripTest(input);
+  ExpectScriptTrue("result[0] instanceof SharedArrayBuffer");
+  ExpectScriptTrue("result[1] instanceof WebAssembly.Memory");
+  ExpectScriptTrue("result[0] === result[1].buffer");
+  ExpectScriptTrue("result[0].byteLength === 65536");
+  ExpectScriptTrue(
+      "new Uint8Array(result[0], 0, 4).toString() === '0,1,128,255'");
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(ValueSerializerTest, UnsupportedHostObject) {

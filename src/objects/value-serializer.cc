@@ -2305,15 +2305,14 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
     return MaybeHandle<WasmMemoryObject>();
   }
 
-  SerializationTag tag;
-  if (!ReadTag().To(&tag) || tag != SerializationTag::kSharedArrayBuffer) {
+  Handle<Object> buffer_object;
+  if (!ReadObject().ToHandle(&buffer_object) ||
+      !buffer_object->IsJSArrayBuffer()) {
     return MaybeHandle<WasmMemoryObject>();
   }
 
-  constexpr bool is_shared = true;
-  constexpr bool is_resizable = false;
-  Handle<JSArrayBuffer> buffer;
-  if (!ReadJSArrayBuffer(is_shared, is_resizable).ToHandle(&buffer)) {
+  Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
+  if (!buffer->is_shared()) {
     return MaybeHandle<WasmMemoryObject>();
   }
 
