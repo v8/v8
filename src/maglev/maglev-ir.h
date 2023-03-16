@@ -5454,8 +5454,20 @@ class CheckedStoreSmiField : public FixedInputNodeT<2, CheckedStoreSmiField> {
   explicit CheckedStoreSmiField(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::EagerDeopt();
+  // CheckedStoreSmiField doesn't do any Deferred Calls, but
+  // PhiRepresentationSelector could turn this node into a
+  // StoreTaggedFieldNoWriteBarrier, which needs the register snapshot (see the
+  // comment before the definition of kProperties in
+  // StoreTaggedFieldNoWriteBarrier).
+  // TODO(dmercadier): when CheckedStoreSmiField is transformed into a
+  // StoreTaggedFieldNoWriteBarrier, the later can never be transformed in turn
+  // into a StoreTaggedFieldWithWriteBarrier, so the register snapshot is not
+  // actually needed. We should introduce a StoreTaggedField node without
+  // register snapshot for such cases, in order to avoid the DeferredCall
+  // property in CheckedStoreSmiField.
+  static constexpr OpProperties kProperties = OpProperties::Writing() |
+                                              OpProperties::EagerDeopt() |
+                                              OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -5466,6 +5478,10 @@ class CheckedStoreSmiField : public FixedInputNodeT<2, CheckedStoreSmiField> {
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const {
+    // CheckedStoreSmiField never really does any call.
+    return 0;
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -5482,7 +5498,14 @@ class StoreTaggedFieldNoWriteBarrier
   explicit StoreTaggedFieldNoWriteBarrier(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  // StoreTaggedFieldNoWriteBarrier never does a Deferred Call. However,
+  // PhiRepresentationSelector can cause some StoreTaggedFieldNoWriteBarrier to
+  // become StoreTaggedFieldWithWriteBarrier, which can do Deferred Calls, and
+  // thus need the register snapshot. We thus set the DeferredCall property in
+  // StoreTaggedFieldNoWriteBarrier so that it's allocated with enough space for
+  // the register snapshot.
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -5496,6 +5519,10 @@ class StoreTaggedFieldNoWriteBarrier
   void MarkTaggedInputsAsDecompressing() {
     object_input().node()->SetTaggedResultNeedsDecompress();
     // Don't need to decompress value to store it.
+  }
+  int MaxCallStackArgs() const {
+    // StoreTaggedFieldNoWriteBarrier never really does any call.
+    return 0;
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

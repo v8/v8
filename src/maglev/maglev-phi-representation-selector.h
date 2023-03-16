@@ -103,7 +103,7 @@ class MaglevPhiRepresentationSelector {
     }
   }
 
-  void UpdateNodePhiInput(StoreTaggedFieldWithWriteBarrier* node, Phi* phi,
+  void UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node, Phi* phi,
                           int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(CheckedStoreSmiField* node, Phi* phi, int input_index,
                           const ProcessingState& state);

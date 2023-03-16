@@ -267,13 +267,13 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 }
 
-// If the input of a StoreTaggedFieldWithWriteBarrier was a Phi that got
+// If the input of a StoreTaggedFieldNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
 void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    StoreTaggedFieldWithWriteBarrier* node, Phi* phi, int input_index,
+    StoreTaggedFieldNoWriteBarrier* node, Phi* phi, int input_index,
     const ProcessingState& state) {
-  if (input_index == StoreTaggedFieldWithWriteBarrier::kObjectIndex) {
+  if (input_index == StoreTaggedFieldNoWriteBarrier::kObjectIndex) {
     // The 1st input of a Store should usually not be untagged. However, it is
     // possible to write `let x = a ? 4 : 2; x.c = 10`, which will produce a
     // store whose receiver could be an untagged Phi. So, for such cases, we use
@@ -286,8 +286,8 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   if (phi->value_representation() != ValueRepresentation::kTagged) {
     // We need to tag {phi}. However, this could turn it into a HeapObject
     // rather than a Smi (either because {phi} is a Float64 phi, or because it's
-    // a Int32/Uint32 phi that doesn't fit on 31 bits), so we need can't drop
-    // the write barrier.
+    // a Int32/Uint32 phi that doesn't fit on 31 bits), so we need the write
+    // barrier.
     node->change_input(input_index, EnsurePhiTagged(phi, current_block_,
                                                     NewNodePosition::kStart));
     static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==

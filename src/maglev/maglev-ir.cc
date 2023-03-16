@@ -70,6 +70,8 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
                  properties().can_eager_deopt());
   DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
                  properties().can_lazy_deopt());
+  DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
+                 properties().needs_register_snapshot());
 
   int old_input_count = input_count();
   size_t old_sizeof = -1;
