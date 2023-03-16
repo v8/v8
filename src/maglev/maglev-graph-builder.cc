@@ -48,6 +48,25 @@ namespace v8::internal::maglev {
 
 namespace {
 
+enum class CpuOperation {
+  kFloat64Round,
+};
+
+// TODO(leszeks): Add a generic mechanism for marking nodes as optionally
+// supported.
+bool IsSupported(CpuOperation op) {
+#ifdef V8_TARGET_ARCH_X64
+  switch (op) {
+    case CpuOperation::kFloat64Round:
+      return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
+  }
+#elif V8_TARGET_ARCH_ARM64
+  return true;
+#else
+#error "Maglev does not supported this architecture."
+#endif
+}
+
 ValueNode* TryGetParentContext(ValueNode* node) {
   if (CreateFunctionContext* n = node->TryCast<CreateFunctionContext>()) {
     return n->context().node();
@@ -3026,6 +3045,14 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     // TODO(victorgomes): Handle STORE_IGNORE_OUT_OF_BOUNDS mode.
     return ReduceResult::Fail();
   }
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
+      elements_kind == UINT8_CLAMPED_ELEMENTS &&
+      !IsSupported(CpuOperation::kFloat64Round)) {
+    // TODO(victorgomes): Technically we still support if value (in the
+    // accumulator) is of type int32. It would be nice to have a roll back
+    // mechanism instead, so that we do not need to check this early.
+    return ReduceResult::Fail();
+  }
   ValueNode* index = GetUint32ElementIndex(index_object);
   AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
   switch (keyed_mode.access_mode()) {
@@ -4326,15 +4353,7 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
     case ValueRepresentation::kFloat64:
       break;
   }
-  // TODO(leszeks): Add a generic mechanism for marking nodes as optionally
-  // supported.
-  bool float64_round_is_supported =
-#ifdef V8_TARGET_ARCH_X64
-      CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
-#else
-      true;
-#endif
-  if (float64_round_is_supported) {
+  if (IsSupported(CpuOperation::kFloat64Round)) {
     return AddNewNode<Float64Round>({arg}, kind);
   }
 

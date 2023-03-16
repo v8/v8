@@ -407,6 +407,7 @@ inline void MaglevAssembler::NegateInt32(Register val) { negl(val); }
 inline void MaglevAssembler::ToUint8Clamped(Register result,
                                             DoubleRegister value, Label* min,
                                             Label* max, Label* done) {
+  DCHECK(CpuFeatures::IsSupported(SSE4_1));
   Move(kScratchDoubleReg, 0.0);
   Ucomisd(kScratchDoubleReg, value);
   // Set to 0 if NaN.
