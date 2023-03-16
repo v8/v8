@@ -190,7 +190,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   // Check if the {receiver} is actually a JSReceiver.
   Label receiver_is_invalid(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &receiver_is_invalid);
-  GotoIfNot(IsJSReceiver(CAST(receiver)), &receiver_is_invalid);
+  GotoIfNot(JSAnyIsNotPrimitive(CAST(receiver)), &receiver_is_invalid);
 
   // Dispatch to the appropriate OrdinaryToPrimitive builtin.
   Label hint_is_number(this), hint_is_string(this),

@@ -25,6 +25,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/sandbox/external-pointer.h"
@@ -2541,6 +2542,39 @@ void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
     }
   }
   CmpObjectType(heap_object, type, map);
+}
+
+void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
+                                               Register scratch, Label* target,
+                                               Label::Distance distance,
+                                               Condition cc) {
+  CHECK(cc == Condition::kUnsignedLessThan ||
+        cc == Condition::kUnsignedGreaterThanEqual);
+  if (V8_STATIC_ROOTS_BOOL) {
+#ifdef DEBUG
+    Label ok;
+    LoadMap(scratch, heap_object);
+    CmpInstanceTypeRange(scratch, scratch, FIRST_JS_RECEIVER_TYPE,
+                         LAST_JS_RECEIVER_TYPE);
+    j(Condition::kUnsignedLessThanEqual, &ok, Label::Distance::kNear);
+    LoadMap(scratch, heap_object);
+    CmpInstanceTypeRange(scratch, scratch, FIRST_PRIMITIVE_HEAP_OBJECT_TYPE,
+                         LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
+    j(Condition::kUnsignedLessThanEqual, &ok, Label::Distance::kNear);
+    Abort(AbortReason::kInvalidReceiver);
+    bind(&ok);
+#endif  // DEBUG
+
+    // All primitive object's maps are allocated at the start of the read only
+    // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+    // addresses.
+    LoadCompressedMap(scratch, heap_object);
+    cmp_tagged(scratch, Immediate(InstanceTypeChecker::kNonJsReceiverMapLimit));
+  } else {
+    static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    CmpObjectType(heap_object, FIRST_JS_RECEIVER_TYPE, scratch);
+  }
+  j(cc, target, distance);
 }
 
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,

@@ -145,9 +145,21 @@ inline bool CheckInstanceMapRange(RootIndexRange expected, Map map) {
   return ptr >= first && ptr <= last;
 }
 
+// Maps for primitive objects are allocated in r/o space. JS_RECEIVER maps are
+// all allocated later, i.e. they have a compressed address above the last read
+// only root. Thus, if we have a receiver and need to distinguish whether it is
+// either a primitive object or a JS receiver, it suffices to check if its map
+// is allocated above the following limit address.
+// The actual value is chosen such that it can be encoded as arm64 immediate.
+constexpr Tagged_t kNonJsReceiverMapLimit = 0x10000;
+static_assert(kNonJsReceiverMapLimit >
+              StaticReadOnlyRootsPointerTable[static_cast<size_t>(
+                  RootIndex::kLastReadOnlyRoot)]);
+
 #else
 
 inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
+constexpr Tagged_t kNonJsReceiverMapLimit = 0x0;
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
