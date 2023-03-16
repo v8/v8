@@ -129,6 +129,12 @@ declare_args() {
   # use target_os == "ios" here because it isn't equivalent
   # to is_ios (is_ios is based on host_os).
   target_is_ios_device = target_os == "ios" && target_environment == "device"
+
+  # Location of icu.
+  v8_icu_path = "//third_party/icu"
+
+  # Location of zlib.
+  v8_zlib_path = "//third_party/zlib"
 }
 
 if (v8_use_external_startup_data == "") {

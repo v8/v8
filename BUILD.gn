@@ -2063,7 +2063,7 @@ if (v8_verify_torque_generation_invariance) {
 
 group("v8_maybe_icu") {
   if (v8_enable_i18n_support) {
-    public_deps = [ "//third_party/icu" ]
+    public_deps = [ v8_icu_path ]
   }
 }
 
@@ -5389,7 +5389,7 @@ v8_source_set("v8_base_without_compiler") {
     deps += [ ":run_gen-regexp-special-case" ]
     sources += [ "$target_gen_dir/src/regexp/special-case.cc" ]
     if (is_win) {
-      deps += [ "//third_party/icu:icudata" ]
+      deps += [ "$v8_icu_path:icudata" ]
     }
   } else {
     sources -= [
@@ -5415,8 +5415,8 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_use_zlib) {
     deps += [
-      "//third_party/zlib",
-      "//third_party/zlib/google:compression_utils_portable",
+      "$v8_zlib_path",
+      "$v8_zlib_path/google:compression_utils_portable",
     ]
   }
 
@@ -6490,7 +6490,7 @@ if (v8_enable_i18n_support) {
         ":v8_libbase",
         ":v8_shared_internal_headers",
         "//build/win:default_exe_manifest",
-        "//third_party/icu",
+        v8_icu_path,
       ]
 
       configs = [ ":internal_config" ]

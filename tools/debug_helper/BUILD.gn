@@ -104,7 +104,7 @@ v8_component("v8_debug_helper") {
 
   configs = [ ":internal_config" ]
   if (v8_enable_i18n_support) {
-    configs += [ "//third_party/icu:icu_config" ]
+    configs += [ "$v8_icu_path:icu_config" ]
   }
 
   remove_configs = [ "//build/config/compiler:no_rtti" ]

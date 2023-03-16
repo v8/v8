@@ -623,7 +623,7 @@ v8_source_set("v8_unittests_sources") {
 
   if (v8_enable_i18n_support) {
     defines = [ "V8_INTL_SUPPORT" ]
-    public_deps = [ "//third_party/icu" ]
+    public_deps = [ v8_icu_path ]
   } else {
     sources -= [ "objects/intl-unittest.cc" ]
   }
