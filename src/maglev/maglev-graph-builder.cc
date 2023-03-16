@@ -4036,9 +4036,9 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
         break;
     }
   }
-  if (call_frequency < v8_flags.min_inlining_frequency) {
+  if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
-                        << call_frequency << ") < minimum thredshold ("
+                        << call_frequency << ") < minimum threshold ("
                         << v8_flags.min_maglev_inlining_frequency << ")");
     return false;
   }
