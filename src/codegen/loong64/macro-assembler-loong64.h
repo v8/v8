@@ -12,6 +12,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-data.h"
 #include "src/objects/tagged-index.h"
 
 namespace v8 {
@@ -86,6 +87,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
+#ifdef V8_COMPRESS_POINTERS
+    LoadRootRelative(kPtrComprCageBaseRegister, IsolateData::cage_base_offset());
+#endif
   }
 
   // Jump unconditionally to given label.

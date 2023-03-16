@@ -550,6 +550,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Initialize the root register.
     // C calling convention. The first argument is passed in a0.
     __ mov(kRootRegister, a0);
+
+#ifdef V8_COMPRESS_POINTERS
+    // Initialize the pointer cage base register.
+    __ LoadRootRelative(kPtrComprCageBaseRegister,
+                        IsolateData::cage_base_offset());
+#endif
   }
 
   // a1: entry address
@@ -766,8 +772,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(s3, a4);
     __ mov(s4, a4);
     __ mov(s5, a4);
+#ifndef V8_COMPRESS_POINTERS
+    __ mov(s8, a4);
+#endif
     // s6 holds the root address. Do not clobber.
     // s7 is cp. Do not init.
+    // s8 is pointer cage base register (kPointerCageBaseRegister).
 
     // Invoke the code.
     Handle<Code> builtin = is_construct

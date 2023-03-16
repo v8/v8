@@ -19,10 +19,20 @@ namespace internal {
   V(x_reg)      V(fp)  \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  V(s8) \
 
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
+#define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
   V(a0)  V(a1)  V(a2)  V(a3)  V(a4)  V(a5)  V(a6)  V(a7) \
   V(t0)  V(t1)  V(t2)  V(t3)  V(t4)  V(t5)               \
-  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s7)  V(s8)
+  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s7)
+
+#ifdef V8_COMPRESS_POINTERS
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
+#else
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V) V(s8)
+#endif
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V)  \
+  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
+  MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
 #define DOUBLE_REGISTERS(V)                               \
   V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
@@ -211,9 +221,7 @@ constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 #ifdef V8_COMPRESS_POINTERS
-// TODO(v8:13788): fix pointer compression. kPtrComprCageBaseRegister must be
-// different from kRootRegister.
-constexpr Register kPtrComprCageBaseRegister = kRootRegister;
+constexpr Register kPtrComprCageBaseRegister = s8;
 #else
 constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif

@@ -840,6 +840,9 @@ TEST(min_max_nan) {
   Label back_mind_nan, back_maxd_nan, back_mins_nan, back_maxs_nan;
 
   __ Push(s6);
+#ifdef V8_COMPRESS_POINTERS
+  __ Push(s8);
+#endif
   __ InitializeRootRegister();
   __ Fld_d(f8, MemOperand(a0, offsetof(TestFloat, a)));
   __ Fld_d(f9, MemOperand(a0, offsetof(TestFloat, b)));
@@ -857,6 +860,9 @@ TEST(min_max_nan) {
   __ Fst_d(f13, MemOperand(a0, offsetof(TestFloat, d)));
   __ Fst_s(f14, MemOperand(a0, offsetof(TestFloat, g)));
   __ Fst_s(f15, MemOperand(a0, offsetof(TestFloat, h)));
+#ifdef V8_COMPRESS_POINTERS
+  __ Pop(s8);
+#endif
   __ Pop(s6);
   __ jirl(zero_reg, ra, 0);
 
