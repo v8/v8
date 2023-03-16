@@ -78,10 +78,10 @@ TestingModuleBuilder::TestingModuleBuilder(
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
-    auto resolved = compiler::ResolveWasmImportCall(
-        maybe_import->js_function, maybe_import->sig, canonical_type_index);
-    compiler::WasmImportCallKind kind = resolved.kind;
-    Handle<JSReceiver> callable = resolved.callable;
+    WasmImportData resolved(maybe_import->js_function, maybe_import->sig,
+                            canonical_type_index);
+    ImportCallKind kind = resolved.kind();
+    Handle<JSReceiver> callable = resolved.callable();
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(
@@ -98,7 +98,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend);
+        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend());
   }
 
   if (tier == TestExecutionTier::kInterpreter) {

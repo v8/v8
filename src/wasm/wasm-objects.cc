@@ -527,7 +527,7 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
     wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
-    auto kind = compiler::WasmImportCallKind::kWasmToCapi;
+    auto kind = wasm::ImportCallKind::kWasmToCapi;
     uint32_t canonical_type_index =
         wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
@@ -1437,15 +1437,14 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    auto resolved =
-        compiler::ResolveWasmImportCall(callable, sig, canonical_sig_index);
-    compiler::WasmImportCallKind kind = resolved.kind;
-    callable = resolved.callable;  // Update to ultimate target.
-    DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
+    wasm::WasmImportData resolved(callable, sig, canonical_sig_index);
+    wasm::ImportCallKind kind = resolved.kind();
+    callable = resolved.callable();  // Update to ultimate target.
+    DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
     // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
     int expected_arity = -1;
-    if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch) {
+    if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
       expected_arity = Handle<JSFunction>::cast(callable)
                            ->shared()
                            .internal_formal_parameter_count_without_receiver();
@@ -2084,9 +2083,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       wrapper_code, rtt, suspend, wasm::kNoPromise);
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
-    using CK = compiler::WasmImportCallKind;
+    using CK = wasm::ImportCallKind;
     int expected_arity = parameter_count;
-    CK kind = compiler::kDefaultImportCallKind;
+    CK kind = wasm::kDefaultImportCallKind;
     if (callable->IsJSFunction()) {
       SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
       expected_arity =

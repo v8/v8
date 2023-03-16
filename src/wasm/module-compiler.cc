@@ -1695,7 +1695,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
         native_module->module()
             ->isorecursive_canonical_type_ids[function.sig_index];
     WasmImportWrapperCache::CacheKey key(
-        compiler::kDefaultImportCallKind, canonical_type_index,
+        kDefaultImportCallKind, canonical_type_index,
         static_cast<int>(function.sig->parameter_count()), kNoSuspend);
     auto it = keys.insert(key);
     if (it.second) {
@@ -3612,7 +3612,7 @@ void CompilationStateImpl::PublishCompilationResults(
           native_module_->module()
               ->isorecursive_canonical_type_ids[function.sig_index];
       WasmImportWrapperCache::CacheKey key(
-          compiler::kDefaultImportCallKind, canonical_type_index,
+          kDefaultImportCallKind, canonical_type_index,
           static_cast<int>(function.sig->parameter_count()), kNoSuspend);
       // If two imported functions have the same key, only one of them should
       // have been added as a compilation unit. So it is always the first time
@@ -3904,10 +3904,9 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
 }
 
 WasmCode* CompileImportWrapper(
-    NativeModule* native_module, Counters* counters,
-    compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    uint32_t canonical_type_index, int expected_arity, Suspend suspend,
-    WasmImportWrapperCache::ModificationScope* cache_scope) {
+    NativeModule* native_module, Counters* counters, ImportCallKind kind,
+    const FunctionSig* sig, uint32_t canonical_type_index, int expected_arity,
+    Suspend suspend, WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled
   // yet.

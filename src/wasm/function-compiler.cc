@@ -46,7 +46,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
   const FunctionSig* sig = env->module->functions[func_index_].sig;
   // Assume the wrapper is going to be a JS function with matching arity at
   // instantiation time.
-  auto kind = compiler::kDefaultImportCallKind;
+  auto kind = kDefaultImportCallKind;
   bool source_positions = is_asmjs_module(env->module);
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       env, kind, sig, source_positions,

@@ -6,6 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/time.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"

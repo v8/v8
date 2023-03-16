@@ -19,6 +19,7 @@
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -26,6 +27,9 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
+
+class CFunctionInfo;
+
 namespace internal {
 struct AssemblerOptions;
 class TurbofanCompilationJob;
@@ -65,73 +69,16 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv*, WasmCompilationData& compilation_data, Counters*,
     wasm::WasmFeatures* detected);
 
-// Calls to Wasm imports are handled in several different ways, depending on the
-// type of the target function/callable and whether the signature matches the
-// argument arity.
-enum class WasmImportCallKind : uint8_t {
-  kLinkError,                // static Wasm->Wasm type error
-  kRuntimeTypeError,         // runtime Wasm->JS type error
-  kWasmToCapi,               // fast Wasm->C-API call
-  kWasmToJSFastApi,          // fast Wasm->JS Fast API C call
-  kWasmToWasm,               // fast Wasm->Wasm call
-  kJSFunctionArityMatch,     // fast Wasm->JS call
-  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
-  // Math functions imported from JavaScript that are intrinsified
-  kFirstMathIntrinsic,
-  kF64Acos = kFirstMathIntrinsic,
-  kF64Asin,
-  kF64Atan,
-  kF64Cos,
-  kF64Sin,
-  kF64Tan,
-  kF64Exp,
-  kF64Log,
-  kF64Atan2,
-  kF64Pow,
-  kF64Ceil,
-  kF64Floor,
-  kF64Sqrt,
-  kF64Min,
-  kF64Max,
-  kF64Abs,
-  kF32Min,
-  kF32Max,
-  kF32Abs,
-  kF32Ceil,
-  kF32Floor,
-  kF32Sqrt,
-  kF32ConvertF64,
-  kLastMathIntrinsic = kF32ConvertF64,
-  // For everything else, there's the call builtin.
-  kUseCallBuiltin
-};
-
-constexpr WasmImportCallKind kDefaultImportCallKind =
-    WasmImportCallKind::kJSFunctionArityMatch;
-
-struct WasmImportData {
-  WasmImportCallKind kind;
-  Handle<JSReceiver> callable;
-  wasm::Suspend suspend;
-};
-// Resolves which import call wrapper is required for the given JS callable.
-// Returns the kind of wrapper needed, the ultimate target callable, and the
-// suspender object if applicable. Note that some callables (e.g. a
-// {WasmExportedFunction} or {WasmJSFunction}) just wrap another target, which
-// is why the ultimate target is returned as well.
-V8_EXPORT_PRIVATE WasmImportData
-ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
-                      uint32_t expected_canonical_type_index);
-
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::CompilationEnv* env, WasmImportCallKind, const wasm::FunctionSig*,
+    wasm::CompilationEnv* env, wasm::ImportCallKind, const wasm::FunctionSig*,
     bool source_positions, int expected_arity, wasm::Suspend);
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule*,
                                            const wasm::FunctionSig*);
 
+bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              const wasm::FunctionSig*,
@@ -145,7 +92,7 @@ std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::FunctionSig* sig,
-                                         WasmImportCallKind kind,
+                                         wasm::ImportCallKind kind,
                                          int expected_arity,
                                          wasm::Suspend suspend);
 

@@ -7,6 +7,8 @@
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/atomicops.h"
+#include "src/codegen/compiler.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
@@ -227,7 +229,260 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   maps->set(type_index, *map);
 }
 
+MachineRepresentation NormalizeFastApiRepresentation(const CTypeInfo& info) {
+  MachineType t = MachineType::TypeForCType(info);
+  // Wasm representation of bool is i32 instead of i1.
+  if (t.semantic() == MachineSemantic::kBool) {
+    return MachineRepresentation::kWord32;
+  }
+  return t.representation();
+}
+
+bool IsSupportedWasmFastApiFunction(Isolate* isolate,
+                                    const wasm::FunctionSig* expected_sig,
+                                    Handle<SharedFunctionInfo> shared) {
+  if (!shared->IsApiFunction()) {
+    return false;
+  }
+  if (shared->get_api_func_data().GetCFunctionsCount() == 0) {
+    return false;
+  }
+  if (!shared->get_api_func_data().accept_any_receiver()) {
+    return false;
+  }
+  if (!shared->get_api_func_data().signature().IsUndefined()) {
+    // TODO(wasm): CFunctionInfo* signature check.
+    return false;
+  }
+  const CFunctionInfo* info = shared->get_api_func_data().GetCSignature(0);
+  if (!compiler::IsFastCallSupportedSignature(info)) {
+    return false;
+  }
+
+  const auto log_imported_function_mismatch = [&shared,
+                                               isolate](const char* reason) {
+    if (v8_flags.trace_opt) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[disabled optimization for ");
+      shared->ShortPrint(scope.file());
+      PrintF(scope.file(),
+             ", reason: the signature of the imported function in the Wasm "
+             "module doesn't match that of the Fast API function (%s)]\n",
+             reason);
+    }
+  };
+
+  // C functions only have one return value.
+  if (expected_sig->return_count() > 1) {
+    // Here and below, we log when the function we call is declared as an Api
+    // function but we cannot optimize the call, which might be unxepected. In
+    // that case we use the "slow" path making a normal Wasm->JS call and
+    // calling the "slow" callback specified in FunctionTemplate::New().
+    log_imported_function_mismatch("too many return values");
+    return false;
+  }
+  CTypeInfo return_info = info->ReturnInfo();
+  // Unsupported if return type doesn't match.
+  if (expected_sig->return_count() == 0 &&
+      return_info.GetType() != CTypeInfo::Type::kVoid) {
+    log_imported_function_mismatch("too few return values");
+    return false;
+  }
+  // Unsupported if return type doesn't match.
+  if (expected_sig->return_count() == 1) {
+    if (return_info.GetType() == CTypeInfo::Type::kVoid) {
+      log_imported_function_mismatch("too many return values");
+      return false;
+    }
+    if (NormalizeFastApiRepresentation(return_info) !=
+        expected_sig->GetReturn(0).machine_type().representation()) {
+      log_imported_function_mismatch("mismatching return value");
+      return false;
+    }
+  }
+  // Unsupported if arity doesn't match.
+  if (expected_sig->parameter_count() != info->ArgumentCount() - 1) {
+    log_imported_function_mismatch("mismatched arity");
+    return false;
+  }
+  // Unsupported if any argument types don't match.
+  for (unsigned int i = 0; i < expected_sig->parameter_count(); i += 1) {
+    // Arg 0 is the receiver, skip over it since wasm doesn't
+    // have a concept of receivers.
+    CTypeInfo arg = info->ArgumentInfo(i + 1);
+    if (NormalizeFastApiRepresentation(arg) !=
+        expected_sig->GetParam(i).machine_type().representation()) {
+      log_imported_function_mismatch("parameter type mismatch");
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
+                                   Handle<JSReceiver> callable) {
+  Handle<JSFunction> target;
+  if (callable->IsJSBoundFunction()) {
+    Handle<JSBoundFunction> bound_target =
+        Handle<JSBoundFunction>::cast(callable);
+    // Nested bound functions and arguments not supported yet.
+    if (bound_target->bound_arguments().length() > 0) {
+      return false;
+    }
+    if (bound_target->bound_target_function().IsJSBoundFunction()) {
+      return false;
+    }
+    Handle<JSReceiver> bound_target_function =
+        handle(bound_target->bound_target_function(), callable->GetIsolate());
+    if (!bound_target_function->IsJSFunction()) {
+      return false;
+    }
+    target = Handle<JSFunction>::cast(bound_target_function);
+  } else if (callable->IsJSFunction()) {
+    target = Handle<JSFunction>::cast(callable);
+  } else {
+    return false;
+  }
+
+  Isolate* isolate = target->GetIsolate();
+  Handle<SharedFunctionInfo> shared(target->shared(), isolate);
+  return IsSupportedWasmFastApiFunction(isolate, expected_sig, shared);
+}
+
 }  // namespace
+
+WasmImportData::WasmImportData(Handle<JSReceiver> callable,
+                               const wasm::FunctionSig* expected_sig,
+                               uint32_t expected_canonical_type_index)
+    : suspend_(kNoSuspend), callable_(callable) {
+  kind_ = ComputeKind(expected_sig, expected_canonical_type_index);
+}
+
+ImportCallKind WasmImportData::ComputeKind(
+    const wasm::FunctionSig* expected_sig,
+    uint32_t expected_canonical_type_index) {
+  Isolate* isolate = callable_->GetIsolate();
+  if (WasmExportedFunction::IsWasmExportedFunction(*callable_)) {
+    auto imported_function = Handle<WasmExportedFunction>::cast(callable_);
+    if (!imported_function->MatchesSignature(expected_canonical_type_index)) {
+      return ImportCallKind::kLinkError;
+    }
+    uint32_t func_index =
+        static_cast<uint32_t>(imported_function->function_index());
+    if (func_index >=
+        imported_function->instance().module()->num_imported_functions) {
+      return ImportCallKind::kWasmToWasm;
+    }
+    // Resolve the shortcut to the underlying callable and continue.
+    Handle<WasmInstanceObject> instance(imported_function->instance(), isolate);
+    ImportedFunctionEntry entry(instance, func_index);
+    callable_ = handle(entry.callable(), isolate);
+  }
+  if (WasmJSFunction::IsWasmJSFunction(*callable_)) {
+    auto js_function = Handle<WasmJSFunction>::cast(callable_);
+    suspend_ = js_function->GetSuspend();
+    if (!js_function->MatchesSignature(expected_canonical_type_index)) {
+      return ImportCallKind::kLinkError;
+    }
+    // Resolve the short-cut to the underlying callable and continue.
+    callable_ = handle(js_function->GetCallable(), isolate);
+  }
+  if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
+    auto capi_function = Handle<WasmCapiFunction>::cast(callable_);
+    if (!capi_function->MatchesSignature(expected_canonical_type_index)) {
+      return ImportCallKind::kLinkError;
+    }
+    return ImportCallKind::kWasmToCapi;
+  }
+  // Assuming we are calling to JS, check whether this would be a runtime error.
+  if (!wasm::IsJSCompatibleSignature(expected_sig)) {
+    return ImportCallKind::kRuntimeTypeError;
+  }
+  // Check if this can be a JS fast API call.
+  if (v8_flags.turbo_fast_api_calls &&
+      ResolveBoundJSFastApiFunction(expected_sig, callable_)) {
+    return ImportCallKind::kWasmToJSFastApi;
+  }
+  // For JavaScript calls, determine whether the target has an arity match.
+  if (callable_->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callable_);
+    Handle<SharedFunctionInfo> shared(function->shared(),
+                                      function->GetIsolate());
+
+// Check for math intrinsics.
+#define COMPARE_SIG_FOR_BUILTIN(name)                                     \
+  {                                                                       \
+    const wasm::FunctionSig* sig =                                        \
+        wasm::WasmOpcodes::Signature(wasm::kExpr##name);                  \
+    if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name); \
+    DCHECK_NOT_NULL(sig);                                                 \
+    if (*expected_sig == *sig) {                                          \
+      return ImportCallKind::k##name;                                     \
+    }                                                                     \
+  }
+#define COMPARE_SIG_FOR_BUILTIN_F64(name) \
+  case Builtin::kMath##name:              \
+    COMPARE_SIG_FOR_BUILTIN(F64##name);   \
+    break;
+#define COMPARE_SIG_FOR_BUILTIN_F32_F64(name) \
+  case Builtin::kMath##name:                  \
+    COMPARE_SIG_FOR_BUILTIN(F64##name);       \
+    COMPARE_SIG_FOR_BUILTIN(F32##name);       \
+    break;
+
+    if (v8_flags.wasm_math_intrinsics && shared->HasBuiltinId()) {
+      switch (shared->builtin_id()) {
+        COMPARE_SIG_FOR_BUILTIN_F64(Acos);
+        COMPARE_SIG_FOR_BUILTIN_F64(Asin);
+        COMPARE_SIG_FOR_BUILTIN_F64(Atan);
+        COMPARE_SIG_FOR_BUILTIN_F64(Cos);
+        COMPARE_SIG_FOR_BUILTIN_F64(Sin);
+        COMPARE_SIG_FOR_BUILTIN_F64(Tan);
+        COMPARE_SIG_FOR_BUILTIN_F64(Exp);
+        COMPARE_SIG_FOR_BUILTIN_F64(Log);
+        COMPARE_SIG_FOR_BUILTIN_F64(Atan2);
+        COMPARE_SIG_FOR_BUILTIN_F64(Pow);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Min);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Max);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Abs);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Ceil);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Floor);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Sqrt);
+        case Builtin::kMathFround:
+          COMPARE_SIG_FOR_BUILTIN(F32ConvertF64);
+          break;
+        default:
+          break;
+      }
+    }
+
+#undef COMPARE_SIG_FOR_BUILTIN
+#undef COMPARE_SIG_FOR_BUILTIN_F64
+#undef COMPARE_SIG_FOR_BUILTIN_F32_F64
+
+    if (IsClassConstructor(shared->kind())) {
+      // Class constructor will throw anyway.
+      return ImportCallKind::kUseCallBuiltin;
+    }
+
+    if (shared->internal_formal_parameter_count_without_receiver() ==
+        expected_sig->parameter_count() - suspend_) {
+      return ImportCallKind::kJSFunctionArityMatch;
+    }
+
+    // If function isn't compiled, compile it now.
+    Isolate* isolate = callable_->GetIsolate();
+    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
+    if (!is_compiled_scope.is_compiled()) {
+      Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
+                        &is_compiled_scope);
+    }
+
+    return ImportCallKind::kJSFunctionArityMismatch;
+  }
+  // Unknown case. Use the call builtin.
+  return ImportCallKind::kUseCallBuiltin;
+}
 
 // A helper class to simplify instantiating a module from a module object.
 // It closes over the {Isolate}, the {ErrorThrower}, etc.
@@ -1150,16 +1405,15 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t sig_index = module_->functions[func_index].sig_index;
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
-  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
-                                                  canonical_type_index);
-  compiler::WasmImportCallKind kind = resolved.kind;
-  js_receiver = resolved.callable;
+  WasmImportData resolved(js_receiver, expected_sig, canonical_type_index);
+  ImportCallKind kind = resolved.kind();
+  js_receiver = resolved.callable();
   switch (kind) {
-    case compiler::WasmImportCallKind::kLinkError:
+    case ImportCallKind::kLinkError:
       ReportLinkError("imported function does not match the expected type",
                       import_index, module_name, import_name);
       return false;
-    case compiler::WasmImportCallKind::kWasmToWasm: {
+    case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
       auto imported_function = Handle<WasmExportedFunction>::cast(js_receiver);
       Handle<WasmInstanceObject> imported_instance(
@@ -1170,7 +1424,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       entry.SetWasmToWasm(*imported_instance, imported_target);
       break;
     }
-    case compiler::WasmImportCallKind::kWasmToCapi: {
+    case ImportCallKind::kWasmToCapi: {
       NativeModule* native_module = instance->module_object().native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
@@ -1202,7 +1456,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend);
       break;
     }
-    case compiler::WasmImportCallKind::kWasmToJSFastApi: {
+    case ImportCallKind::kWasmToJSFastApi: {
       NativeModule* native_module = instance->module_object().native_module();
       DCHECK(js_receiver->IsJSFunction() || js_receiver->IsJSBoundFunction());
       WasmCodeRefScope code_ref_scope;
@@ -1216,7 +1470,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The imported function is a callable.
 
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      if (kind == compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
+      if (kind == ImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         SharedFunctionInfo shared = function->shared();
         expected_arity =
@@ -1228,16 +1482,16 @@ bool InstanceBuilder::ProcessImportedFunction(
           module_->isorecursive_canonical_type_ids
               [module_->functions[func_index].sig_index];
       WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
-          kind, canonical_type_index, expected_arity, resolved.suspend);
+          kind, canonical_type_index, expected_arity, resolved.suspend());
       DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
-        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspend);
+        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspend());
       } else {
         // Wasm math intrinsics are compiled as regular Wasm functions.
-        DCHECK(kind >= compiler::WasmImportCallKind::kFirstMathIntrinsic &&
-               kind <= compiler::WasmImportCallKind::kLastMathIntrinsic);
+        DCHECK(kind >= ImportCallKind::kFirstMathIntrinsic &&
+               kind <= ImportCallKind::kLastMathIntrinsic);
         entry.SetWasmToWasm(*instance, wasm_code->instruction_start());
       }
       break;
@@ -1619,26 +1873,25 @@ void InstanceBuilder::CompileImportWrappers(
     uint32_t sig_index = module_->functions[func_index].sig_index;
     uint32_t canonical_type_index =
         module_->isorecursive_canonical_type_ids[sig_index];
-    auto resolved =
-        compiler::ResolveWasmImportCall(js_receiver, sig, canonical_type_index);
-    compiler::WasmImportCallKind kind = resolved.kind;
-    if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
-        kind == compiler::WasmImportCallKind::kLinkError ||
-        kind == compiler::WasmImportCallKind::kWasmToCapi ||
-        kind == compiler::WasmImportCallKind::kWasmToJSFastApi) {
+    WasmImportData resolved(js_receiver, sig, canonical_type_index);
+    ImportCallKind kind = resolved.kind();
+    if (kind == ImportCallKind::kWasmToWasm ||
+        kind == ImportCallKind::kLinkError ||
+        kind == ImportCallKind::kWasmToCapi ||
+        kind == ImportCallKind::kWasmToJSFastApi) {
       continue;
     }
 
     int expected_arity = static_cast<int>(sig->parameter_count());
-    if (resolved.kind ==
-        compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
-      Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.callable);
+    if (kind == ImportCallKind::kJSFunctionArityMismatch) {
+      Handle<JSFunction> function =
+          Handle<JSFunction>::cast(resolved.callable());
       SharedFunctionInfo shared = function->shared();
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();
     }
     WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                         expected_arity, resolved.suspend);
+                                         expected_arity, resolved.suspend());
     if (cache_scope[key] != nullptr) {
       // Cache entry already exists, no need to compile it again.
       continue;
