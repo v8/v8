@@ -5367,22 +5367,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
-  // Ld a Address from a constant pool.
-  // Record a value into constant pool.
-  ASM_CODE_COMMENT(this);
-  if (!v8_flags.riscv_constant_pool) {
-    li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  } else {
-    RecordEntry(entry, RelocInfo::OFF_HEAP_TARGET);
-    RecordRelocInfo(RelocInfo::OFF_HEAP_TARGET, entry);
-    auipc(kOffHeapTrampolineRegister, 0);
-    LoadWord(kOffHeapTrampolineRegister,
-             MemOperand(kOffHeapTrampolineRegister, 0));
-  }
-  Jump(kOffHeapTrampolineRegister);
-}
-
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
   ASM_CODE_COMMENT(this);
