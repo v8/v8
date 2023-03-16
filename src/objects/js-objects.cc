@@ -286,7 +286,7 @@ bool HasExcludedProperty(
 }
 
 V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
-    Handle<JSReceiver> target, Handle<Object> source,
+    Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
     PropertiesEnumerationMode mode,
     const base::ScopedVector<Handle<Object>>* excluded_properties,
     bool use_set) {
@@ -295,8 +295,6 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   if (!source->IsJSReceiver()) {
     return Just(!source->IsString() || String::cast(*source).length() == 0);
   }
-
-  Isolate* isolate = target->GetIsolate();
 
   // If the target is deprecated, the object will be updated on first store. If
   // the source for that store equals the target, this will invalidate the
@@ -432,7 +430,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     const base::ScopedVector<Handle<Object>>* excluded_properties,
     bool use_set) {
   Maybe<bool> fast_assign =
-      FastAssign(target, source, mode, excluded_properties, use_set);
+      FastAssign(isolate, target, source, mode, excluded_properties, use_set);
   if (fast_assign.IsNothing()) return Nothing<bool>();
   if (fast_assign.FromJust()) return Just(true);
 
