@@ -632,7 +632,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Lw(kScratchReg,
         FieldMemOperand(kScratchReg, Code::kKindSpecificFlagsOffset));
   __ And(kScratchReg, kScratchReg,
-         Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
+         Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, kScratchReg, Operand(zero_reg));
 }

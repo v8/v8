@@ -128,7 +128,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, InstructionStream code, Address target) {
+    Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
@@ -200,9 +200,9 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
+      !instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(instruction_stream(), this, target);
   }
 }
 

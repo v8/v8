@@ -5721,8 +5721,7 @@ void MacroAssembler::JumpIfSmi(Register value, Label* smi_label) {
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
   Load32U(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
-  And(scratch, scratch,
-      Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(if_marked_for_deoptimization, ne, scratch, Operand(zero_reg));
 }
 
@@ -6160,15 +6159,6 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
 void MacroAssembler::LoadCodeEntry(Register destination, Register code) {
   ASM_CODE_COMMENT(this);
   LoadWord(destination, FieldMemOperand(code, Code::kCodeEntryPointOffset));
-}
-
-void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
-                                                         Register code) {
-  ASM_CODE_COMMENT(this);
-  // Compute the InstructionStream object pointer from the code entry point.
-  LoadWord(destination, FieldMemOperand(code, Code::kCodeEntryPointOffset));
-  SubWord(destination, destination,
-          Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void MacroAssembler::CallCodeObject(Register code) {
