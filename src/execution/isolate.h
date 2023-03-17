@@ -770,6 +770,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsWasmGCEnabled(Handle<Context> context);
   bool IsWasmStringRefEnabled(Handle<Context> context);
+  bool IsWasmInliningEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)

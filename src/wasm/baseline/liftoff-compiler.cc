@@ -873,7 +873,7 @@ class LiftoffCompiler {
 
     __ CodeEntry();
 
-    if (v8_flags.wasm_speculative_inlining) {
+    if (decoder->enabled_.has_inlining()) {
       CODE_COMMENT("frame setup");
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
@@ -1079,7 +1079,8 @@ class LiftoffCompiler {
     }
     DCHECK_EQ(frame_size, __ GetTotalFrameSize());
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
-                              &safepoint_table_builder_);
+                              &safepoint_table_builder_,
+                              decoder->enabled_.has_inlining());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
     // Emit the handler table.
@@ -1095,7 +1096,7 @@ class LiftoffCompiler {
     DidAssemblerBailout(decoder);
     DCHECK_EQ(num_exceptions_, 0);
 
-    if (v8_flags.wasm_speculative_inlining &&
+    if (decoder->enabled_.has_inlining() &&
         !encountered_call_instructions_.empty()) {
       // Update the call targets stored in the WasmModule.
       TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
@@ -7385,7 +7386,7 @@ class LiftoffCompiler {
     // One slot would be enough for call_direct, but would make index
     // computations much more complicated.
     size_t vector_slot = encountered_call_instructions_.size() * 2;
-    if (v8_flags.wasm_speculative_inlining) {
+    if (decoder->enabled_.has_inlining()) {
       encountered_call_instructions_.push_back(imm.index);
     }
 
@@ -7428,7 +7429,7 @@ class LiftoffCompiler {
     } else {
       // Inlining direct calls isn't speculative, but existence of the
       // feedback vector currently depends on this flag.
-      if (v8_flags.wasm_speculative_inlining) {
+      if (decoder->enabled_.has_inlining()) {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, liftoff::kFeedbackVectorOffset, kIntPtrKind);
         __ IncrementSmi(vector,
@@ -7541,7 +7542,7 @@ class LiftoffCompiler {
           AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
       __ DropValues(1);
 
-      if (v8_flags.experimental_wasm_gc &&
+      if (decoder->enabled_.has_gc() &&
           !decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
@@ -7700,7 +7701,7 @@ class LiftoffCompiler {
 
     Register target_reg = no_reg, instance_reg = no_reg;
 
-    if (v8_flags.wasm_speculative_inlining) {
+    if (decoder->enabled_.has_inlining()) {
       LiftoffRegList pinned;
       LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -7727,7 +7728,7 @@ class LiftoffCompiler {
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       instance_reg = LiftoffRegister(kReturnRegister1).gp();
 
-    } else {  // v8_flags.wasm_speculative_inlining
+    } else {  // decoder->enabled_.has_inlining()
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
       // conditional branch confuses the LiftoffAssembler's register management.
@@ -7782,7 +7783,7 @@ class LiftoffCompiler {
       // is in {instance}.
       target_reg = target.gp();
       instance_reg = instance.gp();
-    }  // v8_flags.wasm_speculative_inlining
+    }  // decoder->enabled_.has_inlining()
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, &instance_reg);
     if (tail_call) {

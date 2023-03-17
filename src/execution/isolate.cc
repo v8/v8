@@ -2932,9 +2932,10 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
 
 bool Isolate::IsWasmGCEnabled(Handle<Context> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
-  if (wasm_gc_enabled_callback()) {
+  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
+  if (callback) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_gc_enabled_callback()(api_context);
+    if (callback(api_context)) return true;
   }
   return v8_flags.experimental_wasm_gc;
 #else
@@ -2945,11 +2946,26 @@ bool Isolate::IsWasmGCEnabled(Handle<Context> context) {
 bool Isolate::IsWasmStringRefEnabled(Handle<Context> context) {
   // If Wasm GC is explicitly enabled via a callback, also enable stringref.
 #ifdef V8_ENABLE_WEBASSEMBLY
-  if (wasm_gc_enabled_callback()) {
+  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
+  if (callback) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_gc_enabled_callback()(api_context);
+    if (callback(api_context)) return true;
   }
   return v8_flags.experimental_wasm_stringref;
+#else
+  return false;
+#endif
+}
+
+bool Isolate::IsWasmInliningEnabled(Handle<Context> context) {
+  // If Wasm GC is explicitly enabled via a callback, also enable inlining.
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
+  if (callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback(api_context)) return true;
+  }
+  return v8_flags.experimental_wasm_inlining;
 #else
   return false;
 #endif

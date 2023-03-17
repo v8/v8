@@ -57,6 +57,7 @@ struct WasmCompilationResult {
   ExecutionTier result_tier;
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
+  bool frame_has_feedback_slot = false;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {

@@ -397,6 +397,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return ForDebuggingField::decode(flags_);
   }
 
+  // Returns {true} for Liftoff code that sets up a feedback vector slot in its
+  // stack frame.
+  // TODO(jkummerow): This can be dropped when we ship Wasm inlining.
+  bool frame_has_feedback_slot() const {
+    return FrameHasFeedbackSlotField::decode(flags_);
+  }
+
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
  private:
@@ -410,11 +417,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const byte> protected_instructions_data,
            base::Vector<const byte> reloc_info,
            base::Vector<const byte> source_position_table, Kind kind,
-           ExecutionTier tier, ForDebugging for_debugging)
+           ExecutionTier tier, ForDebugging for_debugging,
+           bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
-               ForDebuggingField::encode(for_debugging)),
+               ForDebuggingField::encode(for_debugging) |
+               FrameHasFeedbackSlotField::encode(frame_has_feedback_slot)),
         meta_data_(ConcatenateBytes(
             {protected_instructions_data, reloc_info, source_position_table})),
         instructions_size_(instructions.length()),
@@ -495,6 +504,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   using KindField = base::BitField8<Kind, 0, 2>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
+  using FrameHasFeedbackSlotField = ForDebuggingField::Next<bool, 1>;
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
@@ -853,7 +863,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const byte> protected_instructions_data,
       base::Vector<const byte> source_position_table, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
-      base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
+      bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
+      const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableLocked(int jump_table_size);
 

@@ -261,7 +261,6 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   ClearThreadInWasmScope wasm_flag(isolate);
-  DCHECK(v8_flags.wasm_speculative_inlining);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
@@ -270,6 +269,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
   wasm::NativeModule* native_module = instance->module_object().native_module();
+  DCHECK(native_module->enabled_features().has_inlining());
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
   *native_module_stack_slot = native_module;
@@ -279,8 +279,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
   const wasm::WasmModule* module = native_module->module();
   int func_index = declared_func_index + module->num_imported_functions;
-  Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
-      NumFeedbackSlots(module, func_index));
+  int num_slots = native_module->enabled_features().has_inlining()
+                      ? NumFeedbackSlots(module, func_index)
+                      : 0;
+  Handle<FixedArray> vector =
+      isolate->factory()->NewFixedArrayWithZeroes(num_slots);
   DCHECK_EQ(instance->feedback_vectors().get(declared_func_index), Smi::zero());
   instance->feedback_vectors().set(declared_func_index, *vector);
   return *vector;
