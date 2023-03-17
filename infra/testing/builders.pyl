@@ -424,6 +424,7 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'v8_linux64_dict_tracking_dbg': {
@@ -471,8 +472,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev.
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Stress maglev-inlining.
       {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
@@ -574,6 +573,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'v8_linux64_perfetto_dbg': {
@@ -630,6 +630,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # GCMole.
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {
@@ -963,6 +964,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'v8_mac_arm64_dbg': {
@@ -975,6 +977,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'v8_mac_arm64_full_dbg': {
@@ -987,6 +990,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'v8_mac_arm64_no_pointer_compression_dbg': {
@@ -1342,6 +1346,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1438,6 +1443,7 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1492,8 +1498,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev.
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Stress maglev-inlining.
       {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
@@ -1556,8 +1560,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev.
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Stress maglev-inlining.
       {'name': 'mjsunit', 'variant': 'maglev_inlining'},
       # Experimental regexp engine.
@@ -1850,6 +1852,7 @@
       {'name': 'v8testing', 'variant': 'extra'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'V8 Mac - arm64 - debug': {
@@ -1868,6 +1871,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
   'V8 Mac - arm64 - no pointer compression debug': {
