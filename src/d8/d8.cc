@@ -2887,7 +2887,11 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
 void Shell::Terminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Triggering termination from JS can cause some non-determinism thus we
   // skip it for correctness fuzzing.
-  if (!i::v8_flags.correctness_fuzzer_suppressions) {
+  // Termination also currently breaks Fuzzilli's REPRL mechanism as the
+  // scheduled termination will prevent the next testcase sent by Fuzzilli from
+  // being processed. This will in turn desynchronize the communication
+  // between d8 and Fuzzilli, leading to a crash.
+  if (!i::v8_flags.correctness_fuzzer_suppressions && !fuzzilli_reprl) {
     auto v8_isolate = args.GetIsolate();
     if (!v8_isolate->IsExecutionTerminating()) v8_isolate->TerminateExecution();
   }
@@ -5063,6 +5067,10 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
   Local<Context> context;
   if (!CreateEvaluationContext(isolate).ToLocal(&context)) {
     DCHECK(isolate->IsExecutionTerminating());
+    // We must not exit early here in REPRL mode as that would cause the next
+    // testcase sent by Fuzzilli to be skipped, which will desynchronize the
+    // communication between d8 and Fuzzilli, leading to a crash.
+    DCHECK(!fuzzilli_reprl);
     return false;
   }
   bool use_existing_context = last_run && use_interactive_shell();
