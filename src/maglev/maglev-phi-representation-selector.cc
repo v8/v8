@@ -317,6 +317,47 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+// If the input of a StoreFixedArrayElementNoWriteBarrier was a Phi that got
+// untagged, then we need to retag it, and we might need to actually use a write
+// barrier.
+void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    StoreFixedArrayElementNoWriteBarrier* node, Phi* phi, int input_index,
+    const ProcessingState& state) {
+  if (input_index != StoreFixedArrayElementNoWriteBarrier::kValueIndex) {
+    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
+    return;
+  }
+
+  if (phi->value_representation() != ValueRepresentation::kTagged) {
+    // We need to tag {phi}. However, this could turn it into a HeapObject
+    // rather than a Smi (either because {phi} is a Float64 phi, or because it's
+    // a Int32/Uint32 phi that doesn't fit on 31 bits), so we need the write
+    // barrier.
+    node->change_input(input_index, EnsurePhiTagged(phi, current_block_,
+                                                    NewNodePosition::kStart));
+    static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
+                  StoreFixedArrayElementWithWriteBarrier::kElementsIndex);
+    static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
+                  StoreFixedArrayElementWithWriteBarrier::kIndexIndex);
+    static_assert(StoreFixedArrayElementNoWriteBarrier::kValueIndex ==
+                  StoreFixedArrayElementWithWriteBarrier::kValueIndex);
+    node->OverwriteWith<StoreFixedArrayElementWithWriteBarrier>();
+  }
+}
+
+// CheckedStoreFixedArraySmiElement is a bit of a special node, because it
+// expects its input to be a Smi, and not just any Object. The comments in
+// SmiTagPhi explain what this means for untagged Phis.
+void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    CheckedStoreFixedArraySmiElement* node, Phi* phi, int input_index,
+    const ProcessingState& state) {
+  if (input_index == CheckedStoreFixedArraySmiElement::kValueIndex) {
+    node->change_input(input_index, SmiTagPhi(phi, node, state));
+  } else {
+    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
+  }
+}
+
 // {node} was using {phi} without any untagging, which means that it was using
 // {phi} as a tagged value, so, if we've untagged {phi}, we need to re-tag it
 // for {node}.
@@ -338,19 +379,20 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+template <class ToNodeT, class FromNodeT>
 ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
-    Phi* phi, CheckedStoreSmiField* user_node, const ProcessingState& state) {
+    Phi* phi, FromNodeT* user_node, const ProcessingState& state) {
   // The input graph was something like:
   //
   //                            Tagged Phi
   //                                │
   //                                │
   //                                ▼
-  //                       CheckedStoreSmiField
+  //                            FromNodeT
   //
   // If the phi has been untagged, we have to retag it to a Smi, after which we
-  // can omit the "CheckedSmi" part of the CheckedStoreSmiField, which we do by
-  // replacing the CheckedStoreSmiField by a StoreTaggedFieldNoWriteBarrier:
+  // can omit the "CheckedSmi" part of the FromNodeT, which we do by
+  // replacing the FromNodeT by a ToNodeT:
   //
   //                           Untagged Phi
   //                                │
@@ -360,17 +402,7 @@ ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
   //                                │
   //                                │
   //                                ▼
-  //                  StoreTaggedFieldNoWriteBarrier
-
-  // Since we're planning on replacing CheckedStoreSmiField by a
-  // StoreTaggedFieldNoWriteBarrier, it's important to ensure that they have the
-  // same layout. OverwriteWith will check the sizes and properties of the
-  // operators, but isn't aware of which inputs are at which index, so we
-  // static_assert that both operators have the same inputs at the same index.
-  static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
-                CheckedStoreSmiField::kObjectIndex);
-  static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
-                CheckedStoreSmiField::kValueIndex);
+  //                             ToNodeT
 
   ValueNode* tagged;
   switch (phi->value_representation()) {
@@ -399,8 +431,39 @@ ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
 #ifdef DEBUG
   new_nodes_.insert(tagged);
 #endif
-  user_node->OverwriteWith<StoreTaggedFieldNoWriteBarrier>();
+  user_node->template OverwriteWith<ToNodeT>();
   return tagged;
+}
+
+ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
+    Phi* phi, CheckedStoreSmiField* user_node, const ProcessingState& state) {
+  // Since we're planning on replacing CheckedStoreSmiField by a
+  // StoreTaggedFieldNoWriteBarrier, it's important to ensure that they have the
+  // same layout. OverwriteWith will check the sizes and properties of the
+  // operators, but isn't aware of which inputs are at which index, so we
+  // static_assert that both operators have the same inputs at the same index.
+  static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
+                CheckedStoreSmiField::kObjectIndex);
+  static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
+                CheckedStoreSmiField::kValueIndex);
+  return SmiTagPhi<StoreTaggedFieldNoWriteBarrier>(phi, user_node, state);
+}
+
+ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
+    Phi* phi, CheckedStoreFixedArraySmiElement* user_node,
+    const ProcessingState& state) {
+  // Since we're planning on replacing CheckedStoreFixedArraySmiElement by a
+  // StoreFixedArrayElementNoWriteBarrier, it's important to ensure that they
+  // have the same layout. OverwriteWith will check the sizes and properties of
+  // the operators, but isn't aware of which inputs are at which index, so we
+  // static_assert that both operators have the same inputs at the same index.
+  static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
+                CheckedStoreFixedArraySmiElement::kElementsIndex);
+  static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
+                CheckedStoreFixedArraySmiElement::kIndexIndex);
+  static_assert(StoreFixedArrayElementNoWriteBarrier::kValueIndex ==
+                CheckedStoreFixedArraySmiElement::kValueIndex);
+  return SmiTagPhi<StoreFixedArrayElementNoWriteBarrier>(phi, user_node, state);
 }
 
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(

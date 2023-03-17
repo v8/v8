@@ -818,6 +818,86 @@ void MaglevAssembler::StringLength(Register result, Register string) {
   Ldr(result.W(), FieldMemOperand(string, String::kLengthOffset));
 }
 
+void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
+    Register array, Register index, Register value,
+    RegisterSnapshot register_snapshot) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(eq, AbortReason::kUnexpectedValue);
+    Cmp(index, Immediate(0));
+    Assert(hs, AbortReason::kUnexpectedNegativeValue);
+  }
+  {
+    ScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Add(scratch, array, Operand(index, LSL, kTaggedSizeLog2));
+    Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  }
+
+  ZoneLabelRef done(this);
+  Label* deferred_write_barrier = MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
+         Register index, Register value, RegisterSnapshot register_snapshot) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                         eq, *done);
+
+        Register stub_object_reg = WriteBarrierDescriptor::ObjectRegister();
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+
+        RegList saved;
+        if (object != stub_object_reg &&
+            register_snapshot.live_registers.has(stub_object_reg)) {
+          saved.set(stub_object_reg);
+        }
+        if (register_snapshot.live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+
+        if (object != stub_object_reg) {
+          __ Move(stub_object_reg, object);
+          object = stub_object_reg;
+        }
+        __ Add(slot_reg, object, FixedArray::kHeaderSize - kHeapObjectTag);
+        __ Add(slot_reg, slot_reg, Operand(index, LSL, kTaggedSizeLog2));
+
+        SaveFPRegsMode const save_fp_mode =
+            !register_snapshot.live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ B(*done);
+      },
+      done, array, index, value, register_snapshot);
+
+  JumpIfSmi(value, *done);
+  CheckPageFlag(array, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                deferred_write_barrier);
+  bind(*done);
+}
+
+void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(Register array,
+                                                           Register index,
+                                                           Register value) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(eq, AbortReason::kUnexpectedValue);
+    Cmp(index, Immediate(0));
+    Assert(hs, AbortReason::kUnexpectedNegativeValue);
+  }
+  Add(scratch, array, Operand(index, LSL, kTaggedSizeLog2));
+  Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

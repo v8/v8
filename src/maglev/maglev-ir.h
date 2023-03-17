@@ -279,6 +279,7 @@ class MergePointInterpreterFrameState;
   V(JumpLoopPrologue)                       \
   V(StoreMap)                               \
   V(StoreDoubleField)                       \
+  V(CheckedStoreFixedArraySmiElement)       \
   V(StoreFixedArrayElementWithWriteBarrier) \
   V(StoreFixedArrayElementNoWriteBarrier)   \
   V(StoreFixedDoubleArrayElement)           \
@@ -5069,6 +5070,12 @@ class StoreFixedArrayElementWithWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+// StoreFixedArrayElementNoWriteBarrier never does a Deferred Call. However,
+// PhiRepresentationSelector can cause some StoreFixedArrayElementNoWriteBarrier
+// to become StoreFixedArrayElementWithWriteBarrier, which can do Deferred
+// Calls, and thus need the register snapshot. We thus set the DeferredCall
+// property in StoreFixedArrayElementNoWriteBarrier so that it's allocated with
+// enough space for the register snapshot.
 class StoreFixedArrayElementNoWriteBarrier
     : public FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier> {
   using Base = FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier>;
@@ -5077,7 +5084,8 @@ class StoreFixedArrayElementNoWriteBarrier
   explicit StoreFixedArrayElementNoWriteBarrier(uint64_t bitfield)
       : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
@@ -5089,6 +5097,53 @@ class StoreFixedArrayElementNoWriteBarrier
   Input& index_input() { return input(kIndexIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const {
+    // StoreFixedArrayElementNoWriteBarrier never really does any call.
+    return 0;
+  }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+// CheckedStoreFixedArraySmiElement doesn't do any Deferred Calls, but
+// PhiRepresentationSelector could turn this node into a
+// StoreFixedArrayElementNoWriteBarrier, which needs the register snapshot (see
+// the comment before the definition of kProperties in
+// StoreFixedArrayElementNoWriteBarrier).
+// TODO(dmercadier): when CheckedStoreFixedArraySmiElement is transformed into a
+// StoreFixedArrayElementNoWriteBarrier, the later can never be transformed in
+// turn into a StoreFixedArrayElementWithWriteBarrier, so the register snapshot
+// is not actually needed. We should introduce a
+// StoreFixedArrayElementNoWriteBarrier node without register snapshot for such
+// cases, in order to avoid the DeferredCall property in
+// CheckedStoreFixedArraySmiElement.
+class CheckedStoreFixedArraySmiElement
+    : public FixedInputNodeT<3, CheckedStoreFixedArraySmiElement> {
+  using Base = FixedInputNodeT<3, CheckedStoreFixedArraySmiElement>;
+
+ public:
+  explicit CheckedStoreFixedArraySmiElement(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing() |
+                                              OpProperties::EagerDeopt() |
+                                              OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kTagged};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  int MaxCallStackArgs() const {
+    // CheckedStoreFixedArraySmiElement never really does any call.
+    return 0;
+  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

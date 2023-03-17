@@ -1408,9 +1408,6 @@ class MaglevGraphBuilder {
                                            int offset);
   void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
                                    ValueNode* value);
-  void BuildStoreFixedArrayElementNoWriteBarrier(ValueNode* elements,
-                                                 ValueNode* index,
-                                                 ValueNode* value);
 
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);

@@ -290,6 +290,14 @@ class MaglevAssembler : public MacroAssembler {
 
   void StringLength(Register result, Register string);
 
+  // The registers WriteBarrierDescriptor::ObjectRegister and
+  // WriteBarrierDescriptor::SlotAddressRegister can be clobbered.
+  void StoreFixedArrayElementWithWriteBarrier(
+      Register array, Register index, Register value,
+      RegisterSnapshot register_snapshot);
+  void StoreFixedArrayElementNoWriteBarrier(Register array, Register index,
+                                            Register value);
+
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);
   using MacroAssembler::Pop;

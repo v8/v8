@@ -2369,12 +2369,6 @@ void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
   }
 }
 
-void MaglevGraphBuilder::BuildStoreFixedArrayElementNoWriteBarrier(
-    ValueNode* elements, ValueNode* index, ValueNode* value) {
-  DCHECK(CanElideWriteBarrier(elements, value));
-  AddNewNode<StoreFixedArrayElementNoWriteBarrier>({elements, index, value});
-}
-
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
     base::Vector<const compiler::MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
@@ -3161,9 +3155,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
         }
         ValueNode* value = GetAccumulatorTagged();
         if (IsSmiElementsKind(elements_kind)) {
-          BuildCheckSmi(value);
-          BuildStoreFixedArrayElementNoWriteBarrier(elements_array, index,
-                                                    value);
+          AddNewNode<CheckedStoreFixedArraySmiElement>(
+              {elements_array, index, value});
         } else {
           BuildStoreFixedArrayElement(elements_array, index, value);
         }

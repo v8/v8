@@ -107,6 +107,10 @@ class MaglevPhiRepresentationSelector {
                           int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(CheckedStoreSmiField* node, Phi* phi, int input_index,
                           const ProcessingState& state);
+  void UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node, Phi* phi,
+                          int input_index, const ProcessingState& state);
+  void UpdateNodePhiInput(CheckedStoreFixedArraySmiElement* node, Phi* phi,
+                          int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
                           const ProcessingState& state);
 
@@ -125,6 +129,11 @@ class MaglevPhiRepresentationSelector {
 
   // Tags {phi} as a Smi.
   ValueNode* SmiTagPhi(Phi* phi, CheckedStoreSmiField* user_node,
+                       const ProcessingState& state);
+  ValueNode* SmiTagPhi(Phi* phi, CheckedStoreFixedArraySmiElement* user_node,
+                       const ProcessingState& state);
+  template <class ToNodeT, class FromNodeT>
+  ValueNode* SmiTagPhi(Phi*, FromNodeT* user_node,
                        const ProcessingState& state);
 
   // Returns a tagged node that represents a tagged version of {phi}.

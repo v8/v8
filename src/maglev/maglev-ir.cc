@@ -3089,6 +3089,51 @@ void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void StoreFixedArrayElementWithWriteBarrier::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+  RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+}
+void StoreFixedArrayElementWithWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  __ StoreFixedArrayElementWithWriteBarrier(elements, index, value,
+                                            register_snapshot());
+}
+
+void StoreFixedArrayElementNoWriteBarrier::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+}
+void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
+}
+
+void CheckedStoreFixedArraySmiElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+}
+void CheckedStoreFixedArraySmiElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  Condition is_smi = __ CheckSmi(value);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
+  __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
+}
+
 // ---
 // Arch agnostic call nodes
 // ---
