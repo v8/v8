@@ -3176,6 +3176,15 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
 }
 
+void MacroAssembler::StoreTwoTaggedFields(const Register& value,
+                                          const MemOperand& dst_field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    Stp(value.W(), value.W(), dst_field_operand);
+  } else {
+    Stp(value, value, dst_field_operand);
+  }
+}
+
 void MacroAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {

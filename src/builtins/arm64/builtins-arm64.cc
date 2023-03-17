@@ -2387,14 +2387,16 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   {
     Label loop;
     Register src = x10;
-    Register the_hole_value = x11;
     Register undefined_value = x12;
     Register scratch = x13;
     __ Add(src, arguments_list, FixedArray::kHeaderSize - kHeapObjectTag);
-    __ LoadRoot(the_hole_value, RootIndex::kTheHoleValue);
+#if !V8_STATIC_ROOTS_BOOL
+    // We do not use the CompareRoot macro without static roots as it would do a
+    // LoadRoot behind the scenes and we want to avoid that in a loop.
+    Register the_hole_value = x11;
+    __ LoadTaggedRoot(the_hole_value, RootIndex::kTheHoleValue);
+#endif  // !V8_STATIC_ROOTS_BOOL
     __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
-    // We do not use the CompareRoot macro as it would do a LoadRoot behind the
-    // scenes and we want to avoid that in a loop.
     // TODO(all): Consider using Ldp and Stp.
     Register dst = x16;
     __ SlotAddress(dst, argc);
@@ -2402,7 +2404,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Bind(&loop);
     __ Sub(len, len, 1);
     __ LoadTaggedField(scratch, MemOperand(src, kTaggedSize, PostIndex));
+#if V8_STATIC_ROOTS_BOOL
+    __ CompareRoot(scratch, RootIndex::kTheHoleValue);
+#else
     __ CmpTagged(scratch, the_hole_value);
+#endif
     __ Csel(scratch, scratch, undefined_value, ne);
     __ Str(scratch, MemOperand(dst, kSystemPointerSize, PostIndex));
     __ Cbnz(len, &loop);

@@ -1506,6 +1506,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand);
+  void StoreTwoTaggedFields(const Register& value,
+                            const MemOperand& dst_field_operand);
 
   // For compatibility with platform-independent code.
   void StoreTaggedField(const MemOperand& dst_field_operand,
