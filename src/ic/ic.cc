@@ -309,7 +309,7 @@ void IC::OnFeedbackChanged(const char* reason) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
-  if (!v8_flags.reset_interrupt_on_ic_update) {
+  if (!v8_flags.maglev || !v8_flags.reset_interrupt_on_ic_update) {
     if (v8_flags.trace_opt_verbose) {
       if (vector.profiler_ticks() != 0) {
         StdoutStream os;
