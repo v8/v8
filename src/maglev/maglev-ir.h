@@ -299,6 +299,7 @@ class MergePointInterpreterFrameState;
   V(ThrowSuperNotCalledIfHole)              \
   V(ThrowSuperAlreadyCalledIfNotHole)       \
   V(ThrowIfNotSuperConstructor)             \
+  V(TransitionElementsKind)                 \
   GAP_MOVE_NODE_LIST(V)                     \
   VALUE_NODE_LIST(V)
 
@@ -6791,6 +6792,37 @@ class ThrowIfNotSuperConstructor
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TransitionElementsKind
+    : public FixedInputNodeT<1, TransitionElementsKind> {
+  using Base = FixedInputNodeT<1, TransitionElementsKind>;
+
+ public:
+  explicit TransitionElementsKind(
+      uint64_t bitfield,
+      base::Vector<const compiler::MapRef> transition_sources,
+      compiler::MapRef transition_target)
+      : Base(bitfield),
+        transition_sources_(transition_sources),
+        transition_target_(transition_target) {}
+
+  // TODO(leszeks): Special case the case where all transitions are fast.
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::Writing();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& object_input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const base::Vector<const compiler::MapRef> transition_sources_;
+  const compiler::MapRef transition_target_;
 };
 
 class ControlNode : public NodeBase {

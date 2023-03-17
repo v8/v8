@@ -3252,14 +3252,20 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::ElementAccessInfo access_info = access_infos.front();
-    // TODO(victorgomes): Support element kind transitions.
-    if (access_info.transition_sources().size() != 0) {
-      return ReduceResult::Fail();
-    }
     // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
     if (IsRabGsabTypedArrayElementsKind(access_info.elements_kind())) {
       return ReduceResult::Fail();
     }
+
+    compiler::MapRef transition_target =
+        access_info.lookup_start_object_maps().front();
+    if (!access_info.transition_sources().empty()) {
+      base::Vector<compiler::MapRef> transition_sources =
+          zone()->CloneVector(base::VectorOf(access_info.transition_sources()));
+      AddNewNode<TransitionElementsKind>({object}, transition_sources,
+                                         transition_target);
+    }
+
     BuildCheckMaps(object,
                    base::VectorOf(access_info.lookup_start_object_maps()));
     if (IsTypedArrayElementsKind(access_info.elements_kind())) {

@@ -9,6 +9,7 @@
 #include "src/base/bounds.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/heap-refs.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
@@ -3569,6 +3570,55 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
   __ CallBuiltin(Builtin::kConstructWithSpread_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int TransitionElementsKind::MaxCallStackArgs() const {
+  return std::max(WriteBarrierDescriptor::GetStackParameterCount(), 2);
+}
+void TransitionElementsKind::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  set_temporaries_needed(1);
+}
+void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object = ToRegister(object_input());
+
+  ZoneLabelRef done(masm);
+
+  Register map = temps.Acquire();
+  __ LoadMap(map, object);
+
+  for (compiler::MapRef transition_source : transition_sources_) {
+    bool is_simple = IsSimpleMapChangeTransition(
+        transition_source.elements_kind(), transition_target_.elements_kind());
+
+    // TODO(leszeks): If there are a lot of transition source maps, move the
+    // source into a register and share the deferred code between maps.
+    __ CompareTagged(map, transition_source.object());
+    __ JumpToDeferredIf(
+        kEqual,
+        [](MaglevAssembler* masm, Register object, Register map,
+           RegisterSnapshot register_snapshot,
+           compiler::MapRef transition_target, bool is_simple,
+           ZoneLabelRef done) {
+          if (is_simple) {
+            __ Move(map, transition_target.object());
+            __ StoreTaggedFieldWithWriteBarrier(
+                object, HeapObject::kMapOffset, map, register_snapshot,
+                MaglevAssembler::kValueIsDecompressed,
+                MaglevAssembler::kValueCannotBeSmi);
+          } else {
+            SaveRegisterStateForCall save_state(masm, register_snapshot);
+            __ Push(object, transition_target.object());
+            __ Move(kContextRegister, masm->native_context().object());
+            __ CallRuntime(Runtime::kTransitionElementsKind);
+          }
+          __ Jump(*done);
+        },
+        object, map, register_snapshot(), transition_target_, is_simple, done);
+  }
+  __ bind(*done);
 }
 
 // ---
