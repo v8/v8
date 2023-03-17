@@ -1101,8 +1101,7 @@ void LiftoffAssembler::PrepareBuiltinCall(
 
 void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
-                                   Register* target,
-                                   Register* target_instance) {
+                                   Register* target, Register target_instance) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
 
   LiftoffStackSlots stack_slots(this);
@@ -1117,10 +1116,10 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
       instance_reg,
       Register::from_code(call_descriptor->GetInputLocation(1).AsRegister()));
   param_regs.set(instance_reg);
-  if (target_instance && *target_instance != instance_reg) {
+  if (target_instance == no_reg) target_instance = cache_state_.cached_instance;
+  if (target_instance != no_reg && target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
-                                 LiftoffRegister(*target_instance),
-                                 kIntPtrKind);
+                                 LiftoffRegister(target_instance), kIntPtrKind);
   }
 
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -1177,8 +1176,8 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 
-  // Reload the instance from the stack.
-  if (!target_instance) {
+  // Reload the instance from the stack if we do not have it in a register.
+  if (target_instance == no_reg) {
     LoadInstanceFromFrame(instance_reg);
   }
 }

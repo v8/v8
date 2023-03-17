@@ -7460,7 +7460,7 @@ class LiftoffCompiler {
           imported_function_ref, imported_function_refs, no_reg,
           ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
 
-      Register* explicit_instance = &imported_function_ref;
+      Register explicit_instance = imported_function_ref;
       __ PrepareCall(&sig, call_descriptor, &target, explicit_instance);
       if (tail_call) {
         __ PrepareTailCall(
@@ -7719,7 +7719,7 @@ class LiftoffCompiler {
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
       __ PrepareCall(&sig, call_descriptor, &function_target,
-                     &function_instance);
+                     function_instance);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -7832,7 +7832,7 @@ class LiftoffCompiler {
       instance_reg = instance.gp();
     }  // decoder->enabled_.has_inlining()
 
-    __ PrepareCall(&sig, call_descriptor, &target_reg, &instance_reg);
+    __ PrepareCall(&sig, call_descriptor, &target_reg, instance_reg);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),

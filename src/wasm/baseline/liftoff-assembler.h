@@ -712,7 +712,7 @@ class LiftoffAssembler : public MacroAssembler {
   // register, or {no_reg} if target was spilled to the stack.
   void PrepareCall(const ValueKindSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
-                   Register* target_instance = nullptr);
+                   Register target_instance = no_reg);
   // Process return values of the call.
   void FinishCall(const ValueKindSig*, compiler::CallDescriptor*);
 
