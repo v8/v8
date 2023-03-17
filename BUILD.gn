@@ -267,6 +267,9 @@ declare_args() {
   # Use switch-based dispatch if this is false
   v8_enable_regexp_interpreter_threaded_dispatch = true
 
+  # Check mksnapshot determinism by running it multiple times.
+  v8_verify_deterministic_mksnapshot = false
+
   # Enable additional targets necessary for verification of torque
   # file generation
   v8_verify_torque_generation_invariance = false
@@ -2307,6 +2310,41 @@ run_mksnapshot("default") {
 if (emit_builtins_as_inline_asm) {
   asm_to_inline_asm("default") {
     args = []
+  }
+}
+
+if (v8_verify_deterministic_mksnapshot) {
+  runs = [
+    "run_0",
+    "run_1",
+    "run_2",
+    "run_3",
+    "run_4",
+    "run_5",
+    "run_6",
+  ]
+
+  foreach(i, runs) {
+    run_mksnapshot(i) {
+      args = []
+      embedded_variant = "Default"
+    }
+  }
+
+  action("verify_deterministic_mksnapshot") {
+    deps = []
+    foreach(i, runs) {
+      deps += [ ":run_mksnapshot_$i" ]
+    }
+    report_file = "$target_gen_dir/mksnapshot_comparison.txt"
+    script = "tools/snapshot/compare_mksnapshot_output.py"
+    args = [
+      rebase_path("$report_file", root_build_dir),
+      rebase_path("$target_gen_dir", root_build_dir),
+      rebase_path("$root_out_dir", root_build_dir),
+      "7",  # Length of the 'runs' list.
+    ]
+    outputs = [ report_file ]
   }
 }
 
