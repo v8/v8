@@ -427,17 +427,34 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
   // phis, or at least to go over the loop header twice.
   if (!block->has_phi()) return;
   for (Phi* phi : *block->phis()) {
+    int last_input_idx = phi->input_count() - 1;
+    ValueNode* backedge = phi->input(last_input_idx).node();
     if (phi->value_representation() == ValueRepresentation::kTagged) {
-      int last_input_idx = phi->input_count() - 1;
-      if (phi->input(last_input_idx).node()->value_representation() !=
-          ValueRepresentation::kTagged) {
+      // If the backedge is a Phi that was untagged, but {phi} is tagged, then
+      // we need to retag the backedge.
+
+      // Identity nodes are used to replace outdated untagging nodes after a phi
+      // has been untagged. Here, since the backedge was initially tagged, it
+      // couldn't have been such an untagging node, so it shouldn't be an
+      // Identity node now.
+      DCHECK(!backedge->Is<Identity>());
+
+      if (backedge->value_representation() != ValueRepresentation::kTagged) {
         // Since all Phi inputs are initially tagged, the fact that the backedge
         // is not tagged means that it's a Phi that we recently untagged.
-        DCHECK(phi->input(last_input_idx).node()->Is<Phi>());
-        phi->set_input(
-            last_input_idx,
-            EnsurePhiTagged(phi->input(last_input_idx).node()->Cast<Phi>(),
-                            current_block_, NewNodePosition::kEnd));
+        DCHECK(backedge->Is<Phi>());
+        phi->set_input(last_input_idx,
+                       EnsurePhiTagged(backedge->Cast<Phi>(), current_block_,
+                                       NewNodePosition::kEnd));
+      }
+    } else {
+      // If {phi} was untagged and its backedge became Identity, then we need to
+      // unwrap it.
+      DCHECK_NE(phi->value_representation(), ValueRepresentation::kTagged);
+      if (backedge->Is<Identity>()) {
+        DCHECK_EQ(backedge->input(0).node()->value_representation(),
+                  phi->value_representation());
+        phi->set_input(last_input_idx, backedge->input(0).node());
       }
     }
   }

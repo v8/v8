@@ -136,9 +136,10 @@ class MaglevPhiRepresentationSelector {
   // {new_nodes_current_block_end_} into their destinations.
   void MergeNewNodesInBlock(BasicBlock* block);
 
-  // If {block} jumps back to the start of a loop header, FixLoopPhisBackedge
-  // inserts the necessary tagging on the backedge of the loop Phis of the loop
-  // header.
+  // If {block} is the start of a loop header, FixLoopPhisBackedge inserts the
+  // necessary tagging on the backedge of the loop Phis of the loop header.
+  // Additionally, if {block} contains untagged loop phis whose backedges have
+  // been updated to Identity, FixLoopPhisBackedge unwraps those Identity.
   void FixLoopPhisBackedge(BasicBlock* block);
 
   // Replaces Identity nodes by their inputs in {deopt_info}
