@@ -2846,11 +2846,23 @@ class RepresentationSelector {
         if (input_type.Is(Type::Unsigned32OrMinusZero())) {
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          if (lower<T>()) {
+            DeferReplacement(
+                node,
+                InsertTypeOverrideForVerifier(
+                    Type::Intersect(input_type, Type::Unsigned32(), zone()),
+                    node->InputAt(0)));
+          }
         } else if (input_type.Is(Type::Signed32OrMinusZero())) {
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, lowering->Int32Abs(node));
+          if (lower<T>()) {
+            DeferReplacement(
+                node,
+                InsertTypeOverrideForVerifier(
+                    Type::Intersect(input_type, Type::Unsigned32(), zone()),
+                    lowering->Int32Abs(node)));
+          }
         } else if (input_type.Is(type_cache_->kPositiveIntegerOrNaN)) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(kIdentifyZeros),
                        MachineRepresentation::kFloat64);
