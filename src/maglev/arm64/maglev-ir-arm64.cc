@@ -2309,12 +2309,8 @@ void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
         {
           SaveRegisterStateForCall save_register_state(
               masm, node->register_snapshot());
-          MaglevAssembler::ScratchRegisterScope temps(masm);
-          Register scratch = temps.Acquire();
           // Push the frame size
-          __ Mov(scratch,
-                 Smi::FromInt(stack_check_offset * kSystemPointerSize));
-          __ PushArgument(scratch);
+          __ Push(Smi::FromInt(stack_check_offset));
           __ CallRuntime(Runtime::kStackGuardWithGap, 1);
           save_register_state.DefineSafepointWithLazyDeopt(
               node->lazy_deopt_info());
