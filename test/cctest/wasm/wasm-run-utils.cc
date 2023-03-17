@@ -394,8 +394,11 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   auto instance = WasmInstanceObject::New(isolate_, module_object);
-  instance->set_tags_table(*isolate_->factory()->empty_fixed_array());
+  instance->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
   instance->set_globals_start(globals_data_);
+  Handle<FixedArray> feedback_vector =
+      isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);
+  instance->set_feedback_vectors(*feedback_vector);
   return instance;
 }
 
