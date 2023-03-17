@@ -188,7 +188,11 @@ class Sweeper {
 
   static const int kNumberOfSweepingSpaces =
       LAST_SWEEPABLE_SPACE - FIRST_SWEEPABLE_SPACE + 1;
-  static constexpr int kMaxSweeperTasks = kNumberOfSweepingSpaces;
+  // Use at least `kMinMaxSweeperTasks` tasks for concurrent sweeping (as long
+  // as there is enough work for all tasks).
+  static const int kMinMaxSweeperTasks = 8;
+  static constexpr int kMaxSweeperTasks =
+      std::max(kMinMaxSweeperTasks, kNumberOfSweepingSpaces);
 
   template <typename Callback>
   void ForAllSweepingSpaces(Callback callback) const {
