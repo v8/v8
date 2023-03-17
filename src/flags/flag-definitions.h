@@ -491,7 +491,7 @@ DEFINE_BOOL(
 // way, we still gather *some* feedback before compiling optimized code.
 DEFINE_BOOL(stress_maglev, false, "trigger maglev compilation earlier")
 DEFINE_IMPLICATION(stress_maglev, maglev)
-DEFINE_VALUE_IMPLICATION(stress_maglev, interrupt_budget_for_maglev, 128)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, interrupt_budget_for_maglev, 128)
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
