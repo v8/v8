@@ -329,7 +329,8 @@ ValueNode* FromFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
   DCHECK(!value->properties().is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
-  ValueNode* tagged = Node::New<Float64Box>(compilation_unit.zone(), {value});
+  ValueNode* tagged =
+      Node::New<Float64ToTagged>(compilation_unit.zone(), {value});
 
   predecessor->nodes().Add(tagged);
   compilation_unit.RegisterNodeInGraphLabeller(tagged);

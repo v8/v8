@@ -222,7 +222,7 @@ class MergePointInterpreterFrameState;
   V(CheckedNumberToUint8Clamped)             \
   V(Int32ToNumber)                           \
   V(Uint32ToNumber)                          \
-  V(Float64Box)                              \
+  V(Float64ToTagged)                         \
   V(HoleyFloat64Box)                         \
   V(CheckedSmiTagFloat64)                    \
   V(CheckedNumberOrOddballToFloat64)         \
@@ -2772,11 +2772,14 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
-  using Base = FixedInputValueNodeT<1, Float64Box>;
+class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
+  using Base = FixedInputValueNodeT<1, Float64ToTagged>;
 
  public:
-  explicit Float64Box(uint64_t bitfield) : Base(bitfield) {}
+  enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };
+  explicit Float64ToTagged(
+      uint64_t bitfield, ConversionMode mode = ConversionMode::kCanonicalizeSmi)
+      : Base(ConversionModeBitField::update(bitfield, mode)) {}
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
 
@@ -2789,6 +2792,13 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  bool canonicalize_smi() {
+    return ConversionModeBitField::decode(bitfield()) ==
+           ConversionMode::kCanonicalizeSmi;
+  }
+  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
 class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {

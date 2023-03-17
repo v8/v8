@@ -470,8 +470,8 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, NewNodePosition pos) {
   switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64:
-      return AddNode(NodeBase::New<Float64Box>(builder_->zone(), {phi}), block,
-                     pos);
+      return AddNode(NodeBase::New<Float64ToTagged>(builder_->zone(), {phi}),
+                     block, pos);
     case ValueRepresentation::kInt32:
       return AddNode(NodeBase::New<Int32ToNumber>(builder_->zone(), {phi}),
                      block, pos);

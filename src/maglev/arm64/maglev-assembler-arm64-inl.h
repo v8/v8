@@ -311,7 +311,7 @@ inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
 }
 
 inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
-  Adds(obj, obj, obj);
+  Adds(obj.W(), obj.W(), obj.W());
   JumpIf(vs, fail);
 }
 

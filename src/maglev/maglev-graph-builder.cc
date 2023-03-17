@@ -662,7 +662,7 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(ValueNode* value) {
     case ValueRepresentation::kFloat64: {
       NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
       if (node_info->tagged_alternative == nullptr) {
-        node_info->tagged_alternative = AddNewNode<Float64Box>({value});
+        node_info->tagged_alternative = AddNewNode<Float64ToTagged>({value});
       }
       return node_info->tagged_alternative;
     }
@@ -2577,7 +2577,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     value = GetAccumulatorFloat64(TaggedToFloat64ConversionType::kNumber);
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
-      value = AddNewNode<Float64Box>({value});
+      value = AddNewNode<Float64ToTagged>(
+          {value}, Float64ToTagged::ConversionMode::kForceHeapNumber);
     }
   } else {
     value = GetAccumulatorTagged();

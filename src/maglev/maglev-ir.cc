@@ -2501,15 +2501,25 @@ void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void Float64Box::SetValueLocationConstraints() {
+void Float64ToTagged::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void Float64Box::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
+void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Register object = ToRegister(result());
+  Label box, done;
+  if (canonicalize_smi()) {
+    __ TryTruncateDoubleToInt32(object, value, &box);
+    __ SmiTagInt32(object, &box);
+    __ jmp(&done);
+    __ bind(&box);
+  }
   __ AllocateHeapNumber(register_snapshot(), object, value);
+  if (canonicalize_smi()) {
+    __ bind(&done);
+  }
 }
 
 void Float64Round::SetValueLocationConstraints() {
