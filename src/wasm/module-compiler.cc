@@ -3322,7 +3322,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     // that as finished already. Baseline compilation is done if we do not have
     // any Liftoff functions to compile.
     finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    if (eager_functions.empty()) {
+    if (eager_functions.empty() || v8_flags.wasm_lazy_compilation) {
       finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
     }
   }
