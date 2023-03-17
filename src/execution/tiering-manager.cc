@@ -402,20 +402,17 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
       SharedFunctionInfo shared = vector.shared_function_info();
       int bytecode_length = shared.GetBytecodeArray(isolate_).length();
       FeedbackCell cell = vector.parent_feedback_cell();
-      int minimum =
-          decision.code_kind == CodeKind::MAGLEV
-              ? v8_flags.minimum_invocations_after_ic_update_for_maglev
-              : v8_flags.minimum_invocations_after_ic_update;
-      int minimum_budget = minimum * bytecode_length;
+      int minimum = v8_flags.minimum_invocations_after_ic_update;
+      int maximum_budget =
+          ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
+      int new_budget = std::min(minimum * bytecode_length, maximum_budget);
       int current_budget = cell.interrupt_budget();
-      if (minimum_budget > current_budget) {
+      if (new_budget > current_budget) {
         if (v8_flags.trace_opt_verbose) {
           PrintF("[delaying optimization of %s, IC changed]\n",
                  shared.DebugNameCStr().get());
         }
-        int maximum_budget =
-            ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
-        cell.set_interrupt_budget(std::min(minimum_budget, maximum_budget));
+        cell.set_interrupt_budget(new_budget);
       }
     }
   }

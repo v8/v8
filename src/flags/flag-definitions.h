@@ -664,12 +664,8 @@ DEFINE_INT(
 DEFINE_BOOL(global_ic_updated_flag, false,
             "Track, globally, whether any IC changed, and use this in tierup "
             "heuristics.")
-DEFINE_INT(
-    minimum_invocations_after_ic_update_for_maglev, 5,
-    "How long to minimally wait after IC update before tier up to Maglev")
-DEFINE_INT(
-    minimum_invocations_after_ic_update, 10,
-    "How long to minimally wait after IC update before tier up to Turbofan")
+DEFINE_INT(minimum_invocations_after_ic_update, 12,
+           "How long to minimally wait after IC update before tier up")
 DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
 
