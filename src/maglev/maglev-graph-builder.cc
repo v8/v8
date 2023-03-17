@@ -43,6 +43,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/type-hints.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8::internal::maglev {
 
@@ -2136,13 +2137,15 @@ namespace {
 
 class KnownMapsMerger {
  public:
-  explicit KnownMapsMerger(compiler::JSHeapBroker* broker, ValueNode* object,
-                           KnownNodeAspects& known_node_aspects,
+  explicit KnownMapsMerger(compiler::JSHeapBroker* broker,
                            base::Vector<const compiler::MapRef> maps)
       : broker_(broker),
         maps_(maps),
         known_maps_are_subset_of_maps_(true),
-        emit_check_with_migration_(false) {
+        emit_check_with_migration_(false) {}
+
+  void IntersectWithKnownNodeAspects(
+      ValueNode* object, const KnownNodeAspects& known_node_aspects) {
     // A non-value value here means the universal set, i.e., we don't know
     // anything about the possible maps of the object.
     base::Optional<ZoneHandleSet<Map>> known_stable_map_set =
@@ -2152,7 +2155,10 @@ class KnownMapsMerger {
 
     IntersectKnownMaps(known_stable_map_set, true);
     IntersectKnownMaps(known_unstable_map_set, false);
+  }
 
+  void UpdateKnownNodeAspects(ValueNode* object,
+                              KnownNodeAspects& known_node_aspects) {
     // Update known maps.
     known_node_aspects.stable_maps[object] = stable_map_set_;
     known_node_aspects.unstable_maps[object] = unstable_map_set_;
@@ -2279,7 +2285,9 @@ void MaglevGraphBuilder::BuildCheckMaps(
 
   // Calculates if known maps are a subset of maps, their map intersection and
   // whether we should emit check with migration.
-  KnownMapsMerger merger(broker(), object, known_node_aspects(), maps);
+  KnownMapsMerger merger(broker(), maps);
+  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
 
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_maps()) {
@@ -2736,29 +2744,37 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
+    ZoneHandleSet<Map> inferred_maps;
+
     if (Constant* n = lookup_start_object->TryCast<Constant>()) {
       compiler::MapRef constant_map = n->object().map(broker());
+      inferred_maps = ZoneHandleSet<Map>(constant_map.object());
+    } else {
+      // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
+      // consider passing the merger into there.
+      KnownMapsMerger merger(broker(), base::VectorOf(feedback.maps()));
+      merger.IntersectWithKnownNodeAspects(lookup_start_object,
+                                           known_node_aspects());
+      inferred_maps = merger.intersect_set();
+    }
+
+    for (Handle<Map> map : inferred_maps) {
+      if (map->is_deprecated()) continue;
+
+      // TODO(v8:12547): Support writing to objects in shared space, which
+      // need a write barrier that calls Object::Share to ensure the RHS is
+      // shared.
+      if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+              map->instance_type()) &&
+          access_mode == compiler::AccessMode::kStore) {
+        return ReduceResult::Fail();
+      }
+
+      compiler::MapRef map_ref = MakeRefAssumeMemoryFence(broker(), map);
       compiler::PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(constant_map, feedback.name(),
+          broker()->GetPropertyAccessInfo(map_ref, feedback.name(),
                                           access_mode);
       access_infos_for_feedback.push_back(access_info);
-    } else {
-      for (const compiler::MapRef& map : feedback.maps()) {
-        if (map.is_deprecated()) continue;
-
-        // TODO(v8:12547): Support writing to objects in shared space, which
-        // need a write barrier that calls Object::Share to ensure the RHS is
-        // shared.
-        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-                map.instance_type()) &&
-            access_mode == compiler::AccessMode::kStore) {
-          return ReduceResult::Fail();
-        }
-
-        compiler::PropertyAccessInfo access_info =
-            broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
-        access_infos_for_feedback.push_back(access_info);
-      }
     }
 
     compiler::AccessInfoFactory access_info_factory(broker(), zone());
