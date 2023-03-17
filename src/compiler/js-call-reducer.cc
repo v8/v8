@@ -7250,6 +7250,10 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
       simplified()->NumberSubtract(), receiver_elements_kind,
       jsgraph()->Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
 
+  // To be converted into a switch by the ControlFlowOptimizer, the below
+  // code requires that TYPED_ARRAYS and RAB_GSAB_TYPED_ARRAYS are consecutive.
+  static_assert(LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1 ==
+                FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                      \
   do {                                                                 \
     Node* check = graph()->NewNode(                                    \
@@ -7264,6 +7268,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
     control = graph()->NewNode(common()->IfFalse(), control);          \
   } while (false);
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   values.push_back(jsgraph()->UndefinedConstant());
