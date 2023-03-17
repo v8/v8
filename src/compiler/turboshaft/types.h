@@ -596,9 +596,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   bool is_only_special_values() const {
     return sub_kind() == SubKind::kOnlySpecialValues;
   }
-  bool is_only_nan() const { return is_only_special_values() && has_nan(); }
+  bool is_only_nan() const {
+    return is_only_special_values() && (special_values() == Special::kNaN);
+  }
   bool is_only_minus_zero() const {
-    return is_only_special_values() && has_minus_zero();
+    return is_only_special_values() &&
+           (special_values() == Special::kMinusZero);
   }
   bool is_range() const { return sub_kind() == SubKind::kRange; }
   bool is_set() const { return sub_kind() == SubKind::kSet; }
