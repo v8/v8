@@ -116,7 +116,7 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_linux64_coverage",
+    name = "v8_linux64_coverage_dbg",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -126,6 +126,20 @@ try_builder(
         "coverage": "llvm",
     },
     execution_timeout = 7200,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+try_builder(
+    name = "v8_linux64_coverage_rel",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {
+        "enable_swarming": False,
+        "gclient_vars": {"checkout_clang_coverage_tools": "True"},
+        "coverage": "llvm",
+    },
     use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
