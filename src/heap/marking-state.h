@@ -59,11 +59,9 @@ class MarkingStateBase {
 
   V8_INLINE bool WhiteToGrey(HeapObject obj);
 
-  V8_INLINE bool GreyToBlack(HeapObject obj);
+  V8_INLINE bool WhiteToBlack(HeapObject obj);
 
-  // Helper method for fully marking an object and accounting its live bytes.
-  // Should be used to mark individual objects in one-off cases.
-  V8_INLINE bool FullyMarkObjectAndAccountLiveBytes(HeapObject obj);
+  V8_INLINE bool GreyToBlack(HeapObject obj);
 
   V8_INLINE void ClearLiveness(MemoryChunk* chunk);
 
