@@ -471,11 +471,13 @@ class WasmGraphBuilder {
   Node* RttCanon(uint32_t type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
-  Node* RefTestAbstract(Node* object, wasm::HeapType type, bool null_succeeds);
+  Node* RefTestAbstract(Node* object, wasm::HeapType type, bool is_nullable,
+                        bool null_succeeds);
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
   Node* RefCastAbstract(Node* object, wasm::HeapType type,
-                        wasm::WasmCodePosition position, bool null_succeeds);
+                        wasm::WasmCodePosition position, bool is_nullable,
+                        bool null_succeeds);
   void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);

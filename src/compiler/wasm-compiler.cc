@@ -5558,9 +5558,7 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
 }
 
 Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
-                                        bool null_succeeds) {
-  bool is_nullable =
-      compiler::NodeProperties::GetType(object).AsWasm().type.is_nullable();
+                                        bool is_nullable, bool null_succeeds) {
   switch (type.representation()) {
     case wasm::HeapType::kEq:
       return RefIsEq(object, is_nullable, null_succeeds);
@@ -5593,9 +5591,7 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
 
 Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
                                         wasm::WasmCodePosition position,
-                                        bool null_succeeds) {
-  bool is_nullable =
-      compiler::NodeProperties::GetType(object).AsWasm().type.is_nullable();
+                                        bool is_nullable, bool null_succeeds) {
   switch (type.representation()) {
     case wasm::HeapType::kEq:
       return RefAsEq(object, is_nullable, position, null_succeeds);

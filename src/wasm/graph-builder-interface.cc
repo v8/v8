@@ -1307,8 +1307,9 @@ class WasmGraphBuildingInterface {
 
   void RefTestAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
-    SetAndTypeNode(result,
-                   builder_->RefTestAbstract(object.node, type, null_succeeds));
+    bool is_nullable = object.type.is_nullable();
+    SetAndTypeNode(result, builder_->RefTestAbstract(
+                               object.node, type, is_nullable, null_succeeds));
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
@@ -1328,8 +1329,9 @@ class WasmGraphBuildingInterface {
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     TFNode* node = object.node;
     if (!v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      bool is_nullable = object.type.is_nullable();
       node = builder_->RefCastAbstract(object.node, type, decoder->position(),
-                                       null_succeeds);
+                                       is_nullable, null_succeeds);
     }
     SetAndTypeNode(result, builder_->TypeGuard(node, result->type));
   }
