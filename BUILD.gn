@@ -1579,23 +1579,6 @@ config("always_turbofanimize") {
   }
 }
 
-# Configs for code coverage with gcov. Separate configs for cflags and ldflags
-# to selectively influde cflags in non-test targets only.
-config("v8_gcov_coverage_cflags") {
-  cflags = [
-    "-fprofile-arcs",
-    "-ftest-coverage",
-
-    # We already block on gcc warnings on other bots. Let's not block here to
-    # always generate coverage reports.
-    "-Wno-error",
-  ]
-}
-
-config("v8_gcov_coverage_ldflags") {
-  ldflags = [ "-fprofile-arcs" ]
-}
-
 ###############################################################################
 # Actions
 #
@@ -2351,7 +2334,6 @@ if (v8_verify_deterministic_mksnapshot) {
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
-  is_gcov_coverage = v8_code_coverage && !is_clang
   is_DEBUG_defined = v8_enable_debugging_features || dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
   args = [
@@ -2366,7 +2348,6 @@ action("v8_dump_build_config") {
     "is_debug=$v8_enable_debugging_features",
     "is_DEBUG_defined=$is_DEBUG_defined",
     "is_full_debug=$is_full_debug",
-    "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
     "is_ubsan_vptr=$is_ubsan_vptr",

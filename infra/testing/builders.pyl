@@ -358,15 +358,6 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_coverage': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default'},
-      {'name': 'v8testing', 'variant': 'future'},
-    ],
-  },
   'v8_linux64_coverage_dbg': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -514,14 +505,6 @@
   'v8_linux64_gcc_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-20.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'v8_linux64_gcov_coverage': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'v8testing'},
@@ -1597,14 +1580,6 @@
         'test_args': ['--gc-stress'],
         'shards': 2
       },
-    ],
-  },
-  'V8 Linux64 - gcov coverage': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
     ],
   },
   'V8 Linux64 - internal snapshot': {

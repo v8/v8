@@ -34,7 +34,6 @@ class BuildConfig(object):
     self.dict_property_const_tracking = build_config[
         'v8_dict_property_const_tracking']
     self.disassembler = build_config['v8_enable_disassembler']
-    self.gcov_coverage = build_config['is_gcov_coverage']
     self.gdbjit = build_config['v8_enable_gdbjit']
     self.is_android = build_config['is_android']
     self.is_clang = build_config['is_clang']
@@ -154,7 +153,6 @@ class BuildConfig(object):
         'debug_code',
         'dict_property_const_tracking',
         'disassembler',
-        'gcov_coverage',
         'gdbjit',
         'is_debug',
         'is_DEBUG_defined',

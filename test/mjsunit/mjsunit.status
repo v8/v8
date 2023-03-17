@@ -1370,15 +1370,6 @@
 }],  # variant == nooptimization
 
 ##############################################################################
-['gcov_coverage', {
-  # Tests taking too long.
-  'array-functions-prototype-misc': [SKIP],
-
-  # Stack overflow.
-  'big-array-literal': [SKIP],
-}],  # 'gcov_coverage'
-
-##############################################################################
 ['variant == no_wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],

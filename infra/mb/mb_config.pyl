@@ -131,7 +131,6 @@
       'V8 Linux64 - cfi - builder': 'release_x64_cfi',
       'V8 Linux64 UBSan - builder': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
-      'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
       'V8 Linux64 - predictable - builder': 'release_x64_predictable',
       'V8 Linux64 - verify deterministic': 'release_x64_verify_deterministic',
@@ -239,7 +238,6 @@
           'release_simulate_arm64_no_pointer_compression',
       'v8_linux64_cppgc_non_default_compile_dbg': 'debug_x64_non_default_cppgc',
       'v8_linux64_compile_dbg': 'debug_x64_trybot',
-      'v8_linux64_coverage': 'release_x64_coverage',
       'v8_linux64_coverage_dbg': 'debug_x64_coverage',
       'v8_linux64_coverage_rel': 'release_x64_coverage',
       'v8_linux64_no_sandbox_compile_dbg': 'debug_x64_no_sandbox',
@@ -252,7 +250,6 @@
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_gcc_light_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
-      'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_minor_mc_compile_dbg': 'debug_x64_trybot',
       'v8_linux64_fyi_compile_rel': 'release_x64_test_features_trybot',
@@ -545,9 +542,6 @@
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc': [
       'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
-    'release_x64_gcc_coverage': [
-      'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'lld',
-      'no_custom_libcxx', 'no_sysroot'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
@@ -747,10 +741,6 @@
       'gn_args': 'v8_enable_conservative_stack_scanning=true',
     },
 
-    'coverage': {
-      'gn_args': 'v8_code_coverage=true',
-    },
-
     'dcheck_always_on': {
       'gn_args': 'dcheck_always_on=true',
     },
@@ -864,10 +854,6 @@
 
     'no_sandbox': {
       'gn_args': 'v8_enable_sandbox=false',
-    },
-
-    'no_sysroot': {
-      'gn_args': 'use_sysroot=false',
     },
 
     'non_default_cppgc': {

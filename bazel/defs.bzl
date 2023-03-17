@@ -602,7 +602,6 @@ def build_config_content(cpu, icu):
         ("is_component_build", "false"),
         ("is_debug", "false"),
         ("is_full_debug", "false"),
-        ("is_gcov_coverage", "false"),
         ("is_msan", "false"),
         ("is_tsan", "false"),
         ("is_ubsan_vptr", "false"),

@@ -577,8 +577,6 @@ class BaseTestRunner(object):
             False,
         "gc_stress":
             False,
-        "gcov_coverage":
-            self.build_config.gcov_coverage,
         "gdbjit":
             self.build_config.gdbjit,
         # TODO(jgruber): Note this rename from maglev to has_maglev is required

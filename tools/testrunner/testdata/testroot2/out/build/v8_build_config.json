@@ -8,7 +8,6 @@
   "is_component_build": false,
   "is_debug": false,
   "is_full_debug": false,
-  "is_gcov_coverage": false,
   "is_ubsan_vptr": false,
   "is_msan": false,
   "is_tsan": false,

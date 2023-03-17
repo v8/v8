@@ -10,10 +10,6 @@ import("release_branch_toggle.gni")
 import("split_static_library.gni")
 
 declare_args() {
-  # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
-  # coverage with clang.
-  v8_code_coverage = false
-
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
@@ -210,13 +206,6 @@ if (!is_debug) {
   ]
 }
 
-if (v8_code_coverage && !is_clang) {
-  v8_add_configs += [
-    v8_path_prefix + ":v8_gcov_coverage_cflags",
-    v8_path_prefix + ":v8_gcov_coverage_ldflags",
-  ]
-}
-
 if (v8_symbol_level != symbol_level) {
   v8_remove_configs += [ "//build/config/compiler:default_symbols" ]
   if (v8_symbol_level == 0) {
@@ -297,17 +286,6 @@ template("v8_executable") {
     if (is_linux || is_chromeos) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
-    }
-    if (defined(testonly) && testonly && v8_code_coverage) {
-      # Only add code coverage cflags for non-test files for performance
-      # reasons.
-      if (is_clang) {
-        configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
-        configs +=
-            [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
-      } else {
-        configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
-      }
     }
     deps += [ v8_path_prefix + ":v8_dump_build_config" ]
   }
