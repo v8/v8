@@ -1204,7 +1204,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
 
   int element_size = ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
-    __ Cmp(byte_length, Immediate(element_size - 1));
+    __ Subs(byte_length, byte_length, Immediate(element_size - 1));
     __ EmitEagerDeoptIf(mi, DeoptimizeReason::kOutOfBounds, this);
   }
   __ Cmp(index, byte_length);
