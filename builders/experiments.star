@@ -132,18 +132,6 @@ in_category(
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
-        name = "V8 Linux64 - gcov coverage",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.NO,
-        execution_timeout = 10800,
-        notifies = ["sheriffs on new failure", "blamelist"],
-        # TODO(crbug.com/v8/13769): Enable again when it is green.
-        work_in_progress = True,
-    ),
-    experiment_builder(
         name = "V8 Linux64 - coverage",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},

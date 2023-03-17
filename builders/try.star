@@ -177,16 +177,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_linux64_gcov_coverage",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
-    execution_timeout = 10800,
-    use_goma = GOMA.NO,
-)
-
-try_builder(
     name = "v8_linux64_header_includes_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
