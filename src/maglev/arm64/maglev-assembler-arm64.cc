@@ -792,14 +792,12 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 
   // Check if {input} is -0.
   Label check_done;
-  Cmp(dst.W(), wzr);
-  B(&check_done, ne);
+  Cbnz(dst, &check_done);
 
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Register high_word32_of_input = temps.Acquire().W();
-  Umov(high_word32_of_input, src.V2S(), 1);
-  Cmp(high_word32_of_input, wzr);
-  JumpIf(lt, fail);
+  // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
+  Register input_bits = temps.Acquire();
+  Fmov(input_bits, src);
+  Cbnz(input_bits, fail);
 
   Bind(&check_done);
 }

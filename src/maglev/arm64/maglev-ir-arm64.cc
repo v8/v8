@@ -280,14 +280,12 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
 
   // Check if {input} is -0.
   Label check_done;
-  __ Cmp(result_reg, wzr);
-  __ B(&check_done, ne);
+  __ Cbnz(result_reg, &check_done);
 
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Register high_word32_of_input = temps.Acquire().W();
-  __ Umov(high_word32_of_input, input_reg.V2S(), 1);
-  __ Cmp(high_word32_of_input, wzr);
-  __ EmitEagerDeoptIf(lt, DeoptimizeReason::kNotUint32, this);
+  // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
+  Register input_bits = temps.Acquire();
+  __ Fmov(input_bits, input_reg);
+  __ Cbnz(input_bits, __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 
   __ Bind(&check_done);
 }
