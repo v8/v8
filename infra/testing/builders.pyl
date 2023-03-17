@@ -367,6 +367,24 @@
       {'name': 'v8testing', 'variant': 'future'},
     ],
   },
+  'v8_linux64_coverage_dbg': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'future'},
+    ],
+  },
+  'v8_linux64_coverage_rel': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'future'},
+    ],
+  },
   'v8_linux64_cppgc_non_default_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1371,6 +1389,15 @@
     ],
   },
   'V8 Linux64 - coverage': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'future'},
+    ],
+  },
+  'V8 Linux64 - coverage - debug': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
     },
