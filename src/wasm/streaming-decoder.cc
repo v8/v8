@@ -230,21 +230,27 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
-  // {full_wire_bytes_} is pre-filled with one empty vector.
   DCHECK(!full_wire_bytes_.empty());
-  if (full_wire_bytes_.back().capacity() > 16 * KB &&
-      full_wire_bytes_.back().capacity() <
-          full_wire_bytes_.back().size() + bytes.size()) {
-    // The previous vector's capacity is not enough to hold the new bytes, and
-    // it's bigger than 16kB, so expensive to copy. Allocate a new vector.
-    // Grow exponentially, and over-allocated by {bytes.size()}.
-    size_t new_capacity =
-        std::max(2 * bytes.size(), 2 * full_wire_bytes_.back().capacity());
+  // Fill the previous vector, growing up to 16kB. After that, allocate new
+  // vectors on overflow.
+  size_t remaining_capacity =
+      std::max(full_wire_bytes_.back().capacity(), size_t{16} * KB) -
+      full_wire_bytes_.back().size();
+  size_t bytes_for_existing_vector = std::min(remaining_capacity, bytes.size());
+  full_wire_bytes_.back().insert(full_wire_bytes_.back().end(), bytes.data(),
+                                 bytes.data() + bytes_for_existing_vector);
+  if (bytes.size() > bytes_for_existing_vector) {
+    // The previous vector's capacity is not enough to hold all new bytes, and
+    // it's bigger than 16kB, so expensive to copy. Allocate a new vector for
+    // the remaining bytes, growing exponentially.
+    size_t new_capacity = std::max(bytes.size() - bytes_for_existing_vector,
+                                   2 * full_wire_bytes_.back().capacity());
     full_wire_bytes_.emplace_back();
     full_wire_bytes_.back().reserve(new_capacity);
+    full_wire_bytes_.back().insert(full_wire_bytes_.back().end(),
+                                   bytes.data() + bytes_for_existing_vector,
+                                   bytes.end());
   }
-  full_wire_bytes_.back().insert(full_wire_bytes_.back().end(), bytes.begin(),
-                                 bytes.end());
 
   if (deserializing()) return;
 
