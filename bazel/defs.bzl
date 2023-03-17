@@ -157,7 +157,7 @@ def _default_args():
             ],
             "//conditions:default": [],
         }) +  select({
-            "@v8//bazel/config:is_opt": [
+            "@v8//bazel/config:is_opt_android": [
                 "-fvisibility=hidden",
                 "-fvisibility-inlines-hidden",
             ],
