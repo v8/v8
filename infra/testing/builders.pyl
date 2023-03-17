@@ -364,6 +364,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'future'},
     ],
   },
   'v8_linux64_cppgc_non_default_dbg': {
@@ -1375,6 +1376,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'future'},
     ],
   },
   'V8 Linux64 - custom snapshot - debug': {
