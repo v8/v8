@@ -169,7 +169,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
-    experiment_builder_pair(
+    experiment_builder(
         name = "V8 Linux64 - verify deterministic",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
