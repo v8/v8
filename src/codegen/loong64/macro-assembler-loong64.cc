@@ -3024,10 +3024,9 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
 void MacroAssembler::TestCodeIsMarkedForDeoptimizationAndJump(
     Register code_data_container, Register scratch, Condition cond,
     Label* target) {
-  Ld_wu(scratch,
+  Ld_hu(scratch,
         FieldMemOperand(code_data_container, Code::kKindSpecificFlagsOffset));
-  And(scratch, scratch,
-      Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(target, cond, scratch, Operand(zero_reg));
 }
 
@@ -4190,16 +4189,6 @@ void MacroAssembler::LoadCodeEntry(Register destination,
   ASM_CODE_COMMENT(this);
   Ld_d(destination, FieldMemOperand(code_data_container_object,
                                     Code::kCodeEntryPointOffset));
-}
-
-void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(
-    Register destination, Register code_data_container_object) {
-  ASM_CODE_COMMENT(this);
-  // Compute the InstructionStream object pointer from the code entry point.
-  Ld_d(destination, FieldMemOperand(code_data_container_object,
-                                    Code::kCodeEntryPointOffset));
-  Sub_d(destination, destination,
-        Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void MacroAssembler::CallCodeObject(Register code_data_container_object) {
