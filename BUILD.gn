@@ -3863,8 +3863,6 @@ v8_header_set("v8_internal_headers") {
       "src/objects/js-segment-iterator.h",
       "src/objects/js-segmenter-inl.h",
       "src/objects/js-segmenter.h",
-      "src/objects/js-segments-inl.h",
-      "src/objects/js-segments.h",
     ]
   }
 
