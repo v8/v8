@@ -2448,6 +2448,10 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     Input value_input = parameters_and_registers(i);
     Register value = __ FromAnyToRegister(
         value_input, WriteBarrierDescriptor::SlotAddressRegister());
+    // Include the value register in the live set, in case it is used by future
+    // inputs.
+    register_snapshot_during_store.live_registers.set(value);
+    register_snapshot_during_store.live_tagged_registers.set(value);
     __ StoreTaggedFieldWithWriteBarrier(
         array, FixedArray::OffsetOfElementAt(i), value,
         register_snapshot_during_store,
