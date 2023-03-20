@@ -833,11 +833,28 @@ ValueNode* MaglevGraphBuilder::GetFloat64(
       }
 
       NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-      if (node_info->float64_alternative == nullptr) {
-        node_info->float64_alternative =
-            BuildNumberOrOddballToFloat64(value, conversion_type);
+      if (node_info->float64_alternative != nullptr) {
+        return node_info->float64_alternative;
       }
-      return node_info->float64_alternative;
+      switch (conversion_type) {
+        case TaggedToFloat64ConversionType::kNumber:
+          // Number->Float64 conversions are lossless, so they can become the
+          // canonical float64_alternative.
+          return node_info->float64_alternative = BuildNumberOrOddballToFloat64(
+                     value, TaggedToFloat64ConversionType::kNumber);
+        case TaggedToFloat64ConversionType::kNumberOrOddball: {
+          // NumberOrOddball->Float64 conversions are lossy, since they lose the
+          // oddball information, so they can only become the canonical
+          // float64_alternative if they are known number (and therefore not
+          // oddball).
+          ValueNode* float64_node = BuildNumberOrOddballToFloat64(
+              value, TaggedToFloat64ConversionType::kNumberOrOddball);
+          if (NodeTypeIsNumber(node_info->type)) {
+            node_info->float64_alternative = float64_node;
+          }
+          return float64_node;
+        }
+      }
     }
     case ValueRepresentation::kInt32: {
       NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
