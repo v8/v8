@@ -3674,6 +3674,7 @@ void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
             __ Push(object, transition_target.object());
             __ Move(kContextRegister, masm->native_context().object());
             __ CallRuntime(Runtime::kTransitionElementsKind);
+            save_state.DefineSafepoint();
           }
           __ Jump(*done);
         },
