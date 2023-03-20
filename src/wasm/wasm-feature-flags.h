@@ -96,11 +96,11 @@
   /* Staged in v11.3. */                                                       \
   V(extended_const, "extended constant expressions", false)                    \
                                                                                \
-  /* Not user-visible, defined here so an Origin Trial can control it.*/       \
+  /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \
   /* Staged in v11.3 */                                                        \
   /* Launch bug: https://crbug.com/1424350 */                                  \
-  V(inlining, "enable wasm-into-wasm inlining", false)
+  V(inlining, "wasm-into-wasm inlining", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit

@@ -1191,11 +1191,19 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 // for configurability.
 #include "src/wasm/wasm-feature-flags.h"
 
-#define DECL_WASM_FLAG(feat, desc, val)      \
-  DEFINE_BOOL(experimental_wasm_##feat, val, \
-              "enable prototype " desc " for wasm")
-FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG)
+#define DECL_WASM_FLAG(feat, desc, val) \
+  DEFINE_BOOL(experimental_wasm_##feat, val, "enable " desc " for Wasm")
+#define DECL_EXPERIMENTAL_WASM_FLAG(feat, desc, val)    \
+  DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_##feat, \
+                              "enable " desc " for Wasm")
+// Experimental wasm features imply --experimental and get the " (experimental)"
+// suffix.
+FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
+// Staging and shipped features do not imply --experimental.
+FOREACH_WASM_STAGING_FEATURE_FLAG(DECL_WASM_FLAG)
+FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
+#undef DECL_EXPERIMENTAL_WASM_FLAG
 
 DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
 
@@ -1208,12 +1216,6 @@ DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
   DEFINE_IMPLICATION(wasm_staging, experimental_wasm_##feat)
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
-
-// Experimental Wasm features imply --experimental.
-#define WASM_IMPLY_EXPERIMENTAL(name, ...) \
-  DEFINE_IMPLICATION(experimental_wasm_##name, experimental)
-FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(WASM_IMPLY_EXPERIMENTAL)
-#undef WASM_IMPLY_EXPERIMENTAL
 
 DEFINE_BOOL(wasm_opt, true, "enable wasm optimization")
 DEFINE_BOOL(
