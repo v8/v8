@@ -463,8 +463,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-inlining.
-      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
+      # Stress maglev-future.
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1481,8 +1481,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-inlining.
-      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
+      # Stress maglev-future.
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1543,8 +1543,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-inlining.
-      {'name': 'mjsunit', 'variant': 'maglev_inlining'},
+      # Stress maglev-future.
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],

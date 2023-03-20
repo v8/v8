@@ -467,9 +467,18 @@ DEFINE_BOOL(force_emit_interrupt_budget_checks, false,
 #define V8_ENABLE_MAGLEV_BOOL true
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(future, maglev)
+DEFINE_EXPERIMENTAL_FEATURE(
+    maglev_future,
+    "enable maglev features that we want to ship in the not-too-far future")
+DEFINE_IMPLICATION(maglev_future, maglev)
 DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
                             "enable inlining in the maglev optimizing compiler")
-DEFINE_IMPLICATION(maglev_inlining, maglev)
+DEFINE_EXPERIMENTAL_FEATURE(
+    maglev_untagged_phis,
+    "enable phi untagging in the maglev optimizing compiler")
+DEFINE_IMPLICATION(maglev_future, maglev_inlining)
+DEFINE_IMPLICATION(maglev_future, maglev_untagged_phis)
+
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
 DEFINE_INT(max_maglev_inlined_bytecode_size, 460,
@@ -495,8 +504,13 @@ DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, interrupt_budget_for_maglev, 128)
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
+DEFINE_BOOL_READONLY(
+    maglev_future, false,
+    "enable maglev features that we want to ship in the not-too-far future")
 DEFINE_BOOL_READONLY(maglev_inlining, false,
                      "enable inlining in the maglev optimizing compiler")
+DEFINE_BOOL_READONLY(maglev_untagged_phis, false,
+                     "enable phi untagging in the maglev optimizing compiler")
 DEFINE_BOOL_READONLY(stress_maglev, false, "trigger maglev compilation earlier")
 DEFINE_BOOL_READONLY(
     optimize_on_next_call_optimizes_to_maglev, false,
