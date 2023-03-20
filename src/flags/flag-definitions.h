@@ -476,8 +476,8 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
 DEFINE_EXPERIMENTAL_FEATURE(
     maglev_untagged_phis,
     "enable phi untagging in the maglev optimizing compiler")
-DEFINE_IMPLICATION(maglev_future, maglev_inlining)
-DEFINE_IMPLICATION(maglev_future, maglev_untagged_phis)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_untagged_phis)
 
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
