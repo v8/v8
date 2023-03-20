@@ -860,6 +860,7 @@ void AssemblerRISCVV::vcpop_m(Register rd, VRegister vs2, MaskType mask) {
 
 LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
                                          uint8_t laneidx) {
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   switch (rep) {
     case MachineRepresentation::kWord8:
       *this = LoadStoreLaneParams(laneidx, 8, kRvvVLEN / 16);
@@ -876,6 +877,9 @@ LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
     default:
       UNREACHABLE();
   }
+#else
+  UNREACHABLE();
+#endif
 }
 
 }  // namespace internal

@@ -8,6 +8,7 @@ import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
+import("//build/config/riscv.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 
@@ -1260,8 +1261,9 @@ config("toolchain") {
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
     }
-    if (target_is_simulator) {
+    if (riscv_use_rvv || target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
+      defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
   }
 
