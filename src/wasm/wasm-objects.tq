@@ -216,6 +216,9 @@ extern class WasmArray extends WasmObject {
 class WasmStringViewIter extends HeapObject {
   string: String;
   offset: uint32;  // Index into string.
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 extern class WasmNull extends HeapObject {}

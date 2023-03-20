@@ -301,6 +301,12 @@ def prepare_mksnapshot_cmdline(orig_cmdline, path):
   return result
 
 
+def prepare_torque_cmdline(orig_cmdline: str, path):
+  torque_bin = path / "torque"
+  args = orig_cmdline.replace("-v8-root ../..", "-v8-root .")
+  args = args.replace("gen/torque-generated", f"{path}/gen/torque-generated")
+  return f"gdb --args {torque_bin} {args}"
+
 # Only has a path, assumes that the path (and args.gn in it) already exists.
 class RawConfig:
 
@@ -334,20 +340,31 @@ class RawConfig:
 
     return_code, output = _call_with_output(
         f"autoninja -C {self.path} {targets}")
-    if return_code != 0 and "FAILED:" in output and "snapshot_blob" in output:
-      if "gen-static-roots.py" in output:
+    if return_code != 0 and "FAILED:" in output:
+      if "snapshot_blob" in output:
+        if "gen-static-roots.py" in output:
+          _notify("V8 build requires your attention",
+                  "Please re-generate static roots...")
+          return return_code
+        csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
+        match = csa_trap.search(output)
+        extra_opt = match.group(1) if match else ""
+        cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
+        orig_cmdline = cmdline.search(output).group(1).strip()
+        cmdline = (
+            prepare_mksnapshot_cmdline(orig_cmdline, self.path) + extra_opt)
         _notify("V8 build requires your attention",
-                "Please re-generate static roots...")
-        return return_code
-      csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
-      match = csa_trap.search(output)
-      extra_opt = match.group(1) if match else ""
-      cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
-      orig_cmdline = cmdline.search(output).group(1).strip()
-      cmdline = prepare_mksnapshot_cmdline(orig_cmdline, self.path) + extra_opt
-      _notify("V8 build requires your attention",
-              "Detected mksnapshot failure, re-running in GDB...")
-      _call(cmdline)
+                "Detected mksnapshot failure, re-running in GDB...")
+        _call(cmdline)
+      elif "run.py ./torque" in output and not ": Torque Error: " in output:
+        # Torque failed/crashed without printing an error message.
+        cmdline = re.compile("python3 ../../tools/run.py ./torque (.*)")
+        orig_cmdline = cmdline.search(output).group(1).strip()
+        cmdline = f"gdb --args "
+        cmdline = prepare_torque_cmdline(orig_cmdline, self.path)
+        _notify("V8 build requires your attention",
+                "Detecting torque failure, re-running in GDB...")
+        _call(cmdline)
     return return_code
 
   def run_tests(self):

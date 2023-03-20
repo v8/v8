@@ -1163,7 +1163,7 @@ transitioning builtin WasmStringViewWtf16Slice(
   return string::SubString(string, Convert<uintptr>(start), clampedEnd);
 }
 builtin WasmStringAsIter(string: String): WasmStringViewIter {
-  return new WasmStringViewIter{string: string, offset: 0};
+  return new WasmStringViewIter{string: string, offset: 0, optional_padding: 0};
 }
 macro IsLeadSurrogate(code: char16): bool {
   return (code & 0xfc00) == 0xd800;
