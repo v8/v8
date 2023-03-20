@@ -1252,8 +1252,6 @@ DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
 // are aliases for --experimental-wasm-inlining.
 DEFINE_IMPLICATION(wasm_inlining, experimental_wasm_inlining)
 DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_inlining)
-// Stage wasm inlining in --future.
-DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
