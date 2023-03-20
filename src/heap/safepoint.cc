@@ -400,6 +400,12 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
   clients_mutex_.Unlock();
 }
 
+bool GlobalSafepoint::IsRequestedForTesting() {
+  if (!clients_mutex_.TryLock()) return true;
+  clients_mutex_.Unlock();
+  return false;
+}
+
 GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
     : initiator_(initiator),
       shared_space_isolate_(initiator->shared_space_isolate()) {

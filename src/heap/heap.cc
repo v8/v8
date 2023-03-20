@@ -2231,25 +2231,28 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
       // full GC cycle.
       CompleteSweepingFull();
     }
-    if (!v8_flags.minor_mc || incremental_marking_->IsStopped()) {
-      // If v8_flags.minor_mc is false, then the young GC is Scavenger, which
-      // may interrupt an incremental full GC. If MinorMC incremental marking
-      // was running before, there is already an active GCTracer cycle.
-      tracer()->StartCycle(collector, gc_reason, collector_reason,
-                           GCTracer::MarkingType::kAtomic);
-    }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
 
     memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+  }
 
-    // If incremental marking has been activated, the full GC cycle has already
-    // started, so don't start a new one.
-    if (!incremental_marking_->IsMarking()) {
-      tracer()->StartCycle(collector, gc_reason, collector_reason,
-                           GCTracer::MarkingType::kAtomic);
-    }
+  base::Optional<SafepointScope> safepoint_scope;
+  {
+    AllowGarbageCollection allow_shared_gc;
+    IgnoreLocalGCRequests ignore_gc_requests(this);
+
+    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
+                                       ? SafepointKind::kGlobal
+                                       : SafepointKind::kIsolate;
+    safepoint_scope.emplace(isolate(), safepoint_kind);
+  }
+
+  if (!incremental_marking_->IsMarking() ||
+      (collector == GarbageCollector::SCAVENGER)) {
+    tracer()->StartCycle(collector, gc_reason, collector_reason,
+                         GCTracer::MarkingType::kAtomic);
   }
 
   tracer()->StartAtomicPause();
@@ -2260,18 +2263,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
-
-  base::Optional<SafepointScope> safepoint_scope;
-
-  {
-    AllowGarbageCollection allow_shared_gc;
-    IgnoreLocalGCRequests ignore_gc_requests(this);
-
-    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
-                                       ? SafepointKind::kGlobal
-                                       : SafepointKind::kIsolate;
-    safepoint_scope.emplace(isolate(), safepoint_kind);
-  }
 
   collection_barrier_->StopTimeToCollectionTimer();
 

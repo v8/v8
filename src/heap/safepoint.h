@@ -189,6 +189,8 @@ class GlobalSafepoint final {
 
   void AssertActive() { clients_mutex_.AssertHeld(); }
 
+  V8_EXPORT_PRIVATE bool IsRequestedForTesting();
+
  private:
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
