@@ -56,6 +56,7 @@ extern macro BigIntBuiltinsAssembler::WriteBigIntSignAndLength(
     MutableBigInt, uint32, intptr): void;
 
 extern macro CodeStubAssembler::AllocateBigInt(intptr): MutableBigInt;
+extern macro CodeStubAssembler::AllocateRawBigInt(intptr): MutableBigInt;
 extern macro CodeStubAssembler::StoreBigIntDigit(
     MutableBigInt, intptr, uintptr): void;
 extern macro CodeStubAssembler::LoadBigIntDigit(BigIntBase, intptr): uintptr;
@@ -79,7 +80,7 @@ macro AllocateEmptyBigIntNoThrow(implicit context: Context)(
   if (length > kBigIntMaxLength) {
     goto BigIntTooBig;
   }
-  const result: MutableBigInt = AllocateBigInt(length);
+  const result: MutableBigInt = AllocateRawBigInt(length);
 
   WriteBigIntSignAndLength(result, sign, length);
   return result;
