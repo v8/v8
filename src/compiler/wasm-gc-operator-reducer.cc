@@ -256,7 +256,6 @@ Reduction WasmGCOperatorReducer::ReduceMerge(Node* node) {
 Reduction WasmGCOperatorReducer::ReduceAssertNotNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertNotNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
@@ -272,29 +271,7 @@ Reduction WasmGCOperatorReducer::ReduceAssertNotNull(Node* node) {
     return Changed(node);
   }
 
-  // Optimize the common pattern where a type cast is followed by
-  // {AssertNotNull}.
-  if (object == control && object == effect &&
-      object->opcode() == IrOpcode::kWasmTypeCast) {
-    WasmTypeCheckConfig cast_params =
-        OpParameter<WasmTypeCheckConfig>(object->op());
-    // Otherwise, the return type would be non-nullable, and we would be in the
-    // case above.
-    DCHECK(cast_params.to.is_nullable());
-    NodeProperties::ChangeOp(
-        object, simplified()->WasmTypeCast(
-                    {cast_params.from, cast_params.to.AsNonNull()}));
-    auto type = NodeProperties::GetType(object).AsWasm();
-    NodeProperties::SetType(object, Type::Wasm(type.type.AsNonNull(),
-                                               type.module, graph()->zone()));
-    Revisit(object);
-    ReplaceWithValue(node, object, object, object);
-    node->Kill();
-    return Replace(object);
-  }
-
   object_type.type = object_type.type.AsNonNull();
-
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, object_type,
                                    false);
 }
@@ -345,7 +322,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
     node->Kill();
     return Replace(input);
   }
-  return NoChange();
+  return TakeStatesFromFirstControl(node);
 }
 
 Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
