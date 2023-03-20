@@ -130,7 +130,7 @@ uint32_t StringForwardingTable::Record::raw_hash(
   Object hash_or_string = ForwardStringObjectOrHash(cage_base);
   uint32_t raw_hash;
   if (hash_or_string.IsHeapObject()) {
-    raw_hash = String::cast(hash_or_string).raw_hash_field();
+    raw_hash = String::cast(hash_or_string).RawHash();
   } else {
     raw_hash = static_cast<uint32_t>(hash_or_string.ptr());
   }

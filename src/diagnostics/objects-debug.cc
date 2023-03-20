@@ -1234,6 +1234,25 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 USE_TORQUE_VERIFIER(JSShadowRealm)
 USE_TORQUE_VERIFIER(JSWrappedFunction)
 
+namespace {
+
+void VerifyElementIsShared(Object element) {
+  // Exception for ThinStrings:
+  // When storing a ThinString in a shared object, we want to store the actual
+  // string, which is shared when sharing the string table.
+  // It is possible that a stored shared string migrates to a ThinString later
+  // on, which is fine as the ThinString resides in shared space if the original
+  // string was in shared space.
+  if (element.IsThinString()) {
+    CHECK(v8_flags.shared_string_table);
+    CHECK(element.InWritableSharedSpace());
+  } else {
+    CHECK(element.IsShared());
+  }
+}
+
+}  // namespace
+
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());
   CHECK(InWritableSharedSpace());
@@ -1250,7 +1269,7 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     CHECK_EQ(PropertyLocation::kField, details.location());
     CHECK(details.representation().IsTagged());
     FieldIndex field_index = FieldIndex::ForDetails(struct_map, details);
-    CHECK(RawFastPropertyAt(field_index).IsShared());
+    VerifyElementIsShared(RawFastPropertyAt(field_index));
   }
 }
 
@@ -1276,7 +1295,7 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
   uint32_t length = storage.length();
   for (uint32_t j = 0; j < length; j++) {
     Object element_value = storage.get(j);
-    CHECK(element_value.IsShared());
+    VerifyElementIsShared(element_value);
   }
 }
 

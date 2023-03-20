@@ -1251,10 +1251,18 @@ bool Object::IsShared() const {
   switch (instance_type) {
     case SHARED_STRING_TYPE:
     case SHARED_ONE_BYTE_STRING_TYPE:
+    case SHARED_EXTERNAL_STRING_TYPE:
+    case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SHARED_UNCACHED_EXTERNAL_STRING_TYPE:
+    case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
       DCHECK(object.InAnySharedSpace());
       return true;
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
       if (v8_flags.shared_string_table) {
         DCHECK(object.InAnySharedSpace());
         return true;
