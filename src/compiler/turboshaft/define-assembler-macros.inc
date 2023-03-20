@@ -19,6 +19,11 @@
   auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =            \
     Asm().ControlFlowHelper_Bind(label);                         \
     (detail::SuppressUnusedWarning(CONCAT(is_bound_, __LINE__)))
+#define LOOP(loop_label, ...) \
+  for(auto [CONCAT(run_loop_, __LINE__), ##__VA_ARGS__] =                      \
+    Asm().ControlFlowHelper_BindLoop(loop_label); CONCAT(run_loop_, __LINE__); \
+        Asm().ControlFlowHelper_EndLoop(loop_label),                           \
+        CONCAT(run_loop_, __LINE__) = false)
 #define GOTO(label, ...)                             \
   Asm().ControlFlowHelper_Goto(label, {__VA_ARGS__})
 #define GOTO_IF(cond, label, ...)                            \
@@ -49,9 +54,9 @@
 #define IF_NOT(cond) IF_WITH_HINT(cond, true, BranchHint::kNone)
 #define IF_NOT_LIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kFalse)
 #define IF_NOT_UNLIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kTrue)
-#define ELSE_IF(cond)                                            \
-  for (bool bound = Asm().ControlFlowHelper_ElseIf(cond); bound; \
-       (bound = false), Asm().ControlFlowHelper_GotoEnd())
+#define ELSE_IF(cond)                                                       \
+  for (bool bound = Asm().ControlFlowHelper_ElseIf([&]() { return cond; }); \
+       bound; (bound = false), Asm().ControlFlowHelper_GotoEnd())
 #define ELSE                                               \
   for (bool bound = Asm().ControlFlowHelper_Else(); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())

@@ -69,7 +69,14 @@ struct FrameStateOp;
 //   non-static method `Properties()` if the properties depend on the particular
 //   operation and not just the opcode.
 
+#ifdef V8_INTL_SUPPORT
+#define TURBOSHAFT_INTL_OPERATION_LIST(V) V(StringToCaseIntl)
+#else
+#define TURBOSHAFT_INTL_OPERATION_LIST(V)
+#endif  // V8_INTL_SUPPORT
+
 #define TURBOSHAFT_OPERATION_LIST(V) \
+  TURBOSHAFT_INTL_OPERATION_LIST(V)  \
   V(WordBinop)                       \
   V(FloatBinop)                      \
   V(OverflowCheckedBinop)            \
@@ -131,7 +138,12 @@ struct FrameStateOp;
   V(BigIntEqual)                     \
   V(BigIntComparison)                \
   V(BigIntUnary)                     \
-  V(LoadRootRegister)
+  V(LoadRootRegister)                \
+  V(StringAt)                        \
+  V(StringLength)                    \
+  V(StringIndexOf)                   \
+  V(StringFromCodePointAt)           \
+  V(StringSubstring)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2987,6 +2999,146 @@ struct LoadRootRegisterOp : FixedArityOperationT<0, LoadRootRegisterOp> {
   LoadRootRegisterOp() : Base() {}
   void Validate(const Graph& graph) const {}
   std::tuple<> options() const { return {}; }
+};
+
+struct StringAtOp : FixedArityOperationT<2, StringAtOp> {
+  enum class Kind : uint8_t {
+    kCharCode,
+    kCodePoint,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex string() const { return Base::input(0); }
+  OpIndex position() const { return Base::input(1); }
+
+  StringAtOp(OpIndex string, OpIndex position, Kind kind)
+      : Base(string, position), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, position(),
+                           RegisterRepresentation::PointerSized()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, StringAtOp::Kind kind);
+
+#ifdef V8_INTL_SUPPORT
+struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
+  enum class Kind : uint8_t {
+    kLower,
+    kUpper,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex string() const { return Base::input(0); }
+
+  StringToCaseIntlOp(OpIndex string, Kind kind) : Base(string), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, StringToCaseIntlOp::Kind kind);
+#endif  // V8_INTL_SUPPORT
+
+struct StringLengthOp : FixedArityOperationT<1, StringLengthOp> {
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex string() const { return Base::input(0); }
+
+  explicit StringLengthOp(OpIndex string) : Base(string) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringIndexOfOp : FixedArityOperationT<3, StringIndexOfOp> {
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  // Search the string `search` within the string `string` starting at
+  // `position`.
+  OpIndex string() const { return Base::input(0); }
+  OpIndex search() const { return Base::input(1); }
+  OpIndex position() const { return Base::input(2); }
+
+  StringIndexOfOp(OpIndex string, OpIndex search, OpIndex position)
+      : Base(string, search, position) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, search(), RegisterRepresentation::Tagged()));
+    DCHECK(
+        ValidOpInputRep(graph, position(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringFromCodePointAtOp
+    : FixedArityOperationT<2, StringFromCodePointAtOp> {
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex string() const { return Base::input(0); }
+  OpIndex index() const { return Base::input(1); }
+
+  StringFromCodePointAtOp(OpIndex string, OpIndex index)
+      : Base(string, index) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex string() const { return Base::input(0); }
+  OpIndex start() const { return Base::input(1); }
+  OpIndex end() const { return Base::input(2); }
+
+  StringSubstringOp(OpIndex string, OpIndex start, OpIndex end)
+      : Base(string, start, end) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, string(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, start(), RegisterRepresentation::Word32()));
+    DCHECK(ValidOpInputRep(graph, end(), RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

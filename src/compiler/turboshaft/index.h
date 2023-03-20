@@ -85,6 +85,7 @@ class V : public OpIndex {
                 "V<> requires a representation tag");
 
  public:
+  using rep_type = Rep;
   constexpr V() : OpIndex() {}
 
   // V<Rep> is implicitly constructible from plain OpIndex.
@@ -107,6 +108,7 @@ class V : public OpIndex {
 template <>
 class V<Word32> : public OpIndex {
  public:
+  using rep_type = Word32;
   constexpr V() : OpIndex() {}
 
   template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
@@ -146,6 +148,7 @@ class ConstOrV {
                 "ConstOrV<> requires a representation tag");
 
  public:
+  using rep_type = Rep;
   using constant_type = C;
 
   ConstOrV(constant_type value)  // NOLINT(runtime/explicit)

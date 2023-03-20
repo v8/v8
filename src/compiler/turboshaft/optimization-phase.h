@@ -747,6 +747,34 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphLoadRootRegister(const LoadRootRegisterOp& op) {
     return assembler().ReduceLoadRootRegister();
   }
+  OpIndex AssembleOutputGraphStringAt(const StringAtOp& op) {
+    return assembler().ReduceStringAt(MapToNewGraph(op.string()),
+                                      MapToNewGraph(op.position()), op.kind);
+  }
+#ifdef V8_INTL_SUPPORT
+  OpIndex AssembleOutputGraphStringToCaseIntl(const StringToCaseIntlOp& op) {
+    return assembler().ReduceStringToCaseIntl(MapToNewGraph(op.string()),
+                                              op.kind);
+  }
+#endif  // V8_INTL_SUPPORT
+  OpIndex AssembleOutputGraphStringLength(const StringLengthOp& op) {
+    return assembler().ReduceStringLength(MapToNewGraph(op.string()));
+  }
+  OpIndex AssembleOutputGraphStringIndexOf(const StringIndexOfOp& op) {
+    return assembler().ReduceStringIndexOf(MapToNewGraph(op.string()),
+                                           MapToNewGraph(op.search()),
+                                           MapToNewGraph(op.position()));
+  }
+  OpIndex AssembleOutputGraphStringFromCodePointAt(
+      const StringFromCodePointAtOp& op) {
+    return assembler().ReduceStringFromCodePointAt(MapToNewGraph(op.string()),
+                                                   MapToNewGraph(op.index()));
+  }
+  OpIndex AssembleOutputGraphStringSubstring(const StringSubstringOp& op) {
+    return assembler().ReduceStringSubstring(MapToNewGraph(op.string()),
+                                             MapToNewGraph(op.start()),
+                                             MapToNewGraph(op.end()));
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

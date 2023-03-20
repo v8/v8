@@ -6,7 +6,6 @@
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 
 #include "src/base/v8-fallthrough.h"
-#include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/feedback-source.h"
@@ -21,7 +20,9 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/oddball.h"
+#include "src/runtime/runtime.h"
 #include "src/utils/utils.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -1047,7 +1048,7 @@ class MachineLoweringReducer : public Next {
     LoopLabel<WordPtr> loop(this);
     GOTO(loop, intptr_t{0});
 
-    if (BIND(loop, index)) {
+    LOOP(loop, index) {
       GOTO_IF_NOT_UNLIKELY(__ UintPtrLessThan(index, length), done, array);
 
       __ StoreElement(array, access, index, the_hole_value);
@@ -1081,7 +1082,7 @@ class MachineLoweringReducer : public Next {
 
     GOTO(loop, intptr_t{0}, empty_value);
 
-    if (BIND(loop, index, accumulator)) {
+    LOOP(loop, index, accumulator) {
       GOTO_IF_NOT_UNLIKELY(__ UintPtrLessThan(index, array_length), done,
                            accumulator);
 
@@ -1221,17 +1222,7 @@ class MachineLoweringReducer : public Next {
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
         IF_UNLIKELY(__ TaggedEqual(result, __ SmiTag(1))) {
-          auto descriptor = Linkage::GetRuntimeCallDescriptor(
-              Asm().graph_zone(), Runtime::kTerminateExecution, 0,
-              Operator::kNoDeopt, CallDescriptor::kNeedsFrameState);
-          auto ts_descriptor =
-              TSCallDescriptor::Create(descriptor, Asm().graph_zone());
-          std::initializer_list<OpIndex> arguments{
-              __ ExternalConstant(
-                  ExternalReference::Create(Runtime::kTerminateExecution)),
-              __ Word32Constant(0), NoContextConstant()};
-          __ Call(CEntryStubConstant(1), frame_state, base::VectorOf(arguments),
-                  ts_descriptor);
+          __ CallRuntime_TerminateExecution(isolate_, frame_state);
         }
         END_IF
 
@@ -1273,6 +1264,181 @@ class MachineLoweringReducer : public Next {
     return CallBuiltinForBigIntOp(Builtin::kBigIntUnaryMinus, {input});
   }
 
+  V<Word32> ReduceStringAt(V<Tagged> string, V<WordPtr> pos,
+                           StringAtOp::Kind kind) {
+    if (kind == StringAtOp::Kind::kCharCode) {
+      Label<Word32> done(this);
+      Label<> runtime(this);
+      // We need a loop here to properly deal with indirect strings
+      // (SlicedString, ConsString and ThinString).
+      LoopLabel<Tagged, WordPtr> loop(this);
+      GOTO(loop, string, pos);
+
+      LOOP(loop, receiver, position) {
+        V<Tagged> map = __ LoadMapField(receiver);
+        V<Word32> instance_type = __ template LoadField<Word32>(
+            map, AccessBuilder::ForMapInstanceType());
+        V<Word32> representation =
+            __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
+
+        IF(__ Int32LessThanOrEqual(representation, kConsStringTag)) {
+          {
+            // if_lessthanoreq_cons
+            IF(__ Word32Equal(representation, kConsStringTag)) {
+              // if_consstring
+              V<Tagged> second = __ template LoadField<Tagged>(
+                  receiver, AccessBuilder::ForConsStringSecond());
+              GOTO_IF_NOT_UNLIKELY(
+                  __ TaggedEqual(second,
+                                 __ HeapConstant(factory_->empty_string())),
+                  runtime);
+              V<Tagged> first = __ template LoadField<Tagged>(
+                  receiver, AccessBuilder::ForConsStringFirst());
+              GOTO(loop, first, position);
+            }
+            ELSE {
+              // if_seqstring
+              V<Word32> onebyte = __ Word32Equal(
+                  __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
+                  kOneByteStringTag);
+              GOTO(done, LoadFromSeqString(receiver, position, onebyte));
+            }
+            END_IF
+          }
+        }
+        ELSE {
+          // if_greaterthan_cons
+          {
+            IF(__ Word32Equal(representation, kThinStringTag)) {
+              // if_thinstring
+              V<Tagged> actual = __ template LoadField<Tagged>(
+                  receiver, AccessBuilder::ForThinStringActual());
+              GOTO(loop, actual, position);
+            }
+            ELSE_IF(__ Word32Equal(representation, kExternalStringTag)) {
+              // if_externalstring
+              // We need to bailout to the runtime for uncached external
+              // strings.
+              GOTO_IF_UNLIKELY(__ Word32Equal(__ Word32BitwiseAnd(
+                                                  instance_type,
+                                                  kUncachedExternalStringMask),
+                                              kUncachedExternalStringTag),
+                               runtime);
+
+              OpIndex data = __ LoadField(
+                  receiver, AccessBuilder::ForExternalStringResourceData());
+              IF(__ Word32Equal(
+                  __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
+                  kTwoByteStringTag)) {
+                // if_twobyte
+                constexpr uint8_t twobyte_size_log2 = 1;
+                V<Word32> value = __ Load(
+                    data, position,
+                    LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
+                    MemoryRepresentation::Uint16(), 0, twobyte_size_log2);
+                GOTO(done, value);
+              }
+              ELSE {
+                // if_onebyte
+                constexpr uint8_t onebyte_size_log2 = 0;
+                V<Word32> value = __ Load(
+                    data, position,
+                    LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
+                    MemoryRepresentation::Uint8(), 0, onebyte_size_log2);
+                GOTO(done, value);
+              }
+              END_IF
+            }
+            ELSE_IF(__ Word32Equal(representation, kSlicedStringTag)) {
+              // if_slicedstring
+              V<Tagged> offset = __ template LoadField<Tagged>(
+                  receiver, AccessBuilder::ForSlicedStringOffset());
+              V<Tagged> parent = __ template LoadField<Tagged>(
+                  receiver, AccessBuilder::ForSlicedStringParent());
+              GOTO(loop, parent,
+                   __ WordPtrAdd(position,
+                                 __ ChangeInt32ToIntPtr(__ SmiUntag(offset))));
+            }
+            ELSE { GOTO(runtime); }
+            END_IF
+          }
+        }
+        END_IF
+
+        if (BIND(runtime)) {
+          V<Word32> value = __ SmiUntag(__ CallRuntime_StringCharCodeAt(
+              isolate_, string, __ SmiTag(position)));
+          GOTO(done, value);
+        }
+      }
+
+      BIND(done, result);
+      return result;
+    } else {
+      DCHECK_EQ(kind, StringAtOp::Kind::kCodePoint);
+      Label<Word32> done(this);
+
+      V<Word32> first_code_unit = __ StringCharCodeAt(string, pos);
+      GOTO_IF_NOT_LIKELY(
+          __ Word32Equal(__ Word32BitwiseAnd(first_code_unit, 0xFC00), 0xD800),
+          done, first_code_unit);
+      V<WordPtr> length =
+          __ ChangeUint32ToUintPtr(__ template LoadField<WordPtr>(
+              string, AccessBuilder::ForStringLength()));
+      V<WordPtr> next_index = __ WordPtrAdd(pos, 1);
+      GOTO_IF_NOT(__ IntPtrLessThan(next_index, length), done, first_code_unit);
+
+      V<Word32> second_code_unit = __ StringCharCodeAt(string, next_index);
+      GOTO_IF_NOT(
+          __ Word32Equal(__ Word32BitwiseAnd(second_code_unit, 0xFC00), 0xDC00),
+          done, first_code_unit);
+
+      const int32_t surrogate_offset = 0x10000 - (0xD800 << 10) - 0xDC00;
+      V<Word32> value =
+          __ Word32Add(__ Word32ShiftLeft(first_code_unit, 10),
+                       __ Word32Add(second_code_unit, surrogate_offset));
+      GOTO(done, value);
+
+      BIND(done, result);
+      return result;
+    }
+
+    UNREACHABLE();
+  }
+
+  V<Word32> ReduceStringLength(V<Tagged> string) {
+    return __ template LoadField<Word32>(string,
+                                         AccessBuilder::ForStringLength());
+  }
+
+  V<Tagged> ReduceStringIndexOf(V<Tagged> string, V<Tagged> search,
+                                V<Tagged> position) {
+    return __ CallBuiltin_StringIndexOf(isolate_, string, search, position);
+  }
+
+  V<Tagged> ReduceStringFromCodePointAt(V<Tagged> string, V<WordPtr> index) {
+    return __ CallBuiltin_StringFromCodePointAt(isolate_, string, index);
+  }
+
+#ifdef V8_INTL_SUPPORT
+  OpIndex ReduceStringToCaseIntl(V<Tagged> string,
+                                 StringToCaseIntlOp::Kind kind) {
+    if (kind == StringToCaseIntlOp::Kind::kLower) {
+      return __ CallBuiltin_StringToLowerCaseIntl(isolate_, string);
+    } else {
+      DCHECK_EQ(kind, StringToCaseIntlOp::Kind::kUpper);
+      return __ CallRuntime_StringToUpperCaseIntl(isolate_, string);
+    }
+  }
+#endif  // V8_INTL_SUPPORT
+
+  OpIndex ReduceStringSubstring(V<Tagged> string, V<Word32> start,
+                                V<Word32> end) {
+    V<WordPtr> s = __ ChangeInt32ToIntPtr(start);
+    V<WordPtr> e = __ ChangeInt32ToIntPtr(end);
+    return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
@@ -1291,27 +1457,6 @@ class MachineLoweringReducer : public Next {
  private:
   // TODO(nicohartmann@): Might move some of those helpers into the assembler
   // interface.
-  V<Tagged> NoContextConstant() { return __ SmiTag(Context::kNoContext); }
-
-  V<Tagged> CEntryStubConstant(int result_size,
-                               ArgvMode argv_mode = ArgvMode::kStack,
-                               bool builtin_exit_frame = false) {
-    if (argv_mode == ArgvMode::kStack) {
-      return __ HeapConstant(CodeFactory::CEntry(
-          isolate_, result_size, argv_mode, builtin_exit_frame));
-    }
-
-    DCHECK(result_size >= 1 && result_size <= 3);
-    DCHECK_IMPLIES(builtin_exit_frame, result_size == 1);
-    const int index = builtin_exit_frame ? 0 : result_size;
-    if (!cached_centry_stub_constants_[index].valid()) {
-      cached_centry_stub_constants_[index] =
-          __ HeapConstant(CodeFactory::CEntry(isolate_, result_size, argv_mode,
-                                              builtin_exit_frame));
-    }
-    return cached_centry_stub_constants_[index];
-  }
-
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical
   // 0n BigInt.
   V<Tagged> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
@@ -1419,21 +1564,42 @@ class MachineLoweringReducer : public Next {
                                           AccessBuilder::ForHeapNumberValue());
   }
 
+  OpIndex LoadFromSeqString(V<Tagged> receiver, V<WordPtr> position,
+                            V<Word32> onebyte) {
+    Label<Word32> done(this);
+
+    IF(onebyte) {
+      GOTO(done, __ template LoadElement<Word32>(
+                     receiver, AccessBuilder::ForSeqOneByteStringCharacter(),
+                     position));
+    }
+    ELSE {
+      GOTO(done, __ template LoadElement<Word32>(
+                     receiver, AccessBuilder::ForSeqTwoByteStringCharacter(),
+                     position));
+    }
+    END_IF
+
+    BIND(done, result);
+    return result;
+  }
+
+  // TODO(nicohartmann@): Might use the CallBuiltinDescriptors here.
   OpIndex CallBuiltinForBigIntOp(Builtin builtin,
                                  std::initializer_list<OpIndex> arguments) {
     DCHECK_IMPLIES(builtin == Builtin::kBigIntUnaryMinus,
                    arguments.size() == 1);
     DCHECK_IMPLIES(builtin != Builtin::kBigIntUnaryMinus,
                    arguments.size() == 2);
-    const Callable callable = Builtins::CallableFor(isolate_, builtin);
+    base::SmallVector<OpIndex, 4> args(arguments);
+    args.push_back(__ NoContextConstant());
+
+    Callable callable = Builtins::CallableFor(isolate_, builtin);
     auto descriptor = Linkage::GetStubCallDescriptor(
-        Asm().graph_zone(), callable.descriptor(),
+        __ graph_zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kFoldable | Operator::kNoThrow);
-    auto ts_descriptor =
-        TSCallDescriptor::Create(descriptor, Asm().graph_zone());
-    base::SmallVector<OpIndex, 3> args(arguments);
-    args.push_back(NoContextConstant());
+    auto ts_descriptor = TSCallDescriptor::Create(descriptor, __ graph_zone());
     return __ Call(__ HeapConstant(callable.code()), OpIndex::Invalid(),
                    base::VectorOf(args), ts_descriptor);
   }
@@ -1465,8 +1631,6 @@ class MachineLoweringReducer : public Next {
 
   Factory* factory_;
   Isolate* isolate_;
-  // [0] contains the stub with exit frame.
-  V<Tagged> cached_centry_stub_constants_[4];
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
