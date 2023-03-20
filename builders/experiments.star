@@ -91,6 +91,37 @@ in_category(
 )
 
 in_category(
+    "Coverage",
+    experiment_builder(
+        name = "V8 Linux64 - coverage",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {
+            "enable_swarming": False,
+            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
+            "coverage": "llvm",
+        },
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        notify_owners = ["machenbach@chromium.org"],
+    ),
+    experiment_builder(
+        name = "V8 Linux64 - coverage - debug",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {
+            "enable_swarming": False,
+            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
+            "coverage": "llvm",
+        },
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        execution_timeout = 7200,
+        notify_owners = ["machenbach@chromium.org"],
+    ),
+)
+
+in_category(
     "FYI",
     experiment_builder(
         name = "V8 Linux64 - debug - fyi",
@@ -130,37 +161,6 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
-    ),
-    experiment_builder(
-        name = "V8 Linux64 - coverage",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {
-            "enable_swarming": False,
-            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
-            "coverage": "llvm",
-        },
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["machenbach@chromium.org"],
-        # https://crbug.com/1265931
-        work_in_progress = True,
-    ),
-    experiment_builder(
-        name = "V8 Linux64 - coverage - debug",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {
-            "enable_swarming": False,
-            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
-            "coverage": "llvm",
-        },
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-        execution_timeout = 7200,
-        notify_owners = ["machenbach@chromium.org"],
-        # https://crbug.com/1265931
-        work_in_progress = True,
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - predictable",
