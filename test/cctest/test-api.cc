@@ -16671,10 +16671,12 @@ TEST(TestIdleNotification) {
           i::Heap::kReduceMemoryFootprintMask,
           i::GarbageCollectionReason::kTesting);
     }
+    START_ALLOW_USE_DEPRECATED();
     finished = env->GetIsolate()->IdleNotificationDeadline(
         (v8::base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
+    END_ALLOW_USE_DEPRECATED();
     if (CcTest::heap()->sweeping_in_progress()) {
       CcTest::heap()->EnsureSweepingCompleted(
           i::Heap::SweepingForcedFinalizationMode::kV8Only);

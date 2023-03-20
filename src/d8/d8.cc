@@ -1944,7 +1944,6 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
   isolate->ContextDisposedNotification();
-  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
 }
 
 // Realm.create() creates a new realm with a distinct security token
@@ -5102,10 +5101,7 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
 }
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
-    const double kLongIdlePauseInSeconds = 1.0;
     isolate->ContextDisposedNotification();
-    isolate->IdleNotificationDeadline(
-        g_platform->MonotonicallyIncreasingTime() + kLongIdlePauseInSeconds);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all

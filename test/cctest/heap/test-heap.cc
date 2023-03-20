@@ -2705,10 +2705,12 @@ TEST(IdleNotificationFinishMarking) {
 
   // The next idle notification has to finish incremental marking.
   const double kLongIdleTime = 1000.0;
+  START_ALLOW_USE_DEPRECATED();
   CcTest::isolate()->IdleNotificationDeadline(
       (v8::base::TimeTicks::Now().ToInternalValue() /
        static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
       kLongIdleTime);
+  END_ALLOW_USE_DEPRECATED();
   CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count + 1);
 }
 

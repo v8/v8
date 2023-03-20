@@ -1123,9 +1123,8 @@ class V8_EXPORT Isolate {
    *
    * This should only be used for testing purposes and not to enforce a garbage
    * collection schedule. It has strong negative impact on the garbage
-   * collection performance. Use IdleNotificationDeadline() or
-   * LowMemoryNotification() instead to influence the garbage collection
-   * schedule.
+   * collection performance. Use MemoryPressureNotification() instead to
+   * influence the garbage collection schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
@@ -1136,9 +1135,8 @@ class V8_EXPORT Isolate {
    *
    * This should only be used for testing purposes and not to enforce a garbage
    * collection schedule. It has strong negative impact on the garbage
-   * collection performance. Use IdleNotificationDeadline() or
-   * LowMemoryNotification() instead to influence the garbage collection
-   * schedule.
+   * collection performance. Use MemoryPressureNotification() instead to
+   * influence the garbage collection schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type,
                                           StackState stack_state);
@@ -1290,6 +1288,8 @@ class V8_EXPORT Isolate {
    * that function. There is no guarantee that the actual work will be done
    * within the time limit.
    */
+  V8_DEPRECATE_SOON(
+      "Use MemoryPressureNotification() to influence the GC schedule.")
   bool IdleNotificationDeadline(double deadline_in_seconds);
 
   /**
