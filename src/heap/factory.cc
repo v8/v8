@@ -1634,7 +1634,6 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   auto result = WasmApiFunctionRef::cast(AllocateRawWithImmortalMap(
       map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result.set_isolate_root(isolate()->isolate_root());
   result.set_native_context(*isolate()->native_context());
   if (!callable.is_null()) {
     result.set_callable(*callable);

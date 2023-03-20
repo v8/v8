@@ -18,7 +18,6 @@ extern class WasmInstanceObject extends JSObject;
 // a sandboxed pointer, because that would require having access to the isolate
 // root in the first place.
 extern class WasmApiFunctionRef extends HeapObject {
-  isolate_root: RawPtr;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
   // Present when compiling JSFastApiCall wrappers, needed
