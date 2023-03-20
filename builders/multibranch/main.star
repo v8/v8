@@ -141,7 +141,6 @@ in_category(
         properties = {"default_targets": ["v8_gcc_light"]},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
-        first_branch_version = "10.5",
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
@@ -154,14 +153,20 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "10.8",
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - debug - single generation",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "10.8",
+    ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - verify deterministic",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "11.3",
     ),
 )
 

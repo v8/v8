@@ -172,18 +172,6 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
-    experiment_builder(
-        name = "V8 Linux64 - verify deterministic",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {
-            "builder_group": "client.v8",
-            "default_targets": ["verify_deterministic_mksnapshot"],
-        },
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-    ),
 )
 
 in_category(
