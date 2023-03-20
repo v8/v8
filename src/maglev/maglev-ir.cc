@@ -381,6 +381,7 @@ void CheckValueInputIs(const NodeBase* node, int i,
                        ValueRepresentation expected,
                        MaglevGraphLabeller* graph_labeller) {
   ValueNode* input = node->input(i).node();
+  DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
   if (got != expected) {
     std::ostringstream str;
@@ -413,6 +414,7 @@ void CheckValueInputIs(const NodeBase* node, int i, Opcode expected,
 void CheckValueInputIsWord32(const NodeBase* node, int i,
                              MaglevGraphLabeller* graph_labeller) {
   ValueNode* input = node->input(i).node();
+  DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
   if (got != ValueRepresentation::kInt32 &&
       got != ValueRepresentation::kUint32) {
