@@ -3647,6 +3647,13 @@ void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
 
   ZoneLabelRef done(masm);
 
+  // TODO(leszeks): We could consider just deopting straight away if the object
+  // is a Smi, but it's also fine to not deopt since there will be another Smi
+  // check in the map check after this transition. This second Smi check could
+  // be elided if we deopted here, but OTOH then we'd need extra deopt info for
+  // this node.
+  __ JumpIfSmi(object, *done, Label::kNear);
+
   Register map = temps.Acquire();
   __ LoadMap(map, object);
 
