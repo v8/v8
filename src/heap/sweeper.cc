@@ -105,10 +105,9 @@ class Sweeper::SweeperJob final : public JobTask {
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers_.size());
     ConcurrentSweeper& concurrent_sweeper = concurrent_sweepers_[offset];
-    int first_space_to_sweep = offset % kNumberOfSweepingSpaces;
-    if (first_space_to_sweep > 0) {
+    if (offset > 0) {
       if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread,
-                             first_space_to_sweep, kNumberOfSweepingSpaces))
+                             offset, kNumberOfSweepingSpaces))
         return;
     }
     {
@@ -119,8 +118,7 @@ class Sweeper::SweeperJob final : public JobTask {
       if (!concurrent_sweeper.ConcurrentSweepForRememberedSet(delegate)) return;
     }
     if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread, 1,
-                           first_space_to_sweep == 0 ? kNumberOfSweepingSpaces
-                                                     : first_space_to_sweep))
+                           offset == 0 ? kNumberOfSweepingSpaces : offset))
       return;
   }
 
