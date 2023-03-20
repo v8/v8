@@ -33,7 +33,7 @@ struct RuntimeCallDescriptor {
         DCHECK_EQ(desc->ReturnCount(), 0);
       } else {
         DCHECK_EQ(desc->ReturnCount(), 1);
-        DCHECK(result_t::rep_type::allows_representation(
+        DCHECK(result_t::allows_representation(
             RegisterRepresentation::FromMachineRepresentation(
                 desc->GetReturnType(0).representation())));
       }
@@ -56,10 +56,9 @@ struct RuntimeCallDescriptor {
     template <typename Arguments, size_t... Indices>
     static bool VerifyArgumentsImpl(const CallDescriptor* desc,
                                     std::index_sequence<Indices...>) {
-      return (std::tuple_element_t<Indices, Arguments>::rep_type::
-                  allows_representation(
-                      RegisterRepresentation::FromMachineRepresentation(
-                          desc->GetParameterType(Indices).representation())) &&
+      return (std::tuple_element_t<Indices, Arguments>::allows_representation(
+                  RegisterRepresentation::FromMachineRepresentation(
+                      desc->GetParameterType(Indices).representation())) &&
               ...);
     }
 #endif  // DEBUG
@@ -68,8 +67,8 @@ struct RuntimeCallDescriptor {
  public:
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto Function = Runtime::kStringCharCodeAt;
-    using arguments_t = std::tuple<V<Tagged>, V<Tagged>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>, V<Number>>;
+    using result_t = V<Smi>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
@@ -80,8 +79,8 @@ struct RuntimeCallDescriptor {
 #ifdef V8_INTL_SUPPORT
   struct StringToUpperCaseIntl : public Descriptor<StringToUpperCaseIntl> {
     static constexpr auto Function = Runtime::kStringToUpperCaseIntl;
-    using arguments_t = std::tuple<V<Tagged>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>>;
+    using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
@@ -93,7 +92,7 @@ struct RuntimeCallDescriptor {
   struct TerminateExecution : public Descriptor<TerminateExecution> {
     static constexpr auto Function = Runtime::kTerminateExecution;
     using arguments_t = std::tuple<>;
-    using result_t = V<Tagged>;
+    using result_t = V<Object>;
 
     static constexpr bool NeedsFrameState = true;
     static constexpr bool NeedsContext = false;

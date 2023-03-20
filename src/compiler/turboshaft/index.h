@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
 
@@ -75,54 +76,188 @@ class OpIndex {
 
 std::ostream& operator<<(std::ostream& os, OpIndex idx);
 
-// V<> represents an SSA-value that is parameterized with the values
-// representation (see `representations.h` for the different classes to pass as
-// the `Rep` argument). Prefer using V<> instead of a plain OpIndex where
-// possible.
-template <typename Rep>
-class V : public OpIndex {
-  static_assert(std::is_base_of_v<Any, Rep>,
-                "V<> requires a representation tag");
+// Dummy value for abstract representation classes that don't have a
+// RegisterRepresentation.
+struct nullrep_t {};
+constexpr nullrep_t nullrep;
 
- public:
-  using rep_type = Rep;
-  constexpr V() : OpIndex() {}
+// Abstract tag classes for V<>.
+struct Any {};
 
-  // V<Rep> is implicitly constructible from plain OpIndex.
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
-  V(T index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
-
-  // V<Rep> is implicitly constructible from V<R> iff R == Rep or R is a
-  // subclass of Rep.
-  template <typename R, typename = std::enable_if_t<std::is_base_of_v<Rep, R>>>
-  V(V<R> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
-
-  template <typename R>
-  static V<Rep> Cast(V<R> index) {
-    return V<Rep>(OpIndex{index});
-  }
+template <size_t Bits>
+struct WordWithBits : public Any {
+  static constexpr int bits = Bits;
+  static_assert(Bits == 32 || Bits == 64);
 };
 
-// V<Word32> is a specialization of V<> for Word32 representation in order to
-// allow implicit conversion from V<Word64>, which is valid in Turboshaft.
+using Word32 = WordWithBits<32>;
+using Word64 = WordWithBits<64>;
+using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
+
+template <size_t Bits>
+struct FloatWithBits : public Any {  // FloatAny {
+  static constexpr int bits = Bits;
+  static_assert(Bits == 32 || Bits == 64);
+};
+
+using Float32 = FloatWithBits<32>;
+using Float64 = FloatWithBits<64>;
+
+// TODO(nicohartmann@): Replace all uses of `V<Tagged>` by `V<Object>`.
+using Tagged = Object;
+
+struct Compressed : public Any {};
+
+// Traits classes `v_traits<T>` to provide additional T-specific information for
+// V<T> and ConstOrV<T>. If you need to provide non-default conversion behavior
+// for a specific type, specialize the corresponding v_traits<>.
+template <typename T, typename = void>
+struct v_traits;
+
 template <>
-class V<Word32> : public OpIndex {
+struct v_traits<Any> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr auto rep = nullrep;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return true;
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_same_v<U, Any>> {};
+};
+
+template <>
+struct v_traits<Compressed> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr auto rep = nullrep;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Compressed();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Compressed>> {};
+};
+
+template <>
+struct v_traits<Word32> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr WordRepresentation rep = WordRepresentation::Word32();
+  using constexpr_type = uint32_t;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Word32();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Word32>> {};
+};
+
+template <>
+struct v_traits<Word64> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr WordRepresentation rep = WordRepresentation::Word64();
+  using constexpr_type = uint64_t;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Word64();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Word64> ||
+                           std::is_same_v<U, Word32>> {};
+};
+
+template <>
+struct v_traits<Float32> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr FloatRepresentation rep = FloatRepresentation::Float32();
+  using constexpr_type = float;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Float32();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Float32>> {};
+};
+
+template <>
+struct v_traits<Float64> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr FloatRepresentation rep = FloatRepresentation::Float64();
+  using constexpr_type = double;
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Float64();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Float64>> {};
+};
+
+template <typename T>
+struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
+  static constexpr bool is_abstract_tag = false;
+  static constexpr auto rep = RegisterRepresentation::Tagged();
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Tagged();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, T> || std::is_same_v<U, Any> ||
+                           is_subtype<T, U>::value> {};
+};
+
+template <typename T1, typename T2>
+struct v_traits<UnionT<T1, T2>,
+                typename std::enable_if_t<std::is_base_of_v<Object, T1> &&
+                                          std::is_base_of_v<Object, T2>>> {
+  static constexpr bool is_abstract_tag = false;
+  static constexpr auto rep = RegisterRepresentation::Tagged();
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Tagged();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<
+            (std::is_base_of_v<U, T1> && std::is_base_of_v<U, T2>) ||
+            std::is_same_v<U, Any> || is_subtype<UnionT<T1, T2>, U>::value> {};
+};
+
+// V<> represents an SSA-value that is parameterized with the type of the value.
+// Types from the `Object` hierarchy can be provided as well as the abstract
+// representation classes (`Word32`, ...) defined above.
+// Prefer using V<> instead of a plain OpIndex where possible.
+template <typename T>
+class V : public OpIndex {
  public:
-  using rep_type = Word32;
+  using type = T;
+  static constexpr auto rep = v_traits<type>::rep;
   constexpr V() : OpIndex() {}
 
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
-  V(T index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+  // V<T> is implicitly constructible from plain OpIndex.
+  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  V(U index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 
-  template <typename R,
-            typename = std::enable_if_t<std::is_base_of_v<Word32, R>>>
-  V(V<R> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+  // V<T> is implicitly constructible from V<U> iff
+  // `v_traits<U>::implicitly_convertible_to<T>::value`. This is typically the
+  // case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U, typename = std::enable_if_t<v_traits<
+                            U>::template implicitly_convertible_to<T>::value>>
+  V(V<U> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 
-  V(V<Word64> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+  template <typename U>
+  static V<T> Cast(V<U> index) {
+    return V<T>(OpIndex{index});
+  }
 
-  template <typename R>
-  static V<Word32> Cast(V<R> index) {
-    return V<Word32>(OpIndex{index});
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return v_traits<T>::allows_representation(rep);
   }
 };
 
@@ -140,30 +275,27 @@ class V<Word32> : public OpIndex {
 // call `resolve` on the assembler in order to convert to V<> (which will then
 // construct the corresponding ConstantOp if the given ConstOrV<> holds a
 // constexpr value).
-// NOTICE: ConstOrV<Rep> can only be used for `Rep`s that provide a
+// NOTICE: `ConstOrV<T>` can only be used if `v_traits<T>` provides a
 // `constexpr_type`.
-template <typename Rep, typename C = typename Rep::constexpr_type>
+template <typename T, typename C = typename v_traits<T>::constexpr_type>
 class ConstOrV {
-  static_assert(std::is_base_of_v<Any, Rep>,
-                "ConstOrV<> requires a representation tag");
-
  public:
-  using rep_type = Rep;
+  using type = T;
   using constant_type = C;
 
   ConstOrV(constant_type value)  // NOLINT(runtime/explicit)
       : constant_value_(value), value_() {}
 
-  // ConstOrV<Rep> is implicitly constructible from plain OpIndex.
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
-  ConstOrV(T index)  // NOLINT(runtime/explicit)
+  // ConstOrV<T> is implicitly constructible from plain OpIndex.
+  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  ConstOrV(U index)  // NOLINT(runtime/explicit)
       : constant_value_(), value_(index) {}
 
-  // ConstOrV<Rep> is implicitly constructible from V<R> iff V<Rep> is
-  // constructible from V<R>.
-  template <typename R,
-            typename = std::enable_if_t<std::is_constructible_v<V<Rep>, V<R>>>>
-  ConstOrV(V<R> index)  // NOLINT(runtime/explicit)
+  // ConstOrV<T> is implicitly constructible from V<U> iff V<T> is
+  // constructible from V<U>.
+  template <typename U,
+            typename = std::enable_if_t<std::is_constructible_v<V<T>, V<U>>>>
+  ConstOrV(V<U> index)  // NOLINT(runtime/explicit)
       : constant_value_(), value_(index) {}
 
   bool is_constant() const { return constant_value_.has_value(); }
@@ -171,14 +303,14 @@ class ConstOrV {
     DCHECK(is_constant());
     return *constant_value_;
   }
-  V<Rep> value() const {
+  V<type> value() const {
     DCHECK(!is_constant());
     return value_;
   }
 
  private:
   base::Optional<constant_type> constant_value_;
-  V<Rep> value_;
+  V<type> value_;
 };
 
 template <>

@@ -717,12 +717,12 @@ OpIndex GraphBuilder::Process(
                            NotABigInt64, CheckParametersOf(op).feedback())
 #undef CHECK_OBJECT_IS_CASE
 
-#define CONVERT_TO_OBJECT_CASE(name, kind, input_rep, input_interpretation) \
-  case IrOpcode::k##name:                                                   \
-    return __ ConvertToObject(                                              \
-        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,            \
-        input_rep::Rep,                                                     \
-        ConvertToObjectOp::InputInterpretation::k##input_interpretation,    \
+#define CONVERT_TO_OBJECT_CASE(name, kind, input_type, input_interpretation) \
+  case IrOpcode::k##name:                                                    \
+    return __ ConvertToObject(                                               \
+        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,             \
+        V<input_type>::rep,                                                  \
+        ConvertToObjectOp::InputInterpretation::k##input_interpretation,     \
         CheckForMinusZeroMode::kDontCheckForMinusZero);
       CONVERT_TO_OBJECT_CASE(ChangeInt32ToTagged, Number, Word32, Signed)
       CONVERT_TO_OBJECT_CASE(ChangeUint32ToTagged, Number, Word32, Unsigned)
@@ -746,17 +746,17 @@ OpIndex GraphBuilder::Process(
                                 CheckMinusZeroModeOf(node->op()));
 #undef CONVERT_TO_OBJECT_CASE
 
-#define CONVERT_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_rep,     \
-                                        input_interpretation)      \
-  case IrOpcode::k##name: {                                        \
-    DCHECK(dominating_frame_state.valid());                        \
-    const CheckParameters& params = CheckParametersOf(node->op()); \
-    return __ ConvertToObjectOrDeopt(                              \
-        Map(node->InputAt(0)), dominating_frame_state,             \
-        ConvertToObjectOrDeoptOp::Kind::k##kind, input_rep::Rep,   \
-        ConvertToObjectOrDeoptOp::InputInterpretation::            \
-            k##input_interpretation,                               \
-        params.feedback());                                        \
+#define CONVERT_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_type,      \
+                                        input_interpretation)        \
+  case IrOpcode::k##name: {                                          \
+    DCHECK(dominating_frame_state.valid());                          \
+    const CheckParameters& params = CheckParametersOf(node->op());   \
+    return __ ConvertToObjectOrDeopt(                                \
+        Map(node->InputAt(0)), dominating_frame_state,               \
+        ConvertToObjectOrDeoptOp::Kind::k##kind, V<input_type>::rep, \
+        ConvertToObjectOrDeoptOp::InputInterpretation::              \
+            k##input_interpretation,                                 \
+        params.feedback());                                          \
   }
       CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned, Smi, Word32,
                                       Signed)

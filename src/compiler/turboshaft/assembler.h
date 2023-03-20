@@ -31,6 +31,7 @@
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/objects/heap-number.h"
 
 namespace v8::internal {
 enum class Builtin : int32_t;
@@ -39,32 +40,32 @@ enum class Builtin : int32_t;
 namespace v8::internal::compiler::turboshaft {
 
 namespace detail {
-template <typename Rep, typename = void>
+template <typename T, typename = void>
 struct has_constexpr_type : std::false_type {};
 
-template <typename Rep>
-struct has_constexpr_type<Rep, std::void_t<typename Rep::constexpr_type>>
+template <typename T>
+struct has_constexpr_type<T, std::void_t<typename v_traits<T>::constexpr_type>>
     : std::true_type {};
 
-template <typename Rep, typename...>
+template <typename T, typename...>
 struct make_const_or_v {
-  using type = V<Rep>;
+  using type = V<T>;
 };
 
-template <typename Rep>
+template <typename T>
 struct make_const_or_v<
-    Rep, typename std::enable_if_t<has_constexpr_type<Rep>::value>> {
-  using type = ConstOrV<Rep>;
+    T, typename std::enable_if_t<has_constexpr_type<T>::value>> {
+  using type = ConstOrV<T>;
 };
 
-template <typename Rep>
+template <typename T>
 struct make_const_or_v<
-    Rep, typename std::enable_if_t<!has_constexpr_type<Rep>::value>> {
-  using type = V<Rep>;
+    T, typename std::enable_if_t<!has_constexpr_type<T>::value>> {
+  using type = V<T>;
 };
 
-template <typename Rep>
-using make_const_or_v_t = typename make_const_or_v<Rep, void>::type;
+template <typename T>
+using make_const_or_v_t = typename make_const_or_v<T, void>::type;
 
 template <typename A, typename ConstOrValues>
 auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
@@ -76,16 +77,16 @@ auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
 inline bool SuppressUnusedWarning(bool b) { return b; }
 }  // namespace detail
 
-template <bool loop, typename... Reps>
+template <bool loop, typename... Ts>
 class LabelBase {
  protected:
-  static constexpr size_t size = sizeof...(Reps);
+  static constexpr size_t size = sizeof...(Ts);
 
  public:
   static constexpr bool is_loop = loop;
-  using values_t = std::tuple<V<Reps>...>;
-  using const_or_values_t = std::tuple<detail::make_const_or_v_t<Reps>...>;
-  using recorded_values_t = std::tuple<base::SmallVector<V<Reps>, 2>...>;
+  using values_t = std::tuple<V<Ts>...>;
+  using const_or_values_t = std::tuple<detail::make_const_or_v_t<Ts>...>;
+  using recorded_values_t = std::tuple<base::SmallVector<V<Ts>, 2>...>;
 
   Block* block() { return data_.block; }
 
@@ -192,18 +193,18 @@ class LabelBase {
   BlockData data_;
 };
 
-template <typename... Reps>
-class Label : public LabelBase<false, Reps...> {
-  using super = LabelBase<false, Reps...>;
+template <typename... Ts>
+class Label : public LabelBase<false, Ts...> {
+  using super = LabelBase<false, Ts...>;
 
  public:
   template <typename Reducer>
   explicit Label(Reducer* reducer) : super(reducer->Asm().NewBlock()) {}
 };
 
-template <typename... Reps>
-class LoopLabel : public LabelBase<true, Reps...> {
-  using super = LabelBase<true, Reps...>;
+template <typename... Ts>
+class LoopLabel : public LabelBase<true, Ts...> {
+  using super = LabelBase<true, Ts...>;
   using BlockData = typename super::BlockData;
 
  public:
@@ -584,13 +585,14 @@ class AssemblerOpInterface {
     return stack().Reduce##operation(left, right,                        \
                                      operation##Op::Kind::k##kind, rep); \
   }
-#define DECL_SINGLE_REP_BINOP_V(name, operation, kind, tag)                   \
-  V<tag> name(ConstOrV<tag> left, ConstOrV<tag> right) {                      \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {           \
-      return OpIndex::Invalid();                                              \
-    }                                                                         \
-    return stack().Reduce##operation(resolve(left), resolve(right),           \
-                                     operation##Op::Kind::k##kind, tag::Rep); \
+#define DECL_SINGLE_REP_BINOP_V(name, operation, kind, tag)         \
+  V<tag> name(ConstOrV<tag> left, ConstOrV<tag> right) {            \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().Reduce##operation(resolve(left), resolve(right), \
+                                     operation##Op::Kind::k##kind,  \
+                                     V<tag>::rep);                  \
   }
 #define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep)         \
   OpIndex name(OpIndex left, OpIndex right) {                       \
@@ -780,12 +782,13 @@ class AssemblerOpInterface {
     return stack().ReduceEqual(left, right, rep);
   }
 
-#define DECL_SINGLE_REP_EQUAL_V(name, operation, tag)                          \
-  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {                    \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {            \
-      return OpIndex::Invalid();                                               \
-    }                                                                          \
-    return stack().Reduce##operation(resolve(left), resolve(right), tag::Rep); \
+#define DECL_SINGLE_REP_EQUAL_V(name, operation, tag)               \
+  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {         \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().Reduce##operation(resolve(left), resolve(right), \
+                                     V<tag>::rep);                  \
   }
   DECL_SINGLE_REP_EQUAL_V(Word32Equal, Equal, Word32)
   DECL_SINGLE_REP_EQUAL_V(Word64Equal, Equal, Word64)
@@ -797,13 +800,14 @@ class AssemblerOpInterface {
   DECL_SINGLE_REP_BINOP_NO_KIND(TaggedEqual, Equal,
                                 RegisterRepresentation::Tagged())
 
-#define DECL_SINGLE_REP_COMPARISON_V(name, operation, kind, tag)              \
-  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {                   \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {           \
-      return OpIndex::Invalid();                                              \
-    }                                                                         \
-    return stack().Reduce##operation(resolve(left), resolve(right),           \
-                                     operation##Op::Kind::k##kind, tag::Rep); \
+#define DECL_SINGLE_REP_COMPARISON_V(name, operation, kind, tag)    \
+  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {         \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().Reduce##operation(resolve(left), resolve(right), \
+                                     operation##Op::Kind::k##kind,  \
+                                     V<tag>::rep);                  \
   }
 
   DECL_MULTI_REP_BINOP(IntLessThan, Comparison, RegisterRepresentation,
@@ -874,13 +878,13 @@ class AssemblerOpInterface {
     return stack().Reduce##operation(input, operation##Op::Kind::k##kind, \
                                      rep);                                \
   }
-#define DECL_SINGLE_REP_UNARY_V(name, operation, kind, tag)                   \
-  V<tag> name(ConstOrV<tag> input) {                                          \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {           \
-      return OpIndex::Invalid();                                              \
-    }                                                                         \
-    return stack().Reduce##operation(resolve(input),                          \
-                                     operation##Op::Kind::k##kind, tag::Rep); \
+#define DECL_SINGLE_REP_UNARY_V(name, operation, kind, tag)         \
+  V<tag> name(ConstOrV<tag> input) {                                \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
+      return OpIndex::Invalid();                                    \
+    }                                                               \
+    return stack().Reduce##operation(                               \
+        resolve(input), operation##Op::Kind::k##kind, V<tag>::rep); \
   }
 
   DECL_MULTI_REP_UNARY(FloatAbs, FloatUnary, FloatRepresentation, Abs)
@@ -1056,22 +1060,22 @@ class AssemblerOpInterface {
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
   }
 
-  OpIndex Word32Constant(uint32_t value) {
+  V<Word32> Word32Constant(uint32_t value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceConstant(ConstantOp::Kind::kWord32, uint64_t{value});
   }
-  OpIndex Word32Constant(int32_t value) {
+  V<Word32> Word32Constant(int32_t value) {
     return Word32Constant(static_cast<uint32_t>(value));
   }
-  OpIndex Word64Constant(uint64_t value) {
+  V<Word64> Word64Constant(uint64_t value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceConstant(ConstantOp::Kind::kWord64, value);
   }
-  OpIndex Word64Constant(int64_t value) {
+  V<Word64> Word64Constant(int64_t value) {
     return Word64Constant(static_cast<uint64_t>(value));
   }
   OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
@@ -1184,14 +1188,14 @@ class AssemblerOpInterface {
         input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
         RegisterRepresentation::from(), RegisterRepresentation::to()); \
   }
-#define DECL_CHANGE_V(name, kind, assumption, from, to)                      \
-  V<to> name(ConstOrV<from> input) {                                         \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {          \
-      return OpIndex::Invalid();                                             \
-    }                                                                        \
-    return stack().ReduceChange(resolve(input), ChangeOp::Kind::kind,        \
-                                ChangeOp::Assumption::assumption, from::Rep, \
-                                to::Rep);                                    \
+#define DECL_CHANGE_V(name, kind, assumption, from, to)               \
+  V<to> name(ConstOrV<from> input) {                                  \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {   \
+      return OpIndex::Invalid();                                      \
+    }                                                                 \
+    return stack().ReduceChange(resolve(input), ChangeOp::Kind::kind, \
+                                ChangeOp::Assumption::assumption,     \
+                                V<from>::rep, V<to>::rep);            \
   }
 #define DECL_TRY_CHANGE(name, kind, from, to)                       \
   OpIndex name(OpIndex input) {                                     \
@@ -1245,7 +1249,7 @@ class AssemblerOpInterface {
     if constexpr (Is64()) {
       return ChangeInt32ToInt64(input);
     } else {
-      DCHECK_EQ(WordPtr::Rep, Word32::Rep);
+      DCHECK_EQ(WordPtr::bits, Word32::bits);
       return V<WordPtr>::Cast(input);
     }
   }
@@ -1253,7 +1257,7 @@ class AssemblerOpInterface {
     if constexpr (Is64()) {
       return ChangeUint32ToUint64(input);
     } else {
-      DCHECK_EQ(WordPtr::Rep, Word32::Rep);
+      DCHECK_EQ(WordPtr::bits, Word32::bits);
       return V<WordPtr>::Cast(input);
     }
   }
@@ -1340,7 +1344,7 @@ class AssemblerOpInterface {
     }
     return stack().ReduceTag(input, kind);
   }
-  V<Tagged> SmiTag(ConstOrV<Word32> input) {
+  V<Smi> SmiTag(ConstOrV<Word32> input) {
     return Tag(resolve(input), TagKind::kSmiTag);
   }
 
@@ -1695,25 +1699,25 @@ class AssemblerOpInterface {
     }
   }
 
-  V<Tagged> CallBuiltin_StringIndexOf(Isolate* isolate, V<Tagged> string,
-                                      V<Tagged> search, V<Tagged> position) {
+  V<Smi> CallBuiltin_StringIndexOf(Isolate* isolate, V<String> string,
+                                   V<String> search, V<Smi> position) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringIndexOf>(
         isolate, {string, search, position});
   }
-  V<Tagged> CallBuiltin_StringFromCodePointAt(Isolate* isolate,
-                                              V<Tagged> string,
+  V<String> CallBuiltin_StringFromCodePointAt(Isolate* isolate,
+                                              V<String> string,
                                               V<WordPtr> index) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringFromCodePointAt>(
         isolate, {string, index});
   }
 #ifdef V8_INTL_SUPPORT
-  V<Tagged> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
-                                              V<Tagged> string) {
+  V<String> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
+                                              V<String> string) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringToLowerCaseIntl>(
         isolate, {string});
   }
 #endif  // V8_INTL_SUPPORT
-  V<Tagged> CallBuiltin_StringSubstring(Isolate* isolate, V<Tagged> string,
+  V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
                                         V<WordPtr> start, V<WordPtr> end) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringSubstring>(
         isolate, {string, start, end});
@@ -1791,14 +1795,14 @@ class AssemblerOpInterface {
     }
   }
 
-  V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Tagged> string,
-                                         V<Tagged> index) {
+  V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<String> string,
+                                         V<Number> index) {
     return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
         isolate, {string, index});
   }
 #ifdef V8_INTL_SUPPORT
-  V<Tagged> CallRuntime_StringToUpperCaseIntl(Isolate* isolate,
-                                              V<Tagged> string) {
+  V<String> CallRuntime_StringToUpperCaseIntl(Isolate* isolate,
+                                              V<String> string) {
     return CallRuntime<typename RuntimeCallDescriptor::StringToUpperCaseIntl>(
         isolate, {string});
   }
@@ -1906,14 +1910,14 @@ class AssemblerOpInterface {
               RegisterRepresentation rep) {
     return Phi(base::VectorOf(inputs), rep);
   }
-  template <typename Rep>
-  V<Rep> Phi(const base::Vector<V<Rep>>& inputs) {
+  template <typename T>
+  V<T> Phi(const base::Vector<V<T>>& inputs) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     std::vector<OpIndex> temp(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) temp[i] = inputs[i];
-    return Phi(base::VectorOf(temp), Rep::Rep);
+    return Phi(base::VectorOf(temp), V<T>::rep);
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          PendingLoopPhiOp::Data data) {
@@ -1932,9 +1936,9 @@ class AssemblerOpInterface {
     return PendingLoopPhi(first, rep,
                           PendingLoopPhiOp::Data{old_backedge_index});
   }
-  template <typename Rep>
-  V<Rep> PendingLoopPhi(V<Rep> first, PendingLoopPhiOp::PhiIndex phi_index) {
-    return PendingLoopPhi(first, Rep::Rep, PendingLoopPhiOp::Data{phi_index});
+  template <typename T>
+  V<T> PendingLoopPhi(V<T> first, PendingLoopPhiOp::PhiIndex phi_index) {
+    return PendingLoopPhi(first, V<T>::rep, PendingLoopPhiOp::Data{phi_index});
   }
 
   OpIndex Tuple(base::Vector<OpIndex> indices) {
@@ -1956,9 +1960,9 @@ class AssemblerOpInterface {
     }
     return stack().ReduceProjection(tuple, index, rep);
   }
-  template <typename Rep>
-  V<Rep> Projection(OpIndex tuple, uint16_t index) {
-    return Projection(tuple, index, Rep::Rep);
+  template <typename T>
+  V<T> Projection(OpIndex tuple, uint16_t index) {
+    return Projection(tuple, index, V<T>::rep);
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
@@ -2121,31 +2125,31 @@ class AssemblerOpInterface {
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
-  V<Word32> StringAt(V<Tagged> string, V<WordPtr> position,
+  V<Word32> StringAt(V<String> string, V<WordPtr> position,
                      StringAtOp::Kind kind) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringAt(string, position, kind);
   }
-  V<Word32> StringCharCodeAt(V<Tagged> string, V<WordPtr> position) {
+  V<Word32> StringCharCodeAt(V<String> string, V<WordPtr> position) {
     return StringAt(string, position, StringAtOp::Kind::kCharCode);
   }
-  V<Word32> StringCodePointAt(V<Tagged> string, V<WordPtr> position) {
+  V<Word32> StringCodePointAt(V<String> string, V<WordPtr> position) {
     return StringAt(string, position, StringAtOp::Kind::kCodePoint);
   }
 
 #ifdef V8_INTL_SUPPORT
-  V<Tagged> StringToCaseIntl(V<Tagged> string, StringToCaseIntlOp::Kind kind) {
+  V<String> StringToCaseIntl(V<String> string, StringToCaseIntlOp::Kind kind) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringToCaseIntl(string, kind);
   }
-  V<Tagged> StringToLowerCaseIntl(V<Tagged> string) {
+  V<String> StringToLowerCaseIntl(V<String> string) {
     return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kLower);
   }
-  V<Tagged> StringToUpperCaseIntl(V<Tagged> string) {
+  V<String> StringToUpperCaseIntl(V<String> string) {
     return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kUpper);
   }
 #endif  // V8_INTL_SUPPORT

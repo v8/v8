@@ -39,7 +39,7 @@ struct BuiltinCallDescriptor {
         DCHECK_EQ(desc->ReturnCount(), 0);
       } else {
         DCHECK_EQ(desc->ReturnCount(), 1);
-        DCHECK(result_t::rep_type::allows_representation(
+        DCHECK(result_t::allows_representation(
             RegisterRepresentation::FromMachineRepresentation(
                 desc->GetReturnType(0).representation())));
       }
@@ -61,10 +61,9 @@ struct BuiltinCallDescriptor {
     template <typename Arguments, size_t... Indices>
     static bool VerifyArgumentsImpl(const CallDescriptor* desc,
                                     std::index_sequence<Indices...>) {
-      return (std::tuple_element_t<Indices, Arguments>::rep_type::
-                  allows_representation(
-                      RegisterRepresentation::FromMachineRepresentation(
-                          desc->GetParameterType(Indices).representation())) &&
+      return (std::tuple_element_t<Indices, Arguments>::allows_representation(
+                  RegisterRepresentation::FromMachineRepresentation(
+                      desc->GetParameterType(Indices).representation())) &&
               ...);
     }
 #endif  // DEBUG
@@ -73,8 +72,8 @@ struct BuiltinCallDescriptor {
  public:
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
     static constexpr auto Function = Builtin::kStringFromCodePointAt;
-    using arguments_t = std::tuple<V<Tagged>, V<WordPtr>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>, V<WordPtr>>;
+    using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
@@ -83,8 +82,8 @@ struct BuiltinCallDescriptor {
 
   struct StringIndexOf : public Descriptor<StringIndexOf> {
     static constexpr auto Function = Builtin::kStringIndexOf;
-    using arguments_t = std::tuple<V<Tagged>, V<Tagged>, V<Tagged>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>, V<String>, V<Smi>>;
+    using result_t = V<Smi>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
@@ -93,8 +92,8 @@ struct BuiltinCallDescriptor {
 
   struct StringSubstring : public Descriptor<StringSubstring> {
     static constexpr auto Function = Builtin::kStringSubstring;
-    using arguments_t = std::tuple<V<Tagged>, V<WordPtr>, V<WordPtr>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>, V<WordPtr>, V<WordPtr>>;
+    using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
@@ -104,8 +103,8 @@ struct BuiltinCallDescriptor {
 #ifdef V8_INTL_SUPPORT
   struct StringToLowerCaseIntl : public Descriptor<StringToLowerCaseIntl> {
     static constexpr auto Function = Builtin::kStringToLowerCaseIntl;
-    using arguments_t = std::tuple<V<Tagged>>;
-    using result_t = V<Tagged>;
+    using arguments_t = std::tuple<V<String>>;
+    using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;

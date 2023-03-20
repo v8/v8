@@ -1268,9 +1268,12 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
       : Base(input), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK((from == WordPtr() && to == Tagged()) ||
-           (from == Tagged() && to == WordPtr()) ||
-           (from == Compressed() && to == Word32()));
+    DCHECK((from == RegisterRepresentation::PointerSized() &&
+            to == RegisterRepresentation::Tagged()) ||
+           (from == RegisterRepresentation::Tagged() &&
+            to == RegisterRepresentation::PointerSized()) ||
+           (from == RegisterRepresentation::Compressed() &&
+            to == RegisterRepresentation::Word32()));
     DCHECK(ValidOpInputRep(graph, input(), from));
   }
   auto options() const { return std::tuple{from, to}; }
@@ -2814,7 +2817,8 @@ struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
   NewArrayOp(OpIndex length, Kind kind, AllocationType allocation_type)
       : Base(length), kind(kind), allocation_type(allocation_type) {}
   void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, length(), WordPtr::Rep));
+    DCHECK(ValidOpInputRep(graph, length(),
+                           RegisterRepresentation::PointerSized()));
   }
 
   auto options() const { return std::tuple{kind, allocation_type}; }

@@ -1264,7 +1264,7 @@ class MachineLoweringReducer : public Next {
     return CallBuiltinForBigIntOp(Builtin::kBigIntUnaryMinus, {input});
   }
 
-  V<Word32> ReduceStringAt(V<Tagged> string, V<WordPtr> pos,
+  V<Word32> ReduceStringAt(V<String> string, V<WordPtr> pos,
                            StringAtOp::Kind kind) {
     if (kind == StringAtOp::Kind::kCharCode) {
       Label<Word32> done(this);
@@ -1406,23 +1406,23 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> ReduceStringLength(V<Tagged> string) {
+  V<Word32> ReduceStringLength(V<String> string) {
     return __ template LoadField<Word32>(string,
                                          AccessBuilder::ForStringLength());
   }
 
-  V<Tagged> ReduceStringIndexOf(V<Tagged> string, V<Tagged> search,
-                                V<Tagged> position) {
+  V<Smi> ReduceStringIndexOf(V<String> string, V<String> search,
+                             V<Smi> position) {
     return __ CallBuiltin_StringIndexOf(isolate_, string, search, position);
   }
 
-  V<Tagged> ReduceStringFromCodePointAt(V<Tagged> string, V<WordPtr> index) {
+  V<String> ReduceStringFromCodePointAt(V<String> string, V<WordPtr> index) {
     return __ CallBuiltin_StringFromCodePointAt(isolate_, string, index);
   }
 
 #ifdef V8_INTL_SUPPORT
-  OpIndex ReduceStringToCaseIntl(V<Tagged> string,
-                                 StringToCaseIntlOp::Kind kind) {
+  V<String> ReduceStringToCaseIntl(V<String> string,
+                                   StringToCaseIntlOp::Kind kind) {
     if (kind == StringToCaseIntlOp::Kind::kLower) {
       return __ CallBuiltin_StringToLowerCaseIntl(isolate_, string);
     } else {
@@ -1432,8 +1432,8 @@ class MachineLoweringReducer : public Next {
   }
 #endif  // V8_INTL_SUPPORT
 
-  OpIndex ReduceStringSubstring(V<Tagged> string, V<Word32> start,
-                                V<Word32> end) {
+  V<String> ReduceStringSubstring(V<String> string, V<Word32> start,
+                                  V<Word32> end) {
     V<WordPtr> s = __ ChangeInt32ToIntPtr(start);
     V<WordPtr> e = __ ChangeInt32ToIntPtr(end);
     return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
@@ -1459,16 +1459,16 @@ class MachineLoweringReducer : public Next {
   // interface.
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical
   // 0n BigInt.
-  V<Tagged> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
+  V<BigInt> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
     DCHECK(Is64());
     DCHECK_EQ(bitfield.valid(), digit.valid());
     static constexpr auto zero_bitfield =
         BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
 
     V<Tagged> map = __ HeapConstant(factory_->bigint_map());
-    V<Tagged> bigint =
+    auto bigint = V<FreshlyAllocatedBigInt>::Cast(
         __ Allocate(__ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
-                    AllocationType::kYoung);
+                    AllocationType::kYoung));
     __ StoreField(bigint, AccessBuilder::ForMap(), map);
     __ StoreField(
         bigint, AccessBuilder::ForBigIntBitfield(),
@@ -1483,7 +1483,7 @@ class MachineLoweringReducer : public Next {
       __ StoreField(bigint, AccessBuilder::ForBigIntLeastSignificantDigit64(),
                     digit);
     }
-    return bigint;
+    return V<BigInt>::Cast(bigint);
   }
 
   // TODO(nicohartmann@): Should also make this an operation and lower in
