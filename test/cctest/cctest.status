@@ -95,8 +95,10 @@
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
+  'test-heap/TestInternalWeakLists': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-serialize/SharedStrings': [PASS, SLOW],
   'test-serialize/StartupSerializerOnce': [PASS, SLOW],

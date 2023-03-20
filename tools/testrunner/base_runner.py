@@ -592,6 +592,8 @@ class BaseTestRunner(object):
             self.options.isolates,
         "is_clang":
             self.build_config.is_clang,
+        "is_clang_coverage":
+            self.build_config.is_clang_coverage,
         "is_debug":
             self.build_config.is_debug,
         "is_DEBUG_defined":

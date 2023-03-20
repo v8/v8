@@ -599,6 +599,7 @@ def build_config_content(cpu, icu):
         ("is_asan", "false"),
         ("is_cfi", "false"),
         ("is_clang", "true"),
+        ("is_clang_coverage", "false"),
         ("is_component_build", "false"),
         ("is_debug", "false"),
         ("is_full_debug", "false"),

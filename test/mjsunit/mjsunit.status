@@ -1977,4 +1977,11 @@
   'regress/regress-map-invalidation-2': [FAIL],
 }], # variant == stress_maglev
 
+##############################################################################
+['is_clang_coverage and mode == debug', {
+  # Too slow tests.
+  'asm/poppler/poppler': [SKIP],
+  'wasm/shared-memory-worker-gc': [SKIP],
+}],  # 'is_clang_coverage and mode == debug'
+
 ]

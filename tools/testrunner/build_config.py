@@ -37,6 +37,7 @@ class BuildConfig(object):
     self.gdbjit = build_config['v8_enable_gdbjit']
     self.is_android = build_config['is_android']
     self.is_clang = build_config['is_clang']
+    self.is_clang_coverage = build_config['is_clang_coverage']
     self.is_debug = build_config['is_debug']
     self.is_DEBUG_defined = build_config['is_DEBUG_defined']
     self.is_full_debug = build_config['is_full_debug']

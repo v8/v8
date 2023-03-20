@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
+import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
@@ -2344,6 +2345,7 @@ action("v8_dump_build_config") {
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
     "is_clang=$is_clang",
+    "is_clang_coverage=$use_clang_coverage",
     "is_component_build=$is_component_build",
     "is_debug=$v8_enable_debugging_features",
     "is_DEBUG_defined=$is_DEBUG_defined",
