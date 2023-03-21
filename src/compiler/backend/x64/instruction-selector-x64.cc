@@ -3355,19 +3355,17 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Or)                        \
   V(S128Xor)
 
-#define SIMD256_BINOP_SSE_AVX_LIST(V) \
-  V(F32x8Add)                         \
-  V(F32x8Sub)
-
 #define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Add, FAdd, kL64, kV128)                           \
   V(F32x4Add, FAdd, kL32, kV128)                           \
+  V(F32x8Add, FAdd, kL32, kV256)                           \
   V(I64x2Add, IAdd, kL64, kV128)                           \
   V(I32x4Add, IAdd, kL32, kV128)                           \
   V(I16x8Add, IAdd, kL16, kV128)                           \
   V(I8x16Add, IAdd, kL8, kV128)                            \
   V(F64x2Sub, FSub, kL64, kV128)                           \
   V(F32x4Sub, FSub, kL32, kV128)                           \
+  V(F32x8Sub, FSub, kL32, kV256)                           \
   V(I64x2Sub, ISub, kL64, kV128)                           \
   V(I32x4Sub, ISub, kL32, kV128)                           \
   V(I16x8Sub, ISub, kL16, kV128)                           \
@@ -3710,19 +3708,10 @@ SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
            g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
     }                                                                         \
   }
-#define VISIT_SIMD256_BINOP(Opcode)                                         \
-  void InstructionSelector::Visit##Opcode(Node* node) {                     \
-    X64OperandGenerator g(this);                                            \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),                            \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
-  }
 
 SIMD_BINOP_SSE_AVX_LIST(VISIT_SIMD_BINOP)
-SIMD256_BINOP_SSE_AVX_LIST(VISIT_SIMD256_BINOP)
 #undef VISIT_SIMD_BINOP
-#undef VISIT_SIMD256_BINOP
 #undef SIMD_BINOP_SSE_AVX_LIST
-#undef SIMD256_BINOP_SSE_AVX_LIST
 
 #define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
                                                  VectorLength)           \
