@@ -4341,39 +4341,44 @@ void SourceGroup::ExecuteInThread() {
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
   Shell::SetWaitUntilDone(isolate, false);
-  D8Console console(isolate);
-  Shell::Initialize(isolate, &console, false);
 
-  for (int i = 0; i < Shell::options.stress_runs; ++i) {
-    {
-      next_semaphore_.ParkedWait(
-          reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
-    }
-    {
-      Isolate::Scope isolate_scope(isolate);
-      PerIsolateData data(isolate);
+  {
+    Isolate::Scope isolate_scope(isolate);
+    D8Console console(isolate);
+    Shell::Initialize(isolate, &console, false);
+    PerIsolateData data(isolate);
+
+    for (int i = 0; i < Shell::options.stress_runs; ++i) {
       {
-        HandleScope scope(isolate);
-        Local<Context> context;
-        if (!Shell::CreateEvaluationContext(isolate).ToLocal(&context)) {
-          DCHECK(isolate->IsExecutionTerminating());
-          break;
-        }
-        {
-          Context::Scope context_scope(context);
-          InspectorClient inspector_client(context,
-                                           Shell::options.enable_inspector);
-          PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-          Execute(isolate);
-          Shell::CompleteMessageLoop(isolate);
-        }
+        next_semaphore_.ParkedWait(reinterpret_cast<i::Isolate*>(isolate)
+                                       ->main_thread_local_isolate());
       }
-      Shell::CollectGarbage(isolate);
+      {
+        {
+          HandleScope scope(isolate);
+          Local<Context> context;
+          if (!Shell::CreateEvaluationContext(isolate).ToLocal(&context)) {
+            DCHECK(isolate->IsExecutionTerminating());
+            break;
+          }
+          {
+            Context::Scope context_scope(context);
+            InspectorClient inspector_client(context,
+                                             Shell::options.enable_inspector);
+            PerIsolateData::RealmScope realm_scope(
+                PerIsolateData::Get(isolate));
+            Execute(isolate);
+            Shell::CompleteMessageLoop(isolate);
+          }
+        }
+        Shell::CollectGarbage(isolate);
+      }
+      done_semaphore_.Signal();
     }
-    done_semaphore_.Signal();
+
+    Shell::ResetOnProfileEndListener(isolate);
   }
 
-  Shell::ResetOnProfileEndListener(isolate);
   isolate->Dispose();
 }
 
@@ -4595,76 +4600,81 @@ void Worker::ExecuteInThread() {
   // The Worker is now ready to receive messages.
   started_semaphore_.Signal();
 
-  D8Console console(isolate_);
-  Shell::Initialize(isolate_, &console, false);
-  // This is not really a loop, but the loop allows us to break out of this
-  // block easily.
-  for (bool execute = true; execute; execute = false) {
+  {
     Isolate::Scope isolate_scope(isolate_);
-    {
-      HandleScope scope(isolate_);
-      PerIsolateData data(isolate_);
-      Local<Context> context;
-      if (!Shell::CreateEvaluationContext(isolate_).ToLocal(&context)) {
-        DCHECK(isolate_->IsExecutionTerminating());
-        break;
-      }
-      context_.Reset(isolate_, context);
+    D8Console console(isolate_);
+    Shell::Initialize(isolate_, &console, false);
+    PerIsolateData data(isolate_);
+    // This is not really a loop, but the loop allows us to break out of this
+    // block easily.
+    for (bool execute = true; execute; execute = false) {
       {
-        Context::Scope context_scope(context);
-        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
+        HandleScope scope(isolate_);
+        Local<Context> context;
+        if (!Shell::CreateEvaluationContext(isolate_).ToLocal(&context)) {
+          DCHECK(isolate_->IsExecutionTerminating());
+          break;
+        }
+        context_.Reset(isolate_, context);
+        {
+          Context::Scope context_scope(context);
+          PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
 
-        Local<Object> global = context->Global();
-        Local<Value> this_value = External::New(isolate_, this);
-        Local<FunctionTemplate> postmessage_fun_template =
-            FunctionTemplate::New(isolate_, PostMessageOut, this_value);
+          Local<Object> global = context->Global();
+          Local<Value> this_value = External::New(isolate_, this);
+          Local<FunctionTemplate> postmessage_fun_template =
+              FunctionTemplate::New(isolate_, PostMessageOut, this_value);
 
-        Local<Function> postmessage_fun;
-        if (postmessage_fun_template->GetFunction(context).ToLocal(
-                &postmessage_fun)) {
-          global
-              ->Set(context,
+          Local<Function> postmessage_fun;
+          if (postmessage_fun_template->GetFunction(context).ToLocal(
+                  &postmessage_fun)) {
+            global
+                ->Set(
+                    context,
                     v8::String::NewFromUtf8Literal(
                         isolate_, "postMessage", NewStringType::kInternalized),
                     postmessage_fun)
-              .FromJust();
-        }
+                .FromJust();
+          }
 
-        // First run the script
-        Local<String> file_name =
-            String::NewFromUtf8Literal(isolate_, "unnamed");
-        Local<String> source =
-            String::NewFromUtf8(isolate_, script_).ToLocalChecked();
-        if (Shell::ExecuteString(
-                isolate_, source, file_name, Shell::kNoPrintResult,
-                Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
-          // Check that there's a message handler
-          MaybeLocal<Value> maybe_onmessage = global->Get(
-              context,
-              String::NewFromUtf8Literal(isolate_, "onmessage",
-                                         NewStringType::kInternalized));
-          Local<Value> onmessage;
-          if (maybe_onmessage.ToLocal(&onmessage) && onmessage->IsFunction()) {
-            // Now wait for messages.
-            ProcessMessages();
+          // First run the script
+          Local<String> file_name =
+              String::NewFromUtf8Literal(isolate_, "unnamed");
+          Local<String> source =
+              String::NewFromUtf8(isolate_, script_).ToLocalChecked();
+          if (Shell::ExecuteString(
+                  isolate_, source, file_name, Shell::kNoPrintResult,
+                  Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
+            // Check that there's a message handler
+            MaybeLocal<Value> maybe_onmessage = global->Get(
+                context,
+                String::NewFromUtf8Literal(isolate_, "onmessage",
+                                           NewStringType::kInternalized));
+            Local<Value> onmessage;
+            if (maybe_onmessage.ToLocal(&onmessage) &&
+                onmessage->IsFunction()) {
+              // Now wait for messages.
+              ProcessMessages();
+            }
           }
         }
       }
+      Shell::CollectGarbage(isolate_);
     }
-    Shell::CollectGarbage(isolate_);
+
+    {
+      base::MutexGuard lock_guard(&worker_mutex_);
+      state_.store(State::kTerminated);
+      CHECK(!is_running());
+      task_runner_.reset();
+      task_manager_ = nullptr;
+    }
+
+    Shell::ResetOnProfileEndListener(isolate_);
+    context_.Reset();
+    platform::NotifyIsolateShutdown(g_default_platform, isolate_);
   }
 
-  {
-    base::MutexGuard lock_guard(&worker_mutex_);
-    state_.store(State::kTerminated);
-    CHECK(!is_running());
-    task_runner_.reset();
-    task_manager_ = nullptr;
-  }
-
-  Shell::ResetOnProfileEndListener(isolate_);
-  context_.Reset();
-  platform::NotifyIsolateShutdown(g_default_platform, isolate_);
   isolate_->Dispose();
   isolate_ = nullptr;
 
@@ -5769,8 +5779,8 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // V8_FUZZILLI
 
   {
-    D8Console console(isolate);
     Isolate::Scope scope(isolate);
+    D8Console console(isolate);
     Initialize(isolate, &console);
     PerIsolateData data(isolate);
 
@@ -5838,9 +5848,9 @@ int Shell::Main(int argc, char* argv[]) {
           // Restore old hash seed.
           i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
           {
+            Isolate::Scope isolate_scope(isolate2);
             D8Console console2(isolate2);
             Initialize(isolate2, &console2);
-            Isolate::Scope isolate_scope(isolate2);
             PerIsolateData data2(isolate2);
 
             result = RunMain(isolate2, false);
