@@ -5097,6 +5097,19 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
   }
   WriteLcovData(isolate, options.lcov_file);
   if (last_run && i::v8_flags.stress_snapshot) {
+    {
+      // We can't run the serializer while workers are still active. Ideally,
+      // we'd terminate these properly (see WaitForRunningWorkers), but that's
+      // not easily possible  due to ordering issues. It's not expected to be a
+      // common case, and it's unrelated to issues that stress_snapshot is
+      // intended to catch - simply bail out.
+      base::MutexGuard lock_guard(workers_mutex_.Pointer());
+      if (!running_workers_.empty()) {
+        printf("Warning: stress_snapshot disabled due to active workers\n");
+        return success;
+      }
+    }
+
     static constexpr bool kClearRecompilableData = true;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
