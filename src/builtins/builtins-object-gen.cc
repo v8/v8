@@ -984,8 +984,6 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         TNode<Object> properties =
             LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
         CSA_DCHECK(this, TaggedIsNotSmi(properties));
-        // TODO(pthier, chromium:1418955): Remove GlobalDictionary check.
-        GotoIf(IsGlobalDictionary(CAST(properties)), &return_generic);
         // TODO(pthier): Support swiss dictionaries.
         if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
