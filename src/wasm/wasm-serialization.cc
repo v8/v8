@@ -21,7 +21,6 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
-#include "src/wasm/well-known-imports.h"
 
 namespace v8 {
 namespace internal {
@@ -57,17 +56,14 @@ class Writer {
     }
   }
 
-  template <typename T>
-  void WriteVector(const base::Vector<T> v) {
-    base::Vector<const byte> bytes = base::Vector<const byte>::cast(v);
-    DCHECK_GE(current_size(), bytes.size());
-    if (bytes.size() > 0) {
-      memcpy(current_location(), bytes.begin(), bytes.size());
-      pos_ += bytes.size();
+  void WriteVector(const base::Vector<const byte> v) {
+    DCHECK_GE(current_size(), v.size());
+    if (v.size() > 0) {
+      memcpy(current_location(), v.begin(), v.size());
+      pos_ += v.size();
     }
     if (v8_flags.trace_wasm_serialization) {
-      StdoutStream{} << "wrote vector of " << v.size()
-                     << " elements (total size " << bytes.size() << " bytes)"
+      StdoutStream{} << "wrote vector of " << v.size() << " elements"
                      << std::endl;
     }
   }
@@ -281,8 +277,7 @@ static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
 
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
  public:
-  NativeModuleSerializer(const NativeModule*, base::Vector<WasmCode* const>,
-                         base::Vector<WellKnownImport const>);
+  NativeModuleSerializer(const NativeModule*, base::Vector<WasmCode* const>);
   NativeModuleSerializer(const NativeModuleSerializer&) = delete;
   NativeModuleSerializer& operator=(const NativeModuleSerializer&) = delete;
 
@@ -297,18 +292,14 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
   const NativeModule* const native_module_;
   const base::Vector<WasmCode* const> code_table_;
-  const base::Vector<WellKnownImport const> import_statuses_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
   int num_turbofan_functions_ = 0;
 };
 
 NativeModuleSerializer::NativeModuleSerializer(
-    const NativeModule* module, base::Vector<WasmCode* const> code_table,
-    base::Vector<WellKnownImport const> import_statuses)
-    : native_module_(module),
-      code_table_(code_table),
-      import_statuses_(import_statuses) {
+    const NativeModule* module, base::Vector<WasmCode* const> code_table)
+    : native_module_(module), code_table_(code_table) {
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
@@ -331,8 +322,6 @@ size_t NativeModuleSerializer::Measure() const {
   for (WasmCode* code : code_table_) {
     size += MeasureCode(code);
   }
-  // Add the size of the well-known imports status.
-  size += import_statuses_.size() * sizeof(WellKnownImport);
   // Add the size of the tiering budget.
   size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
 
@@ -359,8 +348,6 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
     }
   }
 #endif
-
-  writer->WriteVector(base::VectorOf(import_statuses_));
 }
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
@@ -484,9 +471,9 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
 }
 
 void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
-  writer->WriteVector(
+  writer->WriteVector(base::Vector<const byte>::cast(
       base::VectorOf(native_module_->tiering_budget_array(),
-                     native_module_->module()->num_declared_functions));
+                     native_module_->module()->num_declared_functions)));
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -516,19 +503,18 @@ bool NativeModuleSerializer::Write(Writer* writer) {
 }
 
 WasmSerializer::WasmSerializer(NativeModule* native_module)
-    : native_module_(native_module) {
-  std::tie(code_table_, import_statuses_) = native_module->SnapshotCodeTable();
-}
+    : native_module_(native_module),
+      code_table_(native_module->SnapshotCodeTable()) {}
 
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
-  NativeModuleSerializer serializer(native_module_, base::VectorOf(code_table_),
-                                    base::VectorOf(import_statuses_));
+  NativeModuleSerializer serializer(native_module_,
+                                    base::VectorOf(code_table_));
   return kHeaderSize + serializer.Measure();
 }
 
 bool WasmSerializer::SerializeNativeModule(base::Vector<byte> buffer) const {
-  NativeModuleSerializer serializer(native_module_, base::VectorOf(code_table_),
-                                    base::VectorOf(import_statuses_));
+  NativeModuleSerializer serializer(native_module_,
+                                    base::VectorOf(code_table_));
   size_t measured_size = kHeaderSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
@@ -758,14 +744,6 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
   remaining_code_size_ = reader->Read<size_t>();
   all_functions_validated_ = reader->Read<bool>();
-
-  uint32_t imported = native_module_->module()->num_imported_functions;
-  if (imported > 0) {
-    base::Vector<const WellKnownImport> well_known_imports =
-        reader->ReadVector<WellKnownImport>(imported);
-    native_module_->module()->type_feedback.well_known_imports.Initialize(
-        well_known_imports);
-  }
 }
 
 DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,

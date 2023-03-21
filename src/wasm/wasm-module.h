@@ -24,7 +24,6 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/well-known-imports.h"
 
 namespace v8::internal {
 class WasmModuleObject;
@@ -36,7 +35,6 @@ using WasmName = base::Vector<const char>;
 
 struct AsmJsOffsets;
 class ErrorThrower;
-class WellKnownImportsList;
 
 // Reference to a string in the wire bytes.
 class WireBytesRef {
@@ -514,8 +512,6 @@ struct TypeFeedbackStorage {
   // - PGO deserializer: writes everything, currently not locked, relies on
   //   being called before multi-threading enters the picture.
   mutable base::SharedMutex mutex;
-
-  WellKnownImportsList well_known_imports;
 };
 
 struct WasmTable;
@@ -572,10 +568,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   BranchHintInfo branch_hints;
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
-
-  // This is the only member of {WasmModule} where we store dynamic information
-  // that's not a decoded representation of the wire bytes.
-  // TODO(jkummerow): Rename.
   mutable TypeFeedbackStorage type_feedback;
 
   const ModuleOrigin origin;

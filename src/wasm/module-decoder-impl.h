@@ -20,7 +20,6 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-subtyping.h"
-#include "src/wasm/well-known-imports.h"
 
 namespace v8::internal::wasm {
 
@@ -824,8 +823,6 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     UpdateMemorySizes();
-    module_->type_feedback.well_known_imports.Initialize(
-        module_->num_imported_functions);
     if (tracer_) tracer_->ImportsDone();
   }
 

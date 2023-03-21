@@ -42,7 +42,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/wasm/well-known-imports.h"
 
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
@@ -1148,26 +1147,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   return code;
 }
 
-WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code,
-                                    AssumptionsJournal* assumptions) {
+WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode");
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  if (assumptions != nullptr) {
-    // Acquiring the lock is expensive, so callers should only pass non-empty
-    // assumptions journals.
-    DCHECK(!assumptions->empty());
-    // Only Turbofan makes assumptions.
-    DCHECK_EQ(ExecutionTier::kTurbofan, code->tier());
-    WellKnownImportsList& current = module_->type_feedback.well_known_imports;
-    base::MutexGuard wki_lock(current.mutex());
-    for (auto [import_index, status] : assumptions->import_statuses()) {
-      if (current.get(import_index) != status) {
-        compilation_state_->AllowAnotherTopTierJob(code->index());
-        return nullptr;
-      }
-    }
-  }
   CodeSpaceWriteScope code_space_write_scope(this);
   return PublishCodeLocked(std::move(code));
 }
@@ -1340,19 +1323,14 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
       kNotForDebugging}};
 }
 
-std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
-NativeModule::SnapshotCodeTable() const {
+std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   WasmCode** start = code_table_.get();
   WasmCode** end = start + module_->num_declared_functions;
   for (WasmCode* code : base::VectorOf(start, end - start)) {
     if (code) WasmCodeRefScope::AddRef(code);
   }
-  std::vector<WellKnownImport> import_statuses(module_->num_imported_functions);
-  for (uint32_t i = 0; i < module_->num_imported_functions; i++) {
-    import_statuses[i] = module_->type_feedback.well_known_imports.get(i);
-  }
-  return {std::vector<WasmCode*>{start, end}, std::move(import_statuses)};
+  return std::vector<WasmCode*>{start, end};
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {

@@ -20,7 +20,6 @@ extern runtime WasmFunctionTableGet(
 extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
 extern runtime ThrowWasmError(Context, Smi): JSAny;
-extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
@@ -1027,14 +1026,6 @@ builtin WasmStringEncodeWtf16Array(
     unreachable;
   }
 }
-
-builtin ThrowToLowerCaseCalledOnNull(): JSAny {
-  const context = LoadContextFromFrame();
-  const error = MessageTemplate::kCalledOnNullOrUndefined;
-  const name = StringConstant('String.prototype.toLowerCase');
-  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
-}
-
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   tail StringAdd_CheckNone(a, b);

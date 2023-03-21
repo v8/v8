@@ -28,6 +28,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
+#include "src/wasm/wasm-value.h"
 
 #define TRACE(...)                                          \
   do {                                                      \
@@ -348,60 +349,12 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
   return IsSupportedWasmFastApiFunction(isolate, expected_sig, shared);
 }
 
-#if V8_INTL_SUPPORT
-namespace {
-
-bool IsStringRef(wasm::ValueType type) {
-  return type.is_reference_to(wasm::HeapType::kString);
-}
-
-}  // namespace
-#endif
-
-// This detects imports of the form: `Function.prototype.call.bind(foo)`, where
-// `foo` is something that has a Builtin id.
-WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
-                                        const wasm::FunctionSig* sig) {
-  WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
-  // First part: check that the callable is a bound function whose target
-  // is {Function.prototype.call}, and which only binds a receiver.
-  if (!callable->IsJSBoundFunction()) return kGeneric;
-  Handle<JSBoundFunction> bound = Handle<JSBoundFunction>::cast(callable);
-  if (bound->bound_arguments().length() != 0) return kGeneric;
-  if (!bound->bound_target_function().IsJSFunction()) return kGeneric;
-  SharedFunctionInfo sfi =
-      JSFunction::cast(bound->bound_target_function()).shared();
-  if (!sfi.HasBuiltinId()) return kGeneric;
-  if (sfi.builtin_id() != Builtin::kFunctionPrototypeCall) return kGeneric;
-  // Second part: check if the bound receiver is one of the builtins for which
-  // we have special-cased support.
-  Object bound_this = bound->bound_this();
-  if (!bound_this.IsJSFunction()) return kGeneric;
-  sfi = JSFunction::cast(bound_this).shared();
-  if (!sfi.HasBuiltinId()) return kGeneric;
-  switch (sfi.builtin_id()) {
-#if V8_INTL_SUPPORT
-    case Builtin::kStringPrototypeToLowerCaseIntl:
-      // TODO(jkummerow): Consider caching signatures to compare with, similar
-      // to {wasm::WasmOpcodes::Signature(...)}.
-      if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-          IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetReturn(0))) {
-        return WellKnownImport::kStringToLowerCaseStringref;
-      }
-      return kGeneric;
-#endif
-    default:
-      break;
-  }
-  return kGeneric;
-}
-
 }  // namespace
 
 WasmImportData::WasmImportData(Handle<JSReceiver> callable,
                                const wasm::FunctionSig* expected_sig,
                                uint32_t expected_canonical_type_index)
-    : callable_(callable) {
+    : suspend_(kNoSuspend), callable_(callable) {
   kind_ = ComputeKind(expected_sig, expected_canonical_type_index);
 }
 
@@ -450,7 +403,6 @@ ImportCallKind WasmImportData::ComputeKind(
       ResolveBoundJSFastApiFunction(expected_sig, callable_)) {
     return ImportCallKind::kWasmToJSFastApi;
   }
-  well_known_status_ = CheckForWellKnownImport(callable_, expected_sig);
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable_->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable_);
@@ -568,7 +520,6 @@ class InstanceBuilder {
   std::vector<Handle<WasmTagObject>> tags_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
-  std::vector<WellKnownImport> well_known_imports_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
   // each call to {EvaluateConstantExpression}. This has been found to improve
   // performance a bit over allocating a new {Zone} each time.
@@ -807,7 +758,6 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate,
       memory_buffer_(memory_buffer),
       init_expr_zone_(isolate_->allocator(), "constant expression zone") {
   sanitized_imports_.reserve(module_->import_table.size());
-  well_known_imports_.reserve(module_->num_imported_functions);
 }
 
 // Build an instance, in all of its glory.
@@ -1456,7 +1406,6 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
   WasmImportData resolved(js_receiver, expected_sig, canonical_type_index);
-  well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
   js_receiver = resolved.callable();
   switch (kind) {
@@ -2035,15 +1984,6 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       }
       default:
         UNREACHABLE();
-    }
-  }
-  if (num_imported_functions > 0) {
-    WellKnownImportsList::UpdateResult result =
-        module_->type_feedback.well_known_imports.Update(
-            base::VectorOf(well_known_imports_));
-    if (result == WellKnownImportsList::UpdateResult::kFoundIncompatibility) {
-      module_object_->native_module()->RemoveCompiledCode(
-          NativeModule::RemoveFilter::kRemoveTurbofanCode);
     }
   }
   return num_imported_functions;
