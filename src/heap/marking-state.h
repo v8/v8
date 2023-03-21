@@ -45,8 +45,6 @@ class MarkingStateBase {
   // {addr} may be tagged or aligned.
   V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
 
-  V8_INLINE Marking::ObjectColor Color(const HeapObject obj) const;
-
   V8_INLINE bool IsImpossible(const HeapObject obj) const;
 
   V8_INLINE bool IsGrey(const HeapObject obj) const;

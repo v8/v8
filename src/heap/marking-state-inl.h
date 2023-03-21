@@ -25,12 +25,6 @@ MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-Marking::ObjectColor MarkingStateBase<ConcreteState, access_mode>::Color(
-    const HeapObject obj) const {
-  return Marking::Color(MarkBitFrom(obj));
-}
-
-template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsImpossible(
     const HeapObject obj) const {
   return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));

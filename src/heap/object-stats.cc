@@ -847,11 +847,11 @@ bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase array) {
 
 bool ObjectStatsCollectorImpl::SameLiveness(HeapObject obj1, HeapObject obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
-  auto col1 = obj1.InReadOnlySpace() ? Marking::ObjectColor::BLACK_OBJECT
-                                     : marking_state_->Color(obj1);
-  auto col2 = obj2.InReadOnlySpace() ? Marking::ObjectColor::BLACK_OBJECT
-                                     : marking_state_->Color(obj2);
-  return col1 == col2;
+  const auto obj1_marked =
+      obj1.InReadOnlySpace() || marking_state_->IsMarked(obj1);
+  const auto obj2_marked =
+      obj2.InReadOnlySpace() || marking_state_->IsMarked(obj2);
+  return obj1_marked == obj2_marked;
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
@@ -1102,7 +1102,6 @@ class ObjectStatsVisitor {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {
-      DCHECK(!marking_state_->IsGrey(obj));
       dead_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kNo);
     }
