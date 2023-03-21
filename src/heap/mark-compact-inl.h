@@ -26,7 +26,7 @@ namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
   DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
-  if (marking_state()->WhiteToGrey(obj)) {
+  if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainer(host, obj);
@@ -36,7 +36,7 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
-  if (marking_state()->WhiteToGrey(obj)) {
+  if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainingRoot(root, obj);
@@ -46,7 +46,7 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
-      non_atomic_marking_state()->WhiteToGrey(obj)) {
+      non_atomic_marking_state()->TryMark(obj)) {
     local_marking_worklists_->Push(obj);
   }
 }

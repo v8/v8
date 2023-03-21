@@ -134,7 +134,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   // don't mark it black here, the Scavenger may promote a DescriptorArray and
   // any already marked descriptors will not have any slots recorded.
   if (!marking_state_.IsMarked(descriptor_array)) {
-    marking_state_.WhiteToGrey(descriptor_array);
+    marking_state_.TryMark(descriptor_array);
     marking_state_.GreyToBlack(descriptor_array);
   }
 

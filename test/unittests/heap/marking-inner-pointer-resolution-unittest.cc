@@ -215,12 +215,12 @@ class InnerPointerResolutionTest
       case ObjectRequest::WHITE:
         break;
       case ObjectRequest::GREY:
-        heap()->marking_state()->WhiteToGrey(
+        heap()->marking_state()->TryMark(
             HeapObject::FromAddress(object.address));
         break;
       case ObjectRequest::BLACK:
         DCHECK_LE(2 * Tagged, object.size);
-        heap()->marking_state()->WhiteToBlack(
+        heap()->marking_state()->TryMarkAndAccountLiveBytes(
             HeapObject::FromAddress(object.address));
         break;
       case ObjectRequest::BLACK_AREA: {
@@ -700,7 +700,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
                      i::GarbageCollectionReason::kTesting);
     }
     MarkingState* marking_state = heap()->marking_state();
-    marking_state->WhiteToGrey(obj3);
+    marking_state->TryMark(obj3);
     marking_state->GreyToBlack(obj3);
   }
 

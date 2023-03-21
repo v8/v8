@@ -1422,7 +1422,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
         // marking
         nested = current_site.nested_site();
         current_site.MarkZombie();
-        marking_state_->WhiteToBlack(current_site);
+        marking_state_->TryMarkAndAccountLiveBytes(current_site);
       }
 
       return object;
@@ -2287,7 +2287,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
       local_weak_objects()->next_ephemerons_local.Publish();
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
         if (non_atomic_marking_state()->IsBlackOrGrey(ephemeron.key) &&
-            non_atomic_marking_state()->WhiteToGrey(ephemeron.value)) {
+            non_atomic_marking_state()->TryMark(ephemeron.value)) {
           local_marking_worklists()->Push(ephemeron.value);
         }
       });
@@ -2413,7 +2413,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   // ShouldMarkObject call catches those cases.
   if (!ShouldMarkObject(value)) return false;
   if (marking_state()->IsBlackOrGrey(key)) {
-    if (marking_state()->WhiteToGrey(value)) {
+    if (marking_state()->TryMark(value)) {
       local_marking_worklists()->Push(value);
       return true;
     }
@@ -2539,7 +2539,7 @@ void MarkCompactCollector::RetainMaps() {
       Map map = Map::cast(map_heap_object);
       if (should_retain_maps && marking_state()->IsUnmarked(map)) {
         if (ShouldRetainMap(marking_state(), map, age)) {
-          if (marking_state()->WhiteToGrey(map)) {
+          if (marking_state()->TryMark(map)) {
             local_marking_worklists()->Push(map);
           }
           if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
@@ -2785,7 +2785,7 @@ class StringForwardingTableCleaner final {
           HeapObject::cast(forward).InReadOnlySpace()) {
         return;
       }
-      marking_state_->WhiteToBlack(HeapObject::cast(forward));
+      marking_state_->TryMarkAndAccountLiveBytes(HeapObject::cast(forward));
     } else {
       DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
@@ -2861,7 +2861,7 @@ class StringForwardingTableCleaner final {
 
     // Mark the forwarded string to keep it alive.
     if (!forward_string.InReadOnlySpace()) {
-      marking_state_->WhiteToBlack(forward_string);
+      marking_state_->TryMarkAndAccountLiveBytes(forward_string);
     }
     // Transition the original string to a ThinString and override the
     // forwarding index with the correct hash.
@@ -3127,7 +3127,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // marked.
   DCHECK(!ShouldMarkObject(inferred_name) ||
          marking_state()->IsBlackOrGrey(inferred_name));
-  marking_state()->WhiteToBlack(uncompiled_data);
+  marking_state()->TryMarkAndAccountLiveBytes(uncompiled_data);
 
   // Use the raw function data setter to avoid validity checks, since we're
   // performing the unusual task of decompiling.
@@ -5810,7 +5810,7 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
       visitor_(isolate, marking_state_, marking_worklists_local()) {}
 
 void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
-  if (marking_state_->WhiteToGrey(heap_object)) {
+  if (marking_state_->TryMark(heap_object)) {
     visitor_.Visit(heap_object);
     // Objects transition to black when visited.
     DCHECK(marking_state_->IsMarked(heap_object));

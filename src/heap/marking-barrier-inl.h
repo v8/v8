@@ -65,7 +65,7 @@ void MarkingBarrier::MarkValueShared(HeapObject value) {
   DCHECK(shared_heap_worklist_.has_value());
 
   // Mark shared object and push it onto shared heap worklist.
-  if (marking_state_.WhiteToGrey(value)) {
+  if (marking_state_.TryMark(value)) {
     shared_heap_worklist_->Push(value);
   }
 }
@@ -116,7 +116,7 @@ bool MarkingBarrier::IsCompacting(HeapObject object) const {
 }
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
-  if (marking_state_.WhiteToGrey(obj)) {
+  if (marking_state_.TryMark(obj)) {
     current_worklist_->Push(obj);
     return true;
   }

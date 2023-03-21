@@ -55,14 +55,14 @@ bool MarkingStateBase<ConcreteState, access_mode>::IsBlackOrGrey(
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToGrey(HeapObject obj) {
+bool MarkingStateBase<ConcreteState, access_mode>::TryMark(HeapObject obj) {
   return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToBlack(
+bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
     HeapObject obj) {
-  return WhiteToGrey(obj) && GreyToBlack(obj);
+  return TryMark(obj) && GreyToBlack(obj);
 }
 
 template <typename ConcreteState, AccessMode access_mode>

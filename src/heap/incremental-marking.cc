@@ -156,7 +156,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
 }
 
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
+  if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     return true;
   }

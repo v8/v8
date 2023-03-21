@@ -45,7 +45,7 @@ HEAP_TEST(WriteBarrier_Marking) {
   CHECK(heap->marking_state()->IsUnmarked(value1));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
   CHECK(heap->marking_state()->IsGrey(value1));
-  heap->marking_state()->WhiteToGrey(host);
+  heap->marking_state()->TryMark(host);
   heap->marking_state()->GreyToBlack(host);
   CHECK(heap->marking_state()->IsUnmarked(value2));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value2);

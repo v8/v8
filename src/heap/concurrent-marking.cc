@@ -216,7 +216,7 @@ class ConcurrentMarkingVisitor final
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
     if (marking_state_.IsBlackOrGrey(key)) {
-      if (marking_state_.WhiteToGrey(value)) {
+      if (marking_state_.TryMark(value)) {
         local_marking_worklists_->Push(value);
         return true;
       }

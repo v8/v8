@@ -34,7 +34,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
   SynchronizePageAccess(object);
   AddStrongReferenceForReferenceSummarizer(host, object);
-  if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
+  if (concrete_visitor()->marking_state()->TryMark(object)) {
     local_marking_worklists_->Push(object);
     if (V8_UNLIKELY(concrete_visitor()->retaining_path_mode() ==
                     TraceRetainingPathMode::kEnabled)) {
@@ -553,7 +553,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
     // std::min<int>() below.
     const auto descriptors_to_mark = std::min<int>(
         number_of_own_descriptors, descriptors.number_of_descriptors());
-    concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
+    concrete_visitor()->marking_state()->TryMark(descriptors);
     if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
             mark_compact_epoch_, descriptors, descriptors_to_mark)) {
       local_marking_worklists_->Push(descriptors);
@@ -685,7 +685,7 @@ void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
 template <typename ConcreteVisitor, typename MarkingState>
 void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     MarkObjectViaMarkingWorklist(HeapObject object) {
-  if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
+  if (concrete_visitor()->marking_state()->TryMark(object)) {
     worklists_local_->Push(object);
   }
 }

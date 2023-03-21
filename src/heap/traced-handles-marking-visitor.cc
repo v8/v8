@@ -45,7 +45,7 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
     }
     HeapObject heap_object = HeapObject::cast(object);
     if (heap_object.InReadOnlySpace()) return;
-    if (marking_state_.WhiteToGrey(heap_object)) {
+    if (marking_state_.TryMark(heap_object)) {
       local_marking_worklist_.Push(heap_object);
     }
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {

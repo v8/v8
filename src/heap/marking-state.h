@@ -46,17 +46,14 @@ class MarkingStateBase {
   V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
 
   V8_INLINE bool IsImpossible(const HeapObject obj) const;
-
   V8_INLINE bool IsGrey(const HeapObject obj) const;
-
   V8_INLINE bool IsBlackOrGrey(const HeapObject obj) const;
-
-  V8_INLINE bool WhiteToGrey(HeapObject obj);
-
-  V8_INLINE bool WhiteToBlack(HeapObject obj);
-
   V8_INLINE bool GreyToBlack(HeapObject obj);
 
+  V8_INLINE bool TryMark(HeapObject obj);
+  // Helper method for fully marking an object and accounting its live bytes.
+  // Should be used to mark individual objects in one-off cases.
+  V8_INLINE bool TryMarkAndAccountLiveBytes(HeapObject obj);
   V8_INLINE bool IsMarked(const HeapObject obj) const;
   V8_INLINE bool IsUnmarked(const HeapObject obj) const;
 

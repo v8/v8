@@ -21,11 +21,11 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
 
   DCHECK(atomic_marking_state()->IsUnmarked(to));
   if (atomic_marking_state()->IsGrey(from)) {
-    bool success = atomic_marking_state()->WhiteToGrey(to);
+    bool success = atomic_marking_state()->TryMark(to);
     DCHECK(success);
     USE(success);
   } else if (atomic_marking_state()->IsMarked(from)) {
-    bool success = atomic_marking_state()->WhiteToBlack(to);
+    bool success = atomic_marking_state()->TryMarkAndAccountLiveBytes(to);
     DCHECK(success);
     USE(success);
   }
