@@ -73,6 +73,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
+#include "src/heap/minor-gc-job.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
@@ -84,7 +85,6 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
-#include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
@@ -201,6 +201,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
         static_cast<GCType>(GCType::kGCTypeScavenge |
                             GCType::kGCTypeMinorMarkCompact |
                             GCType::kGCTypeMarkSweepCompact));
+    AddToNewSpace();
   }
   ~ScheduleMinorGCTaskObserver() override {
     RemoveFromNewSpace();
@@ -209,7 +210,8 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
   }
 
   intptr_t GetNextStepSize() final {
-    size_t new_space_threshold = GetThreshold();
+    size_t new_space_threshold =
+        MinorGCJob::YoungGenerationTaskTriggerSize(heap_);
     size_t new_space_size = heap_->new_space()->Size();
     if (new_space_size < new_space_threshold) {
       return new_space_threshold - new_space_size;
@@ -246,34 +248,16 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
     was_added_to_space_ = false;
   }
 
-  virtual size_t GetThreshold() const = 0;
-  virtual void StepImpl() = 0;
-
+  virtual void StepImpl() { heap_->ScheduleMinorGCTaskIfNeeded(); }
   Heap* heap_;
   bool was_added_to_space_ = false;
-};
-
-class MinorGCTaskObserver final : public ScheduleMinorGCTaskObserver {
- public:
-  explicit MinorGCTaskObserver(Heap* heap) : ScheduleMinorGCTaskObserver(heap) {
-    AddToNewSpace();
-  }
-
- protected:
-  void StepImpl() final { heap_->ScheduleScavengeTaskIfNeeded(); }
-
-  size_t GetThreshold() const final {
-    return ScavengeJob::YoungGenerationTaskTriggerSize(heap_);
-  }
 };
 
 class MinorMCIncrementalMarkingTaskObserver final
     : public ScheduleMinorGCTaskObserver {
  public:
   explicit MinorMCIncrementalMarkingTaskObserver(Heap* heap)
-      : ScheduleMinorGCTaskObserver(heap) {
-    AddToNewSpace();
-  }
+      : ScheduleMinorGCTaskObserver(heap) {}
 
  protected:
   void StepImpl() final {
@@ -285,9 +269,9 @@ class MinorMCIncrementalMarkingTaskObserver final
     }
 
     heap_->StartMinorMCIncrementalMarkingIfNeeded();
-  }
 
-  size_t GetThreshold() const final { return heap_->MinorMCTaskTriggerSize(); }
+    ScheduleMinorGCTaskObserver::StepImpl();
+  }
 };
 
 Heap::Heap()
@@ -1467,20 +1451,17 @@ void Heap::HandleGCRequest() {
   }
 }
 
-void Heap::ScheduleScavengeTaskIfNeeded() {
-  DCHECK_NOT_NULL(scavenge_job_);
-  scavenge_job_->ScheduleTaskIfNeeded(this);
-}
-
-size_t Heap::MinorMCTaskTriggerSize() const {
-  return new_space()->TotalCapacity() * v8_flags.minor_mc_task_trigger / 100;
+void Heap::ScheduleMinorGCTaskIfNeeded() {
+  DCHECK_NOT_NULL(minor_gc_job_);
+  minor_gc_job_->ScheduleTaskIfNeeded(this);
 }
 
 void Heap::StartMinorMCIncrementalMarkingIfNeeded() {
   if (v8_flags.concurrent_minor_mc_marking && !IsTearingDown() &&
       !incremental_marking()->IsMarking() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
-      (new_space()->Size() >= MinorMCTaskTriggerSize())) {
+      (new_space()->Size() >=
+       MinorGCJob::YoungGenerationTaskTriggerSize(this))) {
     StartIncrementalMarking(Heap::kNoGCFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
                             GarbageCollector::MINOR_MARK_COMPACTOR);
@@ -5599,6 +5580,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   }
 
   if (new_space()) {
+    minor_gc_job_.reset(new MinorGCJob());
     if (v8_flags.concurrent_minor_mc_marking) {
       // TODO(v8:13012): Atomic MinorMC should not use ScavengeJob. Instead, we
       // should schedule MinorMC tasks at a soft limit, which are used by atomic
@@ -5609,8 +5591,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
           new MinorMCIncrementalMarkingTaskObserver(this));
     } else {
       // ScavengeJob is used by atomic MinorMC and Scavenger.
-      scavenge_job_.reset(new ScavengeJob());
-      minor_gc_task_observer_.reset(new MinorGCTaskObserver(this));
+      minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
     }
   }
 
@@ -5882,7 +5863,7 @@ void Heap::TearDown() {
   }
 
   minor_gc_task_observer_.reset();
-  scavenge_job_.reset();
+  minor_gc_job_.reset();
 
   if (need_to_remove_stress_concurrent_allocation_observer_) {
     RemoveAllocationObserversFromAllSpaces(

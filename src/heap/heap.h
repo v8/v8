@@ -112,6 +112,7 @@ class MemoryAllocator;
 class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
+class MinorGCJob;
 class MinorMarkCompactCollector;
 class NopRwxMemoryWriteScope;
 class ObjectIterator;
@@ -123,7 +124,6 @@ class ReadOnlyHeap;
 class RootVisitor;
 class RwxMemoryWriteScope;
 class SafepointScope;
-class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
 class SharedLargeObjectSpace;
@@ -2003,9 +2003,8 @@ class Heap {
   // GC Tasks. =================================================================
   // ===========================================================================
 
-  void ScheduleScavengeTaskIfNeeded();
+  void ScheduleMinorGCTaskIfNeeded();
   void StartMinorMCIncrementalMarkingIfNeeded();
-  size_t MinorMCTaskTriggerSize() const;
   bool MinorMCSizeTaskTriggerReached() const;
 
   // ===========================================================================
@@ -2272,7 +2271,7 @@ class Heap {
   std::unique_ptr<MemoryReducer> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
-  std::unique_ptr<ScavengeJob> scavenge_job_;
+  std::unique_ptr<MinorGCJob> minor_gc_job_;
   std::unique_ptr<AllocationObserver> minor_gc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<AllocationTrackerForDebugging>
