@@ -1654,41 +1654,6 @@ void MockUseCounterCallback(v8::Isolate* isolate,
   ++global_use_counts[feature];
 }
 
-void CheckRegExpUnicodeSetIncompatibilitiesUseCounter(
-    v8::Isolate* isolate, const char* check_pattern) {
-  int* use_counts = global_use_counts;
-  int old_count = use_counts
-      [v8::Isolate::kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode];
-  Local<v8::Context> context = isolate->GetCurrentContext();
-  {
-    v8_flags.harmony_regexp_unicode_sets = true;
-    std::ostringstream os;
-    os << "/[" << check_pattern << "]/v";
-    Local<v8::String> v8_source =
-        v8::String::NewFromUtf8(isolate, os.str().c_str()).ToLocalChecked();
-    MaybeLocal<v8::Script> script = v8::Script::Compile(context, v8_source);
-    CHECK(script.IsEmpty());
-    CHECK_EQ(
-        old_count,
-        use_counts
-            [v8::Isolate::kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode]);
-  }
-  {
-    std::ostringstream os;
-    os << "/[" << check_pattern << "]/u";
-    Local<v8::String> v8_source =
-        v8::String::NewFromUtf8(isolate, os.str().c_str()).ToLocalChecked();
-    MaybeLocal<v8::Script> script = v8::Script::Compile(context, v8_source);
-    Local<v8::Value> result =
-        script.ToLocalChecked()->Run(context).ToLocalChecked();
-    CHECK(result->IsRegExp());
-    CHECK_EQ(
-        old_count + 1,
-        use_counts
-            [v8::Isolate::kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode]);
-  }
-}
-
 }  // namespace
 
 using RegExpTestWithContext = TestWithContext;
@@ -1755,14 +1720,6 @@ TEST_F(RegExpTestWithContext, UseCountRegExp) {
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
-
-  const char* incompatible_patterns[] = {
-      "(",  ")",  "[",  "{",  "}",  "/",  "-",   "|",  "&&",
-      "!!", "##", "$$", "%%", "**", "++", ",,",  "..", "::",
-      ";;", "<<", "==", ">>", "??", "@@", "^^^", "``", "~~"};
-  for (auto pattern : incompatible_patterns) {
-    CheckRegExpUnicodeSetIncompatibilitiesUseCounter(v8_isolate(), pattern);
-  }
 }
 
 class UncachedExternalString

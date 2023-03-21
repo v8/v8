@@ -429,8 +429,8 @@ class RegExpParserState : public ZoneObject {
 template <class CharT>
 class RegExpParserImpl final {
  private:
-  RegExpParserImpl(Isolate* isolate, const CharT* input, int input_length,
-                   RegExpFlags flags, uintptr_t stack_limit, Zone* zone,
+  RegExpParserImpl(const CharT* input, int input_length, RegExpFlags flags,
+                   uintptr_t stack_limit, Zone* zone,
                    const DisallowGarbageCollection& no_gc);
 
   bool Parse(RegExpCompileData* result);
@@ -563,7 +563,6 @@ class RegExpParserImpl final {
   bool HasNamedCaptures(InClassEscapeState in_class_escape_state);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return isolate_; }
 
   base::uc32 current() const { return current_; }
   bool has_more() const { return has_more_; }
@@ -604,10 +603,6 @@ class RegExpParserImpl final {
 
   const DisallowGarbageCollection no_gc_;
   Zone* const zone_;
-  // TODO(pthier, v8:11935): Isolate is only used to increment the UseCounter
-  // for unicode set incompabilities in unicode mode. Remove when the counter
-  // is removed.
-  Isolate* const isolate_;
   RegExpError error_ = RegExpError::kNone;
   int error_pos_ = 0;
   ZoneList<RegExpCapture*>* captures_;
@@ -634,10 +629,9 @@ class RegExpParserImpl final {
 
 template <class CharT>
 RegExpParserImpl<CharT>::RegExpParserImpl(
-    Isolate* isolate, const CharT* input, int input_length, RegExpFlags flags,
+    const CharT* input, int input_length, RegExpFlags flags,
     uintptr_t stack_limit, Zone* zone, const DisallowGarbageCollection& no_gc)
     : zone_(zone),
-      isolate_(isolate),
       captures_(nullptr),
       named_captures_(nullptr),
       named_back_references_(nullptr),
@@ -2403,21 +2397,6 @@ void RegExpParserImpl<CharT>::ParseClassEscape(
   if (current() != '\\') {
     // Not a ClassEscape.
     *char_out = current();
-    // Count usages of patterns that would break when replacing /u with /v.
-    // This is only temporarily enabled and should give us an idea if it is
-    // feasible to enable unicode sets for usage in the pattern attribute.
-    // TODO(pthier, v8:11935): Remove for M113.
-    // IsUnicodeMode() is true for both /u and /v, but this method is only
-    // called for /u.
-    if (IsUnicodeMode() && isolate() != nullptr) {
-      const bool unicode_sets_invalid =
-          IsClassSetSyntaxCharacter(*char_out) ||
-          IsClassSetReservedDoublePunctuator(*char_out);
-      if (unicode_sets_invalid) {
-        isolate()->CountUsage(
-            v8::Isolate::kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode);
-      }
-    }
     Advance();
     return;
   }
@@ -3117,13 +3096,13 @@ bool RegExpParser::ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
   String::FlatContent content = input->GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     base::Vector<const uint8_t> v = content.ToOneByteVector();
-    return RegExpParserImpl<uint8_t>{isolate,     v.begin(), v.length(), flags,
-                                     stack_limit, zone,      no_gc}
+    return RegExpParserImpl<uint8_t>{v.begin(),   v.length(), flags,
+                                     stack_limit, zone,       no_gc}
         .Parse(result);
   } else {
     base::Vector<const base::uc16> v = content.ToUC16Vector();
-    return RegExpParserImpl<base::uc16>{
-        isolate, v.begin(), v.length(), flags, stack_limit, zone, no_gc}
+    return RegExpParserImpl<base::uc16>{v.begin(),   v.length(), flags,
+                                        stack_limit, zone,       no_gc}
         .Parse(result);
   }
 }
@@ -3135,14 +3114,8 @@ bool RegExpParser::VerifyRegExpSyntax(Zone* zone, uintptr_t stack_limit,
                                       RegExpFlags flags,
                                       RegExpCompileData* result,
                                       const DisallowGarbageCollection& no_gc) {
-  // TODO(pthier, v8:11935): Isolate is only temporarily used to increment the
-  // UseCounter for unicode set incompabilities in unicode mode.
-  // This method is only used in the parser for early-errors. To avoid passing
-  // the isolate through we simply pass a nullptr. This also has the positive
-  // side-effect of not incrementing the UseCounter multiple times.
-  Isolate* isolate = nullptr;
-  return RegExpParserImpl<CharT>{isolate,     input, input_length, flags,
-                                 stack_limit, zone,  no_gc}
+  return RegExpParserImpl<CharT>{input,       input_length, flags,
+                                 stack_limit, zone,         no_gc}
       .Parse(result);
 }
 
