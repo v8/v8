@@ -207,6 +207,15 @@ RUNTIME_FUNCTION(Runtime_ThrowBadSuspenderError) {
   return ThrowWasmError(isolate, MessageTemplate::kWasmTrapBadSuspender);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
+  Handle<Object> arg(args[1], isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, arg));
+}
+
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);

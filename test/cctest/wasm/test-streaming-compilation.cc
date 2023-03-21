@@ -325,7 +325,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   }
   while (true) {
     WasmCodeRefScope code_ref_scope;
-    std::vector<WasmCode*> all_code = native_module->SnapshotCodeTable();
+    std::vector<WasmCode*> all_code = native_module->SnapshotCodeTable().first;
     if (std::all_of(all_code.begin(), all_code.end(), [](const WasmCode* code) {
           return code && code->tier() == ExecutionTier::kTurbofan;
         })) {

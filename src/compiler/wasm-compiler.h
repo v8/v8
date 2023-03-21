@@ -149,6 +149,7 @@ struct WasmCompilationData {
   wasm::AssemblerBufferCache* buffer_cache;
   NodeOriginTable* node_origins{nullptr};
   std::vector<WasmLoopInfo>* loop_infos{nullptr};
+  wasm::AssumptionsJournal* assumptions{nullptr};
   SourcePositionTable* source_positions{nullptr};
   int func_index;
 };
@@ -580,6 +581,10 @@ class WasmGraphBuilder {
   Node* IsNull(Node* object, wasm::ValueType type);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 
+  // Support for well-known imports.
+  // See {CheckWellKnownImport} for signature and builtin ID definitions.
+  Node* WellKnown_StringToLowerCaseStringref(Node* string,
+                                             CheckForNull null_check);
   bool has_simd() const { return has_simd_; }
 
   wasm::BoundsCheckStrategy bounds_checks() const {
@@ -816,6 +821,10 @@ class WasmGraphBuilder {
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
+
+  void BuildModifyThreadInWasmFlag(bool new_value);
+  void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
+                                         bool new_value);
 
   Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 

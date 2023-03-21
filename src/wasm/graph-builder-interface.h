@@ -26,6 +26,7 @@ struct WasmLoopInfo;
 
 namespace wasm {
 
+class AssumptionsJournal;
 struct FunctionBody;
 class WasmFeatures;
 struct WasmModule;
@@ -62,7 +63,7 @@ V8_EXPORT_PRIVATE void BuildTFGraph(
     std::vector<compiler::WasmLoopInfo>* loop_infos,
     DanglingExceptions* dangling_exceptions,
     compiler::NodeOriginTable* node_origins, int func_index,
-    InlinedStatus inlined_status);
+    AssumptionsJournal* assumptions, InlinedStatus inlined_status);
 
 }  // namespace wasm
 }  // namespace internal
