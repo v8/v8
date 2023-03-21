@@ -43,6 +43,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_conservative_stack_scanning
 # v8_enable_concurrent_marking
 # v8_enable_ignition_dispatch_counting
+# v8_enable_builtins_optimization
 # v8_enable_builtins_profiling
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
