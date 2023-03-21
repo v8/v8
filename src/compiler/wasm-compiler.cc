@@ -6502,6 +6502,70 @@ Node* WasmGraphBuilder::StringHash(Node* string, CheckForNull null_check,
   return end_label.PhiAt(0);
 }
 
+void WasmGraphBuilder::BuildModifyThreadInWasmFlagHelper(
+    Node* thread_in_wasm_flag_address, bool new_value) {
+  if (v8_flags.debug_code) {
+    Node* flag_value =
+        gasm_->Load(MachineType::Int32(), thread_in_wasm_flag_address, 0);
+    Node* check =
+        gasm_->Word32Equal(flag_value, Int32Constant(new_value ? 0 : 1));
+
+    Diamond flag_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
+    flag_check.Chain(control());
+    SetControl(flag_check.if_false);
+    Node* message_id = gasm_->NumberConstant(static_cast<int32_t>(
+        new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                  : AbortReason::kUnexpectedThreadInWasmUnset));
+
+    Node* old_effect = effect();
+    Node* call = BuildCallToRuntimeWithContext(
+        Runtime::kAbort, NoContextConstant(), &message_id, 1);
+    flag_check.merge->ReplaceInput(1, call);
+    SetEffectControl(flag_check.EffectPhi(old_effect, effect()),
+                     flag_check.merge);
+  }
+
+  gasm_->Store({MachineRepresentation::kWord32, kNoWriteBarrier},
+               thread_in_wasm_flag_address, 0,
+               Int32Constant(new_value ? 1 : 0));
+}
+
+void WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
+  if (!trap_handler::IsTrapHandlerEnabled()) return;
+  Node* isolate_root = BuildLoadIsolateRoot();
+
+  Node* thread_in_wasm_flag_address =
+      gasm_->Load(MachineType::Pointer(), isolate_root,
+                  Isolate::thread_in_wasm_flag_address_offset());
+
+  BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
+}
+
+Node* WasmGraphBuilder::WellKnown_StringToLowerCaseStringref(
+    Node* string, CheckForNull null_check) {
+#if V8_INTL_SUPPORT
+  BuildModifyThreadInWasmFlag(false);
+  if (null_check == kWithNullCheck) {
+    auto if_not_null = gasm_->MakeLabel();
+    auto if_null = gasm_->MakeDeferredLabel();
+    gasm_->GotoIf(IsNull(string, wasm::kWasmStringRef), &if_null);
+    gasm_->Goto(&if_not_null);
+    gasm_->Bind(&if_null);
+    gasm_->CallBuiltin(Builtin::kThrowToLowerCaseCalledOnNull,
+                       Operator::kNoWrite);
+    gasm_->Unreachable();
+    gasm_->Bind(&if_not_null);
+  }
+  Node* result =
+      gasm_->CallBuiltin(Builtin::kStringToLowerCaseIntl,
+                         Operator::kEliminatable, string, NoContextConstant());
+  BuildModifyThreadInWasmFlag(true);
+  return result;
+#else
+  UNREACHABLE();
+#endif
+}
+
 Node* WasmGraphBuilder::I31New(Node* input) {
   if constexpr (SmiValuesAre31Bits()) {
     return gasm_->Word32Shl(input, gasm_->BuildSmiShiftBitsConstant32());
@@ -7025,46 +7089,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kVoid:
         UNREACHABLE();
     }
-  }
-
-  void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
-                                         bool new_value) {
-    if (v8_flags.debug_code) {
-      Node* flag_value =
-          gasm_->Load(MachineType::Int32(), thread_in_wasm_flag_address, 0);
-      Node* check =
-          gasm_->Word32Equal(flag_value, Int32Constant(new_value ? 0 : 1));
-
-      Diamond flag_check(graph(), mcgraph()->common(), check,
-                         BranchHint::kTrue);
-      flag_check.Chain(control());
-      SetControl(flag_check.if_false);
-      Node* message_id = gasm_->NumberConstant(static_cast<int32_t>(
-          new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                    : AbortReason::kUnexpectedThreadInWasmUnset));
-
-      Node* old_effect = effect();
-      Node* call = BuildCallToRuntimeWithContext(
-          Runtime::kAbort, NoContextConstant(), &message_id, 1);
-      flag_check.merge->ReplaceInput(1, call);
-      SetEffectControl(flag_check.EffectPhi(old_effect, effect()),
-                       flag_check.merge);
-    }
-
-    gasm_->Store({MachineRepresentation::kWord32, kNoWriteBarrier},
-                 thread_in_wasm_flag_address, 0,
-                 Int32Constant(new_value ? 1 : 0));
-  }
-
-  void BuildModifyThreadInWasmFlag(bool new_value) {
-    if (!trap_handler::IsTrapHandlerEnabled()) return;
-    Node* isolate_root = BuildLoadIsolateRoot();
-
-    Node* thread_in_wasm_flag_address =
-        gasm_->Load(MachineType::Pointer(), isolate_root,
-                    Isolate::thread_in_wasm_flag_address_offset());
-
-    BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
   }
 
   class ModifyThreadInWasmFlagScope {
@@ -8529,7 +8553,7 @@ void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
   auto* allocator = wasm::GetWasmEngine()->allocator();
   wasm::BuildTFGraph(allocator, env->enabled_features, env->module, &builder,
                      detected, data.func_body, data.loop_infos, nullptr,
-                     data.node_origins, data.func_index,
+                     data.node_origins, data.func_index, data.assumptions,
                      wasm::kRegularFunction);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
@@ -8614,6 +8638,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   std::vector<WasmLoopInfo> loop_infos;
   data.loop_infos = &loop_infos;
+  data.assumptions = new wasm::AssumptionsJournal();
 
   wasm::WasmFeatures unused_detected_features;
   if (!detected) detected = &unused_detected_features;
@@ -8655,6 +8680,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
+  result->assumptions.reset(data.assumptions);
   return std::move(*result);
 }
 

@@ -41,6 +41,7 @@ class Isolate;
 
 namespace wasm {
 
+class AssumptionsJournal;
 class DebugInfo;
 class NamesProvider;
 class NativeModule;
@@ -48,6 +49,7 @@ struct WasmCompilationResult;
 class WasmEngine;
 class WasmImportWrapperCache;
 struct WasmModule;
+enum class WellKnownImport : uint8_t;
 
 // Convenience macro listing all wasm runtime stubs. Note that the first few
 // elements of the list coincide with {compiler::TrapId}, order matters.
@@ -624,7 +626,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
   // given {WasmCode} object. Ownership is transferred to the {NativeModule}.
-  WasmCode* PublishCode(std::unique_ptr<WasmCode>);
+  // Returns {nullptr} if the {AssumptionsJournal} is non-nullptr and contains
+  // invalid assumptions.
+  WasmCode* PublishCode(std::unique_ptr<WasmCode>,
+                        AssumptionsJournal* = nullptr);
   std::vector<WasmCode*> PublishCode(base::Vector<std::unique_ptr<WasmCode>>);
 
   // ReinstallDebugCode does a subset of PublishCode: It installs the code in
@@ -667,9 +672,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // jump table with trampolines accordingly.
   void UseLazyStubLocked(uint32_t func_index);
 
-  // Creates a snapshot of the current state of the code table. This is useful
+  // Creates a snapshot of the current state of the code table, along with the
+  // current import statuses that these code objects depend on. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
-  std::vector<WasmCode*> SnapshotCodeTable() const;
+  std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
+  SnapshotCodeTable() const;
   // Creates a snapshot of all {owned_code_}, will transfer new code (if any) to
   // {owned_code_}.
   std::vector<WasmCode*> SnapshotAllOwnedCode() const;

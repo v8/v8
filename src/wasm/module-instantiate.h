@@ -14,6 +14,7 @@
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
 #include "src/wasm/wasm-value.h"
+#include "src/wasm/well-known-imports.h"
 
 namespace v8 {
 namespace internal {
@@ -92,6 +93,7 @@ class WasmImportData {
                                    uint32_t expected_canonical_type_index);
 
   ImportCallKind kind() const { return kind_; }
+  WellKnownImport well_known_status() const { return well_known_status_; }
   Suspend suspend() const { return suspend_; }
   Handle<JSReceiver> callable() const { return callable_; }
 
@@ -100,6 +102,7 @@ class WasmImportData {
                              uint32_t expected_canonical_type_index);
 
   ImportCallKind kind_;
+  WellKnownImport well_known_status_{WellKnownImport::kGeneric};
   Suspend suspend_{false};
   Handle<JSReceiver> callable_;
 };

@@ -162,6 +162,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
       std::fill_n(test_module_->validated_functions.get(),
                   (kMaxFunctions + 7) / 8, 0xff);
     }
+    test_module_->type_feedback.well_known_imports.Initialize(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
   test_module_->functions.push_back({sig,      // sig
@@ -410,7 +411,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   std::vector<compiler::WasmLoopInfo> loops;
   BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                &unused_detected_features, body, &loops, nullptr, nullptr, 0,
-               kRegularFunction);
+               nullptr, kRegularFunction);
   builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
 }
 

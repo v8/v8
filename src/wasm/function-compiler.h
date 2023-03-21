@@ -33,6 +33,31 @@ class WasmCode;
 class WasmEngine;
 struct WasmFunction;
 
+// Stores assumptions that a Wasm compilation job made while executing,
+// so they can be checked for continued validity when the job finishes.
+class AssumptionsJournal {
+ public:
+  AssumptionsJournal() = default;
+
+  void RecordAssumption(uint32_t func_index, WellKnownImport status) {
+    imports_.push_back(std::make_pair(func_index, status));
+  }
+
+  const std::vector<std::pair<uint32_t, WellKnownImport>>& import_statuses() {
+    return imports_;
+  }
+
+  bool empty() const { return imports_.empty(); }
+
+ private:
+  // This is not particularly efficient, but it's probably good enough.
+  // For most compilations, this won't hold any entries. If it does
+  // hold entries, their number is expected to be small, because most
+  // functions don't call many imports, and many imports won't be
+  // specially recognized.
+  std::vector<std::pair<uint32_t, WellKnownImport>> imports_;
+};
+
 struct WasmCompilationResult {
  public:
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
@@ -53,6 +78,7 @@ struct WasmCompilationResult {
   base::OwnedVector<byte> source_positions;
   base::OwnedVector<byte> inlining_positions;
   base::OwnedVector<byte> protected_instructions_data;
+  std::unique_ptr<AssumptionsJournal> assumptions;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier requested_tier;
   ExecutionTier result_tier;

@@ -17,6 +17,7 @@
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/well-known-imports.h"
 
 namespace v8 {
 namespace internal {
@@ -178,11 +179,12 @@ class WasmGraphBuildingInterface {
   };
 
   WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                             int func_index, InlinedStatus inlined_status,
-                             Zone* zone)
+                             int func_index, AssumptionsJournal* assumptions,
+                             InlinedStatus inlined_status, Zone* zone)
       : locals_allocator_(zone),
         builder_(builder),
         func_index_(func_index),
+        assumptions_(assumptions),
         inlined_status_(inlined_status) {}
 
   void StartFunction(FullDecoder* decoder) {
@@ -723,6 +725,33 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_, decoder);
   }
 
+  bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
+                             const Value args[], Value returns[]) {
+    if (!decoder->module_) return false;  // Only needed for tests.
+    if (index >= decoder->module_->num_imported_functions) return false;
+    WellKnownImportsList& well_known_imports =
+        decoder->module_->type_feedback.well_known_imports;
+    using WKI = WellKnownImport;
+    WKI import = well_known_imports.get(index);
+    TFNode* result = nullptr;
+    switch (import) {
+      case WKI::kUninstantiated:
+      case WKI::kGeneric:
+        return false;
+      case WKI::kStringToLowerCaseStringref:
+        result = builder_->WellKnown_StringToLowerCaseStringref(
+            args[0].node, NullCheckFor(args[0].type));
+        break;
+    }
+    assumptions_->RecordAssumption(index, import);
+    SetAndTypeNode(&returns[0], result);
+    if (v8_flags.trace_wasm_inlining) {
+      PrintF("[function %d: import %d is well-known built-in %s]\n",
+             func_index_, index, WellKnownImportName(import));
+    }
+    return true;
+  }
+
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
@@ -731,6 +760,8 @@ class WasmGraphBuildingInterface {
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
     }
+    // This must happen after the {next_call_feedback()} call.
+    if (HandleWellKnownImport(decoder, imm.index, args, returns)) return;
     DoCall(decoder, CallInfo::CallDirect(imm.index, maybe_call_count), imm.sig,
            args, returns);
   }
@@ -1847,6 +1878,7 @@ class WasmGraphBuildingInterface {
   // When inlining, tracks exception handlers that are left dangling and must be
   // handled by the callee.
   DanglingExceptions dangling_exceptions_;
+  AssumptionsJournal* assumptions_;
   InlinedStatus inlined_status_;
   // The entries in {type_feedback_} are indexed by the position of feedback-
   // consuming instructions (currently only calls).
@@ -2380,10 +2412,11 @@ void BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
                   std::vector<compiler::WasmLoopInfo>* loop_infos,
                   DanglingExceptions* dangling_exceptions,
                   compiler::NodeOriginTable* node_origins, int func_index,
+                  AssumptionsJournal* assumptions,
                   InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::NoValidationTag, WasmGraphBuildingInterface> decoder(
-      &zone, module, enabled, detected, body, builder, func_index,
+      &zone, module, enabled, detected, body, builder, func_index, assumptions,
       inlined_status, &zone);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
