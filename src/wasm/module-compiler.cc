@@ -616,7 +616,8 @@ class CompilationStateImpl {
   void OnCompilationStopped(WasmFeatures detected);
   void PublishDetectedFeatures(Isolate*);
   void SchedulePublishCompilationResults(
-      std::vector<std::unique_ptr<WasmCode>> unpublished_code);
+      std::vector<std::unique_ptr<WasmCode>> unpublished_code,
+      CompilationTier tier);
 
   size_t NumOutstandingExportWrappers() const;
   size_t NumOutstandingCompilations(CompilationTier tier) const;
@@ -763,10 +764,13 @@ class CompilationStateImpl {
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // {publish_mutex_} protects {publish_queue_} and {publisher_running_}.
-  base::Mutex publish_mutex_;
-  std::vector<std::unique_ptr<WasmCode>> publish_queue_;
-  bool publisher_running_ = false;
+  struct PublishState {
+    // {mutex_} protects {publish_queue_} and {publisher_running_}.
+    base::Mutex mutex_;
+    std::vector<std::unique_ptr<WasmCode>> publish_queue_;
+    bool publisher_running_ = false;
+  };
+  PublishState publish_state_[CompilationTier::kNumTiers];
 
   // Encoding of fields in the {compilation_progress_} vector.
   using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
@@ -1587,7 +1591,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 base::VectorOf(std::move(results_to_publish)));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code));
+            std::move(unpublished_code), tier);
         compile_scope.compilation_state()->OnCompilationStopped(
             detected_features);
         return yield ? kYield : kNoMoreUnits;
@@ -1608,7 +1612,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 base::VectorOf(std::move(results_to_publish)));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code));
+            std::move(unpublished_code), tier);
       }
     }
   }
@@ -3659,18 +3663,21 @@ void CompilationStateImpl::PublishCode(
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(
-    std::vector<std::unique_ptr<WasmCode>> unpublished_code) {
+    std::vector<std::unique_ptr<WasmCode>> unpublished_code,
+    CompilationTier tier) {
+  PublishState& state = publish_state_[tier];
   {
-    base::MutexGuard guard(&publish_mutex_);
-    if (publisher_running_) {
+    base::MutexGuard guard(&state.mutex_);
+    if (state.publisher_running_) {
       // Add new code to the queue and return.
-      publish_queue_.reserve(publish_queue_.size() + unpublished_code.size());
+      state.publish_queue_.reserve(state.publish_queue_.size() +
+                                   unpublished_code.size());
       for (auto& c : unpublished_code) {
-        publish_queue_.emplace_back(std::move(c));
+        state.publish_queue_.emplace_back(std::move(c));
       }
       return;
     }
-    publisher_running_ = true;
+    state.publisher_running_ = true;
   }
   CodeSpaceWriteScope code_space_write_scope(native_module_);
   while (true) {
@@ -3678,13 +3685,13 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     unpublished_code.clear();
 
     // Keep publishing new code that came in.
-    base::MutexGuard guard(&publish_mutex_);
-    DCHECK(publisher_running_);
-    if (publish_queue_.empty()) {
-      publisher_running_ = false;
+    base::MutexGuard guard(&state.mutex_);
+    DCHECK(state.publisher_running_);
+    if (state.publish_queue_.empty()) {
+      state.publisher_running_ = false;
       return;
     }
-    unpublished_code.swap(publish_queue_);
+    unpublished_code.swap(state.publish_queue_);
   }
 }
 
