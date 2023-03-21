@@ -223,7 +223,7 @@ HeapGraphEdge::HeapGraphEdge(Type type, int index, HeapEntry* from,
 HeapEntry::HeapEntry(HeapSnapshot* snapshot, int index, Type type,
                      const char* name, SnapshotObjectId id, size_t self_size,
                      unsigned trace_node_id)
-    : type_(type),
+    : type_(static_cast<unsigned>(type)),
       index_(index),
       children_count_(0),
       self_size_(self_size),
