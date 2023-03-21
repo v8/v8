@@ -150,9 +150,8 @@ ExceptionStatus KeyAccumulator::AddKey(Handle<Object> key,
       OrderedHashSet::Add(isolate(), keys(), key);
   Handle<OrderedHashSet> new_set;
   if (!new_set_candidate.ToHandle(&new_set)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate_, NewRangeError(MessageTemplate::kTooManyProperties),
-        ExceptionStatus::kException);
+    CHECK(isolate_->has_pending_exception());
+    return ExceptionStatus::kException;
   }
   if (*new_set != *keys_) {
     // The keys_ Set is converted directly to a FixedArray in GetKeys which can
