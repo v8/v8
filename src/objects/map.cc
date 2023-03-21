@@ -226,6 +226,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case CODE_TYPE:
       return kVisitCode;
 
+    case SHARED_FUNCTION_INFO_TYPE:
+      return kVisitSharedFunctionInfo;
+
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 

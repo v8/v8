@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
 #include "src/objects/visitors.h"
 
@@ -50,6 +51,7 @@ namespace internal {
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
+  V(SharedFunctionInfo)                 \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \

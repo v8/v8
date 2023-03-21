@@ -381,8 +381,9 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  memset(reinterpret_cast<void*>(this->address() + kSize), 0,
-         kAlignedSize - kSize);
+#if V8_SFI_NEEDS_PADDING
+  set_optional_padding(0);
+#endif  // V8_SFI_NEEDS_PADDING
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {

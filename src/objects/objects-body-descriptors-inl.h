@@ -21,6 +21,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection.h"
@@ -615,6 +616,25 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
     PreparseData data = PreparseData::cast(obj);
     return PreparseData::SizeFor(data.data_length(), data.children_length());
   }
+};
+
+class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset >= HeapObject::kHeaderSize &&
+           offset < kEndOfStrongFieldsOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateCustomWeakPointers(obj, kStartOfWeakFieldsOffset,
+                              kEndOfWeakFieldsOffset, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject raw_object) { return kSize; }
 };
 
 class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
@@ -1364,6 +1384,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Code);
     case PREPARSE_DATA_TYPE:
       return CALL_APPLY(PreparseData);
+    case SHARED_FUNCTION_INFO_TYPE:
+      return CALL_APPLY(SharedFunctionInfo);
     case HEAP_NUMBER_TYPE:
       return CALL_APPLY(HeapNumber);
     case BYTE_ARRAY_TYPE:

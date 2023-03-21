@@ -572,7 +572,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     ALLOCATE_MAP(ACCESSOR_INFO_TYPE, AccessorInfo::kSize, accessor_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
-    ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
+    ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize,
                  shared_function_info)
     ALLOCATE_MAP(CODE_TYPE, Code::kSize, code)
 

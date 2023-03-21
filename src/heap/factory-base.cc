@@ -367,8 +367,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
       SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
 
-  shared.CopyFrom(*other);
   shared.clear_padding();
+  shared.CopyFrom(*other);
 
   return handle(shared, isolate());
 }
