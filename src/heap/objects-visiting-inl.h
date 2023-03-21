@@ -17,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
 #include "src/objects/visitors.h"
@@ -96,16 +97,23 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
   static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
-#define VISIT(TypeName)                                                 \
-  template <typename ResultType, typename ConcreteVisitor>              \
-  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName( \
-      Map map, TypeName object) {                                       \
-    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);     \
-    if (!visitor->ShouldVisit(object)) return ResultType();             \
-    visitor->VisitMapPointerIfNeeded(object);                           \
-    const int size = TypeName::BodyDescriptor::SizeOf(map, object);     \
-    TypeName::BodyDescriptor::IterateBody(map, object, size, visitor);  \
-    return static_cast<ResultType>(size);                               \
+#define VISIT(TypeName)                                                      \
+  template <typename ResultType, typename ConcreteVisitor>                   \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(      \
+      Map map, TypeName object) {                                            \
+    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);          \
+    if (!visitor->ShouldVisit(object)) return ResultType();                  \
+    /* If you see the following DCHECK fail, then the size computation of    \
+     * BodyDescriptor doesn't match the size return via obj.Size(). This is  \
+     * problematic as the GC requires those sizes to match for accounting    \
+     * reasons. The fix likely involves adding a padding field in the object \
+     * defintions. */                                                        \
+    DCHECK_EQ(object.SizeFromMap(map),                                       \
+              TypeName::BodyDescriptor::SizeOf(map, object));                \
+    visitor->VisitMapPointerIfNeeded(object);                                \
+    const int size = TypeName::BodyDescriptor::SizeOf(map, object);          \
+    TypeName::BodyDescriptor::IterateBody(map, object, size, visitor);       \
+    return static_cast<ResultType>(size);                                    \
   }
 TYPED_VISITOR_ID_LIST(VISIT)
 TORQUE_VISITOR_ID_LIST(VISIT)

@@ -450,8 +450,7 @@ OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap, AllocationSpace id)
     : LargeObjectSpace(heap, id) {}
 
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
-    : LargeObjectSpace(heap, NEW_LO_SPACE),
-      capacity_(capacity) {}
+    : LargeObjectSpace(heap, NEW_LO_SPACE), capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);

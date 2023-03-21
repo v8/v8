@@ -2388,7 +2388,12 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
         local_marking_worklists()->SwitchToContext(context);
       }
     }
-    size_t visited_size = marking_visitor_->Visit(map, object);
+    const auto visited_size = marking_visitor_->Visit(map, object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
     if (is_per_context_mode) {
       native_context_stats_.IncrementSize(local_marking_worklists()->Context(),
                                           map, object, visited_size);
@@ -5811,17 +5816,27 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
 
 void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
   if (marking_state_->TryMark(heap_object)) {
-    visitor_.Visit(heap_object);
+    const auto visited_size = visitor_.Visit(heap_object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
     // Objects transition to black when visited.
     DCHECK(marking_state_->IsMarked(heap_object));
   }
 }
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
-  HeapObject object;
-  while (marking_worklists_local_->Pop(&object) ||
-         marking_worklists_local_->PopOnHold(&object)) {
-    visitor_.Visit(object);
+  HeapObject heap_object;
+  while (marking_worklists_local_->Pop(&heap_object) ||
+         marking_worklists_local_->PopOnHold(&heap_object)) {
+    const auto visited_size = visitor_.Visit(heap_object);
+    if (visited_size) {
+      marking_state_->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
   marking_worklists_local_->PublishWrapper();
@@ -6108,13 +6123,18 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
   do {
     PerformWrapperTracing();
 
-    HeapObject object;
-    while (local_marking_worklists_->Pop(&object)) {
-      DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
-      DCHECK(object.IsHeapObject());
-      DCHECK(heap()->Contains(object));
-      DCHECK(!non_atomic_marking_state()->IsUnmarked(object));
-      main_marking_visitor_->Visit(object);
+    HeapObject heap_object;
+    while (local_marking_worklists_->Pop(&heap_object)) {
+      DCHECK(!heap_object.IsFreeSpaceOrFiller(cage_base));
+      DCHECK(heap_object.IsHeapObject());
+      DCHECK(heap()->Contains(heap_object));
+      DCHECK(!non_atomic_marking_state()->IsUnmarked(heap_object));
+      const auto visited_size = main_marking_visitor_->Visit(heap_object);
+      if (visited_size) {
+        marking_state_->IncrementLiveBytes(
+            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+            visited_size);
+      }
     }
   } while (!IsCppHeapMarkingFinished());
   DCHECK(local_marking_worklists_->IsEmpty());
