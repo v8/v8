@@ -36,6 +36,7 @@
 ['mode == debug', {
   # Skip slow tests in debug mode.
   'general/empty-handle': [SKIP],
+  'string-localecompare': [SKIP],
 }],  # mode == debug
 
 ##############################################################################

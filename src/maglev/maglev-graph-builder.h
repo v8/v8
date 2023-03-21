@@ -303,7 +303,8 @@ class MaglevGraphBuilder {
     // Add an interrupt budget correction if necessary. This makes the edge
     // split block no longer empty, which is unexpected, but we're not changing
     // interpreter frame state, so that's ok.
-    if (ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
+    if (v8_flags.maglev_increase_budget_forward_jump &&
+        ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
       DCHECK_GT(interrupt_budget_correction, 0);
       AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
     }
@@ -1244,7 +1245,8 @@ class MaglevGraphBuilder {
       jump_target_refs_head =
           jump_target_refs_head->SetToBlockAndReturnNext(block);
     }
-    if (ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
+    if (v8_flags.maglev_increase_budget_forward_jump &&
+        ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
       DCHECK_GT(interrupt_budget_correction, 0);
       AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
     }

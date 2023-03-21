@@ -6081,7 +6081,8 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 void MaglevGraphBuilder::VisitJump() {
   const uint32_t relative_jump_bytecode_offset =
       iterator_.GetRelativeJumpTargetOffset();
-  if (ShouldEmitInterruptBudgetChecks() && relative_jump_bytecode_offset > 0) {
+  if (v8_flags.maglev_increase_budget_forward_jump &&
+      ShouldEmitInterruptBudgetChecks() && relative_jump_bytecode_offset > 0) {
     AddNewNode<IncreaseInterruptBudget>({}, relative_jump_bytecode_offset);
   }
   BasicBlock* block =

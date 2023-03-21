@@ -403,9 +403,7 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
       int bytecode_length = shared.GetBytecodeArray(isolate_).length();
       FeedbackCell cell = vector.parent_feedback_cell();
       int minimum = v8_flags.minimum_invocations_after_ic_update;
-      int maximum_budget =
-          ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
-      int new_budget = std::min(minimum * bytecode_length, maximum_budget);
+      int new_budget = minimum * bytecode_length;
       int current_budget = cell.interrupt_budget();
       if (new_budget > current_budget) {
         if (v8_flags.trace_opt_verbose) {

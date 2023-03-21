@@ -678,10 +678,16 @@ DEFINE_INT(
 DEFINE_BOOL(global_ic_updated_flag, false,
             "Track, globally, whether any IC changed, and use this in tierup "
             "heuristics.")
-DEFINE_INT(minimum_invocations_after_ic_update, 12,
+DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
+DEFINE_BOOL(reset_ticks_on_ic_update, true,
+            "On IC change, reset the ticks for just that function.")
+DEFINE_BOOL(maglev_increase_budget_forward_jump, false,
+            "Increase interrupt budget on forward jumps in maglev code")
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 20)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
