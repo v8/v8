@@ -122,6 +122,12 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#ifdef V8_STATIC_ROOT_GENERATION
+#define V8_STATIC_ROOT_GENERATION_BOOL true
+#else
+#define V8_STATIC_ROOT_GENERATION_BOOL false
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
 #else

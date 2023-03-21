@@ -1076,7 +1076,7 @@ bool Heap::CreateReadOnlyObjects() {
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
 
-  if (V8_STATIC_ROOTS_BOOL) {
+  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
     // Ensure all of the following lands on the same V8 page.
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
     read_only_space_->EnsureSpaceForAllocation(
@@ -1106,7 +1106,7 @@ bool Heap::CreateReadOnlyObjects() {
         reinterpret_cast<uint32_t*>(obj.ptr() - kHeapObjectTag + kTaggedSize),
         0, (WasmNull::kSize - kTaggedSize) / sizeof(uint32_t));
     set_wasm_null(WasmNull::cast(obj));
-    if (V8_STATIC_ROOTS_BOOL) {
+    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
       CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
     }
   }

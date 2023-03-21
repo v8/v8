@@ -1062,7 +1062,7 @@ class WasmSuspenderObject
 
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
-#if V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
   static constexpr int kSize = 64 * KB + kTaggedSize;
   // Payload should be a multiple of page size.
