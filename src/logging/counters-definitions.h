@@ -13,8 +13,6 @@ namespace internal {
 // Generic range histograms.
 // HR(name, caption, min, max, num_buckets)
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
-  HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
-  HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \

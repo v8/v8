@@ -1351,10 +1351,6 @@ void GCTracer::NotifyIncrementalMarkingStart() {
 void GCTracer::FetchBackgroundMarkCompactCounters() {
   FetchBackgroundCounters(Scope::FIRST_MC_BACKGROUND_SCOPE,
                           Scope::LAST_MC_BACKGROUND_SCOPE);
-  heap_->isolate()->counters()->background_marking()->AddSample(
-      static_cast<int>(current_.scopes[Scope::MC_BACKGROUND_MARKING]));
-  heap_->isolate()->counters()->background_sweeping()->AddSample(
-      static_cast<int>(current_.scopes[Scope::MC_BACKGROUND_SWEEPING]));
 }
 
 void GCTracer::FetchBackgroundMinorGCCounters() {
