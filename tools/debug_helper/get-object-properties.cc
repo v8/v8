@@ -623,11 +623,6 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
     any_uncompressed_ptr = heap_addresses.old_space_first_page;
   if (any_uncompressed_ptr == 0)
     any_uncompressed_ptr = heap_addresses.read_only_space_first_page;
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  V8HeapCompressionScheme::InitBase(
-      V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
-          any_uncompressed_ptr));
-#endif
   FillInUnknownHeapAddresses(&heap_addresses, any_uncompressed_ptr);
   if (any_uncompressed_ptr == 0) {
     // We can't figure out the heap range. Just check for known objects.

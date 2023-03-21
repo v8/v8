@@ -85,7 +85,8 @@ Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
 template <typename TOnHeapAddress>
 Address V8HeapCompressionScheme::DecompressTagged(TOnHeapAddress on_heap_addr,
                                                   Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
+    !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
   Address cage_base = base();
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
@@ -179,7 +180,8 @@ Address ExternalCodeCompressionScheme::DecompressTaggedSigned(
 template <typename TOnHeapAddress>
 Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
+    !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
   Address cage_base = base();
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
