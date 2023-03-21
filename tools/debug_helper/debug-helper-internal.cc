@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Don't bother initializing global cage base value, compute it from any
-// on heap address instead.
-#define V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE
 #include "debug-helper-internal.h"
 #include "src/common/ptr-compr-inl.h"
 #include "torque-generated/class-debug-readers.h"
@@ -26,6 +23,13 @@ bool IsPointerCompressed(uintptr_t address) {
 uintptr_t EnsureDecompressed(uintptr_t address,
                              uintptr_t any_uncompressed_ptr) {
   if (!COMPRESS_POINTERS_BOOL || !IsPointerCompressed(address)) return address;
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  Address base =
+      V8HeapCompressionScheme::GetPtrComprCageBaseAddress(any_uncompressed_ptr);
+  if (base != V8HeapCompressionScheme::base()) {
+    V8HeapCompressionScheme::InitBase(base);
+  }
+#endif
   // TODO(v8:11880): ExternalCodeCompressionScheme might be needed here for
   // decompressing Code pointers from external code space.
   return i::V8HeapCompressionScheme::DecompressTagged(
