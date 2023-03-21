@@ -14,17 +14,17 @@ namespace v8 {
 namespace internal {
 
 void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
-  if (atomic_marking_state()->IsBlack(to)) {
+  if (atomic_marking_state()->IsMarked(to)) {
     DCHECK(black_allocation());
     return;
   }
 
-  DCHECK(atomic_marking_state()->IsWhite(to));
+  DCHECK(atomic_marking_state()->IsUnmarked(to));
   if (atomic_marking_state()->IsGrey(from)) {
     bool success = atomic_marking_state()->WhiteToGrey(to);
     DCHECK(success);
     USE(success);
-  } else if (atomic_marking_state()->IsBlack(from)) {
+  } else if (atomic_marking_state()->IsMarked(from)) {
     bool success = atomic_marking_state()->WhiteToBlack(to);
     DCHECK(success);
     USE(success);

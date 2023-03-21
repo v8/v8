@@ -557,7 +557,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     // to meta-data like size during page promotion.
     object.set_map_word(map, kRelaxedStore);
 
-    if (is_compacting && marking_state->IsBlack(object) &&
+    if (is_compacting && marking_state->IsMarked(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
           MemoryChunk::FromHeapObject(object), object.map_slot().address());
@@ -658,7 +658,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   // the end of collection it would be a violation of the invariant to record
   // its slots.
   const bool record_slots =
-      is_compacting_ && heap()->atomic_marking_state()->IsBlack(target);
+      is_compacting_ && heap()->atomic_marking_state()->IsMarked(target);
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
 

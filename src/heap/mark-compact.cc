@@ -119,7 +119,7 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
   virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
-  virtual bool IsBlack(HeapObject object) = 0;
+  virtual bool IsMarked(HeapObject object) = 0;
 
   void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
@@ -169,7 +169,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
     Address current = object.address();
     if (current < start) continue;
     if (current >= end) break;
-    CHECK(IsBlack(object));
+    CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
     object.Iterate(cage_base(), this);
     next_object_must_be_here_or_later = current + size;
@@ -216,7 +216,7 @@ void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
   if (!lo_space) return;
   LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-    if (IsBlack(obj)) {
+    if (IsMarked(obj)) {
       obj.Iterate(cage_base(), this);
     }
   }
@@ -246,8 +246,8 @@ class FullMarkingVerifier : public MarkingVerifier {
     return marking_state_->bitmap(chunk);
   }
 
-  bool IsBlack(HeapObject object) override {
-    return marking_state_->IsBlack(object);
+  bool IsMarked(HeapObject object) override {
+    return marking_state_->IsMarked(object);
   }
 
   void VerifyMap(Map map) override { VerifyHeapObjectImpl(map); }
@@ -296,7 +296,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
 
     CHECK(heap_object.InReadOnlySpace() ||
-          marking_state_->IsBlack(heap_object));
+          marking_state_->IsMarked(heap_object));
   }
 
   V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
@@ -590,7 +590,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
   if (!space) return;
   LargeObjectSpaceObjectIterator it(space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-    CHECK(non_atomic_marking_state()->IsWhite(obj));
+    CHECK(non_atomic_marking_state()->IsUnmarked(obj));
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
                     MemoryChunk::FromHeapObject(obj)));
   }
@@ -1284,7 +1284,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
         HeapObject heap_object = HeapObject::cast(o);
         DCHECK(!Heap::InYoungGeneration(heap_object));
         if (!heap_object.InReadOnlySpace() &&
-            marking_state->IsWhite(heap_object)) {
+            marking_state->IsUnmarked(heap_object)) {
           pointers_removed_++;
           // Set the entry to the_hole_value (as deleted).
           p.store(StringTable::deleted_element());
@@ -1320,7 +1320,7 @@ class ExternalStringTableCleaner : public RootVisitor {
       HeapObject heap_object = HeapObject::cast(o);
       // MinorMC doesn't update the young strings set and so it may contain
       // strings that are already in old space.
-      if (!marking_state->IsWhite(heap_object)) continue;
+      if (!marking_state->IsUnmarked(heap_object)) continue;
       if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
           !Heap::InYoungGeneration(heap_object))
         continue;
@@ -1408,7 +1408,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
   Object RetainAs(Object object) override {
     HeapObject heap_object = HeapObject::cast(object);
     DCHECK(!marking_state_->IsGrey(heap_object));
-    if (marking_state_->IsBlack(heap_object)) {
+    if (marking_state_->IsMarked(heap_object)) {
       return object;
     } else if (object.IsAllocationSite() &&
                !(AllocationSite::cast(object).IsZombie())) {
@@ -1999,7 +1999,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
       !collector->is_shared_space_isolate_) {
     if (heap_object.InWritableSharedSpace()) return false;
   }
-  return collector->non_atomic_marking_state()->IsWhite(heap_object);
+  return collector->non_atomic_marking_state()->IsUnmarked(heap_object);
 }
 
 // static
@@ -2012,7 +2012,7 @@ bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
   MarkCompactCollector* collector =
       shared_space_isolate->heap()->mark_compact_collector();
   if (!heap_object.InWritableSharedSpace()) return false;
-  return collector->non_atomic_marking_state()->IsWhite(heap_object);
+  return collector->non_atomic_marking_state()->IsUnmarked(heap_object);
 }
 
 void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
@@ -2250,7 +2250,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
   while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
     ProcessEphemeron(ephemeron.key, ephemeron.value);
 
-    if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
+    if (non_atomic_marking_state()->IsUnmarked(ephemeron.value)) {
       key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
     }
   }
@@ -2276,7 +2276,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
     while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
       ProcessEphemeron(ephemeron.key, ephemeron.value);
 
-      if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
+      if (non_atomic_marking_state()->IsUnmarked(ephemeron.value)) {
         key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
       }
     }
@@ -2366,7 +2366,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
       // first bit set, one word fillers are always black.
       DCHECK_IMPLIES(object.map(cage_base) ==
                          ReadOnlyRoots(isolate).one_pointer_filler_map(),
-                     marking_state()->IsBlack(object));
+                     marking_state()->IsMarked(object));
       // Other fillers may be black or grey depending on the color of the object
       // that was trimmed.
       DCHECK_IMPLIES(object.map(cage_base) !=
@@ -2376,7 +2376,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     }
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!(marking_state()->IsWhite(object)));
+    DCHECK(!(marking_state()->IsUnmarked(object)));
     if (mode == MarkCompactCollector::MarkingWorklistProcessingMode::
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
@@ -2418,7 +2418,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
       return true;
     }
 
-  } else if (marking_state()->IsWhite(value)) {
+  } else if (marking_state()->IsUnmarked(value)) {
     local_weak_objects()->next_ephemerons_local.Push(Ephemeron{key, value});
   }
   return false;
@@ -2509,7 +2509,7 @@ bool ShouldRetainMap(MarkingState* marking_state, Map map, int age) {
   Object constructor = map.GetConstructor();
   if (!constructor.IsHeapObject() ||
       (!HeapObject::cast(constructor).InReadOnlySpace() &&
-       marking_state->IsWhite(HeapObject::cast(constructor)))) {
+       marking_state->IsUnmarked(HeapObject::cast(constructor)))) {
     // The constructor is dead, no new objects with this map can
     // be created. Do not retain this map.
     return false;
@@ -2537,7 +2537,7 @@ void MarkCompactCollector::RetainMaps() {
       int age = retained_maps.Get(i + 1).ToSmi().value();
       int new_age;
       Map map = Map::cast(map_heap_object);
-      if (should_retain_maps && marking_state()->IsWhite(map)) {
+      if (should_retain_maps && marking_state()->IsUnmarked(map)) {
         if (ShouldRetainMap(marking_state(), map, age)) {
           if (marking_state()->WhiteToGrey(map)) {
             local_marking_worklists()->Push(map);
@@ -2549,7 +2549,7 @@ void MarkCompactCollector::RetainMaps() {
         Object prototype = map.prototype();
         if (age > 0 && prototype.IsHeapObject() &&
             (!HeapObject::cast(prototype).InReadOnlySpace() &&
-             marking_state()->IsWhite(HeapObject::cast(prototype)))) {
+             marking_state()->IsUnmarked(HeapObject::cast(prototype)))) {
           // The prototype is not marked, age the map.
           new_age = age - 1;
         } else {
@@ -2779,7 +2779,7 @@ class StringForwardingTableCleaner final {
       return;
     }
     String original_string = String::cast(original);
-    if (marking_state_->IsBlack(original_string)) {
+    if (marking_state_->IsMarked(original_string)) {
       Object forward = record->ForwardStringObjectOrHash(isolate_);
       if (!forward.IsHeapObject() ||
           HeapObject::cast(forward).InReadOnlySpace()) {
@@ -2800,7 +2800,7 @@ class StringForwardingTableCleaner final {
     }
     String original_string = String::cast(original);
     if (!Heap::InYoungGeneration(original_string)) return;
-    if (!marking_state_->IsBlack(original_string)) {
+    if (!marking_state_->IsMarked(original_string)) {
       DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
     }
@@ -2812,7 +2812,7 @@ class StringForwardingTableCleaner final {
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
-    if (marking_state_->IsBlack(HeapObject::cast(original))) {
+    if (marking_state_->IsMarked(HeapObject::cast(original))) {
       String original_string = String::cast(original);
       if (original_string.IsThinString()) {
         original_string = ThinString::cast(original_string).actual();
@@ -3036,7 +3036,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
 }
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
-  DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
+  DCHECK(non_atomic_marking_state()->IsUnmarked(dead_target));
   Object potential_parent = dead_target.constructor_or_back_pointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
@@ -3299,11 +3299,11 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
       for (int j = 0; j < num_transitions; ++j) {
         DCHECK_IMPLIES(
             !transitions.GetRawTarget(j).IsSmi(),
-            !non_atomic_marking_state()->IsWhite(transitions.GetTarget(j)));
+            !non_atomic_marking_state()->IsUnmarked(transitions.GetTarget(j)));
       }
 #endif
       return false;
-    } else if (non_atomic_marking_state()->IsWhite(
+    } else if (non_atomic_marking_state()->IsUnmarked(
                    TransitionsAccessor::GetTargetFromRaw(raw_target))) {
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
@@ -3331,7 +3331,7 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
   for (int i = 0; i < num_transitions; ++i) {
     Map target = transitions.GetTarget(i);
     DCHECK_EQ(target.constructor_or_back_pointer(), map);
-    if (non_atomic_marking_state()->IsWhite(target)) {
+    if (non_atomic_marking_state()->IsUnmarked(target)) {
       if (!descriptors.is_null() &&
           target.instance_descriptors(isolate()) == descriptors) {
         DCHECK(!target.is_prototype_map());
@@ -4479,7 +4479,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       LargePage* current = *(it++);
       HeapObject object = current->GetObject();
       DCHECK(!marking_state->IsGrey(object));
-      if (marking_state->IsBlack(object)) {
+      if (marking_state->IsMarked(object)) {
         heap()->lo_space()->PromoteNewLargeObject(current);
         current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
         promoted_large_pages_.push_back(current);
@@ -4548,7 +4548,7 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                "LiveObjectVisitor::VisitBlackObjectsNoFail");
   if (chunk->IsLargePage()) {
     HeapObject object = reinterpret_cast<LargePage*>(chunk)->GetObject();
-    if (marking_state->IsBlack(object)) {
+    if (marking_state->IsMarked(object)) {
       const bool success = visitor->Visit(object, object.Size());
       USE(success);
       DCHECK(success);
@@ -4557,7 +4557,7 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
     for (auto object_and_size :
          LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
       HeapObject const object = object_and_size.first;
-      DCHECK(marking_state->IsBlack(object));
+      DCHECK(marking_state->IsMarked(object));
       const bool success = visitor->Visit(object, object_and_size.second);
       USE(success);
       DCHECK(success);
@@ -4847,7 +4847,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     } else {
       // OLD_TO_NEW slots are recorded in dead memory, so they might point to
       // dead objects.
-      DCHECK(!marking_state_->IsBlack(heap_object));
+      DCHECK(!marking_state_->IsMarked(heap_object));
     }
   }
 
@@ -5371,7 +5371,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     LargePage* current = *(it++);
     HeapObject object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
-    if (!marking_state->IsBlack(object)) {
+    if (!marking_state->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
@@ -5450,8 +5450,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     return marking_state_->bitmap(chunk);
   }
 
-  bool IsBlack(HeapObject object) override {
-    return marking_state_->IsBlack(object);
+  bool IsMarked(HeapObject object) override {
+    return marking_state_->IsMarked(object);
   }
 
   void Run() override {
@@ -5494,7 +5494,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object), IsBlack(heap_object));
+    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object), IsMarked(heap_object));
   }
 
   template <typename TSlot>
@@ -5519,7 +5519,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
   DCHECK_IMPLIES(Heap::InYoungGeneration(*p), Heap::InToPage(*p));
   return Heap::InYoungGeneration(*p) &&
-         !heap->non_atomic_marking_state()->IsBlack(HeapObject::cast(*p));
+         !heap->non_atomic_marking_state()->IsMarked(HeapObject::cast(*p));
 }
 
 }  // namespace
@@ -5725,7 +5725,7 @@ void MinorMarkCompactCollector::MakeIterable(
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state()->bitmap(p))) {
     HeapObject const object = object_and_size.first;
-    DCHECK(non_atomic_marking_state()->IsBlack(object));
+    DCHECK(non_atomic_marking_state()->IsMarked(object));
     Address free_end = object.address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
@@ -5813,7 +5813,7 @@ void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
   if (marking_state_->WhiteToGrey(heap_object)) {
     visitor_.Visit(heap_object);
     // Objects transition to black when visited.
-    DCHECK(marking_state_->IsBlack(heap_object));
+    DCHECK(marking_state_->IsMarked(heap_object));
   }
 }
 
@@ -6113,7 +6113,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
       DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
       DCHECK(object.IsHeapObject());
       DCHECK(heap()->Contains(object));
-      DCHECK(!non_atomic_marking_state()->IsWhite(object));
+      DCHECK(!non_atomic_marking_state()->IsUnmarked(object));
       main_marking_visitor_->Visit(object);
     }
   } while (!IsCppHeapMarkingFinished());
@@ -6242,7 +6242,7 @@ bool MinorMarkCompactCollector::SweepNewLargeSpace() {
     it++;
     HeapObject object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
-    if (!marking_state->IsBlack(object)) {
+    if (!marking_state->IsMarked(object)) {
       // Object is dead and page can be released.
       new_lo_space->RemovePage(current);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,

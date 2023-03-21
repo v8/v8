@@ -393,7 +393,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.
-        if (concrete_visitor()->marking_state()->IsWhite(value)) {
+        if (concrete_visitor()->marking_state()->IsUnmarked(value)) {
           local_weak_objects_->discovered_ephemerons_local.Push(
               Ephemeron{key, value});
         }

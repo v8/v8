@@ -221,7 +221,7 @@ class ConcurrentMarkingVisitor final
         return true;
       }
 
-    } else if (marking_state_.IsWhite(value)) {
+    } else if (marking_state_.IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;

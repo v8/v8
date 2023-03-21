@@ -1098,7 +1098,7 @@ class ObjectStatsVisitor {
         phase_(phase) {}
 
   void Visit(HeapObject obj) {
-    if (obj.InReadOnlySpace() || marking_state_->IsBlack(obj)) {
+    if (obj.InReadOnlySpace() || marking_state_->IsMarked(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {

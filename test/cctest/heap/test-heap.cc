@@ -2604,7 +2604,7 @@ TEST(InstanceOfStubWriteBarrier) {
   MarkingState* marking_state = CcTest::heap()->marking_state();
 
   const double kStepSizeInMs = 100;
-  while (!marking_state->IsBlack(f->code())) {
+  while (!marking_state->IsMarked(f->code())) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
     CHECK(!marking->IsMajorMarkingComplete());
@@ -5779,10 +5779,10 @@ TEST(Regress598319) {
   CHECK(heap->lo_space()->Contains(arr.get()));
   IncrementalMarking* marking = heap->incremental_marking();
   MarkingState* marking_state = heap->marking_state();
-  CHECK(marking_state->IsWhite(arr.get()));
+  CHECK(marking_state->IsUnmarked(arr.get()));
   for (int i = 0; i < arr.get().length(); i++) {
     HeapObject arr_value = HeapObject::cast(arr.get().get(i));
-    CHECK(marking_state->IsWhite(arr_value));
+    CHECK(marking_state->IsUnmarked(arr_value));
   }
 
   // Start incremental marking.
@@ -5796,7 +5796,7 @@ TEST(Regress598319) {
   // Check that we have not marked the interesting array during root scanning.
   for (int i = 0; i < arr.get().length(); i++) {
     HeapObject arr_value = HeapObject::cast(arr.get().get(i));
-    CHECK(marking_state->IsWhite(arr_value));
+    CHECK(marking_state->IsUnmarked(arr_value));
   }
 
   // Now we search for a state where we are in incremental marking and have
@@ -5833,7 +5833,7 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get().length(); i++) {
     HeapObject arr_value = HeapObject::cast(arr.get().get(i));
-    CHECK(arr_value.InReadOnlySpace() || marking_state->IsBlack(arr_value));
+    CHECK(arr_value.InReadOnlySpace() || marking_state->IsMarked(arr_value));
   }
 }
 
@@ -6015,7 +6015,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
   NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
-  CHECK(marking_state->IsBlack(*array));
+  CHECK(marking_state->IsMarked(*array));
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
       page->AddressToMarkbitIndex(end_address)));
@@ -6036,7 +6036,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       isolate->heap()->RightTrimFixedArray(*array, i);
       filler = HeapObject::FromAddress(previous);
       CHECK(filler.IsFreeSpaceOrFiller());
-      CHECK(marking_state->IsWhite(filler));
+      CHECK(marking_state->IsUnmarked(filler));
     }
   }
 

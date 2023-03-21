@@ -398,9 +398,9 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
     HeapObject object = HeapObject::FromAddress(address);
 
     if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-      CHECK(heap->marking_state()->IsWhite(object));
+      CHECK(heap->marking_state()->IsUnmarked(object));
     } else {
-      CHECK(heap->marking_state()->IsBlack(object));
+      CHECK(heap->marking_state()->IsMarked(object));
     }
   }
 
@@ -454,7 +454,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   }
   heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                 i::GarbageCollectionReason::kTesting);
-  CHECK(heap->marking_state()->IsWhite(value));
+  CHECK(heap->marking_state()->IsUnmarked(value));
 
   auto thread =
       std::make_unique<ConcurrentWriteBarrierThread>(heap, fixed_array, value);
@@ -540,7 +540,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     }
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
-    CHECK(heap->marking_state()->IsWhite(value));
+    CHECK(heap->marking_state()->IsUnmarked(value));
 
     {
       // TODO(v8:13023): remove ResetPKUPermissionsForThreadSpawning in the

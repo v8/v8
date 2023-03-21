@@ -37,13 +37,13 @@ bool MarkingStateBase<ConcreteState, access_mode>::IsImpossible(
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::IsBlack(
+bool MarkingStateBase<ConcreteState, access_mode>::IsMarked(
     const HeapObject obj) const {
   return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::IsWhite(
+bool MarkingStateBase<ConcreteState, access_mode>::IsUnmarked(
     const HeapObject obj) const {
   return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
 }

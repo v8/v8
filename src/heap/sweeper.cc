@@ -723,7 +723,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
     if (code_object_registry) code_objects.push_back(object.address());
-    DCHECK(marking_state_->IsBlack(object));
+    DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
     if (free_end != free_start) {
       max_freed_bytes =
@@ -921,7 +921,7 @@ inline void HandlePromotedObject(
     HeapObject object, NonAtomicMarkingState* marking_state,
     PtrComprCageBase cage_base,
     PromotedPageRecordMigratedSlotVisitor* record_visitor) {
-  DCHECK(marking_state->IsBlack(object));
+  DCHECK(marking_state->IsMarked(object));
   DCHECK(!IsCodeSpaceObject(object));
   object.IterateFast(cage_base, record_visitor);
   if (object.IsJSArrayBuffer()) {

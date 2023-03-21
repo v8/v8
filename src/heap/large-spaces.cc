@@ -165,7 +165,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
     heap()->marking_state()->WhiteToBlack(object);
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
-                 heap()->marking_state()->IsBlack(object));
+                 heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion(identity(), page);
   AdvanceAndInvokeAllocationObservers(object.address(),
@@ -199,7 +199,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     heap()->marking_state()->WhiteToBlack(object);
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
-                 heap()->marking_state()->IsBlack(object));
+                 heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
   if (identity() == CODE_LO_SPACE) {
     heap()->isolate()->AddCodeMemoryChunk(page);

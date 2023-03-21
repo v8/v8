@@ -48,7 +48,7 @@ class ReferenceSummarizerMarkingState final {
 
   // Standard marking visitor functions:
 
-  bool IsWhite(HeapObject obj) const { return true; }
+  bool IsUnmarked(HeapObject obj) const { return true; }
 
   bool IsBlackOrGrey(HeapObject obj) const { return false; }
 

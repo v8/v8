@@ -467,7 +467,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       }
       HeapObject dest = map_word.ToForwardingAddress(obj);
       USE(this);
-      DCHECK_IMPLIES(marking_state->IsWhite(obj), obj.IsFreeSpaceOrFiller());
+      DCHECK_IMPLIES(marking_state->IsUnmarked(obj), obj.IsFreeSpaceOrFiller());
       if (dest.InWritableSharedSpace() &&
           !isolate()->is_shared_space_isolate()) {
         // Object got promoted into the shared heap. Drop it from the client
@@ -486,7 +486,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       DCHECK_IMPLIES(
           v8_flags.minor_mc,
           !obj.map_word(cage_base, kRelaxedLoad).IsForwardingAddress());
-      if (marking_state->IsWhite(obj)) {
+      if (marking_state->IsUnmarked(obj)) {
         return false;
       }
       // Either a large object or an object marked by the minor
@@ -498,13 +498,13 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       // Only applicable during minor MC garbage collections.
       if (!Heap::IsLargeObject(obj) &&
           Page::FromHeapObject(obj)->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
-        if (marking_state->IsWhite(obj)) {
+        if (marking_state->IsUnmarked(obj)) {
           return false;
         }
         *out = obj;
         return true;
       }
-      DCHECK_IMPLIES(marking_state->IsWhite(obj),
+      DCHECK_IMPLIES(marking_state->IsUnmarked(obj),
                      obj.IsFreeSpaceOrFiller(cage_base));
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.

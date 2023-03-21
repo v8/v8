@@ -49,10 +49,6 @@ class MarkingStateBase {
 
   V8_INLINE bool IsImpossible(const HeapObject obj) const;
 
-  V8_INLINE bool IsBlack(const HeapObject obj) const;
-
-  V8_INLINE bool IsWhite(const HeapObject obj) const;
-
   V8_INLINE bool IsGrey(const HeapObject obj) const;
 
   V8_INLINE bool IsBlackOrGrey(const HeapObject obj) const;
@@ -62,6 +58,9 @@ class MarkingStateBase {
   V8_INLINE bool WhiteToBlack(HeapObject obj);
 
   V8_INLINE bool GreyToBlack(HeapObject obj);
+
+  V8_INLINE bool IsMarked(const HeapObject obj) const;
+  V8_INLINE bool IsUnmarked(const HeapObject obj) const;
 
   V8_INLINE void ClearLiveness(MemoryChunk* chunk);
 

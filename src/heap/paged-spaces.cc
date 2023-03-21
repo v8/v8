@@ -524,9 +524,9 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
         GetUnprotectMemoryOrigin(is_compaction_space()));
   }
 
-  DCHECK_IMPLIES(
-      current_limit - current_top >= 2 * kTaggedSize,
-      heap()->marking_state()->IsWhite(HeapObject::FromAddress(current_top)));
+  DCHECK_IMPLIES(current_limit - current_top >= 2 * kTaggedSize,
+                 heap()->marking_state()->IsUnmarked(
+                     HeapObject::FromAddress(current_top)));
   Free(current_top, current_max_limit - current_top,
        SpaceAccountingMode::kSpaceAccounted);
 }
@@ -783,7 +783,7 @@ void PagedSpaceBase::VerifyLiveBytes() const {
     int black_size = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.
-      if (marking_state->IsBlack(object)) {
+      if (marking_state->IsMarked(object)) {
         black_size += object.Size(cage_base);
       }
     }
