@@ -859,7 +859,7 @@ TEST(RISCV3) {
     __ fsqrt_s(ft5, ft4);
     __ fsw(ft5, a0, offsetof(T, fg));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   // Double test values.
   t.a = 1.5e14;
@@ -932,7 +932,7 @@ TEST(RISCV4) {
 
     __ sd(a4, a0, offsetof(T, e));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e22;
   t.b = 2.75e11;
@@ -983,7 +983,7 @@ TEST(RISCV5) {
     __ fcvt_d_l(fa1, a5);
     __ fsd(fa1, a0, offsetof(T, b));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e4;
   t.b = 2.75e8;
@@ -1041,7 +1041,7 @@ TEST(RISCV6) {
     __ lhu(t1, a0, offsetof(T, si));
     __ sh(t1, a0, offsetof(T, r6));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.ui = 0x11223344;
   t.si = 0x99AABBCC;
@@ -1157,7 +1157,7 @@ TEST(RISCV7) {
     __ bind(&outa_here);
   };
 
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -1254,7 +1254,7 @@ TEST(NAN_BOX) {
     // Check only transfer low 32bits when fsw
     __ fsw(fa0, a0, offsetof(T, res));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = -123.45;
   t.box = 0;
@@ -1473,7 +1473,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
       __ fadd_d(fa2, fa1, fa0);
       __ c_fsd(fa2, a0, offsetof(T, c));  // c = a + b.
     };
-    auto f = AssembleCode<F3>(fn);
+    auto f = AssembleCode<F3>(isolate, fn);
 
     t.a = 1.5e14;
     t.b = 1.5e14;
@@ -1498,7 +1498,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
       __ add(a3, a1, a2);
       __ c_sw(a3, a0, offsetof(S, c));  // c = a + b.
     };
-    auto f = AssembleCode<F3>(fn);
+    auto f = AssembleCode<F3>(isolate, fn);
 
     s.a = 1;
     s.b = 2;
@@ -1522,7 +1522,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
       __ add(a3, a1, a2);
       __ c_sd(a3, a0, offsetof(U, c));  // c = a + b.
     };
-    auto f = AssembleCode<F3>(fn);
+    auto f = AssembleCode<F3>(isolate, fn);
 
     u.a = 1;
     u.b = 2;
@@ -1638,7 +1638,7 @@ TEST(RVC_CB_BRANCH) {
     __ bind(&outa_here);
   };
 
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -1889,7 +1889,7 @@ TEST(jump_tables1) {
 
     CHECK_EQ(0, assm.UnboundLabelsCount());
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
@@ -1939,7 +1939,7 @@ TEST(jump_tables2) {
     __ Ld(ra, MemOperand(sp));
     __ addi(sp, sp, 8);
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
@@ -1999,7 +1999,7 @@ TEST(jump_tables3) {
     __ Ld(ra, MemOperand(sp));
     __ addi(sp, sp, 8);
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
