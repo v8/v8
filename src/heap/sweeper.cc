@@ -105,6 +105,28 @@ class Sweeper::SweeperJob final : public JobTask {
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers_.size());
     ConcurrentSweeper& concurrent_sweeper = concurrent_sweepers_[offset];
+    {
+      TRACE_GC_EPOCH(
+          tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
+          is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground);
+      // Prioritize sweeping new space pages first. Young allocation are the
+      // most prominent, so these pages are most likely to be needed soon.
+      if (!concurrent_sweeper.ConcurrentSweepSpace(NEW_SPACE, delegate)) return;
+      if (!sweeper_->should_sweep_non_new_spaces_) {
+        // If only new space needs to be swept, iterate promoted pages and
+        // return.
+        concurrent_sweeper.ConcurrentSweepForRememberedSet(delegate);
+        return;
+      }
+    }
+    // When non-new space also require sweeping, minor sweeping (i.e. iterating
+    // of promoted pages, which will be needed for the next minor GC) and major
+    // sweeping (i.e. of non-new spaces) is interleaved within the same sweeping
+    // tasks (to balance/mitigate further old allocations needing to sweep on
+    // the main thread and minor GCs needing to iterate pages during complete
+    // sweep). Each task starts sweeping from a different space (to reduce
+    // contention), and moves on to the next space once the current space is
+    // done, until all spaces are swept.
     if (offset > 0) {
       if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread,
                              offset, kNumberOfSweepingSpaces))
@@ -114,7 +136,6 @@ class Sweeper::SweeperJob final : public JobTask {
       TRACE_GC_EPOCH(
           tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
           is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground);
-      if (!concurrent_sweeper.ConcurrentSweepSpace(NEW_SPACE, delegate)) return;
       if (!concurrent_sweeper.ConcurrentSweepForRememberedSet(delegate)) return;
     }
     if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread, 1,
@@ -125,7 +146,7 @@ class Sweeper::SweeperJob final : public JobTask {
   bool SweepNonNewSpaces(ConcurrentSweeper& concurrent_sweeper,
                          JobDelegate* delegate, bool is_joining_thread,
                          int first_space_index, int last_space_index) {
-    if (!sweeper_->should_sweep_non_new_spaces_) return true;
+    DCHECK(sweeper_->should_sweep_non_new_spaces_);
     TRACE_GC_EPOCH(
         tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_joining_thread),
         is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground);
