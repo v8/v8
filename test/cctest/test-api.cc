@@ -13725,6 +13725,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::v8_flags.baseline_batch_compilation = false;
 #endif
   if (!i::v8_flags.compact) return;
+  i::FlagList::EnforceFlagImplications();
   const char* script =
       "function bar() {"
       "  var sum = 0;"

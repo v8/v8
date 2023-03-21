@@ -1610,6 +1610,7 @@ DEFINE_BOOL(crash_on_aborted_evacuation, false,
 DEFINE_BOOL(cppheap_incremental_marking, false,
             "use incremental marking for CppHeap")
 DEFINE_NEG_NEG_IMPLICATION(incremental_marking, cppheap_incremental_marking)
+DEFINE_NEG_NEG_IMPLICATION(incremental_marking, memory_reducer)
 DEFINE_WEAK_IMPLICATION(incremental_marking, cppheap_incremental_marking)
 DEFINE_BOOL(cppheap_concurrent_marking, false,
             "use concurrent marking for CppHeap")

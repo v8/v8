@@ -5561,7 +5561,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
-  memory_reducer_.reset(new MemoryReducer(this));
+  if (v8_flags.memory_reducer) memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));

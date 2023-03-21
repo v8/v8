@@ -179,6 +179,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
 #endif
   v8_flags.stress_concurrent_allocation = false;
   v8_flags.incremental_marking = false;
+  i::FlagList::EnforceFlagImplications();
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -223,6 +224,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
 #endif
   v8_flags.stress_concurrent_allocation = false;
   v8_flags.incremental_marking = false;
+  i::FlagList::EnforceFlagImplications();
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

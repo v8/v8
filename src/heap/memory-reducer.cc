@@ -27,7 +27,10 @@ MemoryReducer::MemoryReducer(Heap* heap)
           reinterpret_cast<v8::Isolate*>(heap->isolate()))),
       state_(State::CreateUninitialized()),
       js_calls_counter_(0),
-      js_calls_sample_time_ms_(0.0) {}
+      js_calls_sample_time_ms_(0.0) {
+  DCHECK(v8_flags.incremental_marking);
+  DCHECK(v8_flags.memory_reducer);
+}
 
 MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
     : CancelableTask(memory_reducer->heap()->isolate()),
@@ -97,6 +100,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
 }
 
 void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
+  if (!v8_flags.incremental_marking) return;
   const size_t committed_memory = heap()->CommittedOldGenerationMemory();
 
   // Trigger one more GC if
@@ -150,9 +154,9 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
-  if (!v8_flags.incremental_marking || !v8_flags.memory_reducer) {
-    return State::CreateUninitialized();
-  }
+  DCHECK(v8_flags.memory_reducer);
+  DCHECK(v8_flags.incremental_marking);
+
   switch (state.id()) {
     case kDone:
       CHECK_IMPLIES(
