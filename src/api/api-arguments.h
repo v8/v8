@@ -158,12 +158,6 @@ class PropertyCallbackArguments final
   inline Handle<JSObject> CallPropertyEnumerator(
       Handle<InterceptorInfo> interceptor);
 
-  inline Handle<Object> BasicCallIndexedGetterCallback(
-      IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
-  inline Handle<Object> BasicCallNamedGetterCallback(
-      GenericNamedPropertyGetterCallback f, Handle<Name> name,
-      Handle<Object> info, Handle<Object> receiver = Handle<Object>());
-
   inline JSObject holder() const;
   inline Object receiver() const;
 
