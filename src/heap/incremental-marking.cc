@@ -62,10 +62,10 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       atomic_marking_state_(heap->atomic_marking_state()) {}
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
-  MarkBit mark_bit = atomic_marking_state()->MarkBitFrom(obj);
-  Marking::MarkBlack<AccessMode::ATOMIC>(mark_bit);
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
-  IncrementLiveBytesBackground(chunk, static_cast<intptr_t>(object_size));
+  CHECK(atomic_marking_state()->TryMark(obj) &&
+        atomic_marking_state()->GreyToBlack(obj));
+  IncrementLiveBytesBackground(MemoryChunk::FromHeapObject(obj),
+                               static_cast<intptr_t>(object_size));
 }
 
 bool IncrementalMarking::CanBeStarted() const {
