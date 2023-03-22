@@ -306,12 +306,20 @@ constexpr Opcode RO_V_VSLIDEUP_VI =
     OP_IVI | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift);
 constexpr Opcode RO_V_VSLIDEUP_VX =
     OP_IVX | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift);
+constexpr Opcode RO_V_VSLIDE1UP_VX =
+    OP_MVX | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift);
+constexpr Opcode RO_V_VFSLIDE1UP_VF =
+    OP_FVF | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift);
 
 constexpr Opcode VSLIDEDOWN_FUNCT6 = 0b001111;
 constexpr Opcode RO_V_VSLIDEDOWN_VI =
     OP_IVI | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift);
 constexpr Opcode RO_V_VSLIDEDOWN_VX =
     OP_IVX | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift);
+constexpr Opcode RO_V_VSLIDE1DOWN_VX =
+    OP_MVX | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift);
+constexpr Opcode RO_V_VFSLIDE1DOWN_VF =
+    OP_FVF | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift);
 
 constexpr Opcode VSRL_FUNCT6 = 0b101000;
 constexpr Opcode RO_V_VSRL_VI = OP_IVI | (VSRL_FUNCT6 << kRvvFunct6Shift);

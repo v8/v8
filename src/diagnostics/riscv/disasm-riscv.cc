@@ -2229,6 +2229,9 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
     case RO_V_VSLIDEDOWN_VX:
       Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
       break;
+    case RO_V_VSLIDEUP_VX:
+      Format(instr, "vslideup.vx 'vd, 'vs2, 'rs1'vm");
+      break;
     case RO_V_VADC_VX:
       if (!instr->RvvVM()) {
         Format(instr, "vadc.vxm  'vd, 'vs2, 'rs1");
@@ -2385,6 +2388,12 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
       break;
     case RO_V_VWADD_VX:
       Format(instr, "vwadd.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDE1DOWN_VX:
+      Format(instr, "vslide1down.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDE1UP_VX:
+      Format(instr, "vslide1up.vx 'vd, 'vs2, 'rs1'vm");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2641,6 +2650,12 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFADD_VF:
       Format(instr, "vfadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSLIDE1DOWN_VF:
+      Format(instr, "vfslide1down.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSLIDE1UP_VF:
+      Format(instr, "vfslide1up.vf 'vd, 'vs2, 'fs1'vm");
       break;
     default:
       UNSUPPORTED_RISCV();
