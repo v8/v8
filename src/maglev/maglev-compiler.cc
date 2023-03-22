@@ -164,16 +164,22 @@ class UseMarkingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_state()) return;
     if (block->state()->is_loop()) {
-      loop_used_nodes_.push_back(LoopUsedNodes{next_node_id_, {}});
-#ifdef DEBUG
-      loop_used_nodes_.back().header = block;
-#endif
+      loop_used_nodes_.push_back(
+          LoopUsedNodes{{}, kInvalidNodeId, kInvalidNodeId, block});
     }
   }
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
     node->set_id(next_node_id_++);
+    LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
+    if (loop_used_nodes && node->properties().is_call() &&
+        loop_used_nodes->header->has_state()) {
+      if (loop_used_nodes->first_call == kInvalidNodeId) {
+        loop_used_nodes->first_call = node->id();
+      }
+      loop_used_nodes->last_call = node->id();
+    }
     MarkInputUses(node, state);
   }
 
@@ -224,6 +230,31 @@ class UseMarkingProcessor {
 
     DCHECK_EQ(loop_used_nodes.header, target);
     if (!loop_used_nodes.used_nodes.empty()) {
+      // Try to avoid unnecessary reloads or spills across the back-edge based
+      // on use positions and calls inside the loop.
+      ZonePtrList<ValueNode>& reload_hints =
+          loop_used_nodes.header->reload_hints();
+      ZonePtrList<ValueNode>& spill_hints =
+          loop_used_nodes.header->spill_hints();
+      for (auto p : loop_used_nodes.used_nodes) {
+        // If the node is used before the first call and after the last call,
+        // keep it in a register across the back-edge.
+        if (p.second.first_register_use != kInvalidNodeId &&
+            (loop_used_nodes.first_call == kInvalidNodeId ||
+             (p.second.first_register_use <= loop_used_nodes.first_call &&
+              p.second.last_register_use > loop_used_nodes.last_call))) {
+          reload_hints.Add(p.first, compilation_info_->zone());
+        }
+        // If the node is not used, or used after the first call and before the
+        // last call, keep it spilled across the back-edge.
+        if (p.second.first_register_use == kInvalidNodeId ||
+            (loop_used_nodes.first_call != kInvalidNodeId &&
+             p.second.first_register_use > loop_used_nodes.first_call &&
+             p.second.last_register_use <= loop_used_nodes.last_call)) {
+          spill_hints.Add(p.first, compilation_info_->zone());
+        }
+      }
+
       // Uses of nodes in this loop may need to propagate to an outer loop, so
       // that they're lifetime is extended there too.
       // TODO(leszeks): We only need to extend the lifetime in one outermost
@@ -232,7 +263,7 @@ class UseMarkingProcessor {
           compilation_info_->zone()->NewVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
-      for (ValueNode* used_node : loop_used_nodes.used_nodes) {
+      for (auto& [used_node, info] : loop_used_nodes.used_nodes) {
         Input* input = new (&used_node_inputs[i++]) Input(used_node);
         MarkUse(used_node, use, input, outer_loop_used_nodes);
       }
@@ -252,12 +283,17 @@ class UseMarkingProcessor {
   }
 
  private:
+  struct NodeUse {
+    // First and last register use inside a loop.
+    NodeIdT first_register_use;
+    NodeIdT last_register_use;
+  };
+
   struct LoopUsedNodes {
-    uint32_t loop_header_id;
-    std::unordered_set<ValueNode*> used_nodes;
-#ifdef DEBUG
-    BasicBlock* header = nullptr;
-#endif
+    std::unordered_map<ValueNode*, NodeUse> used_nodes;
+    NodeIdT first_call;
+    NodeIdT last_call;
+    BasicBlock* header;
   };
 
   LoopUsedNodes* GetCurrentLoopUsedNodes() {
@@ -277,8 +313,20 @@ class UseMarkingProcessor {
       // it must have been created before the loop. This means that it's alive
       // on loop entry, and therefore has to be alive across the loop back edge
       // too.
-      if (node->id() < loop_used_nodes->loop_header_id) {
-        loop_used_nodes->used_nodes.insert(node);
+      if (node->id() < loop_used_nodes->header->first_id()) {
+        auto [it, info] = loop_used_nodes->used_nodes.emplace(
+            node, NodeUse{kInvalidNodeId, kInvalidNodeId});
+        if (input->operand().IsUnallocated()) {
+          const auto& operand =
+              compiler::UnallocatedOperand::cast(input->operand());
+          if (operand.HasRegisterPolicy() || operand.HasFixedRegisterPolicy() ||
+              operand.HasFixedFPRegisterPolicy()) {
+            if (it->second.first_register_use == kInvalidNodeId) {
+              it->second.first_register_use = use_id;
+            }
+            it->second.last_register_use = use_id;
+          }
+        }
       }
     }
   }

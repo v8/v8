@@ -299,7 +299,7 @@ class MaglevGraphBuilder {
       std::cout << "== New empty block ==" << std::endl;
     }
     DCHECK_NULL(current_block_);
-    current_block_ = zone()->New<BasicBlock>(nullptr);
+    current_block_ = zone()->New<BasicBlock>(nullptr, zone());
     // Add an interrupt budget correction if necessary. This makes the edge
     // split block no longer empty, which is unexpected, but we're not changing
     // interpreter frame state, so that's ok.
@@ -1199,7 +1199,7 @@ class MaglevGraphBuilder {
 
   void StartNewBlock(int offset) {
     DCHECK_NULL(current_block_);
-    current_block_ = zone()->New<BasicBlock>(merge_states_[offset]);
+    current_block_ = zone()->New<BasicBlock>(merge_states_[offset], zone());
     ResolveJumpsToBlockAtOffset(current_block_, offset);
   }
 
