@@ -422,14 +422,19 @@ void Serializer::InitializeCodeAddressMap() {
 
 InstructionStream Serializer::CopyCode(InstructionStream code) {
   code_buffer_.clear();  // Clear buffer without deleting backing store.
+  // Add InstructionStream padding which is usually added by the allocator.
+  // While this doesn't guarantee the exact same alignment, it's enough to
+  // fulfill the alignment requirements of writes during relocation.
+  code_buffer_.resize(InstructionStream::kCodeAlignmentMinusCodeHeader);
   int size = code.CodeSize();
   code_buffer_.insert(code_buffer_.end(),
                       reinterpret_cast<byte*>(code.address()),
                       reinterpret_cast<byte*>(code.address() + size));
   // When pointer compression is enabled the checked cast will try to
   // decompress map field of off-heap InstructionStream object.
-  return InstructionStream::unchecked_cast(HeapObject::FromAddress(
-      reinterpret_cast<Address>(&code_buffer_.front())));
+  return InstructionStream::unchecked_cast(
+      HeapObject::FromAddress(reinterpret_cast<Address>(
+          &code_buffer_[InstructionStream::kCodeAlignmentMinusCodeHeader])));
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,

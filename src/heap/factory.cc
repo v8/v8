@@ -279,7 +279,7 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
       *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> istream =
       handle(InstructionStream::cast(result), isolate_);
-  DCHECK(IsAligned(istream->address(), kCodeAlignment));
+  DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
   DCHECK_IMPLIES(
       !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
       heap->code_region().contains(istream->address()));
@@ -304,7 +304,7 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
       *local_isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> istream =
       handle(InstructionStream::cast(result), local_isolate_);
-  DCHECK(IsAligned(istream->address(), kCodeAlignment));
+  DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
   return istream;
 }
 

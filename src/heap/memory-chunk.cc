@@ -163,9 +163,13 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
           heap->code_space_memory_modification_scope_depth();
     } else if (!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
-      DCHECK(IsAligned(area_start_, page_size));
-      size_t area_size = RoundUp(area_end_ - area_start_, page_size);
-      CHECK(reservation_.SetPermissions(area_start_, area_size,
+      // On executable chunks, area_start_ points past padding used for code
+      // alignment.
+      Address start_before_padding =
+          address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+      DCHECK(IsAligned(start_before_padding, page_size));
+      size_t area_size = RoundUp(area_end_ - start_before_padding, page_size);
+      CHECK(reservation_.SetPermissions(start_before_padding, area_size,
                                         DefaultWritableCodePermissions()));
     }
   }

@@ -24,6 +24,12 @@ size_t MemoryChunkLayout::CodePageGuardSize() {
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInCodePage() {
+  // The first page also includes padding for code alignment.
+  return ObjectPageOffsetInCodePage() +
+         InstructionStream::kCodeAlignmentMinusCodeHeader;
+}
+
+intptr_t MemoryChunkLayout::ObjectPageOffsetInCodePage() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
   return CodePageGuardStartOffset() + CodePageGuardSize();
@@ -86,7 +92,8 @@ size_t MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
 }
 
 int MemoryChunkLayout::MaxRegularCodeObjectSize() {
-  int size = static_cast<int>(AllocatableMemoryInCodePage() / 2);
+  int size = static_cast<int>(
+      RoundDown(AllocatableMemoryInCodePage() / 2, kTaggedSize));
   DCHECK_LE(size, kMaxRegularHeapObjectSize);
   return size;
 }

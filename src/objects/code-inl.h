@@ -368,13 +368,6 @@ void InstructionStream::WipeOutHeader() {
 }
 
 void Code::ClearInstructionStreamPadding() {
-  // Clear the padding between the header and `body_start`.
-  if (FIELD_SIZE(InstructionStream::kOptionalPaddingOffset) != 0) {
-    memset(reinterpret_cast<void*>(instruction_stream().address() +
-                                   InstructionStream::kOptionalPaddingOffset),
-           0, FIELD_SIZE(InstructionStream::kOptionalPaddingOffset));
-  }
-
   // Clear the padding after `body_end`.
   size_t trailing_padding_size =
       CodeSize() - InstructionStream::kHeaderSize - body_size();

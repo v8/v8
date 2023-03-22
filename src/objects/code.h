@@ -648,51 +648,26 @@ class InstructionStream : public HeapObject {
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   // Layout description.
-#define ISTREAM_FIELDS(V)                                                 \
-  V(kCodeOffset, kTaggedSize)                                             \
-  /* Data or code not directly visited by GC directly starts here. */     \
-  V(kDataStart, 0)                                                        \
-  V(kMainCageBaseUpper32BitsOffset,                                       \
-    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                        \
-  V(kUnalignedHeaderSize, 0)                                              \
-  /* Add padding to align the instruction start following right after */  \
-  /* the InstructionStream object header. */                              \
-  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset)) \
+#define ISTREAM_FIELDS(V)                                             \
+  V(kCodeOffset, kTaggedSize)                                         \
+  /* Data or code not directly visited by GC directly starts here. */ \
+  V(kDataStart, 0)                                                    \
+  V(kMainCageBaseUpper32BitsOffset,                                   \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                    \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS
 
-  // This documents the amount of free space we have in each InstructionStream
-  // object header due to padding for code alignment.
-#if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize =
-      V8_EXTERNAL_CODE_SPACE_BOOL ? 20 : (COMPRESS_POINTERS_BOOL ? 24 : 16);
-#elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 16;
-#elif V8_TARGET_ARCH_LOONG64
-  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 24 : 16);
-#elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize =
-      V8_EXTERNAL_CODE_SPACE_BOOL ? 52 : (COMPRESS_POINTERS_BOOL ? 56 : 48);
-#elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 24;
-#elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 24;
-#elif V8_TARGET_ARCH_PPC64
-  static constexpr int kHeaderPaddingSize =
-      V8_EMBEDDED_CONSTANT_POOL_BOOL ? (COMPRESS_POINTERS_BOOL ? 4 : 48)
-                                     : (COMPRESS_POINTERS_BOOL ? 8 : 52);
-#elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 24 : 20;
-#elif V8_TARGET_ARCH_RISCV64
-  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 24 : 16);
-#elif V8_TARGET_ARCH_RISCV32
-  static constexpr int kHeaderPaddingSize = 24;
-#else
-#error Unknown architecture.
-#endif
-  static_assert(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
+  static_assert(kCodeAlignment > kHeaderSize);
+  // We do two things to ensure kCodeAlignment of the entry address:
+  // 1) add kCodeAlignmentMinusCodeHeader padding once in the beginning of every
+  //    MemoryChunk
+  // 2) Round up all IStream allocations to a multiple of kCodeAlignment
+  // Together, the IStream object itself will always start at offset
+  // kCodeAlignmentMinusCodeHeader, which aligns the entry to kCodeAlignment.
+  static constexpr int kCodeAlignmentMinusCodeHeader =
+      kCodeAlignment - kHeaderSize;
 
   class BodyDescriptor;
 

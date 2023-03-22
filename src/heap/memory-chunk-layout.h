@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 #undef FIELD
   static size_t CodePageGuardStartOffset();
   static size_t CodePageGuardSize();
+  // Code pages have padding on the first page for code alignment, so the
+  // ObjectStartOffset will not be page aligned.
+  static intptr_t ObjectPageOffsetInCodePage();
   static intptr_t ObjectStartOffsetInCodePage();
   static intptr_t ObjectEndOffsetInCodePage();
   static size_t AllocatableMemoryInCodePage();
