@@ -157,9 +157,13 @@ bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
 }
 
 int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
-                       TieringState tiering_state) {
+                       TieringState tiering_state, int bytecode_length) {
+  if (IsRequestTurbofan(tiering_state) ||
+      (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN)) {
+    return v8_flags.invocation_count_for_osr * bytecode_length;
+  }
   return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
-             ? v8_flags.interrupt_budget_for_maglev
+             ? v8_flags.invocation_count_for_maglev * bytecode_length
              : v8_flags.interrupt_budget;
 }
 
@@ -167,21 +171,22 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 
 // static
 int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
+  DCHECK(function.shared().is_compiled());
+  const int bytecode_length =
+      function.shared().GetBytecodeArray(isolate).length();
   if (function.has_feedback_vector()) {
-    if (function.shared().GetBytecodeArray(isolate).length() >
-        v8_flags.max_optimized_bytecode_size) {
+    if (bytecode_length > v8_flags.max_optimized_bytecode_size) {
       // Decrease times of interrupt budget underflow, the reason of not setting
       // to INT_MAX is the interrupt budget may overflow when doing add
       // operation for forward jump.
       return INT_MAX / 2;
     }
     return ::i::InterruptBudgetFor(function.GetActiveTier(),
-                                   function.tiering_state());
+                                   function.tiering_state(), bytecode_length);
   }
 
   DCHECK(!function.has_feedback_vector());
-  DCHECK(function.shared().is_compiled());
-  return function.shared().GetBytecodeArray(isolate).length() *
+  return bytecode_length *
          v8_flags.interrupt_budget_factor_for_feedback_allocation;
 }
 
@@ -193,40 +198,6 @@ int TieringManager::InitialInterruptBudget() {
 }
 
 namespace {
-
-bool SmallEnoughForOSR(Isolate* isolate, JSFunction function,
-                       CodeKind code_kind) {
-  // "The answer to life the universe and everything.. 42? Or was it 44?"
-  //
-  // Note the OSR allowance's origin is somewhat accidental - with the advent
-  // of Ignition it started at 48 and through several rounds of micro-tuning
-  // ended up at 42. See
-  // https://chromium-review.googlesource.com/649149.
-  //
-  // The allowance was originally chosen based on the Ignition-to-Turbofan
-  // interrupt budget. In the presence of multiple tiers and multiple budgets
-  // (which control how often ticks are incremented), it must be scaled to the
-  // currently active budget to somewhat preserve old behavior.
-  //
-  // TODO(all): Since the origins of this constant are so arbitrary, this is
-  // worth another re-evaluation. For now, we stick with 44 to preserve
-  // behavior for comparability, but feel free to change this in the future.
-  static const int kOSRBytecodeSizeAllowanceBase = 119;
-  static const int kOSRBytecodeSizeAllowancePerTick = 44;
-  const double scale_factor_for_active_tier =
-      InterruptBudgetFor(code_kind, TieringState::kNone) /
-      static_cast<double>(v8_flags.interrupt_budget);
-
-  const double raw_limit = kOSRBytecodeSizeAllowanceBase +
-                           scale_factor_for_active_tier *
-                               kOSRBytecodeSizeAllowancePerTick *
-                               function.feedback_vector().profiler_ticks();
-  const int limit = raw_limit < BytecodeArray::kMaxLength
-                        ? static_cast<int>(raw_limit)
-                        : BytecodeArray::kMaxLength;
-  DCHECK_GT(limit, 0);
-  return function.shared().GetBytecodeArray(isolate).length() <= limit;
-}
 
 void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
   SharedFunctionInfo shared = function.shared();
@@ -308,9 +279,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
       function.HasAvailableCodeKind(CodeKind::TURBOFAN)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in a lower-tier frame (this implies a long-running loop).
-    if (SmallEnoughForOSR(isolate_, function, current_code_kind)) {
-      TryIncrementOsrUrgency(isolate_, function);
-    }
+    TryIncrementOsrUrgency(isolate_, function);
 
     // Return unconditionally and don't run through the optimization decision
     // again; we've already decided to tier up previously.

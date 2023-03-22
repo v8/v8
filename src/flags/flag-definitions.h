@@ -500,7 +500,7 @@ DEFINE_BOOL(
 // way, we still gather *some* feedback before compiling optimized code.
 DEFINE_BOOL(stress_maglev, false, "trigger maglev compilation earlier")
 DEFINE_IMPLICATION(stress_maglev, maglev)
-DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, interrupt_budget_for_maglev, 128)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, invocation_count_for_maglev, 4)
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
@@ -658,9 +658,7 @@ DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
            "allocating feedback vectors, used when bytecode size is known")
 
 // Tiering: Maglev.
-// The Maglev interrupt budget is chosen to be roughly 1/10th of Turbofan's
-// overall budget (including the multiple required ticks).
-DEFINE_INT(interrupt_budget_for_maglev, 30 * KB,
+DEFINE_INT(invocation_count_for_maglev, 100,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
@@ -672,6 +670,9 @@ DEFINE_INT(ticks_before_optimization, 3,
 DEFINE_INT(bytecode_size_allowance_per_tick, 150,
            "increases the number of ticks required for optimization by "
            "bytecode.length/X")
+DEFINE_INT(invocation_count_for_osr, 500,
+           "number of invocations we want to see after requesting previous "
+           "tier up to increase the OSR urgency")
 DEFINE_INT(
     max_bytecode_size_for_early_opt, 81,
     "Maximum bytecode length for a function to be optimized on the first tick")
@@ -686,7 +687,9 @@ DEFINE_BOOL(reset_ticks_on_ic_update, true,
             "On IC change, reset the ticks for just that function.")
 DEFINE_BOOL(maglev_increase_budget_forward_jump, false,
             "Increase interrupt budget on forward jumps in maglev code")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 20)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 0)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 
 // Flags for inline caching and feedback vectors.
@@ -839,7 +842,7 @@ DEFINE_BOOL(maglev_overwrite_budget, false,
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
-                              80 * KB)
+                              200 * KB)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
