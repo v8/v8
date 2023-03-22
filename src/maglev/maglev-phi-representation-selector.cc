@@ -151,55 +151,59 @@ bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
 
 namespace {
 
-base::Optional<Opcode> GetOpcodeForCheckedConversion(ValueRepresentation from,
-                                                     ValueRepresentation to,
-                                                     bool truncating) {
+Opcode GetOpcodeForCheckedConversion(ValueRepresentation from,
+                                     ValueRepresentation to, bool truncating) {
   DCHECK_NE(from, ValueRepresentation::kTagged);
   DCHECK_NE(to, ValueRepresentation::kTagged);
 
-  static_assert(static_cast<int>(ValueRepresentation::kInt32) == 1);
-  static_assert(static_cast<int>(ValueRepresentation::kUint32) == 2);
-  static_assert(static_cast<int>(ValueRepresentation::kFloat64) == 3);
+  switch (from) {
+    case ValueRepresentation::kInt32:
+      switch (to) {
+        case ValueRepresentation::kUint32:
+          return Opcode::kCheckedInt32ToUint32;
+        case ValueRepresentation::kFloat64:
+          return Opcode::kChangeInt32ToFloat64;
 
-  constexpr int kNumberOfValueRepresentation = 3;
+        case ValueRepresentation::kInt32:
+        case ValueRepresentation::kTagged:
+        case ValueRepresentation::kWord64:
+          UNREACHABLE();
+      }
+    case ValueRepresentation::kUint32:
+      switch (to) {
+        case ValueRepresentation::kInt32:
+          return Opcode::kCheckedUint32ToInt32;
 
-  int truncate_offset = 0;
-  if (from == ValueRepresentation::kFloat64 && truncating) {
-    truncate_offset = kNumberOfValueRepresentation;
+        case ValueRepresentation::kFloat64:
+          return Opcode::kChangeUint32ToFloat64;
+
+        case ValueRepresentation::kUint32:
+        case ValueRepresentation::kTagged:
+        case ValueRepresentation::kWord64:
+          UNREACHABLE();
+      }
+    case ValueRepresentation::kFloat64:
+      switch (to) {
+        case ValueRepresentation::kInt32:
+          if (truncating) {
+            return Opcode::kTruncateFloat64ToInt32;
+          }
+          return Opcode::kCheckedTruncateFloat64ToInt32;
+        case ValueRepresentation::kUint32:
+          // The graph builder never inserts Tagged->Uint32 conversions, so we
+          // don't have to handle this case.
+          UNREACHABLE();
+
+        case ValueRepresentation::kFloat64:
+        case ValueRepresentation::kTagged:
+        case ValueRepresentation::kWord64:
+          UNREACHABLE();
+      }
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
   }
-
-  static base::Optional<Opcode> conversion_table[] = {
-      // Int32 ->
-      base::nullopt,                  // -> Int32
-      Opcode::kCheckedInt32ToUint32,  // -> Uint32
-      Opcode::kChangeInt32ToFloat64,  // -> Float64
-
-      // Uint32 ->
-      Opcode::kCheckedUint32ToInt32,   // -> Int32
-      base::nullopt,                   // -> Uint32
-      Opcode::kChangeUint32ToFloat64,  // -> Float64
-
-      // Float64 ->
-      Opcode::kCheckedTruncateFloat64ToInt32,  // -> Int32
-      base::nullopt,                           // -> Uint32
-      // ^ The graph builder never inserts Tagged->Uint32 conversions, so we
-      // don't have to handle this case.
-      base::nullopt,  // -> Float64
-
-      // Truncating Float64 ->
-      Opcode::kTruncateFloat64ToInt32,  // -> Int32
-      base::nullopt,                    // -> Uint32
-      // ^ The graph builder never inserts Tagged->Uint32 conversions, so we
-      // don't have to handle this case.
-      base::nullopt  // -> Float64
-  };
-
-  // The `-1` are because we don't have ->Tagged and Tagged-> conversions, so
-  // since kInt32 is 1, kUint32 is 2 and kFloat64 is 3, we subtract 1 so that
-  // they start at 0.
-  return conversion_table[(static_cast<int>(from) - 1) *
-                              kNumberOfValueRepresentation +
-                          static_cast<int>(to) - 1 + truncate_offset];
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -257,13 +261,11 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
       old_untagging->Is<CheckedTruncateNumberOrOddballToInt32>() ||
       old_untagging->Is<TruncateNumberOrOddballToInt32>();
 
-  base::Optional<Opcode> needed_conversion = GetOpcodeForCheckedConversion(
+  Opcode needed_conversion = GetOpcodeForCheckedConversion(
       from_repr, to_repr, conversion_is_truncating_float64);
 
-  DCHECK(needed_conversion.has_value());
-
-  if (*needed_conversion != old_untagging->opcode()) {
-    old_untagging->OverwriteWith(*needed_conversion);
+  if (needed_conversion != old_untagging->opcode()) {
+    old_untagging->OverwriteWith(needed_conversion);
   }
 }
 
