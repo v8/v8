@@ -150,14 +150,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                         IntPtrConstant(0));
   }
 
-  TNode<BoolT> IsWhite(TNode<IntPtrT> object) {
-    DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
+  TNode<BoolT> IsUnmarked(TNode<IntPtrT> object) {
     TNode<IntPtrT> cell;
     TNode<IntPtrT> mask;
     GetMarkBit(object, &cell, &mask);
     TNode<Int32T> mask32 = TruncateIntPtrToInt32(mask);
-    // Non-white has 1 for the first bit, so we only need to check for the first
-    // bit.
+    // Marked only requires checking a single bit here.
     return Word32Equal(Word32And(Load<Int32T>(cell), mask32), Int32Constant(0));
   }
 
@@ -381,12 +379,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
                                     SaveFPRegsMode fp_mode, Label* next) {
-    Label check_is_white(this);
+    Label check_is_unmarked(this);
 
-    InYoungGeneration(value, &check_is_white, next);
+    InYoungGeneration(value, &check_is_unmarked, next);
 
-    BIND(&check_is_white);
-    GotoIfNot(IsWhite(value), next);
+    BIND(&check_is_unmarked);
+    GotoIfNot(IsUnmarked(value), next);
 
     {
       TNode<ExternalReference> function = ExternalConstant(
@@ -424,12 +422,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void IsValueUnmarkedOrRecordSlot(TNode<IntPtrT> value, Label* true_label,
                                    Label* false_label) {
     // This code implements the following condition:
-    // IsWhite(value) ||
+    // IsUnmarked(value) ||
     //   OnEvacuationCandidate(value) &&
     //   !SkipEvacuationCandidateRecording(value)
 
-    // 1) IsWhite(value) || ....
-    GotoIf(IsWhite(value), true_label);
+    // 1) IsUnmarked(value) || ....
+    GotoIf(IsUnmarked(value), true_label);
 
     // 2) OnEvacuationCandidate(value) &&
     //    !SkipEvacuationCandidateRecording(value)

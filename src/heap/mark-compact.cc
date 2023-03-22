@@ -86,11 +86,6 @@
 namespace v8 {
 namespace internal {
 
-const char* Marking::kWhiteBitPattern = "00";
-const char* Marking::kBlackBitPattern = "11";
-const char* Marking::kGreyBitPattern = "10";
-const char* Marking::kImpossibleBitPattern = "01";
-
 // The following has to hold in order for {MarkingState::MarkBitFrom} to not
 // produce invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
 static_assert(Heap::kMinObjectSizeInTaggedWords >= 2);
@@ -422,12 +417,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 
 MarkCompactCollector::~MarkCompactCollector() = default;
 
-void MarkCompactCollector::SetUp() {
-  DCHECK_EQ(0, strcmp(Marking::kWhiteBitPattern, "00"));
-  DCHECK_EQ(0, strcmp(Marking::kBlackBitPattern, "11"));
-  DCHECK_EQ(0, strcmp(Marking::kGreyBitPattern, "10"));
-  DCHECK_EQ(0, strcmp(Marking::kImpossibleBitPattern, "01"));
-}
+void MarkCompactCollector::SetUp() {}
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
