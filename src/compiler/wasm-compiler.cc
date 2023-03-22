@@ -5869,34 +5869,110 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
   return result;
 }
 
-// TODO(7748): Add an option to copy in a loop for small array sizes. To find
-// the length limit, run test/mjsunit/wasm/array-copy-benchmark.js.
 void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
                                  CheckForNull dst_null_check, Node* src_array,
                                  Node* src_index, CheckForNull src_null_check,
                                  Node* length,
+                                 const wasm::ArrayType* array_type,
                                  wasm::WasmCodePosition position) {
   BoundsCheckArrayWithLength(dst_array, dst_index, length, dst_null_check,
                              position);
   BoundsCheckArrayWithLength(src_array, src_index, length, src_null_check,
                              position);
 
-  auto skip = gasm_->MakeLabel();
+  auto end = gasm_->MakeLabel();
 
-  gasm_->GotoIf(gasm_->Word32Equal(length, Int32Constant(0)), &skip,
-                BranchHint::kFalse);
+  gasm_->GotoIf(gasm_->Word32Equal(length, Int32Constant(0)), &end);
 
-  Node* function =
-      gasm_->ExternalConstant(ExternalReference::wasm_array_copy());
-  MachineType arg_types[]{
-      MachineType::TaggedPointer(), MachineType::TaggedPointer(),
-      MachineType::Uint32(),        MachineType::TaggedPointer(),
-      MachineType::Uint32(),        MachineType::Uint32()};
-  MachineSignature sig(0, 6, arg_types);
-  BuildCCall(&sig, function, GetInstance(), dst_array, dst_index, src_array,
-             src_index, length);
-  gasm_->Goto(&skip);
-  gasm_->Bind(&skip);
+  auto builtin = gasm_->MakeLabel();
+
+  // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
+  int array_copy_max_loop_length;
+  switch (array_type->element_type().kind()) {
+    case wasm::kI32:
+    case wasm::kI64:
+    case wasm::kI8:
+    case wasm::kI16:
+      array_copy_max_loop_length = 20;
+      break;
+    case wasm::kF32:
+    case wasm::kF64:
+      array_copy_max_loop_length = 35;
+      break;
+    case wasm::kS128:
+      array_copy_max_loop_length = 100;
+      break;
+    case wasm::kRtt:
+    case wasm::kRef:
+    case wasm::kRefNull:
+      array_copy_max_loop_length = 15;
+      break;
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+
+  gasm_->GotoIf(
+      gasm_->Uint32LessThan(Int32Constant(array_copy_max_loop_length), length),
+      &builtin);
+
+  auto reverse = gasm_->MakeLabel();
+
+  gasm_->GotoIf(gasm_->Uint32LessThan(src_index, dst_index), &reverse);
+
+  Node* src_end_index = gasm_->Int32Sub(gasm_->Int32Add(src_index, length),
+                                        gasm_->Int32Constant(1));
+  Node* dst_end_index = gasm_->Int32Sub(gasm_->Int32Add(dst_index, length),
+                                        gasm_->Int32Constant(1));
+
+  {
+    auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32,
+                                     MachineRepresentation::kWord32);
+
+    gasm_->Goto(&loop, src_index, dst_index);
+    gasm_->Bind(&loop);
+
+    Node* value = gasm_->ArrayGet(src_array, loop.PhiAt(0), array_type, false);
+    gasm_->ArraySet(dst_array, loop.PhiAt(1), value, array_type);
+
+    Node* condition = gasm_->Uint32LessThan(loop.PhiAt(0), src_end_index);
+    gasm_->GotoIfNot(condition, &end);
+    gasm_->Goto(&loop, gasm_->Int32Add(loop.PhiAt(0), Int32Constant(1)),
+                gasm_->Int32Add(loop.PhiAt(1), Int32Constant(1)));
+  }
+
+  {
+    gasm_->Bind(&reverse);
+    auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32,
+                                     MachineRepresentation::kWord32);
+
+    gasm_->Goto(&loop, src_end_index, dst_end_index);
+    gasm_->Bind(&loop);
+
+    Node* value = gasm_->ArrayGet(src_array, loop.PhiAt(0), array_type, false);
+    gasm_->ArraySet(dst_array, loop.PhiAt(1), value, array_type);
+
+    Node* condition = gasm_->Uint32LessThan(src_index, loop.PhiAt(0));
+    gasm_->GotoIfNot(condition, &end);
+    gasm_->Goto(&loop, gasm_->Int32Sub(loop.PhiAt(0), Int32Constant(1)),
+                gasm_->Int32Sub(loop.PhiAt(1), Int32Constant(1)));
+  }
+
+  {
+    gasm_->Bind(&builtin);
+    Node* function =
+        gasm_->ExternalConstant(ExternalReference::wasm_array_copy());
+    MachineType arg_types[]{
+        MachineType::TaggedPointer(), MachineType::TaggedPointer(),
+        MachineType::Uint32(),        MachineType::TaggedPointer(),
+        MachineType::Uint32(),        MachineType::Uint32()};
+    MachineSignature sig(0, 6, arg_types);
+    BuildCCall(&sig, function, GetInstance(), dst_array, dst_index, src_array,
+               src_index, length);
+    gasm_->Goto(&end);
+  }
+
+  gasm_->Bind(&end);
 }
 
 Node* WasmGraphBuilder::StoreInInt64StackSlot(Node* value,

@@ -23,7 +23,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, false)]);
-  let array_type = kWasmI32;  // Also try kWasmI64, wasmRefNullType(struct_index)
+  // Also try wasmRefNullType(struct_index), other numeric types.
+  let array_type = kWasmI32;
   var array_index = builder.addArray(array_type, true);
   var from = builder.addGlobal(wasmRefNullType(array_index), true);
   var to = builder.addGlobal(wasmRefNullType(array_index), true);

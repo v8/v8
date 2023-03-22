@@ -454,7 +454,8 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   void ArrayCopy(Node* dst_array, Node* dst_index, CheckForNull dst_null_check,
                  Node* src_array, Node* src_index, CheckForNull src_null_check,
-                 Node* length, wasm::WasmCodePosition position);
+                 Node* length, const wasm::ArrayType* type,
+                 wasm::WasmCodePosition position);
   void ArrayFill(Node* array, Node* index, Node* value, Node* length,
                  const wasm::ArrayType* type, CheckForNull null_check,
                  wasm::WasmCodePosition position);
