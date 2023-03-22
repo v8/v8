@@ -341,8 +341,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  li(kOffHeapTrampolineRegister, Operand(target, RelocInfo::OFF_HEAP_TARGET));
-  Jump(kOffHeapTrampolineRegister);
+  li(t9, Operand(target, RelocInfo::OFF_HEAP_TARGET));
+  Jump(t9);
 }
 
 // static
@@ -381,8 +381,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   return true;
 }
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  li(kOffHeapTrampolineRegister, Operand(target, RelocInfo::OFF_HEAP_TARGET));
-  Jump(kOffHeapTrampolineRegister);
+  li(t7, Operand(target, RelocInfo::OFF_HEAP_TARGET));
+  Jump(t7);
 }
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   UNREACHABLE();
