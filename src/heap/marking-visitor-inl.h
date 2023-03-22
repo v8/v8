@@ -600,12 +600,11 @@ template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
 int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
-  const bool requires_snapshot = worklists_local_->SupportsExtractWrapper();
+  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
+  if (!worklists_local_->SupportsExtractWrapper()) return size;
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   const bool valid_snapshot =
-      requires_snapshot &&
       worklists_local_->ExtractWrapper(map, object, wrapper_snapshot);
-  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
   if (size && valid_snapshot) {
     // Success: The object needs to be processed for embedder references.
     worklists_local_->PushExtractedWrapper(wrapper_snapshot);
