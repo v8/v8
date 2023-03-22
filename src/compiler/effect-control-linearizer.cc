@@ -1431,6 +1431,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerObjectIsMinusZero(node);
       break;
     case IrOpcode::kNumberIsMinusZero:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsMinusZero(node);
       break;
     case IrOpcode::kObjectIsNaN:
@@ -1658,21 +1659,25 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerBigIntNegate(node);
       break;
     case IrOpcode::kNumberIsFloat64Hole:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsFloat64Hole(node);
       break;
     case IrOpcode::kNumberIsFinite:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsFinite(node);
       break;
     case IrOpcode::kObjectIsFiniteNumber:
       result = LowerObjectIsFiniteNumber(node);
       break;
     case IrOpcode::kNumberIsInteger:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsInteger(node);
       break;
     case IrOpcode::kObjectIsInteger:
       result = LowerObjectIsInteger(node);
       break;
     case IrOpcode::kNumberIsSafeInteger:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberIsSafeInteger(node);
       break;
     case IrOpcode::kObjectIsSafeInteger:
@@ -4533,6 +4538,7 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsFloat64Hole(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* check = __ Word32Equal(__ Float64ExtractHighWord32(value),
                                __ Int32Constant(kHoleNanUpper32));
@@ -4540,6 +4546,7 @@ Node* EffectControlLinearizer::LowerNumberIsFloat64Hole(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsFinite(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* number = node->InputAt(0);
   Node* diff = __ Float64Sub(number, number);
   Node* check = __ Float64Equal(diff, diff);
@@ -4572,6 +4579,7 @@ Node* EffectControlLinearizer::LowerObjectIsFiniteNumber(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsInteger(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* number = node->InputAt(0);
   Node* trunc = BuildFloat64RoundTruncate(number);
   Node* diff = __ Float64Sub(number, trunc);
@@ -4606,6 +4614,7 @@ Node* EffectControlLinearizer::LowerObjectIsInteger(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsSafeInteger(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* number = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
   auto done = __ MakeLabel(MachineRepresentation::kBit);
@@ -4651,19 +4660,6 @@ Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
   return done.PhiAt(0);
 }
 
-namespace {
-
-// There is no (currently) available constexpr version of base::bit_cast, so
-// we have to make do with constructing the -0.0 bits manually (by setting the
-// sign bit to 1 and everything else to 0).
-// TODO(leszeks): Revisit when upgrading to C++20.
-constexpr int32_t kMinusZeroLoBits = static_cast<int32_t>(0);
-constexpr int32_t kMinusZeroHiBits = static_cast<int32_t>(1) << 31;
-constexpr int64_t kMinusZeroBits =
-    (static_cast<uint64_t>(kMinusZeroHiBits) << 32) | kMinusZeroLoBits;
-
-}  // namespace
-
 Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
   Node* value = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
@@ -4697,6 +4693,7 @@ Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberIsMinusZero(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   if (machine()->Is64()) {

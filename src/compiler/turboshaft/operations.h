@@ -2489,6 +2489,11 @@ std::ostream& operator<<(std::ostream& os,
 
 struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
   enum class Kind : uint8_t {
+    kFloat64Hole,
+    kFinite,
+    kInteger,
+    kSafeInteger,
+    kMinusZero,
     kNaN,
   };
   Kind kind;

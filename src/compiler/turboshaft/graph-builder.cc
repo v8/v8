@@ -665,6 +665,21 @@ OpIndex GraphBuilder::Process(
       return __ TaggedBitcast(Map(node->InputAt(0)),
                               RegisterRepresentation::PointerSized(),
                               RegisterRepresentation::Tagged());
+    case IrOpcode::kNumberIsFinite:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kFinite,
+                        FloatRepresentation::Float64());
+    case IrOpcode::kNumberIsInteger:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kInteger,
+                        FloatRepresentation::Float64());
+    case IrOpcode::kNumberIsSafeInteger:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kSafeInteger,
+                        FloatRepresentation::Float64());
+    case IrOpcode::kNumberIsFloat64Hole:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kFloat64Hole,
+                        FloatRepresentation::Float64());
+    case IrOpcode::kNumberIsMinusZero:
+      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kMinusZero,
+                        FloatRepresentation::Float64());
     case IrOpcode::kNumberIsNaN:
       return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kNaN,
                         FloatRepresentation::Float64());

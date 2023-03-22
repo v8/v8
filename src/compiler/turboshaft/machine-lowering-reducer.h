@@ -363,12 +363,52 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> ReduceFloatIs(OpIndex input, FloatIsOp::Kind kind,
+  V<Word32> ReduceFloatIs(OpIndex value, FloatIsOp::Kind kind,
                           FloatRepresentation input_rep) {
     DCHECK_EQ(input_rep, FloatRepresentation::Float64());
     switch (kind) {
+      case FloatIsOp::Kind::kFloat64Hole: {
+        return __ Word32Equal(__ Float64ExtractHighWord32(value),
+                              kHoleNanUpper32);
+      }
+      case FloatIsOp::Kind::kFinite: {
+        V<Float64> diff = __ Float64Sub(value, value);
+        return __ Float64Equal(diff, diff);
+      }
+      case FloatIsOp::Kind::kInteger: {
+        V<Float64> trunc = BuildFloat64RoundTruncate(value);
+        V<Float64> diff = __ Float64Sub(value, trunc);
+        return __ Float64Equal(diff, 0.0);
+      }
+      case FloatIsOp::Kind::kSafeInteger: {
+        Label<Word32> done(this);
+        V<Float64> trunc = BuildFloat64RoundTruncate(value);
+        V<Float64> diff = __ Float64Sub(value, trunc);
+        GOTO_IF_NOT(__ Float64Equal(diff, 0), done, 0);
+        V<Word32> in_range =
+            __ Float64LessThanOrEqual(__ Float64Abs(trunc), kMaxSafeInteger);
+        GOTO(done, in_range);
+
+        BIND(done, result);
+        return result;
+      }
+      case FloatIsOp::Kind::kMinusZero: {
+        if (Is64()) {
+          V<Word64> value64 = __ BitcastFloat64ToWord64(value);
+          return __ Word64Equal(value64, kMinusZeroBits);
+        } else {
+          Label<Word32> done(this);
+          V<Word32> value_lo = __ Float64ExtractLowWord32(value);
+          GOTO_IF_NOT(__ Word32Equal(value_lo, kMinusZeroLoBits), done, 0);
+          V<Word32> value_hi = __ Float64ExtractHighWord32(value);
+          GOTO(done, __ Word32Equal(value_hi, kMinusZeroHiBits));
+
+          BIND(done, result);
+          return result;
+        }
+      }
       case FloatIsOp::Kind::kNaN: {
-        OpIndex diff = __ Float64Equal(input, input);
+        V<Word32> diff = __ Float64Equal(value, value);
         return __ Word32Equal(diff, 0);
       }
     }
@@ -1840,6 +1880,71 @@ class MachineLoweringReducer : public Next {
       case BigIntBinopOp::Kind::kShiftRightArithmetic:
         return Builtin::kBigIntShiftRightNoThrow;
     }
+  }
+
+  V<Float64> BuildFloat64RoundTruncate(V<Float64> input) {
+    if (FloatUnaryOp::IsSupported(FloatUnaryOp::Kind::kRoundToZero,
+                                  FloatRepresentation::Float64())) {
+      return __ FloatRoundToZero(input, FloatRepresentation::Float64());
+    }
+
+    // General case for trunc.
+    //
+    //   if 0.0 < input then
+    //     if 2^52 <= input then
+    //       input
+    //     else
+    //       let temp1 = (2^52 + input) - 2^52 in
+    //       if input < temp1 then
+    //         temp1 - 1
+    //       else
+    //         temp1
+    //   else
+    //     if input == 0 then
+    //        input
+    //     if input <= -2^52 then
+    //       input
+    //     else
+    //       let temp1 = -0 - input in
+    //       let temp2 = (2^52 + temp1) - 2^52 in
+    //       if temp1 < temp2 then
+    //          -0 - (temp2 - 1)
+    //       else
+    //          -0 - temp2
+
+    Label<Float64> done(this);
+
+    constexpr double two_52 = 4503599627370496.0E0;
+
+    IF(__ Float64LessThan(0.0, input)) {
+      GOTO_IF_UNLIKELY(__ Float64LessThanOrEqual(two_52, input), done, input);
+
+      V<Float64> temp1 = __ Float64Sub(__ Float64Add(two_52, input), two_52);
+      GOTO_IF(__ Float64LessThan(input, temp1), done,
+              __ Float64Sub(temp1, 1.0));
+      GOTO(done, temp1);
+    }
+    ELSE {
+      GOTO_IF_UNLIKELY(__ Float64Equal(input, 0.0), done, input);
+
+      constexpr double minus_two_52 = -4503599627370496.0E0;
+      GOTO_IF_UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52), done,
+                       input);
+
+      constexpr double minus_zero = -0.0;
+      V<Float64> temp1 = __ Float64Sub(minus_zero, input);
+      V<Float64> temp2 = __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
+
+      IF(__ Float64LessThan(temp1, temp2)) {
+        GOTO(done, __ Float64Sub(minus_zero, __ Float64Sub(temp2, 1.0)));
+      }
+      ELSE { GOTO(done, __ Float64Sub(minus_zero, temp2)); }
+      END_IF
+    }
+    END_IF
+
+    BIND(done, result);
+    return result;
   }
 
   Factory* factory_;
