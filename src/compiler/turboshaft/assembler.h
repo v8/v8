@@ -1044,7 +1044,7 @@ class AssemblerOpInterface {
   }
 
   OpIndex ConvertObjectToPrimitive(
-      OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
+      V<Object> object, ConvertObjectToPrimitiveOp::Kind kind,
       ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -1054,7 +1054,7 @@ class AssemblerOpInterface {
   }
 
   OpIndex ConvertObjectToPrimitiveOrDeopt(
-      V<Tagged> object, OpIndex frame_state,
+      V<Object> object, OpIndex frame_state,
       ConvertObjectToPrimitiveOrDeoptOp::ObjectKind from_kind,
       ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind to_kind,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
@@ -1063,6 +1063,16 @@ class AssemblerOpInterface {
     }
     return stack().ReduceConvertObjectToPrimitiveOrDeopt(
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
+  }
+
+  OpIndex TruncateObjectToPrimitive(
+      V<Object> object, TruncateObjectToPrimitiveOp::Kind kind,
+      TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceTruncateObjectToPrimitive(object, kind,
+                                                   input_assumptions);
   }
 
   V<Word32> Word32Constant(uint32_t value) {
@@ -1453,8 +1463,8 @@ class AssemblerOpInterface {
     return value;
   }
 
-  V<Tagged> LoadMapField(V<Tagged> object) {
-    return LoadField<Tagged>(object, AccessBuilder::ForMap());
+  V<Map> LoadMapField(V<Object> object) {
+    return LoadField<Map>(object, AccessBuilder::ForMap());
   }
 
   void StoreField(V<Tagged> object, const FieldAccess& access, V<Any> value) {
@@ -2286,7 +2296,7 @@ class AssemblerOpInterface {
   }
 
   template <typename F>
-  bool ControlFlowHelper_ElseIf(F&& condition_builder) {
+  bool ControlFlowHelper_ElseIf(F&& condition_builder, BranchHint hint) {
     DCHECK_LT(0, if_scope_stack_.size());
     auto& info = if_scope_stack_.back();
     Block* else_block = info.else_block;
@@ -2294,7 +2304,7 @@ class AssemblerOpInterface {
     if (!stack().Bind(else_block)) return false;
     Block* then_block = stack().NewBlock();
     info.else_block = stack().NewBlock();
-    stack().Branch(condition_builder(), then_block, info.else_block);
+    stack().Branch(condition_builder(), then_block, info.else_block, hint);
     return stack().Bind(then_block);
   }
 

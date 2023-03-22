@@ -619,6 +619,11 @@ class GraphVisitor {
         MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()),
         op.from_kind, op.to_kind, op.minus_zero_mode, op.feedback);
   }
+  OpIndex AssembleOutputGraphTruncateObjectToPrimitive(
+      const TruncateObjectToPrimitiveOp& op) {
+    return assembler().ReduceTruncateObjectToPrimitive(
+        MapToNewGraph(op.input()), op.kind, op.input_assumptions);
+  }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(
         MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),

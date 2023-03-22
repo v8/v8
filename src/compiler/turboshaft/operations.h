@@ -127,6 +127,7 @@ struct FrameStateOp;
   V(ConvertToObjectOrDeopt)          \
   V(ConvertObjectToPrimitive)        \
   V(ConvertObjectToPrimitiveOrDeopt) \
+  V(TruncateObjectToPrimitive)       \
   V(Tag)                             \
   V(Untag)                           \
   V(NewConsString)                   \
@@ -2638,6 +2639,7 @@ struct ConvertObjectToPrimitiveOp
     kInt64,
     kUint32,
     kBit,
+    kFloat64,
   };
   enum class InputAssumptions : uint8_t {
     kObject,
@@ -2656,6 +2658,8 @@ struct ConvertObjectToPrimitiveOp
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
+      case Kind::kFloat64:
+        return RepVector<RegisterRepresentation::Float64()>();
     }
   }
 
@@ -2736,6 +2740,50 @@ std::ostream& operator<<(std::ostream& os,
                          ConvertObjectToPrimitiveOrDeoptOp::ObjectKind kind);
 std::ostream& operator<<(std::ostream& os,
                          ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind kind);
+
+struct TruncateObjectToPrimitiveOp
+    : FixedArityOperationT<1, TruncateObjectToPrimitiveOp> {
+  enum class Kind : uint8_t {
+    kInt32,
+    kInt64,
+    kBit,
+  };
+  enum class InputAssumptions : uint8_t {
+    kBigInt,
+    kNumberOrOddball,
+    kHeapObject,
+    kObject,
+  };
+  Kind kind;
+  InputAssumptions input_assumptions;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kInt32:
+      case Kind::kBit:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case Kind::kInt64:
+        return RepVector<RegisterRepresentation::Word64()>();
+    }
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  TruncateObjectToPrimitiveOp(OpIndex input, Kind kind,
+                              InputAssumptions input_assumptions)
+      : Base(input), kind(kind), input_assumptions(input_assumptions) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind, input_assumptions}; }
+};
+std::ostream& operator<<(std::ostream& os,
+                         TruncateObjectToPrimitiveOp::Kind kind);
+std::ostream& operator<<(
+    std::ostream& os,
+    TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions);
 
 enum class TagKind {
   kSmiTag,

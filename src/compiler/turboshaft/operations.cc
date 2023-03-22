@@ -830,6 +830,8 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Uint32";
     case ConvertObjectToPrimitiveOp::Kind::kBit:
       return os << "Bit";
+    case ConvertObjectToPrimitiveOp::Kind::kFloat64:
+      return os << "Float64";
   }
 }
 
@@ -873,6 +875,33 @@ std::ostream& operator<<(std::ostream& os,
       return os << "NumberOrString";
     case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kSmi:
       return os << "Smi";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TruncateObjectToPrimitiveOp::Kind kind) {
+  switch (kind) {
+    case TruncateObjectToPrimitiveOp::Kind::kInt32:
+      return os << "Int32";
+    case TruncateObjectToPrimitiveOp::Kind::kInt64:
+      return os << "Int64";
+    case TruncateObjectToPrimitiveOp::Kind::kBit:
+      return os << "Bit";
+  }
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+  switch (input_assumptions) {
+    case TruncateObjectToPrimitiveOp::InputAssumptions::kBigInt:
+      return os << "BigInt";
+    case TruncateObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case TruncateObjectToPrimitiveOp::InputAssumptions::kHeapObject:
+      return os << "HeapObject";
+    case TruncateObjectToPrimitiveOp::InputAssumptions::kObject:
+      return os << "Object";
   }
 }
 

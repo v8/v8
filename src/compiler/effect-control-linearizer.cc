@@ -1078,18 +1078,22 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerChangeTaggedToInt64(node);
       break;
     case IrOpcode::kChangeTaggedToFloat64:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToFloat64(node);
       break;
     case IrOpcode::kChangeTaggedToTaggedSigned:
       result = LowerChangeTaggedToTaggedSigned(node);
       break;
     case IrOpcode::kTruncateTaggedToBit:
+      if (v8_flags.turboshaft) return false;
       result = LowerTruncateTaggedToBit(node);
       break;
     case IrOpcode::kTruncateTaggedPointerToBit:
+      if (v8_flags.turboshaft) return false;
       result = LowerTruncateTaggedPointerToBit(node);
       break;
     case IrOpcode::kTruncateTaggedToFloat64:
+      if (v8_flags.turboshaft) return false;
       result = LowerTruncateTaggedToFloat64(node);
       break;
     case IrOpcode::kCheckClosure:
@@ -1390,9 +1394,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       }
       break;
     case IrOpcode::kTruncateBigIntToWord64:
+      if (v8_flags.turboshaft) return false;
       result = LowerTruncateBigIntToWord64(node);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
+      if (v8_flags.turboshaft) return false;
       result = LowerTruncateTaggedToWord32(node);
       break;
     case IrOpcode::kCheckedTruncateTaggedToWord32:
@@ -2075,6 +2081,7 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   auto done = __ MakeLabel(MachineRepresentation::kBit);
   auto if_smi = __ MakeDeferredLabel();
 
@@ -2095,6 +2102,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedPointerToBit(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   TruncateTaggedPointerToBit(node, &done);
@@ -2170,6 +2178,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   return LowerTruncateTaggedToFloat64(node);
 }
 
@@ -2196,6 +2205,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
@@ -4292,6 +4302,7 @@ Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerTruncateBigIntToWord64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kWord64);
@@ -4322,6 +4333,7 @@ Node* EffectControlLinearizer::LowerTruncateBigIntToWord64(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();

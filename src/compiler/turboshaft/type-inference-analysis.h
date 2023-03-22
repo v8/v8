@@ -228,6 +228,7 @@ class TypeInferenceAnalysis {
         case Opcode::kConvertToObjectOrDeopt:
         case Opcode::kConvertObjectToPrimitive:
         case Opcode::kConvertObjectToPrimitiveOrDeopt:
+        case Opcode::kTruncateObjectToPrimitive:
         case Opcode::kTag:
         case Opcode::kUntag:
         case Opcode::kNewConsString:

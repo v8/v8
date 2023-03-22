@@ -782,7 +782,24 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToInt64, Int64,
                                        NumberOrOddball)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToFloat64, Float64,
+                                       NumberOrOddball)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
+                                       NumberOrOddball)
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
+
+#define TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions)   \
+  case IrOpcode::k##name:                                                  \
+    return __ TruncateObjectToPrimitive(                                   \
+        Map(node->InputAt(0)), TruncateObjectToPrimitiveOp::Kind::k##kind, \
+        TruncateObjectToPrimitiveOp::InputAssumptions::k##input_assumptions);
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToWord32, Int32,
+                                        NumberOrOddball)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateBigIntToWord64, Int64, BigInt)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToBit, Bit, Object)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,
+                                        HeapObject)
+#undef TRUNCATE_OBJECT_TO_PRIMITIVE_CASE
 
 #define CHANGE_OR_DEOPT_INT_CASE(kind)                                     \
   case IrOpcode::kChecked##kind: {                                         \

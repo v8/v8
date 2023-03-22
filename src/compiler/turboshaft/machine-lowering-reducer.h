@@ -794,6 +794,27 @@ class MachineLoweringReducer : public Next {
         DCHECK_EQ(input_assumptions,
                   ConvertObjectToPrimitiveOp::InputAssumptions::kObject);
         return __ TaggedEqual(object, __ HeapConstant(factory_->true_value()));
+      case ConvertObjectToPrimitiveOp::Kind::kFloat64: {
+        DCHECK_EQ(
+            input_assumptions,
+            ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+        Label<Float64> done(this);
+
+        IF(__ ObjectIsSmi(object)) {
+          GOTO(done, __ ChangeInt32ToFloat64(__ SmiUntag(object)));
+        }
+        ELSE {
+          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                            Oddball::kToNumberRawOffset);
+          V<Float64> value = __ template LoadField<Float64>(
+              object, AccessBuilder::ForHeapNumberValue());
+          GOTO(done, value);
+        }
+        END_IF
+
+        BIND(done, result);
+        return result;
+      }
     }
   }
 
@@ -957,6 +978,125 @@ class MachineLoweringReducer : public Next {
       }
     }
     UNREACHABLE();
+  }
+
+  OpIndex ReduceTruncateObjectToPrimitive(
+      V<Object> object, TruncateObjectToPrimitiveOp::Kind kind,
+      TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    switch (kind) {
+      case TruncateObjectToPrimitiveOp::Kind::kInt32: {
+        DCHECK_EQ(
+            input_assumptions,
+            TruncateObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+        Label<Word32> done(this);
+
+        IF(__ ObjectIsSmi(object)) { GOTO(done, __ SmiUntag(object)); }
+        ELSE {
+          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                            Oddball::kToNumberRawOffset);
+          V<Float64> number_value = __ template LoadField<Float64>(
+              object, AccessBuilder::ForHeapNumberValue());
+          GOTO(done, __ JSTruncateFloat64ToWord32(number_value));
+        }
+        END_IF
+
+        BIND(done, result);
+        return result;
+      }
+      case TruncateObjectToPrimitiveOp::Kind::kInt64: {
+        DCHECK_EQ(input_assumptions,
+                  TruncateObjectToPrimitiveOp::InputAssumptions::kBigInt);
+        DCHECK(Is64());
+        Label<Word64> done(this);
+
+        V<Word32> bitfield = __ template LoadField<Word32>(
+            object, AccessBuilder::ForBigIntBitfield());
+        IF(__ Word32Equal(bitfield, 0)) { GOTO(done, 0); }
+        ELSE {
+          V<Word64> lsd = __ template LoadField<Word64>(
+              object, AccessBuilder::ForBigIntLeastSignificantDigit64());
+          V<Word32> sign =
+              __ Word32BitwiseAnd(bitfield, BigInt::SignBits::kMask);
+          IF(__ Word32Equal(sign, 1)) { GOTO(done, __ Word64Sub(0, lsd)); }
+          END_IF
+          GOTO(done, lsd);
+        }
+        END_IF
+
+        BIND(done, result);
+        return result;
+      }
+      case TruncateObjectToPrimitiveOp::Kind::kBit: {
+        Label<Word32> done(this);
+
+        if (input_assumptions ==
+            TruncateObjectToPrimitiveOp::InputAssumptions::kObject) {
+          // Perform Smi check.
+          IF_UNLIKELY(__ ObjectIsSmi(object)) {
+            GOTO(done, __ Word32Equal(__ TaggedEqual(object, __ SmiTag(0)), 0));
+          }
+          END_IF
+          // Otherwise fall through into HeapObject case.
+        } else {
+          DCHECK_EQ(input_assumptions,
+                    TruncateObjectToPrimitiveOp::InputAssumptions::kHeapObject);
+        }
+
+        // Check if {object} is false.
+        GOTO_IF(
+            __ TaggedEqual(object, __ HeapConstant(factory_->false_value())),
+            done, 0);
+
+        // Check if {object} is the empty string.
+        GOTO_IF(
+            __ TaggedEqual(object, __ HeapConstant(factory_->empty_string())),
+            done, 0);
+
+        // Load the map of {object}.
+        V<Map> map = __ LoadMapField(object);
+
+        // Check if the {object} is undetectable and immediately return false.
+        // This includes undefined and null.
+        V<Word32> bitfield =
+            __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField());
+        GOTO_IF(
+            __ Word32BitwiseAnd(bitfield, Map::Bits1::IsUndetectableBit::kMask),
+            done, 0);
+
+        // Check if {object} is a HeapNumber.
+        IF_UNLIKELY(
+            __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map()))) {
+          // For HeapNumber {object}, just check that its value is not 0.0, -0.0
+          // or NaN.
+          V<Float64> number_value = __ template LoadField<Float64>(
+              object, AccessBuilder::ForHeapNumberValue());
+          GOTO(done, __ Float64LessThan(0.0, __ Float64Abs(number_value)));
+        }
+        END_IF
+
+        // Check if {object} is a BigInt.
+        IF_UNLIKELY(
+            __ TaggedEqual(map, __ HeapConstant(factory_->bigint_map()))) {
+          V<Word32> bitfield = __ template LoadField<Word32>(
+              object, AccessBuilder::ForBigIntBitfield());
+          GOTO(done, IsNonZero(__ Word32BitwiseAnd(bitfield,
+                                                   BigInt::LengthBits::kMask)));
+        }
+        END_IF
+
+        // All other values that reach here are true.
+        GOTO(done, 1);
+
+        BIND(done, result);
+        return result;
+      }
+    }
+    UNREACHABLE();
+  }
+
+  // `IsNonZero` converts any non-0 value into 1.
+  V<Word32> IsNonZero(V<Word32> value) {
+    return __ Word32Equal(__ Word32Equal(value, 0), 0);
   }
 
   OpIndex ReduceNewConsString(OpIndex length, OpIndex first, OpIndex second) {

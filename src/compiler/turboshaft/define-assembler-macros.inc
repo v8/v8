@@ -54,9 +54,13 @@
 #define IF_NOT(cond) IF_WITH_HINT(cond, true, BranchHint::kNone)
 #define IF_NOT_LIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kFalse)
 #define IF_NOT_UNLIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kTrue)
-#define ELSE_IF(cond)                                                       \
-  for (bool bound = Asm().ControlFlowHelper_ElseIf([&]() { return cond; }); \
+#define ELSE_IF_WITH_HINT(cond, hint)                             \
+  for (bool bound = Asm().ControlFlowHelper_ElseIf(               \
+          [&]() { return cond; }, hint);                          \
        bound; (bound = false), Asm().ControlFlowHelper_GotoEnd())
+#define ELSE_IF(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kNone)
+#define ELSE_IF_LIKELY(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kTrue)
+#define ELSE_IF_UNLIKELY(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kFalse)
 #define ELSE                                               \
   for (bool bound = Asm().ControlFlowHelper_Else(); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())

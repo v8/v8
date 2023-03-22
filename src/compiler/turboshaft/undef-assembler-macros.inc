@@ -17,6 +17,9 @@
 #undef BIND
 #undef ELSE
 #undef ELSE_IF
+#undef ELSE_IF_LIKELY
+#undef ELSE_IF_UNLIKELY
+#undef ELSE_IF_WITH_HINT
 #undef END_IF
 #undef GOTO
 #undef GOTO_IF
