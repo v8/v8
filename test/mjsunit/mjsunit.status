@@ -46,9 +46,6 @@
   ##############################################################################
   # Open bugs.
 
-  # BUG(v8:2989).
-  'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
-
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 

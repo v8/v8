@@ -402,8 +402,8 @@ Handle<AccessorInfo> Accessors::MakeFunctionNameInfo(Isolate* isolate) {
 
 namespace {
 
-Handle<JSObject> ArgumentsForInlinedFunction(JavaScriptFrame* frame,
-                                             int inlined_frame_index) {
+Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
+                                        int inlined_frame_index) {
   Isolate* isolate = frame->isolate();
   Factory* factory = isolate->factory();
 
@@ -467,7 +467,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     // correct number of arguments and no allocated arguments object, so
     // we can construct a fresh one by interpreting the function's
     // deoptimization input data.
-    return ArgumentsForInlinedFunction(frame, function_index);
+    return ArgumentsFromDeoptInfo(frame, function_index);
   }
 
   // Construct an arguments object mirror for the right frame and the underlying
@@ -491,6 +491,20 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     array->set(i, value);
   }
   arguments->set_elements(*array);
+
+  // For optimized functions, the frame arguments may be outdated, so we should
+  // update them with the deopt info, while keeping the length and extra
+  // arguments from the actual frame.
+  if (CodeKindCanDeoptimize(frame->LookupCode().kind()) && length > 0) {
+    Handle<JSObject> arguments_from_deopt_info =
+        ArgumentsFromDeoptInfo(frame, function_index);
+    Handle<FixedArray> elements_from_deopt_info(
+        FixedArray::cast(arguments_from_deopt_info->elements()), isolate);
+    int common_length = std::min(length, elements_from_deopt_info->length());
+    for (int i = 0; i < common_length; i++) {
+      array->set(i, elements_from_deopt_info->get(i));
+    }
+  }
 
   // Return the freshly allocated arguments object.
   return arguments;
