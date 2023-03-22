@@ -124,10 +124,11 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                : counters->gc_minor_incremental_marking_start());
   const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
                                  : GCTracer::Scope::MINOR_MC_INCREMENTAL_START;
-  TRACE_EVENT1("v8",
+  TRACE_EVENT2("v8",
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",
-               "epoch", heap_->tracer()->CurrentEpoch(scope_id));
+               "epoch", heap_->tracer()->CurrentEpoch(scope_id), "reason",
+               Heap::GarbageCollectionReasonToString(gc_reason));
   TRACE_GC_EPOCH(heap()->tracer(), scope_id, ThreadKind::kMain);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
