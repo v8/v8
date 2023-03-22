@@ -833,7 +833,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), InstructionStream());
+    RelocInfo rinfo(pc, rmode, it->data(), Code(), InstructionStream());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {

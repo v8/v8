@@ -1139,7 +1139,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ LoadTaggedField(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset),
                      r0);
   __ LoadS32(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
-  __ TestBit(ip, InstructionStream::kMarkedForDeoptimizationBit);
+  __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
 }

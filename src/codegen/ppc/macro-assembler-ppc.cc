@@ -367,7 +367,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch2) {
   LoadS32(scratch1, FieldMemOperand(code, Code::kKindSpecificFlagsOffset),
           scratch2);
-  TestBit(scratch1, InstructionStream::kMarkedForDeoptimizationBit, scratch2);
+  TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -1177,15 +1177,17 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   // Builtins do not use the constant pool (see is_constant_pool_available).
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
-  lwz(r0, MemOperand(code_target_address,
-                     InstructionStream::kInstructionSizeOffset -
-                         InstructionStream::kHeaderSize));
-  lwz(kConstantPoolRegister,
-      MemOperand(code_target_address,
-                 InstructionStream::kConstantPoolOffsetOffset -
-                     InstructionStream::kHeaderSize));
-  add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
-  add(kConstantPoolRegister, kConstantPoolRegister, r0);
+  // TODO(miladfarca): Pass in scratch registers.
+  LoadU64(ip, FieldMemOperand(code_target_address, Code::kCodeEntryPointOffset),
+          r0);
+  LoadU32(r0,
+          FieldMemOperand(code_target_address, Code::kInstructionSizeOffset),
+          r0);
+  add(ip, r0, ip);
+  LoadU32(kConstantPoolRegister,
+          FieldMemOperand(code_target_address, Code::kConstantPoolOffsetOffset),
+          r0);
+  add(kConstantPoolRegister, ip, kConstantPoolRegister);
 }
 
 void MacroAssembler::LoadPC(Register dst) {
@@ -5087,16 +5089,6 @@ void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
           FieldMemOperand(code_object, Code::kCodeEntryPointOffset), r0);
-}
-
-void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
-                                                         Register code_object) {
-  ASM_CODE_COMMENT(this);
-  // Compute the InstructionStream object pointer from the code entry point.
-  LoadU64(destination,
-          FieldMemOperand(code_object, Code::kCodeEntryPointOffset), r0);
-  SubS64(destination, destination,
-         Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {

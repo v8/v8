@@ -80,11 +80,12 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 }
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
-                       intptr_t offset) {
-  if (is_int20(offset)) {
-    __ lay(r14, MemOperand(entry_address, offset));
+                       Operand offset) {
+  if (!offset.is_reg() && is_int20(offset.immediate())) {
+    __ lay(r14, MemOperand(entry_address, offset.immediate()));
   } else {
-    __ AddS64(r14, entry_address, Operand(offset));
+    CHECK(offset.is_reg());
+    __ AddS64(r14, entry_address, offset.rm());
   }
 
   // "return" to the OSR entry point of the function.
@@ -158,7 +159,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, r5);
   }
-  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r4;
@@ -228,6 +228,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(3, 0, r1);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
+  __ LoadCodeEntry(code_obj, code_obj);
   __ AddS64(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 
@@ -235,11 +236,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't
     // disarm Sparkplug here.
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, r1);
-    Generate_OSREntry(masm, code_obj,
-                      InstructionStream::kHeaderSize - kHeapObjectTag);
+    Generate_OSREntry(masm, code_obj, Operand(0));
   } else {
-    __ AddS64(code_obj, code_obj,
-              Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.
@@ -322,14 +320,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  __ LoadCodeInstructionStreamNonBuiltin(r2, r2);
-
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedField(
       r3,
-      FieldMemOperand(
-          r2, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
+      FieldMemOperand(r2, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -337,10 +332,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
                                   DeoptimizationData::kOsrPcOffsetIndex)));
 
-  // Compute the target address = code_obj + header_size + osr_offset
-  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-  __ AddS64(r2, r3);
-  Generate_OSREntry(masm, r2, InstructionStream::kHeaderSize - kHeapObjectTag);
+  __ LoadCodeEntry(r2, r2);
+
+  // Compute the target address = code_entry + osr_offset
+  // <entry_addr> = <code_entry> + <osr_offset>
+  Generate_OSREntry(masm, r2, Operand(r3));
 }
 
 }  // namespace

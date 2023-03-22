@@ -559,7 +559,7 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
   LoadS32(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
-  TestBit(scratch, InstructionStream::kMarkedForDeoptimizationBit, scratch);
+  TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -4946,16 +4946,6 @@ void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
           FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
-}
-
-void MacroAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
-                                                         Register code_object) {
-  ASM_CODE_COMMENT(this);
-  // Compute the InstructionStream object pointer from the code entry point.
-  LoadU64(destination,
-          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
-  SubS64(destination, destination,
-         Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
