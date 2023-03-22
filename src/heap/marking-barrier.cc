@@ -133,10 +133,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   // marking visitor does not re-process any already marked descriptors. If we
   // don't mark it black here, the Scavenger may promote a DescriptorArray and
   // any already marked descriptors will not have any slots recorded.
-  if (!marking_state_.IsMarked(descriptor_array)) {
-    marking_state_.TryMark(descriptor_array);
-    marking_state_.GreyToBlack(descriptor_array);
-  }
+  marking_state_.TryMark(descriptor_array);
 
   // `TryUpdateIndicesToMark()` acts as a barrier that publishes the slots'
   // values corresponding to `number_of_own_descriptors`.

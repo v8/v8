@@ -202,10 +202,7 @@ class MainMarkingVisitor final
             should_keep_ages_unchanged),
         marking_state_(marking_state) {}
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_->GreyToBlack(object));
-    return true;
-  }
+  constexpr bool ShouldVisit(HeapObject object) const { return true; }
 
  private:
   // Functions required by MarkingVisitorBase.
@@ -237,7 +234,7 @@ class YoungGenerationMainMarkingVisitor final
                                     MarkingState* marking_state,
                                     MarkingWorklists::Local* worklists_local);
 
-  bool ShouldVisit(HeapObject object);
+  constexpr bool ShouldVisit(HeapObject object) const { return true; }
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);

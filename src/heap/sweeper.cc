@@ -21,6 +21,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
@@ -743,7 +744,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   Address free_start = p->area_start();
   PtrComprCageBase cage_base(heap_->isolate());
   for (auto object_and_size :
-       LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
+       LiveObjectRange<kAllLiveObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
     if (code_object_registry) code_objects.push_back(object.address());
     DCHECK(marking_state_->IsMarked(object));
@@ -989,8 +990,8 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   } else {
     PtrComprCageBase cage_base(chunk->heap()->isolate());
     Address free_start = chunk->area_start();
-    for (auto object_and_size :
-         LiveObjectRange<kBlackObjects>(chunk, marking_state_->bitmap(chunk))) {
+    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
+             chunk, marking_state_->bitmap(chunk))) {
       HeapObject object = object_and_size.first;
       HandlePromotedObject(object, marking_state_, cage_base, &record_visitor);
       Address free_end = object.address();

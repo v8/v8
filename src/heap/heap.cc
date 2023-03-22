@@ -3488,7 +3488,7 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        marking_state()->IsBlackOrGrey(filler)) {
+        marking_state()->IsMarked(filler)) {
       Page* page = Page::FromAddress(new_end);
       marking_state()->bitmap(page)->ClearRange(
           page->AddressToMarkbitIndex(new_end),

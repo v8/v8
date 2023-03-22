@@ -139,10 +139,7 @@ class YoungGenerationConcurrentMarkingVisitor final
     return T::cast(object);
   }
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
+  constexpr bool ShouldVisit(HeapObject object) const { return true; }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
   int Visit##TypeName(Map map, TypeName object) {                            \
@@ -207,10 +204,7 @@ class ConcurrentMarkingVisitor final
     return T::cast(object);
   }
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
+  constexpr bool ShouldVisit(HeapObject object) const { return true; }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
   int Visit##TypeName(Map map, TypeName object) {                            \
@@ -222,7 +216,7 @@ class ConcurrentMarkingVisitor final
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
-    if (marking_state_.IsBlackOrGrey(key)) {
+    if (marking_state_.IsMarked(key)) {
       if (marking_state_.TryMark(value)) {
         local_marking_worklists_->Push(value);
         return true;

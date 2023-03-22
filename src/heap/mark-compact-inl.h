@@ -209,10 +209,9 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         }
       } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
         object = HeapObject::FromAddress(addr);
-        Object map_object = object.map(cage_base, kAcquireLoad);
-        CHECK(map_object.IsMap(cage_base));
-        map = Map::cast(map_object);
-        DCHECK(map.IsMap(cage_base));
+        map = object.map(cage_base, kAcquireLoad);
+        // Map might be forwarded during GC.
+        DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
         size = object.SizeFromMap(map);
         CHECK_LE(addr + ALIGN_TO_ALLOCATION_ALIGNMENT(size),
                  chunk_->area_end());

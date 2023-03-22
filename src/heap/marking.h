@@ -355,23 +355,6 @@ class Marking : public AllStatic {
   // mode for access. We should remove the default value or switch it with
   // ATOMIC as soon we add concurrency.
 
-  // Impossible markbits: 01
-  template <AccessMode mode = AccessMode::NON_ATOMIC>
-  V8_INLINE static bool IsImpossible(MarkBit mark_bit) {
-    if (mode == AccessMode::NON_ATOMIC) {
-      return !mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
-    }
-    // If we are in concurrent mode we can only tell if an object has the
-    // impossible bit pattern if we read the first bit again after reading
-    // the first and the second bit. If the first bit is till zero and the
-    // second bit is one then the object has the impossible bit pattern.
-    bool is_impossible = !mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
-    if (is_impossible) {
-      return !mark_bit.Get<mode>();
-    }
-    return false;
-  }
-
   // Black markbits: 11
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsBlack(MarkBit mark_bit) {
@@ -381,7 +364,6 @@ class Marking : public AllStatic {
   // White markbits: 00 - this is required by the mark bit clearer.
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsWhite(MarkBit mark_bit) {
-    DCHECK(!IsImpossible<mode>(mark_bit));
     return !mark_bit.Get<mode>();
   }
 

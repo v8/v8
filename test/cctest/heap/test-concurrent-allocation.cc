@@ -464,7 +464,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
   thread->Join();
 
-  CHECK(heap->marking_state()->IsBlackOrGrey(value));
+  CHECK(heap->marking_state()->IsMarked(value));
   heap::InvokeMarkSweep(i_isolate);
 
   isolate->Dispose();
@@ -556,7 +556,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       thread->Join();
     }
 
-    CHECK(heap->marking_state()->IsBlackOrGrey(value));
+    CHECK(heap->marking_state()->IsMarked(value));
     heap::InvokeMarkSweep(i_isolate);
   }
   isolate->Dispose();

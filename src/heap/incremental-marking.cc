@@ -62,8 +62,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       atomic_marking_state_(heap->atomic_marking_state()) {}
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
-  CHECK(atomic_marking_state()->TryMark(obj) &&
-        atomic_marking_state()->GreyToBlack(obj));
+  CHECK(atomic_marking_state()->TryMark(obj));
   IncrementLiveBytesBackground(MemoryChunk::FromHeapObject(obj),
                                static_cast<intptr_t>(object_size));
 }
@@ -474,6 +473,15 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
         // Object got promoted into the shared heap. Drop it from the client
         // heap marking worklist.
         return false;
+      }
+      // For any object not a DescriptorArray, transferring the object always
+      // increments live bytes as the marked state cannot distinguish fully
+      // processed from to-be-processed. Decrement the counter for such objects
+      // here.
+      if (!dest.IsDescriptorArray()) {
+        atomic_marking_state()->IncrementLiveBytes(
+            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(dest)),
+            -ALIGN_TO_ALLOCATION_ALIGNMENT(dest.Size()));
       }
       *out = dest;
       return true;

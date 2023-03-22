@@ -1397,7 +1397,6 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
   Object RetainAs(Object object) override {
     HeapObject heap_object = HeapObject::cast(object);
-    DCHECK(!marking_state_->IsGrey(heap_object));
     if (marking_state_->IsMarked(heap_object)) {
       return object;
     } else if (object.IsAllocationSite() &&
@@ -2276,7 +2275,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
       // next_ephemerons.
       local_weak_objects()->next_ephemerons_local.Publish();
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
-        if (non_atomic_marking_state()->IsBlackOrGrey(ephemeron.key) &&
+        if (non_atomic_marking_state()->IsMarked(ephemeron.key) &&
             non_atomic_marking_state()->TryMark(ephemeron.value)) {
           local_marking_worklists()->Push(ephemeron.value);
         }
@@ -2361,7 +2360,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
       // that was trimmed.
       DCHECK_IMPLIES(object.map(cage_base) !=
                          ReadOnlyRoots(isolate).one_pointer_filler_map(),
-                     marking_state()->IsBlackOrGrey(object));
+                     marking_state()->IsMarked(object));
       continue;
     }
     DCHECK(object.IsHeapObject());
@@ -2407,7 +2406,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   // strings from the younger generation into the shared heap. This
   // ShouldMarkObject call catches those cases.
   if (!ShouldMarkObject(value)) return false;
-  if (marking_state()->IsBlackOrGrey(key)) {
+  if (marking_state()->IsMarked(key)) {
     if (marking_state()->TryMark(value)) {
       local_marking_worklists()->Push(value);
       return true;
@@ -3018,7 +3017,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
       &weak_object_in_code)) {
     HeapObject object = weak_object_in_code.first;
     Code code = weak_object_in_code.second;
-    if (!non_atomic_marking_state()->IsBlackOrGrey(object) &&
+    if (!non_atomic_marking_state()->IsMarked(object) &&
         !code.embedded_objects_cleared()) {
       if (!code.marked_for_deoptimization()) {
         code.SetMarkedForDeoptimization(isolate(), "weak objects");
@@ -3036,7 +3035,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
     DisallowGarbageCollection no_gc_obviously;
-    if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
+    if (non_atomic_marking_state()->IsMarked(parent) &&
         TransitionsAccessor(isolate(), parent)
             .HasSimpleTransitionTo(dead_target)) {
       ClearPotentialSimpleMapTransition(parent, dead_target);
@@ -3121,7 +3120,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the uncompiled data as black, and ensure all fields have already been
   // marked.
   DCHECK(!ShouldMarkObject(inferred_name) ||
-         marking_state()->IsBlackOrGrey(inferred_name));
+         marking_state()->IsMarked(inferred_name));
   marking_state()->TryMarkAndAccountLiveBytes(uncompiled_data);
 
   // Use the raw function data setter to avoid validity checks, since we're
@@ -3159,10 +3158,10 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         (!baseline_istream.is_null() &&
          baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate()));
     bool is_bytecode_live = !bytecode_already_decompiled &&
-                            non_atomic_marking_state()->IsBlackOrGrey(
+                            non_atomic_marking_state()->IsMarked(
                                 flushing_candidate.GetBytecodeArray(isolate()));
     if (!baseline_istream.is_null()) {
-      if (non_atomic_marking_state()->IsBlackOrGrey(baseline_istream)) {
+      if (non_atomic_marking_state()->IsMarked(baseline_istream)) {
         // Currently baseline code holds bytecode array strongly and it is
         // always ensured that bytecode is live if baseline code is live. Hence
         // baseline code can safely load bytecode array without any additional
@@ -3175,7 +3174,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // the InstructionStream itself, if the InstructionStream is live then
         // the Code has to be live and will have been marked via
         // the owning JSFunction.
-        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_code));
+        DCHECK(non_atomic_marking_state()->IsMarked(baseline_code));
       } else if (is_bytecode_live || bytecode_already_decompiled) {
         // Reset the function_data field to the BytecodeArray, InterpreterData,
         // or UncompiledData found on the baseline code. We can skip this step
@@ -3264,8 +3263,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
           continue;
         }
         Map parent = Map::cast(map.constructor_or_back_pointer());
-        bool parent_is_alive =
-            non_atomic_marking_state()->IsBlackOrGrey(parent);
+        bool parent_is_alive = non_atomic_marking_state()->IsMarked(parent);
         DescriptorArray descriptors =
             parent_is_alive ? parent.instance_descriptors(isolate())
                             : DescriptorArray();
@@ -3468,23 +3466,22 @@ void MarkCompactCollector::ClearWeakCollections() {
         Object value = table.ValueAt(i);
         if (value.IsHeapObject()) {
           HeapObject heap_object = HeapObject::cast(value);
-          CHECK_IMPLIES(
-              !ShouldMarkObject(key) ||
-                  non_atomic_marking_state()->IsBlackOrGrey(key),
-              !ShouldMarkObject(heap_object) ||
-                  non_atomic_marking_state()->IsBlackOrGrey(heap_object));
+          CHECK_IMPLIES(!ShouldMarkObject(key) ||
+                            non_atomic_marking_state()->IsMarked(key),
+                        !ShouldMarkObject(heap_object) ||
+                            non_atomic_marking_state()->IsMarked(heap_object));
         }
       }
 #endif  // VERIFY_HEAP
       if (!ShouldMarkObject(key)) continue;
-      if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
+      if (!non_atomic_marking_state()->IsMarked(key)) {
         table.RemoveEntry(i);
       }
     }
   }
   for (auto it = heap_->ephemeron_remembered_set_.begin();
        it != heap_->ephemeron_remembered_set_.end();) {
-    if (!non_atomic_marking_state()->IsBlackOrGrey(it->first)) {
+    if (!non_atomic_marking_state()->IsMarked(it->first)) {
       it = heap_->ephemeron_remembered_set_.erase(it);
     } else {
       ++it;
@@ -3505,7 +3502,7 @@ void MarkCompactCollector::ClearWeakReferences() {
     if ((*location)->GetHeapObjectIfWeak(&value)) {
       DCHECK(!value.IsCell());
       if (value.InReadOnlySpace() ||
-          non_atomic_marking_state()->IsBlackOrGrey(value)) {
+          non_atomic_marking_state()->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
@@ -3524,7 +3521,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
     HeapObject target = HeapObject::cast(weak_ref.target());
     if (!target.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(target)) {
+        !non_atomic_marking_state()->IsMarked(target)) {
       weak_ref.set_target(ReadOnlyRoots(isolate()).undefined_value());
     } else {
       // The value of the JSWeakRef is alive.
@@ -3542,7 +3539,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     };
     HeapObject target = HeapObject::cast(weak_cell.target());
     if (!target.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(target)) {
+        !non_atomic_marking_state()->IsMarked(target)) {
       DCHECK(target.CanBeHeldWeakly());
       // The value of the WeakCell is dead.
       JSFinalizationRegistry finalization_registry =
@@ -3565,7 +3562,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
 
     HeapObject unregister_token = weak_cell.unregister_token();
     if (!unregister_token.InReadOnlySpace() &&
-        !non_atomic_marking_state()->IsBlackOrGrey(unregister_token)) {
+        !non_atomic_marking_state()->IsMarked(unregister_token)) {
       DCHECK(unregister_token.CanBeHeldWeakly());
       // The unregister token is dead. Remove any corresponding entries in the
       // key map. Multiple WeakCell with the same token will have all their
@@ -4473,7 +4470,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
       LargePage* current = *(it++);
       HeapObject object = current->GetObject();
-      DCHECK(!marking_state->IsGrey(object));
       if (marking_state->IsMarked(object)) {
         heap()->lo_space()->PromoteNewLargeObject(current);
         current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -4525,7 +4521,7 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjects");
   for (auto object_and_size :
-       LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
+       LiveObjectRange<kAllLiveObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject const object = object_and_size.first;
     if (!visitor->Visit(object, object_and_size.second)) {
       *failed_object = object;
@@ -4549,8 +4545,8 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
       DCHECK(success);
     }
   } else {
-    for (auto object_and_size :
-         LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
+    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
+             chunk, marking_state->bitmap(chunk))) {
       HeapObject const object = object_and_size.first;
       DCHECK(marking_state->IsMarked(object));
       const bool success = visitor->Visit(object, object_and_size.second);
@@ -5365,7 +5361,6 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
     HeapObject object = current->GetObject();
-    DCHECK(!marking_state->IsGrey(object));
     if (!marking_state->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
@@ -5525,11 +5520,6 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(isolate, worklists_local),
       marking_state_(marking_state) {}
-
-bool YoungGenerationMainMarkingVisitor::ShouldVisit(HeapObject object) {
-  CHECK(marking_state_->GreyToBlack(object));
-  return true;
-}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5718,7 +5708,7 @@ void MinorMarkCompactCollector::MakeIterable(
   Address free_start = p->area_start();
 
   for (auto object_and_size :
-       LiveObjectRange<kBlackObjects>(p, marking_state()->bitmap(p))) {
+       LiveObjectRange<kAllLiveObjects>(p, marking_state()->bitmap(p))) {
     HeapObject const object = object_and_size.first;
     DCHECK(non_atomic_marking_state()->IsMarked(object));
     Address free_end = object.address();
@@ -6152,7 +6142,7 @@ void MinorMarkCompactCollector::TraceFragmentation() {
   for (Page* p :
        PageRange(new_space->first_allocatable_address(), new_space->top())) {
     Address free_start = p->area_start();
-    for (auto object_and_size : LiveObjectRange<kBlackObjects>(
+    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              p, non_atomic_marking_state()->bitmap(p))) {
       HeapObject const object = object_and_size.first;
       Address free_end = object.address();
@@ -6263,7 +6253,6 @@ bool MinorMarkCompactCollector::SweepNewLargeSpace() {
     LargePage* current = *it;
     it++;
     HeapObject object = current->GetObject();
-    DCHECK(!marking_state->IsGrey(object));
     if (!marking_state->IsMarked(object)) {
       // Object is dead and page can be released.
       new_lo_space->RemovePage(current);

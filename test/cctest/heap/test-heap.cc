@@ -6027,7 +6027,6 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   HeapObject filler = HeapObject::FromAddress(previous);
   CHECK(filler.IsFreeSpaceOrFiller());
-  CHECK(marking_state->IsImpossible(filler));
 
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
