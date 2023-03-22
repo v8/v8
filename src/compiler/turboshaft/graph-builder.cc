@@ -1656,6 +1656,14 @@ OpIndex GraphBuilder::Process(
       return __ StringSubstring(Map(node->InputAt(0)), Map(node->InputAt(1)),
                                 Map(node->InputAt(2)));
 
+    case IrOpcode::kStringEqual:
+      return __ StringEqual(Map(node->InputAt(0)), Map(node->InputAt(1)));
+    case IrOpcode::kStringLessThan:
+      return __ StringLessThan(Map(node->InputAt(0)), Map(node->InputAt(1)));
+    case IrOpcode::kStringLessThanOrEqual:
+      return __ StringLessThanOrEqual(Map(node->InputAt(0)),
+                                      Map(node->InputAt(1)));
+
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:

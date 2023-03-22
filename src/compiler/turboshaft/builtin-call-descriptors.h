@@ -45,9 +45,8 @@ struct BuiltinCallDescriptor {
       }
       DCHECK_EQ(desc->NeedsFrameState(), Derived::NeedsFrameState);
       DCHECK_EQ(desc->properties(), Derived::Properties);
-      constexpr int context_argument_count = 1;  // Context or NoContextConstant
       DCHECK_EQ(desc->ParameterCount(),
-                std::tuple_size_v<arguments_t> + context_argument_count);
+                std::tuple_size_v<arguments_t> + Derived::NeedsContext);
       DCHECK(VerifyArguments<arguments_t>(desc));
     }
 
@@ -69,7 +68,19 @@ struct BuiltinCallDescriptor {
 #endif  // DEBUG
   };
 
+  using Boolean = Oddball;
+
  public:
+  struct StringEqual : public Descriptor<StringEqual> {
+    static constexpr auto Function = Builtin::kStringEqual;
+    using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
     static constexpr auto Function = Builtin::kStringFromCodePointAt;
     using arguments_t = std::tuple<V<String>, V<WordPtr>>;
@@ -90,6 +101,20 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
   };
 
+  template <Builtin B>
+  struct StringComparison : public Descriptor<StringComparison<B>> {
+    static constexpr auto Function = B;
+    using arguments_t = std::tuple<V<String>, V<String>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+  using StringLessThan = StringComparison<Builtin::kStringLessThan>;
+  using StringLessThanOrEqual =
+      StringComparison<Builtin::kStringLessThanOrEqual>;
+
   struct StringSubstring : public Descriptor<StringSubstring> {
     static constexpr auto Function = Builtin::kStringSubstring;
     using arguments_t = std::tuple<V<String>, V<WordPtr>, V<WordPtr>>;
@@ -107,7 +132,7 @@ struct BuiltinCallDescriptor {
     using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
-    static constexpr bool NeedsContext = false;
+    static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };

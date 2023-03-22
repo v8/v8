@@ -1640,7 +1640,7 @@ class CompareNoContextDescriptor
 class StringEqualDescriptor
     : public StaticCallInterfaceDescriptor<StringEqualDescriptor> {
  public:
-  DEFINE_PARAMETERS(kLeft, kRight, kLength)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kLength)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
                          MachineType::IntPtr())     // kLength
@@ -1683,7 +1683,7 @@ class BinarySmiOp_BaselineDescriptor
 class StringAtAsStringDescriptor final
     : public StaticCallInterfaceDescriptor<StringAtAsStringDescriptor> {
  public:
-  DEFINE_PARAMETERS(kReceiver, kPosition)
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kPosition)
   // TODO(turbofan): Return untagged value here.
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::TaggedPointer(),  // result string
@@ -1695,7 +1695,7 @@ class StringAtAsStringDescriptor final
 class StringSubstringDescriptor final
     : public StaticCallInterfaceDescriptor<StringSubstringDescriptor> {
  public:
-  DEFINE_PARAMETERS(kString, kFrom, kTo)
+  DEFINE_PARAMETERS_NO_CONTEXT(kString, kFrom, kTo)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kString
                          MachineType::IntPtr(),     // kFrom
                          MachineType::IntPtr())     // kTo

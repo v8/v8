@@ -32,12 +32,17 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/oddball.h"
 
 namespace v8::internal {
 enum class Builtin : int32_t;
 }
 
 namespace v8::internal::compiler::turboshaft {
+
+// Currently we don't have an actual Boolean type. We define an alias to allow
+// `V<Boolean>` to be used.
+using Boolean = Oddball;
 
 namespace detail {
 template <typename T, typename = void>
@@ -1158,7 +1163,9 @@ class AssemblerOpInterface {
             : ConstantOp::Kind::kRelocatableWasmStubCall,
         static_cast<uint64_t>(value));
   }
-  V<Tagged> NoContextConstant() { return SmiTag(Context::kNoContext); }
+  V<Context> NoContextConstant() {
+    return V<Context>::Cast(SmiTag(Context::kNoContext));
+  }
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
   // Wasm.
   V<Tagged> CEntryStubConstant(Isolate* isolate, int result_size,
@@ -1172,11 +1179,11 @@ class AssemblerOpInterface {
     DCHECK(result_size >= 1 && result_size <= 3);
     DCHECK_IMPLIES(builtin_exit_frame, result_size == 1);
     const int index = builtin_exit_frame ? 0 : result_size;
-    if (!cached_centry_stub_constants_[index].valid()) {
-      cached_centry_stub_constants_[index] = HeapConstant(CodeFactory::CEntry(
-          isolate, result_size, argv_mode, builtin_exit_frame));
+    if (cached_centry_stub_constants_[index].is_null()) {
+      cached_centry_stub_constants_[index] = CodeFactory::CEntry(
+          isolate, result_size, argv_mode, builtin_exit_frame);
     }
-    return cached_centry_stub_constants_[index];
+    return HeapConstant(cached_centry_stub_constants_[index].ToHandleChecked());
   }
 
 #define DECL_CHANGE(name, kind, assumption, from, to)                  \
@@ -1664,7 +1671,7 @@ class AssemblerOpInterface {
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        frame_state, NoContextConstant(), args);
+        frame_state, {}, args);
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
@@ -1673,13 +1680,13 @@ class AssemblerOpInterface {
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()), {},
-        NoContextConstant(), args);
+        {}, args);
   }
 
   template <typename Ret, typename Args>
   Ret CallBuiltinImpl(Isolate* isolate, Builtin function,
                       const TSCallDescriptor* desc, OpIndex frame_state,
-                      OpIndex context, const Args& args) {
+                      V<Context> context, const Args& args) {
     Callable callable = Builtins::CallableFor(isolate, function);
     // Convert arguments from `args` tuple into a `SmallVector<OpIndex>`.
     auto inputs = std::apply(
@@ -1688,7 +1695,7 @@ class AssemblerOpInterface {
               std::forward<decltype(as)>(as)...};
         },
         args);
-    inputs.push_back(context);
+    if (context.valid()) inputs.push_back(context);
 
     if constexpr (std::is_same_v<Ret, void>) {
       Call(HeapConstant(callable.code()), frame_state, base::VectorOf(inputs),
@@ -1699,6 +1706,21 @@ class AssemblerOpInterface {
     }
   }
 
+  V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
+                                     V<String> right, V<WordPtr> length) {
+    return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
+        isolate, {left, right, length});
+  }
+  V<Boolean> CallBuiltin_StringLessThan(Isolate* isolate, V<String> left,
+                                        V<String> right) {
+    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThan>(
+        isolate, {left, right});
+  }
+  V<Boolean> CallBuiltin_StringLessThanOrEqual(Isolate* isolate, V<String> left,
+                                               V<String> right) {
+    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThanOrEqual>(
+        isolate, {left, right});
+  }
   V<Smi> CallBuiltin_StringIndexOf(Isolate* isolate, V<String> string,
                                    V<String> search, V<Smi> position) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringIndexOf>(
@@ -1712,9 +1734,10 @@ class AssemblerOpInterface {
   }
 #ifdef V8_INTL_SUPPORT
   V<String> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
+                                              V<Context> context,
                                               V<String> string) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringToLowerCaseIntl>(
-        isolate, {string});
+        isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
   V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
@@ -1724,8 +1747,7 @@ class AssemblerOpInterface {
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::NeedsFrameState && Descriptor::NeedsContext,
-                   typename Descriptor::result_t>
+  std::enable_if_t<Descriptor::NeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     DCHECK(frame_state.valid());
@@ -1736,8 +1758,7 @@ class AssemblerOpInterface {
         context, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::NeedsFrameState && Descriptor::NeedsContext,
-                   typename Descriptor::result_t>
+  std::enable_if_t<!Descriptor::NeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     DCHECK(context.valid());
@@ -1745,26 +1766,6 @@ class AssemblerOpInterface {
         isolate, Descriptor::Function,
         Descriptor::Create(stack().output_graph().graph_zone()), {}, context,
         args);
-  }
-  template <typename Descriptor>
-  std::enable_if_t<Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
-                   typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, OpIndex frame_state,
-              const typename Descriptor::arguments_t& args) {
-    DCHECK(frame_state.valid());
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
-        Descriptor::Create(stack().output_graph().graph_zone()), frame_state,
-        NoContextConstant(), args);
-  }
-  template <typename Descriptor>
-  std::enable_if_t<!Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
-                   typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, const typename Descriptor::arguments_t& args) {
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
-        Descriptor::Create(stack().output_graph().graph_zone()), {},
-        NoContextConstant(), args);
   }
 
   template <typename Ret, typename Args>
@@ -1782,6 +1783,7 @@ class AssemblerOpInterface {
           return vector_t{std::forward<decltype(as)>(as)...};
         },
         args);
+    DCHECK(context.valid());
     inputs.push_back(ExternalConstant(ExternalReference::Create(function)));
     inputs.push_back(Word32Constant(static_cast<int>(argc)));
     inputs.push_back(context);
@@ -1795,22 +1797,24 @@ class AssemblerOpInterface {
     }
   }
 
-  V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<String> string,
-                                         V<Number> index) {
+  V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
+                                         V<String> string, V<Number> index) {
     return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
-        isolate, {string, index});
+        isolate, context, {string, index});
   }
 #ifdef V8_INTL_SUPPORT
   V<String> CallRuntime_StringToUpperCaseIntl(Isolate* isolate,
+                                              V<Context> context,
                                               V<String> string) {
     return CallRuntime<typename RuntimeCallDescriptor::StringToUpperCaseIntl>(
-        isolate, {string});
+        isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
   V<Tagged> CallRuntime_TerminateExecution(Isolate* isolate,
-                                           OpIndex frame_state) {
+                                           OpIndex frame_state,
+                                           V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
-        isolate, frame_state, {});
+        isolate, frame_state, context, {});
   }
 
   OpIndex CallAndCatchException(OpIndex callee, OpIndex frame_state,
@@ -2183,6 +2187,28 @@ class AssemblerOpInterface {
     return stack().ReduceStringSubstring(string, start, end);
   }
 
+  V<Boolean> StringEqual(V<String> left, V<String> right) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceStringEqual(left, right);
+  }
+
+  V<Boolean> StringComparison(V<String> left, V<String> right,
+                              StringComparisonOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceStringComparison(left, right, kind);
+  }
+  V<Boolean> StringLessThan(V<String> left, V<String> right) {
+    return StringComparison(left, right, StringComparisonOp::Kind::kLessThan);
+  }
+  V<Boolean> StringLessThanOrEqual(V<String> left, V<String> right) {
+    return StringComparison(left, right,
+                            StringComparisonOp::Kind::kLessThanOrEqual);
+  }
+
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {
     return v;
@@ -2260,7 +2286,7 @@ class AssemblerOpInterface {
   }
 
   template <typename F>
-  bool ControlFlowHelper_ElseIf(F condition_builder) {
+  bool ControlFlowHelper_ElseIf(F&& condition_builder) {
     DCHECK_LT(0, if_scope_stack_.size());
     auto& info = if_scope_stack_.back();
     Block* else_block = info.else_block;
@@ -2318,7 +2344,7 @@ class AssemblerOpInterface {
   };
   base::SmallVector<IfScopeInfo, 16> if_scope_stack_;
   // [0] contains the stub with exit frame.
-  V<Tagged> cached_centry_stub_constants_[4];
+  MaybeHandle<Code> cached_centry_stub_constants_[4];
 };
 
 template <class Reducers>
@@ -2402,7 +2428,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
         current_operation_origin_;
 #ifdef DEBUG
     op_to_block_[result] = current_block_;
-    ValidInputs(result);
+    DCHECK(ValidInputs(result));
 #endif  // DEBUG
     if (op.Properties().is_block_terminator) FinalizeBlock();
     return result;

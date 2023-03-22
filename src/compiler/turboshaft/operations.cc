@@ -955,6 +955,15 @@ std::ostream& operator<<(std::ostream& os, StringToCaseIntlOp::Kind kind) {
 }
 #endif  // V8_INTL_SUPPORT
 
+std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind) {
+  switch (kind) {
+    case StringComparisonOp::Kind::kLessThan:
+      return os << "LessThan";
+    case StringComparisonOp::Kind::kLessThanOrEqual:
+      return os << "LessThanOrEqual";
+  }
+}
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;

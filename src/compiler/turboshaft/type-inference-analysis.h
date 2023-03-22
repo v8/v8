@@ -246,6 +246,8 @@ class TypeInferenceAnalysis {
         case Opcode::kStringIndexOf:
         case Opcode::kStringFromCodePointAt:
         case Opcode::kStringSubstring:
+        case Opcode::kStringEqual:
+        case Opcode::kStringComparison:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {

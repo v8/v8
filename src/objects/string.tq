@@ -422,7 +422,6 @@ macro AbstractStringIndexOf(implicit context: Context)(
       string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
 }
 
-builtin StringIndexOf(implicit context: Context)(
-    s: String, searchString: String, start: Smi): Smi {
+builtin StringIndexOf(s: String, searchString: String, start: Smi): Smi {
   return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }

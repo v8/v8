@@ -775,6 +775,14 @@ class GraphVisitor {
                                              MapToNewGraph(op.start()),
                                              MapToNewGraph(op.end()));
   }
+  OpIndex AssembleOutputGraphStringEqual(const StringEqualOp& op) {
+    return assembler().ReduceStringEqual(MapToNewGraph(op.left()),
+                                         MapToNewGraph(op.right()));
+  }
+  OpIndex AssembleOutputGraphStringComparison(const StringComparisonOp& op) {
+    return assembler().ReduceStringComparison(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

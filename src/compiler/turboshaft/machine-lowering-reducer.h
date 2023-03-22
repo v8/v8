@@ -1222,7 +1222,8 @@ class MachineLoweringReducer : public Next {
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
         IF_UNLIKELY(__ TaggedEqual(result, __ SmiTag(1))) {
-          __ CallRuntime_TerminateExecution(isolate_, frame_state);
+          __ CallRuntime_TerminateExecution(isolate_, frame_state,
+                                            __ NoContextConstant());
         }
         END_IF
 
@@ -1271,7 +1272,7 @@ class MachineLoweringReducer : public Next {
       Label<> runtime(this);
       // We need a loop here to properly deal with indirect strings
       // (SlicedString, ConsString and ThinString).
-      LoopLabel<Tagged, WordPtr> loop(this);
+      LoopLabel<String, WordPtr> loop(this);
       GOTO(loop, string, pos);
 
       LOOP(loop, receiver, position) {
@@ -1286,13 +1287,13 @@ class MachineLoweringReducer : public Next {
             // if_lessthanoreq_cons
             IF(__ Word32Equal(representation, kConsStringTag)) {
               // if_consstring
-              V<Tagged> second = __ template LoadField<Tagged>(
+              V<String> second = __ template LoadField<String>(
                   receiver, AccessBuilder::ForConsStringSecond());
               GOTO_IF_NOT_UNLIKELY(
                   __ TaggedEqual(second,
                                  __ HeapConstant(factory_->empty_string())),
                   runtime);
-              V<Tagged> first = __ template LoadField<Tagged>(
+              V<String> first = __ template LoadField<String>(
                   receiver, AccessBuilder::ForConsStringFirst());
               GOTO(loop, first, position);
             }
@@ -1311,7 +1312,7 @@ class MachineLoweringReducer : public Next {
           {
             IF(__ Word32Equal(representation, kThinStringTag)) {
               // if_thinstring
-              V<Tagged> actual = __ template LoadField<Tagged>(
+              V<String> actual = __ template LoadField<String>(
                   receiver, AccessBuilder::ForThinStringActual());
               GOTO(loop, actual, position);
             }
@@ -1353,7 +1354,7 @@ class MachineLoweringReducer : public Next {
               // if_slicedstring
               V<Tagged> offset = __ template LoadField<Tagged>(
                   receiver, AccessBuilder::ForSlicedStringOffset());
-              V<Tagged> parent = __ template LoadField<Tagged>(
+              V<String> parent = __ template LoadField<String>(
                   receiver, AccessBuilder::ForSlicedStringParent());
               GOTO(loop, parent,
                    __ WordPtrAdd(position,
@@ -1367,7 +1368,7 @@ class MachineLoweringReducer : public Next {
 
         if (BIND(runtime)) {
           V<Word32> value = __ SmiUntag(__ CallRuntime_StringCharCodeAt(
-              isolate_, string, __ SmiTag(position)));
+              isolate_, __ NoContextConstant(), receiver, __ SmiTag(position)));
           GOTO(done, value);
         }
       }
@@ -1424,10 +1425,12 @@ class MachineLoweringReducer : public Next {
   V<String> ReduceStringToCaseIntl(V<String> string,
                                    StringToCaseIntlOp::Kind kind) {
     if (kind == StringToCaseIntlOp::Kind::kLower) {
-      return __ CallBuiltin_StringToLowerCaseIntl(isolate_, string);
+      return __ CallBuiltin_StringToLowerCaseIntl(
+          isolate_, __ NoContextConstant(), string);
     } else {
       DCHECK_EQ(kind, StringToCaseIntlOp::Kind::kUpper);
-      return __ CallRuntime_StringToUpperCaseIntl(isolate_, string);
+      return __ CallRuntime_StringToUpperCaseIntl(
+          isolate_, __ NoContextConstant(), string);
     }
   }
 #endif  // V8_INTL_SUPPORT
@@ -1437,6 +1440,34 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> s = __ ChangeInt32ToIntPtr(start);
     V<WordPtr> e = __ ChangeInt32ToIntPtr(end);
     return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
+  }
+
+  V<Boolean> ReduceStringEqual(V<String> left, V<String> right) {
+    V<Word32> left_length =
+        __ template LoadField<Word32>(left, AccessBuilder::ForStringLength());
+    V<Word32> right_length =
+        __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
+
+    Label<Boolean> done(this);
+    IF(__ Word32Equal(left_length, right_length)) {
+      GOTO(done,
+           __ CallBuiltin_StringEqual(isolate_, left, right,
+                                      __ ChangeInt32ToIntPtr(left_length)));
+    }
+    ELSE { GOTO(done, __ HeapConstant(factory_->false_value())); }
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<Boolean> ReduceStringComparison(V<String> left, V<String> right,
+                                    StringComparisonOp::Kind kind) {
+    switch (kind) {
+      case StringComparisonOp::Kind::kLessThan:
+        return __ CallBuiltin_StringLessThan(isolate_, left, right);
+      case StringComparisonOp::Kind::kLessThanOrEqual:
+        return __ CallBuiltin_StringLessThanOrEqual(isolate_, left, right);
+    }
   }
 
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.

@@ -64,6 +64,8 @@ struct RuntimeCallDescriptor {
 #endif  // DEBUG
   };
 
+  using Boolean = Oddball;
+
  public:
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto Function = Runtime::kStringCharCodeAt;
@@ -71,7 +73,6 @@ struct RuntimeCallDescriptor {
     using result_t = V<Smi>;
 
     static constexpr bool NeedsFrameState = false;
-    static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -83,7 +84,6 @@ struct RuntimeCallDescriptor {
     using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
-    static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -95,7 +95,6 @@ struct RuntimeCallDescriptor {
     using result_t = V<Object>;
 
     static constexpr bool NeedsFrameState = true;
-    static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kNoDeopt;
   };
 };

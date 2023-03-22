@@ -143,7 +143,9 @@ struct FrameStateOp;
   V(StringLength)                    \
   V(StringIndexOf)                   \
   V(StringFromCodePointAt)           \
-  V(StringSubstring)
+  V(StringSubstring)                 \
+  V(StringEqual)                     \
+  V(StringComparison)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -3144,6 +3146,52 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
 
   auto options() const { return std::tuple{}; }
 };
+
+struct StringEqualOp : FixedArityOperationT<2, StringEqualOp> {
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex left() const { return Base::input(0); }
+  OpIndex right() const { return Base::input(1); }
+
+  StringEqualOp(OpIndex left, OpIndex right) : Base(left, right) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, right(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
+  enum class Kind : uint8_t {
+    kLessThan,
+    kLessThanOrEqual,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex left() const { return Base::input(0); }
+  OpIndex right() const { return Base::input(1); }
+
+  StringComparisonOp(OpIndex left, OpIndex right, Kind kind)
+      : Base(left, right), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, right(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind);
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

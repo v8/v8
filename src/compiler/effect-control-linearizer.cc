@@ -1548,12 +1548,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringSubstring(node);
       break;
     case IrOpcode::kStringEqual:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringEqual(node);
       break;
     case IrOpcode::kStringLessThan:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringLessThan(node);
       break;
     case IrOpcode::kStringLessThanOrEqual:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringLessThanOrEqual(node);
       break;
     case IrOpcode::kBigIntAdd:
@@ -5610,7 +5613,7 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), subject,
-                 search_string, position, __ NoContextConstant());
+                 search_string, position);
 }
 
 Node* EffectControlLinearizer::LowerStringFromCodePointAt(Node* node) {
@@ -5626,7 +5629,7 @@ Node* EffectControlLinearizer::LowerStringFromCodePointAt(Node* node) {
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), string,
-                 index, __ NoContextConstant());
+                 index);
 }
 
 Node* EffectControlLinearizer::LowerStringLength(Node* node) {
@@ -5637,6 +5640,7 @@ Node* EffectControlLinearizer::LowerStringLength(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Callable callable = Builtins::CallableFor(isolate(), Builtin::kStringEqual);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
@@ -5656,7 +5660,7 @@ Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
   Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
-                         rhs, lhs_length, __ NoContextConstant());
+                         rhs, lhs_length);
   __ Goto(&done, result);
 
   __ Bind(&done);
@@ -5690,15 +5694,17 @@ Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
-                 start, end, __ NoContextConstant());
+                 start, end);
 }
 
 Node* EffectControlLinearizer::LowerStringLessThan(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   return LowerStringComparison(
       Builtins::CallableFor(isolate(), Builtin::kStringLessThan), node);
 }
 
 Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   return LowerStringComparison(
       Builtins::CallableFor(isolate(), Builtin::kStringLessThanOrEqual), node);
 }
