@@ -342,9 +342,7 @@ class LocalContext {
 
   virtual ~LocalContext();
 
-  v8::Context* operator->() {
-    return *reinterpret_cast<v8::Context**>(&context_);
-  }
+  v8::Context* operator->() { return i::ValueHelper::HandleAsValue(context_); }
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 

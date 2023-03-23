@@ -2693,6 +2693,7 @@ v8_header_set("v8_headers") {
     "include/v8-forward.h",
     "include/v8-function-callback.h",
     "include/v8-function.h",
+    "include/v8-handle-base.h",
     "include/v8-initialization.h",
     "include/v8-internal.h",
     "include/v8-isolate.h",

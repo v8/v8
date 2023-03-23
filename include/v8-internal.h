@@ -901,57 +901,6 @@ class BackingStoreBase {};
 // This is needed for histograms sampling garbage collection reasons.
 constexpr int kGarbageCollectionReasonMaxValue = 27;
 
-// Helper functions about values contained in handles.
-class ValueHelper final {
- public:
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr Address kLocalTaggedNullAddress = 1;
-
-  template <typename T>
-  static constexpr T* EmptyValue() {
-    return reinterpret_cast<T*>(kLocalTaggedNullAddress);
-  }
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return reinterpret_cast<Address>(value);
-  }
-
-  template <typename T, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    return *reinterpret_cast<T**>(slot);
-  }
-
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return reinterpret_cast<T*>(const_cast<T**>(&value));
-  }
-
-#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
-  template <typename T>
-  static constexpr T* EmptyValue() {
-    return nullptr;
-  }
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return *reinterpret_cast<const Address*>(value);
-  }
-
-  template <typename T, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    return reinterpret_cast<T*>(slot);
-  }
-
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return value;
-  }
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-};
-
 }  // namespace internal
 }  // namespace v8
 

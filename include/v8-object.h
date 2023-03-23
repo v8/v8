@@ -465,7 +465,7 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
       const PersistentBase<Object>& object) {
-    return object.val_->InternalFieldCount();
+    return object->InternalFieldCount();
   }
 
   /** Same as above, but works for BasicTracedReference. */
@@ -490,7 +490,7 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
-    return object.val_->GetAlignedPointerFromInternalField(index);
+    return object->GetAlignedPointerFromInternalField(index);
   }
 
   /** Same as above, but works for TracedReference. */
@@ -604,7 +604,7 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for Persistents */
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
       const PersistentBase<Object>& object) {
-    return object.val_->GetCreationContext();
+    return object->GetCreationContext();
   }
 
   /**
@@ -733,14 +733,9 @@ Local<Value> Object::GetInternalField(int index) {
     value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return Local<Value>(reinterpret_cast<Value*>(value));
-#else
-    internal::Isolate* isolate =
-        internal::IsolateFromNeverReadOnlySpaceObject(obj);
-    A* result = HandleScope::CreateHandle(isolate, value);
-    return Local<Value>(reinterpret_cast<Value*>(result));
-#endif
+    auto isolate = reinterpret_cast<v8::Isolate*>(
+        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return Local<Value>::New(isolate, value);
   }
 #endif
   return SlowGetInternalField(index);

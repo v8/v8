@@ -158,7 +158,12 @@ void CcTest::Run(const char* snapshot_directory) {
 #ifdef DEBUG
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
-  callback_();
+  {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    v8::HandleScope scope(isolate_);
+#endif
+    callback_();
+  }
 #ifdef DEBUG
   // This DCHECK ensures that all Isolates are properly disposed after finishing
   // the test. Stray Isolates lead to stray tasks in the platform which can
@@ -429,7 +434,7 @@ RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
 
 bool IsValidUnwrapObject(v8::Object* object) {
-  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  i::Address addr = i::ValueHelper::ValueAsAddress(object);
   auto instance_type = i::Internals::GetInstanceType(addr);
   return (v8::base::IsInRange(instance_type,
                               i::Internals::kFirstJSApiObjectType,

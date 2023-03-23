@@ -286,7 +286,7 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
   } else {
-    *value_ = *reinterpret_cast<internal::Address*>(*handle);
+    *value_ = handle.ptr();
   }
 }
 
@@ -297,7 +297,7 @@ void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
   } else {
-    *value_ = *reinterpret_cast<internal::Address*>(handle.val_);
+    *value_ = handle.ptr();
   }
 }
 
@@ -309,7 +309,7 @@ void ReturnValue<T>::Set(const Local<S> handle) {
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
   } else {
-    *value_ = internal::ValueHelper::ValueAsAddress(*handle);
+    *value_ = handle.ptr();
   }
 }
 

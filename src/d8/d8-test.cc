@@ -962,7 +962,7 @@ class FastCApiObject {
 
     internal::Isolate* i_isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(
-            *reinterpret_cast<internal::Address*>(*object));
+            internal::ValueHelper::ValueAsAddress(*object));
     CHECK_NOT_NULL(i_isolate);
     Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
     HandleScope handle_scope(isolate);
@@ -1198,8 +1198,8 @@ class FastCApiObject {
 
  private:
   static bool IsValidApiObject(Local<Object> object) {
-    i::Address addr = *reinterpret_cast<i::Address*>(*object);
-    auto instance_type = i::Internals::GetInstanceType(addr);
+    auto instance_type = i::Internals::GetInstanceType(
+        internal::ValueHelper::ValueAsAddress(*object));
     return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
                             i::Internals::kLastJSApiObjectType) ||
             instance_type == i::Internals::kJSSpecialApiObjectType);

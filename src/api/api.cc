@@ -907,7 +907,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
 namespace internal {
 
-i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
+i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {
   API_RCS_SCOPE(i_isolate, TracedGlobal, New);
@@ -915,11 +915,10 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  auto obj_addr = internal::ValueHelper::ValueAsAddress(obj);
-  auto result = i_isolate->traced_handles()->Create(obj_addr, slot, store_mode);
+  auto result = i_isolate->traced_handles()->Create(value, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object(obj_addr).ObjectVerify(i_isolate);
+    i::Object(value).ObjectVerify(i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -977,12 +976,12 @@ EXPORTED_STATIC_ROOTS_MAPPING(DEF_STATIC_ROOT)
 
 namespace api_internal {
 
-i::Address* GlobalizeReference(i::Isolate* i_isolate, i::Address* obj) {
+i::Address* GlobalizeReference(i::Isolate* i_isolate, i::Address value) {
   API_RCS_SCOPE(i_isolate, Persistent, New);
-  i::Handle<i::Object> result = i_isolate->global_handles()->Create(*obj);
+  i::Handle<i::Object> result = i_isolate->global_handles()->Create(value);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object(*obj).ObjectVerify(i_isolate);
+    i::Object(value).ObjectVerify(i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -1019,13 +1018,12 @@ void DisposeGlobal(i::Address* location) {
   i::GlobalHandles::Destroy(location);
 }
 
-Value* Eternalize(Isolate* v8_isolate, Value* value) {
+i::Address* Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Object object = *Utils::OpenHandle(value);
   int index = -1;
   i_isolate->eternal_handles()->Create(i_isolate, object, &index);
-  return reinterpret_cast<Value*>(
-      i_isolate->eternal_handles()->Get(index).location());
+  return i_isolate->eternal_handles()->Get(index).location();
 }
 
 void FromJustIsNothing() {
@@ -4805,7 +4803,7 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
                                          Local<Private> key) {
-  return Get(context, Local<Value>(reinterpret_cast<Value*>(*key)));
+  return Get(context, key.UnsafeAs<Value>());
 }
 
 Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
@@ -5045,7 +5043,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
 }
 
 Maybe<bool> v8::Object::HasPrivate(Local<Context> context, Local<Private> key) {
-  return HasOwnProperty(context, Local<Name>(reinterpret_cast<Name*>(*key)));
+  return HasOwnProperty(context, key.UnsafeAs<Name>());
 }
 
 Maybe<bool> v8::Object::Delete(Local<Context> context, uint32_t index) {
@@ -9066,7 +9064,7 @@ Local<Private> v8::Private::New(Isolate* v8_isolate, Local<String> name) {
   i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
   if (!name.IsEmpty()) symbol->set_description(*Utils::OpenHandle(*name));
   Local<Symbol> result = Utils::ToLocal(symbol);
-  return v8::Local<Private>(reinterpret_cast<Private*>(*result));
+  return result.UnsafeAs<Private>();
 }
 
 Local<Private> v8::Private::ForApi(Isolate* v8_isolate, Local<String> name) {
@@ -9075,7 +9073,7 @@ Local<Private> v8::Private::ForApi(Isolate* v8_isolate, Local<String> name) {
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
   Local<Symbol> result = Utils::ToLocal(
       i_isolate->SymbolFor(i::RootIndex::kApiPrivateSymbolTable, i_name, true));
-  return v8::Local<Private>(reinterpret_cast<Private*>(*result));
+  return result.UnsafeAs<Private>();
 }
 
 Local<Number> v8::Number::New(Isolate* v8_isolate, double value) {
@@ -11102,9 +11100,10 @@ EmbedderStateScope::~EmbedderStateScope() = default;
 
 void TracedReferenceBase::CheckValue() const {
 #ifdef V8_HOST_ARCH_64_BIT
-  if (!val_) return;
+  if (IsEmpty()) return;
 
-  CHECK_NE(internal::kGlobalHandleZapValue, *reinterpret_cast<uint64_t*>(val_));
+  CHECK_NE(internal::kGlobalHandleZapValue,
+           *reinterpret_cast<uint64_t*>(slot()));
 #endif  // V8_HOST_ARCH_64_BIT
 }
 
