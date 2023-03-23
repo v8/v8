@@ -41,7 +41,9 @@ def parse_args(cmd_args):
   parser = argparse.ArgumentParser(
       description=(
           f'Download PGO profiles for V8 builtins generated for the version '
-          f'defined in {VERSION_FILE}.'),
+          f'defined in {VERSION_FILE}. If the current checkout has no version '
+          f'(i.e. build and patch level are 0 in {VERSION_FILE}), no profiles '
+          f'exist and the script returns without errors.'),
       formatter_class=argparse.RawDescriptionHelpFormatter,
       epilog='\n'.join([
           f'examples:', f'  {FILENAME} download',
@@ -97,7 +99,13 @@ def retrieve_version(args):
 
   with open(VERSION_FILE) as f:
     version_tuple = re.search(VERSION_RE, f.read()).groups(0)
-    return '.'.join(version_tuple)
+
+  version = '.'.join(version_tuple)
+  if version_tuple[2] == version_tuple[3] == '0':
+    print(f'The version file specifies {version}, which has no profiles.')
+    sys.exit(0)
+
+  return version
 
 
 def perform_action(version, args):
@@ -106,20 +114,20 @@ def perform_action(version, args):
   if args.action == 'download':
     cmd = ['cp', '-R', f'gs://{path}/*.profile', str(PGO_PROFILE_DIR)]
     failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
-    call_gsutil(cmd, failure_hint)
+    call_gsutil(args, cmd, failure_hint)
     return
 
   if args.action == 'validate':
     meta_json = f'{path}/meta.json'
     cmd = ['stat', f'gs://{meta_json}']
     failure_hint = f'https://storage.googleapis.com/{meta_json} does not exist.'
-    call_gsutil(cmd, failure_hint)
+    call_gsutil(args, cmd, failure_hint)
     return
 
   raise AssertionError(f'Invalid action: {args.action}')
 
 
-def call_gsutil(cmd, failure_hint):
+def call_gsutil(args, cmd, failure_hint):
   # Load gsutil from depot tools, and execute command
   gsutil = gcs_download.Gsutil(gcs_download.GSUTIL_DEFAULT_PATH)
   returncode, stdout, stderr = gsutil.check_call(*cmd)
