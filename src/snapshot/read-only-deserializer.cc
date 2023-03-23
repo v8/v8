@@ -12,6 +12,7 @@
 #include "src/logging/counters-scopes.h"
 #include "src/objects/slots.h"
 #include "src/roots/static-roots.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/snapshot-data.h"
 
 namespace v8 {
@@ -110,8 +111,9 @@ void ReadOnlyDeserializer::PostProcessNewObjectsIfStaticRootsEnabled() {
       // attached InstructionStream.
       DCHECK(code.is_builtin());
       DCHECK(!code.has_instruction_stream());
-      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
-                                          code.OffHeapInstructionStart());
+      code.SetEntryPointForOffHeapBuiltin(
+          main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
+                                     .InstructionStartOf(code.builtin_id()));
     }
   }
 }

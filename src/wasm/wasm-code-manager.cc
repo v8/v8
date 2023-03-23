@@ -1537,7 +1537,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
       Builtin builtin = stub_names[i];
-      builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
+      builtin_addresses[i] = embedded_data.InstructionStartOf(builtin);
     }
     JumpTableAssembler::GenerateFarJumpTable(
         far_jump_table->instruction_start(), builtin_addresses,

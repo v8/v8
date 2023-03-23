@@ -315,7 +315,7 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
     DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i).builtin_id()));
     DCHECK(!isolate->builtins()->code(i).has_instruction_stream());
     isolate_data->builtin_entry_table()[ToInt(i)] =
-        embedded_data.InstructionStartOfBuiltin(i);
+        embedded_data.InstructionStartOf(i);
   }
 
   // T0 tables.
@@ -365,28 +365,27 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
 
-  EmbeddedData d = EmbeddedData::FromBlob(isolate);
-  const Builtin builtin = Builtin::kInterpreterEntryTrampolineForProfiling;
+  Code code = isolate->builtins()->code(
+      Builtin::kInterpreterEntryTrampolineForProfiling);
 
   CodeDesc desc;
-  desc.buffer = reinterpret_cast<byte*>(d.InstructionStartOfBuiltin(builtin));
+  desc.buffer = reinterpret_cast<byte*>(code.InstructionStart());
 
-  int instruction_size = d.InstructionSizeOfBuiltin(builtin);
+  int instruction_size = code.instruction_size();
   desc.buffer_size = instruction_size;
   desc.instr_size = instruction_size;
 
   // Ensure the code doesn't require creation of metadata, otherwise respective
   // fields of CodeDesc should be initialized.
-  DCHECK_EQ(d.SafepointTableSizeOf(builtin), 0);
-  DCHECK_EQ(d.HandlerTableSizeOf(builtin), 0);
-  DCHECK_EQ(d.ConstantPoolSizeOf(builtin), 0);
-  // TODO(v8:11036): currently the CodeDesc can't represent the state when the
-  // code metadata is stored separately from the instruction stream, therefore
-  // it cannot recreate code comments in the trampoline copy.
-  // The following DCHECK currently fails if the mksnapshot is run with enabled
-  // code comments.
-  DCHECK_EQ(d.CodeCommentsSizeOf(builtin), 0);
-  DCHECK_EQ(d.UnwindingInfoSizeOf(builtin), 0);
+  DCHECK_EQ(code.safepoint_table_size(), 0);
+  DCHECK_EQ(code.handler_table_size(), 0);
+  DCHECK_EQ(code.constant_pool_size(), 0);
+  // TODO(v8:11036): The following DCHECK currently fails if the mksnapshot is
+  // run with enabled code comments, i.e. --interpreted_frames_native_stack is
+  // incompatible with --code-comments at mksnapshot-time. If ever needed,
+  // implement support.
+  DCHECK_EQ(code.code_comments_size(), 0);
+  DCHECK_EQ(code.unwinding_info_size(), 0);
 
   desc.safepoint_table_offset = instruction_size;
   desc.handler_table_offset = instruction_size;
@@ -395,11 +394,8 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
 
   CodeDesc::Verify(&desc);
 
-  const int kind_specific_flags =
-      isolate->builtins()->code(builtin).kind_specific_flags(kRelaxedLoad);
-
   return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-      .set_kind_specific_flags(kind_specific_flags)
+      .set_kind_specific_flags(code.kind_specific_flags(kRelaxedLoad))
       // Mimic the InterpreterEntryTrampoline.
       .set_builtin(Builtin::kInterpreterEntryTrampoline)
       .Build();

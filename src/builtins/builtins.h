@@ -90,7 +90,9 @@ class Builtins {
       kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   static constexpr int kLastBytecodeHandlerPlusOne =
       kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
-  static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  static constexpr bool kBytecodeHandlersAreSortedLast =
+      kLastBytecodeHandlerPlusOne == kBuiltinCount;
+  static_assert(kBytecodeHandlersAreSortedLast);
 
   static constexpr bool IsBuiltinId(Builtin builtin) {
     return builtin != Builtin::kNoBuiltinId;

@@ -3839,7 +3839,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Address instruction_start = d.InstructionStartOfBuiltin(builtin);
+    Address instruction_start = d.InstructionStartOf(builtin);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
         builtins->code_handle(builtin), instruction_start);
 

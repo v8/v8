@@ -283,7 +283,7 @@ RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
 RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                              int mode_mask)
     : RelocIterator(code, code.instruction_stream(),
-                    embedded_data->InstructionStartOfBuiltin(code.builtin_id()),
+                    embedded_data->InstructionStartOf(code.builtin_id()),
                     code.constant_pool(),
                     code.relocation_start() + code.relocation_size(),
                     code.relocation_start(), mode_mask) {}

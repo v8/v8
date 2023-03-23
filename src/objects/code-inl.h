@@ -21,6 +21,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi-inl.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -68,7 +69,7 @@ GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
 GCSAFE_CODE_FWD_ACCESSOR(Object, raw_instruction_stream)
 GCSAFE_CODE_FWD_ACCESSOR(int, stack_slots)
 GCSAFE_CODE_FWD_ACCESSOR(Address, constant_pool)
-GCSAFE_CODE_FWD_ACCESSOR(Address, SafepointTableAddress)
+GCSAFE_CODE_FWD_ACCESSOR(Address, safepoint_table_address)
 #undef GCSAFE_CODE_FWD_ACCESSOR
 
 int GcSafeCode::GetOffsetFromInstructionStart(Isolate* isolate,
@@ -405,24 +406,33 @@ Address Code::InstructionEnd() const {
 }
 
 Address Code::metadata_start() const {
-  return InstructionStart() + instruction_size();
+  if (has_instruction_stream()) {
+    static_assert(InstructionStream::kOnHeapBodyIsContiguous);
+    return InstructionStart() + instruction_size();
+  }
+  // An embedded builtin. Remapping is irrelevant wrt the metadata section so
+  // we can simply use the global blob.
+  // TODO(jgruber): Consider adding this as a physical Code field to avoid the
+  // lookup. Alternatively, rename this (and callers) to camel-case to clarify
+  // it's more than a simple accessor.
+  static_assert(!InstructionStream::kOffHeapBodyIsContiguous);
+  return EmbeddedData::FromBlob().MetadataStartOf(builtin_id());
 }
 
 Address Code::InstructionStart(Isolate* isolate, Address pc) const {
-  return V8_LIKELY(has_instruction_stream())
-             ? code_entry_point()
-             : OffHeapInstructionStart(isolate, pc);
+  if (V8_LIKELY(has_instruction_stream())) return code_entry_point();
+  // Note we intentionally don't bounds-check that `pc` is within the returned
+  // instruction area.
+  return EmbeddedData::FromBlobForPc(isolate, pc)
+      .InstructionStartOf(builtin_id());
 }
 
 Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
-  return V8_LIKELY(has_instruction_stream())
-             ? InstructionEnd()
-             : OffHeapInstructionEnd(isolate, pc);
+  return InstructionStart(isolate, pc) + InstructionSize();
 }
 
 int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
-  Address instruction_start = InstructionStart(isolate, pc);
-  Address offset = pc - instruction_start;
+  const Address offset = pc - InstructionStart(isolate, pc);
   DCHECK_LE(offset, InstructionSize());
   return static_cast<int>(offset);
 }
@@ -444,11 +454,6 @@ Address Code::safepoint_table_address() const {
   return metadata_start() + safepoint_table_offset();
 }
 
-Address Code::SafepointTableAddress() const {
-  return V8_LIKELY(has_instruction_stream()) ? safepoint_table_address()
-                                             : OffHeapSafepointTableAddress();
-}
-
 int Code::safepoint_table_size() const {
   return handler_table_offset() - safepoint_table_offset();
 }
@@ -459,11 +464,6 @@ Address Code::handler_table_address() const {
   return metadata_start() + handler_table_offset();
 }
 
-Address Code::HandlerTableAddress() const {
-  return V8_LIKELY(has_instruction_stream()) ? handler_table_address()
-                                             : OffHeapHandlerTableAddress();
-}
-
 int Code::handler_table_size() const {
   return constant_pool_offset() - handler_table_offset();
 }
@@ -471,8 +471,6 @@ int Code::handler_table_size() const {
 bool Code::has_handler_table() const { return handler_table_size() > 0; }
 
 int Code::constant_pool_size() const {
-  if V8_UNLIKELY (!has_instruction_stream()) return OffHeapConstantPoolSize();
-
   const int size = code_comments_offset() - constant_pool_offset();
   if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     DCHECK_EQ(size, 0);
@@ -519,15 +517,10 @@ int Code::relocation_size() const {
 
 Address InstructionStream::entry() const { return instruction_start(); }
 
-bool InstructionStream::contains(Isolate* isolate, Address inner_pointer) {
-  return (address() <= inner_pointer) &&
-         (inner_pointer < address() + CodeSize());
-}
-
-bool Code::contains(Isolate* isolate, Address inner_pointer) {
-  return has_instruction_stream()
-             ? instruction_stream().contains(isolate, inner_pointer)
-             : OffHeapBuiltinContains(isolate, inner_pointer);
+bool Code::contains(Isolate* isolate, Address inner_pointer) const {
+  const Address start = InstructionStart(isolate, inner_pointer);
+  if (inner_pointer < start) return false;
+  return inner_pointer < start + InstructionSize();
 }
 
 // static
@@ -762,15 +755,11 @@ void Code::set_constant_pool_offset(int value) {
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return V8_LIKELY(has_instruction_stream())
-             ? metadata_start() + constant_pool_offset()
-             : OffHeapConstantPoolAddress();
+  return metadata_start() + constant_pool_offset();
 }
 
 Address Code::code_comments() const {
-  return V8_LIKELY(has_instruction_stream())
-             ? metadata_start() + code_comments_offset()
-             : OffHeapCodeCommentsAddress();
+  return metadata_start() + code_comments_offset();
 }
 
 int Code::code_comments_size() const {
@@ -977,9 +966,9 @@ void Code::SetCodeEntryPointForSerialization(Isolate* isolate, Address entry) {
 }
 
 void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
-                                InstructionStream code) {
-  DCHECK_EQ(raw_instruction_stream(), code);
-  set_code_entry_point(isolate_for_sandbox, code.instruction_start());
+                                InstructionStream istream) {
+  DCHECK_EQ(raw_instruction_stream(), istream);
+  set_code_entry_point(isolate_for_sandbox, istream.instruction_start());
 }
 
 Address Code::InstructionStart() const { return code_entry_point(); }

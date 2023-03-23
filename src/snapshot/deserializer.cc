@@ -496,8 +496,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     Code code = Code::cast(raw_obj);
     code.init_code_entry_point(main_thread_isolate(), kNullAddress);
     if (!code.has_instruction_stream()) {
-      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
-                                          code.OffHeapInstructionStart());
+      code.SetEntryPointForOffHeapBuiltin(
+          main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
+                                     .InstructionStartOf(code.builtin_id()));
     } else {
       code.UpdateCodeEntryPoint(main_thread_isolate(),
                                 code.instruction_stream());
@@ -797,7 +798,7 @@ void DeserializerRelocInfoVisitor::VisitOffHeapTarget(RelocInfo* rinfo) {
 
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address address = d.InstructionStartOfBuiltin(builtin);
+  Address address = d.InstructionStartOf(builtin);
   CHECK_NE(kNullAddress, address);
 
   // TODO(ishell): implement RelocInfo::set_target_off_heap_target()

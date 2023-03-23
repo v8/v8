@@ -101,11 +101,14 @@ class Code : public HeapObject {
   inline bool has_instruction_stream() const;
   inline bool has_instruction_stream(RelaxedLoadTag) const;
 
-  // Cached value of instruction_stream().InstructionStart().
+  // The cached value of instruction_stream().InstructionStart(), *or* a
+  // pointer to the off-heap entry point for embedded builtins.
   DECL_GETTER(code_entry_point, Address)
 
   // Aliases for code_entry_point for API compatibility with InstructionStream.
   inline Address InstructionStart() const;
+  inline Address InstructionEnd() const;
+  inline int InstructionSize() const;
 
   inline void SetInstructionStreamAndEntryPoint(
       Isolate* isolate_for_sandbox, InstructionStream code,
@@ -114,10 +117,10 @@ class Code : public HeapObject {
                                              Address entry);
   inline void SetCodeEntryPointForSerialization(Isolate* isolate,
                                                 Address entry);
-  // Updates the value of the code entry point. The code must be equal to
-  // the code() value.
+  // Updates the value of the code entry point. `istream` must be equal to
+  // the instruction_stream() value.
   inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
-                                   InstructionStream code);
+                                   InstructionStream istream);
 
   DECL_RELAXED_UINT16_ACCESSORS(kind_specific_flags)
 
@@ -217,14 +220,11 @@ class Code : public HeapObject {
   inline ByteArray SourcePositionTable(Isolate* isolate,
                                        SharedFunctionInfo sfi) const;
 
-  // Returns true if pc is inside this object's instructions.
-  inline bool contains(Isolate* isolate, Address pc);
-
-  inline Address SafepointTableAddress() const;
+  inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;
   inline bool has_safepoint_table() const;
 
-  inline Address HandlerTableAddress() const;
+  inline Address handler_table_address() const;
   inline int handler_table_size() const;
   inline bool has_handler_table() const;
 
@@ -255,13 +255,11 @@ class Code : public HeapObject {
   inline Address metadata_start() const;
   inline Address metadata_end() const;
 
-  inline Address handler_table_address() const;
-
-  inline Address safepoint_table_address() const;
-
   inline int CodeSize() const;
   inline int SizeIncludingMetadata() const;
 
+  // The following functions include support for short builtin calls:
+  //
   // When builtins un-embedding is enabled for the Isolate
   // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
   // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
@@ -274,32 +272,19 @@ class Code : public HeapObject {
   // instruction_start/end() values.
   // TODO(11527): remove these versions once the full solution is ready.
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionStart(Isolate* isolate,
-                                                    Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(Isolate* isolate,
-                                                  Address pc) const;
-
-  V8_EXPORT_PRIVATE bool OffHeapBuiltinContains(Isolate* isolate,
-                                                Address pc) const;
-
-  inline Address InstructionEnd() const;
-  inline int InstructionSize() const;
+  inline bool contains(Isolate* isolate, Address pc) const;
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+  // Support for short builtin calls END.
 
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
-  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
-
   void SetMarkedForDeoptimization(Isolate* isolate, const char* reason);
 
   inline bool CanContainWeakObjects();
-
   inline bool IsWeakObject(HeapObject object);
-
   static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
-
   static inline bool IsWeakObjectInDeoptimizationLiteralArray(Object object);
 
   // This function should be called only from GC.
@@ -447,23 +432,6 @@ class Code : public HeapObject {
   // InstructionStream object.
   DECL_RELAXED_UINT16_ACCESSORS(flags)
 
-  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
-  V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapMetadataStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
-  V8_EXPORT_PRIVATE int OffHeapMetadataSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapSafepointTableAddress() const;
-  V8_EXPORT_PRIVATE int OffHeapSafepointTableSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapHandlerTableAddress() const;
-  V8_EXPORT_PRIVATE int OffHeapHandlerTableSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapConstantPoolAddress() const;
-  V8_EXPORT_PRIVATE int OffHeapConstantPoolSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapCodeCommentsAddress() const;
-  V8_EXPORT_PRIVATE int OffHeapCodeCommentsSize() const;
-  V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress() const;
-  V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize() const;
-  V8_EXPORT_PRIVATE int OffHeapStackSlots() const;
-
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
     // End of bytecode equals the start of the next bytecode.
@@ -529,6 +497,7 @@ class GcSafeCode : public HeapObject {
   inline bool marked_for_deoptimization() const;
   inline Object raw_instruction_stream() const;
   inline Address constant_pool() const;
+  inline Address safepoint_table_address() const;
   inline int stack_slots() const;
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
@@ -536,9 +505,6 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
   inline Object raw_instruction_stream(PtrComprCageBase code_cage_base) const;
-
-  // Accessors that had to be modified to be used in GC settings.
-  inline Address SafepointTableAddress() const;
 
  private:
   OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
@@ -621,9 +587,6 @@ class InstructionStream : public HeapObject {
 
   // InstructionStream entry point.
   inline Address entry() const;
-
-  // Returns true if pc is inside this object's instructions.
-  inline bool contains(Isolate* isolate, Address pc);
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.

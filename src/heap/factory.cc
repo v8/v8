@@ -2545,8 +2545,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   off_heap_trampoline->set_code_entry_point(isolate(),
                                             code->code_entry_point());
 
-  DCHECK_EQ(code->instruction_size(), code->OffHeapInstructionSize());
-  DCHECK_EQ(code->metadata_size(), code->OffHeapMetadataSize());
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
   DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
 
