@@ -359,10 +359,14 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
 
-  enum AccessorKind { kNotAccessor, kGetter, kSetter };
-  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info,
+  bool PerformSideEffectCheckForAccessor(Handle<AccessorInfo> accessor_info,
                                          Handle<Object> receiver,
-                                         AccessorKind accessor_kind);
+                                         AccessorComponent component);
+  bool PerformSideEffectCheckForCallback(
+      Handle<CallHandlerInfo> call_handler_info);
+  bool PerformSideEffectCheckForInterceptor(
+      Handle<InterceptorInfo> interceptor_info);
+
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(Handle<Object> object);
 
