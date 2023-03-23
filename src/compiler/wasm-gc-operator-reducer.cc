@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-gc-operator-reducer.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -13,13 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-WasmGCOperatorReducer::WasmGCOperatorReducer(Editor* editor, Zone* temp_zone_,
-                                             MachineGraph* mcgraph,
-                                             const wasm::WasmModule* module)
+WasmGCOperatorReducer::WasmGCOperatorReducer(
+    Editor* editor, Zone* temp_zone_, MachineGraph* mcgraph,
+    const wasm::WasmModule* module, SourcePositionTable* source_position_table)
     : AdvancedReducerWithControlPathState(editor, temp_zone_, mcgraph->graph()),
       mcgraph_(mcgraph),
       gasm_(mcgraph, mcgraph->zone()),
-      module_(module) {}
+      module_(module),
+      source_position_table_(source_position_table) {}
 
 Reduction WasmGCOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -354,9 +356,10 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Changed(node);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(SetType(gasm_.AssertNotNull(object, object_type.type,
-                                                 TrapId::kTrapIllegalCast),
-                             object_type.type.AsNonNull()));
+      Node* assert_not_null = gasm_.AssertNotNull(object, object_type.type,
+                                                  TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(assert_not_null, node);
+      return Replace(SetType(assert_not_null, object_type.type.AsNonNull()));
     }
   }
 
@@ -371,6 +374,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
     Node* null_node = SetType(gasm_.Null(object_type.type),
                               wasm::ToNullSentinel(object_type));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
@@ -451,6 +455,19 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
                                      {object_type.type, current_config.to}));
 
   return TakeStatesFromFirstControl(node);
+}
+
+void WasmGCOperatorReducer::UpdateSourcePosition(Node* new_node,
+                                                 Node* old_node) {
+  if (source_position_table_) {
+    SourcePosition position =
+        source_position_table_->GetSourcePosition(old_node);
+    // TODO(mliedtke): Once wasm into js inlining supports source positions,
+    // this should become a DCHECK.
+    if (position.ScriptOffset() != kNoSourcePosition) {
+      source_position_table_->SetSourcePosition(new_node, position);
+    }
+  }
 }
 
 }  // namespace compiler
