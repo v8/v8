@@ -199,31 +199,6 @@ template <typename ConcreteVisitor>
 NewSpaceVisitor<ConcreteVisitor>::NewSpaceVisitor(Isolate* isolate)
     : HeapVisitor<int, ConcreteVisitor>(isolate) {}
 
-template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
-                                                         NativeContext object) {
-  // There should be no native contexts in new space.
-  UNREACHABLE();
-}
-
-template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
-    Map map, SharedFunctionInfo object) {
-  UNREACHABLE();
-}
-
-template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitBytecodeArray(Map map,
-                                                         BytecodeArray object) {
-  UNREACHABLE();
-}
-
-template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
-                                                    WeakCell weak_cell) {
-  UNREACHABLE();
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -151,8 +151,6 @@ class YoungGenerationConcurrentMarkingVisitor final
   UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
 
-  void VisitMapPointer(HeapObject host) final { UNREACHABLE(); }
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 

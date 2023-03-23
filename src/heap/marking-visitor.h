@@ -214,30 +214,12 @@ class YoungGenerationMarkingVisitorBase
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // InstructionStream slots never appear in new space because
-    // Code objects, the only object that can contain code pointers, are
-    // always allocated in the old space.
-    UNREACHABLE();
-  }
-
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot slot) final {
     VisitPointerImpl(host, slot);
   }
 
   V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot slot) final {
     VisitPointerImpl(host, slot);
-  }
-
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
-    UNREACHABLE();
-  }
-
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
-    UNREACHABLE();
   }
 
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
@@ -261,7 +243,7 @@ class YoungGenerationMarkingVisitorBase
   template <typename T>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
 
-  inline void MarkObjectViaMarkingWorklist(HeapObject object);
+  V8_INLINE void MarkObjectViaMarkingWorklist(HeapObject object);
 
  private:
   template <typename TSlot>

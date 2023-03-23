@@ -5,7 +5,9 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_H_
 #define V8_HEAP_OBJECTS_VISITING_H_
 
+#include "src/base/logging.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
@@ -140,14 +142,22 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
  public:
   V8_INLINE explicit NewSpaceVisitor(Isolate* isolate);
 
+  // Special cases: Unreachable visitors for objects that are never found in the
+  // young generation.
+  void VisitCodePointer(Code, CodeObjectSlot) final { UNREACHABLE(); }
+  void VisitCodeTarget(RelocInfo*) final { UNREACHABLE(); }
+  void VisitEmbeddedPointer(RelocInfo*) final { UNREACHABLE(); }
+  void VisitMapPointer(HeapObject) final { UNREACHABLE(); }
+
  protected:
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return false; }
 
-  // Special cases for young generation.
-  V8_INLINE int VisitNativeContext(Map map, NativeContext object);
-  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
-  V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  V8_INLINE int VisitWeakCell(Map map, WeakCell weak_cell);
+  // Special cases: Unreachable visitors for objects that are never found in the
+  // young generation.
+  int VisitNativeContext(Map, NativeContext) { UNREACHABLE(); }
+  int VisitBytecodeArray(Map, BytecodeArray) { UNREACHABLE(); }
+  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo) { UNREACHABLE(); }
+  int VisitWeakCell(Map, WeakCell) { UNREACHABLE(); }
 
   friend class HeapVisitor<int, ConcreteVisitor>;
 };
