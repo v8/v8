@@ -1681,6 +1681,23 @@ OpIndex GraphBuilder::Process(
       return __ StringLessThanOrEqual(Map(node->InputAt(0)),
                                       Map(node->InputAt(1)));
 
+    case IrOpcode::kArgumentsLength:
+      return __ ArgumentsLength();
+    case IrOpcode::kRestLength:
+      return __ RestLength(FormalParameterCountOf(node->op()));
+
+    case IrOpcode::kNewArgumentsElements: {
+      const auto& p = NewArgumentsElementsParametersOf(node->op());
+      // EffectControlLinearizer used to use `node->op()->properties()` to
+      // construct the builtin call descriptor for this operation. However, this
+      // always seemed to be `kEliminatable` so the Turboshaft
+      // BuiltinCallDescriptor's for those builtins have this property
+      // hard-coded.
+      DCHECK_EQ(node->op()->properties(), Operator::kEliminatable);
+      return __ NewArgumentsElements(Map(node->InputAt(0)), p.arguments_type(),
+                                     p.formal_parameter_count());
+    }
+
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:

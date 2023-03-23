@@ -18,6 +18,7 @@
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
@@ -1094,11 +1095,6 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  // `IsNonZero` converts any non-0 value into 1.
-  V<Word32> IsNonZero(V<Word32> value) {
-    return __ Word32Equal(__ Word32Equal(value, 0), 0);
-  }
-
   OpIndex ReduceNewConsString(OpIndex length, OpIndex first, OpIndex second) {
     // Determine the instance types of {first} and {second}.
     V<Tagged> first_map = __ LoadMapField(first);
@@ -1610,6 +1606,47 @@ class MachineLoweringReducer : public Next {
     }
   }
 
+  V<Smi> ReduceArgumentsLength(ArgumentsLengthOp::Kind kind,
+                               int formal_parameter_count) {
+    V<WordPtr> count =
+        __ LoadOffHeap(__ FramePointer(), StandardFrameConstants::kArgCOffset,
+                       MemoryRepresentation::PointerSized());
+    V<WordPtr> arguments_length = __ WordPtrSub(count, kJSArgcReceiverSlots);
+
+    if (kind == ArgumentsLengthOp::Kind::kArguments) {
+      return __ SmiTag(arguments_length);
+    } else {
+      DCHECK_EQ(kind, ArgumentsLengthOp::Kind::kRest);
+      V<WordPtr> rest_length =
+          __ WordPtrSub(arguments_length, formal_parameter_count);
+      Label<WordPtr> done(this);
+      IF(__ IntPtrLessThan(rest_length, 0)) { GOTO(done, 0); }
+      ELSE { GOTO(done, rest_length); }
+      END_IF
+
+      BIND(done, value);
+      return __ SmiTag(value);
+    }
+  }
+
+  V<Object> ReduceNewArgumentsElements(V<Smi> arguments_count,
+                                       CreateArgumentsType type,
+                                       int formal_parameter_count) {
+    V<WordPtr> frame = __ FramePointer();
+    V<WordPtr> p_count = __ IntPtrConstant(formal_parameter_count);
+    switch (type) {
+      case CreateArgumentsType::kMappedArguments:
+        return __ CallBuiltin_NewSloppyArgumentsElements(
+            isolate_, frame, p_count, arguments_count);
+      case CreateArgumentsType::kUnmappedArguments:
+        return __ CallBuiltin_NewStrictArgumentsElements(
+            isolate_, frame, p_count, arguments_count);
+      case CreateArgumentsType::kRestParameter:
+        return __ CallBuiltin_NewRestArgumentsElements(isolate_, frame, p_count,
+                                                       arguments_count);
+    }
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
@@ -1677,6 +1714,11 @@ class MachineLoweringReducer : public Next {
     V<Word32> check = __ Projection(add, 1, WordRepresentation::Word32());
     GOTO_IF(check, *overflow);
     GOTO(*done, __ SmiTag(input));
+  }
+
+  // `IsNonZero` converts any non-0 value into 1.
+  V<Word32> IsNonZero(V<Word32> value) {
+    return __ Word32Equal(__ Word32Equal(value, 0), 0);
   }
 
   V<Tagged> AllocateHeapNumberWithValue(V<Float64> value) {

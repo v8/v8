@@ -788,6 +788,16 @@ class GraphVisitor {
     return assembler().ReduceStringComparison(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind);
   }
+  OpIndex AssembleOutputGraphArgumentsLength(const ArgumentsLengthOp& op) {
+    return assembler().ReduceArgumentsLength(op.kind,
+                                             op.formal_parameter_count);
+  }
+  OpIndex AssembleOutputGraphNewArgumentsElements(
+      const NewArgumentsElementsOp& op) {
+    return assembler().ReduceNewArgumentsElements(
+        MapToNewGraph(op.arguments_count()), op.type,
+        op.formal_parameter_count);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

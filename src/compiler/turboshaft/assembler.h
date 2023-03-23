@@ -1716,6 +1716,27 @@ class AssemblerOpInterface {
     }
   }
 
+  V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
+      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
+      V<Smi> arguments_count) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::NewSloppyArgumentsElements>(
+        isolate, {frame, formal_parameter_count, arguments_count});
+  }
+  V<FixedArray> CallBuiltin_NewStrictArgumentsElements(
+      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
+      V<Smi> arguments_count) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::NewStrictArgumentsElements>(
+        isolate, {frame, formal_parameter_count, arguments_count});
+  }
+  V<FixedArray> CallBuiltin_NewRestArgumentsElements(
+      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
+      V<Smi> arguments_count) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::NewRestArgumentsElements>(
+        isolate, {frame, formal_parameter_count, arguments_count});
+  }
   V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
                                      V<String> right, V<WordPtr> length) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
@@ -2217,6 +2238,33 @@ class AssemblerOpInterface {
   V<Boolean> StringLessThanOrEqual(V<String> left, V<String> right) {
     return StringComparison(left, right,
                             StringComparisonOp::Kind::kLessThanOrEqual);
+  }
+
+  V<Smi> ArgumentsLength() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceArgumentsLength(ArgumentsLengthOp::Kind::kArguments,
+                                         0);
+  }
+  V<Smi> RestLength(int formal_parameter_count) {
+    DCHECK_LE(0, formal_parameter_count);
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceArgumentsLength(ArgumentsLengthOp::Kind::kRest,
+                                         formal_parameter_count);
+  }
+
+  V<FixedArray> NewArgumentsElements(V<Smi> arguments_count,
+                                     CreateArgumentsType type,
+                                     int formal_parameter_count) {
+    DCHECK_LE(0, formal_parameter_count);
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceNewArgumentsElements(arguments_count, type,
+                                              formal_parameter_count);
   }
 
   template <typename Rep>

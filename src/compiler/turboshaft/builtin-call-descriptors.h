@@ -45,8 +45,8 @@ struct BuiltinCallDescriptor {
       }
       DCHECK_EQ(desc->NeedsFrameState(), Derived::NeedsFrameState);
       DCHECK_EQ(desc->properties(), Derived::Properties);
-      DCHECK_EQ(desc->ParameterCount(),
-                std::tuple_size_v<arguments_t> + Derived::NeedsContext);
+      DCHECK_EQ(desc->ParameterCount(), std::tuple_size_v<arguments_t> +
+                                            (Derived::NeedsContext ? 1 : 0));
       DCHECK(VerifyArguments<arguments_t>(desc));
     }
 
@@ -71,6 +71,25 @@ struct BuiltinCallDescriptor {
   using Boolean = Oddball;
 
  public:
+  template <Builtin B>
+  struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
+    static constexpr auto Function = B;
+    // TODO(nicohartmann@): First argument should be replaced by a proper
+    // RawPtr.
+    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>, V<Smi>>;
+    using result_t = V<FixedArray>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+  using NewSloppyArgumentsElements =
+      NewArgumentsElements<Builtin::kNewSloppyArgumentsElements>;
+  using NewStrictArgumentsElements =
+      NewArgumentsElements<Builtin::kNewStrictArgumentsElements>;
+  using NewRestArgumentsElements =
+      NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
+
   struct StringEqual : public Descriptor<StringEqual> {
     static constexpr auto Function = Builtin::kStringEqual;
     using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;

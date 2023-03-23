@@ -146,7 +146,9 @@ struct FrameStateOp;
   V(StringFromCodePointAt)           \
   V(StringSubstring)                 \
   V(StringEqual)                     \
-  V(StringComparison)
+  V(StringComparison)                \
+  V(ArgumentsLength)                 \
+  V(NewArgumentsElements)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -3240,6 +3242,58 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind);
+
+struct ArgumentsLengthOp : FixedArityOperationT<0, ArgumentsLengthOp> {
+  enum class Kind : uint8_t {
+    kArguments,
+    kRest,
+  };
+  Kind kind;
+  int formal_parameter_count =
+      0;  // This field is unused for kind == kArguments.
+
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  explicit ArgumentsLengthOp(Kind kind, int formal_parameter_count)
+      : Base(), kind(kind), formal_parameter_count(formal_parameter_count) {
+    DCHECK_IMPLIES(kind == Kind::kArguments, formal_parameter_count == 0);
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind, formal_parameter_count}; }
+};
+std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind);
+
+struct NewArgumentsElementsOp
+    : FixedArityOperationT<1, NewArgumentsElementsOp> {
+  CreateArgumentsType type;
+  int formal_parameter_count;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex arguments_count() const { return Base::input(0); }
+
+  explicit NewArgumentsElementsOp(OpIndex arguments_count,
+                                  CreateArgumentsType type,
+                                  int formal_parameter_count)
+      : Base(arguments_count),
+        type(type),
+        formal_parameter_count(formal_parameter_count) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, arguments_count(),
+                           RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{type, formal_parameter_count}; }
+};
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

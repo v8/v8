@@ -1469,9 +1469,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerObjectIsUndetectable(node);
       break;
     case IrOpcode::kArgumentsLength:
+      if (v8_flags.turboshaft) return false;
       result = LowerArgumentsLength(node);
       break;
     case IrOpcode::kRestLength:
+      if (v8_flags.turboshaft) return false;
       result = LowerRestLength(node);
       break;
     case IrOpcode::kToBoolean:
@@ -1489,6 +1491,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNewSmiOrObjectElements(node);
       break;
     case IrOpcode::kNewArgumentsElements:
+      if (v8_flags.turboshaft) return false;
       result = LowerNewArgumentsElements(node);
       break;
     case IrOpcode::kNewConsString:
@@ -4915,6 +4918,7 @@ Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* arguments_length = ChangeIntPtrToSmi(
       __ Load(MachineType::Pointer(), __ LoadFramePointer(),
               __ IntPtrConstant(StandardFrameConstants::kArgCOffset)));
@@ -4924,6 +4928,7 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerRestLength(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   int formal_parameter_count = FormalParameterCountOf(node->op());
   DCHECK_LE(0, formal_parameter_count);
 
@@ -5041,6 +5046,7 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   const NewArgumentsElementsParameters& parameters =
       NewArgumentsElementsParametersOf(node->op());
   CreateArgumentsType type = parameters.arguments_type();

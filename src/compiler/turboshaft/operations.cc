@@ -993,6 +993,15 @@ std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
+  switch (kind) {
+    case ArgumentsLengthOp::Kind::kArguments:
+      return os << "Arguments";
+    case ArgumentsLengthOp::Kind::kRest:
+      return os << "Rest";
+  }
+}
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;
