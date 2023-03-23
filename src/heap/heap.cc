@@ -2307,6 +2307,12 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
+  if (isolate_->is_shared_space_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      Relocatable::PostGarbageCollectionProcessing(client);
+    });
+  }
+
   // First round weak callbacks are not supposed to allocate and trigger
   // nested GCs.
   isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
