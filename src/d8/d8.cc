@@ -1435,10 +1435,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   // Loop until module execution finishes
   Local<Promise> result_promise(result.As<Promise>());
-  while (result_promise->State() == Promise::kPending &&
-         reinterpret_cast<i::Isolate*>(isolate)
-                 ->default_microtask_queue()
-                 ->size() > 0) {
+  while (isolate->HasPendingBackgroundTasks() ||
+         (result_promise->State() == Promise::kPending &&
+          reinterpret_cast<i::Isolate*>(isolate)
+                  ->default_microtask_queue()
+                  ->size() > 0)) {
     Shell::CompleteMessageLoop(isolate);
   }
 
