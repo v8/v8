@@ -110,7 +110,7 @@ class Handle final : public HandleBase {
     T object_;
   };
 
-  V8_INLINE explicit Handle() : HandleBase(nullptr) {
+  V8_INLINE Handle() : HandleBase(nullptr) {
     // Skip static type check in order to allow Handle<XXX>::null() as default
     // parameter values in non-inl header files without requiring full
     // definition of type XXX.
