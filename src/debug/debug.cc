@@ -2906,82 +2906,57 @@ Handle<Object> Debug::return_value_handle() {
   return handle(thread_local_.return_value_, isolate_);
 }
 
-bool Debug::PerformSideEffectCheckForAccessor(
-    Handle<AccessorInfo> accessor_info, Handle<Object> receiver,
-    AccessorComponent component) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-
-  // List of allowlisted internal accessors can be found in accessors.h.
-  SideEffectType side_effect_type =
-      component == AccessorComponent::ACCESSOR_SETTER
-          ? accessor_info->setter_side_effect_type()
-          : accessor_info->getter_side_effect_type();
-
-  switch (side_effect_type) {
-    case SideEffectType::kHasNoSideEffect:
-      // We do not support setter accessors with no side effects, since
-      // calling set accessors go through a store bytecode. Store bytecodes
-      // are considered to cause side effects (to non-temporary objects).
-      DCHECK_NE(AccessorComponent::ACCESSOR_SETTER, component);
-      return true;
-
-    case SideEffectType::kHasSideEffectToReceiver:
-      DCHECK(!receiver.is_null());
-      if (PerformSideEffectCheckForObject(receiver)) return true;
-      isolate_->OptionalRescheduleException(false);
-      return false;
-
-    case SideEffectType::kHasSideEffect:
-      break;
-  }
-  if (v8_flags.trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API Callback '");
-    accessor_info->name().ShortPrint();
-    PrintF("' may cause side effect.\n");
-  }
-
-  side_effect_check_failed_ = true;
-  // Throw an uncatchable termination exception.
-  isolate_->TerminateExecution();
-  isolate_->OptionalRescheduleException(false);
-  return false;
-}
-
 bool Debug::PerformSideEffectCheckForCallback(
-    Handle<CallHandlerInfo> call_handler_info) {
+    Handle<Object> callback_info, Handle<Object> receiver,
+    Debug::AccessorKind accessor_kind) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  DCHECK_EQ(!receiver.is_null(), callback_info->IsAccessorInfo());
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-
-  CallHandlerInfo info = CallHandlerInfo::cast(*call_handler_info);
-  if (info.NextCallHasNoSideEffect() ||
-      info.IsSideEffectFreeCallHandlerInfo()) {
+  if (!callback_info.is_null() && callback_info->IsCallHandlerInfo() &&
+      i::CallHandlerInfo::cast(*callback_info).NextCallHasNoSideEffect()) {
     return true;
   }
-  if (v8_flags.trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
+  // TODO(7515): always pass a valid callback info object.
+  if (!callback_info.is_null()) {
+    if (callback_info->IsAccessorInfo()) {
+      // List of allowlisted internal accessors can be found in accessors.h.
+      AccessorInfo info = AccessorInfo::cast(*callback_info);
+      DCHECK_NE(kNotAccessor, accessor_kind);
+      switch (accessor_kind == kSetter ? info.setter_side_effect_type()
+                                       : info.getter_side_effect_type()) {
+        case SideEffectType::kHasNoSideEffect:
+          // We do not support setter accessors with no side effects, since
+          // calling set accessors go through a store bytecode. Store bytecodes
+          // are considered to cause side effects (to non-temporary objects).
+          DCHECK_NE(kSetter, accessor_kind);
+          return true;
+        case SideEffectType::kHasSideEffectToReceiver:
+          DCHECK(!receiver.is_null());
+          if (PerformSideEffectCheckForObject(receiver)) return true;
+          isolate_->OptionalRescheduleException(false);
+          return false;
+        case SideEffectType::kHasSideEffect:
+          break;
+      }
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API Callback '");
+        info.name().ShortPrint();
+        PrintF("' may cause side effect.\n");
+      }
+    } else if (callback_info->IsInterceptorInfo()) {
+      InterceptorInfo info = InterceptorInfo::cast(*callback_info);
+      if (info.has_no_side_effect()) return true;
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
+      }
+    } else if (callback_info->IsCallHandlerInfo()) {
+      CallHandlerInfo info = CallHandlerInfo::cast(*callback_info);
+      if (info.IsSideEffectFreeCallHandlerInfo()) return true;
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
+      }
+    }
   }
-
-  side_effect_check_failed_ = true;
-  // Throw an uncatchable termination exception.
-  isolate_->TerminateExecution();
-  isolate_->OptionalRescheduleException(false);
-  return false;
-}
-
-bool Debug::PerformSideEffectCheckForInterceptor(
-    Handle<InterceptorInfo> interceptor_info) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-
-  // Empty InterceptorInfo represents operations that do produce side effects.
-  if (!interceptor_info.is_null()) {
-    if (interceptor_info->has_no_side_effect()) return true;
-  }
-  if (v8_flags.trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
-  }
-
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
   isolate_->TerminateExecution();
