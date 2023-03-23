@@ -628,8 +628,6 @@ bool Heap::CreateLateReadOnlyMaps() {
                  side_effect_call_handler_info)
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_free_call_handler_info)
-    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
-                 next_call_side_effect_free_call_handler_info)
 
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
                  source_text_module)

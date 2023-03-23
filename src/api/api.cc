@@ -46,7 +46,7 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
-#include "src/debug/liveedit.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/embedder-state.h"
 #include "src/execution/execution.h"
@@ -5489,8 +5489,9 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
             kAcquireLoad);
     if (obj.IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
-      if (!handler_info.IsSideEffectFreeCallHandlerInfo()) {
-        handler_info.SetNextCallHasNoSideEffect();
+      if (handler_info.IsSideEffectCallHandlerInfo()) {
+        i_isolate->debug()->IgnoreSideEffectsOnNextCallTo(
+            handle(handler_info, i_isolate));
       }
     }
   }
@@ -5498,21 +5499,6 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   Local<Object> result;
   has_pending_exception = !ToLocal<Object>(
       i::Execution::New(i_isolate, self, self, argc, args), &result);
-  if (should_set_has_no_side_effect) {
-    i::Object obj =
-        i::JSFunction::cast(*self).shared().get_api_func_data().call_code(
-            kAcquireLoad);
-    if (obj.IsCallHandlerInfo()) {
-      i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
-      if (has_pending_exception) {
-        // Restore the map if an exception prevented restoration.
-        handler_info.NextCallHasNoSideEffect();
-      } else {
-        DCHECK(handler_info.IsSideEffectCallHandlerInfo() ||
-               handler_info.IsSideEffectFreeCallHandlerInfo());
-      }
-    }
-  }
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }

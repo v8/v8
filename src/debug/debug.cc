@@ -2947,16 +2947,32 @@ bool Debug::PerformSideEffectCheckForAccessor(
   return false;
 }
 
+void Debug::IgnoreSideEffectsOnNextCallTo(
+    Handle<CallHandlerInfo> call_handler_info) {
+  DCHECK(call_handler_info->IsSideEffectCallHandlerInfo());
+  // There must be only one such call handler info.
+  CHECK(ignore_side_effects_for_call_handler_info_.is_null());
+  ignore_side_effects_for_call_handler_info_ = call_handler_info;
+}
+
 bool Debug::PerformSideEffectCheckForCallback(
     Handle<CallHandlerInfo> call_handler_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 
   CallHandlerInfo info = CallHandlerInfo::cast(*call_handler_info);
-  if (info.NextCallHasNoSideEffect() ||
-      info.IsSideEffectFreeCallHandlerInfo()) {
+  if (info.IsSideEffectFreeCallHandlerInfo()) {
     return true;
   }
+  if (!ignore_side_effects_for_call_handler_info_.is_null()) {
+    // If the |ignore_side_effects_for_call_handler_info_| is set then the next
+    // API callback call must be made to this function.
+    CHECK(ignore_side_effects_for_call_handler_info_.is_identical_to(
+        call_handler_info));
+    ignore_side_effects_for_call_handler_info_ = {};
+    return true;
+  }
+
   if (v8_flags.trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
   }

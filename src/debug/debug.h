@@ -356,6 +356,10 @@ class V8_EXPORT_PRIVATE Debug {
   void ApplySideEffectChecks(Handle<DebugInfo> debug_info);
   void ClearSideEffectChecks(Handle<DebugInfo> debug_info);
 
+  // Make a one-time exception for a next call to given side-effectful API
+  // function.
+  void IgnoreSideEffectsOnNextCallTo(Handle<CallHandlerInfo> call_handler_info);
+
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
 
@@ -633,6 +637,12 @@ class V8_EXPORT_PRIVATE Debug {
   // This is a global handle, lazily initialized.
   Handle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  // This is a part of machinery for allowing to ignore side effects for one
+  // call to this API function. See Function::NewInstanceWithSideEffectType().
+  // Since the call_handler_info is allowlisted right before the call to
+  // constructor there must be never more than one such object at a time.
+  Handle<CallHandlerInfo> ignore_side_effects_for_call_handler_info_;
 
   Isolate* isolate_;
 
