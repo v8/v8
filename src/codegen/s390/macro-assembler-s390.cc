@@ -558,7 +558,7 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
-  LoadS32(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  LoadU16(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
   TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
 }
 
