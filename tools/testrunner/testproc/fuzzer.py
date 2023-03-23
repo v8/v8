@@ -19,7 +19,7 @@ EXTRA_FLAGS = [
     # TODO(v8:13528): Enable when issue is fixed
     # (0.1, '--harmony-struct'),
     (0.1, '--interrupt-budget=100'),
-    (0.1, '--interrupt-budget-for-maglev=100'),
+    (0.1, '--invocation-count-for-maglev=3'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.1, '--minor-mc'),
@@ -338,7 +338,7 @@ class InterruptBudgetFuzzer(Fuzzer):
       flag1 = rng.choice(
           ['--lazy-feedback-allocation', '--no-lazy-feedback-allocation'])
       flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
-      flag3 = '--interrupt-budget-for-maglev=%d' % rng.randint(0, 40960)
+      flag3 = '--invocation-count-for-maglev=%d' % rng.randint(0, 120)
       flag4 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
           0, 940)
       flag5 = '--interrupt-budget-factor-for-feedback-allocation=%d' % rng.randint(
