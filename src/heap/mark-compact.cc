@@ -5806,7 +5806,10 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
 
 void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
   if (marking_state_->TryMark(heap_object)) {
-    const auto visited_size = visitor_.Visit(heap_object);
+    // Maps won't change in the atomic pause, so the map can be read without
+    // atomics.
+    Map map = Map::cast(*heap_object.map_slot());
+    const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
       live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
           heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
@@ -5820,7 +5823,10 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
   while (marking_worklists_local_->Pop(&heap_object) ||
          marking_worklists_local_->PopOnHold(&heap_object)) {
-    const auto visited_size = visitor_.Visit(heap_object);
+    // Maps won't change in the atomic pause, so the map can be read without
+    // atomics.
+    Map map = Map::cast(*heap_object.map_slot());
+    const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
       live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
           heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
@@ -6122,7 +6128,10 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
       DCHECK(heap_object.IsHeapObject());
       DCHECK(heap()->Contains(heap_object));
       DCHECK(!non_atomic_marking_state()->IsUnmarked(heap_object));
-      const auto visited_size = main_marking_visitor_->Visit(heap_object);
+      // Maps won't change in the atomic pause, so the map can be read without
+      // atomics.
+      Map map = Map::cast(*heap_object.map_slot());
+      const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         marking_state_->IncrementLiveBytes(
             MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
