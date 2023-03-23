@@ -2878,6 +2878,28 @@ namespace {
 #ifdef V8_USE_PERFETTO
 class CpuProfilerListener : public platform::tracing::TraceEventListener {
  public:
+  void ParseFromArray(const std::vector<char>& array) {
+    perfetto::protos::Trace trace;
+    CHECK(trace.ParseFromArray(array.data(), static_cast<int>(array.size())));
+
+    for (int i = 0; i < trace.packet_size(); i++) {
+      // TODO(petermarshall): ChromeTracePacket instead.
+      const perfetto::protos::TracePacket& packet = trace.packet(i);
+      ProcessPacket(packet);
+    }
+  }
+
+  const std::string& result_json() {
+    result_json_ += "]";
+    return result_json_;
+  }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+    sequence_state_.clear();
+  }
+
+ private:
   void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
     auto& seq_state = sequence_state_[packet.trusted_packet_sequence_id()];
     if (packet.incremental_state_cleared()) seq_state = SequenceState{};
@@ -2906,17 +2928,6 @@ class CpuProfilerListener : public platform::tracing::TraceEventListener {
     result_json_ += track_event.debug_annotations()[0].legacy_json_value();
   }
 
-  const std::string& result_json() {
-    result_json_ += "]";
-    return result_json_;
-  }
-  void Reset() {
-    result_json_.clear();
-    profile_id_ = 0;
-    sequence_state_.clear();
-  }
-
- private:
   std::string result_json_;
   uint64_t profile_id_ = 0;
 

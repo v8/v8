@@ -5971,14 +5971,7 @@ v8_component("v8_libplatform") {
       "src/libplatform/tracing/trace-writer.cc",
       "src/libplatform/tracing/trace-writer.h",
     ]
-    sources += [
-      "src/libplatform/tracing/trace-event-listener.cc",
-      "src/libplatform/tracing/trace-event-listener.h",
-    ]
-    deps += [
-      # TODO(skyostil): Switch TraceEventListener to protozero.
-      "//third_party/perfetto/protos/perfetto/trace:lite",
-    ]
+    sources += [ "src/libplatform/tracing/trace-event-listener.h" ]
   }
 
   if (v8_enable_system_instrumentation) {
