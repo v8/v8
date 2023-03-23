@@ -509,6 +509,7 @@ class Heap {
 
   size_t NewSpaceSize();
   size_t NewSpaceCapacity() const;
+  size_t NewSpaceTargetCapacity() const;
 
   // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
   // The source and destination memory ranges can overlap.

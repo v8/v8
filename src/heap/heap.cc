@@ -528,7 +528,7 @@ bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
 }
 
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
-  size_t new_space_capacity = NewSpaceCapacity();
+  size_t new_space_capacity = NewSpaceTargetCapacity();
   size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
 
   // Over-estimate the new space size using capacity to allow some slack.
@@ -1989,7 +1989,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
       case IncrementalMarkingLimit::kHardLimit:
         StartIncrementalMarking(
             gc_flags,
-            OldGenerationSpaceAvailable() <= NewSpaceCapacity()
+            OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
                 ? GarbageCollectionReason::kAllocationLimit
                 : GarbageCollectionReason::kGlobalAllocationLimit,
             gc_callback_flags);
@@ -2018,7 +2018,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
 
   const size_t old_generation_space_available = OldGenerationSpaceAvailable();
 
-  if (old_generation_space_available < NewSpaceCapacity()) {
+  if (old_generation_space_available < NewSpaceTargetCapacity()) {
     incremental_marking()->incremental_marking_job()->ScheduleTask();
   }
 }
@@ -2448,7 +2448,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   global_growing_factor = std::max(v8_growing_factor, embedder_growing_factor);
 
   size_t old_gen_size = OldGenerationSizeOfObjects();
-  size_t new_space_capacity = NewSpaceCapacity();
+  size_t new_space_capacity = NewSpaceTargetCapacity();
   HeapGrowingMode mode = CurrentHeapGrowingMode();
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
@@ -3787,6 +3787,10 @@ size_t Heap::NewSpaceSize() { return new_space() ? new_space()->Size() : 0; }
 
 size_t Heap::NewSpaceCapacity() const {
   return new_space() ? new_space()->Capacity() : 0;
+}
+
+size_t Heap::NewSpaceTargetCapacity() const {
+  return new_space() ? new_space()->TotalCapacity() : 0;
 }
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
@@ -5334,9 +5338,9 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   const base::Optional<size_t> global_memory_available =
       GlobalMemoryAvailable();
 
-  if (old_generation_space_available > NewSpaceCapacity() &&
+  if (old_generation_space_available > NewSpaceTargetCapacity() &&
       (!global_memory_available ||
-       global_memory_available > NewSpaceCapacity())) {
+       global_memory_available > NewSpaceTargetCapacity())) {
     if (cpp_heap() && !old_generation_size_configured_ && gc_count_ == 0) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
