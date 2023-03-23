@@ -2944,6 +2944,7 @@ filegroup(
         "src/compiler/turboshaft/tag-untag-lowering-reducer.h",
         "src/compiler/turboshaft/tracing.h",
         "src/compiler/turboshaft/type-inference-analysis.h",
+        "src/compiler/turboshaft/structural-optimization-reducer.h",
         "src/compiler/turboshaft/type-inference-reducer.h",
         "src/compiler/turboshaft/typer.cc",
         "src/compiler/turboshaft/typer.h",

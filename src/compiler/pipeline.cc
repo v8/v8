@@ -97,7 +97,9 @@
 #include "src/compiler/turboshaft/tag-untag-lowering-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
+#include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
+#include "src/compiler/turboshaft/typed-optimizations-reducer.h"
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
@@ -2989,7 +2991,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   }
 
   // Optimize control flow.
-  if (v8_flags.turbo_cf_optimization) {
+  if (v8_flags.turbo_cf_optimization && !v8_flags.turboshaft) {
     Run<ControlFlowOptimizationPhase>();
     RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
   }

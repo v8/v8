@@ -3075,6 +3075,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/snapshot-table.h",
+    "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tag-untag-lowering-phase.h",
     "src/compiler/turboshaft/tag-untag-lowering-reducer.h",
     "src/compiler/turboshaft/tracing.h",
