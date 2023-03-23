@@ -1541,6 +1541,10 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
             __ StringLength(result, object);
             __ SmiTag(result);
             break;
+          case PolymorphicAccessInfo::kFunctionLength:
+            __ FunctionLength(result, object);
+            __ SmiTag(result);
+            break;
         }
       },
       ToRegister(result()));
@@ -2654,6 +2658,15 @@ void StringLength::SetValueLocationConstraints() {
 void StringLength::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   __ StringLength(ToRegister(result()), ToRegister(object_input()));
+}
+
+void FunctionLength::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void FunctionLength::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ FunctionLength(ToRegister(result()), ToRegister(object_input()));
 }
 
 void TaggedEqual::SetValueLocationConstraints() {

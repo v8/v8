@@ -214,6 +214,19 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
+FieldAccess AccessBuilder::ForSharedFunctionInfoLength() {
+  FieldAccess access = {kTaggedBase,
+                        SharedFunctionInfo::kLengthOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get()->kFunctionLengthType,
+                        MachineType::Uint16(),
+                        kNoWriteBarrier,
+                        "SharedFunctionInfoLength"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
   FieldAccess access = {kTaggedBase,          JSFunction::kFeedbackCellOffset,
                         Handle<Name>(),       MaybeHandle<Map>(),

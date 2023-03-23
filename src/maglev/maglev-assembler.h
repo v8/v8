@@ -291,6 +291,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void SmiToDouble(DoubleRegister result, Register smi);
 
   void StringLength(Register result, Register string);
+  void FunctionLength(Register result, Register function);
 
   // The registers WriteBarrierDescriptor::ObjectRegister and
   // WriteBarrierDescriptor::SlotAddressRegister can be clobbered.

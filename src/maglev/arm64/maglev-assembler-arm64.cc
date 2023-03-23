@@ -816,6 +816,18 @@ void MaglevAssembler::StringLength(Register result, Register string) {
   Ldr(result.W(), FieldMemOperand(string, String::kLengthOffset));
 }
 
+void MaglevAssembler::FunctionLength(Register result, Register function) {
+  AssertFunction(function);
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedField(
+      scratch,
+      FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  LoadUnsignedField(result.W(),
+                    FieldMemOperand(scratch, SharedFunctionInfo::kLengthOffset),
+                    2);
+}
+
 void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
     Register array, Register index, Register value,
     RegisterSnapshot register_snapshot) {

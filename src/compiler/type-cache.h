@@ -186,6 +186,10 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // fixed array in spread/apply calls.
   Type const kRestLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
+  // The Function::length property is always in this range.
+  Type const kFunctionLengthType =
+      CreateRange(0.0, InstructionStream::kMaxArguments);
+
   // The JSArrayIterator::kind property always contains an integer in the
   // range [0, 2], representing the possible IterationKinds.
   Type const kJSArrayIteratorKindType = CreateRange(0.0, 2.0);
