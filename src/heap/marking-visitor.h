@@ -206,20 +206,17 @@ class YoungGenerationMarkingVisitorBase
 
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
+    concrete_visitor()->VisitPointersImpl(host, start, end);
   }
-
   V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
+    concrete_visitor()->VisitPointersImpl(host, start, end);
   }
-
-  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot slot) final {
-    VisitPointerImpl(host, slot);
+  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
+    concrete_visitor()->VisitPointersImpl(host, p, p + 1);
   }
-
-  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot slot) final {
-    VisitPointerImpl(host, slot);
+  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+    concrete_visitor()->VisitPointersImpl(host, p, p + 1);
   }
 
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
@@ -227,7 +224,6 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE int VisitJSDataViewOrRabGsabDataView(
       Map map, JSDataViewOrRabGsabDataView object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
-
   V8_INLINE int VisitJSObject(Map map, JSObject object);
   V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
@@ -243,19 +239,10 @@ class YoungGenerationMarkingVisitorBase
   template <typename T>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
 
-  V8_INLINE void MarkObjectViaMarkingWorklist(HeapObject object);
+  template <typename TObject>
+  V8_INLINE void VisitObjectImpl(TObject object);
 
  private:
-  template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
-    for (TSlot slot = start; slot < end; ++slot) {
-      VisitPointer(host, slot);
-    }
-  }
-
-  template <typename TSlot>
-  void VisitPointerImpl(HeapObject host, TSlot slot);
-
   MarkingWorklists::Local* worklists_local_;
   PretenuringHandler* const pretenuring_handler_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;

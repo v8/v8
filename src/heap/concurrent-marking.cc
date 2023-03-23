@@ -156,6 +156,15 @@ class YoungGenerationConcurrentMarkingVisitor final
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject target =
+          slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+      VisitObjectImpl(target);
+    }
+  }
+
  private:
   ConcurrentMarkingState marking_state_;
 };

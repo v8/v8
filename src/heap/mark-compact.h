@@ -239,6 +239,9 @@ class YoungGenerationMainMarkingVisitor final
 
   bool ShouldVisit(HeapObject object);
 
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
  private:
   MarkingState* marking_state() { return marking_state_; }
   MarkingState* const marking_state_;

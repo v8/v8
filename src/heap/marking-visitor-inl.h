@@ -682,24 +682,16 @@ void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
-    MarkObjectViaMarkingWorklist(HeapObject object) {
-  if (concrete_visitor()->marking_state()->TryMark(object)) {
-    worklists_local_->Push(object);
-  }
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-template <typename TSlot>
+template <typename TObject>
 void YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitPointerImpl(HeapObject host,
-                                                     TSlot slot) {
-  typename TSlot::TObject target =
-      slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
-  if (Heap::InYoungGeneration(target)) {
-    // Treat weak references as strong.
-    HeapObject target_object = target.GetHeapObject();
-    MarkObjectViaMarkingWorklist(target_object);
+    ConcreteVisitor, MarkingState>::VisitObjectImpl(TObject object) {
+  HeapObject heap_object;
+  // Treat weak references as strong.
+  if (object.GetHeapObject(&heap_object)) {
+    if (Heap::InYoungGeneration(heap_object) &&
+        concrete_visitor()->marking_state()->TryMark(heap_object)) {
+      worklists_local_->Push(heap_object);
+    }
   }
 }
 

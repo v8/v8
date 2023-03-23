@@ -265,6 +265,16 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }
 
+template <typename TSlot>
+void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
+                                                          TSlot start,
+                                                          TSlot end) {
+  for (TSlot slot = start; slot < end; ++slot) {
+    typename TSlot::TObject target = *slot;
+    VisitObjectImpl(target);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 
