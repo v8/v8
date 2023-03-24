@@ -1265,24 +1265,15 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-DEFINE_BOOL(
-    wasm_inlining, false,
-    "enable inlining of wasm functions into wasm functions (experimental)")
 DEFINE_SIZE_T(wasm_inlining_budget, 5000,
               "maximum graph size (in TF nodes) that allows inlining more")
 DEFINE_SIZE_T(wasm_inlining_max_size, 500,
               "maximum function size (in wire bytes) that may be inlined")
-DEFINE_BOOL(wasm_speculative_inlining, false,
-            "enable speculative inlining of call_ref targets (experimental)")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, false,
             "enable final types as default for wasm-gc")
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
-// For historical reasons, both --wasm-inlining and --wasm-speculative-inlining
-// are aliases for --experimental-wasm-inlining.
-DEFINE_IMPLICATION(wasm_inlining, experimental_wasm_inlining)
-DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
