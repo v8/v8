@@ -34,6 +34,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -1711,6 +1712,20 @@ OpIndex GraphBuilder::Process(
       DCHECK_EQ(node->op()->properties(), Operator::kEliminatable);
       return __ NewArgumentsElements(Map(node->InputAt(0)), p.arguments_type(),
                                      p.formal_parameter_count());
+    }
+
+    case IrOpcode::kCompareMaps: {
+      const ZoneHandleSet<v8::internal::Map>& maps =
+          CompareMapsParametersOf(node->op());
+      return __ CompareMaps(Map(node->InputAt(0)), maps);
+    }
+
+    case IrOpcode::kCheckMaps: {
+      DCHECK(dominating_frame_state.valid());
+      const auto& p = CheckMapsParametersOf(node->op());
+      __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, p.maps(),
+                   p.flags(), p.feedback());
+      return OpIndex{};
     }
 
     case IrOpcode::kBeginRegion:

@@ -24,6 +24,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/index.h"
@@ -31,6 +32,7 @@
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8::internal {
 class HeapObject;
@@ -148,7 +150,9 @@ struct FrameStateOp;
   V(StringEqual)                     \
   V(StringComparison)                \
   V(ArgumentsLength)                 \
-  V(NewArgumentsElements)
+  V(NewArgumentsElements)            \
+  V(CompareMaps)                     \
+  V(CheckMaps)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -3285,9 +3289,8 @@ struct NewArgumentsElementsOp
 
   OpIndex arguments_count() const { return Base::input(0); }
 
-  explicit NewArgumentsElementsOp(OpIndex arguments_count,
-                                  CreateArgumentsType type,
-                                  int formal_parameter_count)
+  NewArgumentsElementsOp(OpIndex arguments_count, CreateArgumentsType type,
+                         int formal_parameter_count)
       : Base(arguments_count),
         type(type),
         formal_parameter_count(formal_parameter_count) {}
@@ -3298,6 +3301,54 @@ struct NewArgumentsElementsOp
   }
 
   auto options() const { return std::tuple{type, formal_parameter_count}; }
+};
+
+struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
+  ZoneHandleSet<Map> maps;
+
+  static constexpr OpProperties properties = OpProperties::Reading();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex heap_object() const { return Base::input(0); }
+
+  CompareMapsOp(OpIndex heap_object, ZoneHandleSet<Map> maps)
+      : Base(heap_object), maps(std::move(maps)) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, heap_object(),
+                           RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{maps}; }
+};
+
+struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
+  ZoneHandleSet<Map> maps;
+  CheckMapsFlags flags;
+  FeedbackSource feedback;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex heap_object() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  CheckMapsOp(OpIndex heap_object, OpIndex frame_state, ZoneHandleSet<Map> maps,
+              CheckMapsFlags flags, const FeedbackSource& feedback)
+      : Base(heap_object, frame_state),
+        maps(std::move(maps)),
+        flags(flags),
+        feedback(feedback) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, heap_object(),
+                           RegisterRepresentation::Tagged()));
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  auto options() const { return std::tuple{maps, flags, feedback}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

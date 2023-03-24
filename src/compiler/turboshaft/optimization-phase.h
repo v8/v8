@@ -798,6 +798,15 @@ class GraphVisitor {
         MapToNewGraph(op.arguments_count()), op.type,
         op.formal_parameter_count);
   }
+  OpIndex AssembleOutputGraphCompareMaps(const CompareMapsOp& op) {
+    return assembler().ReduceCompareMaps(MapToNewGraph(op.heap_object()),
+                                         op.maps);
+  }
+  OpIndex AssembleOutputGraphCheckMaps(const CheckMapsOp& op) {
+    return assembler().ReduceCheckMaps(MapToNewGraph(op.heap_object()),
+                                       MapToNewGraph(op.frame_state()), op.maps,
+                                       op.flags, op.feedback);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

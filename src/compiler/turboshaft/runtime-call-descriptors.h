@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 #define V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 
+#include "src/compiler/operator.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/runtime/runtime.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -96,6 +98,16 @@ struct RuntimeCallDescriptor {
 
     static constexpr bool NeedsFrameState = true;
     static constexpr Operator::Properties Properties = Operator::kNoDeopt;
+  };
+
+  struct TryMigrateInstance : public Descriptor<TryMigrateInstance> {
+    static constexpr auto Function = Runtime::kTryMigrateInstance;
+    using arguments_t = std::tuple<V<HeapObject>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
   };
 };
 

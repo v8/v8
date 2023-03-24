@@ -18,6 +18,7 @@
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/frame-constants.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number.h"
@@ -1687,6 +1688,62 @@ class MachineLoweringReducer : public Next {
     }
   }
 
+  V<Word32> ReduceCompareMaps(V<HeapObject> heap_object,
+                              const ZoneHandleSet<Map>& maps) {
+    Label<Word32> done(this);
+
+    V<Map> heap_object_map = __ LoadMapField(heap_object);
+
+    for (size_t i = 0; i < maps.size(); ++i) {
+      V<Map> map = __ HeapConstant(maps[i]);
+      GOTO_IF(__ TaggedEqual(heap_object_map, map), done, 1);
+    }
+    GOTO(done, 0);
+
+    BIND(done, result);
+    return result;
+  }
+
+  OpIndex ReduceCheckMaps(V<HeapObject> heap_object, OpIndex frame_state,
+                          const ZoneHandleSet<Map>& maps, CheckMapsFlags flags,
+                          const FeedbackSource& feedback) {
+    Label<> done(this);
+    // If we need to migrate maps, we generate the same chain of map checks
+    // twice, with map migration in between the two. In this case we perform two
+    // runs of the below loop. Otherwise we just generate a single sequence of
+    // checks after which we deopt in case no map matches.
+    enum class Run { kTryMigrate, kDeopt };
+    base::SmallVector<Run, 2> runs =
+        (flags & CheckMapsFlag::kTryMigrateInstance)
+            ? base::SmallVector<Run, 2>{Run::kTryMigrate, Run::kDeopt}
+            : base::SmallVector<Run, 2>{Run::kDeopt};
+
+    for (Run run : runs) {
+      // Load the current map of the {heap_object}.
+      V<Map> heap_object_map = __ LoadMapField(heap_object);
+
+      // Perform the map checks.
+      for (size_t i = 0; i < maps.size(); ++i) {
+        V<Map> map = __ HeapConstant(maps[i]);
+        GOTO_IF(__ TaggedEqual(heap_object_map, map), done);
+      }
+
+      if (run == Run::kTryMigrate) {
+        // If we didn't find a matching map in the `kTryMigrate` run, we migrate
+        // the maps.
+        MigrateInstanceOrDeopt(heap_object, heap_object_map, frame_state,
+                               feedback);
+      } else {
+        DCHECK_EQ(run, Run::kDeopt);
+        // If we didn't find a matching map in the `kDeopt` run, we deoptimize.
+        __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
+      }
+    }
+
+    BIND(done);
+    return OpIndex::Invalid();
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
@@ -1835,6 +1892,24 @@ class MachineLoweringReducer : public Next {
 
     BIND(done, result);
     return result;
+  }
+
+  void MigrateInstanceOrDeopt(V<HeapObject> heap_object, V<Map> heap_object_map,
+                              OpIndex frame_state,
+                              const FeedbackSource& feedback) {
+    // If {heap_object_map} is not deprecated, the migration attempt does not
+    // make sense.
+    V<Word32> bitfield3 = __ template LoadField<Word32>(
+        heap_object_map, AccessBuilder::ForMapBitField3());
+    V<Word32> deprecated =
+        __ Word32BitwiseAnd(bitfield3, Map::Bits3::IsDeprecatedBit::kMask);
+    __ DeoptimizeIfNot(deprecated, frame_state, DeoptimizeReason::kWrongMap,
+                       feedback);
+    V<Object> result = __ CallRuntime_TryMigrateInstance(
+        isolate_, __ NoContextConstant(), heap_object);
+    // TryMigrateInstance returns a Smi value to signal failure.
+    __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+                    DeoptimizeReason::kInstanceMigrationFailed, feedback);
   }
 
   // TODO(nicohartmann@): Might use the CallBuiltinDescriptors here.

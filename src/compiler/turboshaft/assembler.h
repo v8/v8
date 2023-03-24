@@ -1847,6 +1847,11 @@ class AssemblerOpInterface {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
         isolate, frame_state, context, {});
   }
+  V<Object> CallRuntime_TryMigrateInstance(Isolate* isolate, V<Context> context,
+                                           V<HeapObject> heap_object) {
+    return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
+        isolate, context, {heap_object});
+  }
 
   OpIndex CallAndCatchException(OpIndex callee, OpIndex frame_state,
                                 base::Vector<const OpIndex> arguments,
@@ -1913,6 +1918,16 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceDeoptimize(frame_state, parameters);
+  }
+  void Deoptimize(OpIndex frame_state, DeoptimizeReason reason,
+                  const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    Zone* zone = stack().output_graph().graph_zone();
+    const DeoptimizeParameters* params =
+        zone->New<DeoptimizeParameters>(reason, feedback);
+    Deoptimize(frame_state, params);
   }
 
   void TrapIf(OpIndex condition, TrapId trap_id) {
@@ -2265,6 +2280,23 @@ class AssemblerOpInterface {
     }
     return stack().ReduceNewArgumentsElements(arguments_count, type,
                                               formal_parameter_count);
+  }
+
+  V<Word32> CompareMaps(V<HeapObject> heap_object,
+                        const ZoneHandleSet<Map>& maps) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceCompareMaps(heap_object, maps);
+  }
+
+  void CheckMaps(V<HeapObject> heap_object, OpIndex frame_state,
+                 const ZoneHandleSet<Map>& maps, CheckMapsFlags flags,
+                 const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceCheckMaps(heap_object, frame_state, maps, flags, feedback);
   }
 
   template <typename Rep>
