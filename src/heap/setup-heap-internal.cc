@@ -1102,7 +1102,8 @@ bool Heap::CreateReadOnlyObjects() {
     HeapObject obj;
     CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
     // No need to initialize the payload since it's either empty or unmapped.
-    CHECK_IMPLIES(!V8_STATIC_ROOTS_BOOL, WasmNull::kSize == sizeof(Tagged_t));
+    CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL),
+                  WasmNull::kSize == sizeof(Tagged_t));
     obj.set_map_after_allocation(roots.wasm_null_map(), SKIP_WRITE_BARRIER);
     set_wasm_null(WasmNull::cast(obj));
     if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
