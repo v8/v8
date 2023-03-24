@@ -1,4 +1,7 @@
 [function 1: import 0 is well-known built-in String.toLowerCase]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1 (wasm-function#1): no inlining candidates]
 Second instance.
 Still optimized: true
 Third instance.
