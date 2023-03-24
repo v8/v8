@@ -41,8 +41,7 @@ int WasmInliner::GetCallCount(Node* call) {
   return mcgraph()->GetCallCount(call->id());
 }
 
-// TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
-//              tail calls.
+// TODO(12166): Save inlined frames for trap/--trace-wasm purposes.
 Reduction WasmInliner::ReduceCall(Node* call) {
   DCHECK(call->opcode() == IrOpcode::kCall ||
          call->opcode() == IrOpcode::kTailCall);
@@ -356,13 +355,19 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
           }
         }
 
+        Node* effect = input;
+        Node* control = input;
+        if (is_exceptional_call) {
+          // Remember dangling exception (will be connected later).
+          Node* if_exception = graph()->NewNode(
+              mcgraph()->common()->IfException(), input, input);
+          dangling_exceptions->Add(if_exception, if_exception, if_exception);
+          control = graph()->NewNode(mcgraph()->common()->IfSuccess(), input);
+        }
+
         // Add effect and control inputs.
-        return_inputs.push_back(input->op()->EffectOutputCount() > 0
-                                    ? input
-                                    : NodeProperties::GetEffectInput(input));
-        return_inputs.push_back(input->op()->ControlOutputCount() > 0
-                                    ? input
-                                    : NodeProperties::GetControlInput(input));
+        return_inputs.push_back(effect);
+        return_inputs.push_back(control);
 
         Node* ret = graph()->NewNode(common()->Return(return_arity),
                                      static_cast<int>(return_inputs.size()),
