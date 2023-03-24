@@ -30,7 +30,9 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -856,15 +858,6 @@ class PromotedPageRecordMigratedSlotVisitor
     }
   }
 
-  inline void VisitCodePointer(Code host, CodeObjectSlot slot) final {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // This code is similar to the implementation of VisitPointer() modulo
-    // new kind of slot.
-    DCHECK(!HasWeakHeapObjectTag(slot.Relaxed_Load(code_cage_base())));
-    Object code = slot.Relaxed_Load(code_cage_base());
-    RecordMigratedSlot(host, MaybeObject::FromObject(code), slot.address());
-  }
-
   inline void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(host.IsEphemeronHashTable());
@@ -874,6 +867,7 @@ class PromotedPageRecordMigratedSlotVisitor
     VisitPointer(host, key);
   }
 
+  void VisitCodePointer(Code host, CodeObjectSlot slot) final { UNREACHABLE(); }
   void VisitCodeTarget(RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(RelocInfo* rinfo) final { UNREACHABLE(); }
 
@@ -944,10 +938,16 @@ inline void HandlePromotedObject(
     PromotedPageRecordMigratedSlotVisitor* record_visitor) {
   DCHECK(marking_state->IsMarked(object));
   DCHECK(!IsCodeSpaceObject(object));
-  object.IterateFast(cage_base, record_visitor);
-  if (object.IsJSArrayBuffer()) {
+  Map map = object.map(cage_base);
+  if (InstanceTypeChecker::IsJSArrayBuffer(map.instance_type())) {
     JSArrayBuffer::cast(object).YoungMarkExtensionPromoted();
+    DCHECK_EQ(ObjectFields::kMaybePointers,
+              Map::ObjectFieldsFrom(map.visitor_id()));
+  } else if (Map::ObjectFieldsFrom(map.visitor_id()) ==
+             ObjectFields::kDataOnly) {
+    return;
   }
+  object.IterateFast(map, record_visitor);
 }
 
 inline void HandleFreeSpace(Address free_start, Address free_end, Heap* heap) {
