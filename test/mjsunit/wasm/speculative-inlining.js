@@ -8,8 +8,8 @@
 
 // These tests check if functions are speculatively inlined as expected. We do
 // not check automatically which functions are inlined. To get more insight, run
-// with --trace-wasm-speculative-inlining, --trace-turbo, --trace-wasm and (for
-// the last test only) --trace.
+// with --trace-wasm-inlining, --trace-turbo, --trace-wasm and (for the last
+// test only) --trace.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

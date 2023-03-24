@@ -1,3 +1,4 @@
+[function 1: call_ref #0 inlineable (monomorphic)]
 [function 1: import 0 is well-known built-in String.toLowerCase]
 [function 1: node {NUMBER}: not a relocatable constant]
 [function 1: node {NUMBER}: not a relocatable constant]
