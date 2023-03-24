@@ -98,7 +98,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     # stress_snapshot.
     "stress_snapshot": ["--expose-fast-api"],
     "stress": [
-        "--liftoff-only", "--wasm-speculative-inlining",
+        # 'stress' disables Liftoff, which conflicts with flags that require
+        # Liftoff support.
+        "--liftoff-only",
         "--wasm-dynamic-tiering"
     ],
     "sparkplug": ["--jitless", "--no-sparkplug"],

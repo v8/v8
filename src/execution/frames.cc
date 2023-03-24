@@ -1272,7 +1272,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //  |    in_param 0   |  <-- first_tagged_parameter_slot
   //  +-----------------+-----------------------------------------
   //
-  // (*) Only if compiled by liftoff and with --wasm-speculative-inlining
+  // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
   auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc());
   DCHECK(wasm_code);

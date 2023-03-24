@@ -1278,8 +1278,7 @@ DEFINE_BOOL(trace_wasm_speculative_inlining, false,
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, false,
             "enable final types as default for wasm-gc")
-DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
-DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
+DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
 // For historical reasons, both --wasm-inlining and --wasm-speculative-inlining
 // are aliases for --experimental-wasm-inlining.
 DEFINE_IMPLICATION(wasm_inlining, experimental_wasm_inlining)
