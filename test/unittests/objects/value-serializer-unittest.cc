@@ -53,20 +53,20 @@ class ValueSerializerTest : public TestWithIsolate {
     // Create a host object type that can be tested through
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
-        isolate(), [](const FunctionCallbackInfo<Value>& args) {
-          args.Holder()->SetInternalField(0, args[0]);
-          args.Holder()->SetInternalField(1, args[1]);
+        isolate(), [](const FunctionCallbackInfo<Value>& info) {
+          info.Holder()->SetInternalField(0, info[0]);
+          info.Holder()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(0));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          info.GetReturnValue().Set(info.Holder()->GetInternalField(0));
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(1));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          info.GetReturnValue().Set(info.Holder()->GetInternalField(1));
         });
     for (Local<Context> context :
          {serialization_context_, deserialization_context_}) {

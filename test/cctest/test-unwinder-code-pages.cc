@@ -708,7 +708,7 @@ class UnwinderTestHelper {
   ~UnwinderTestHelper() { instance_ = nullptr; }
 
  private:
-  static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& info) {
     instance_->DoTryUnwind();
   }
 

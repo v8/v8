@@ -63,7 +63,7 @@ class AsyncHooks {
   async_id_t GetExecutionAsyncId() const;
   async_id_t GetTriggerAsyncId() const;
 
-  Local<Object> CreateHook(const v8::FunctionCallbackInfo<v8::Value>& args);
+  Local<Object> CreateHook(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   Persistent<FunctionTemplate> async_hook_ctor;
 

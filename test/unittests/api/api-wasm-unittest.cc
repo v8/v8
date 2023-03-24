@@ -53,53 +53,53 @@ void WasmStreamingTestFinalizer(const WeakCallbackInfo<void>& data) {
 }
 
 void WasmStreamingCallbackTestCallbackIsCalled(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   CHECK(!wasm_streaming_callback_got_called);
   wasm_streaming_callback_got_called = true;
 
   i::Handle<i::Object> global_handle =
-      reinterpret_cast<i::Isolate*>(args.GetIsolate())
+      reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenHandle(*args.Data()));
+          ->Create(*Utils::OpenHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
 }
 
 void WasmStreamingCallbackTestFinishWithSuccess(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestFinishWithFailure(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestAbortWithReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Abort(Object::New(args.GetIsolate()));
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+  streaming->Abort(Object::New(info.GetIsolate()));
 }
 
 void WasmStreamingCallbackTestAbortNoReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort({});
 }
 
 void WasmStreamingCallbackTestOnBytesReceived(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
   // The first bytes of the WebAssembly magic word.
   const uint8_t bytes[]{0x00, 0x61, 0x73};
@@ -107,9 +107,9 @@ void WasmStreamingCallbackTestOnBytesReceived(
 }
 
 void WasmStreamingMoreFunctionsCanBeSerializedCallback(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 

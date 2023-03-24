@@ -327,7 +327,7 @@ TEST_F(TestWithIsolate, Issue23768) {
   i_isolate()->v8_file_logger()->LogCompiledFunctions();
 }
 
-static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& info) {}
 
 TEST_F(LogTest, LogCallbacks) {
   {

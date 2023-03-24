@@ -893,8 +893,8 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().SetNull();
+static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().SetNull();
 }
 
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
@@ -909,12 +909,12 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   return *Utils::OpenHandle(*obj);
 }
 
-static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
   double v1 =
-      args[0]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+      info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
   double v2 =
-      args[1]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
-  args.GetReturnValue().Set(v8::Number::New(args.GetIsolate(), v1 - v2));
+      info[1]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
+  info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), v1 - v2));
 }
 
 // Returns a callable object. The object returns the difference of its two

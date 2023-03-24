@@ -4960,10 +4960,10 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   v8::Local<v8::Object> global = CcTest::global();
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
       global->Get(env.local(), v8_str("crash")).ToLocalChecked());
-  v8::Local<v8::Value> args1[] = {v8_num(1)};
+  v8::Local<v8::Value> info1[] = {v8_num(1)};
   heap->DisableInlineAllocation();
   heap->set_allocation_timeout(1);
-  g->Call(env.local(), global, 1, args1).ToLocalChecked();
+  g->Call(env.local(), global, 1, info1).ToLocalChecked();
   CcTest::CollectAllGarbage();
 }
 
@@ -4994,8 +4994,7 @@ TEST(CEntryStubOOM) {
 
 static void InterruptCallback357137(v8::Isolate* isolate, void* data) { }
 
-
-static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, nullptr);
 }
 
@@ -5433,14 +5432,12 @@ TEST(OldSpaceAllocationCounter) {
   }
 }
 
-
-static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = CcTest::i_isolate();
   Object message(
       *reinterpret_cast<Address*>(isolate->pending_message_address()));
   CHECK(message.IsTheHole(isolate));
 }
-
 
 TEST(MessageObjectLeak) {
   CcTest::InitializeVM();
@@ -5472,27 +5469,24 @@ TEST(MessageObjectLeak) {
   CompileRun(test);
 }
 
-
 static void CheckEqualSharedFunctionInfos(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Handle<Object> obj1 = v8::Utils::OpenHandle(*args[0]);
-  Handle<Object> obj2 = v8::Utils::OpenHandle(*args[1]);
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Handle<Object> obj1 = v8::Utils::OpenHandle(*info[0]);
+  Handle<Object> obj2 = v8::Utils::OpenHandle(*info[1]);
   Handle<JSFunction> fun1 = Handle<JSFunction>::cast(obj1);
   Handle<JSFunction> fun2 = Handle<JSFunction>::cast(obj2);
   CHECK(fun1->shared() == fun2->shared());
 }
 
-
-static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
+  Handle<Object> obj = v8::Utils::OpenHandle(*info[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
   fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   CcTest::CollectAllAvailableGarbage();
 }
-
 
 TEST(CanonicalSharedFunctionInfo) {
   CcTest::InitializeVM();

@@ -13,7 +13,6 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/slots-inl.h"
-#include "v8-isolate.h"
 
 namespace v8 {
 namespace internal {

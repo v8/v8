@@ -28,9 +28,9 @@ const char* const IgnitionStatisticsExtension::kSource =
     "native function getIgnitionDispatchCounters();";
 
 void IgnitionStatisticsExtension::GetIgnitionDispatchCounters(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(
-      Utils::ToLocal(reinterpret_cast<Isolate*>(args.GetIsolate())
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(
+      Utils::ToLocal(reinterpret_cast<Isolate*>(info.GetIsolate())
                          ->interpreter()
                          ->GetDispatchCountersObject()));
 }
