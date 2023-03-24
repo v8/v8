@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // kConst if the map is stable (and register stability dependency in that
   // case).  This is to ensure that fast elements kind transitions cannot be
   // used to mutate fields without deoptimization of the dependent code.
-  PropertyConstness DependOnFieldConstness(const MapRef& map,
+  PropertyConstness DependOnFieldConstness(MapRef map, MapRef owner,
                                            InternalIndex descriptor);
 
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
@@ -149,19 +149,19 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Gather the assumption that {target_map} can be transitioned to, i.e., that
   // it does not become deprecated.
   CompilationDependency const* TransitionDependencyOffTheRecord(
-      const MapRef& target_map) const;
+      MapRef target_map) const;
 
   // Gather the assumption that the field representation of a field does not
   // change. The field is identified by the arguments.
   CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor,
+      MapRef map, MapRef owner, InternalIndex descriptor,
       Representation representation) const;
 
   // Gather the assumption that the field type of a field does not change. The
   // field is identified by the arguments.
   CompilationDependency const* FieldTypeDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor,
-      const ObjectRef& /* Contains a FieldType underneath. */ type) const;
+      MapRef map, MapRef owner, InternalIndex descriptor,
+      ObjectRef /* Contains a FieldType underneath. */ type) const;
 
 #ifdef DEBUG
   static bool IsFieldRepresentationDependencyOnMap(

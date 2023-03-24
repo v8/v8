@@ -600,7 +600,7 @@ class ConsistentJSFunctionViewDependency final : public CompilationDependency {
 
 class TransitionDependency final : public CompilationDependency {
  public:
-  explicit TransitionDependency(const MapRef& map)
+  explicit TransitionDependency(MapRef map)
       : CompilationDependency(kTransition), map_(map) {
     DCHECK(map_.CanBeDeprecated());
   }
@@ -662,10 +662,12 @@ class PretenureModeDependency final : public CompilationDependency {
 
 class FieldRepresentationDependency final : public CompilationDependency {
  public:
-  FieldRepresentationDependency(const MapRef& map, InternalIndex descriptor,
+  FieldRepresentationDependency(MapRef map, MapRef owner,
+                                InternalIndex descriptor,
                                 Representation representation)
       : CompilationDependency(kFieldRepresentation),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor),
         representation_(representation) {}
 
@@ -681,8 +683,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK(representation_.Equals(owner->instance_descriptors(isolate)
                                      .GetDetails(descriptor_)
@@ -709,16 +710,18 @@ class FieldRepresentationDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
   const Representation representation_;
 };
 
 class FieldTypeDependency final : public CompilationDependency {
  public:
-  FieldTypeDependency(const MapRef& map, InternalIndex descriptor,
-                      const ObjectRef& type)
+  FieldTypeDependency(MapRef map, MapRef owner, InternalIndex descriptor,
+                      ObjectRef type)
       : CompilationDependency(kFieldType),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor),
         type_(type) {}
 
@@ -733,8 +736,7 @@ class FieldTypeDependency final : public CompilationDependency {
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK_EQ(*type_.object(),
              owner->instance_descriptors(isolate).GetFieldType(descriptor_));
@@ -754,15 +756,17 @@ class FieldTypeDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
   const ObjectRef type_;
 };
 
 class FieldConstnessDependency final : public CompilationDependency {
  public:
-  FieldConstnessDependency(const MapRef& map, InternalIndex descriptor)
+  FieldConstnessDependency(MapRef map, MapRef owner, InternalIndex descriptor)
       : CompilationDependency(kFieldConstness),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -778,8 +782,7 @@ class FieldConstnessDependency final : public CompilationDependency {
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK_EQ(PropertyConstness::kConst, owner->instance_descriptors(isolate)
                                             .GetDetails(descriptor_)
@@ -799,6 +802,7 @@ class FieldConstnessDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
 };
 
@@ -1079,7 +1083,7 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 }
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
-    const MapRef& map, InternalIndex descriptor) {
+    MapRef map, MapRef owner, InternalIndex descriptor) {
   PropertyConstness constness =
       map.GetPropertyDetails(broker_, descriptor).constness();
   if (constness == PropertyConstness::kMutable) return constness;
@@ -1096,7 +1100,8 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   }
 
   DCHECK_EQ(constness, PropertyConstness::kConst);
-  RecordDependency(zone_->New<FieldConstnessDependency>(map, descriptor));
+  RecordDependency(
+      zone_->New<FieldConstnessDependency>(map, owner, descriptor));
   return PropertyConstness::kConst;
 }
 
@@ -1370,7 +1375,7 @@ CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
 
 CompilationDependency const*
 CompilationDependencies::TransitionDependencyOffTheRecord(
-    const MapRef& target_map) const {
+    MapRef target_map) const {
   if (target_map.CanBeDeprecated()) {
     return zone_->New<TransitionDependency>(target_map);
   } else {
@@ -1381,16 +1386,16 @@ CompilationDependencies::TransitionDependencyOffTheRecord(
 
 CompilationDependency const*
 CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
-    const MapRef& map, InternalIndex descriptor,
+    MapRef map, MapRef owner, InternalIndex descriptor,
     Representation representation) const {
-  return zone_->New<FieldRepresentationDependency>(map, descriptor,
+  return zone_->New<FieldRepresentationDependency>(map, owner, descriptor,
                                                    representation);
 }
 
 CompilationDependency const*
 CompilationDependencies::FieldTypeDependencyOffTheRecord(
-    const MapRef& map, InternalIndex descriptor, const ObjectRef& type) const {
-  return zone_->New<FieldTypeDependency>(map, descriptor, type);
+    MapRef map, MapRef owner, InternalIndex descriptor, ObjectRef type) const {
+  return zone_->New<FieldTypeDependency>(map, owner, descriptor, type);
 }
 
 #ifdef DEBUG

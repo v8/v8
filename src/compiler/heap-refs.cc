@@ -1259,7 +1259,7 @@ MapRef MapRef::FindFieldOwner(JSHeapBroker* broker,
   // the descriptor array. It would be useful for same map as well as any
   // other map sharing that descriptor array.
   return MakeRefAssumeMemoryFence(
-      broker, object()->FindFieldOwner(broker->isolate(), descriptor_index));
+      broker, object()->FindFieldOwner(broker->cage_base(), descriptor_index));
 }
 
 OptionalObjectRef StringRef::GetCharAsStringOrUndefined(JSHeapBroker* broker,
@@ -1624,7 +1624,8 @@ OptionalObjectRef MapRef::GetStrongValue(JSHeapBroker* broker,
 
 DescriptorArrayRef MapRef::instance_descriptors(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(
-      broker, object()->instance_descriptors(broker->isolate(), kAcquireLoad));
+      broker,
+      object()->instance_descriptors(broker->cage_base(), kAcquireLoad));
 }
 
 HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
@@ -1635,7 +1636,7 @@ HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
 MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
   // TODO(solanes, v8:7790): Consider caching the result of the root map.
   return MakeRefAssumeMemoryFence(broker,
-                                  object()->FindRootMap(broker->isolate()));
+                                  object()->FindRootMap(broker->cage_base()));
 }
 
 ObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
