@@ -1751,10 +1751,28 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
                                         bool maybe_in_arrowhead) {
   DCHECK(!force_eager_compilation_);
   UnresolvedList new_unresolved_list;
-  if (!IsArrowFunction(function_kind_) &&
-      (!outer_scope_->is_script_scope() || maybe_in_arrowhead ||
-       (preparse_data_builder_ != nullptr &&
-        preparse_data_builder_->HasInnerFunctions()))) {
+
+  // We don't need to do partial analysis for top level functions, since they
+  // can only access values in the global scope, and we can't track assignments
+  // for these since they're accessible across scripts.
+  //
+  // If the top level function has inner functions though, we do still want to
+  // analyze those to save their preparse data.
+  //
+  // Additionally, functions in potential arrowheads _need_ to be analyzed, in
+  // case they do end up being in an arrowhead and the arrow function needs to
+  // know about context acceses. For example, in
+  //
+  //     (a, b=function foo(){ a = 1 }) => { b(); return a}
+  //
+  // `function foo(){ a = 1 }` is "maybe_in_arrowhead" but still top-level when
+  // parsed, and is re-scoped to the arrow function when that one is parsed. The
+  // arrow function needs to know that `a` needs to be context allocated, so
+  // that the call to `b()` correctly updates the `a` parameter.
+  const bool is_top_level_function = outer_scope_->is_script_scope();
+  const bool has_inner_functions = preparse_data_builder_ != nullptr &&
+                                   preparse_data_builder_->HasInnerFunctions();
+  if (maybe_in_arrowhead || !is_top_level_function || has_inner_functions) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
