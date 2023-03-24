@@ -3926,12 +3926,19 @@ void Isolate::InitializeIsShortBuiltinCallsEnabled() {
     // builtins don't have a memory cost.
     is_short_builtin_calls_enabled_ = true;
 #else
-    // Enable short builtin calls if the system is beefy enough to accept
-    // additional memory overhead caused by remapping.
-    const int64_t threshold = int64_t{kShortBuiltinCallsThresholdInGB} * GB;
-    int64_t physical_memory = base::SysInfo::AmountOfPhysicalMemory();
-    is_short_builtin_calls_enabled_ = physical_memory >= threshold;
-
+    // Check if the system has more than 4GB of physical memory by comparing the
+    // old space size with respective threshold value.
+    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
+                                       kShortBuiltinCallsOldSpaceSizeThreshold);
+#endif  // defined(V8_OS_ANDROID)
+    // Additionally, enable if there is already a process-wide CodeRange that
+    // has re-embedded builtins.
+    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        is_short_builtin_calls_enabled_ = true;
+      }
+    }
     if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
       // The short builtin calls could still be enabled if allocated code range
       // is close enough to embedded builtins so that the latter could be
@@ -3939,7 +3946,6 @@ void Isolate::InitializeIsShortBuiltinCallsEnabled() {
       is_short_builtin_calls_enabled_ |=
           GetShortBuiltinsCallRegion().contains(heap_.code_region());
     }
-#endif  // defined(V8_OS_ANDROID)
   }
 }
 

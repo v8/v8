@@ -213,9 +213,9 @@ static_assert(V8_DEFAULT_STACK_SIZE_KB * KB +
 #define V8_ENABLE_NEAR_CODE_RANGE_BOOL false
 #endif
 
-// This constant defines the amount of physical memory required for short
-// builtin calls feature to be enabled.
-const size_t kShortBuiltinCallsThresholdInGB = 4;
+// This constant is used for detecting whether the machine has >= 4GB of
+// physical memory by checking the max old space size.
+const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
