@@ -2218,8 +2218,6 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   {
     TNode<Context> context = GetContext();
     TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(2));
-    UpdateInterruptBudget(Int32Constant(TieringManager::OsrTierupWeight()),
-                          true);
     OnStackReplacement(context, feedback_vector, relative_jump, loop_depth,
                        slot_index, osr_state,
                        OnStackReplacementParams::kDefault);

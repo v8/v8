@@ -674,9 +674,6 @@ DEFINE_INT(invocation_count_for_osr, 500,
            "number of invocations we want to see after requesting previous "
            "tier up to increase the OSR urgency")
 DEFINE_INT(
-    osr_to_tierup, 4,
-    "number of times we follow the OSR path before we try to tier up again")
-DEFINE_INT(
     max_bytecode_size_for_early_opt, 81,
     "Maximum bytecode length for a function to be optimized on the first tick")
 DEFINE_BOOL(global_ic_updated_flag, false,
