@@ -1668,13 +1668,11 @@ struct TypeAssertionsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TypeAssertions)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    AddTypeAssertionsReducer type_assertions(&graph_reducer, data->jsgraph(),
-                                             temp_zone);
-    AddReducer(data, &graph_reducer, &type_assertions);
-    graph_reducer.ReduceGraph();
+    Schedule* schedule = Scheduler::ComputeSchedule(
+        temp_zone, data->graph(), Scheduler::kTempSchedule,
+        &data->info()->tick_counter(), data->profile_data());
+
+    AddTypeAssertions(data->jsgraph(), schedule, temp_zone);
   }
 };
 

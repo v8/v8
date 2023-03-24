@@ -493,7 +493,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Projection)
       CASE(Retain)
       CASE(MapGuard)
-      CASE(FoldConstant)
       CASE(Unreachable)
       CASE(Dead)
       CASE(Plug)

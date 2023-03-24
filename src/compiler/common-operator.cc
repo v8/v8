@@ -1364,13 +1364,6 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       type);                                  // parameter
 }
 
-const Operator* CommonOperatorBuilder::FoldConstant() {
-  return zone()->New<Operator>(                  // --
-      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
-      "FoldConstant",                            // name
-      2, 0, 0, 1, 0, 0);                         // counts
-}
-
 const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {
   return zone()->New<Operator1<UseInfo>>(IrOpcode::kEnterMachineGraph,
                                          Operator::kPure, "EnterMachineGraph",

@@ -4352,10 +4352,6 @@ class RepresentationSelector {
         return;
       }
 
-      case IrOpcode::kFoldConstant:
-        VisitInputs<T>(node);
-        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
-
       case IrOpcode::kFinishRegion:
         VisitInputs<T>(node);
         // Assume the output is tagged pointer.

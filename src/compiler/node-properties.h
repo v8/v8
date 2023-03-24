@@ -137,9 +137,6 @@ class V8_EXPORT_PRIVATE NodeProperties {
       case IrOpcode::kTypeGuard:
         *out_value = GetValueInput(node, 0);
         return true;
-      case IrOpcode::kFoldConstant:
-        *out_value = GetValueInput(node, 1);
-        return true;
       default:
         return false;
     }

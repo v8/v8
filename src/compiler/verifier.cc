@@ -1682,14 +1682,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));
       break;
-    case IrOpcode::kFoldConstant:
-      if (typing == TYPED) {
-        Type type = NodeProperties::GetType(node);
-        CHECK(type.IsSingleton());
-        CHECK(type.Equals(NodeProperties::GetType(node->InputAt(0))));
-        CHECK(type.Equals(NodeProperties::GetType(node->InputAt(1))));
-      }
-      break;
     case IrOpcode::kDateNow:
       CHECK_EQ(0, value_count);
       CheckTypeIs(node, Type::Number());

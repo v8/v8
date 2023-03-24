@@ -258,8 +258,7 @@ class EffectControlLinearizer {
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
-  Node* LowerAssertType(Node* node);
-  Node* LowerFoldConstant(Node* node);
+  void LowerAssertType(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
   Node* LowerDoubleArrayMinMax(Node* node);
@@ -1785,7 +1784,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerRuntimeAbort(node);
       break;
     case IrOpcode::kAssertType:
-      result = LowerAssertType(node);
+      LowerAssertType(node);
       break;
     case IrOpcode::kConvertReceiver:
       result = LowerConvertReceiver(node);
@@ -1812,9 +1811,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDateNow:
       result = LowerDateNow(node);
-      break;
-    case IrOpcode::kFoldConstant:
-      result = LowerFoldConstant(node);
       break;
     case IrOpcode::kDoubleArrayMax:
     case IrOpcode::kDoubleArrayMin:
@@ -7662,7 +7658,7 @@ Node* EffectControlLinearizer::CallBuiltin(Builtin builtin,
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerAssertType(Node* node) {
+void EffectControlLinearizer::LowerAssertType(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
   Type type = OpParameter<Type>(node->op());
   CHECK(type.CanBeAsserted());
@@ -7678,16 +7674,6 @@ Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   }
   CallBuiltin(Builtin::kCheckTurbofanType, node->op()->properties(), input,
               allocated_type, __ SmiConstant(node->id()));
-  return input;
-}
-
-Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kFoldConstant);
-  Node* original = node->InputAt(0);
-  Node* constant = node->InputAt(1);
-  CallBuiltin(Builtin::kCheckSameObject, node->op()->properties(), original,
-              constant);
-  return constant;
 }
 
 Node* EffectControlLinearizer::LowerDoubleArrayMinMax(Node* node) {

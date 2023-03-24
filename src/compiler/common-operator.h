@@ -607,7 +607,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type type);
-  const Operator* FoldConstant();
   const Operator* EnterMachineGraph(UseInfo use_info);
   const Operator* ExitMachineGraph(MachineRepresentation output_representation,
                                    Type output_type);

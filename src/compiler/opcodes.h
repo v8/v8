@@ -79,7 +79,6 @@
   V(Projection)             \
   V(Retain)                 \
   V(MapGuard)               \
-  V(FoldConstant)           \
   V(TypeGuard)              \
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
