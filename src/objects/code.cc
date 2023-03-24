@@ -51,10 +51,9 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
 void InstructionStream::Relocate(intptr_t delta) {
   Code code = unchecked_code();
   // This is called during evacuation and code.instruction_stream() will point
-  // to the old object. So pass *this directly to the RelocIterator and use a
-  // dummy Code() since it's not needed.
-  for (RelocIterator it(Code(), *this, code.unchecked_relocation_info(),
-                        code.constant_pool(), RelocInfo::kApplyMask);
+  // to the old object. So pass *this directly to the RelocIterator.
+  for (RelocIterator it(code, *this, code.unchecked_relocation_info(),
+                        RelocInfo::kApplyMask);
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }

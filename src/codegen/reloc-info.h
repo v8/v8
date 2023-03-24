@@ -434,8 +434,7 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   explicit RelocIterator(Code code, int mode_mask = -1);
   explicit RelocIterator(Code code, ByteArray relocation_info, int mode_mask);
   explicit RelocIterator(Code code, InstructionStream instruction_stream,
-                         ByteArray relocation_info, Address constant_pool,
-                         int mode_mask);
+                         ByteArray relocation_info, int mode_mask);
   explicit RelocIterator(EmbeddedData* embedded_data, Code code, int mode_mask);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
