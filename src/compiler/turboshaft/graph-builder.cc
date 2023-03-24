@@ -1452,7 +1452,7 @@ OpIndex GraphBuilder::Process(
 
           // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
           // to return -kMinInt, which is not representable as Word32.
-          IF_UNLIKELY(__ Word32Equal(lhs, kMinInt)) {
+          IF(UNLIKELY(__ Word32Equal(lhs, kMinInt))) {
             __ DeoptimizeIf(__ Word32Equal(rhs, -1), dominating_frame_state,
                             DeoptimizeReason::kOverflow, FeedbackSource{});
           }
@@ -1480,7 +1480,7 @@ OpIndex GraphBuilder::Process(
                       DeoptimizeReason::kDivisionByZero, FeedbackSource{});
       // Check if {lhs} is kMinInt64 and {rhs} is -1, in which case we'd have
       // to return -kMinInt64, which is not representable as Word64.
-      IF_UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min())) {
+      IF(UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min()))) {
         __ DeoptimizeIf(__ Word64Equal(rhs, int64_t{-1}),
                         dominating_frame_state, DeoptimizeReason::kOverflow,
                         FeedbackSource{});
@@ -1601,7 +1601,7 @@ OpIndex GraphBuilder::Process(
 
       // While the mod-result cannot overflow, the underlying instruction is
       // `idiv` and will trap when the accompanying div-result overflows.
-      IF_UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min())) {
+      IF(UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min()))) {
         __ DeoptimizeIf(__ Word64Equal(rhs, int64_t{-1}),
                         dominating_frame_state, DeoptimizeReason::kOverflow,
                         FeedbackSource{});

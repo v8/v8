@@ -44,6 +44,27 @@ namespace v8::internal::compiler::turboshaft {
 // `V<Boolean>` to be used.
 using Boolean = Oddball;
 
+class ConditionWithHint final {
+ public:
+  ConditionWithHint(
+      V<Word32> condition,
+      BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
+      : condition_(condition), hint_(hint) {}
+
+  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
+  ConditionWithHint(
+      T condition,
+      BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
+      : ConditionWithHint(V<Word32>{condition}, hint) {}
+
+  V<Word32> condition() const { return condition_; }
+  BranchHint hint() const { return hint_; }
+
+ private:
+  V<Word32> condition_;
+  BranchHint hint_;
+};
+
 namespace detail {
 template <typename T, typename = void>
 struct has_constexpr_type : std::false_type {};
@@ -1586,6 +1607,9 @@ class AssemblerOpInterface {
     }
     stack().ReduceBranch(condition, if_true, if_false, hint);
   }
+  void Branch(ConditionWithHint condition, Block* if_true, Block* if_false) {
+    return Branch(condition.condition(), if_true, if_false, condition.hint());
+  }
   OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                  RegisterRepresentation rep, BranchHint hint,
                  SelectOp::Implementation implem) {
@@ -2040,6 +2064,9 @@ class AssemblerOpInterface {
     stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_false);
   }
+  bool GotoIf(ConditionWithHint condition, Block* if_true) {
+    return GotoIf(condition.condition(), if_true, condition.hint());
+  }
   // Return `true` if the control flow after the conditional jump is reachable.
   bool GotoIfNot(OpIndex condition, Block* if_false,
                  BranchHint hint = BranchHint::kNone) {
@@ -2049,6 +2076,9 @@ class AssemblerOpInterface {
     Block* if_true = stack().NewBlock();
     stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_true);
+  }
+  bool GotoIfNot(ConditionWithHint condition, Block* if_false) {
+    return GotoIfNot(condition.condition(), if_false, condition.hint());
   }
 
   OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
@@ -2347,36 +2377,37 @@ class AssemblerOpInterface {
   }
 
   template <typename L>
-  void ControlFlowHelper_GotoIf(V<Word32> condition, L& label,
-                                const typename L::const_or_values_t& values,
-                                BranchHint hint) {
+  void ControlFlowHelper_GotoIf(ConditionWithHint condition, L& label,
+                                const typename L::const_or_values_t& values) {
     auto resolved_values = detail::ResolveAll(stack(), values);
-    label.GotoIf(stack(), condition, hint, resolved_values);
+    label.GotoIf(stack(), condition.condition(), condition.hint(),
+                 resolved_values);
   }
 
   template <typename L>
-  void ControlFlowHelper_GotoIfNot(V<Word32> condition, L& label,
-                                   const typename L::const_or_values_t& values,
-                                   BranchHint hint) {
+  void ControlFlowHelper_GotoIfNot(
+      ConditionWithHint condition, L& label,
+      const typename L::const_or_values_t& values) {
     auto resolved_values = detail::ResolveAll(stack(), values);
-    label.GotoIfNot(stack(), condition, hint, resolved_values);
+    label.GotoIfNot(stack(), condition.condition(), condition.hint(),
+                    resolved_values);
   }
 
-  bool ControlFlowHelper_If(V<Word32> condition, bool negate, BranchHint hint) {
+  bool ControlFlowHelper_If(ConditionWithHint condition, bool negate) {
     Block* then_block = stack().NewBlock();
     Block* else_block = stack().NewBlock();
     Block* end_block = stack().NewBlock();
     if (negate) {
-      this->Branch(condition, else_block, then_block, hint);
+      this->Branch(condition, else_block, then_block);
     } else {
-      this->Branch(condition, then_block, else_block, hint);
+      this->Branch(condition, then_block, else_block);
     }
     if_scope_stack_.emplace_back(else_block, end_block);
     return stack().Bind(then_block);
   }
 
   template <typename F>
-  bool ControlFlowHelper_ElseIf(F&& condition_builder, BranchHint hint) {
+  bool ControlFlowHelper_ElseIf(F&& condition_builder) {
     DCHECK_LT(0, if_scope_stack_.size());
     auto& info = if_scope_stack_.back();
     Block* else_block = info.else_block;
@@ -2384,7 +2415,7 @@ class AssemblerOpInterface {
     if (!stack().Bind(else_block)) return false;
     Block* then_block = stack().NewBlock();
     info.else_block = stack().NewBlock();
-    stack().Branch(condition_builder(), then_block, info.else_block, hint);
+    stack().Branch(condition_builder(), then_block, info.else_block);
     return stack().Bind(then_block);
   }
 

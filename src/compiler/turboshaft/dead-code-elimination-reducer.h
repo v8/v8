@@ -17,6 +17,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // General overview
 //
 // DeadCodeAnalysis iterates the graph backwards to propagate liveness
@@ -431,7 +433,7 @@ class DeadCodeEliminationReducer
     Next::Analyze();
   }
 
-  OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& branch) {
+  OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
     auto it = branch_rewrite_targets_.find(ig_index.id());
     if (it != branch_rewrite_targets_.end()) {
       BlockIndex goto_target = it->second;
@@ -459,6 +461,8 @@ class DeadCodeEliminationReducer
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_;
   DeadCodeAnalysis analyzer_;
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 
