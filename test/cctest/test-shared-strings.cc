@@ -2030,16 +2030,8 @@ class WorkerIsolateThread : public v8::base::Thread {
       gh_shared_string.SetWeak();
     }
 
-    {
-      // Disable CSS for the shared heap and all clients.
-      // DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      //     i_client->shared_space_isolate()->heap());
-
-      Isolate* gc_isolate = i_client->shared_space_isolate();
-      gc_isolate->heap()->ForceSharedGCWithEmptyStackForTesting();
-      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
-                                             GarbageCollectionReason::kTesting);
-    }
+    i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
+                                           GarbageCollectionReason::kTesting);
 
     CHECK(gh_shared_string.IsEmpty());
     client->Dispose();
@@ -2062,17 +2054,22 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
-  std::atomic<bool> done = false;
-  WorkerIsolateThread thread("worker", &test, &done);
-  CHECK(thread.Start());
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test.i_main_isolate()->heap());
 
-  while (!done) {
-    v8::platform::PumpMessageLoop(
-        i::V8::GetCurrentPlatform(), test.main_isolate(),
-        v8::platform::MessageLoopBehavior::kWaitForWork);
+    std::atomic<bool> done = false;
+    WorkerIsolateThread thread("worker", &test, &done);
+    CHECK(thread.Start());
+
+    while (!done) {
+      v8::platform::PumpMessageLoop(
+          i::V8::GetCurrentPlatform(), test.main_isolate(),
+          v8::platform::MessageLoopBehavior::kWaitForWork);
+    }
+
+    thread.Join();
   }
-
-  thread.Join();
 }
 
 class ClientIsolateThreadForPagePromotions : public v8::base::Thread {

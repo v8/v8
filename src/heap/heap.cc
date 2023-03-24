@@ -1733,10 +1733,6 @@ void Heap::CollectGarbage(AllocationSpace space,
   // The main garbage collection phase.
   DisallowGarbageCollection no_gc_during_gc;
 
-  if (force_shared_gc_with_empty_stack_for_testing_) {
-    embedder_stack_state_ = StackState::kNoHeapPointers;
-  }
-
   size_t committed_memory_before = collector == GarbageCollector::MARK_COMPACTOR
                                        ? CommittedOldGenerationMemory()
                                        : 0;
@@ -2323,11 +2319,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     // has to be called *after* all other operations that potentially touch
     // and reset global handles. It is also still part of the main garbage
     // collection pause and thus needs to be called *before* any operation
-    // that can potentially trigger recursive garbage
+    // that can potentially trigger recursive garbage collections.
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
-    // Resetting to state unknown as there may be follow up garbage
-    // collections triggered from callbacks that have a different stack state.
-    embedder_stack_state_ = cppgc::EmbedderStackState::kMayContainHeapPointers;
     CppHeap::From(cpp_heap())->TraceEpilogue();
   }
 
@@ -5820,13 +5813,6 @@ void Heap::StartTearDown() {
   main_thread_local_heap()->FreeLinearAllocationArea();
 
   FreeMainThreadSharedLinearAllocationAreas();
-}
-
-void Heap::ForceSharedGCWithEmptyStackForTesting() {
-  // No mutex or atomics as this variable is always set from only a single
-  // thread before invoking a shared GC. The shared GC then resets the flag
-  // while the initiating thread is guaranteed to wait on a condition variable.
-  force_shared_gc_with_empty_stack_for_testing_ = true;
 }
 
 void Heap::TearDownWithSharedHeap() {
