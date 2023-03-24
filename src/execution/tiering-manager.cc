@@ -197,6 +197,13 @@ int TieringManager::InitialInterruptBudget() {
              : v8_flags.interrupt_budget;
 }
 
+// static
+int TieringManager::OsrTierupWeight() {
+  return static_cast<int>(static_cast<double>(v8_flags.interrupt_budget) *
+                          v8_flags.ticks_before_optimization /
+                          v8_flags.osr_to_tierup);
+}
+
 namespace {
 
 void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {

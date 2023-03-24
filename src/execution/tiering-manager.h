@@ -37,6 +37,8 @@ class TieringManager {
   static int InterruptBudgetFor(Isolate* isolate, JSFunction function);
   // For use when no JSFunction is available.
   static int InitialInterruptBudget();
+  // How much to reduce the interrupt budget by on OSR.
+  static int OsrTierupWeight();
 
  private:
   // Make the decision whether to optimize the given function, and mark it for
