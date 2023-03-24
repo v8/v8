@@ -269,6 +269,16 @@ class SerializerDeserializer : public RootVisitor {
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
 };
 
+class HeapImageSerializer {
+ public:
+  enum Bytecode {
+    kReadOnlyPage,
+    kReadOnlySegment,
+    kFinalizeReadOnlyPage,
+    kSynchronize,
+  };
+};
+
 }  // namespace internal
 }  // namespace v8
 

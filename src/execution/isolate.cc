@@ -4115,17 +4115,11 @@ void Isolate::VerifyStaticRoots() {
                 STATIC_ROOTS_FAILED_MSG);
   auto& roots = roots_table();
   RootIndex idx = RootIndex::kFirstReadOnlyRoot;
-  ReadOnlyPage* first_page = read_only_heap()->read_only_space()->pages()[0];
   for (Tagged_t cmp_ptr : StaticReadOnlyRootsPointerTable) {
     Address the_root = roots[idx];
     Address ptr =
         V8HeapCompressionScheme::DecompressTagged(cage_base(), cmp_ptr);
     CHECK_WITH_MSG(the_root == ptr, STATIC_ROOTS_FAILED_MSG);
-    // All roots must fit on first page, since only this page is guaranteed to
-    // have a stable offset from the cage base. If this ever changes we need
-    // to load more pages with predictable offset at
-    // ReadOnlySpace::InitFromMemoryDump.
-    CHECK(first_page->Contains(the_root));
     ++idx;
   }
 
@@ -4578,12 +4572,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         .store(*continuation);
   }
 #if V8_STATIC_ROOTS_BOOL
-  if (!create_heap_objects) {
-    // Protect the payload of wasm null.
-    page_allocator()->DecommitPages(
-        reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-        WasmNull::kSize - kTaggedSize);
-  }
+  // Protect the payload of wasm null.
+  page_allocator()->DecommitPages(
+      reinterpret_cast<void*>(factory()->wasm_null()->payload()),
+      WasmNull::kSize - kTaggedSize);
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY
 

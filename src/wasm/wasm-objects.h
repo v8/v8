@@ -1072,6 +1072,7 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
                              wasm::kV8MaxWasmStructFields * kSimd128Size);
 
   Address payload() { return ptr() + kHeaderSize - kHeapObjectTag; }
+  static constexpr size_t kPayloadSize = kSize - kTaggedSize;
 #else
   static constexpr int kSize = kTaggedSize;
 #endif
