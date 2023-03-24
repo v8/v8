@@ -19,7 +19,8 @@ extern runtime WasmFunctionTableGet(
     Context, WasmInstanceObject, Smi, Smi): JSAny;
 extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
-extern runtime ThrowWasmError(Context, Smi): JSAny;
+extern runtime ThrowRangeError(Context, Smi): never;
+extern runtime ThrowWasmError(Context, Smi): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
@@ -833,7 +834,6 @@ builtin WasmStringNewWtf8Array(
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
-    unreachable;
   }
 }
 builtin WasmStringNewWtf16(
@@ -941,7 +941,6 @@ builtin WasmStringNewWtf16Array(
     const context = LoadContextFromFrame();
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
-    unreachable;
   } label Runtime deferred {
     const context = LoadContextFromFrame();
     tail runtime::WasmStringNewWtf16Array(
@@ -1024,7 +1023,6 @@ builtin WasmStringEncodeWtf16Array(
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
-    unreachable;
   }
 }
 
@@ -1146,7 +1144,6 @@ transitioning builtin WasmStringViewWtf16GetCodeUnit(
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapStringOffsetOutOfBounds;
     runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
-    unreachable;
   }
 }
 builtin WasmStringViewWtf16Encode(
@@ -1272,6 +1269,27 @@ builtin WasmStringViewIterSlice(
   return (start == end) ?
       kEmptyString :
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
+}
+
+builtin WasmIntToString(x: int32, radix: int32): String {
+  if (radix == 10) {
+    const smi = SmiFromInt32(x);
+    const untagged = SmiToInt32(smi);
+    if (x == untagged) {
+      // Queries and populates the NumberToStringCache, but needs tagged
+      // inputs, so only call this for Smis.
+      return NumberToString(smi);
+    }
+    return number::IntToDecimalString(x);
+  }
+
+  // Pretend that Number.prototype.toString was called.
+  if (radix < 2 || radix > 36) {
+    runtime::ThrowRangeError(
+        LoadContextFromInstance(LoadInstanceFromFrame()),
+        SmiConstant(MessageTemplate::kToRadixFormatRange));
+  }
+  return number::IntToString(x, Unsigned(radix));
 }
 
 builtin WasmStringFromCodePoint(codePoint: uint32): String {

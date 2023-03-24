@@ -348,7 +348,6 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
   return IsSupportedWasmFastApiFunction(isolate, expected_sig, shared);
 }
 
-#if V8_INTL_SUPPORT
 namespace {
 
 bool IsStringRef(wasm::ValueType type) {
@@ -356,7 +355,6 @@ bool IsStringRef(wasm::ValueType type) {
 }
 
 }  // namespace
-#endif
 
 // This detects imports of the form: `Function.prototype.call.bind(foo)`, where
 // `foo` is something that has a Builtin id.
@@ -390,6 +388,16 @@ WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
       }
       return kGeneric;
 #endif
+    case Builtin::kNumberPrototypeToString:
+      if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+          sig->GetParam(0) == wasm::kWasmI32 &&
+          sig->GetParam(1) == wasm::kWasmI32 &&
+          // We could relax the return type check to permit anyref (and even
+          // externref) as well, if we encounter a reason to do so.
+          IsStringRef(sig->GetReturn(0))) {
+        return WellKnownImport::kIntToString;
+      }
+      break;
     default:
       break;
   }
@@ -1456,6 +1464,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
   WasmImportData resolved(js_receiver, expected_sig, canonical_type_index);
+  if (resolved.well_known_status() != WellKnownImport::kGeneric &&
+      v8_flags.trace_wasm_inlining) {
+    PrintF("[import %d is well-known built-in %s]\n", import_index,
+           WellKnownImportName(resolved.well_known_status()));
+  }
   well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
   js_receiver = resolved.callable();

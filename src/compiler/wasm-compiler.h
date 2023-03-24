@@ -586,6 +586,8 @@ class WasmGraphBuilder {
   // See {CheckWellKnownImport} for signature and builtin ID definitions.
   Node* WellKnown_StringToLowerCaseStringref(Node* string,
                                              CheckForNull null_check);
+  Node* WellKnown_IntToString(Node* n, Node* radix);
+
   bool has_simd() const { return has_simd_; }
 
   wasm::BoundsCheckStrategy bounds_checks() const {
