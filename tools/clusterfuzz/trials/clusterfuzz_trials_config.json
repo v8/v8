@@ -26,6 +26,7 @@
     {"app_args": "--no-use-ic", "app_name": "d8", "probability": 0.25},
     {"app_args": "--no-wasm-generic-wrapper", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-liftoff", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--no-wasm-tier-up --no-wasm-dynamic-tiering", "app_name": "d8", "probability": 0.1},
     {"app_args": "--regexp-interpret-all", "app_name": "d8", "probability": 0.1},
     {"app_args": "--shared-string-table", "app_name": "d8", "probability": 0.1},
     {"app_args": "--simulate-errors", "app_name": "d8", "probability": 0.001},
