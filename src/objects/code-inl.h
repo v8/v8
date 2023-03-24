@@ -1006,7 +1006,6 @@ void Code::initialize_flags(CodeKind kind, Builtin builtin_id,
                    StackSlotsField::encode(stack_slots);
   static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, value);
-  set_flags(value, kRelaxedStore);
   DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
   DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
 

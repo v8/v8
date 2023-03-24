@@ -1138,7 +1138,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset),
                      r0);
-  __ LoadS32(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
+  __ LoadU16(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
