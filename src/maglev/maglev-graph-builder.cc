@@ -5726,7 +5726,8 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 ValueNode* MaglevGraphBuilder::ExtendOrReallocateCurrentRawAllocation(
     int size, AllocationType allocation_type) {
   if (!current_raw_allocation_ ||
-      current_raw_allocation_->allocation_type() != allocation_type) {
+      current_raw_allocation_->allocation_type() != allocation_type ||
+      !v8_flags.inline_new) {
     current_raw_allocation_ =
         AddNewNode<AllocateRaw>({}, allocation_type, size);
     return current_raw_allocation_;
