@@ -4155,7 +4155,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
                                               const MaybeObjectHandle& value1,
-                                              const MaybeObjectHandle& value2) {
+                                              Smi value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
   {
@@ -4164,7 +4164,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
     // Reload length; GC might have removed elements from the array.
     length = array->length();
     raw.Set(length, *value1);
-    raw.Set(length + 1, *value2);
+    raw.Set(length + 1, value2);
     raw.set_length(length + 2);
   }
   return array;

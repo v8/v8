@@ -745,10 +745,8 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   }
 
   MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
-  MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
-                               isolate);
-  entries = Handle<DependentCode>::cast(
-      WeakArrayList::AddToEnd(isolate, entries, code_slot, group_slot));
+  entries = Handle<DependentCode>::cast(WeakArrayList::AddToEnd(
+      isolate, entries, code_slot, Smi::FromInt(groups)));
   return entries;
 }
 

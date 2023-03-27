@@ -4,7 +4,9 @@
 
 #include "src/compiler/compilation-dependencies.h"
 
+#include "src/base/hashmap.h"
 #include "src/base/optional.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -112,7 +114,8 @@ namespace {
 // them from here.
 class PendingDependencies final {
  public:
-  explicit PendingDependencies(Zone* zone) : deps_(zone) {}
+  explicit PendingDependencies(Zone* zone)
+      : deps_(8, {}, ZoneAllocationPolicy(zone)) {}
 
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
@@ -122,7 +125,7 @@ class PendingDependencies final {
     // transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
     if (object->InWritableSharedSpace()) return;
-    deps_[object] |= group;
+    deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
   void InstallAll(Isolate* isolate, Handle<Code> code) {
@@ -134,49 +137,52 @@ class PendingDependencies final {
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
-    for (const auto& o_and_g : deps_) {
-      DependentCode::InstallDependency(isolate, code, o_and_g.first,
-                                       o_and_g.second);
+    for (auto* entry = deps_.Start(); entry != nullptr;
+         entry = deps_.Next(entry)) {
+      DependentCode::InstallDependency(isolate, code, entry->key, entry->value);
     }
+    deps_.Invalidate();
   }
 
   void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
     CHECK(v8_flags.predictable);
     // First, guarantee predictable iteration order.
-    using HandleAndGroup =
-        std::pair<Handle<HeapObject>, DependentCode::DependencyGroups>;
-    std::vector<HandleAndGroup> entries(deps_.begin(), deps_.end());
+    using DepsMap = decltype(deps_);
+    std::vector<const DepsMap::Entry*> entries;
+    entries.reserve(deps_.occupancy());
+    for (auto* entry = deps_.Start(); entry != nullptr;
+         entry = deps_.Next(entry)) {
+      entries.push_back(entry);
+    }
 
     std::sort(entries.begin(), entries.end(),
-              [](const HandleAndGroup& lhs, const HandleAndGroup& rhs) {
-                return lhs.first->ptr() < rhs.first->ptr();
+              [](const DepsMap::Entry* lhs, const DepsMap::Entry* rhs) {
+                return lhs->key->ptr() < rhs->key->ptr();
               });
 
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
-    for (const auto& o_and_g : entries) {
-      DependentCode::InstallDependency(isolate, code, o_and_g.first,
-                                       o_and_g.second);
+    for (const auto* entry : entries) {
+      DependentCode::InstallDependency(isolate, code, entry->key, entry->value);
     }
+    deps_.Invalidate();
   }
 
  private:
-  struct HandleHash {
-    size_t operator()(const Handle<HeapObject>& x) const {
-      return static_cast<size_t>(x->ptr());
+  uint32_t HandleValueHash(Handle<HeapObject> handle) {
+    return static_cast<uint32_t>(base::hash_value(handle->ptr()));
+  }
+  struct HandleValueEqual {
+    bool operator()(uint32_t hash1, uint32_t hash2, Handle<HeapObject> lhs,
+                    Handle<HeapObject> rhs) const {
+      return hash1 == hash2 && lhs.is_identical_to(rhs);
     }
   };
-  struct HandleEqual {
-    bool operator()(const Handle<HeapObject>& lhs,
-                    const Handle<HeapObject>& rhs) const {
-      return lhs.is_identical_to(rhs);
-    }
-  };
-  ZoneUnorderedMap<Handle<HeapObject>, DependentCode::DependencyGroups,
-                   HandleHash, HandleEqual>
+
+  base::TemplateHashMapImpl<Handle<HeapObject>, DependentCode::DependencyGroups,
+                            HandleValueEqual, ZoneAllocationPolicy>
       deps_;
-  const DisallowGarbageCollection no_gc_;
 };
 
 class InitialMapDependency final : public CompilationDependency {
