@@ -5799,7 +5799,12 @@ void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
-    const auto visited_size = visitor_.Visit(map, heap_object);
+    int visited_size;
+    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+      visited_size = heap_object.SizeFromMap(map);
+    } else {
+      visited_size = visitor_.Visit(map, heap_object);
+    }
     if (visited_size) {
       live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
           heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
@@ -5816,6 +5821,9 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
+    // kDataOnly objects are filtered on push.
+    DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+              ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
       live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(

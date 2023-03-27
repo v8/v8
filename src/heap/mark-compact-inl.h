@@ -44,10 +44,20 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   }
 }
 
-void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
-  if (Heap::InYoungGeneration(obj) &&
-      non_atomic_marking_state()->TryMark(obj)) {
-    local_marking_worklists_->Push(obj);
+void MinorMarkCompactCollector::MarkRootObject(HeapObject heap_object) {
+  if (Heap::InYoungGeneration(heap_object) &&
+      non_atomic_marking_state()->TryMark(heap_object)) {
+    // Maps won't change in the atomic pause, so the map can be read without
+    // atomics.
+    Map map = Map::cast(*heap_object.map_slot());
+    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+      const int size = heap_object.SizeFromMap(map);
+      marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(size));
+    } else {
+      local_marking_worklists_->Push(heap_object);
+    }
   }
 }
 

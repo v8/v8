@@ -688,7 +688,16 @@ void YoungGenerationMarkingVisitorBase<
   if (object.GetHeapObject(&heap_object)) {
     if (Heap::InYoungGeneration(heap_object) &&
         concrete_visitor()->marking_state()->TryMark(heap_object)) {
-      worklists_local_->Push(heap_object);
+      Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
+      if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+        CHECK(concrete_visitor()->ShouldVisit(heap_object));
+        const int visited_size = heap_object.SizeFromMap(map);
+        concrete_visitor()->marking_state()->IncrementLiveBytes(
+            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+            ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      } else {
+        worklists_local_->Push(heap_object);
+      }
     }
   }
 }
