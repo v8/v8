@@ -27,18 +27,18 @@ MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsMarked(
     const HeapObject obj) const {
-  return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
+  return MarkBitFrom(obj).template Get<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsUnmarked(
     const HeapObject obj) const {
-  return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
+  return !IsMarked(obj);
 }
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMark(HeapObject obj) {
-  return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
+  return MarkBitFrom(obj).template Set<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>

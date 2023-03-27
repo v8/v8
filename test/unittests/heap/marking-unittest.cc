@@ -17,38 +17,18 @@ using MarkingTest = TestWithBitmap<T>;
 
 TYPED_TEST_SUITE(MarkingTest, BitmapTypes);
 
-TYPED_TEST(MarkingTest, TransitionWhiteBlackWhite) {
+TYPED_TEST(MarkingTest, TransitionMarkBit) {
   auto bitmap = this->bitmap();
   const int kLocationsSize = 3;
   int position[kLocationsSize] = {
       Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
   for (int i = 0; i < kLocationsSize; i++) {
     MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
-    CHECK(Marking::IsWhite(mark_bit));
-    Marking::WhiteToBlack<AccessMode::NON_ATOMIC>(mark_bit);
-    CHECK(Marking::IsBlack(mark_bit));
-    Marking::MarkWhite(mark_bit);
-    CHECK(Marking::IsWhite(mark_bit));
-  }
-}
-
-TYPED_TEST(MarkingTest, TransitionWhiteGreyBlack) {
-  auto bitmap = this->bitmap();
-  const int kLocationsSize = 3;
-  int position[kLocationsSize] = {
-      Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
-  for (int i = 0; i < kLocationsSize; i++) {
-    MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
-    CHECK(Marking::IsWhite(mark_bit));
-    CHECK(!Marking::IsBlackOrGrey(mark_bit));
-    Marking::WhiteToGrey<AccessMode::NON_ATOMIC>(mark_bit);
-    CHECK(Marking::IsGrey(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    Marking::GreyToBlack<AccessMode::NON_ATOMIC>(mark_bit);
-    CHECK(Marking::IsBlack(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    Marking::MarkWhite(mark_bit);
-    CHECK(Marking::IsWhite(mark_bit));
+    CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.template Set<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.template Get<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.template Clear<AccessMode::NON_ATOMIC>());
+    CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
   }
 }
 

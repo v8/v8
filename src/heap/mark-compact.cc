@@ -4612,7 +4612,7 @@ void MarkCompactCollector::Evacuate() {
       DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
       p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
       HeapObject object = p->GetObject();
-      Marking::MarkWhite(non_atomic_marking_state()->MarkBitFrom(object));
+      non_atomic_marking_state()->MarkBitFrom(object).Clear();
       p->ProgressBar().ResetIfEnabled();
       non_atomic_marking_state()->SetLiveBytes(p, 0);
     }
@@ -5369,7 +5369,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
 
       continue;
     }
-    Marking::MarkWhite(non_atomic_marking_state()->MarkBitFrom(object));
+    non_atomic_marking_state()->MarkBitFrom(object).Clear();
     current->ProgressBar().ResetIfEnabled();
     non_atomic_marking_state()->SetLiveBytes(current, 0);
     surviving_object_size += static_cast<size_t>(object.Size(cage_base));
