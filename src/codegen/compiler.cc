@@ -1275,6 +1275,16 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // re-optimize.
   if (!IsOSR(osr_offset)) {
     ResetTieringState(*function, osr_offset);
+    int invocation_count =
+        function->feedback_vector().invocation_count(kRelaxedLoad);
+    if (!(V8_UNLIKELY(v8_flags.testing_d8_test_runner) &&
+          ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                                 *function)) &&
+        invocation_count < v8_flags.minimum_invocations_before_optimization) {
+      function->feedback_vector().set_invocation_count(invocation_count + 1,
+                                                       kRelaxedStore);
+      return {};
+    }
   }
 
   // TODO(v8:7700): Distinguish between Maglev and Turbofan.
