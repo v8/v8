@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"
@@ -195,9 +196,85 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
   return size;
 }
 
+template <typename ResultType, typename ConcreteVisitor>
+ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::ConcurrentHeapVisitor(
+    Isolate* isolate)
+    : HeapVisitor<ResultType, ConcreteVisitor>(isolate) {}
+
+template <typename T>
+struct ConcurrentVisitorCastHelper {
+  static V8_INLINE T Cast(HeapObject object) { return T::cast(object); }
+};
+
+#define UNCHECKED_CAST(VisitorId, TypeName)                       \
+  template <>                                                     \
+  V8_INLINE TypeName ConcurrentVisitorCastHelper<TypeName>::Cast( \
+      HeapObject object) {                                        \
+    return TypeName::unchecked_cast(object);                      \
+  }
+SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+// Casts are also needed for unsafe ones for the initial dispatch in
+// HeapVisitor.
+UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+#undef UNCHECKED_CAST
+
+template <typename ResultType, typename ConcreteVisitor>
+template <typename T>
+T ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
+  if constexpr (EnableConcurrentVisitation()) {
+    return ConcurrentVisitorCastHelper<T>::Cast(object);
+  }
+  return T::cast(object);
+}
+
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                           \
+  template <typename ResultType, typename ConcreteVisitor>                    \
+  ResultType                                                                  \
+      ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(    \
+          Map map, TypeName object) {                                         \
+    if constexpr (EnableConcurrentVisitation()) {                             \
+      return VisitStringLocked(object);                                       \
+    }                                                                         \
+    return HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(map,     \
+                                                                     object); \
+  }
+
+UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
+
+template <typename ResultType, typename ConcreteVisitor>
+template <typename Visitor, typename T>
+ResultType ConcurrentHeapVisitor<ResultType,
+                                 ConcreteVisitor>::VisitStringLocked(T object) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  SharedObjectLockGuard guard(object);
+  if (!visitor->ShouldVisit(object)) return ResultType();
+  visitor->VisitMapPointerIfNeeded(object);
+  // The object has been locked. At this point shared read access is
+  // guaranteed but we must re-read the map and check whether the string has
+  // transitioned.
+  Map map = object.map(visitor->cage_base());
+  int size;
+  switch (map.visitor_id()) {
+#define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorId, TypeName) \
+  case kVisit##VisitorId:                                         \
+    size = TypeName::BodyDescriptor::SizeOf(map, object);         \
+    TypeName::BodyDescriptor::IterateBody(                        \
+        map, TypeName::unchecked_cast(object), size, visitor);    \
+    break;
+
+    UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)
+#undef UNSAFE_STRING_TRANSITION_TARGET_CASE
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<ResultType>(size);
+  ;
+}
+
 template <typename ConcreteVisitor>
 NewSpaceVisitor<ConcreteVisitor>::NewSpaceVisitor(Isolate* isolate)
-    : HeapVisitor<int, ConcreteVisitor>(isolate) {}
+    : ConcurrentHeapVisitor<int, ConcreteVisitor>(isolate) {}
 
 }  // namespace internal
 }  // namespace v8

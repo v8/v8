@@ -38,29 +38,6 @@
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
 
-// These strings can be sources of safe string transitions. Transitions are safe
-// if they don't result in invalidated slots. It's safe to read the length field
-// on such strings as that's common for all.
-//
-// No special visitors are generated for such strings.
-// V(VisitorId, Typename)
-#define SAFE_STRING_TRANSITION_SOURCES(V) \
-  V(SeqOneByteString, SeqOneByteString)   \
-  V(SeqTwoByteString, SeqTwoByteString)
-
-// These strings can be sources of unsafe string transitions.
-// V(VisitorId, TypeName)
-#define UNSAFE_STRING_TRANSITION_SOURCES(V) \
-  V(ExternalString, ExternalString)         \
-  V(ConsString, ConsString)                 \
-  V(SlicedString, SlicedString)
-
-// V(VisitorId, TypeName)
-#define UNSAFE_STRING_TRANSITION_TARGETS(V) \
-  UNSAFE_STRING_TRANSITION_SOURCES(V)       \
-  V(ShortcutCandidate, ConsString)          \
-  V(ThinString, ThinString)
-
 namespace v8 {
 namespace internal {
 
@@ -89,35 +66,6 @@ class ConcurrentMarkingState final
   MemoryChunkDataMap* memory_chunk_data_;
 };
 
-class ConcurrentMarkingVisitorUtility {
- public:
-  template <typename Visitor, typename T>
-  static int VisitStringLocked(Visitor* visitor, T object) {
-    SharedObjectLockGuard guard(object);
-    CHECK(visitor->ShouldVisit(object));
-    visitor->VisitMapPointerIfNeeded(object);
-    // The object has been locked. At this point exclusive access is guaranteed
-    // but we must re-read the map and check whether the string has
-    // transitioned.
-    Map map = object.map();
-    int size;
-    switch (map.visitor_id()) {
-#define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorId, TypeName) \
-  case kVisit##VisitorId:                                         \
-    size = TypeName::BodyDescriptor::SizeOf(map, object);         \
-    TypeName::BodyDescriptor::IterateBody(                        \
-        map, TypeName::unchecked_cast(object), size, visitor);    \
-    break;
-
-      UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)
-#undef UNSAFE_STRING_TRANSITION_TARGET_CASE
-      default:
-        UNREACHABLE();
-    }
-    return size;
-  }
-};
-
 class YoungGenerationConcurrentMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
           YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState> {
@@ -134,19 +82,9 @@ class YoungGenerationConcurrentMarkingVisitor final
       YoungGenerationConcurrentMarkingVisitor,
       ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
-  template <typename T>
-  static V8_INLINE T Cast(HeapObject object) {
-    return T::cast(object);
-  }
+  static constexpr bool EnableConcurrentVisitation() { return true; }
 
   constexpr bool ShouldVisit(HeapObject object) const { return true; }
-
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
-  int Visit##TypeName(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
-  }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
-#undef VISIT_AS_LOCKED_STRING
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
@@ -165,17 +103,6 @@ class YoungGenerationConcurrentMarkingVisitor final
  private:
   ConcurrentMarkingState marking_state_;
 };
-
-#define UNCHECKED_CAST(VisitorId, TypeName)                                   \
-  template <>                                                                 \
-  TypeName YoungGenerationConcurrentMarkingVisitor::Cast(HeapObject object) { \
-    return TypeName::unchecked_cast(object);                                  \
-  }
-SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-// Casts are also needed for unsafe ones for the initial dispatch in
-// HeapVisitor.
-UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-#undef UNCHECKED_CAST
 
 class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
@@ -199,19 +126,14 @@ class ConcurrentMarkingVisitor final
   using MarkingVisitorBase<ConcurrentMarkingVisitor,
                            ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
+  static constexpr bool EnableConcurrentVisitation() { return true; }
+
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
   constexpr bool ShouldVisit(HeapObject object) const { return true; }
-
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
-  int Visit##TypeName(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
-  }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
-#undef VISIT_AS_LOCKED_STRING
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
@@ -259,17 +181,6 @@ class ConcurrentMarkingVisitor final
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;
 };
-
-#define UNCHECKED_CAST(VisitorId, TypeName)                    \
-  template <>                                                  \
-  TypeName ConcurrentMarkingVisitor::Cast(HeapObject object) { \
-    return TypeName::unchecked_cast(object);                   \
-  }
-SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-// Casts are also needed for unsafe ones for the initial dispatch in
-// HeapVisitor.
-UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-#undef UNCHECKED_CAST
 
 // The Deserializer changes the map from StrongDescriptorArray to
 // DescriptorArray

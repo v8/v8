@@ -36,7 +36,7 @@ struct EphemeronMarking {
 // marking visitors. For example, the concurrent visitor has to use the
 // snapshotting protocol to visit JSObject and left-trimmable FixedArrays.
 template <typename ConcreteVisitor, typename MarkingState>
-class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
+class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
  public:
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -44,7 +44,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool trace_embedder_fields,
                      bool should_keep_ages_unchanged)
-      : HeapVisitor<int, ConcreteVisitor>(heap),
+      : ConcurrentHeapVisitor<int, ConcreteVisitor>(heap->isolate()),
         local_marking_worklists_(local_marking_worklists),
         local_weak_objects_(local_weak_objects),
         heap_(heap),
