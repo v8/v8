@@ -4547,7 +4547,13 @@ class RepresentationSelector {
 
   void DisconnectFromEffectAndControl(Node* node) {
     if (node->op()->EffectInputCount() == 1) {
-      Node* control = NodeProperties::GetControlInput(node);
+      Node* control;
+      if (node->op()->ControlInputCount() == 1) {
+        control = NodeProperties::GetControlInput(node);
+      } else {
+        DCHECK_EQ(node->op()->ControlInputCount(), 0);
+        control = nullptr;
+      }
       Node* effect = NodeProperties::GetEffectInput(node);
       ReplaceEffectControlUses(node, effect, control);
     } else {
