@@ -378,8 +378,9 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
       SharedFunctionInfo shared = vector.shared_function_info();
       int bytecode_length = shared.GetBytecodeArray(isolate_).length();
       FeedbackCell cell = vector.parent_feedback_cell();
-      int minimum = v8_flags.minimum_invocations_after_ic_update;
-      int new_budget = minimum * bytecode_length;
+      int invocations = v8_flags.minimum_invocations_after_ic_update;
+      int bytecodes = std::min(bytecode_length, (kMaxInt >> 1) / invocations);
+      int new_budget = invocations * bytecodes;
       int current_budget = cell.interrupt_budget();
       if (new_budget > current_budget) {
         if (v8_flags.trace_opt_verbose) {
