@@ -169,7 +169,7 @@ class V8_EXPORT_PRIVATE BreakIterator {
 };
 
 // Linked list holding debug info objects. The debug info objects are kept as
-// weak handles to avoid a debug info object to keep a function alive.
+// global strong handles to prevent losing previously set breakpoints.
 class DebugInfoListNode {
  public:
   DebugInfoListNode(Isolate* isolate, DebugInfo debug_info);

@@ -469,7 +469,6 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo debug_info)
     : next_(nullptr) {
-  // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = isolate->global_handles();
   debug_info_ = global_handles->Create(debug_info).location();
 }
