@@ -252,6 +252,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
+  // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
+  // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
+  // the interrupt budget is decremented, otherwise it is incremented.
+  void UpdateInterruptBudget(TNode<Int32T> weight, bool backward);
+
   TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 
   // Dispatch to the bytecode.
@@ -345,11 +350,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
-
-  // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
-  // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
-  // the interrupt budget is decremented, otherwise it is incremented.
-  void UpdateInterruptBudget(TNode<Int32T> weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   TNode<IntPtrT> RegisterFrameOffset(TNode<IntPtrT> index);
