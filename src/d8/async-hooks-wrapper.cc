@@ -19,6 +19,7 @@ namespace v8 {
 namespace {
 std::shared_ptr<AsyncHooksWrap> UnwrapHook(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   Local<Object> hook = info.This();
@@ -35,11 +36,13 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   auto wrap = UnwrapHook(info);
   if (wrap) wrap->Enable();
 }
 
 void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   auto wrap = UnwrapHook(info);
   if (wrap) wrap->Disable();
 }
@@ -119,6 +122,7 @@ async_id_t AsyncHooks::GetTriggerAsyncId() const {
 
 Local<Object> AsyncHooks::CreateHook(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   EscapableHandleScope handle_scope(isolate);
 

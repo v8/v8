@@ -1291,6 +1291,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
 
 static void SerializationFunctionTemplate(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(info[0]);
 }
 
@@ -2980,6 +2981,7 @@ static int serialized_static_field = 314;
 
 static void SerializedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   if (info.Data()->IsExternal()) {
     CHECK_EQ(info.Data().As<v8::External>()->Value(),
              static_cast<void*>(&serialized_static_field));
@@ -2992,11 +2994,13 @@ static void SerializedCallback(
 
 static void SerializedCallbackReplacement(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(1337));
 }
 
 static void NamedPropertyGetterForSerialization(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   if (name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("x"))
           .FromJust()) {
     info.GetReturnValue().Set(v8_num(2016));
@@ -3006,6 +3010,7 @@ static void NamedPropertyGetterForSerialization(
 static void AccessorForSerialization(
     v8::Local<v8::String> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(2017));
 }
 

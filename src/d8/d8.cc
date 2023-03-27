@@ -1197,6 +1197,7 @@ struct ModuleResolutionData {
 
 void Shell::ModuleResolutionSuccessCallback(
     const FunctionCallbackInfo<Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   std::unique_ptr<ModuleResolutionData> module_resolution_data(
       static_cast<ModuleResolutionData*>(
           info.Data().As<v8::External>()->Value()));
@@ -1217,6 +1218,7 @@ void Shell::ModuleResolutionSuccessCallback(
 
 void Shell::ModuleResolutionFailureCallback(
     const FunctionCallbackInfo<Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   std::unique_ptr<ModuleResolutionData> module_resolution_data(
       static_cast<ModuleResolutionData*>(
           info.Data().As<v8::External>()->Value()));
@@ -1696,12 +1698,14 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
 
 // performance.now() returns GetTimestamp().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(GetTimestamp());
 }
 
 // performance.mark() records and returns a PerformanceEntry with the current
 // timestamp.
 void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -1741,6 +1745,7 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // since a given mark, or since zero.
 void Shell::PerformanceMeasure(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -1820,6 +1825,7 @@ void Shell::PerformanceMeasure(
 // See https://github.com/ulan/javascript-agent-memory/blob/master/explainer.md.
 void Shell::PerformanceMeasureMemory(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::MeasureMemoryMode mode = v8::MeasureMemoryMode::kSummary;
   v8::Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -1846,6 +1852,7 @@ void Shell::PerformanceMeasureMemory(
 
 // Realm.current() returns the index of the currently active realm.
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmFind(isolate->GetEnteredOrMicrotaskContext());
@@ -1855,6 +1862,7 @@ void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Realm.owner(o) returns the index of the realm that created o.
 void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (info.Length() < 1 || !info[0]->IsObject()) {
@@ -1881,6 +1889,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // Realm.global(i) returns the global object of realm i.
 // (Note that properties of global objects cannot be read/written cross-realm.)
 void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   PerIsolateData* data = PerIsolateData::Get(info.GetIsolate());
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
@@ -1905,6 +1914,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
 MaybeLocal<Context> Shell::CreateRealm(
     const v8::FunctionCallbackInfo<v8::Value>& info, int index,
     v8::MaybeLocal<Value> global_object) {
+  DCHECK(i::ValidateCallbackInfo(info));
   const char* kGlobalHandleLabel = "d8::realm";
   Isolate* isolate = info.GetIsolate();
   TryCatch try_catch(isolate);
@@ -1937,6 +1947,7 @@ MaybeLocal<Context> Shell::CreateRealm(
 
 void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
                          int index) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = data->realms_[index].Get(isolate);
@@ -1949,6 +1960,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
 // Realm.create() creates a new realm with a distinct security token
 // and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   CreateRealm(info, -1, v8::MaybeLocal<Value>());
 }
 
@@ -1956,6 +1968,7 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // security token as the current realm.
 void Shell::RealmCreateAllowCrossRealmAccess(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Local<Context> context;
   if (CreateRealm(info, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
@@ -1966,6 +1979,7 @@ void Shell::RealmCreateAllowCrossRealmAccess(
 // Realm.navigate(i) creates a new realm with a distinct security token
 // in place of realm i.
 void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
@@ -1995,6 +2009,7 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Realm.detachGlobal(i) detaches the global objects of realm i from realm i.
 void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
@@ -2012,6 +2027,7 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Realm.dispose(i) disposes the reference to the realm i.
 void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
@@ -2026,6 +2042,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Realm.switch(i) switches to the realm i for consecutive interactive inputs.
 void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
@@ -2035,6 +2052,7 @@ void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Realm.eval(i, s) evaluates s in realm i and returns the result.
 void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
@@ -2074,6 +2092,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // Realm.shared is an accessor for a single shared value across realms.
 void Shell::RealmSharedGet(Local<String> property,
                            const PropertyCallbackInfo<Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (data->realm_shared_.IsEmpty()) return;
@@ -2082,12 +2101,14 @@ void Shell::RealmSharedGet(Local<String> property,
 
 void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
                            const PropertyCallbackInfo<void>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
 }
 
 void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
@@ -2268,6 +2289,7 @@ void Shell::DisableDebugger(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   if (i::v8_flags.correctness_fuzzer_suppressions) {
     // Setting promise hoooks dynamically has unexpected timing side-effects
@@ -2299,6 +2321,7 @@ void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::SerializerSerialize(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
@@ -2321,6 +2344,7 @@ void Shell::SerializerSerialize(
 
 void Shell::SerializerDeserialize(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
@@ -2343,6 +2367,7 @@ void Shell::SerializerDeserialize(
 
 void Shell::ProfilerSetOnProfileEndListener(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   if (!info[0]->IsFunction()) {
@@ -2438,6 +2463,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void WriteAndFlush(FILE* file,
                    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   WriteToFile(file, info);
   fprintf(file, "\n");
   fflush(file);
@@ -2465,6 +2491,7 @@ void Shell::WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // Otherwise, convert arguments to UTF-8 strings, and write them to the file,
 // separated by space.
 void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   String::Utf8Value file_name(info.GetIsolate(), info[0]);
   if (*file_name == nullptr) {
     ThrowError(info.GetIsolate(), "Error converting filename to string");
@@ -2505,6 +2532,7 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   String::Utf8Value file_name(info.GetIsolate(), info[0]);
   if (*file_name == nullptr) {
     ThrowError(info.GetIsolate(), "Error converting filename to string");
@@ -2563,6 +2591,7 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
 }
 
 void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   for (int i = 0; i < info.Length(); i++) {
     HandleScope handle_scope(isolate);
@@ -2594,6 +2623,7 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   info.GetReturnValue().Set(v8::Number::New(isolate, 0));
   if (info.Length() == 0 || !info[0]->IsFunction()) return;
@@ -2736,6 +2766,7 @@ MaybeLocal<String> Shell::ReadSource(
 }
 
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   if (info.Length() < 1 || (!info[0]->IsString() && !info[0]->IsFunction())) {
@@ -2790,6 +2821,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -2815,6 +2847,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
@@ -2833,6 +2866,7 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
@@ -2843,6 +2877,7 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::WorkerTerminateAndWait(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
@@ -2884,6 +2919,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
 }
 
 void Shell::Terminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   // Triggering termination from JS can cause some non-determinism thus we
   // skip it for correctness fuzzing.
   // Termination also currently breaks Fuzzilli's REPRL mechanism as the
@@ -2897,19 +2933,23 @@ void Shell::Terminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   base::CallOnce(&quit_once_, &QuitOnce,
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&info));
 }
 
 void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   SetWaitUntilDone(info.GetIsolate(), true);
 }
 
 void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   SetWaitUntilDone(info.GetIsolate(), false);
 }
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(
       String::NewFromUtf8(info.GetIsolate(), V8::GetVersion())
           .ToLocalChecked());
@@ -2924,6 +2964,7 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // generate this value) which then also acts as a selector for the operation
 // to perform.
 void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   HandleScope handle_scope(info.GetIsolate());
 
   String::Utf8Value operation(info.GetIsolate(), info[0]);
@@ -3141,6 +3182,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 }
 
 void Shell::NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
 
   info.GetReturnValue().Set(v8::Number::New(isolate, 1));
@@ -3985,6 +4027,7 @@ MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
 }
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   static_assert(sizeof(char) == sizeof(uint8_t),
                 "char and uint8_t should both have 1 byte");
   Isolate* isolate = info.GetIsolate();
@@ -4008,6 +4051,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(ReadFromStdin(info.GetIsolate()));
 }
 
@@ -4193,6 +4237,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
 
   static void SendInspectorMessage(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
     v8::HandleScope handle_scope(isolate);
     Local<Context> context = isolate->GetCurrentContext();
@@ -4688,6 +4733,7 @@ void Worker::ExecuteInThread() {
 }
 
 void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
 

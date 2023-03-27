@@ -894,6 +894,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
 }
 
 static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   info.GetReturnValue().SetNull();
 }
 
@@ -910,6 +911,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
 }
 
 static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   double v1 =
       info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
   double v2 =

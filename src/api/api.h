@@ -9,6 +9,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-external.h"
+#include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
@@ -490,6 +491,14 @@ void InvokeFinalizationRegistryCleanupFromTask(
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 T ConvertDouble(double d);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
 }  // namespace internal
 }  // namespace v8

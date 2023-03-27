@@ -173,6 +173,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
   i::MaybeHandle<i::Wasm##Type##Object> GetFirstArgumentAs##Type(    \
       const v8::FunctionCallbackInfo<v8::Value>& info,               \
       ErrorThrower* thrower) {                                       \
+    SLOW_DCHECK(i::ValidateCallbackInfo(info));                      \
     i::Handle<i::Object> arg0 = Utils::OpenHandle(*info[0]);         \
     if (!arg0->IsWasm##Type##Object()) {                             \
       thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
@@ -189,6 +190,7 @@ GET_FIRST_ARGUMENT_AS(Tag)
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, ErrorThrower* thrower,
     bool* is_shared) {
+  DCHECK(i::ValidateCallbackInfo(info));
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = info[0];
@@ -503,6 +505,7 @@ void RecordCompilationMethod(i::Isolate* isolate, CompilationMethod method) {
 
 // WebAssembly.compile(bytes) -> Promise
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   constexpr const char* kAPIMethodName = "WebAssembly.compile()";
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -542,6 +545,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void WasmStreamingCallbackForTesting(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
@@ -565,6 +569,7 @@ void WasmStreamingCallbackForTesting(
 
 void WasmStreamingPromiseFailedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<v8::WasmStreaming> streaming =
       v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort(info[0]);
@@ -574,6 +579,7 @@ void WasmStreamingPromiseFailedCallback(
 //   -> Promise<WebAssembly.Module>
 void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   RecordCompilationMethod(i_isolate, kStreamingCompilation);
@@ -637,6 +643,7 @@ void WebAssemblyCompileStreaming(
 
 // WebAssembly.validate(bytes) -> bool
 void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -693,6 +700,7 @@ bool TransferPrototype(i::Isolate* isolate, i::Handle<i::JSObject> destination,
 
 // new WebAssembly.Module(bytes) -> WebAssembly.Module
 void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->wasm_module_callback()(info)) return;
@@ -756,6 +764,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Module.imports(module) -> Array<Import>
 void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   HandleScope scope(info.GetIsolate());
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -769,6 +778,7 @@ void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Module.exports(module) -> Array<Export>
 void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   HandleScope scope(info.GetIsolate());
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -783,6 +793,7 @@ void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // WebAssembly.Module.customSections(module, name) -> Array<Section>
 void WebAssemblyModuleCustomSections(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   HandleScope scope(info.GetIsolate());
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -810,6 +821,7 @@ void WebAssemblyModuleCustomSections(
 
 // new WebAssembly.Instance(module, imports) -> WebAssembly.Instance
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   RecordCompilationMethod(i_isolate, kAsyncInstantiation);
@@ -872,6 +884,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // (where ResultObject has a "module" and an "instance" field)
 void WebAssemblyInstantiateStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   RecordCompilationMethod(i_isolate, kStreamingInstantiation);
@@ -958,6 +971,7 @@ void WebAssemblyInstantiateStreaming(
 // WebAssembly.instantiate(bytes, imports) ->
 //     {module: WebAssembly.Module, instance: WebAssembly.Instance}
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   constexpr const char* kAPIMethodName = "WebAssembly.instantiate()";
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1147,6 +1161,7 @@ i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
 
 // new WebAssembly.Table(info) -> WebAssembly.Table
 void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1280,6 +1295,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1462,6 +1478,7 @@ bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
 
 // WebAssembly.Global
 void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1613,6 +1630,7 @@ uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
 
 // WebAssembly.Tag
 void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1680,6 +1698,7 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Suspender
 void WebAssemblySuspender(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1798,6 +1817,7 @@ void EncodeExceptionValues(v8::Isolate* isolate,
 }  // namespace
 
 void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1934,6 +1954,7 @@ bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
 
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2132,6 +2153,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Function.type(WebAssembly.Function) -> FunctionType
 void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2193,6 +2215,7 @@ constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
 
 void WebAssemblyInstanceGetExports(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2204,6 +2227,7 @@ void WebAssemblyInstanceGetExports(
 
 void WebAssemblyTableGetLength(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2215,6 +2239,7 @@ void WebAssemblyTableGetLength(
 
 // WebAssembly.Table.grow(num, init_value = null) -> num
 void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2274,6 +2299,7 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
 
 // WebAssembly.Table.get(num) -> any
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2313,6 +2339,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Table.set(num, any)
 void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2353,6 +2380,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Table.type() -> TableType
 void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2372,6 +2400,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Memory.grow(num) -> num
 void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2406,6 +2435,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // WebAssembly.Memory.buffer -> ArrayBuffer
 void WebAssemblyMemoryGetBuffer(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2433,6 +2463,7 @@ void WebAssemblyMemoryGetBuffer(
 
 // WebAssembly.Memory.type() -> MemoryType
 void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2456,6 +2487,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // WebAssembly.Tag.type() -> FunctionType
 void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2477,6 +2509,7 @@ void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void WebAssemblyExceptionGetArg(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2625,6 +2658,7 @@ void WebAssemblyExceptionGetArg(
 }
 
 void WebAssemblyExceptionIs(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2646,6 +2680,7 @@ void WebAssemblyExceptionIs(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void WebAssemblyGlobalGetValueCommon(
     const v8::FunctionCallbackInfo<v8::Value>& info, const char* name) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2690,18 +2725,21 @@ void WebAssemblyGlobalGetValueCommon(
 
 // WebAssembly.Global.valueOf() -> num
 void WebAssemblyGlobalValueOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   return WebAssemblyGlobalGetValueCommon(info, "WebAssembly.Global.valueOf()");
 }
 
 // get WebAssembly.Global.value -> num
 void WebAssemblyGlobalGetValue(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   return WebAssemblyGlobalGetValueCommon(info, "get WebAssembly.Global.value");
 }
 
 // set WebAssembly.Global.value(num)
 void WebAssemblyGlobalSetValue(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -2774,6 +2812,7 @@ void WebAssemblyGlobalSetValue(
 
 // WebAssembly.Global.type() -> GlobalType
 void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

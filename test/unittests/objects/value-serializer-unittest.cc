@@ -54,6 +54,7 @@ class ValueSerializerTest : public TestWithIsolate {
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
         isolate(), [](const FunctionCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
           info.Holder()->SetInternalField(0, info[0]);
           info.Holder()->SetInternalField(1, info[1]);
         });
@@ -61,11 +62,13 @@ class ValueSerializerTest : public TestWithIsolate {
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
         [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(info.Holder()->GetInternalField(0));
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
         [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(info.Holder()->GetInternalField(1));
         });
     for (Local<Context> context :

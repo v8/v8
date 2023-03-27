@@ -59,6 +59,7 @@ v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
 
 void ProfilerExtension::StartProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   last_profile = nullptr;
   profiler_->StartProfiling(info.Length() > 0
                                 ? info[0].As<v8::String>()
@@ -67,6 +68,7 @@ void ProfilerExtension::StartProfiling(
 
 void ProfilerExtension::StopProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   last_profile = profiler_->StopProfiling(
       info.Length() > 0 ? info[0].As<v8::String>()
                         : v8::String::Empty(info.GetIsolate()));
@@ -74,6 +76,7 @@ void ProfilerExtension::StopProfiling(
 
 void ProfilerExtension::CollectSample(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 

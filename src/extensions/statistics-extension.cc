@@ -61,6 +61,7 @@ static void AddNumber64(v8::Isolate* isolate,
 
 void StatisticsExtension::GetCounters(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   Heap* heap = isolate->heap();
 

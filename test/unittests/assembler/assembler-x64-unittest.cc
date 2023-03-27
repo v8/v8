@@ -726,6 +726,7 @@ TEST_F(AssemblerX64Test, AssemblerMultiByteNop) {
 #define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();

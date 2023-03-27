@@ -128,6 +128,7 @@ TEST(ReduceJSCreateBoundFunction) {
 }
 
 static void SumF(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   int this_x = info.This()

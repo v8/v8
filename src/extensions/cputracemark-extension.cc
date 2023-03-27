@@ -6,6 +6,7 @@
 
 #include "include/v8-isolate.h"
 #include "include/v8-template.h"
+#include "src/api/api.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,7 @@ CpuTraceMarkExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
 
 void CpuTraceMarkExtension::Mark(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   if (info.Length() < 1 || !info[0]->IsUint32()) {
     info.GetIsolate()->ThrowError(
         "First parameter to cputracemark() must be a unsigned int32.");

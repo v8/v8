@@ -4995,6 +4995,7 @@ TEST(CEntryStubOOM) {
 static void InterruptCallback357137(v8::Isolate* isolate, void* data) { }
 
 static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, nullptr);
 }
 
@@ -5433,6 +5434,7 @@ TEST(OldSpaceAllocationCounter) {
 }
 
 static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
   Object message(
       *reinterpret_cast<Address*>(isolate->pending_message_address()));
@@ -5471,6 +5473,7 @@ TEST(MessageObjectLeak) {
 
 static void CheckEqualSharedFunctionInfos(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Handle<Object> obj1 = v8::Utils::OpenHandle(*info[0]);
   Handle<Object> obj2 = v8::Utils::OpenHandle(*info[1]);
   Handle<JSFunction> fun1 = Handle<JSFunction>::cast(obj1);
@@ -5479,6 +5482,7 @@ static void CheckEqualSharedFunctionInfos(
 }
 
 static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
   Handle<Object> obj = v8::Utils::OpenHandle(*info[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);

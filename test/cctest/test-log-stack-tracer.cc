@@ -63,6 +63,7 @@ static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
 // from the calling function.  When this function runs, the stack contains
 // a C_Entry frame and a Construct frame above the calling function's frame.
 static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::StackFrameIterator frame_iterator(isolate);
   CHECK(frame_iterator.frame()->is_exit() ||

@@ -18,6 +18,7 @@ namespace {
 class APIExceptionTest : public TestWithIsolate {
  public:
   static void CEvaluate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     v8::HandleScope scope(info.GetIsolate());
     TryRunJS(info.GetIsolate(),
              info[0]
@@ -26,6 +27,7 @@ class APIExceptionTest : public TestWithIsolate {
   }
 
   static void CCatcher(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     if (info.Length() < 1) {
       info.GetReturnValue().Set(false);
       return;

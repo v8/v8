@@ -55,7 +55,10 @@ class TerminatorThread : public base::Thread {
   Isolate* isolate_;
 };
 
-void Signal(const FunctionCallbackInfo<Value>& info) { semaphore->Signal(); }
+void Signal(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  semaphore->Signal();
+}
 
 MaybeLocal<Value> CompileRun(Local<Context> context, Local<String> source) {
   Local<Script> script = Script::Compile(context, source).ToLocalChecked();
@@ -69,6 +72,7 @@ MaybeLocal<Value> CompileRun(Local<Context> context, const char* source) {
 }
 
 void DoLoop(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   TryCatch try_catch(info.GetIsolate());
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   MaybeLocal<Value> result = CompileRun(info.GetIsolate()->GetCurrentContext(),
@@ -96,6 +100,7 @@ void DoLoop(const FunctionCallbackInfo<Value>& info) {
 void Fail(const FunctionCallbackInfo<Value>& info) { UNREACHABLE(); }
 
 void Loop(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   MaybeLocal<Value> result =
       CompileRun(info.GetIsolate()->GetCurrentContext(),
@@ -105,6 +110,7 @@ void Loop(const FunctionCallbackInfo<Value>& info) {
 }
 
 void TerminateCurrentThread(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   info.GetIsolate()->TerminateExecution();
 }
@@ -154,6 +160,7 @@ class ThreadTerminationTest : public TestWithIsolate {
 };
 
 void DoLoopNoCall(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   TryCatch try_catch(info.GetIsolate());
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   MaybeLocal<Value> result = CompileRun(info.GetIsolate()->GetCurrentContext(),
@@ -293,6 +300,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntFromString) {
 }
 
 void LoopGetProperty(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   TryCatch try_catch(info.GetIsolate());
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   MaybeLocal<Value> result =
@@ -320,6 +328,7 @@ void LoopGetProperty(const FunctionCallbackInfo<Value>& info) {
 int call_count = 0;
 
 void TerminateOrReturnObject(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   if (++call_count == 10) {
     CHECK(!info.GetIsolate()->IsExecutionTerminating());
     info.GetIsolate()->TerminateExecution();
@@ -364,6 +373,7 @@ Persistent<String> reenter_script_1;
 Persistent<String> reenter_script_2;
 
 void ReenterAfterTermination(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   TryCatch try_catch(info.GetIsolate());
   Isolate* isolate = info.GetIsolate();
   CHECK(!isolate->IsExecutionTerminating());
@@ -456,6 +466,7 @@ TEST_F(ThreadTerminationTest,
 }
 
 void DoLoopCancelTerminate(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   TryCatch try_catch(isolate);
   CHECK(!isolate->IsExecutionTerminating());
@@ -500,6 +511,7 @@ void MicrotaskShouldNotRun(const FunctionCallbackInfo<Value>& info) {
 }
 
 void MicrotaskLoopForever(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
   // Enqueue another should-not-run task to ensure we clean out the queue
@@ -704,6 +716,7 @@ TEST_F(ThreadTerminationTest, SafeForTerminateException) {
 }
 
 void RequestTermianteAndCallAPI(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetIsolate()->TerminateExecution();
   AssertFinishedCodeRun(info.GetIsolate());
 }
@@ -781,6 +794,7 @@ TEST_F(ThreadTerminationTest, ErrorObjectAfterTermination) {
 }
 
 void InnerTryCallTerminate(const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!info.GetIsolate()->IsExecutionTerminating());
   Isolate* isolate = info.GetIsolate();
   Local<Object> global = isolate->GetCurrentContext()->Global();

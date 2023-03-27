@@ -389,6 +389,7 @@ TEST(AssemblerMultiByteNop) {
 #define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();

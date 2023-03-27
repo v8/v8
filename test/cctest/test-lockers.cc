@@ -71,6 +71,7 @@ class DeoptimizeCodeThread : public v8::base::Thread {
 };
 
 void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   // Gets the pointer to the thread that will trigger the deoptimization of the
   // code.
@@ -92,6 +93,7 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void UnlockForDeoptimizationIfReady(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   bool* ready_to_deoptimize = reinterpret_cast<bool*>(isolate->GetData(1));
   if (*ready_to_deoptimize) {

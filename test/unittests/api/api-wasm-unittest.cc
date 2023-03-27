@@ -54,6 +54,7 @@ void WasmStreamingTestFinalizer(const WeakCallbackInfo<void>& data) {
 
 void WasmStreamingCallbackTestCallbackIsCalled(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!wasm_streaming_callback_got_called);
   wasm_streaming_callback_got_called = true;
 
@@ -68,6 +69,7 @@ void WasmStreamingCallbackTestCallbackIsCalled(
 
 void WasmStreamingCallbackTestFinishWithSuccess(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
@@ -77,6 +79,7 @@ void WasmStreamingCallbackTestFinishWithSuccess(
 
 void WasmStreamingCallbackTestFinishWithFailure(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Finish();
@@ -84,6 +87,7 @@ void WasmStreamingCallbackTestFinishWithFailure(
 
 void WasmStreamingCallbackTestAbortWithReject(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort(Object::New(info.GetIsolate()));
@@ -91,6 +95,7 @@ void WasmStreamingCallbackTestAbortWithReject(
 
 void WasmStreamingCallbackTestAbortNoReject(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort({});
@@ -98,6 +103,7 @@ void WasmStreamingCallbackTestAbortNoReject(
 
 void WasmStreamingCallbackTestOnBytesReceived(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
@@ -108,6 +114,7 @@ void WasmStreamingCallbackTestOnBytesReceived(
 
 void WasmStreamingMoreFunctionsCanBeSerializedCallback(
     const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});

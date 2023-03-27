@@ -69,6 +69,7 @@ bool HasExternalForwardingIndex(Isolate* isolate, Handle<String> string) {
 
 void ExternalizeStringExtension::Externalize(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   if (info.Length() < 1 || !info[0]->IsString()) {
     info.GetIsolate()->ThrowError(
         "First parameter to externalizeString() must be a string.");
@@ -119,6 +120,7 @@ void ExternalizeStringExtension::Externalize(
 
 void ExternalizeStringExtension::IsOneByte(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   if (info.Length() != 1 || !info[0]->IsString()) {
     info.GetIsolate()->ThrowError(
         "isOneByteString() requires a single string argument.");

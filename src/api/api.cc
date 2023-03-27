@@ -11421,6 +11421,77 @@ bool ConvertDouble(double d) {
 #undef NEW_STRING
 #undef CALLBACK_SETTER
 
+template <typename T>
+bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
+  CHECK_GE(info.Length(), 0);
+  CHECK_LE(info.Length(), 1024);
+  if (info.Length() > 0) {
+    CHECK(info[0]->IsValue());
+    CHECK(info[info.Length() - 1]->IsValue());
+  }
+  auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  CHECK_EQ(i_isolate, Isolate::Current());
+  CHECK(info.This()->IsValue());
+  CHECK(info.Holder()->IsObject());
+  CHECK(!info.Data().IsEmpty());
+  CHECK(info.GetReturnValue().Get()->IsValue());
+  return true;
+}
+
+template <typename T>
+bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
+  auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  CHECK_EQ(i_isolate, Isolate::Current());
+  CHECK(info.This()->IsValue());
+  CHECK(info.Holder()->IsObject());
+  CHECK(info.Data()->IsValue());
+  USE(info.ShouldThrowOnError());
+  if (!std::is_same<T, void>::value) {
+    CHECK(info.GetReturnValue().Get()->IsValue());
+  }
+  return true;
+}
+
+template <>
+bool V8_EXPORT ValidateCallbackInfo(const FunctionCallbackInfo<void>& info) {
+  return ValidateFunctionCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT
+ValidateCallbackInfo(const FunctionCallbackInfo<v8::Value>& info) {
+  return ValidateFunctionCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT
+ValidateCallbackInfo(const PropertyCallbackInfo<v8::Value>& info) {
+  return ValidatePropertyCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT
+ValidateCallbackInfo(const PropertyCallbackInfo<v8::Array>& info) {
+  return ValidatePropertyCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT
+ValidateCallbackInfo(const PropertyCallbackInfo<v8::Boolean>& info) {
+  return ValidatePropertyCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT
+ValidateCallbackInfo(const PropertyCallbackInfo<v8::Integer>& info) {
+  return ValidatePropertyCallbackInfo(info);
+}
+
+template <>
+bool V8_EXPORT ValidateCallbackInfo(const PropertyCallbackInfo<void>& info) {
+  return ValidatePropertyCallbackInfo(info);
+}
+
 }  // namespace internal
 
 template <>

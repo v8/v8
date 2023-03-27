@@ -64,6 +64,7 @@ v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
 Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Convert frame pointer from encoding as smis in the arguments to a pointer.
   CHECK_EQ(2, info.Length());  // Ignore second argument on 32-bit platform.
+  CHECK(i::ValidateCallbackInfo(info));
 #if defined(V8_HOST_ARCH_32_BIT)
   Address fp = *reinterpret_cast<Address*>(*info[0]);
 #elif defined(V8_HOST_ARCH_64_BIT)
@@ -99,6 +100,7 @@ void TraceExtension::DoTrace(Address fp) {
 }
 
 void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
   Address address = reinterpret_cast<Address>(&TraceExtension::Trace);
@@ -118,6 +120,7 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 }
 
 void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
   Address address = reinterpret_cast<Address>(&TraceExtension::JSTrace);
@@ -132,11 +135,13 @@ Address TraceExtension::GetJsEntrySp() {
 
 void TraceExtension::JSEntrySP(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(GetJsEntrySp());
 }
 
 void TraceExtension::JSEntrySPLevel2(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   const Address js_entry_sp = GetJsEntrySp();
   CHECK(js_entry_sp);

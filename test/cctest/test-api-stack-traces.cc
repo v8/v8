@@ -60,6 +60,7 @@ THREADED_TEST(IsolatePrepareStackTraceThrow) {
 }
 
 static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   v8::Local<String> foo = v8_str("foo");
   v8::Local<String> message = v8_str("message");
@@ -280,6 +281,7 @@ const char function_name_source_anon5[] =
 
 static void AnalyzeStackInNativeCode(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   const char* origin = "capture-stack-trace-test";
   const int kOverviewTest = 1;
@@ -678,6 +680,7 @@ TEST(RethrowBogusErrorStackTrace) {
 
 void AnalyzeStackOfEvalWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
       info.GetIsolate(), 10, v8::StackTrace::kDetailed);
@@ -723,6 +726,7 @@ TEST(SourceURLInStackTrace) {
 static int scriptIdInStack[2];
 
 void AnalyzeScriptIdInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
       info.GetIsolate(), 10, v8::StackTrace::kScriptId);
@@ -756,6 +760,7 @@ TEST(ScriptIdInStackTrace) {
 
 void AnalyzeStackOfInlineScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
       info.GetIsolate(), 10, v8::StackTrace::kDetailed);
@@ -800,6 +805,7 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
 
 void AnalyzeStackOfDynamicScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
       info.GetIsolate(), 10, v8::StackTrace::kDetailed);
@@ -887,6 +893,7 @@ UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
 }
 
 void AnalyzeScriptNameInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::String> name =
       v8::StackTrace::CurrentScriptNameOrSourceURL(info.GetIsolate());
@@ -914,6 +921,7 @@ TEST(CurrentScriptNameOrSourceURL_Name) {
 }
 
 void AnalyzeScriptURLInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::String> name =
       v8::StackTrace::CurrentScriptNameOrSourceURL(info.GetIsolate());

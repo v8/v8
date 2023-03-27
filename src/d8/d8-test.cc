@@ -255,6 +255,7 @@ class FastCApiObject {
   }
   static void AddAllSequenceSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -393,6 +394,7 @@ class FastCApiObject {
   }
   static void AddAllTypedArraySlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -488,6 +490,7 @@ class FastCApiObject {
     return arg_i32 + arg_u32;
   }
   static void Add32BitIntSlowCallback(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -593,6 +596,7 @@ class FastCApiObject {
   }
   static void AddAll32BitIntSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -664,6 +668,7 @@ class FastCApiObject {
 
   static void AddAllAnnotateSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -757,6 +762,7 @@ class FastCApiObject {
   template <typename IntegerT>
   static void EnforceRangeCompareSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -895,6 +901,7 @@ class FastCApiObject {
   template <typename IntegerT>
   static void ClampCompareSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -973,6 +980,7 @@ class FastCApiObject {
 
   static void IsFastCApiObjectSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
@@ -1022,6 +1030,7 @@ class FastCApiObject {
 
   static void TestWasmMemorySlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
@@ -1030,6 +1039,7 @@ class FastCApiObject {
   }
 
   static void AssertIsExternal(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
 
@@ -1050,6 +1060,7 @@ class FastCApiObject {
   }
 
   static void GetPointerSlowCallback(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
@@ -1069,6 +1080,7 @@ class FastCApiObject {
 
   static void GetNullPointerSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
@@ -1087,6 +1099,7 @@ class FastCApiObject {
   }
 
   static void PassPointerSlowCallback(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
@@ -1125,6 +1138,7 @@ class FastCApiObject {
 
   static void ComparePointersSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
@@ -1170,18 +1184,21 @@ class FastCApiObject {
         Number::New(info.GetIsolate(), self->fast_call_count()));
   }
   static void SlowCallCount(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     info.GetReturnValue().Set(
         Number::New(info.GetIsolate(), self->slow_call_count()));
   }
   static void ResetCounts(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     self->reset_counts();
     info.GetReturnValue().Set(Undefined(info.GetIsolate()));
   }
   static void SupportsFPParams(const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
     info.GetReturnValue().Set(self->supports_fp_params_);
@@ -1233,6 +1250,7 @@ thread_local FastCApiObject kFastCApiObject;
 FastCApiObject& FastCApiObject::instance() { return kFastCApiObject; }
 
 void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (!info.IsConstructCall()) {
     info.GetIsolate()->ThrowError(
         "FastCAPI helper must be constructed with new.");

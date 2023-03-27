@@ -29,6 +29,7 @@ const char* const IgnitionStatisticsExtension::kSource =
 
 void IgnitionStatisticsExtension::GetIgnitionDispatchCounters(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   info.GetReturnValue().Set(
       Utils::ToLocal(reinterpret_cast<Isolate*>(info.GetIsolate())
                          ->interpreter()

@@ -30,6 +30,7 @@ namespace {
 
 // Sandbox.byteLength
 void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   double sandbox_size = GetProcessWideSandbox()->size();
   info.GetReturnValue().Set(v8::Number::New(isolate, sandbox_size));
@@ -37,6 +38,7 @@ void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // new Sandbox.MemoryView(info) -> Sandbox.MemoryView
 void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -78,6 +80,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Sandbox.getAddressOf(object) -> Number
 void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
 
   if (info.Length() == 0) {
@@ -100,6 +103,7 @@ void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Sandbox.getSizeOf(object) -> Number
 void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
 
   if (info.Length() == 0) {

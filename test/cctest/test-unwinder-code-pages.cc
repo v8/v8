@@ -709,6 +709,7 @@ class UnwinderTestHelper {
 
  private:
   static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     instance_->DoTryUnwind();
   }
 

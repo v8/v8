@@ -269,6 +269,7 @@ static uintptr_t sp_addr = 0;
 
 void GetStackPointerCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   GET_STACK_POINTER_TO(sp_addr);
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8::Integer::NewFromUnsigned(
       info.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }

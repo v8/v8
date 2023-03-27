@@ -10,6 +10,7 @@
 #include "include/v8-persistent-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
+#include "src/api/api.h"
 #include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
@@ -42,6 +43,7 @@ Maybe<bool> IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
 
 Maybe<GCOptions> Parse(v8::Isolate* isolate,
                        const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   // Default values.
   auto options =
       GCOptions{v8::Isolate::GarbageCollectionType::kFullGarbageCollection,
@@ -142,6 +144,7 @@ v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
 }
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
 
   // Immediate bailout if no arguments are provided.

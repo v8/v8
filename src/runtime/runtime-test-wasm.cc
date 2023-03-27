@@ -81,12 +81,14 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
 }
 
 bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   if (IsWasmCompileAllowed(info.GetIsolate(), info[0], false)) return false;
   ThrowRangeException(info.GetIsolate(), "Sync compile not allowed");
   return true;
 }
 
 bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   if (IsWasmInstantiateAllowed(info.GetIsolate(), info[0], false)) return false;
   ThrowRangeException(info.GetIsolate(), "Sync instantiate not allowed");
   return true;

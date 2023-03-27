@@ -5,6 +5,7 @@
 #include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/api/api.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"

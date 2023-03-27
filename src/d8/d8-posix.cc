@@ -411,6 +411,7 @@ static bool WaitForChild(Isolate* isolate, int pid,
 
 // Implementation of the system() function (see d8.h for details).
 void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   HandleScope scope(info.GetIsolate());
   int read_timeout = -1;
   int total_timeout = -1;
@@ -486,6 +487,7 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 1) {
     info.GetIsolate()->ThrowError("chdir() takes one argument");
     return;
@@ -503,6 +505,7 @@ void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 1) {
     info.GetIsolate()->ThrowError("umask() takes one argument");
     return;
@@ -560,6 +563,7 @@ static bool mkdirp(Isolate* isolate, char* directory, mode_t mask) {
 }
 
 void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   mode_t mask = 0777;
   if (info.Length() == 2) {
     if (info[1]->IsNumber()) {
@@ -584,6 +588,7 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 1) {
     info.GetIsolate()->ThrowError("rmdir() takes one or two arguments");
     return;
@@ -598,6 +603,7 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 2) {
     info.GetIsolate()->ThrowError("setenv() takes two arguments");
     return;
@@ -618,6 +624,7 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 1) {
     info.GetIsolate()->ThrowError("unsetenv() takes one argument");
     return;

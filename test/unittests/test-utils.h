@@ -307,6 +307,7 @@ class PrintExtension : public v8::Extension {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
   }
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     for (int i = 0; i < info.Length(); i++) {
       if (i != 0) printf(" ");
       v8::HandleScope scope(info.GetIsolate());

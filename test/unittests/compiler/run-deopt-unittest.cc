@@ -12,6 +12,7 @@ namespace internal {
 namespace compiler {
 
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   JavaScriptStackFrameIterator it(
       reinterpret_cast<Isolate*>(info.GetIsolate()));
   JavaScriptFrame* frame = it.frame();
