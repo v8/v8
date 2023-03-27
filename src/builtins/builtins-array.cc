@@ -244,6 +244,19 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   ElementsAccessor* accessor = array->GetElementsAccessor();
   RETURN_ON_EXCEPTION_VALUE(isolate, accessor->Fill(array, value, start, end),
                             Nothing<bool>());
+
+  // It's possible the JSArray's 'length' property was assigned to after the
+  // length was loaded due to user code during argument coercion of the start
+  // and end parameters. The spec algorithm does a Set, meaning the length would
+  // grow as needed during the fill.
+  //
+  // ElementAccessor::Fill is able to grow the backing store as needed, but we
+  // need to ensure the JSArray's length is correctly set in case the user
+  // assigned a smaller value.
+  if (array->length().Number() < end) {
+    CHECK(accessor->SetLength(array, end).FromJust());
+  }
+
   return Just(true);
 }
 }  // namespace
