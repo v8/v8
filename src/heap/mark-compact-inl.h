@@ -6,6 +6,7 @@
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
 #include "src/base/bits.h"
+#include "src/base/build_config.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -281,6 +282,33 @@ void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
   for (TSlot slot = start; slot < end; ++slot) {
     typename TSlot::TObject target = *slot;
     VisitObjectImpl(target);
+  }
+}
+
+V8_INLINE void YoungGenerationMarkingState::IncrementLiveBytes(
+    MemoryChunk* chunk, intptr_t by) {
+  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                 IsAligned(by, kObjectAlignment8GbHeap));
+  const size_t hash =
+      (reinterpret_cast<size_t>(chunk) >> kPageSizeBits) & kEntriesMask;
+  auto& entry = live_bytes_data_[hash];
+  if (entry.first && entry.first != chunk) {
+    entry.first->live_byte_count_.fetch_add(entry.second,
+                                            std::memory_order_relaxed);
+    entry.first = chunk;
+    entry.second = 0;
+  } else {
+    entry.first = chunk;
+  }
+  entry.second += by;
+}
+
+YoungGenerationMarkingState::~YoungGenerationMarkingState() {
+  for (auto& pair : live_bytes_data_) {
+    if (pair.first) {
+      pair.first->live_byte_count_.fetch_add(pair.second,
+                                             std::memory_order_relaxed);
+    }
   }
 }
 

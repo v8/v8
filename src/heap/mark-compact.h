@@ -226,12 +226,34 @@ class MainMarkingVisitor final
                                   MarkingState>;
 };
 
+// Marking state that keeps live bytes locally in a fixed-size hashmap. Hashmap
+// entries are evicted to the global counters on collision.
+class YoungGenerationMarkingState final
+    : public MarkingStateBase<YoungGenerationMarkingState, AccessMode::ATOMIC> {
+ public:
+  explicit YoungGenerationMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+  V8_INLINE ~YoungGenerationMarkingState();
+
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
+    return chunk->marking_bitmap<AccessMode::ATOMIC>();
+  }
+
+  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
+
+ private:
+  static constexpr size_t kNumEntries = 128;
+  static constexpr size_t kEntriesMask = kNumEntries - 1;
+  std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
+};
+
 class YoungGenerationMainMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
           YoungGenerationMainMarkingVisitor, MarkingState> {
  public:
   YoungGenerationMainMarkingVisitor(Isolate* isolate,
-                                    MarkingState* marking_state,
+                                    PtrComprCageBase cage_base,
                                     MarkingWorklists::Local* worklists_local);
 
   constexpr bool ShouldVisit(HeapObject object) const { return true; }
@@ -239,9 +261,10 @@ class YoungGenerationMainMarkingVisitor final
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
 
+  YoungGenerationMarkingState* marking_state() { return &marking_state_; }
+
  private:
-  MarkingState* marking_state() { return marking_state_; }
-  MarkingState* const marking_state_;
+  YoungGenerationMarkingState marking_state_;
 
   friend class YoungGenerationMarkingVisitorBase<
       YoungGenerationMainMarkingVisitor, MarkingState>;
@@ -809,7 +832,6 @@ class YoungGenerationMarkingTask final {
 
  private:
   std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
-  MarkingState* marking_state_;
   YoungGenerationMainMarkingVisitor visitor_;
   std::unordered_map<MemoryChunk*, size_t, MemoryChunk::Hasher> live_bytes_;
 };

@@ -307,6 +307,7 @@ class MemoryChunk : public BasicMemoryChunk {
   friend class PagedSpace;
   template <RememberedSetType>
   friend class RememberedSet;
+  friend class YoungGenerationMarkingState;
 };
 
 }  // namespace internal

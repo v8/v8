@@ -5515,11 +5515,11 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 }  // namespace
 
 YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
-    Isolate* isolate, MarkingState* marking_state,
+    Isolate* isolate, PtrComprCageBase cage_base,
     MarkingWorklists::Local* worklists_local)
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(isolate, worklists_local),
-      marking_state_(marking_state) {}
+      marking_state_(cage_base) {}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5622,7 +5622,8 @@ void MinorMarkCompactCollector::StartMarking() {
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap()->isolate(), marking_state(), local_marking_worklists());
+      heap()->isolate(), marking_state()->cage_base(),
+      local_marking_worklists());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
@@ -5791,11 +5792,11 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
           heap->cpp_heap()
               ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
               : MarkingWorklists::Local::kNoCppMarkingState)),
-      marking_state_(heap->marking_state()),
-      visitor_(isolate, marking_state_, marking_worklists_local()) {}
+      visitor_(isolate, heap->marking_state()->cage_base(),
+               marking_worklists_local()) {}
 
 void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
-  if (marking_state_->TryMark(heap_object)) {
+  if (visitor_.marking_state()->TryMark(heap_object)) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
@@ -5806,11 +5807,12 @@ void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
       visited_size = visitor_.Visit(map, heap_object);
     }
     if (visited_size) {
-      live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
-          heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
+      visitor_.marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     // Objects transition to black when visited.
-    DCHECK(marking_state_->IsMarked(heap_object));
+    DCHECK(visitor_.marking_state()->IsMarked(heap_object));
   }
 }
 
@@ -5826,8 +5828,9 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
               ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
-      live_bytes_[MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(
-          heap_object))] += ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size);
+      visitor_.marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
@@ -5838,12 +5841,7 @@ void YoungGenerationMarkingTask::PublishMarkingWorklist() {
   marking_worklists_local_->Publish();
 }
 
-void YoungGenerationMarkingTask::Finalize() {
-  visitor_.Finalize();
-  for (auto& pair : live_bytes_) {
-    marking_state_->IncrementLiveBytes(pair.first, pair.second);
-  }
-}
+void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
   base::MutexGuard guard(chunk_->mutex());
