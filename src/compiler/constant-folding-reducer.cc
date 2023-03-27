@@ -66,7 +66,8 @@ ConstantFoldingReducer::~ConstantFoldingReducer() = default;
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable) &&
-      node->opcode() != IrOpcode::kFinishRegion) {
+      node->opcode() != IrOpcode::kFinishRegion &&
+      node->opcode() != IrOpcode::kTypeGuard) {
     Node* constant = TryGetConstant(jsgraph(), node, broker());
     if (constant != nullptr) {
       DCHECK(NodeProperties::IsTyped(constant));
