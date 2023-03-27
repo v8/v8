@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include "src/base/bit-field.h"
+#include "src/base/enum-set.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
@@ -6099,6 +6100,8 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
 
 class MergePointInterpreterFrameState;
 
+typedef base::EnumSet<ValueRepresentation> ValueRepresentationSet;
+
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
 // can generate correctly-sized phis.
@@ -6124,6 +6127,11 @@ class Phi : public ValueNodeT<Phi> {
   using Node::set_input;
 
   bool is_exception_phi() const { return input_count() == 0; }
+  bool is_loop_phi() const;
+
+  bool is_backedge_offset(int i) const {
+    return is_loop_phi() && i == input_count() - 1;
+  }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
   void MarkTaggedInputsAsDecompressing() {
@@ -6137,12 +6145,27 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
+  void RecordUseReprHint(ValueRepresentation repr) {
+    RecordUseReprHint(ValueRepresentationSet{repr});
+  }
+
+  void RecordUseReprHint(ValueRepresentationSet repr_mask);
+
+  bool has_use_repr_hint(ValueRepresentation repr) {
+    return uses_repr_hint_.contains(repr);
+  }
+
+  ValueRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+
  private:
   Phi** next() { return &next_; }
 
   const interpreter::Register owner_;
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
+
+  ValueRepresentationSet uses_repr_hint_;
+
   friend base::ThreadedListTraits<Phi>;
 };
 

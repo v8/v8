@@ -99,6 +99,12 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
 #endif  // DEBUG
 
+bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
+
+void Phi::RecordUseReprHint(base::EnumSet<ValueRepresentation> repr_mask) {
+  uses_repr_hint_.Add(repr_mask);
+}
+
 namespace {
 
 // ---

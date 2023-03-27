@@ -34,6 +34,9 @@ class EnumSet {
   constexpr bool contains_any(EnumSet set) const {
     return (bits_ & set.bits_) != 0;
   }
+  constexpr bool contains_only(E element) const {
+    return bits_ == Mask(element);
+  }
   void Add(E element) { bits_ |= Mask(element); }
   void Add(EnumSet set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }

@@ -13,66 +13,119 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-namespace {
-
-constexpr int representation_mask_for(ValueRepresentation r) {
-  if (r == ValueRepresentation::kTagged) return 0;
-  return 1 << static_cast<int>(r);
-}
-
-}  // namespace
-
 void MaglevPhiRepresentationSelector::Process(Phi* node,
                                               const ProcessingState&) {
   DCHECK_EQ(node->value_representation(), ValueRepresentation::kTagged);
 
-  // We negate the Uint32 from {representation_mask} from the start in order to
-  // disable Uint32 untagged Phis for now, because they don't seem very useful,
-  // and this simplifies things a little bit.
-  // TODO(dmercadier): evaluate what benefits untagged Uint32 Phis would bring,
-  // and consider allowing them.
-  unsigned int representation_mask =
-      ~representation_mask_for(ValueRepresentation::kUint32);
+  if (node->is_exception_phi()) {
+    // Exception phis have no inputs (or, at least, none accessible through
+    // `node->input(...)`), so we don't know if the inputs could be untagged or
+    // not, so we just keep those Phis tagged.
+    return;
+  }
+
+  // {input_mask} represents the ValueRepresentation that {node} could have,
+  // based on the ValueRepresentation of its inputs.
+  ValueRepresentationSet input_reprs;
 
   for (int i = 0; i < node->input_count(); i++) {
-    Node* input = node->input(i).node();
+    ValueNode* input = node->input(i).node();
     if (input->Is<SmiConstant>()) {
-      // Could be any representation
+      // Could be any representation. We treat such inputs as Int32, since we
+      // later allow ourselves to promote Int32 to Float64 if needed (but we
+      // never downgrade Float64 to Int32, as it could cause deopt loops).
+      input_reprs.Add(ValueRepresentation::kInt32);
     } else if (Constant* constant = input->TryCast<Constant>()) {
       if (constant->object().IsHeapNumber()) {
-        representation_mask &=
-            representation_mask_for(ValueRepresentation::kFloat64);
+        input_reprs.Add(ValueRepresentation::kFloat64);
       } else {
         // Not a Constant that we can untag.
-        representation_mask = 0;
+        input_reprs.RemoveAll();
         break;
       }
     } else if (input->properties().is_conversion()) {
       DCHECK_EQ(input->input_count(), 1);
-      representation_mask &= representation_mask_for(
+      // The graph builder tags all Phi inputs, so this conversion should
+      // produce a tagged value.
+      DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+      // If we want to untag {node}, then we'll drop the conversion and use its
+      // input instead.
+      input_reprs.Add(
           input->input(0).node()->properties().value_representation());
+    } else if (Phi* input_phi = input->TryCast<Phi>()) {
+      if (input_phi->value_representation() != ValueRepresentation::kTagged) {
+        input_reprs.Add(input_phi->value_representation());
+      } else {
+        // An untagged phi is an input of the current phi.
+        // TODO(dmercadier): for the backedge, consider not setting {input_mask}
+        // to zero, in order to allow speculatively untagging it.
+        input_reprs.RemoveAll();
+        break;
+      }
     } else {
-      representation_mask = 0;
+      // This input is tagged (and didn't require a tagging operation to be
+      // tagged); we won't untag {node}.
+      // TODO(dmercadier): this is a bit suboptimal, because some nodes start
+      // tagged, and later become untagged (parameters for instance). Such nodes
+      // will have their untagged alternative passed to {node} without any
+      // explicit conversion, and we thus won't untag {node} even though we
+      // could have.
+      input_reprs.RemoveAll();
       break;
     }
   }
 
-  if (base::bits::CountPopulation(representation_mask) == 1) {
-    ConvertTaggedPhiTo(
-        node, static_cast<ValueRepresentation>(
-                  base::bits::CountTrailingZeros(representation_mask)));
-  } else {
-    // No possible representations, or more than 1 possible representation.
-    // We'll typically end up in this case if:
-    //   - All of the inputs of the Phi are SmiConstant (which can have any
-    //     representation)
-    //   - Some inputs are Int32 tagging and other inputs are Float64 tagging.
-    // If we had information about uses of the node, then we could chose a
-    // representation over the other (eg, Float64 rather than Int32), but
-    // since we don't, we just bail out to avoid choosing the wrong
-    // representation.
-    EnsurePhiInputsTagged(node);
+  ValueRepresentationSet use_reprs = node->get_uses_repr_hints();
+
+  if (use_reprs.contains(ValueRepresentation::kTagged) ||
+      use_reprs.contains(ValueRepresentation::kUint32) || use_reprs.empty()) {
+    // We don't untag phis that are used as tagged (because we'd have to retag
+    // them later). We also ignore phis that are used as Uint32, because this is
+    // a fairly rare case and supporting it doesn't improve performance all that
+    // much but will increase code complexity.
+    // TODO(dmercadier): consider taking into account where those Tagged uses
+    // are: Tagged uses outside of a loop or for a Return could probably be
+    // ignored.
+    return EnsurePhiInputsTagged(node);
   }
+
+  if (!input_reprs.empty()) {
+    DCHECK(!input_reprs.contains(ValueRepresentation::kTagged));
+    DCHECK(!use_reprs.contains(ValueRepresentation::kTagged));
+
+    // The rules for untagging are the following :
+    //
+    //        Inputs repr      |     Uses repr         |   phi repr
+    //  -----------------------+-----------------------+------------------
+    //       Only Int32        |       Only Int32      |     Int32
+    //   At least one Float64  |      Only Float64     |    Float64
+    //       Only Int32        |  At least one Float64 |    Float64
+    //  -----------------------+-----------------------+------------------
+    //   At least one Float64  |  At least one Int32   |     Tagged
+    //
+    // Of interest is the fact that we don't want to insert Float64->Int32
+    // conversions, since they could deopt and lead to deopt loops. As a result,
+    // if a Phi has Float64 inputs and Int32 uses, we simply don't untag it.
+
+    if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
+        use_reprs.contains_only(ValueRepresentation::kInt32)) {
+      //  Only Int32 inputs, Only Int32 uses ==> Int32 phi
+      return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
+    }
+    if (input_reprs.contains(ValueRepresentation::kFloat64) &&
+        use_reprs.contains_only(ValueRepresentation::kFloat64)) {
+      //  At least one Float64 input, Only Float64 uses ==> Float64 phi
+      return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
+    }
+    if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
+        use_reprs.contains(ValueRepresentation::kFloat64)) {
+      //  Only Int32 inputs, At least one Float64 use ==> Float64 phi
+      return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
+    }
+  }
+
+  // We don't untag the Phi.
+  EnsurePhiInputsTagged(node);
 }
 
 void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
@@ -95,64 +148,10 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
   }
 }
 
-void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
-    Phi* phi, ValueRepresentation repr) {
-  phi->change_representation(repr);
-
-  for (int i = 0; i < phi->input_count(); i++) {
-    ValueNode* input = phi->input(i).node();
-    if (input->Is<SmiConstant>()) {
-      switch (repr) {
-        case ValueRepresentation::kInt32:
-          phi->change_input(i,
-                            builder_->GetInt32Constant(
-                                input->Cast<SmiConstant>()->value().value()));
-          break;
-        case ValueRepresentation::kFloat64:
-          phi->change_input(i,
-                            builder_->GetFloat64Constant(
-                                input->Cast<SmiConstant>()->value().value()));
-          break;
-        case ValueRepresentation::kUint32:
-          UNIMPLEMENTED();
-        default:
-          UNREACHABLE();
-      }
-    } else if (Constant* constant = input->TryCast<Constant>()) {
-      DCHECK(constant->object().IsHeapNumber());
-      DCHECK_EQ(repr, ValueRepresentation::kFloat64);
-      phi->change_input(i, builder_->GetFloat64Constant(
-                               constant->object().AsHeapNumber().value()));
-    } else if (input->properties().is_conversion()) {
-      // Unwrapping the conversion.
-      DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
-      DCHECK_EQ(input->input(0).node()->value_representation(), repr);
-      phi->set_input(i, input->input(0).node());
-    } else {
-      DCHECK_EQ(input->value_representation(), repr);
-    }
-  }
-}
-
-bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
-  switch (op) {
-    case Opcode::kCheckedSmiUntag:
-    case Opcode::kUnsafeSmiUntag:
-    case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
-    case Opcode::kCheckedNumberOrOddballToFloat64:
-    case Opcode::kUncheckedNumberOrOddballToFloat64:
-      return true;
-    default:
-      return false;
-  }
-}
-
 namespace {
 
-Opcode GetOpcodeForCheckedConversion(ValueRepresentation from,
-                                     ValueRepresentation to, bool truncating) {
+Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
+                              bool truncating) {
   DCHECK_NE(from, ValueRepresentation::kTagged);
   DCHECK_NE(to, ValueRepresentation::kTagged);
 
@@ -208,6 +207,81 @@ Opcode GetOpcodeForCheckedConversion(ValueRepresentation from,
 
 }  // namespace
 
+void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
+    Phi* phi, ValueRepresentation repr) {
+  // We currently only support Int32 and Float64 untagged phis.
+  DCHECK(repr == ValueRepresentation::kInt32 ||
+         repr == ValueRepresentation::kFloat64);
+  phi->change_representation(repr);
+
+  for (int i = 0; i < phi->input_count(); i++) {
+    ValueNode* input = phi->input(i).node();
+    if (input->Is<SmiConstant>()) {
+      switch (repr) {
+        case ValueRepresentation::kInt32:
+          phi->change_input(i,
+                            builder_->GetInt32Constant(
+                                input->Cast<SmiConstant>()->value().value()));
+          break;
+        case ValueRepresentation::kFloat64:
+          phi->change_input(i,
+                            builder_->GetFloat64Constant(
+                                input->Cast<SmiConstant>()->value().value()));
+          break;
+        case ValueRepresentation::kUint32:
+          UNIMPLEMENTED();
+        default:
+          UNREACHABLE();
+      }
+    } else if (Constant* constant = input->TryCast<Constant>()) {
+      DCHECK(constant->object().IsHeapNumber());
+      DCHECK_EQ(repr, ValueRepresentation::kFloat64);
+      phi->change_input(i, builder_->GetFloat64Constant(
+                               constant->object().AsHeapNumber().value()));
+    } else if (input->properties().is_conversion()) {
+      // Unwrapping the conversion.
+      DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+      if (input->input(0).node()->value_representation() == repr) {
+        phi->set_input(i, input->input(0).node());
+      } else {
+        // Needs to insert a new conversion.
+        ValueRepresentation from_repr =
+            input->input(0).node()->value_representation();
+        Opcode conv_opcode =
+            GetOpcodeForConversion(from_repr, repr, /*truncating*/ false);
+        ValueNode* new_node;
+        switch (conv_opcode) {
+          case Opcode::kChangeInt32ToFloat64:
+            new_node = NodeBase::New<ChangeInt32ToFloat64>(
+                builder_->zone(), {input->input(0).node()});
+            break;
+          default:
+            UNREACHABLE();
+        }
+        phi->set_input(i, AddNode(new_node, phi->predecessor_at(i),
+                                  NewNodePosition::kEnd));
+      }
+    } else if (Phi* input_phi = input->TryCast<Phi>()) {
+      DCHECK_EQ(input_phi->value_representation(), repr);
+    }
+  }
+}
+
+bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
+  switch (op) {
+    case Opcode::kCheckedSmiUntag:
+    case Opcode::kUnsafeSmiUntag:
+    case Opcode::kCheckedObjectToIndex:
+    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
+    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kUncheckedNumberOrOddballToFloat64:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     ValueNode* old_untagging) {
   DCHECK_EQ(old_untagging->input_count(), 1);
@@ -261,7 +335,7 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
       old_untagging->Is<CheckedTruncateNumberOrOddballToInt32>() ||
       old_untagging->Is<TruncateNumberOrOddballToInt32>();
 
-  Opcode needed_conversion = GetOpcodeForCheckedConversion(
+  Opcode needed_conversion = GetOpcodeForConversion(
       from_repr, to_repr, conversion_is_truncating_float64);
 
   if (needed_conversion != old_untagging->opcode()) {

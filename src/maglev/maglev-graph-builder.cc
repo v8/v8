@@ -632,6 +632,10 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(ValueNode* value) {
+  if (Phi* phi = value->TryCast<Phi>()) {
+    phi->RecordUseReprHint(ValueRepresentation::kTagged);
+  }
+
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
@@ -768,6 +772,10 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32(ValueNode* value) {
 }
 
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
+  if (Phi* phi = value->TryCast<Phi>()) {
+    phi->RecordUseReprHint(ValueRepresentation::kInt32);
+  }
+
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
@@ -810,6 +818,10 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
 
 ValueNode* MaglevGraphBuilder::GetFloat64(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+  if (Phi* phi = value->TryCast<Phi>()) {
+    phi->RecordUseReprHint(ValueRepresentation::kFloat64);
+  }
+
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
@@ -2945,6 +2957,10 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 // TODO(victorgomes): Consider caching the values and adding an
 // uint32_alternative in node_info.
 ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
+  if (Phi* phi = object->TryCast<Phi>()) {
+    phi->RecordUseReprHint(ValueRepresentation::kUint32);
+  }
+
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
