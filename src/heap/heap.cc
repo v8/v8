@@ -2304,6 +2304,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
   if (isolate_->is_shared_space_isolate()) {
+    // Allows handle derefs for all threads/isolates from this thread.
+    AllowHandleDereferenceAllThreads allow_all_handle_derefs;
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       Relocatable::PostGarbageCollectionProcessing(client);
     });
