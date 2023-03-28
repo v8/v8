@@ -250,10 +250,10 @@ class CompilationUnitQueues {
       auto* queue = queues_[queue_to_add].get();
       base::MutexGuard guard(&queue->mutex);
       queue->top_tier_priority_units.emplace(priority, unit);
+      num_priority_units_.fetch_add(1, std::memory_order_relaxed);
+      num_units_[CompilationTier::kTopTier].fetch_add(
+          1, std::memory_order_relaxed);
     }
-    num_priority_units_.fetch_add(1, std::memory_order_relaxed);
-    num_units_[CompilationTier::kTopTier].fetch_add(1,
-                                                    std::memory_order_relaxed);
   }
 
   // Get the current number of units in the queue for |tier|. This is only a
