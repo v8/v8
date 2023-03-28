@@ -975,12 +975,13 @@ void PagedSpaceForNewSpace::RemovePage(Page* page) {
 void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   DCHECK_LE(Page::kPageSize, current_capacity_);
   current_capacity_ -= Page::kPageSize;
-  PagedSpaceBase::ReleasePage(page);
+  PagedSpaceBase::ReleasePageImpl(
+      page, MemoryAllocator::FreeMode::kConcurrentlyAndPool);
 }
 
 bool PagedSpaceForNewSpace::PreallocatePages() {
   while (current_capacity_ < target_capacity_) {
-    if (!TryExpandImpl()) return false;
+    if (!AllocatePage()) return false;
   }
   DCHECK_GE(current_capacity_, target_capacity_);
   return true;
@@ -1042,9 +1043,13 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->IsMarking(),
                  heap()->incremental_marking()->IsMajorMarking());
-  if (!TryExpandImpl()) return false;
+  if (!AllocatePage()) return false;
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                        origin);
+}
+
+bool PagedSpaceForNewSpace::AllocatePage() {
+  return TryExpandImpl(MemoryAllocator::AllocationMode::kUsePool);
 }
 
 // -----------------------------------------------------------------------------

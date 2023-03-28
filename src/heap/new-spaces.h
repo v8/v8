@@ -638,6 +638,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
   bool PreallocatePages();
+  bool AllocatePage();
 
   const size_t initial_capacity_;
   const size_t max_capacity_;
