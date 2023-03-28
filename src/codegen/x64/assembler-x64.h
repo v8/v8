@@ -1578,6 +1578,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     XMMRegister ext_reg = XMMRegister::from_code(extension);           \
     vinstr(0x##opcode, ext_reg, dst, src, k##prefix, k##escape, kWIG); \
     emit(imm8);                                                        \
+  }                                                                    \
+                                                                       \
+  void v##instr(YMMRegister dst, YMMRegister src, byte imm8) {         \
+    YMMRegister ext_reg = YMMRegister::from_code(extension);           \
+    vinstr(0x##opcode, ext_reg, dst, src, k##prefix, k##escape, kWIG); \
+    emit(imm8);                                                        \
   }
   SSE2_INSTRUCTION_LIST_SHIFT_IMM(AVX_SSE2_SHIFT_IMM)
 #undef AVX_SSE2_SHIFT_IMM

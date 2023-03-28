@@ -2843,6 +2843,96 @@ TEST_F(AssemblerX64Test, AssemblerX64CmpOperations256bit) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AssemblerX64ShiftImm128bit) {
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX);
+
+  __ vpsrlw(xmm8, xmm2, 4);
+  __ vpsrld(xmm11, xmm2, 4);
+  __ vpsrlq(xmm1, xmm2, 4);
+  __ vpsraw(xmm10, xmm8, 4);
+  __ vpsrad(xmm6, xmm7, 4);
+  __ vpsllw(xmm1, xmm4, 4);
+  __ vpslld(xmm3, xmm2, 4);
+  __ vpsllq(xmm6, xmm9, 4);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// vpsrlw xmm8,xmm2,0x4
+                     0XC5, 0xB9, 0x71, 0xD2, 0x04,
+                     // vpsrld xmm11,xmm2,0x4
+                     0xC5, 0xA1, 0x72, 0xD2, 0x04,
+                     // vpsrlq xmm1,xmm2,0x4
+                     0xC5, 0xF1, 0x73, 0xD2, 0x04,
+                     // vpsraw xmm10,xmm8,0x4
+                     0xC4, 0xC1, 0x29, 0x71, 0xE0, 0x04,
+                     // vpsrad xmm6,xmm7,0x4
+                     0xC5, 0xC9, 0x72, 0xE7, 0x04,
+                     // vpsllw xmm1,xmm4,0x4
+                     0xC5, 0xF1, 0x71, 0xF4, 0x04,
+                     // vpslld xmm3,xmm2,0x4
+                     0xC5, 0xE1, 0x72, 0xF2, 0x04,
+                     // vpsllq xmm6,xmm9,0x4
+                     0xC4, 0xC1, 0x49, 0x73, 0xF1, 0x04};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AssemblerX64ShiftImm256bit) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX2);
+
+  __ vpsrlw(ymm0, ymm2, 4);
+  __ vpsrld(ymm11, ymm2, 4);
+  __ vpsrlq(ymm1, ymm2, 4);
+  __ vpsraw(ymm10, ymm8, 4);
+  __ vpsrad(ymm6, ymm7, 4);
+  __ vpsllw(ymm1, ymm4, 4);
+  __ vpslld(ymm3, ymm2, 4);
+  __ vpsllq(ymm6, ymm9, 4);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// vpsrlw ymm0,ymm2,0x4
+                     0XC5, 0xFD, 0x71, 0xD2, 0x04,
+                     // vpsrld ymm11,ymm2,0x4
+                     0xC5, 0xA5, 0x72, 0xD2, 0x04,
+                     // vpsrlq ymm1,ymm2,0x4
+                     0xC5, 0xF5, 0x73, 0xD2, 0x04,
+                     // vpsraw ymm10,ymm8,0x4
+                     0xC4, 0xC1, 0x2D, 0x71, 0xE0, 0x04,
+                     // vpsrad ymm6,ymm7,0x4
+                     0xC5, 0xCD, 0x72, 0xE7, 0x04,
+                     // vpsllw ymm1,ymm4,0x4
+                     0xC5, 0xF5, 0x71, 0xF4, 0x04,
+                     // vpslld ymm3,ymm2,0x4
+                     0xC5, 0xE5, 0x72, 0xF2, 0x04,
+                     // vpsllq ymm6,ymm9,0x4
+                     0xC4, 0xC1, 0x4D, 0x73, 0xF1, 0x04};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));
