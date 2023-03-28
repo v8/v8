@@ -43,6 +43,10 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+namespace {
+constexpr int kReceiverOnStackSize = kSystemPointerSize;
+}  // namespace
+
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
   __ CodeEntry();
 
@@ -3761,7 +3765,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // We iterate through half-open interval <1st param, [fp + param_limit]).
 
   DEFINE_REG(param_ptr);
-  constexpr int kReceiverOnStackSize = kSystemPointerSize;
   __ Add(param_ptr, original_fp,
           kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize);
   DEFINE_REG(param_limit);
@@ -4760,14 +4763,9 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                                ArgvMode argv_mode, bool builtin_exit_frame) {
-  // The Abort mechanism relies on CallRuntime, which in turn relies on
-  // CEntry, so until this stub has been generated, we have to use a
-  // fall-back Abort mechanism.
-  //
-  // Note that this stub must be generated before any use of Abort.
-  HardAbortScope hard_aborts(masm);
-
   ASM_LOCATION("CEntry::Generate entry");
+
+  using ER = ExternalReference;
 
   // Register parameters:
   //    x0: argc (including receiver, untagged)
@@ -4786,56 +4784,38 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //
   // The arguments are in reverse order, so that arg[argc-2] is actually the
   // first argument to the target function and arg[0] is the last.
-  const Register& argc_input = x0;
-  const Register& target_input = x1;
+  static constexpr Register argc_input = x0;
+  static constexpr Register target_input = x1;
+  // Initialized below if ArgvMode::kStack.
+  static constexpr Register argv_input = x11;
 
-  // Calculate argv, argc and the target address, and store them in
-  // callee-saved registers so we can retry the call without having to reload
-  // these arguments.
-  // TODO(jbramley): If the first call attempt succeeds in the common case (as
-  // it should), then we might be better off putting these parameters directly
-  // into their argument registers, rather than using callee-saved registers and
-  // preserving them on the stack.
-  const Register& argv = x21;
-  const Register& argc = x22;
-  const Register& target = x23;
-
-  // Derive argv from the stack pointer so that it points to the first argument
-  // (arg[argc-2]), or just below the receiver in case there are no arguments.
-  //  - Adjust for the arg[] array.
-  Register temp_argv = x11;
   if (argv_mode == ArgvMode::kStack) {
-    __ SlotAddress(temp_argv, x0);
-    //  - Adjust for the receiver.
-    __ Sub(temp_argv, temp_argv, 1 * kSystemPointerSize);
+    // Derive argv from the stack pointer so that it points to the first
+    // argument.
+    __ SlotAddress(argv_input, argc_input);
+    __ Sub(argv_input, argv_input, kReceiverOnStackSize);
   }
 
-  // Reserve three slots to preserve x21-x23 callee-saved registers.
-  int extra_stack_space = 3;
+  // If ArgvMode::kStack, argc is reused below and must be retained across the
+  // call in a callee-saved register.  Reserve a stack slot to preserve x22's
+  // previous value.
+  static constexpr Register argc = x22;
+  const int kExtraStackSpace = argv_mode == ArgvMode::kStack ? 1 : 0;
+
   // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
-      x10, extra_stack_space,
+      x10, kExtraStackSpace,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
-  // Poke callee-saved registers into reserved space.
-  __ Poke(argv, 1 * kSystemPointerSize);
-  __ Poke(argc, 2 * kSystemPointerSize);
-  __ Poke(target, 3 * kSystemPointerSize);
+  if (argv_mode == ArgvMode::kStack) {
+    DCHECK_EQ(kExtraStackSpace, 1);
+    __ Poke(x22, 1 * kSystemPointerSize);
+    __ Mov(argc, argc_input);
+  } else {
+    DCHECK_EQ(kExtraStackSpace, 0);
+  }
 
-  // We normally only keep tagged values in callee-saved registers, as they
-  // could be pushed onto the stack by called stubs and functions, and on the
-  // stack they can confuse the GC. However, we're only calling C functions
-  // which can push arbitrary data onto the stack anyway, and so the GC won't
-  // examine that part of the stack.
-  __ Mov(argc, argc_input);
-  __ Mov(target, target_input);
-  __ Mov(argv, temp_argv);
-
-  // x21 : argv
-  // x22 : argc
-  // x23 : call target
-  //
   // The stack (on entry) holds the arguments and the receiver, with the
   // receiver at the highest address:
   //
@@ -4852,24 +4832,22 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //         fp[-8]:   Space reserved for SPOffset.
   //         fp[-16]:  CodeObject()
   //         sp[...]:  Saved doubles, if saved_doubles is true.
-  //         sp[32]:   Alignment padding, if necessary.
-  //         sp[24]:   Preserved x23 (used for target).
-  //         sp[16]:   Preserved x22 (used for argc).
-  //         sp[8]:    Preserved x21 (used for argv).
+  //         sp[16]:   Alignment padding, if necessary.
+  //         sp[8]:   Preserved x22 (used for argc).
   //   sp -> sp[0]:    Space reserved for the return address.
-  //
-  // After a successful call, the exit frame, preserved registers (x21-x23) and
-  // the arguments (including the receiver) are dropped or popped as
-  // appropriate. The stub then returns.
-  //
-  // After an unsuccessful call, the exit frame and suchlike are left
-  // untouched, and the stub either throws an exception by jumping to one of
-  // the exception_returned label.
+
+  // TODO(jgruber): Swap these registers in the calling convention instead.
+  static_assert(target_input == x1);
+  static_assert(argv_input == x11);
+  __ Swap(target_input, argv_input);
+  static constexpr Register target = x11;
+  static constexpr Register argv = x1;
+  static_assert(!AreAliased(argc_input, argc, target, argv));
 
   // Prepare AAPCS64 arguments to pass to the builtin.
-  __ Mov(x0, argc);
-  __ Mov(x1, argv);
-  __ Mov(x2, ExternalReference::isolate_address(masm->isolate()));
+  static_assert(argc_input == x0);  // Already in the right spot.
+  static_assert(argv == x1);        // Already in the right spot.
+  __ Mov(x2, ER::isolate_address(masm->isolate()));
 
   __ StoreReturnAddressAndCall(target);
 
@@ -4877,9 +4855,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   //  x0    result0      The return code from the call.
   //  x1    result1      For calls which return ObjectPair.
-  //  x21   argv
-  //  x22   argc
-  //  x23   target
+  //  x22   argc         .. only if ArgvMode::kStack.
   const Register& result = x0;
 
   // Check result for exception sentinel.
@@ -4889,57 +4865,48 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // The call succeeded, so unwind the stack and return.
 
-  // Restore callee-saved registers x21-x23.
-  __ Mov(x11, argc);
-
-  __ Peek(argv, 1 * kSystemPointerSize);
-  __ Peek(argc, 2 * kSystemPointerSize);
-  __ Peek(target, 3 * kSystemPointerSize);
-
-  __ LeaveExitFrame(x10, x9);
+  // Restore saved registers.
   if (argv_mode == ArgvMode::kStack) {
-    // Drop the remaining stack slots and return from the stub.
+    DCHECK_EQ(kExtraStackSpace, 1);
+    __ Mov(x11, argc);  // x11 used as scratch, just til DropArguments below.
+    __ Peek(x22, 1 * kSystemPointerSize);
+    __ LeaveExitFrame(x10, x9);
     __ DropArguments(x11);
+  } else {
+    DCHECK_EQ(kExtraStackSpace, 0);
+    __ LeaveExitFrame(x10, x9);
   }
+
   __ AssertFPCRState();
   __ Ret();
 
   // Handling of exception.
   __ Bind(&exception_returned);
 
-  ExternalReference pending_handler_context_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ExternalReference pending_handler_entrypoint_address =
-      ExternalReference::Create(
-          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ExternalReference pending_handler_fp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ExternalReference pending_handler_sp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
-
   // Ask the runtime for help to determine the handler. This will set x0 to
   // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler =
-      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Mov(x0, 0);  // argc.
     __ Mov(x1, 0);  // argv.
-    __ Mov(x2, ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(find_handler, 3);
+    __ Mov(x2, ER::isolate_address(masm->isolate()));
+    __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3);
   }
 
   // Retrieve the handler context, SP and FP.
-  __ Mov(cp, pending_handler_context_address);
+  __ Mov(cp, ER::Create(IsolateAddressId::kPendingHandlerContextAddress,
+                        masm->isolate()));
   __ Ldr(cp, MemOperand(cp));
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.AcquireX();
-    __ Mov(scratch, pending_handler_sp_address);
+    __ Mov(scratch, ER::Create(IsolateAddressId::kPendingHandlerSPAddress,
+                               masm->isolate()));
     __ Ldr(scratch, MemOperand(scratch));
     __ Mov(sp, scratch);
   }
-  __ Mov(fp, pending_handler_fp_address);
+  __ Mov(fp, ER::Create(IsolateAddressId::kPendingHandlerFPAddress,
+                        masm->isolate()));
   __ Ldr(fp, MemOperand(fp));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
@@ -4953,8 +4920,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     // Clear c_entry_fp, like we do in `LeaveExitFrame`.
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.AcquireX();
-    __ Mov(scratch, ExternalReference::Create(
-                        IsolateAddressId::kCEntryFPAddress, masm->isolate()));
+    __ Mov(scratch,
+           ER::Create(IsolateAddressId::kCEntryFPAddress, masm->isolate()));
     __ Str(xzr, MemOperand(scratch));
   }
 
@@ -4964,7 +4931,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // a "BTI c".
   UseScratchRegisterScope temps(masm);
   temps.Exclude(x17);
-  __ Mov(x17, pending_handler_entrypoint_address);
+  __ Mov(x17, ER::Create(IsolateAddressId::kPendingHandlerEntrypointAddress,
+                         masm->isolate()));
   __ Ldr(x17, MemOperand(x17));
   __ Br(x17);
 }
