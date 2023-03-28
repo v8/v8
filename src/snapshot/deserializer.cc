@@ -1226,7 +1226,6 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
     Code code = istream.code(kAcquireLoad);
     DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
     for (RelocIterator it(code, istream, code.relocation_info(),
-                          code.constant_pool(),
                           InstructionStream::BodyDescriptor::kRelocModeMask);
          !it.done(); it.next()) {
       it.rinfo()->Visit(&visitor);
