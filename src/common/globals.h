@@ -71,7 +71,9 @@ namespace internal {
 
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
-#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+// Need to temporary disable the constant pool on PPC, more details can be found
+// under https://crrev.com/c/4341976.
+#if 0 && (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64)
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL false

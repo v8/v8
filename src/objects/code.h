@@ -229,9 +229,6 @@ class Code : public HeapObject {
   inline bool has_handler_table() const;
 
   inline Address constant_pool() const;
-  // An accessor to be used during GC if the instruction_stream moved and the
-  // field was not updated yet.
-  inline Address constant_pool(InstructionStream instruction_stream) const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
@@ -500,7 +497,6 @@ class GcSafeCode : public HeapObject {
   inline bool marked_for_deoptimization() const;
   inline Object raw_instruction_stream() const;
   inline Address constant_pool() const;
-  inline Address constant_pool(InstructionStream istream) const;
   inline Address safepoint_table_address() const;
   inline int stack_slots() const;
 

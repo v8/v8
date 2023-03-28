@@ -1293,7 +1293,7 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
   // object and wipe all pointers in the copy, which we then serialize.
   InstructionStream off_heap_istream = serializer_->CopyCode(*on_heap_istream);
   for (RelocIterator it(*code, off_heap_istream, relocation_info,
-                        kWipeOutModeMask);
+                        code->constant_pool(), kWipeOutModeMask);
        !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
@@ -1346,6 +1346,7 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
   // serialization, i.e. no backrefs or roots.
   RelocInfoObjectPreSerializer pre_serializer(serializer_);
   for (RelocIterator it(*code, *on_heap_istream, relocation_info,
+                        code->constant_pool(),
                         InstructionStream::BodyDescriptor::kRelocModeMask);
        !it.done(); it.next()) {
     it.rinfo()->Visit(&pre_serializer);
@@ -1357,6 +1358,7 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
   // knowing that we will not do a recursive serialization.
   // TODO(leszeks): Add a scope that DCHECKs this.
   for (RelocIterator it(*code, *on_heap_istream, relocation_info,
+                        code->constant_pool(),
                         InstructionStream::BodyDescriptor::kRelocModeMask);
        !it.done(); it.next()) {
     it.rinfo()->Visit(this);

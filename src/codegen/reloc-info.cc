@@ -267,10 +267,10 @@ RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
           relocation_info.GetDataStartAddress(), mode_mask) {}
 
 RelocIterator::RelocIterator(Code code, InstructionStream instruction_stream,
-                             ByteArray relocation_info, int mode_mask)
+                             ByteArray relocation_info, Address constant_pool,
+                             int mode_mask)
     : RelocIterator(code, instruction_stream,
-                    instruction_stream.instruction_start(),
-                    code.constant_pool(instruction_stream),
+                    instruction_stream.instruction_start(), constant_pool,
                     relocation_info.GetDataEndAddress(),
                     relocation_info.GetDataStartAddress(), mode_mask) {}
 
