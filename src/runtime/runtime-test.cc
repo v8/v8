@@ -534,7 +534,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  if (v8_flags.testing_d8_test_runner) {
+  if (v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax) {
     ManualOptimizationTable::MarkFunctionForManualOptimization(
         isolate, function, &is_compiled_scope);
   }
