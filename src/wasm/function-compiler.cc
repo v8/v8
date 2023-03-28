@@ -183,15 +183,9 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
       counters, nullptr, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    // We need to extend the lifetime of {assumptions} beyond the
-    // {std::move(result)} statement.
-    // TODO(jkummerow): Refactor this: make {result} stack-allocated here
-    // and pass it by reference to other code that populates or consumes it.
-    AssumptionsJournal* assumptions = result.assumptions.release();
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)),
-        assumptions->empty() ? nullptr : assumptions);
-    delete assumptions;
+    AssumptionsJournal* assumptions = result.assumptions.get();
+    native_module->PublishCode(native_module->AddCompiledCode(result),
+                               assumptions->empty() ? nullptr : assumptions);
   } else {
     native_module->compilation_state()->SetError();
   }

@@ -2205,13 +2205,13 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
-    WasmCompilationResult result) {
+    const WasmCompilationResult& result) {
   std::vector<std::unique_ptr<WasmCode>> code = AddCompiledCode({&result, 1});
   return std::move(code[0]);
 }
 
 std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
-    base::Vector<WasmCompilationResult> results) {
+    base::Vector<const WasmCompilationResult> results) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());

@@ -803,9 +803,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void SampleCodeSize(Counters*) const;
 
   V8_WARN_UNUSED_RESULT std::unique_ptr<WasmCode> AddCompiledCode(
-      WasmCompilationResult);
+      const WasmCompilationResult&);
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
-      base::Vector<WasmCompilationResult>);
+      base::Vector<const WasmCompilationResult>);
 
   // Set a new debugging state, but don't trigger any recompilation;
   // recompilation happens lazily.

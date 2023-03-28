@@ -616,8 +616,8 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
         nullptr, nullptr, &unused_detected_features));
   }
   CHECK(result->succeeded());
-  WasmCode* code = native_module->PublishCode(
-      native_module->AddCompiledCode(std::move(*result)));
+  WasmCode* code =
+      native_module->PublishCode(native_module->AddCompiledCode(*result));
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();

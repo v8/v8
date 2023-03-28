@@ -1157,8 +1157,7 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
   WasmCode* code;
   {
     CodeSpaceWriteScope code_space_write_scope(native_module);
-    code = native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)));
+    code = native_module->PublishCode(native_module->AddCompiledCode(result));
   }
   DCHECK_EQ(func_index, code->index());
 
@@ -1547,7 +1546,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 queue, tier))) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                base::VectorOf(std::move(results_to_publish)));
+                base::VectorOf(results_to_publish));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
@@ -1568,7 +1567,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (batch_full || liftoff_finished) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                base::VectorOf(std::move(results_to_publish)));
+                base::VectorOf(results_to_publish));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
