@@ -13,6 +13,13 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+#define TRACE_UNTAGGING(...)                      \
+  do {                                            \
+    if (v8_flags.trace_maglev_phi_untagging) {    \
+      StdoutStream{} << __VA_ARGS__ << std::endl; \
+    }                                             \
+  } while (false)
+
 void MaglevPhiRepresentationSelector::Process(Phi* node,
                                               const ProcessingState&) {
   DCHECK_EQ(node->value_representation(), ValueRepresentation::kTagged);
@@ -23,6 +30,9 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     // not, so we just keep those Phis tagged.
     return;
   }
+
+  TRACE_UNTAGGING(
+      "Considering for untagging: " << PrintNodeLabel(graph_labeller(), node));
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
   // based on the ValueRepresentation of its inputs.
@@ -77,6 +87,11 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
 
   ValueRepresentationSet use_reprs = node->get_uses_repr_hints();
 
+  TRACE_UNTAGGING("  + use_reprs  : " << std::hex << use_reprs.ToIntegral()
+                                      << std::dec);
+  TRACE_UNTAGGING("  + input_reprs: " << std::hex << use_reprs.ToIntegral()
+                                      << std::dec);
+
   if (use_reprs.contains(ValueRepresentation::kTagged) ||
       use_reprs.contains(ValueRepresentation::kUint32) || use_reprs.empty()) {
     // We don't untag phis that are used as tagged (because we'd have to retag
@@ -86,6 +101,7 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     // TODO(dmercadier): consider taking into account where those Tagged uses
     // are: Tagged uses outside of a loop or for a Return could probably be
     // ignored.
+    TRACE_UNTAGGING("  => Leaving tagged [incompatible uses]");
     return EnsurePhiInputsTagged(node);
   }
 
@@ -110,21 +126,30 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
         use_reprs.contains_only(ValueRepresentation::kInt32)) {
       //  Only Int32 inputs, Only Int32 uses ==> Int32 phi
+      TRACE_UNTAGGING(
+          "  => Untagging to Int32 [only Int32 inputs, only Int32 uses]");
       return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
     }
     if (input_reprs.contains(ValueRepresentation::kFloat64) &&
         use_reprs.contains_only(ValueRepresentation::kFloat64)) {
       //  At least one Float64 input, Only Float64 uses ==> Float64 phi
+      TRACE_UNTAGGING(
+          "  => Untagging to Float64 [at least one Float64 input, only Float64 "
+          "uses]");
       return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
     }
     if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
         use_reprs.contains(ValueRepresentation::kFloat64)) {
       //  Only Int32 inputs, At least one Float64 use ==> Float64 phi
+      TRACE_UNTAGGING(
+          "  => Untagging to Float64 [only Int32 inputs, at least one Float64 "
+          "use]");
       return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
     }
   }
 
   // We don't untag the Phi.
+  TRACE_UNTAGGING("  => Leaving tagged [incompatible inputs/uses]");
   EnsurePhiInputsTagged(node);
 }
 
@@ -216,14 +241,20 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 
   for (int i = 0; i < phi->input_count(); i++) {
     ValueNode* input = phi->input(i).node();
+#define TRACE_INPUT_LABEL \
+  "    @ Input " << i << " (" << PrintNodeLabel(graph_labeller(), input) << ")"
+
     if (input->Is<SmiConstant>()) {
       switch (repr) {
         case ValueRepresentation::kInt32:
+          TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Smi");
           phi->change_input(i,
                             builder_->GetInt32Constant(
                                 input->Cast<SmiConstant>()->value().value()));
           break;
         case ValueRepresentation::kFloat64:
+          TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                          << ": Making Float64 instead of Smi");
           phi->change_input(i,
                             builder_->GetFloat64Constant(
                                 input->Cast<SmiConstant>()->value().value()));
@@ -234,6 +265,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           UNREACHABLE();
       }
     } else if (Constant* constant = input->TryCast<Constant>()) {
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                      << ": Making Float64 instead of Constant");
       DCHECK(constant->object().IsHeapNumber());
       DCHECK_EQ(repr, ValueRepresentation::kFloat64);
       phi->change_input(i, builder_->GetFloat64Constant(
@@ -242,6 +275,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       // Unwrapping the conversion.
       DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
       if (input->input(0).node()->value_representation() == repr) {
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
         phi->set_input(i, input->input(0).node());
       } else {
         // Needs to insert a new conversion.
@@ -252,6 +286,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         ValueNode* new_node;
         switch (conv_opcode) {
           case Opcode::kChangeInt32ToFloat64:
+            TRACE_UNTAGGING(
+                TRACE_INPUT_LABEL
+                << ": Replacing old conversion with a ChangeInt32ToFloat64");
             new_node = NodeBase::New<ChangeInt32ToFloat64>(
                 builder_->zone(), {input->input(0).node()});
             break;
@@ -264,6 +301,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
     } else {
       DCHECK_IMPLIES(input->Is<Phi>(),
                      input->Cast<Phi>()->value_representation() == repr);
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Keeping as-is");
     }
   }
 }

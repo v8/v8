@@ -364,7 +364,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
       v8_flags.print_maglev_graph || v8_flags.trace_maglev_graph_building ||
-      v8_flags.trace_maglev_regalloc) {
+      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
@@ -373,7 +373,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
     if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
         v8_flags.trace_maglev_graph_building ||
-        v8_flags.trace_maglev_regalloc) {
+        v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
       MaglevCompilationUnit* top_level_unit =
           compilation_info->toplevel_compilation_unit();
       std::cout << "Compiling " << Brief(*top_level_unit->function().object())

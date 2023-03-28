@@ -21,8 +21,18 @@ class MaglevPhiRepresentationSelector {
         new_nodes_current_block_start_(builder->zone()),
         new_nodes_current_block_end_(builder->zone()) {}
 
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) { MergeNewNodesInBlock(current_block_); }
+  void PreProcessGraph(Graph* graph) {
+    if (v8_flags.trace_maglev_phi_untagging) {
+      StdoutStream{} << "\nMaglevPhiRepresentationSelector\n";
+    }
+  }
+  void PostProcessGraph(Graph* graph) {
+    MergeNewNodesInBlock(current_block_);
+
+    if (v8_flags.trace_maglev_phi_untagging) {
+      StdoutStream{} << "\n";
+    }
+  }
   void PreProcessBasicBlock(BasicBlock* block) {
     MergeNewNodesInBlock(current_block_);
     current_block_ = block;
@@ -154,6 +164,10 @@ class MaglevPhiRepresentationSelector {
   // Replaces Identity nodes by their inputs in {deopt_info}
   template <typename DeoptInfoT>
   void BypassIdentities(const DeoptInfoT* deopt_info);
+
+  MaglevGraphLabeller* graph_labeller() const {
+    return builder_->graph_labeller();
+  }
 
   MaglevGraphBuilder* builder_ = nullptr;
   BasicBlock* current_block_ = nullptr;
