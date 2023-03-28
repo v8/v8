@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-phi-representation-selector.h"
 
+#include "src/base/enum-set.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -105,49 +107,71 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     return EnsurePhiInputsTagged(node);
   }
 
-  if (!input_reprs.empty()) {
-    DCHECK(!input_reprs.contains(ValueRepresentation::kTagged));
-    DCHECK(!use_reprs.contains(ValueRepresentation::kTagged));
-
-    // The rules for untagging are the following :
-    //
-    //        Inputs repr      |     Uses repr         |   phi repr
-    //  -----------------------+-----------------------+------------------
-    //       Only Int32        |       Only Int32      |     Int32
-    //   At least one Float64  |      Only Float64     |    Float64
-    //       Only Int32        |  At least one Float64 |    Float64
-    //  -----------------------+-----------------------+------------------
-    //   At least one Float64  |  At least one Int32   |     Tagged
-    //
-    // Of interest is the fact that we don't want to insert Float64->Int32
-    // conversions, since they could deopt and lead to deopt loops. As a result,
-    // if a Phi has Float64 inputs and Int32 uses, we simply don't untag it.
-
-    if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
-        use_reprs.contains_only(ValueRepresentation::kInt32)) {
-      //  Only Int32 inputs, Only Int32 uses ==> Int32 phi
-      TRACE_UNTAGGING(
-          "  => Untagging to Int32 [only Int32 inputs, only Int32 uses]");
-      return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
-    }
-    if (input_reprs.contains(ValueRepresentation::kFloat64) &&
-        use_reprs.contains_only(ValueRepresentation::kFloat64)) {
-      //  At least one Float64 input, Only Float64 uses ==> Float64 phi
-      TRACE_UNTAGGING(
-          "  => Untagging to Float64 [at least one Float64 input, only Float64 "
-          "uses]");
-      return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
-    }
-    if (input_reprs.contains_only(ValueRepresentation::kInt32) &&
-        use_reprs.contains(ValueRepresentation::kFloat64)) {
-      //  Only Int32 inputs, At least one Float64 use ==> Float64 phi
-      TRACE_UNTAGGING(
-          "  => Untagging to Float64 [only Int32 inputs, at least one Float64 "
-          "use]");
-      return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
-    }
+  if (input_reprs.contains(ValueRepresentation::kTagged) ||
+      input_reprs.contains(ValueRepresentation::kUint32) ||
+      input_reprs.empty()) {
+    TRACE_UNTAGGING("  => Leaving tagged [tagged or uint32 inputs]");
+    return EnsurePhiInputsTagged(node);
   }
 
+  // Only allowed to have Int32 and Float64 inputs from here.
+  DCHECK_EQ(input_reprs - base::EnumSet<ValueRepresentation>(
+                              {ValueRepresentation::kInt32,
+                               ValueRepresentation::kFloat64}),
+            base::EnumSet<ValueRepresentation>());
+
+  DCHECK_EQ(use_reprs - base::EnumSet<ValueRepresentation>(
+                            {ValueRepresentation::kInt32,
+                             ValueRepresentation::kFloat64}),
+            base::EnumSet<ValueRepresentation>());
+
+  // The rules for untagging are that we can only widen input representations,
+  // i.e. promote Int32 -> Float64.
+  //
+  // Inputs can always be used as more generic uses, and more tighter uses
+  // always block more generic inputs. So, we can find the minimum generic use
+  // and input, extend inputs upwards, uses downwards, and convert to the most
+  // generic use in the intersection.
+  //
+  // Of interest is the fact that we don't want to insert conversions which
+  // reduce genericity, e.g. Float64->Int32 conversions, since they could deopt
+  // and lead to deopt loops. The above logic ensures that if a Phi has Float64
+  // inputs and Int32 uses, we simply don't untag it.
+  //
+  // TODO(leszeks): The above logic could be implemented with bit magic if the
+  // representations were contiguous.
+
+  base::EnumSet<ValueRepresentation> possible_inputs;
+  if (input_reprs.contains(ValueRepresentation::kInt32)) {
+    possible_inputs = {ValueRepresentation::kInt32,
+                       ValueRepresentation::kFloat64};
+  } else {
+    DCHECK(input_reprs.contains_only(ValueRepresentation::kFloat64));
+    possible_inputs = {ValueRepresentation::kFloat64};
+  }
+
+  base::EnumSet<ValueRepresentation> allowed_inputs_for_uses;
+  if (use_reprs.contains(ValueRepresentation::kFloat64)) {
+    allowed_inputs_for_uses = {ValueRepresentation::kInt32,
+                               ValueRepresentation::kFloat64};
+  } else {
+    DCHECK(input_reprs.contains_only(ValueRepresentation::kInt32));
+    allowed_inputs_for_uses = {ValueRepresentation::kInt32};
+  }
+
+  auto intersection = possible_inputs & allowed_inputs_for_uses;
+
+  TRACE_UNTAGGING("  + intersection reprs: "
+                  << std::hex << intersection.ToIntegral() << std::dec);
+  if (intersection.contains(ValueRepresentation::kFloat64)) {
+    TRACE_UNTAGGING("  => Untagging to kFloat64");
+    return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
+  } else if (intersection.contains(ValueRepresentation::kInt32)) {
+    TRACE_UNTAGGING("  => Untagging to Int32");
+    return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
+  }
+
+  DCHECK(intersection.empty());
   // We don't untag the Phi.
   TRACE_UNTAGGING("  => Leaving tagged [incompatible inputs/uses]");
   EnsurePhiInputsTagged(node);
