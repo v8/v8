@@ -7,6 +7,8 @@
 namespace runtime {
 extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi): Smi;
 extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
+extern runtime WasmInternalFunctionCreateExternal(
+    Context, WasmInternalFunction): JSFunction;
 extern runtime WasmTableInit(
     Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
 extern runtime WasmTableCopy(
@@ -100,14 +102,18 @@ builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
 
-builtin WasmFuncRefToJS(val: WasmInternalFunction|WasmNull): JSFunction|Null|
-    Undefined {
+builtin WasmFuncRefToJS(implicit context: Context)(val: WasmInternalFunction|
+                                                   WasmNull): JSFunction|Null {
   typeswitch (val) {
     case (WasmNull): {
       return Null;
     }
     case (func: WasmInternalFunction): {
-      return func.external;
+      const maybeExternal: Object = func.external;
+      if (maybeExternal != Undefined) {
+        return %RawDownCast<JSFunction>(maybeExternal);
+      }
+      tail runtime::WasmInternalFunctionCreateExternal(context, func);
     }
   }
 }
@@ -304,6 +310,11 @@ builtin WasmRefFunc(index: uint32): Object {
     tail runtime::WasmRefFunc(
         LoadContextFromInstance(instance), instance, SmiFromUint32(index));
   }
+}
+
+builtin WasmInternalFunctionCreateExternal(
+    context: Context, func: WasmInternalFunction): JSFunction {
+  return runtime::WasmInternalFunctionCreateExternal(context, func);
 }
 
 builtin WasmAllocateFixedArray(size: intptr): FixedArray {

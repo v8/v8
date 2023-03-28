@@ -3176,7 +3176,9 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       BuiltinWasmWrapperConstants::kParamCountOffset;
   constexpr int kSuspenderOffset =
       BuiltinWasmWrapperConstants::kSuspenderOffset;
-  constexpr int kReturnCountOffset = kSuspenderOffset - kSystemPointerSize;
+  constexpr int kFunctionDataOffset =
+      BuiltinWasmWrapperConstants::kFunctionDataOffset;
+  constexpr int kReturnCountOffset = kFunctionDataOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
   // A boolean flag to check if one of the parameters is a reference. If so, we
@@ -3184,10 +3186,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // for all references.
   constexpr int kHasRefTypesOffset =
       kValueTypesArrayStartOffset - kSystemPointerSize;
-  // We set and use this slot only when moving parameters into the parameter
-  // registers (so no GC scan is needed).
-  constexpr int kFunctionDataOffset = kHasRefTypesOffset - kSystemPointerSize;
-  constexpr int kLastSpillOffset = kFunctionDataOffset;
+  constexpr int kLastSpillOffset = kHasRefTypesOffset;
   constexpr int kNumSpillSlots =
       (-TypedFrameConstants::kFixedFrameSizeFromFp - kLastSpillOffset) >>
       kSystemPointerSizeLog2;
@@ -3296,7 +3295,9 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     // Set a sentinel value for the suspender spill slot in the new frame.
     __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
     __ movq(MemOperand(rbp, kSuspenderOffset), kScratchRegister);
+    __ movq(MemOperand(r9, kFunctionDataOffset), kScratchRegister);
   }
+
   Register original_fp = stack_switch ? r9 : rbp;
 
   // -------------------------------------------
@@ -3321,6 +3322,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ movq(MemOperand(original_fp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
   __ movq(MemOperand(rbp, kValueTypesArrayStartOffset), valuetypes_array_ptr);
+  __ movq(MemOperand(rbp, kFunctionDataOffset), function_data);
 
   // -------------------------------------------
   // Parameter handling.
@@ -3588,8 +3590,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Register temp_params_size = rax;
   __ movq(temp_params_size, MemOperand(original_fp, kParamCountOffset));
   __ shlq(temp_params_size, Immediate(kSystemPointerSizeLog2));
-  // We want to use the register of the function_data = rdi.
-  __ movq(MemOperand(rbp, kFunctionDataOffset), function_data);
   Register start_float_section = function_data;
   function_data = no_reg;
   __ movq(start_float_section, rbp);
@@ -4022,6 +4022,15 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ jmp(&return_done);
 
   __ bind(&return_kWasmFuncRef);
+  // The builtin expects the native context in {kContextRegister}. Load it from
+  // the instance, which is loaded from the spilled function data.
+  __ movq(kContextRegister, MemOperand(rbp, kFunctionDataOffset));
+  __ LoadTaggedField(kContextRegister,
+                     FieldOperand(kContextRegister,
+                                  WasmExportedFunctionData::kInstanceOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFuncRefToJS),
           RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
@@ -4071,6 +4080,13 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
 
   __ subq(rsp, Immediate(-(BuiltinWasmWrapperConstants::kGCScanSlotCountOffset -
                            TypedFrameConstants::kFixedFrameSizeFromFp)));
+
+  // Set a sentinel value for the spill slots visited by the GC.
+  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+  __ movq(MemOperand(rbp, BuiltinWasmWrapperConstants::kSuspenderOffset),
+          kScratchRegister);
+  __ movq(MemOperand(rbp, BuiltinWasmWrapperConstants::kFunctionDataOffset),
+          kScratchRegister);
 
   // -------------------------------------------
   // Save current state in active jump buffer.
@@ -4169,12 +4185,14 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       BuiltinWasmWrapperConstants::kInParamCountOffset;
   constexpr int kParamCountOffset =
       BuiltinWasmWrapperConstants::kParamCountOffset;
-  __ subq(rsp, Immediate(3 * kSystemPointerSize));
+  __ subq(rsp, Immediate(5 * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kInParamCountOffset), param_count);
-  // Set a sentinel value for the spill slot visited by the GC.
+  // Set a sentinel value for the spill slots visited by the GC.
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ movq(MemOperand(rbp, BuiltinWasmWrapperConstants::kSuspenderOffset),
+          kScratchRegister);
+  __ movq(MemOperand(rbp, BuiltinWasmWrapperConstants::kFunctionDataOffset),
           kScratchRegister);
 
   param_count = no_reg;
