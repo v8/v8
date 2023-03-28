@@ -764,10 +764,11 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x61a5;
   static constexpr Tagged_t kNativeScopeInfo = 0x61c9;
   static constexpr Tagged_t kShadowRealmScopeInfo = 0x61e1;
+  static constexpr Tagged_t kWasmNullPadding = 0x61f9;
   static constexpr Tagged_t kWasmNull = 0xfffd;
 };
 
-static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -921,6 +922,7 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kShadowRealmScopeInfo,
     StaticReadOnlyRoot::kEmptySymbolTable,
     StaticReadOnlyRoot::kHashSeed,
+    StaticReadOnlyRoot::kWasmNullPadding,
     StaticReadOnlyRoot::kWasmNull,
     StaticReadOnlyRoot::klength_string,
     StaticReadOnlyRoot::kprototype_string,

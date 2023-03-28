@@ -778,8 +778,16 @@ void Serializer::ObjectSerializer::Serialize() {
         undefined);
   }
 
-  // We don't expect fillers.
+#if V8_ENABLE_WEBASSEMBLY
+  // The padding for wasm null is a free space filler. We put it into the roots
+  // table to be able to skip its payload when serializing the read only heap
+  // in the ReadOnlyHeapImageSerializer.
+  DCHECK_IMPLIES(
+      !object_->SafeEquals(ReadOnlyRoots(isolate()).wasm_null_padding()),
+      !object_->IsFreeSpaceOrFiller(cage_base));
+#else
   DCHECK(!object_->IsFreeSpaceOrFiller(cage_base));
+#endif
 
   SerializeObject();
 }

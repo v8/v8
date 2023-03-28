@@ -1086,13 +1086,19 @@ bool Heap::CreateReadOnlyObjects() {
     // Add some filler to end up right before an OS page boundary.
     int filler_size = static_cast<int>(next_page - read_only_space_->top() -
                                        kOffsetAfterMapWord);
+    // TODO(v8:7748) Depending on where we end up this might actually not hold,
+    // in which case we would need to use a one or two-word filler.
+    CHECK(filler_size > 2 * kTaggedSize);
     HeapObject filler =
         allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
             AllocationAlignment::kTaggedAligned);
     CreateFillerObjectAt(filler.address(), filler_size,
                          ClearFreedMemoryMode::kClearFreedMemory);
+    set_wasm_null_padding(filler);
     CHECK_EQ(read_only_space_->top() + kOffsetAfterMapWord, next_page);
+  } else {
+    set_wasm_null_padding(roots.null_value());
   }
 
   // Finally, allocate the wasm-null object.

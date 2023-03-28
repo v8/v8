@@ -29,7 +29,7 @@ class ReadOnlyHeapImageSerializer {
 
   static void Serialize(ReadOnlySpace* space, SnapshotByteSink& sink,
                         Isolate* isolate,
-                        std::initializer_list<MemoryRegion> unmapped_regions) {
+                        const std::vector<MemoryRegion>& unmapped_regions) {
     // Memory dump serializer format, for pages of type T
     // --------------------------------------------------------------------
     // page_content_[1..n]     - content of each page
@@ -169,13 +169,25 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   CodeEntryPointVector saved_entry_points;
   WipeCodeEntryPointsForDeterministicSerialization(saved_entry_points);
 
-  // WasmNull contains unmapped memory and must be skipped during
-  // serialization.
-  Handle<WasmNull> wasm_null = isolate()->factory()->wasm_null();
-
+  // WasmNull's payload is aligned to the OS page and consists of
+  // WasmNull::kPayloadSize bytes of unmapped memory. To avoid inflating the
+  // snapshot size and access uninitialized and/or unmapped memory, the
+  // serializer skipps the padding bytes and the payload.
+  ReadOnlyRoots ro_roots(isolate());
+  WasmNull wasm_null = ro_roots.wasm_null();
+  HeapObject wasm_null_padding = ro_roots.wasm_null_padding();
+  CHECK(wasm_null_padding.IsFreeSpace());
+  Address wasm_null_padding_start =
+      wasm_null_padding.address() + FreeSpace::kHeaderSize;
+  std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> unmapped;
+  if (wasm_null.address() > wasm_null_padding_start) {
+    unmapped.push_back({wasm_null_padding_start,
+                        wasm_null.address() - wasm_null_padding_start});
+  }
+  unmapped.push_back({wasm_null.payload(), WasmNull::kPayloadSize});
   ReadOnlyHeapImageSerializer::Serialize(
       isolate()->read_only_heap()->read_only_space(), sink_, isolate(),
-      {{wasm_null->payload(), WasmNull::kPayloadSize}});
+      unmapped);
 
   RestoreCodeEntryPoints(saved_entry_points);
   isolate()->heap()->read_only_space()->Seal(
