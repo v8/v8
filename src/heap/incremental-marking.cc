@@ -216,13 +216,14 @@ void IncrementalMarking::MarkRoots() {
     heap_->IterateRoots(
         &visitor,
         base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
-                                SkipRoot::kWeak});
+                                SkipRoot::kWeak, SkipRoot::kReadOnlyBuiltins});
   } else {
     heap_->IterateRoots(
-        &visitor, base::EnumSet<SkipRoot>{
-                      SkipRoot::kStack, SkipRoot::kMainThreadHandles,
-                      SkipRoot::kWeak, SkipRoot::kExternalStringTable,
-                      SkipRoot::kGlobalHandles, SkipRoot::kOldGeneration});
+        &visitor,
+        base::EnumSet<SkipRoot>{
+            SkipRoot::kStack, SkipRoot::kMainThreadHandles, SkipRoot::kWeak,
+            SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
+            SkipRoot::kOldGeneration, SkipRoot::kReadOnlyBuiltins});
 
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(&visitor);
     isolate()->traced_handles()->IterateYoungRoots(&visitor);

@@ -172,6 +172,7 @@ enum class SkipRoot {
   kWeak,
   kConservativeStack,
   kTopOfStack,
+  kReadOnlyBuiltins,
 };
 
 enum UnprotectMemoryOrigin {

@@ -374,7 +374,8 @@ void ScavengerCollector::CollectGarbage() {
       // global handles separately.
       base::EnumSet<SkipRoot> options(
           {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
-           SkipRoot::kOldGeneration, SkipRoot::kConservativeStack});
+           SkipRoot::kOldGeneration, SkipRoot::kConservativeStack,
+           SkipRoot::kReadOnlyBuiltins});
       if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
         options.Add(SkipRoot::kStack);
       }

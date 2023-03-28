@@ -71,6 +71,14 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(Address pc);
 
+#if !defined(V8_SHORT_BUILTIN_CALLS) || \
+    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  static constexpr bool kCodeObjectsAreInROSpace = true;
+#else
+  static constexpr bool kCodeObjectsAreInROSpace = false;
+#endif  // !defined(V8_SHORT_BUILTIN_CALLS) || \
+        // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);

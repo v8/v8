@@ -4621,7 +4621,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
 
-  if (!options.contains(SkipRoot::kOldGeneration)) {
+  const bool skip_iterate_builtins =
+      options.contains(SkipRoot::kOldGeneration) ||
+      (Builtins::kCodeObjectsAreInROSpace &&
+       options.contains(SkipRoot::kReadOnlyBuiltins));
+  if (!skip_iterate_builtins) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
   }

@@ -2511,10 +2511,12 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // embedded builtins region may be remapped into the process-wide code
   // range, but that happens before RO space is deserialized. Their Code
   // objects can be shared in RO space.
+  static_assert(Builtins::kCodeObjectsAreInROSpace);
   const AllocationType allocation_type = AllocationType::kReadOnly;
 #else
   // Builtins may be remapped more than once per process and thus their
   // Code objects cannot be shared.
+  static_assert(!Builtins::kCodeObjectsAreInROSpace);
   const AllocationType allocation_type = AllocationType::kOld;
 #endif  // !defined(V8_SHORT_BUILTIN_CALLS) ||
         // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
