@@ -8,6 +8,9 @@ import { createElement, getNumericCssValue,
 import { SequenceView } from "./sequence-view";
 import { Interval } from "../interval";
 import { ChildRange, Range, RangeToolTip, SequenceBlock } from "../phases/sequence-phase";
+import { SelectionBroker } from "../selection/selection-broker";
+import { BlockSelectionHandler,
+         RegisterAllocationSelectionHandler } from "../selection/selection-handler";
 
 // This class holds references to the HTMLElements that represent each cell.
 class Grid {
@@ -667,6 +670,7 @@ class RangeViewConstructor {
           const registerEl = this.elementForRegister(row, registerName, registerId, true);
           this.addRowToGroup(row, rowEl);
           this.view.divs.registers.appendChild(registerEl);
+          this.view.focusHandler.virtualRegisterToRowMap.set(registerIndex, row);
           ++(this.registerTypeHeaderData.virtualCount);
           return true;
         }
@@ -832,7 +836,7 @@ class RangeViewConstructor {
     element.style.gridTemplateRows = `repeat(${8 * instrCount},
       calc((${this.view.cssVariables.flippedPositionHeight}em +
             ${this.view.cssVariables.blockBorderWidth}px)/2))`;
-    this.view.selectionHandler.addBlock(element, blockId);
+    this.view.selectionHandler.addBlock(element, blockId, firstColumn);
     return element;
   }
 
@@ -859,7 +863,7 @@ class RangeViewConstructor {
     const instrIndex = this.view.instructionRangeHandler.getInstructionIndex(instrId);
     const firstGridCol = (instrIndex * C.POSITIONS_PER_INSTRUCTION) + 1;
     element.style.gridColumn = `${firstGridCol} / ${(firstGridCol + C.POSITIONS_PER_INSTRUCTION)}`;
-    this.view.selectionHandler.addInstruction(element, instrId, blockId);
+    this.view.selectionHandler.addInstruction(element, instrId, instrIndex, blockId);
     return element;
   }
 
@@ -922,6 +926,7 @@ class PhaseChangeHandler {
     this.view.intervalsAccessor.forEachInterval((phase, interval) => {
       interval.classList.toggle("range-hidden", phase != this.view.sequenceView.currentPhaseIndex);
     });
+    this.view.focusHandler.resetFocus();
   }
 
   private addNewIntervals(): void {
@@ -1183,6 +1188,97 @@ class InstructionRangeHandler {
   }
 }
 
+// This class tracks what element is selected and scrolls it into view.
+class FocusHandler implements RegisterAllocationSelectionHandler, BlockSelectionHandler {
+  rangeView: RangeView;
+  virtualRegisterToRowMap: Map<number, number>;
+  elementInFocus: HTMLElement;
+  // coordsInFocus in used to resetFocus after it may have been cleared as well as
+  // allowing for quick access to the coordinates.
+  coordsInFocus: [number, number];
+
+  constructor(rangeView: RangeView) {
+    this.rangeView = rangeView;
+    this.virtualRegisterToRowMap = new Map<number, number>();
+    this.elementInFocus = undefined;
+    this.coordsInFocus = [-1, -1];
+  }
+
+  private getHeaderElement(row: number, index: number) {
+    return this.rangeView.divs.positionHeaders.children[C.RANGES_NUM_POS_HEADER_ROWS + row]
+                                              .children[index] as HTMLElement;
+  }
+
+  private moveFocusTo(element: HTMLElement, eventInitDict?: MouseEventInit) {
+    element.scrollIntoView({ block: 'nearest' });
+  }
+
+  public isInFocus(element: HTMLElement) {
+    return this.elementInFocus == element;
+  }
+
+  public setFocus(element: HTMLElement, row: number, column: number) {
+    this.clear();
+    this.coordsInFocus[0] = row;
+    this.coordsInFocus[1] = column;
+    element.classList.toggle("focused", true);
+    this.elementInFocus = element;
+  }
+
+  public setFocusVirtualRegister(register: number) {
+    const row = this.virtualRegisterToRowMap.get(register);
+    if (row) this.moveFocusTo(this.rangeView.divs.registers.children[row] as HTMLElement);
+  }
+
+  public clear() {
+    if (this.elementInFocus) {
+      this.elementInFocus.classList.toggle("focused", false);
+      this.elementInFocus = undefined;
+    }
+  }
+
+  public clearCoordsInFocus() {
+    this.coordsInFocus[0] = -1;
+    this.coordsInFocus[1] = -1;
+  }
+
+  public resetFocus() {
+    this.clear();
+    // Restore focus if saved.
+    if (this.coordsInFocus[0] >= 0 || this.coordsInFocus[1] >= 0) {
+      this.moveFocusTo(this.rangeView.gridAccessor.getCell(this.coordsInFocus[0],
+                                                           this.coordsInFocus[1]));
+    }
+  }
+
+  public select(instructionIds: Array<number>, selected: boolean, scrollIntoView: boolean): void {}
+
+  public brokeredClear(): void {
+    this.clear();
+  }
+
+  public brokeredRegisterAllocationSelect(instructionsOffsets: Array<[number, number]>,
+                                          selected: boolean): void {
+    if (!selected) return;
+    for (const offsetPair of instructionsOffsets) {
+      for (const offset of offsetPair) {
+        const instr = this.getHeaderElement(C.RANGES_INSTR_GRID_ROW,
+                                this.rangeView.instructionRangeHandler.getInstructionIndex(offset));
+        if (instr) this.moveFocusTo(instr, { shiftKey: true });
+      }
+    }
+  }
+
+  public brokeredBlockSelect(blockIds: Array<number>, selected: boolean): void {
+    if (!selected) return;
+    for (const id of blockIds) {
+      const block = this.getHeaderElement(C.RANGES_BLOCK_GRID_ROW,
+                                          this.rangeView.instructionRangeHandler.getBlockIndex(id));
+      if (block) this.moveFocusTo(block, { shiftKey: true });
+    }
+  }
+}
+
 // This class works in tandem with the selectionHandlers defined in text-view.ts
 // rather than updating HTMLElements explicitly itself.
 class RangeViewSelectionHandler {
@@ -1196,22 +1292,24 @@ class RangeViewSelectionHandler {
     // Clear all selections when container is clicked.
     this.rangeView.divs.container.onclick = (e: MouseEvent) => {
       if (!e.shiftKey) this.sequenceView.broker.broadcastClear(null);
+      this.rangeView.focusHandler.clearCoordsInFocus();
     };
   }
 
-  public addBlock(element: HTMLElement, id: number): void {
+  public addBlock(element: HTMLElement, id: number, firstColumn: number): void {
     element.onclick = (e: MouseEvent) => {
       e.stopPropagation();
       if (!e.shiftKey) {
         this.clear();
       }
       this.select(null, null, [id], true);
+      this.rangeView.focusHandler.setFocus(element, C.RANGES_BLOCK_GRID_ROW, firstColumn);
     };
     this.sequenceView.addHtmlElementForBlockId(id, element);
     this.sequenceView.addHtmlElementForBlockId(this.sequenceView.getSubId(id), element);
   }
 
-  public addInstruction(element: HTMLElement, id: number, blockId: number): void {
+  public addInstruction(element: HTMLElement, id: number, index: number, blockId: number): void {
     // Select the block which contains the instruction and all positions and cells
     // that are within this instruction.=
     element.onclick = (e: MouseEvent) => {
@@ -1220,6 +1318,8 @@ class RangeViewSelectionHandler {
         this.clear();
       }
       this.select(null, [id], [this.sequenceView.getSubId(blockId)], true);
+      this.rangeView.focusHandler.setFocus(element, C.RANGES_INSTR_GRID_ROW,
+                                           C.POSITIONS_PER_INSTRUCTION * index);
     };
     this.sequenceView.addHtmlElementForBlockId(blockId, element);
     this.sequenceView.addHtmlElementForInstructionId(id, element);
@@ -1228,6 +1328,7 @@ class RangeViewSelectionHandler {
 
   public addPosition(element: HTMLElement, position: number, blockId: number): void {
     const instrId = Math.floor(position / C.POSITIONS_PER_INSTRUCTION);
+    const column = this.rangeView.instructionRangeHandler.getIndexFromPosition(position);
     // Select the block and instruction which contains this position.
     element.onclick = (e: MouseEvent) => {
       e.stopPropagation();
@@ -1236,6 +1337,7 @@ class RangeViewSelectionHandler {
       }
       this.select(["position-" + position], [this.sequenceView.getSubId(instrId)],
                                             [this.sequenceView.getSubId(blockId)], true);
+      this.rangeView.focusHandler.setFocus(element, C.RANGES_POS_GRID_ROW, column);
     };
     this.sequenceView.addHtmlElementForBlockId(blockId, element);
     this.sequenceView.addHtmlElementForInstructionId(instrId, element);
@@ -1246,12 +1348,13 @@ class RangeViewSelectionHandler {
     const rowGroupIndex = (Math.floor(row / C.ROW_GROUP_SIZE) * 2) + 1;
     element.onclick = (e: MouseEvent) => {
       e.stopPropagation();
-      if (!this.canSelectRow(row, rowGroupIndex)) return;
+      if (!this.canSelectRow(element, row, rowGroupIndex)) return;
       if (!e.shiftKey) {
         this.clear();
       }
       // The register also effectively selects the row.
       this.select([registerId], null, null, true);
+      this.rangeView.focusHandler.setFocus(element, row, C.RANGES_POS_GRID_ROW);
     };
     this.sequenceView.addHtmlElementForNodeId(registerId, element);
   }
@@ -1272,6 +1375,7 @@ class RangeViewSelectionHandler {
   public addCell(element: HTMLElement, row: number, position: number,
                  blockId: number, registerId: string, intervalNodeId?: string): void {
     const instrId = Math.floor(position / C.POSITIONS_PER_INSTRUCTION);
+    const column = this.rangeView.instructionRangeHandler.getIndexFromPosition(position);
     // Select the relevant row by the registerId, and the column by position.
     // Also select the instruction and the block in which the position is in.
     const select = [registerId, "position-" + position];
@@ -1279,19 +1383,22 @@ class RangeViewSelectionHandler {
     const rowGroupIndex = (Math.floor(row / C.ROW_GROUP_SIZE) * 2) + 1;
     element.onclick = (e: MouseEvent) => {
       e.stopPropagation();
-      if (!this.canSelectRow(row, rowGroupIndex)) return;
+      if (!this.canSelectRow(element, row, rowGroupIndex)) return;
       if (!e.shiftKey) {
         this.clear();
       }
       this.select(select, [this.sequenceView.getSubId(instrId)],
                           [this.sequenceView.getSubId(blockId)], true);
+      this.rangeView.focusHandler.setFocus(element, row, column);
     };
     this.sequenceView.addHtmlElementForBlockId(blockId, element);
     this.sequenceView.addHtmlElementForInstructionId(instrId, element);
     this.sequenceView.addHtmlElementForNodeId("position-" + position, element);
   }
 
-  private canSelectRow(row: number, rowGroupIndex: number): boolean {
+  private canSelectRow(element: HTMLElement, row: number, rowGroupIndex: number): boolean {
+    // No need to repeat work if already in focus.
+    if (this.rangeView.focusHandler.isInFocus(element)) return false;
     // Don't select anything if the row group which this row is included in is hidden.
     if (row >= 0
         && this.rangeView.divs.grid.children[rowGroupIndex].classList.contains("range-hidden")) {
@@ -1304,6 +1411,7 @@ class RangeViewSelectionHandler {
   // Don't call multiple times in a row or the SelectionMapsHandlers will clear their previous
   // causing the HTMLElements to not be deselected by select.
   private clear(): void {
+    this.rangeView.focusHandler.clear();
     this.sequenceView.blockSelections.clearCurrent();
     this.sequenceView.instructionSelections.clearCurrent();
     this.sequenceView.nodeSelections.clearCurrent();
@@ -1379,6 +1487,7 @@ class DisplayResetter {
     this.view.divs.yAxisLabel.innerText = this.isFlipped
                                           ? this.view.divs.yAxisLabel.dataset.flipped
                                           : this.view.divs.yAxisLabel.dataset.notFlipped;
+    this.view.focusHandler.resetFocus();
   }
 
   private resetLayout(): void {
@@ -1576,6 +1685,7 @@ export class RangeView {
   phaseChangeHandler: PhaseChangeHandler;
   instructionRangeHandler: InstructionRangeHandler;
   selectionHandler: RangeViewSelectionHandler;
+  focusHandler: FocusHandler;
   displayResetter: DisplayResetter;
   rowConstructor: RowConstructor;
   stringConstructor: StringConstructor;
@@ -1590,7 +1700,7 @@ export class RangeView {
     this.instructionRangeHandler = new InstructionRangeHandler(this, firstInstr, lastInstr);
   }
 
-  public initializeContent(blocks: Array<SequenceBlock>): void {
+  public initializeContent(blocks: Array<SequenceBlock>, broker: SelectionBroker): void {
     if (!this.initialized) {
       this.gridAccessor = new GridAccessor(this.sequenceView);
       this.intervalsAccessor = new IntervalElementsAccessor(this.sequenceView);
@@ -1611,16 +1721,17 @@ export class RangeView {
       this.rowConstructor = new RowConstructor(this);
       this.stringConstructor = new StringConstructor(this);
       this.selectionHandler = new RangeViewSelectionHandler(this);
+      this.focusHandler = new FocusHandler(this);
+      broker.addBlockHandler(this.focusHandler);
+      broker.addRegisterAllocatorHandler(this.focusHandler);
       const constructor = new RangeViewConstructor(this);
       constructor.construct();
       this.cssVariables.setVariables(this.instructionRangeHandler.numPositions,
                                      this.divs.registers.children.length);
       this.phaseChangeHandler = new PhaseChangeHandler(this);
       let maxVirtualRegisterNumber = 0;
-      for (const register of this.divs.registers.children) {
-        const registerEl = register as HTMLElement;
-        maxVirtualRegisterNumber = Math.max(maxVirtualRegisterNumber,
-                                            parseInt(registerEl.title.substring(1), 10));
+      for (const register of this.focusHandler.virtualRegisterToRowMap.keys()) {
+        maxVirtualRegisterNumber = Math.max(maxVirtualRegisterNumber, register);
       }
       this.maxLengthVirtualRegisterNumber = Math.floor(Math.log10(maxVirtualRegisterNumber)) + 1;
       this.initialized = true;
@@ -1645,6 +1756,7 @@ export class RangeView {
       if (this.divs.registers.children.length) {
         setTimeout(() => {
           this.userSettings.resetFromSessionStorage();
+          this.focusHandler.resetFocus();
           this.scrollHandler.restoreScroll();
           this.scrollHandler.syncHidden();
           this.divs.showOnLoad.style.visibility = "visible";
