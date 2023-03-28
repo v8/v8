@@ -684,7 +684,7 @@ DEFINE_BOOL(global_ic_updated_flag, false,
             "heuristics.")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
-DEFINE_INT(minimum_invocations_before_optimization, 4,
+DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
 DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
