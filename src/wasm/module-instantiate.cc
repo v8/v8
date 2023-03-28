@@ -1146,13 +1146,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
+    uint32_t canonical_sig_index =
+        module_->isorecursive_canonical_type_ids[module_->functions[start_index]
+                                                     .sig_index];
+    Handle<Code> wrapper_code =
+        JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+            isolate_, function.sig, canonical_sig_index, module_,
+            function.imported);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
-    Handle<WasmInternalFunction> internal =
-        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance,
-                                                            start_index);
-    start_function_ = Handle<WasmExportedFunction>::cast(
-        WasmInternalFunction::GetOrCreateExternal(internal));
+    start_function_ = WasmExportedFunction::New(
+        isolate_, instance, start_index,
+        static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
     if (function.imported) {
       ImportedFunctionEntry entry(instance, module_->start_function_index);
@@ -2160,11 +2165,12 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
+        // TODO(wasm): reduce duplication with LoadElemSegment() further below
         Handle<WasmInternalFunction> internal =
             WasmInstanceObject::GetOrCreateWasmInternalFunction(
                 isolate_, instance, exp.index);
-        Handle<JSFunction> wasm_external_function =
-            WasmInternalFunction::GetOrCreateExternal(internal);
+        Handle<WasmExternalFunction> wasm_external_function =
+            handle(WasmExternalFunction::cast(internal->external()), isolate_);
         desc.set_value(wasm_external_function);
 
         if (is_asm_js &&

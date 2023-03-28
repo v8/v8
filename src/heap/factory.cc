@@ -1650,18 +1650,15 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    Address opt_call_target, Handle<HeapObject> ref, Handle<Map> rtt,
-    int function_index) {
+    Address opt_call_target, Handle<HeapObject> ref, Handle<Map> rtt) {
   HeapObject raw = AllocateRaw(rtt->instance_size(), AllocationType::kOld);
   raw.set_map_after_allocation(*rtt);
   WasmInternalFunction result = WasmInternalFunction::cast(raw);
   DisallowGarbageCollection no_gc;
   result.init_call_target(isolate(), opt_call_target);
-  DCHECK(ref->IsWasmInstanceObject() || ref->IsWasmApiFunctionRef());
   result.set_ref(*ref);
   // Default values, will be overwritten by the caller.
   result.set_code(*BUILTIN_CODE(isolate(), Abort));
-  result.set_function_index(function_index);
   result.set_external(*undefined_value());
   return handle(result, isolate());
 }
@@ -1674,7 +1671,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   Handle<WasmApiFunctionRef> ref =
       NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(opt_call_target, ref, rtt, -1);
+      NewWasmInternalFunction(opt_call_target, ref, rtt);
   Map map = *wasm_js_function_data_map();
   WasmJSFunctionData result =
       WasmJSFunctionData::cast(AllocateRawWithImmortalMap(
@@ -1703,14 +1700,17 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
-    Handle<WasmInternalFunction> internal, int func_index,
+    Address call_target, Handle<Object> ref, int func_index,
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
-    int wrapper_budget, wasm::Promise promise) {
+    int wrapper_budget, Handle<Map> rtt, wasm::Promise promise) {
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
   Map map = *wasm_exported_function_data_map();
   WasmExportedFunctionData result =
       WasmExportedFunctionData::cast(AllocateRawWithImmortalMap(
           map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
+  DCHECK(ref->IsWasmInstanceObject() || ref->IsWasmApiFunctionRef());
   result.set_internal(*internal);
   result.set_wrapper_code(*export_wrapper);
   result.set_instance(*instance);
@@ -1735,7 +1735,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       Handle<JSReceiver>(), wasm::kNoSuspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(call_target, ref, rtt, -1);
+      NewWasmInternalFunction(call_target, ref, rtt);
   Map map = *wasm_capi_function_data_map();
   WasmCapiFunctionData result =
       WasmCapiFunctionData::cast(AllocateRawWithImmortalMap(

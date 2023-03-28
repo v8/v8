@@ -2677,9 +2677,6 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
-  FullObjectSlot function_data(&Memory<Address>(
-      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
-  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
 }
 
 void StackSwitchFrame::Iterate(RootVisitor* v) const {
@@ -2700,9 +2697,6 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot suspender_slot(
       &Memory<Address>(fp() + BuiltinWasmWrapperConstants::kSuspenderOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, suspender_slot);
-  FullObjectSlot function_data(&Memory<Address>(
-      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
-  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
 }
 
 // static

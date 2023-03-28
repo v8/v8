@@ -1274,12 +1274,14 @@ class FeedbackMaker {
   void AddCandidate(Object maybe_function, int count) {
     if (!maybe_function.IsWasmInternalFunction()) return;
     WasmInternalFunction function = WasmInternalFunction::cast(maybe_function);
-    if (function.ref() != instance_) {
-      // Not a wasm function, or not a function declared in this instance.
+    if (!WasmExportedFunction::IsWasmExportedFunction(function.external())) {
       return;
     }
-    if (function.function_index() < num_imported_functions_) return;
-    AddCall(function.function_index(), count);
+    WasmExportedFunction target =
+        WasmExportedFunction::cast(function.external());
+    if (target.instance() != instance_) return;
+    if (target.function_index() < num_imported_functions_) return;
+    AddCall(target.function_index(), count);
   }
 
   void AddCall(int target, int count) {
