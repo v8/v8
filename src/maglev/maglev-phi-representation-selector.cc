@@ -322,10 +322,28 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         phi->set_input(i, AddNode(new_node, phi->predecessor_at(i),
                                   NewNodePosition::kEnd));
       }
+    } else if (Phi* input_phi = input->TryCast<Phi>()) {
+      if (input_phi->value_representation() != repr) {
+        // We allow widening of Int32 inputs to Float64, which can lead to the
+        // current Phi having a Float64 representation but having some Int32
+        // inputs, which will require a Int32ToFloat64 conversion.
+        DCHECK_EQ(repr, ValueRepresentation::kFloat64);
+        DCHECK_EQ(input_phi->value_representation(),
+                  ValueRepresentation::kInt32);
+        phi->set_input(
+            i, AddNode(NodeBase::New<ChangeInt32ToFloat64>(builder_->zone(),
+                                                           {input_phi}),
+                       phi->predecessor_at(i), NewNodePosition::kEnd));
+        TRACE_UNTAGGING(
+            TRACE_INPUT_LABEL
+            << ": Converting phi input with a ChangeInt32ToFloat64");
+      } else {
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                        << ": Keeping untagged Phi input as-is");
+      }
     } else {
-      DCHECK_IMPLIES(input->Is<Phi>(),
-                     input->Cast<Phi>()->value_representation() == repr);
-      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Keeping as-is");
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Invalid input for untagged phi");
+      UNREACHABLE();
     }
   }
 }
