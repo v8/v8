@@ -669,7 +669,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // For static roots we need the r/o space to have identical layout on all
   // compile targets. Varying objects are padded to their biggest size.
   auto StaticRootsEnsureAllocatedSize = [&](HeapObject obj, int required) {
-    if (V8_STATIC_ROOTS_BOOL || v8_flags.static_roots_src) {
+    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       if (required == obj.Size()) return;
       CHECK_LT(obj.Size(), required);
       int filler_size = required - obj.Size();
@@ -1074,7 +1074,7 @@ bool Heap::CreateReadOnlyObjects() {
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
 
-  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
+  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
     // Ensure all of the following lands on the same V8 page.
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
     read_only_space_->EnsureSpaceForAllocation(
@@ -1106,11 +1106,11 @@ bool Heap::CreateReadOnlyObjects() {
     HeapObject obj;
     CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
     // No need to initialize the payload since it's either empty or unmapped.
-    CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL),
+    CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),
                   WasmNull::kSize == sizeof(Tagged_t));
     obj.set_map_after_allocation(roots.wasm_null_map(), SKIP_WRITE_BARRIER);
     set_wasm_null(WasmNull::cast(obj));
-    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
+    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
     }
   }

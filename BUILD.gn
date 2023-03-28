@@ -123,7 +123,7 @@ declare_args() {
 
   # Mode used by gen-static-roots.py to have a heap layout which is identical
   # to when v8_enable_static_roots is enabled.
-  v8_enable_static_root_generation = false
+  v8_enable_static_roots_generation = false
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -558,7 +558,7 @@ assert(!v8_enable_static_roots ||
        "Trying to enable static roots in a configuration that is not supported")
 
 assert(
-    !(v8_enable_static_roots && v8_enable_static_root_generation),
+    !(v8_enable_static_roots && v8_enable_static_roots_generation),
     "Static root values must be generated in a build that does not rely on static roots itself")
 
 if (v8_builtins_profiling_log_file == "default") {
@@ -1123,8 +1123,8 @@ config("features") {
   if (v8_enable_static_roots) {
     defines += [ "V8_STATIC_ROOTS" ]
   }
-  if (v8_enable_static_root_generation) {
-    defines += [ "V8_STATIC_ROOT_GENERATION" ]
+  if (v8_enable_static_roots_generation) {
+    defines += [ "V8_STATIC_ROOTS_GENERATION" ]
   }
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]

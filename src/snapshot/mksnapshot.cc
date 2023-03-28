@@ -292,9 +292,11 @@ int main(int argc, char** argv) {
       // That's fine as far as the embedded file writer is concerned.
       WriteEmbeddedFile(&embedded_writer);
 
+#if V8_STATIC_ROOTS_GENERATION_BOOL
       if (i::v8_flags.static_roots_src) {
         i::StaticRootsTableGen::write(i_isolate, i::v8_flags.static_roots_src);
       }
+#endif
     }
 
     if (warmup_script) {
