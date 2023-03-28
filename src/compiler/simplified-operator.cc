@@ -1473,7 +1473,7 @@ const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
 const Operator* SimplifiedOperatorBuilder::VerifyType() {
   return zone()->New<Operator>(IrOpcode::kVerifyType,
                                Operator::kNoThrow | Operator::kNoDeopt,
-                               "VerifyType", 1, 1, 0, 1, 1, 0);
+                               "VerifyType", 1, 1, 0, 0, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckTurboshaftTypeOf() {

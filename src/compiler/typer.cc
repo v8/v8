@@ -2579,9 +2579,7 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeVerifyType(Node* node) {
-  return TypeOrNone(node->InputAt(0));
-}
+Type Typer::Visitor::TypeVerifyType(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeCheckTurboshaftTypeOf(Node* node) {
   return TypeOrNone(node->InputAt(0));

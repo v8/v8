@@ -4461,7 +4461,7 @@ class RepresentationSelector {
 #endif
               FATAL("%%VerifyType: unsupported type");
             }
-            DeferReplacement(node, node->InputAt(0));
+            DisconnectFromEffectAndControl(node);
           }
         }
         return;
