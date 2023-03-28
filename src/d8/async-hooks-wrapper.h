@@ -68,7 +68,6 @@ class AsyncHooks {
   Persistent<FunctionTemplate> async_hook_ctor;
 
  private:
-  base::RecursiveMutex async_wraps_mutex_;
   std::vector<std::shared_ptr<AsyncHooksWrap>> async_wraps_;
   Isolate* isolate_;
   Persistent<ObjectTemplate> async_hooks_templ;
