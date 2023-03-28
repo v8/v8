@@ -261,8 +261,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         phi->set_input(i, AddNode(new_node, phi->predecessor_at(i),
                                   NewNodePosition::kEnd));
       }
-    } else if (Phi* input_phi = input->TryCast<Phi>()) {
-      DCHECK_EQ(input_phi->value_representation(), repr);
+    } else {
+      DCHECK_IMPLIES(input->Is<Phi>(),
+                     input->Cast<Phi>()->value_representation() == repr);
     }
   }
 }
