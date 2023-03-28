@@ -11410,7 +11410,9 @@ bool ConvertDouble(double d) {
 template <typename T>
 bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   CHECK_GE(info.Length(), 0);
-  CHECK_LE(info.Length(), 1024);
+  // Theorticall args-length is unlimited, practically we run out of stack
+  // space. This should guard against accidentally used raw pointers.
+  CHECK_LE(info.Length(), 0xFFFFF);
   if (info.Length() > 0) {
     CHECK(info[0]->IsValue());
     CHECK(info[info.Length() - 1]->IsValue());
