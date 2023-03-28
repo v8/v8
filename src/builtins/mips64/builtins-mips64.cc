@@ -1696,13 +1696,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ CallRuntime(Runtime::kCompileOptimizedOSR);
-    __ mov(maybe_target_code, v0);
   }
 
   // If the code object is null, just return to the caller.
   __ Ret(eq, maybe_target_code, Operand(Smi::zero()));
   __ bind(&jump_to_optimized_code);
-  DCHECK_EQ(maybe_target_code, a0);  // Already in the right spot.
+  DCHECK_EQ(maybe_target_code, v0);  // Already in the right spot.
 
   // OSR entry tracing.
   {
@@ -1713,9 +1712,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(a0);  // Preserve the code object.
+      __ Push(v0);  // Preserve the code object.
       __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
-      __ Pop(a0);
+      __ Pop(v0);
     }
 
     __ bind(&next);
