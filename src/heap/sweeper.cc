@@ -24,6 +24,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
@@ -347,26 +348,6 @@ void Sweeper::TearDown() {
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Cancel();
 }
 
-void Sweeper::SnapshotPageSets() {
-  DCHECK(heap_->IsMainThread());
-  // No mutex needed for the main thread.
-  std::tie(snapshot_normal_pages_set_, snapshot_large_pages_set_) =
-      heap_->memory_allocator()->SnapshotPageSetsUnsafe();
-  if (heap_->isolate()->has_shared_space()) {
-    Heap* shared_heap = heap_->isolate()->shared_space_isolate()->heap();
-    if (shared_heap == heap_) {
-      // Current heap is the shared heap, thus all relevant pages have already
-      // been snapshotted and no lock is required.
-      snapshot_shared_normal_pages_set_ = snapshot_normal_pages_set_;
-      snapshot_shared_large_pages_set_ = snapshot_large_pages_set_;
-    } else {
-      std::tie(snapshot_shared_normal_pages_set_,
-               snapshot_shared_large_pages_set_) =
-          shared_heap->memory_allocator()->SnapshotPageSetsSafe();
-    }
-  }
-}
-
 void Sweeper::StartSweeping(GarbageCollector collector) {
   DCHECK(main_thread_local_sweeper_.IsEmpty());
   sweeping_in_progress_ = true;
@@ -422,15 +403,8 @@ void Sweeper::StartSweeperTasks() {
     DCHECK(v8_flags.minor_mc);
     DCHECK_EQ(GarbageCollector::MINOR_MARK_COMPACTOR,
               current_new_space_collector_);
-
-    DCHECK(snapshot_normal_pages_set_.empty());
-    DCHECK(snapshot_large_pages_set_.empty());
-
     DCHECK(!promoted_page_iteration_in_progress_);
     should_iterate_promoted_pages_ = ShouldUpdateRememberedSets(heap_);
-    if (should_iterate_promoted_pages_) {
-      SnapshotPageSets();
-    }
     promoted_page_iteration_in_progress_.store(true, std::memory_order_release);
   }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
@@ -527,8 +501,6 @@ void Sweeper::EnsureCompleted() {
         ->store(0, std::memory_order_relaxed);
     iterated_promoted_pages_count_ = 0;
   }
-  snapshot_large_pages_set_.clear();
-  snapshot_normal_pages_set_.clear();
   sweeping_in_progress_ = false;
 }
 
@@ -558,8 +530,6 @@ void Sweeper::PauseAndEnsureNewSpaceCompleted() {
   base::AsAtomicPtr(&promoted_pages_for_iteration_count_)
       ->store(0, std::memory_order_relaxed);
   iterated_promoted_pages_count_ = 0;
-  snapshot_large_pages_set_.clear();
-  snapshot_normal_pages_set_.clear();
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
@@ -807,130 +777,93 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
 
 namespace {
 
-class PromotedPageRecordMigratedSlotVisitor
-    : public ObjectVisitorWithCageBases {
+class PromotedPageRecordMigratedSlotVisitor final
+    : public NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor> {
  public:
-  PromotedPageRecordMigratedSlotVisitor(
-      Heap* heap,
-      Sweeper::CachedOldToNewRememberedSets*
-          snapshot_old_to_new_remembered_sets,
-      const MemoryAllocator::NormalPagesSet& snapshot_normal_pages_set,
-      const MemoryAllocator::LargePagesSet& snapshot_large_pages_set,
-      const MemoryAllocator::NormalPagesSet& snapshot_shared_normal_pages_set,
-      const MemoryAllocator::LargePagesSet& snapshot_shared_large_pages_set)
-      : ObjectVisitorWithCageBases(heap->isolate()),
-        heap_(heap),
+  PromotedPageRecordMigratedSlotVisitor(Isolate* isolate,
+                                        Sweeper::CachedOldToNewRememberedSets*
+                                            snapshot_old_to_new_remembered_sets)
+      : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(isolate),
         snapshot_old_to_new_remembered_sets_(
-            snapshot_old_to_new_remembered_sets),
-        snapshot_normal_pages_set_(snapshot_normal_pages_set),
-        snapshot_large_pages_set_(snapshot_large_pages_set),
-        snapshot_shared_normal_pages_set_(snapshot_shared_normal_pages_set),
-        snapshot_shared_large_pages_set_(snapshot_shared_large_pages_set) {}
+            snapshot_old_to_new_remembered_sets) {}
 
-  inline void VisitPointer(HeapObject host, ObjectSlot p) final {
-    DCHECK(!HasWeakHeapObjectTag(p.Relaxed_Load(cage_base())));
-    RecordMigratedSlot(host,
-                       MaybeObject::FromObject(p.Relaxed_Load(cage_base())),
-                       p.address());
+  // TODO(v8:13883): MakeExternal() right now allows to externalize a string in
+  // the young generation (for testing) and on a promoted page that is currently
+  // being swept. If we solve the testing cases and prohobit MakeExternal() on
+  // page owned by the sweeper, this visitor can be simplified as there's no
+  // more unsafe shape changes that happen concurrently.
+  V8_INLINE static constexpr bool EnableConcurrentVisitation() { return true; }
+
+  V8_INLINE void VisitMapPointer(HeapObject host) final {
+    VisitObjectImpl(host, host.map(cage_base()), host.map_slot().address());
   }
 
-  inline void VisitMapPointer(HeapObject host) final {
-    VisitPointer(host, host.map_slot());
+  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
+    VisitPointersImpl(host, p, p + 1);
   }
-
-  inline void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
-    DCHECK(!MapWord::IsPacked(p.Relaxed_Load(cage_base()).ptr()));
-    RecordMigratedSlot(host, p.Relaxed_Load(cage_base()), p.address());
+  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+    VisitPointersImpl(host, p, p + 1);
   }
-
-  inline void VisitPointers(HeapObject host, ObjectSlot start,
-                            ObjectSlot end) final {
-    while (start < end) {
-      VisitPointer(host, start);
-      ++start;
-    }
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
   }
-
-  inline void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                            MaybeObjectSlot end) final {
-    while (start < end) {
-      VisitPointer(host, start);
-      ++start;
-    }
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
   }
-
-  inline void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
-                             ObjectSlot value) override {
-    DCHECK(host.IsEphemeronHashTable());
-    DCHECK(!Heap::InYoungGeneration(host));
-
-    VisitPointer(host, value);
-    VisitPointer(host, key);
-  }
-
-  void VisitCodePointer(Code host, CodeObjectSlot slot) final { UNREACHABLE(); }
-  void VisitCodeTarget(RelocInfo* rinfo) final { UNREACHABLE(); }
-  void VisitEmbeddedPointer(RelocInfo* rinfo) final { UNREACHABLE(); }
 
   // Entries that are skipped for recording.
-  inline void VisitExternalReference(RelocInfo* rinfo) final {}
-  inline void VisitInternalReference(RelocInfo* rinfo) final {}
-  inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
-                                   ExternalPointerTag tag) final {}
+  void VisitExternalReference(RelocInfo* rinfo) final {}
+  void VisitInternalReference(RelocInfo* rinfo) final {}
+  void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                            ExternalPointerTag tag) final {}
 
- protected:
-  inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
+  // Maps can be shared, so we need to visit them to record old to shared slots.
+  V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
+
+ private:
+  template <typename TObject>
+  V8_INLINE void VisitObjectImpl(HeapObject host, TObject object,
                                  Address slot) {
     DCHECK(!host.InWritableSharedSpace());
     DCHECK(!Heap::InYoungGeneration(host));
     DCHECK(!MemoryChunk::FromHeapObject(host)->SweepingDone());
-    if (value->IsStrongOrWeak()) {
-      RecordOldToNewMigratedSlot(host, value, slot);
-      RecordOldToSharedMigratedSlot(host, value, slot);
-    }
-  }
 
-  inline void RecordOldToNewMigratedSlot(HeapObject host, MaybeObject value,
-                                         Address slot) {
-    const MemoryChunk* value_chunk =
-        MemoryAllocator::LookupChunkContainingAddress(
-            snapshot_normal_pages_set_, snapshot_large_pages_set_, value.ptr());
-    if (!value_chunk) return;
+    HeapObject value_heap_object;
+    if (!object.GetHeapObject(&value_heap_object)) return;
+
+    BasicMemoryChunk* value_chunk =
+        BasicMemoryChunk::FromHeapObject(value_heap_object);
 #ifdef THREAD_SANITIZER
     value_chunk->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
-    if (!value_chunk->InYoungGeneration()) return;
-    MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    if (snapshot_old_to_new_remembered_sets_->find(host_chunk) ==
-        snapshot_old_to_new_remembered_sets_->end()) {
-      snapshot_old_to_new_remembered_sets_->emplace(
-          host_chunk, SlotSet::Allocate(host_chunk->buckets()));
+    if (value_chunk->InYoungGeneration()) {
+      MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+      if (snapshot_old_to_new_remembered_sets_->find(host_chunk) ==
+          snapshot_old_to_new_remembered_sets_->end()) {
+        snapshot_old_to_new_remembered_sets_->emplace(
+            host_chunk, SlotSet::Allocate(host_chunk->buckets()));
+      }
+      RememberedSetOperations::Insert<AccessMode::NON_ATOMIC>(
+          (*snapshot_old_to_new_remembered_sets_)[host_chunk], host_chunk,
+          slot);
+    } else if (value_chunk->InWritableSharedSpace()) {
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+          MemoryChunk::FromHeapObject(host), slot);
     }
-    RememberedSetOperations::Insert<AccessMode::NON_ATOMIC>(
-        (*snapshot_old_to_new_remembered_sets_)[host_chunk], host_chunk, slot);
   }
 
-  inline void RecordOldToSharedMigratedSlot(HeapObject host, MaybeObject value,
-                                            Address slot) {
-    const MemoryChunk* value_chunk =
-        MemoryAllocator::LookupChunkContainingAddress(
-            snapshot_shared_normal_pages_set_, snapshot_shared_large_pages_set_,
-            value.ptr());
-    if (!value_chunk) return;
-#ifdef THREAD_SANITIZER
-    value_chunk->SynchronizedHeapLoad();
-#endif  // THREAD_SANITIZER
-    if (!value_chunk->InWritableSharedSpace()) return;
-    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-        MemoryChunk::FromHeapObject(host), slot);
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject target =
+          slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+      VisitObjectImpl(host, target, slot.address());
+    }
   }
 
-  Heap* const heap_;
   Sweeper::CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets_;
-  const MemoryAllocator::NormalPagesSet& snapshot_normal_pages_set_;
-  const MemoryAllocator::LargePagesSet& snapshot_large_pages_set_;
-  const MemoryAllocator::NormalPagesSet& snapshot_shared_normal_pages_set_;
-  const MemoryAllocator::LargePagesSet& snapshot_shared_large_pages_set_;
 };
 
 inline void HandlePromotedObject(
@@ -980,9 +913,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   // the given live object.
   PtrComprCageBase cage_base(heap_->isolate());
   PromotedPageRecordMigratedSlotVisitor record_visitor(
-      heap_, old_to_new_remembered_sets, snapshot_normal_pages_set_,
-      snapshot_large_pages_set_, snapshot_shared_normal_pages_set_,
-      snapshot_shared_large_pages_set_);
+      heap_->isolate(), old_to_new_remembered_sets);
   DCHECK(!heap_->incremental_marking()->IsMarking());
   if (chunk->IsLargePage()) {
     HandlePromotedObject(static_cast<LargePage*>(chunk)->GetObject(),

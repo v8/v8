@@ -198,7 +198,7 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   void VisitCodePointer(Code, CodeObjectSlot) final { UNREACHABLE(); }
   void VisitCodeTarget(RelocInfo*) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(RelocInfo*) final { UNREACHABLE(); }
-  void VisitMapPointer(HeapObject) final { UNREACHABLE(); }
+  void VisitMapPointer(HeapObject) override { UNREACHABLE(); }
 
  protected:
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return false; }
