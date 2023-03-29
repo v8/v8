@@ -697,7 +697,7 @@ DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 0)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 450)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
 
 // Tiering: JIT fuzzing.
 //
@@ -869,7 +869,7 @@ DEFINE_BOOL(maglev_overwrite_budget, false,
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
-                              350 * KB)
+                              700 * KB)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
