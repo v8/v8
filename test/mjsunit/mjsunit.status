@@ -1186,6 +1186,10 @@
   'compiler/js-create-arguments': [SKIP],
   'compiler/js-create': [SKIP],
   'compiler/construct-bound-function': [SKIP],
+
+  # BUG(v8:13882) Skipped until we have a solution.
+  'compiler/osr-literals': [SKIP],
+  'compiler/osr-literals-adapted': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
