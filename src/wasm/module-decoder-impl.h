@@ -1621,13 +1621,6 @@ class ModuleDecoderImpl : public Decoder {
     return toResult(std::move(module_));
   }
 
-  void ValidateAllFunctions() {
-    DCHECK(!error_.has_error());
-    // Pass nullptr for an "empty" filter function.
-    error_ = ValidateFunctions(module_.get(), enabled_features_,
-                               base::VectorOf(start_, end_ - start_), nullptr);
-  }
-
   // Decodes an entire module.
   ModuleResult DecodeModule(bool validate_functions) {
     // Keep a reference to the wire bytes, in case this decoder gets reset on
@@ -1660,8 +1653,9 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (ok() && validate_functions) {
-      Reset(wire_bytes);
-      ValidateAllFunctions();
+      // Pass nullptr for an "empty" filter function.
+      error_ = ValidateFunctions(module_.get(), enabled_features_, wire_bytes,
+                                 nullptr);
     }
 
     if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);

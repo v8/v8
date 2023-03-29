@@ -429,3 +429,20 @@ function testErrorPosition(bytes, pos, message) {
   let pos = bytes.length - 1 - 1;
   testErrorPositionAsyncOnly(bytes, pos, 'invalid value type');
 })();
+
+(function testDataSegmentsMismatch() {
+  let bytes = new Binary;
+  bytes.emit_header();
+  bytes.emit_bytes([
+    kDataCountSectionCode,  // section id
+    1,                      // section length
+    1,                      // num data segments
+    kDataSectionCode,       // section id
+    1,                      // section length
+    0                       // num data segments
+  ]);
+
+  let pos = bytes.length;
+  testErrorPosition(
+      bytes, pos, 'data segments count 0 mismatch \\(1 expected\\)');
+})();
