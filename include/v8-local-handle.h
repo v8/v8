@@ -142,11 +142,11 @@ class V8_EXPORT V8_NODISCARD HandleScope {
 
 /**
  * A base class for local handles.
- * Its implementation depends on whether conservative stack scanning is enabled.
- * With CSS enabled, a local handle contains a direct pointer to the referenced
- * object, whereas with CSS disabled, it contains an indirect pointer.
+ * Its implementation depends on whether direct local support is enabled.
+ * When it is, a local handle contains a direct pointer to the referenced
+ * object, otherwise it contains an indirect pointer.
  */
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
 template <typename T>
 class LocalBase : public DirectHandleBase {
@@ -175,7 +175,7 @@ class LocalBase : public DirectHandleBase {
   }
 };
 
-#else
+#else  // !V8_ENABLE_DIRECT_LOCAL
 
 template <typename T>
 class LocalBase : public IndirectHandleBase {
@@ -207,7 +207,7 @@ class LocalBase : public IndirectHandleBase {
   }
 };
 
-#endif
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
 /**
  * An object reference managed by the v8 garbage collector.
@@ -465,7 +465,7 @@ class V8_EXPORT V8_NODISCARD EscapableHandleScope : public HandleScope {
    */
   template <class T>
   V8_INLINE Local<T> Escape(Local<T> value) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
     return value;
 #else
     return Local<T>::FromSlot(Escape(value.slot()));

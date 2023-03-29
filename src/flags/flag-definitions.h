@@ -451,6 +451,15 @@ DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
                        experimental_wasm_stack_switching)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifdef V8_ENABLE_DIRECT_LOCAL
+#define V8_ENABLE_DIRECT_LOCAL_BOOL true
+#else
+#define V8_ENABLE_DIRECT_LOCAL_BOOL false
+#endif
+DEFINE_BOOL_READONLY(direct_local, V8_ENABLE_DIRECT_LOCAL_BOOL,
+                     "use direct local handles")
+DEFINE_IMPLICATION(direct_local, conservative_stack_scanning)
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

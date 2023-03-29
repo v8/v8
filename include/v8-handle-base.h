@@ -13,15 +13,15 @@ namespace internal {
 
 // Helper functions about values contained in handles.
 // A value is either an indirect pointer or a direct pointer, depending on
-// whether conservative stack scanning is enabled.
+// whether direct local support is enabled.
 class ValueHelper final {
  public:
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
   static constexpr Address kTaggedNullAddress = 1;
   static constexpr Address kEmpty = kTaggedNullAddress;
 #else
   static constexpr Address kEmpty = kNullAddress;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
   template <typename T>
   V8_INLINE static bool IsEmpty(T* value) {
@@ -38,7 +38,7 @@ class ValueHelper final {
     return *handle;
   }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
   template <typename T>
   V8_INLINE static Address ValueAsAddress(const T* value) {
@@ -55,7 +55,7 @@ class ValueHelper final {
     return reinterpret_cast<T*>(const_cast<T**>(&value));
   }
 
-#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#else  // !V8_ENABLE_DIRECT_LOCAL
 
   template <typename T>
   V8_INLINE static Address ValueAsAddress(const T* value) {
@@ -72,7 +72,7 @@ class ValueHelper final {
     return value;
   }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_LOCAL
 };
 
 /**
@@ -102,8 +102,7 @@ class HandleHelper final {
 
 /**
  * A base class for abstract handles containing indirect pointers.
- * These are useful regardless of whether conservative stack scanning is
- * enabled.
+ * These are useful regardless of whether direct local support is enabled.
  */
 class IndirectHandleBase {
  public:
@@ -136,7 +135,7 @@ class IndirectHandleBase {
   V8_INLINE internal::Address*& slot() { return location_; }
 
   // Returns the handler's "value" (direct or indirect pointer, depending on
-  // whether conservative stack scanning is enabled).
+  // whether direct local support is enabled).
   template <typename T>
   V8_INLINE T* value() const {
     return internal::ValueHelper::SlotAsValue<T>(slot());
@@ -146,7 +145,7 @@ class IndirectHandleBase {
   internal::Address* location_ = nullptr;
 };
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
 /**
  * A base class for abstract handles containing direct pointers.
@@ -176,8 +175,8 @@ class DirectHandleBase {
   // Returns the address of the referenced object.
   V8_INLINE internal::Address ptr() const { return ptr_; }
 
-  // Returns the handler's "value" (direct pointer, as conservative stack
-  // scanning is guaranteed to be enabled here).
+  // Returns the handler's "value" (direct pointer, as direct local support
+  // is guaranteed to be enabled here).
   template <typename T>
   V8_INLINE T* value() const {
     return reinterpret_cast<T*>(ptr_);
@@ -187,7 +186,7 @@ class DirectHandleBase {
   internal::Address ptr_ = internal::ValueHelper::kEmpty;
 };
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
 }  // namespace v8
 

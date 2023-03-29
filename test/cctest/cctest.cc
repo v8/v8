@@ -159,7 +159,10 @@ void CcTest::Run(const char* snapshot_directory) {
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
   {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // TODO(v8:13270): This handle scope should not be needed. It will be
+    // removed when the implementation of direct locals is complete and they
+    // can never implicitly be converted to indirect locals.
     v8::HandleScope scope(isolate_);
 #endif
     callback_();

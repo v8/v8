@@ -1088,14 +1088,14 @@ i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
 i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
   i::Isolate* i_isolate = i::Isolate::Current();
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
 
-#endif
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
 EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -5523,14 +5523,16 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                   "Function to be called is a null pointer");
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+#if V8_ENABLE_DIRECT_LOCAL
   i::Handle<i::Object>* args = new i::Handle<i::Object>[argc];
   for (int i = 0; i < argc; ++i) {
     args[i] = Utils::OpenHandle(*argv[i]);
   }
-#else
+#else   // !V8_ENABLE_DIRECT_LOCAL
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-#endif
+#endif  // V8_ENABLE_DIRECT_LOCAL
+
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
       i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);

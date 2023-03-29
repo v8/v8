@@ -805,6 +805,7 @@ external_v8_defines = [
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
+  "V8_ENABLE_DIRECT_LOCAL",
 ]
 
 enabled_external_v8_defines = []
@@ -846,6 +847,9 @@ if (is_tsan) {
 }
 if (v8_enable_conservative_stack_scanning) {
   enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
+}
+if (v8_enable_direct_local) {
+  enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_LOCAL" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -2380,6 +2384,7 @@ action("v8_dump_build_config") {
     "v8_enable_conservative_stack_scanning=" +
         "$v8_enable_conservative_stack_scanning",
     "v8_enable_debug_code=$v8_enable_debug_code",
+    "v8_enable_direct_local=$v8_enable_direct_local",
     "v8_enable_disassembler=$v8_enable_disassembler",
     "v8_enable_gdbjit=$v8_enable_gdbjit",
     "v8_enable_i18n_support=$v8_enable_i18n_support",

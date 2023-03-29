@@ -53,7 +53,7 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
 template <class From, class To>
 inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
   DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
   if (obj.is_null()) return Local<To>();
 #endif
   return Local<To>::FromSlot(obj.location());
@@ -83,7 +83,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 // Implementations of OpenHandle
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
 #define MAKE_OPEN_HANDLE(From, To)                                            \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
@@ -101,7 +101,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
             v8::internal::ValueHelper::ValueAsAddress(that)));                \
   }
 
-#else
+#else  // !V8_ENABLE_DIRECT_LOCAL
 
 #define MAKE_OPEN_HANDLE(From, To)                                            \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
@@ -116,7 +116,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
             const_cast<v8::From*>(that)));                                    \
   }
 
-#endif
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
