@@ -3216,6 +3216,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Branch(&leave_exit_frame);
 }
 
+MemOperand ExitFrameStackSlotOperand(int offset) {
+  static constexpr int kFrameOffset = 1 * kSystemPointerSize;
+  return MemOperand(sp, kFrameOffset + offset);
+}
+
 MemOperand ExitFrameCallerStackSlotOperand(int index) {
   return MemOperand(
       fp, (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
@@ -3247,7 +3252,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch,
                      base));
-
+  using FCI = FunctionCallbackInfo<v8::Value>;
   using FCA = FunctionCallbackArguments;
 
   static_assert(FCA::kArgsLength == 6);
@@ -3261,12 +3266,14 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
   //
   // Target state:
-  //   sp[0 * kSystemPointerSize]: kHolder
-  //   sp[1 * kSystemPointerSize]: kIsolate
-  //   sp[2 * kSystemPointerSize]: undefined (kReturnValueDefaultValue)
-  //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
-  //   sp[4 * kSystemPointerSize]: kData
-  //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
+  //   sp[0 * kPointerSize]: kHolder   <= FCA::implicit_args_
+  //   sp[1 * kPointerSize]: kIsolate
+  //   sp[2 * kPointerSize]: undefined (kReturnValueDefaultValue)
+  //   sp[3 * kPointerSize]: undefined (kReturnValue)
+  //   sp[4 * kPointerSize]: kData
+  //   sp[5 * kPointerSize]: undefined (kNewTarget)
+  // Existing state:
+  //   sp[6 * kPointerSize]:           <= FCA:::values_
 
   // Set up the base register for addressing through MemOperands. It will point
   // at the receiver (located at sp + argc * kSystemPointerSize).
@@ -3299,7 +3306,14 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
-  static constexpr int kApiStackSpace = 4;
+  static constexpr int kSlotsToDropSize = 1 * kSystemPointerSize;
+  static constexpr int kApiStackSpace =
+      (FCI::kSize + kSlotsToDropSize) / kSystemPointerSize;
+  static_assert(kApiStackSpace == 4);
+  static_assert(FCI::kImplicitArgsOffset == 0);
+  static_assert(FCI::kValuesOffset == 1 * kSystemPointerSize);
+  static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
+
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(kApiStackSpace);
 
@@ -3307,25 +3321,27 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
   // Arguments are after the return address (pushed by EnterExitFrame()).
-  __ StoreWord(scratch, MemOperand(sp, 1 * kSystemPointerSize));
+  __ StoreWord(scratch, ExitFrameStackSlotOperand(FCI::kImplicitArgsOffset));
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
   __ AddWord(scratch, scratch,
-             Operand((FCA::kArgsLength + 1) * kSystemPointerSize));
-  __ StoreWord(scratch, MemOperand(sp, 2 * kSystemPointerSize));
+             Operand(FCA::kArgsLengthWithReceiver * kSystemPointerSize));
+  __ StoreWord(scratch, ExitFrameStackSlotOperand(FCI::kValuesOffset));
 
   // FunctionCallbackInfo::length_.
   // Stored as int field, 32-bit integers within struct on stack always left
   // justified by n64 ABI.
-  __ Sw(argc, MemOperand(sp, 3 * kSystemPointerSize));
+  __ Sw(argc, ExitFrameStackSlotOperand(FCI::kLengthOffset));
 
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   // Note: Unlike on other architectures, this stores the number of slots to
   // drop, not the number of bytes.
-  __ AddWord(scratch, argc, Operand(FCA::kArgsLength + 1 /* receiver */));
-  __ StoreWord(scratch, MemOperand(sp, 4 * kSystemPointerSize));
+  MemOperand stack_space_operand =
+      ExitFrameStackSlotOperand(FCI::kLengthOffset + kSlotsToDropSize);
+  __ AddWord(scratch, argc, Operand(FCA::kArgsLengthWithReceiver));
+  __ StoreWord(scratch, stack_space_operand);
 
   // v8::InvocationCallback's argument.
   DCHECK(!AreAliased(api_function_address, scratch, a0));
@@ -3337,7 +3353,6 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
       ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
 
   static constexpr int kUseStackSpaceOperand = 0;
-  MemOperand stack_space_operand(sp, 4 * kSystemPointerSize);
 
   AllowExternalCallThatCantCauseGC scope(masm);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
