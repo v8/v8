@@ -706,6 +706,14 @@ NodeType TaggedToFloat64ConversionTypeToNodeType(
 
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32FromNumber(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+  if (Phi* phi = value->TryCast<Phi>()) {
+    // TODO(dmercadier): it would be interesting to record a TruncatedInt32 use
+    // here rather than a Int32 use: Int32 uses prevent untagging Phis to
+    // Float64 (because usually we would require a deopting conversion), but
+    // truncating Int32 uses should allow Float64 phis.
+    phi->RecordUseReprHint(ValueRepresentation::kInt32);
+  }
+
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
