@@ -3333,10 +3333,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4ExtMulHighI16x8U)         \
   V(I16x8SConvertI32x4)            \
   V(I16x8UConvertI32x4)            \
-  V(I16x8AddSatS)                  \
-  V(I16x8SubSatS)                  \
-  V(I16x8AddSatU)                  \
-  V(I16x8SubSatU)                  \
   V(I16x8RoundingAverageU)         \
   V(I16x8ExtMulLowI8x16S)          \
   V(I16x8ExtMulHighI8x16S)         \
@@ -3346,10 +3342,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8RelaxedQ15MulRS)          \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
-  V(I8x16AddSatS)                  \
-  V(I8x16SubSatS)                  \
-  V(I8x16AddSatU)                  \
-  V(I8x16SubSatU)                  \
   V(I8x16RoundingAverageU)         \
   V(S128And)                       \
   V(S128Or)                        \
@@ -3376,6 +3368,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Mul, IMul, kL16, kV128)                           \
   V(F64x2Div, FDiv, kL64, kV128)                           \
   V(F32x4Div, FDiv, kL32, kV128)                           \
+  V(I16x8AddSatS, IAddSatS, kL16, kV128)                   \
+  V(I8x16AddSatS, IAddSatS, kL8, kV128)                    \
+  V(I16x8SubSatS, ISubSatS, kL16, kV128)                   \
+  V(I8x16SubSatS, ISubSatS, kL8, kV128)                    \
+  V(I16x8AddSatU, IAddSatU, kL16, kV128)                   \
+  V(I8x16AddSatU, IAddSatU, kL8, kV128)                    \
+  V(I16x8SubSatU, ISubSatU, kL16, kV128)                   \
+  V(I8x16SubSatU, ISubSatU, kL8, kV128)                    \
   V(F64x2Eq, FEq, kL64, kV128)                             \
   V(F32x4Eq, FEq, kL32, kV128)                             \
   V(I64x2Eq, IEq, kL64, kV128)                             \
