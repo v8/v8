@@ -4967,6 +4967,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!VALIDATE(this->ok())) return 0;
         opcode_length += imm.length;
 
+        Value obj = Peek(0);
+
         std::optional<Value> rtt;
         HeapType target_type = imm.type;
         if (imm.type.is_index()) {
@@ -4976,7 +4978,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           Push(rtt.value());
         }
 
-        Value obj = Peek(rtt.has_value() ? 1 : 0);
         if (!VALIDATE((obj.type.is_object_reference() &&
                        IsSameTypeHierarchy(obj.type.heap_type(), target_type,
                                            this->module_)) ||
@@ -5045,6 +5046,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!VALIDATE(this->ok())) return 0;
         opcode_length += imm.length;
 
+        Value obj = Peek(0);
+
         std::optional<Value> rtt;
         HeapType target_type = imm.type;
         if (imm.type.is_index()) {
@@ -5054,7 +5057,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           Push(rtt.value());
         }
 
-        Value obj = Peek(rtt.has_value() ? 1 : 0);
         Value value = CreateValue(kWasmI32);
 
         if (!VALIDATE((obj.type.is_object_reference() &&
