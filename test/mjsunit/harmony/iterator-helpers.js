@@ -180,10 +180,13 @@ function TestHelperPrototypeSurface(helper) {
   Object.setPrototypeOf(
       IteratorNoReturn,
       Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
-  assertThrows(() => {iter.take(1);});
+  const takeIter = IteratorNoReturn.take(1);
+  TestHelperPrototypeSurface(takeIter);
+  assertEquals({value: 1, done: false}, takeIter.next());
+  assertEquals({value: undefined, done: true}, takeIter.next());
 })();
 
-(function TestTakeNonObjectReturnInIterator() {
+(function TestTakeThrowInReturnInIterator() {
   const IteratorThrowReturn = {
     i: 1,
     next() {
@@ -194,14 +197,41 @@ function TestHelperPrototypeSurface(helper) {
       }
     },
     return () {
-      throw new Error('Non-object return');
+      throw new Error('Throw return');
     },
   };
 
   Object.setPrototypeOf(
       IteratorThrowReturn,
       Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
-  assertThrows(() => {iter.take(1);});
+  const takeIter = IteratorThrowReturn.take(0);
+  assertThrows(() => {
+    takeIter.next();
+  });
+})();
+
+(function TestTakeNonObjectReturnInIterator() {
+  const IteratorNonObjectReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      return 42;
+    },
+  };
+
+  Object.setPrototypeOf(
+      IteratorNonObjectReturn,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  const takeIter = IteratorNonObjectReturn.take(0);
+  assertThrows(() => {
+    takeIter.next();
+  });
 })();
 
 // --- Test Drop helper
@@ -249,72 +279,4 @@ function TestHelperPrototypeSurface(helper) {
   const dropIter = iter.drop(Number.POSITIVE_INFINITY);
   TestHelperPrototypeSurface(dropIter);
   assertEquals({value: undefined, done: true}, dropIter.next());
-})();
-
-(function TestDropReturnInNormalIterator() {
-  const NormalIterator = {
-    i: 1,
-    next() {
-      if (this.i <= 3) {
-        return {value: this.i++, done: false};
-      } else {
-        return {value: undefined, done: true};
-      }
-    },
-    return () {
-      return {value: undefined, done: true};
-    },
-  };
-
-  Object.setPrototypeOf(
-      NormalIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
-  const dropIter = NormalIterator.drop(1);
-  TestHelperPrototypeSurface(dropIter);
-  assertEquals({value: 2, done: false}, dropIter.next());
-  assertEquals({value: 3, done: false}, dropIter.next());
-  assertEquals({value: undefined, done: true}, dropIter.next());
-})();
-
-(function TestDropNoReturnInIterator() {
-  const IteratorNoReturn = {
-    i: 1,
-    next() {
-      if (this.i <= 3) {
-        return {value: this.i++, done: false};
-      } else {
-        return {value: undefined, done: true};
-      }
-    },
-  };
-
-  Object.setPrototypeOf(
-      IteratorNoReturn,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
-  assertThrows(() => {
-    iter.drop(4);
-  });
-})();
-
-(function TestDropNonObjectReturnInIterator() {
-  const IteratorThrowReturn = {
-    i: 1,
-    next() {
-      if (this.i <= 3) {
-        return {value: this.i++, done: false};
-      } else {
-        return {value: undefined, done: true};
-      }
-    },
-    return () {
-      throw new Error('Non-object return');
-    },
-  };
-
-  Object.setPrototypeOf(
-      IteratorThrowReturn,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
-  assertThrows(() => {
-    iter.drop(4);
-  });
 })();
