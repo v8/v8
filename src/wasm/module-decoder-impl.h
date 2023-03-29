@@ -1630,6 +1630,8 @@ class ModuleDecoderImpl : public Decoder {
 
   // Decodes an entire module.
   ModuleResult DecodeModule(bool validate_functions) {
+    // Keep a reference to the wire bytes, in case this decoder gets reset on
+    // error.
     base::Vector<const byte> wire_bytes(start_, end_ - start_);
     size_t max_size = max_module_size();
     if (wire_bytes.size() > max_size) {
@@ -1637,26 +1639,23 @@ class ModuleDecoderImpl : public Decoder {
                                     max_size, wire_bytes.size()}};
     }
 
-    uint32_t offset = 0;
-    DecodeModuleHeader(wire_bytes, offset);
+    DecodeModuleHeader(wire_bytes, 0);
     if (failed()) return toResult(nullptr);
 
-    // Size of the module header.
-    offset += 8;
-    Decoder decoder(start_ + offset, end_, offset);
-
-    WasmSectionIterator section_iter(&decoder, tracer_);
+    static constexpr uint32_t kWasmHeaderSize = 8;
+    Decoder section_iterator_decoder(start_ + kWasmHeaderSize, end_,
+                                     kWasmHeaderSize);
+    WasmSectionIterator section_iter(&section_iterator_decoder, tracer_);
 
     while (ok()) {
-      // Shift the offset by the section header length.
-      offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
+        uint32_t offset = static_cast<uint32_t>(section_iter.payload().begin() -
+                                                wire_bytes.begin());
         DecodeSection(section_iter.section_code(), section_iter.payload(),
                       offset);
+        if (!ok()) break;
       }
-      // Shift the offset by the remaining section payload.
-      offset += section_iter.payload_length();
-      if (!section_iter.more() || !ok()) break;
+      if (!section_iter.more()) break;
       section_iter.advance(true);
     }
 
@@ -1667,8 +1666,8 @@ class ModuleDecoderImpl : public Decoder {
 
     if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
 
-    if (decoder.failed()) {
-      return decoder.toResult(nullptr);
+    if (section_iterator_decoder.failed()) {
+      return section_iterator_decoder.toResult(nullptr);
     }
 
     return FinishDecoding();
