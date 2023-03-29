@@ -315,9 +315,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint8_t offset) {
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
     if (failed()) return;
-    Reset(bytes, offset);
+    Reset(bytes);
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic", tracer_);
@@ -1639,7 +1639,7 @@ class ModuleDecoderImpl : public Decoder {
                                     max_size, wire_bytes.size()}};
     }
 
-    DecodeModuleHeader(wire_bytes, 0);
+    DecodeModuleHeader(wire_bytes);
     if (failed()) return toResult(nullptr);
 
     static constexpr uint32_t kWasmHeaderSize = 8;

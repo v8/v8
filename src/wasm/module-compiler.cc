@@ -2186,8 +2186,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);
 
-  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
-                           uint32_t offset) override;
+  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) override;
 
   bool ProcessSection(SectionCode section_code,
                       base::Vector<const uint8_t> bytes,
@@ -2764,9 +2763,9 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
 
 // Process the module header.
 bool AsyncStreamingProcessor::ProcessModuleHeader(
-    base::Vector<const uint8_t> bytes, uint32_t offset) {
+    base::Vector<const uint8_t> bytes) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.DecodeModuleHeader(bytes, offset);
+  decoder_.DecodeModuleHeader(bytes);
   if (!decoder_.ok()) return false;
   prefix_hash_ = GetWireBytesHash(bytes);
   return true;

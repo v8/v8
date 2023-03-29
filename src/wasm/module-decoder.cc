@@ -143,9 +143,8 @@ const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
 }
 
-void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
-                                       uint32_t offset) {
-  impl_->DecodeModuleHeader(bytes, offset);
+void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
+  impl_->DecodeModuleHeader(bytes);
 }
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
