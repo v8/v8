@@ -592,9 +592,6 @@
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
-  # BUG(v8:4016)
-  'regress/regress-crbug-467047': [SKIP],
-
   # OOMing tests
   'regress/regress-500980': [SKIP],
 
