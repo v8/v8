@@ -369,7 +369,8 @@ TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
         allocation_handle(),
         reinterpret_cast<i::Isolate*>(v8_isolate())->heap(), local);
     CHECK_NE(kGlobalHandleZapValue,
-             *reinterpret_cast<Address*>(*cpp_obj->GetWrapper()));
+             ValueHelper::ValueAsAddress(
+                 ValueHelper::HandleAsValue(cpp_obj->GetWrapper())));
   }
 }
 

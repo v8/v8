@@ -215,10 +215,6 @@ class PersistentBase : public IndirectHandleBase {
       : IndirectHandleBase(location) {}
 
   V8_INLINE static internal::Address* New(Isolate* isolate, T* that);
-
-  V8_INLINE T* operator->() const { return this->template value<T>(); }
-
-  V8_INLINE T* operator*() const { return this->operator->(); }
 };
 
 /**
@@ -278,7 +274,8 @@ class Persistent : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Persistent(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -289,7 +286,8 @@ class Persistent : public PersistentBase<T> {
    */
   template <class S, class M2>
   V8_INLINE Persistent(Isolate* isolate, const Persistent<S, M2>& that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -331,7 +329,7 @@ class Persistent : public PersistentBase<T> {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
     // that the handle isn't empty before doing the checked cast.
-    if (!that.IsEmpty()) T::Cast(*that);
+    if (!that.IsEmpty()) T::Cast(that.template value<S>());
 #endif
     return reinterpret_cast<Persistent<T, M>&>(
         const_cast<Persistent<S, M2>&>(that));
@@ -377,7 +375,8 @@ class Global : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Global(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -388,7 +387,8 @@ class Global : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Global(Isolate* isolate, const PersistentBase<S>& that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -493,7 +493,7 @@ void PersistentBase<T>::Reset(Isolate* isolate,
   static_assert(std::is_base_of<T, S>::value, "type check");
   Reset();
   if (other.IsEmpty()) return;
-  this->slot() = New(isolate, *other);
+  this->slot() = New(isolate, other.template value<S>());
 }
 
 template <class T>

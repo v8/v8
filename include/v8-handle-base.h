@@ -28,14 +28,13 @@ class ValueHelper final {
     return reinterpret_cast<Address>(value) == kEmpty;
   }
 
-  // Returns a handle's "value" for handles supporting `operator*`. It is
-  // equivalent to `*handle` and useful if `operator*` is not public.
-  // The variadic parameters support handle types with extra type parameters,
-  // like `Persistent<T, M>`.
+  // Returns a handle's "value" for all kinds of abstract handles. For Local,
+  // it is equivalent to `*handle`. The variadic parameters support handle
+  // types with extra type parameters, like `Persistent<T, M>`.
   template <template <typename T, typename... Ms> typename H, typename T,
             typename... Ms>
   V8_INLINE static T* HandleAsValue(const H<T, Ms...>& handle) {
-    return *handle;
+    return handle.template value<T>();
   }
 
 #ifdef V8_ENABLE_DIRECT_LOCAL
@@ -113,9 +112,8 @@ class IndirectHandleBase {
   V8_INLINE void Clear() { location_ = nullptr; }
 
  protected:
+  friend class internal::ValueHelper;
   friend class internal::HandleHelper;
-  template <class T>
-  friend class PersistentBase;
 
   V8_INLINE IndirectHandleBase() = default;
   V8_INLINE IndirectHandleBase(const IndirectHandleBase& other) = default;
@@ -162,9 +160,8 @@ class DirectHandleBase {
   V8_INLINE void Clear() { ptr_ = internal::ValueHelper::kEmpty; }
 
  protected:
+  friend class internal::ValueHelper;
   friend class internal::HandleHelper;
-  template <class T>
-  friend class PersistentBase;
 
   V8_INLINE DirectHandleBase() = default;
   V8_INLINE DirectHandleBase(const DirectHandleBase& other) = default;

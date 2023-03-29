@@ -225,8 +225,7 @@ class Utils {
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(
-        reinterpret_cast<v8::internal::Address*>(*persistent));
+    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
   }
 
   template <class T>

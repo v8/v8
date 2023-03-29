@@ -299,7 +299,7 @@ class Local : public LocalBase<T> {
     // If we're going to perform the type check then we have to check
     // that the handle isn't empty before doing the checked cast.
     if (that.IsEmpty()) return Local<T>();
-    T::Cast(*that);
+    T::Cast(that.template value<S>());
 #endif
     return Local<T>(LocalBase<T>(that));
   }
@@ -320,17 +320,17 @@ class Local : public LocalBase<T> {
    * the original handle is destroyed/disposed.
    */
   V8_INLINE static Local<T> New(Isolate* isolate, Local<T> that) {
-    return New(isolate, *that);
+    return New(isolate, that.template value<T>());
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that) {
-    return New(isolate, *that);
+    return New(isolate, that.template value<T>());
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const BasicTracedReference<T>& that) {
-    return New(isolate, *that);
+    return New(isolate, that.template value<T>());
   }
 
  private:
@@ -339,9 +339,13 @@ class Local : public LocalBase<T> {
   template <class F>
   friend class Eternal;
   template <class F>
+  friend class Global;
+  template <class F>
   friend class Local;
   template <class F>
   friend class MaybeLocal;
+  template <class F, class M>
+  friend class Persistent;
   template <class F>
   friend class FunctionCallbackInfo;
   template <class F>

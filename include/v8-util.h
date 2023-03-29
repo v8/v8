@@ -302,7 +302,7 @@ class PersistentValueMapBase {
   }
 
   static PersistentContainerValue ClearAndLeak(Global<V>* persistent) {
-    V* v = **persistent;
+    V* v = persistent->template value<V>();
     persistent->Clear();
     return reinterpret_cast<PersistentContainerValue>(v);
   }

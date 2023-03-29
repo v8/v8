@@ -465,13 +465,13 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
       const PersistentBase<Object>& object) {
-    return object->InternalFieldCount();
+    return object.template value<Object>()->InternalFieldCount();
   }
 
   /** Same as above, but works for BasicTracedReference. */
   V8_INLINE static int InternalFieldCount(
       const BasicTracedReference<Object>& object) {
-    return object->InternalFieldCount();
+    return object.template value<Object>()->InternalFieldCount();
   }
 
   /** Gets the value from an internal field. */
@@ -490,13 +490,15 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
-    return object->GetAlignedPointerFromInternalField(index);
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index);
   }
 
   /** Same as above, but works for TracedReference. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
-    return object->GetAlignedPointerFromInternalField(index);
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index);
   }
 
   /**
@@ -604,7 +606,7 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for Persistents */
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
       const PersistentBase<Object>& object) {
-    return object->GetCreationContext();
+    return object.template value<Object>()->GetCreationContext();
   }
 
   /**
@@ -669,6 +671,10 @@ class V8_EXPORT Object : public Value {
    * Return the isolate to which the Object belongs to.
    */
   Isolate* GetIsolate();
+
+  V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
+    return handle.template value<Object>()->GetIsolate();
+  }
 
   /**
    * If this object is a Set, Map, WeakSet or WeakMap, this returns a
