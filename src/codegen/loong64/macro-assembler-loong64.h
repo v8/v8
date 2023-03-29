@@ -197,10 +197,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Jump(Register target, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
-  // Deffer from li, this method save target to the memory, and then load
-  // it to register use ld_d, it can be used in wasm jump table for concurrent
-  // patching.
-  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);

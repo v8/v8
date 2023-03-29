@@ -2809,19 +2809,6 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin) {
   }
 }
 
-void MacroAssembler::PatchAndJump(Address target) {
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  pcaddi(scratch, 4);
-  Ld_d(t7, MemOperand(scratch, 0));
-  jirl(zero_reg, t7, 0);
-  nop();
-  DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
-  *reinterpret_cast<uint64_t*>(pc_) = target;  // pc_ should be align.
-  pc_ += sizeof(uint64_t);
-}
-
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   ASM_CODE_COMMENT(this);
   // This generates the final instruction sequence for calls to C functions

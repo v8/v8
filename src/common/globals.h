@@ -393,8 +393,8 @@ constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
 // The actual maximum code space size used can be configured with
 // --max-wasm-code-space-size. This constant is the default value, and at the
 // same time the maximum allowed value (checked by the WasmCodeManager).
-#if V8_TARGET_ARCH_ARM64
-// ARM64 only supports direct calls within a 128 MB range.
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
+// ARM64 and Loong64 only supports direct calls within a 128 MB range.
 constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
 #elif V8_TARGET_ARCH_PPC64
 // Branches only take 26 bits.
