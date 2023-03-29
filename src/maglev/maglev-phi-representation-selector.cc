@@ -128,10 +128,10 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   // The rules for untagging are that we can only widen input representations,
   // i.e. promote Int32 -> Float64.
   //
-  // Inputs can always be used as more generic uses, and more tighter uses
-  // always block more generic inputs. So, we can find the minimum generic use
-  // and input, extend inputs upwards, uses downwards, and convert to the most
-  // generic use in the intersection.
+  // Inputs can always be used as more generic uses, and tighter uses always
+  // block more generic inputs. So, we can find the minimum generic use and
+  // maximum generic input, extend inputs upwards, uses downwards, and convert
+  // to the most generic use in the intersection.
   //
   // Of interest is the fact that we don't want to insert conversions which
   // reduce genericity, e.g. Float64->Int32 conversions, since they could deopt
@@ -142,21 +142,21 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   // representations were contiguous.
 
   base::EnumSet<ValueRepresentation> possible_inputs;
-  if (input_reprs.contains(ValueRepresentation::kInt32)) {
+  if (input_reprs.contains(ValueRepresentation::kFloat64)) {
+    possible_inputs = {ValueRepresentation::kFloat64};
+  } else {
+    DCHECK(input_reprs.contains_only(ValueRepresentation::kInt32));
     possible_inputs = {ValueRepresentation::kInt32,
                        ValueRepresentation::kFloat64};
-  } else {
-    DCHECK(input_reprs.contains_only(ValueRepresentation::kFloat64));
-    possible_inputs = {ValueRepresentation::kFloat64};
   }
 
   base::EnumSet<ValueRepresentation> allowed_inputs_for_uses;
-  if (use_reprs.contains(ValueRepresentation::kFloat64)) {
+  if (use_reprs.contains(ValueRepresentation::kInt32)) {
+    allowed_inputs_for_uses = {ValueRepresentation::kInt32};
+  } else {
+    DCHECK(use_reprs.contains_only(ValueRepresentation::kFloat64));
     allowed_inputs_for_uses = {ValueRepresentation::kInt32,
                                ValueRepresentation::kFloat64};
-  } else {
-    DCHECK(input_reprs.contains_only(ValueRepresentation::kInt32));
-    allowed_inputs_for_uses = {ValueRepresentation::kInt32};
   }
 
   auto intersection = possible_inputs & allowed_inputs_for_uses;
