@@ -65,8 +65,7 @@ class PropertyAccessInfo final {
     kFastAccessorConstant,
     kDictionaryProtoAccessorConstant,
     kModuleExport,
-    kStringLength,
-    kFunctionLength
+    kStringLength
   };
 
   static PropertyAccessInfo NotFound(Zone* zone, MapRef receiver_map,
@@ -89,7 +88,6 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
                                          CellRef cell);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
-  static PropertyAccessInfo FunctionLength(Zone* zone, MapRef receiver_map);
   static PropertyAccessInfo Invalid(Zone* zone);
   static PropertyAccessInfo DictionaryProtoDataConstant(
       Zone* zone, MapRef receiver_map, JSObjectRef holder,
@@ -112,7 +110,6 @@ class PropertyAccessInfo final {
   }
   bool IsModuleExport() const { return kind() == kModuleExport; }
   bool IsStringLength() const { return kind() == kStringLength; }
-  bool IsFunctionLength() const { return kind() == kFunctionLength; }
   bool IsDictionaryProtoDataConstant() const {
     return kind() == kDictionaryProtoDataConstant;
   }
