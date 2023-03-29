@@ -3351,31 +3351,29 @@ void MaglevGraphBuilder::RecordKnownProperty(
   loaded_properties[std::make_pair(lookup_start_object, name)] = value;
 }
 
-bool MaglevGraphBuilder::TryReuseKnownPropertyLoad(
+ReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
     ValueNode* lookup_start_object, compiler::NameRef name) {
   if (auto it = known_node_aspects().loaded_properties.find(
           {lookup_start_object, name});
       it != known_node_aspects().loaded_properties.end()) {
-    current_interpreter_frame_.set_accumulator(it->second);
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  * Reusing non-constant loaded property "
                 << PrintNodeLabel(graph_labeller(), it->second) << ": "
                 << PrintNode(graph_labeller(), it->second) << std::endl;
     }
-    return true;
+    return it->second;
   }
   if (auto it = known_node_aspects().loaded_constant_properties.find(
           {lookup_start_object, name});
       it != known_node_aspects().loaded_constant_properties.end()) {
-    current_interpreter_frame_.set_accumulator(it->second);
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  * Reusing constant loaded property "
                 << PrintNodeLabel(graph_labeller(), it->second) << ": "
                 << PrintNode(graph_labeller(), it->second) << std::endl;
     }
-    return true;
+    return it->second;
   }
-  return false;
+  return ReduceResult::Fail();
 }
 
 void MaglevGraphBuilder::VisitGetNamedProperty() {
@@ -3396,12 +3394,13 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
-      if (TryReuseKnownPropertyLoad(object, name)) return;
-      ReduceResult result = TryBuildNamedAccess(
+      ReduceResult result = TryReuseKnownPropertyLoad(object, name);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+      result = TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
           compiler::AccessMode::kLoad);
-      PROCESS_AND_RETURN_IF_DONE(
-          result, [&](ValueNode* value) { SetAccumulator(value); });
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
     default:
@@ -3439,12 +3438,14 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
-      if (TryReuseKnownPropertyLoad(lookup_start_object, name)) return;
-      ReduceResult result = TryBuildNamedAccess(
+      ReduceResult result =
+          TryReuseKnownPropertyLoad(lookup_start_object, name);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+      result = TryBuildNamedAccess(
           receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
           feedback_source, compiler::AccessMode::kLoad);
-      PROCESS_AND_RETURN_IF_DONE(
-          result, [&](ValueNode* value) { SetAccumulator(value); });
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
     default:
@@ -3503,8 +3504,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       ValueNode* index = current_interpreter_frame_.accumulator();
       ReduceResult result = TryBuildElementAccess(
           object, index, processed_feedback.AsElementAccess(), feedback_source);
-      PROCESS_AND_RETURN_IF_DONE(
-          result, [&](ValueNode* value) { SetAccumulator(value); });
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
 
@@ -3512,12 +3512,14 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       ValueNode* key = GetAccumulatorTagged();
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
       if (BuildCheckValue(key, name).IsDoneWithAbort()) return;
-      if (TryReuseKnownPropertyLoad(object, name)) return;
-      ReduceResult result = TryBuildNamedAccess(
+
+      ReduceResult result = TryReuseKnownPropertyLoad(object, name);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+      result = TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
           compiler::AccessMode::kLoad);
-      PROCESS_AND_RETURN_IF_DONE(
-          result, [&](ValueNode* value) { SetAccumulator(value); });
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
 
@@ -4680,8 +4682,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForTarget(
     ValueNode* target_node, compiler::JSFunctionRef target, CallArguments& args,
     const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
-  if (BuildCheckValue(target_node, target).IsDoneWithAbort())
-    return ReduceResult::DoneWithAbort();
+  RETURN_IF_ABORT(BuildCheckValue(target_node, target));
   return ReduceCall(target, args, feedback_source, speculation_mode);
 }
 
@@ -4750,8 +4751,7 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
           target_node, function, args, feedback_source,
           call_feedback.speculation_mode());
     }
-    PROCESS_AND_RETURN_IF_DONE(
-        result, [&](ValueNode* value) { SetAccumulator(value); });
+    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
   }
 
   // On fallthrough, create a generic call.
@@ -5199,30 +5199,29 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   return all ? kIsInPrototypeChain : kIsNotInPrototypeChain;
 }
 
-bool MaglevGraphBuilder::TryBuildFastHasInPrototypeChain(
+ReduceResult MaglevGraphBuilder::TryBuildFastHasInPrototypeChain(
     ValueNode* object, compiler::ObjectRef prototype) {
-  if (!prototype.IsHeapObject()) return false;
+  if (!prototype.IsHeapObject()) return ReduceResult::Fail();
   auto in_prototype_chain =
       InferHasInPrototypeChain(object, prototype.AsHeapObject());
-  if (in_prototype_chain == kMayBeInPrototypeChain) return false;
+  if (in_prototype_chain == kMayBeInPrototypeChain) return ReduceResult::Fail();
 
-  SetAccumulator(GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain));
-  return true;
+  return GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain);
 }
 
-void MaglevGraphBuilder::BuildHasInPrototypeChain(
+ReduceResult MaglevGraphBuilder::BuildHasInPrototypeChain(
     ValueNode* object, compiler::ObjectRef prototype) {
-  if (TryBuildFastHasInPrototypeChain(object, prototype)) return;
+  RETURN_IF_DONE(TryBuildFastHasInPrototypeChain(object, prototype));
 
-  SetAccumulator(BuildCallRuntime(Runtime::kHasInPrototypeChain,
-                                  {object, GetConstant(prototype)}));
+  return BuildCallRuntime(Runtime::kHasInPrototypeChain,
+                          {object, GetConstant(prototype)});
 }
 
-bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
+ReduceResult MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
     ValueNode* object, compiler::JSObjectRef callable,
     ValueNode* callable_node_if_not_constant) {
   const bool is_constant = callable_node_if_not_constant == nullptr;
-  if (!is_constant) return false;
+  if (!is_constant) return ReduceResult::Fail();
 
   if (callable.IsJSBoundFunction()) {
     // OrdinaryHasInstance on bound functions turns into a recursive
@@ -5231,15 +5230,15 @@ bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
     compiler::JSReceiverRef bound_target_function =
         function.bound_target_function(broker());
 
-    if (!bound_target_function.IsJSObject() ||
-        !TryBuildFastInstanceOf(object, bound_target_function.AsJSObject(),
-                                nullptr)) {
-      // If we can't build a fast instance-of, build a slow one with the
-      // partial optimisation of using the bound target function constant.
-      SetAccumulator(BuildCallBuiltin<Builtin::kInstanceOf>(
-          {object, GetConstant(bound_target_function)}));
+    if (bound_target_function.IsJSObject()) {
+      RETURN_IF_DONE(TryBuildFastInstanceOf(
+          object, bound_target_function.AsJSObject(), nullptr));
     }
-    return true;
+
+    // If we can't build a fast instance-of, build a slow one with the
+    // partial optimisation of using the bound target function constant.
+    return BuildCallBuiltin<Builtin::kInstanceOf>(
+        {object, GetConstant(bound_target_function)});
   }
 
   if (callable.IsJSFunction()) {
@@ -5251,31 +5250,29 @@ bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
     if (!function.map(broker()).has_prototype_slot() ||
         !function.has_instance_prototype(broker()) ||
         function.PrototypeRequiresRuntimeLookup(broker())) {
-      return false;
+      return ReduceResult::Fail();
     }
 
     compiler::ObjectRef prototype =
         broker()->dependencies()->DependOnPrototypeProperty(function);
-    BuildHasInPrototypeChain(object, prototype);
-    return true;
+    return BuildHasInPrototypeChain(object, prototype);
   }
 
-  return false;
+  return ReduceResult::Fail();
 }
 
-void MaglevGraphBuilder::BuildOrdinaryHasInstance(
+ReduceResult MaglevGraphBuilder::BuildOrdinaryHasInstance(
     ValueNode* object, compiler::JSObjectRef callable,
     ValueNode* callable_node_if_not_constant) {
-  if (TryBuildFastOrdinaryHasInstance(object, callable,
-                                      callable_node_if_not_constant))
-    return;
+  RETURN_IF_DONE(TryBuildFastOrdinaryHasInstance(
+      object, callable, callable_node_if_not_constant));
 
-  SetAccumulator(BuildCallBuiltin<Builtin::kOrdinaryHasInstance>(
+  return BuildCallBuiltin<Builtin::kOrdinaryHasInstance>(
       {object, callable_node_if_not_constant ? callable_node_if_not_constant
-                                             : GetConstant(callable)}));
+                                             : GetConstant(callable)});
 }
 
-bool MaglevGraphBuilder::TryBuildFastInstanceOf(
+ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* object, compiler::JSObjectRef callable,
     ValueNode* callable_node_if_not_constant) {
   compiler::MapRef receiver_map = callable.map(broker());
@@ -5285,7 +5282,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
 
   // TODO(v8:11457) Support dictionary mode holders here.
   if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
-    return false;
+    return ReduceResult::Fail();
   }
   access_info.RecordDependencies(broker()->dependencies());
 
@@ -5293,7 +5290,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
     // takes over, but that requires the constructor to be callable.
     if (!receiver_map.is_callable()) {
-      return false;
+      return ReduceResult::Fail();
     }
 
     broker()->dependencies()->DependOnStablePrototypeChains(
@@ -5305,8 +5302,8 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
                      base::VectorOf(access_info.lookup_start_object_maps()));
     }
 
-    BuildOrdinaryHasInstance(object, callable, callable_node_if_not_constant);
-    return true;
+    return BuildOrdinaryHasInstance(object, callable,
+                                    callable_node_if_not_constant);
   }
 
   if (access_info.IsFastDataConstant()) {
@@ -5321,7 +5318,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     if (!has_instance_field.has_value() ||
         !has_instance_field->IsHeapObject() ||
         !has_instance_field->AsHeapObject().map(broker()).is_callable()) {
-      return false;
+      return ReduceResult::Fail();
     }
 
     if (found_on_proto) {
@@ -5333,7 +5330,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* callable_node;
     if (callable_node_if_not_constant) {
       // Check that {callable_node_if_not_constant} is actually {callable}.
-      BuildCheckValue(callable_node_if_not_constant, callable);
+      RETURN_IF_ABORT(BuildCheckValue(callable_node_if_not_constant, callable));
       callable_node = callable_node_if_not_constant;
     } else {
       callable_node = GetConstant(callable);
@@ -5359,14 +5356,13 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
     // TODO(leszeks): Avoid forcing a conversion to tagged here.
-    SetAccumulator(AddNewNode<ToBoolean>({GetTaggedValue(call_result)}));
-    return true;
+    return AddNewNode<ToBoolean>({GetTaggedValue(call_result)});
   }
 
-  return false;
+  return ReduceResult::Fail();
 }
 
-bool MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
+ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
     ValueNode* object, ValueNode* callable,
     compiler::FeedbackSource feedback_source) {
   compiler::ProcessedFeedback const& feedback =
@@ -5374,7 +5370,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
 
   // TurboFan emits generic code when there's no feedback, rather than
   // deopting.
-  if (feedback.IsInsufficient()) return false;
+  if (feedback.IsInsufficient()) return ReduceResult::Fail();
 
   // Check if the right hand side is a known receiver, or
   // we have feedback from the InstanceOfIC.
@@ -5391,7 +5387,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
       return TryBuildFastInstanceOf(object, *callable_from_feedback, callable);
     }
   }
-  return false;
+  return ReduceResult::Fail();
 }
 
 void MaglevGraphBuilder::VisitTestInstanceOf() {
@@ -5401,9 +5397,9 @@ void MaglevGraphBuilder::VisitTestInstanceOf() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  if (TryBuildFastInstanceOfWithFeedback(object, callable, feedback_source)) {
-    return;
-  }
+  ReduceResult result =
+      TryBuildFastInstanceOfWithFeedback(object, callable, feedback_source);
+  PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
 
   ValueNode* context = GetContext();
   SetAccumulator(
@@ -5518,8 +5514,7 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   if (!processed_feedback.IsInsufficient()) {
     ReduceResult result =
         TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
-    PROCESS_AND_RETURN_IF_DONE(
-        result, [&](ValueNode* value) { SetAccumulator(value); });
+    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
   }
 
   if (interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::decode(
@@ -5925,8 +5920,7 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   if (!processed_feedback.IsInsufficient()) {
     ReduceResult result =
         TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
-    PROCESS_AND_RETURN_IF_DONE(
-        result, [&](ValueNode* value) { SetAccumulator(value); });
+    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
   }
 
   if (interpreter::CreateObjectLiteralFlags::FastCloneSupportedBit::decode(

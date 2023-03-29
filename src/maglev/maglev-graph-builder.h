@@ -41,7 +41,7 @@ namespace maglev {
 
 class CallArguments;
 
-class ReduceResult {
+class V8_NODISCARD ReduceResult {
  public:
   enum Kind {
     kDoneWithValue = 0,  // No need to mask while returning the pointer.
@@ -1488,8 +1488,8 @@ class MaglevGraphBuilder {
   void RecordKnownProperty(ValueNode* lookup_start_object,
                            compiler::NameRef name, ValueNode* value,
                            compiler::PropertyAccessInfo const& access_info);
-  bool TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
-                                 compiler::NameRef name);
+  ReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
+                                         compiler::NameRef name);
 
   enum InferHasInPrototypeChainResult {
     kMayBeInPrototypeChain,
@@ -1498,20 +1498,20 @@ class MaglevGraphBuilder {
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
       ValueNode* receiver, compiler::HeapObjectRef prototype);
-  bool TryBuildFastHasInPrototypeChain(ValueNode* object,
-                                       compiler::ObjectRef prototype);
-  void BuildHasInPrototypeChain(ValueNode* object,
-                                compiler::ObjectRef prototype);
-  bool TryBuildFastOrdinaryHasInstance(ValueNode* object,
-                                       compiler::JSObjectRef callable,
-                                       ValueNode* callable_node);
-  void BuildOrdinaryHasInstance(ValueNode* object,
-                                compiler::JSObjectRef callable,
-                                ValueNode* callable_node);
-  bool TryBuildFastInstanceOf(ValueNode* object,
-                              compiler::JSObjectRef callable_ref,
-                              ValueNode* callable_node);
-  bool TryBuildFastInstanceOfWithFeedback(
+  ReduceResult TryBuildFastHasInPrototypeChain(ValueNode* object,
+                                               compiler::ObjectRef prototype);
+  ReduceResult BuildHasInPrototypeChain(ValueNode* object,
+                                        compiler::ObjectRef prototype);
+  ReduceResult TryBuildFastOrdinaryHasInstance(ValueNode* object,
+                                               compiler::JSObjectRef callable,
+                                               ValueNode* callable_node);
+  ReduceResult BuildOrdinaryHasInstance(ValueNode* object,
+                                        compiler::JSObjectRef callable,
+                                        ValueNode* callable_node);
+  ReduceResult TryBuildFastInstanceOf(ValueNode* object,
+                                      compiler::JSObjectRef callable_ref,
+                                      ValueNode* callable_node);
+  ReduceResult TryBuildFastInstanceOfWithFeedback(
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
