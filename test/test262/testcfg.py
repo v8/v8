@@ -59,6 +59,7 @@ FEATURE_FLAGS = {
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'arraybuffer-transfer': '--harmony-rab-gsab-transfer',
+    'json-parse-with-source': '--harmony-json-parse-with-source',
 }
 
 SKIPPED_FEATURES = set([])

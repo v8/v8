@@ -4617,6 +4617,10 @@ void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
   map->SetPrototype(isolate(), map, isolate()->factory()->null_value());
   map->SetConstructor(native_context()->object_function());
   native_context()->set_js_raw_json_map(*map);
+  // TODO(v8:12955): Remove the LOG after the flag is removed and this map goes
+  // into the startup snapshot. It is needed for the
+  // LogMapsTest.LogMapsDetailsContexts unittest.
+  LOG(isolate(), MapDetails(*map));
   SimpleInstallFunction(isolate_,
                         handle(native_context()->json_object(), isolate_),
                         "rawJSON", Builtin::kJsonRawJson, 1, true);

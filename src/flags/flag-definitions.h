@@ -255,8 +255,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)                                 \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer") \
-  V(harmony_array_grouping, "harmony array grouping")          \
-  V(harmony_json_parse_with_source, "harmony json parse with source")
+  V(harmony_array_grouping, "harmony array grouping")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -276,7 +275,8 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed") \
   V(harmony_rab_gsab,                                                  \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")        \
-  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")
+  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")        \
+  V(harmony_json_parse_with_source, "harmony json parse with source")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
