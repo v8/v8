@@ -42,6 +42,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/d8/d8-console.h"
 #include "src/d8/d8-platforms.h"
 #include "src/d8/d8.h"
@@ -70,6 +71,10 @@
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif  // V8_ENABLE_MAGLEV
 
 #if V8_OS_POSIX
 #include <signal.h>
@@ -5085,25 +5090,57 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 }
 
 int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
-  bool success = RunMainIsolate(isolate, last_run);
+
+  // The Context object, created inside RunMainIsolate, is used after the method
+  // returns in some situations:
+  const bool keep_context_alive =
+      last_run && (use_interactive_shell() || i::v8_flags.stress_snapshot);
+  bool success = RunMainIsolate(isolate, keep_context_alive);
   CollectGarbage(isolate);
 
-  // Park the main thread here to prevent deadlocks in shared GCs when waiting
-  // in JoinThread.
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::ParkedScope parked(i_isolate->main_thread_local_isolate());
-
-  for (int i = 1; i < options.num_isolates; ++i) {
-    if (last_run) {
-      options.isolate_sources[i].JoinThread(parked);
-    } else {
-      options.isolate_sources[i].WaitForThread(parked);
+  {
+    // Park the main thread here to prevent deadlocks in shared GCs when waiting
+    // in JoinThread.
+    i::ParkedScope parked(i_isolate->main_thread_local_isolate());
+    for (int i = 1; i < options.num_isolates; ++i) {
+      if (last_run) {
+        options.isolate_sources[i].JoinThread(parked);
+      } else {
+        options.isolate_sources[i].WaitForThread(parked);
+      }
     }
+    WaitForRunningWorkers(parked);
   }
-  WaitForRunningWorkers(parked);
+
+  // Other threads have terminated, we can now run the artifical
+  // serialize-deserialize pass (which destructively mutates heap state).
+  if (last_run && i::v8_flags.stress_snapshot) {
+    HandleScope handle_scope(isolate);
+    static constexpr bool kClearRecompilableData = true;
+    auto context = v8::Local<v8::Context>::New(isolate, evaluation_context_);
+    i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+    // Stop concurrent compiles before mutating the heap.
+    if (i_isolate->concurrent_recompilation_enabled()) {
+      i_isolate->optimizing_compile_dispatcher()->Stop();
+    }
+#if V8_ENABLE_MAGLEV
+    if (i_isolate->maglev_concurrent_dispatcher()->is_enabled()) {
+      i_isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();
+    }
+#endif  // V8_ENABLE_MAGLEV
+    // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
+    // of optimized code.
+    i::Deoptimizer::DeoptimizeAll(i_isolate);
+    i::Snapshot::ClearReconstructableDataForSerialization(
+        i_isolate, kClearRecompilableData);
+    i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate, i_context);
+  }
+
   if (Shell::unhandled_promise_rejections_.load() > 0) {
     printf("%i pending unhandled Promise rejection(s) detected.\n",
            Shell::unhandled_promise_rejections_.load());
@@ -5117,7 +5154,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   return (success == Shell::options.expected_to_throw ? 1 : 0);
 }
 
-bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
+bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
   Shell::SetWaitUntilDone(isolate, false);
   if (options.lcov_file) {
     debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
@@ -5132,9 +5169,7 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
     DCHECK(!fuzzilli_reprl);
     return false;
   }
-  bool use_existing_context = last_run && use_interactive_shell();
-  if (use_existing_context) {
-    // Keep using the same context in the interactive shell.
+  if (keep_context_alive) {
     evaluation_context_.Reset(isolate, context);
   }
   bool success = true;
@@ -5146,32 +5181,9 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool last_run) {
     if (!CompleteMessageLoop(isolate)) success = false;
   }
   WriteLcovData(isolate, options.lcov_file);
-  if (last_run && i::v8_flags.stress_snapshot) {
-    {
-      // We can't run the serializer while workers are still active. Ideally,
-      // we'd terminate these properly (see WaitForRunningWorkers), but that's
-      // not easily possible  due to ordering issues. It's not expected to be a
-      // common case, and it's unrelated to issues that stress_snapshot is
-      // intended to catch - simply bail out.
-      base::MutexGuard lock_guard(workers_mutex_.Pointer());
-      if (!running_workers_.empty()) {
-        printf("Warning: stress_snapshot disabled due to active workers\n");
-        return success;
-      }
-    }
-
-    static constexpr bool kClearRecompilableData = true;
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-    // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
-    // of optimized code.
-    i::Deoptimizer::DeoptimizeAll(i_isolate);
-    i::Snapshot::ClearReconstructableDataForSerialization(
-        i_isolate, kClearRecompilableData);
-    i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate, i_context);
-  }
   return success;
 }
+
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
     isolate->ContextDisposedNotification();

@@ -761,9 +761,6 @@
   'wasm/many-memories': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
   'wasm/shared-memory-worker-gc-stress': [SKIP],
-
-  # TODO(v8:13884): Fix ASAP.
-  'regress/regress-v8-13181': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
