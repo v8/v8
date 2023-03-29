@@ -305,7 +305,7 @@ class BasicMemoryChunk {
   ConcurrentBitmap<mode>* marking_bitmap() const {
     DCHECK(!InReadOnlySpace());
     return static_cast<ConcurrentBitmap<mode>*>(
-        Bitmap::FromAddress(address() + kMarkingBitmapOffset));
+        Bitmap::Cast(address() + kMarkingBitmapOffset));
   }
 
   Address HighWaterMark() const { return address() + high_water_mark_; }
@@ -348,10 +348,6 @@ class BasicMemoryChunk {
   // release store.
   void SynchronizedHeapLoad() const;
 #endif
-
-  // Computes position of object in marking bitmap. Useful for debugging.
-  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(HeapObject object);
-  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(Address address);
 
  protected:
   // Overall size of the chunk, including the header and guards.

@@ -6,13 +6,13 @@
 #include "test/unittests/heap/bitmap-test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-const uint32_t kBlackCell = 0xAAAAAAAA;
-const uint32_t kWhiteCell = 0x00000000;
-const uint32_t kBlackByte = 0xAA;
-const uint32_t kWhiteByte = 0x00;
+constexpr uint32_t kMarkedCell = 0xFFFFFFFF;
+constexpr uint32_t kHalfMarkedCell = 0xFFFF0000;
+constexpr uint32_t kWhiteCell = 0x00000000;
+constexpr uint8_t kMarkedByte = 0xFF;
+constexpr uint8_t kUnmarkedByte = 0x00;
 
 template <typename T>
 using BitmapTest = TestWithBitmap<T>;
@@ -26,31 +26,31 @@ TEST_F(NonAtomicBitmapTest, IsZeroInitialized) {
   // We require all tests to start from a zero-initialized bitmap. Manually
   // verify this invariant here.
   for (size_t i = 0; i < Bitmap::kSize; i++) {
-    EXPECT_EQ(raw_bitmap()[i], kWhiteByte);
+    EXPECT_EQ(raw_bitmap()[i], kUnmarkedByte);
   }
 }
 
 TEST_F(NonAtomicBitmapTest, Cells) {
   auto bm = bitmap();
-  bm->cells()[1] = kBlackCell;
+  bm->cells()[1] = kMarkedCell;
   uint8_t* raw = raw_bitmap();
   int second_cell_base = Bitmap::kBytesPerCell;
   for (size_t i = 0; i < Bitmap::kBytesPerCell; i++) {
-    EXPECT_EQ(raw[second_cell_base + i], kBlackByte);
+    EXPECT_EQ(raw[second_cell_base + i], kMarkedByte);
   }
 }
 
 TEST_F(NonAtomicBitmapTest, CellsCount) {
-  size_t last_cell_index = bitmap()->CellsCount() - 1;
-  bitmap()->cells()[last_cell_index] = kBlackCell;
+  size_t last_cell_index = Bitmap::kCellsCount - 1;
+  bitmap()->cells()[last_cell_index] = kMarkedCell;
   // Manually verify on raw memory.
   uint8_t* raw = raw_bitmap();
   for (size_t i = 0; i < Bitmap::kSize; i++) {
     // Last cell should be set.
     if (i >= (Bitmap::kSize - Bitmap::kBytesPerCell)) {
-      EXPECT_EQ(raw[i], kBlackByte);
+      EXPECT_EQ(raw[i], kMarkedByte);
     } else {
-      EXPECT_EQ(raw[i], kWhiteByte);
+      EXPECT_EQ(raw[i], kUnmarkedByte);
     }
   }
 }
@@ -58,7 +58,7 @@ TEST_F(NonAtomicBitmapTest, CellsCount) {
 TEST_F(NonAtomicBitmapTest, IsClean) {
   auto bm = bitmap();
   EXPECT_TRUE(bm->IsClean());
-  bm->cells()[0] = kBlackCell;
+  bm->cells()[0] = kMarkedCell;
   EXPECT_FALSE(bm->IsClean());
 }
 
@@ -73,35 +73,27 @@ TYPED_TEST(BitmapTest, Clear) {
   }
 }
 
-TYPED_TEST(BitmapTest, MarkAllBits) {
-  auto bm = this->bitmap();
-  bm->MarkAllBits();
-  for (size_t i = 0; i < Bitmap::kSize; i++) {
-    EXPECT_EQ(this->raw_bitmap()[i], 0xFF);
-  }
-}
-
 TYPED_TEST(BitmapTest, ClearRange1) {
   auto bm = this->bitmap();
-  bm->cells()[0] = kBlackCell;
-  bm->cells()[1] = kBlackCell;
-  bm->cells()[2] = kBlackCell;
+  bm->cells()[0] = kMarkedCell;
+  bm->cells()[1] = kMarkedCell;
+  bm->cells()[2] = kMarkedCell;
   bm->ClearRange(0, Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2);
   EXPECT_EQ(bm->cells()[0], kWhiteCell);
-  EXPECT_EQ(bm->cells()[1], 0xAAAA0000);
-  EXPECT_EQ(bm->cells()[2], kBlackCell);
+  EXPECT_EQ(bm->cells()[1], kHalfMarkedCell);
+  EXPECT_EQ(bm->cells()[2], kMarkedCell);
 }
 
 TYPED_TEST(BitmapTest, ClearRange2) {
   auto bm = this->bitmap();
-  bm->cells()[0] = kBlackCell;
-  bm->cells()[1] = kBlackCell;
-  bm->cells()[2] = kBlackCell;
+  bm->cells()[0] = kMarkedCell;
+  bm->cells()[1] = kMarkedCell;
+  bm->cells()[2] = kMarkedCell;
   bm->ClearRange(Bitmap::kBitsPerCell,
                  Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2);
-  EXPECT_EQ(bm->cells()[0], kBlackCell);
-  EXPECT_EQ(bm->cells()[1], 0xAAAA0000);
-  EXPECT_EQ(bm->cells()[2], kBlackCell);
+  EXPECT_EQ(bm->cells()[0], kMarkedCell);
+  EXPECT_EQ(bm->cells()[1], kHalfMarkedCell);
+  EXPECT_EQ(bm->cells()[2], kMarkedCell);
 }
 
 TYPED_TEST(BitmapTest, SetAndClearRange) {
@@ -158,5 +150,4 @@ TEST_F(NonAtomicBitmapTest, ClearMultipleRanges) {
                                 Bitmap::kBitsPerCell * 3));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

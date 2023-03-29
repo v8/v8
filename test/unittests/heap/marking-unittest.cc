@@ -23,11 +23,11 @@ TYPED_TEST(MarkingTest, TransitionMarkBit) {
   int position[kLocationsSize] = {
       Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
   for (int i = 0; i < kLocationsSize; i++) {
-    MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
+    MarkBit mark_bit = bitmap->MarkBitFromIndexForTesting(position[i]);
     CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
     CHECK(mark_bit.template Set<AccessMode::NON_ATOMIC>());
     CHECK(mark_bit.template Get<AccessMode::NON_ATOMIC>());
-    CHECK(mark_bit.template Clear<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.Clear());
     CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
   }
 }

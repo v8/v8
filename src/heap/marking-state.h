@@ -41,7 +41,6 @@ class MarkingStateBase {
   }
 
   V8_INLINE MarkBit MarkBitFrom(const HeapObject obj) const;
-
   // {addr} may be tagged or aligned.
   V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
 

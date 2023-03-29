@@ -20,8 +20,7 @@ MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
 template <typename ConcreteState, AccessMode access_mode>
 MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
     const BasicMemoryChunk* p, Address addr) const {
-  return static_cast<const ConcreteState*>(this)->bitmap(p)->MarkBitFromIndex(
-      p->AddressToMarkbitIndex(addr));
+  return MarkBit::From(addr);
 }
 
 template <typename ConcreteState, AccessMode access_mode>

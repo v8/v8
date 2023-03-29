@@ -7,8 +7,6 @@
 namespace v8 {
 namespace internal {
 
-const size_t Bitmap::kSize = Bitmap::CellsCount() * Bitmap::kBytesPerCell;
-
 template <>
 bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
     uint32_t start_index, uint32_t end_index) {
@@ -120,7 +118,7 @@ class CellPrinter {
 template <>
 void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
   CellPrinter printer;
-  for (size_t i = 0; i < CellsCount(); i++) {
+  for (size_t i = 0; i < kCellsCount; i++) {
     printer.Print(i, cells()[i]);
   }
   printer.Flush();
@@ -129,7 +127,7 @@ void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
 
 template <>
 bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::IsClean() {
-  for (size_t i = 0; i < CellsCount(); i++) {
+  for (size_t i = 0; i < kCellsCount; i++) {
     if (cells()[i] != 0) {
       return false;
     }
