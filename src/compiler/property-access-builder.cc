@@ -180,7 +180,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
 }
 
 Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
-    NameRef const& name, PropertyAccessInfo const& access_info,
+    NameRef name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return nullptr;
 
@@ -214,8 +214,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   return value.has_value() ? jsgraph()->Constant(*value, broker()) : nullptr;
 }
 
-Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
-                                                Node* holder,
+Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
                                                 FieldAccess& field_access,
                                                 bool is_inobject, Node** effect,
                                                 Node** control) {
@@ -278,7 +277,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(
-    NameRef const& name, PropertyAccessInfo const& access_info,
+    NameRef name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {
   DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
 

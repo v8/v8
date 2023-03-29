@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static bitset Lub(HeapObjectType const& type, JSHeapBroker* broker) {
     return Lub<HeapObjectType>(type, broker);
   }
-  static bitset Lub(MapRef const& map, JSHeapBroker* broker) {
+  static bitset Lub(MapRef map, JSHeapBroker* broker) {
     return Lub<MapRef>(map, broker);
   }
   static bitset Lub(double value);
@@ -308,7 +308,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static inline size_t BoundariesSize();
 
   template <typename MapRefLike>
-  static bitset Lub(MapRefLike const& map, JSHeapBroker* broker);
+  static bitset Lub(MapRefLike map, JSHeapBroker* broker);
 };
 
 // -----------------------------------------------------------------------------
@@ -439,7 +439,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type Wasm(wasm::TypeInModule type_in_module, Zone* zone);
 #endif
 
-  static Type For(MapRef const& type, JSHeapBroker* broker) {
+  static Type For(MapRef type, JSHeapBroker* broker) {
     return NewBitset(
         BitsetType::ExpandInternals(BitsetType::Lub(type, broker)));
   }
@@ -559,7 +559,7 @@ class V8_EXPORT_PRIVATE Type {
 
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(const HeapObjectRef& value, JSHeapBroker* broker,
+  static Type HeapConstant(HeapObjectRef value, JSHeapBroker* broker,
                            Zone* zone);
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
@@ -618,19 +618,19 @@ class OtherNumberConstantType : public TypeBase {
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
   Handle<HeapObject> Value() const;
-  const HeapObjectRef& Ref() const { return heap_ref_; }
+  HeapObjectRef Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
   friend Zone;
 
-  static HeapConstantType* New(const HeapObjectRef& heap_ref,
+  static HeapConstantType* New(HeapObjectRef heap_ref,
                                BitsetType::bitset bitset, Zone* zone) {
     return zone->New<HeapConstantType>(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, const HeapObjectRef& heap_ref);
+  HeapConstantType(BitsetType::bitset bitset, HeapObjectRef heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 

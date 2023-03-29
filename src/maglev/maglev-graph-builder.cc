@@ -3279,7 +3279,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
         }
       }
     }
-    for (compiler::MapRef const& prototype_map : prototype_maps) {
+    for (compiler::MapRef prototype_map : prototype_maps) {
       broker()->dependencies()->DependOnStableMap(prototype_map);
     }
   }
@@ -4632,8 +4632,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
       broker(), function, receiver);
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckValue(
-    ValueNode* node, const compiler::HeapObjectRef& ref) {
+ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
+                                                 compiler::HeapObjectRef ref) {
   if (node->Is<Constant>()) {
     if (node->Cast<Constant>()->object().equals(ref))
       return ReduceResult::Done();

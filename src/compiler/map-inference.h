@@ -53,7 +53,7 @@ class MapInference {
   V8_WARN_UNUSED_RESULT ZoneVector<MapRef> const& GetMaps();
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypes(
       std::function<bool(InstanceType)> f);
-  V8_WARN_UNUSED_RESULT bool Is(const MapRef& expected_map);
+  V8_WARN_UNUSED_RESULT bool Is(MapRef expected_map);
 
   // These methods provide a guard.
   //

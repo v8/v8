@@ -404,7 +404,7 @@ ZoneRefUnorderedSet<MapRef> ToRefSet(JSHeapBroker* broker,
   return refs;
 }
 
-ZoneRefUnorderedSet<MapRef> RefSetOf(JSHeapBroker* broker, const MapRef& ref) {
+ZoneRefUnorderedSet<MapRef> RefSetOf(JSHeapBroker* broker, MapRef ref) {
   ZoneRefUnorderedSet<MapRef> refs =
       ZoneRefUnorderedSet<MapRef>(broker->zone());
   refs.insert(ref);

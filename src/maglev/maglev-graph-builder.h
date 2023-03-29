@@ -846,9 +846,9 @@ class MaglevGraphBuilder {
                                  : RootIndex::kFalseValue);
   }
 
-  ValueNode* GetConstant(const compiler::ObjectRef& ref) {
+  ValueNode* GetConstant(compiler::ObjectRef ref) {
     if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
-    const compiler::HeapObjectRef& constant = ref.AsHeapObject();
+    compiler::HeapObjectRef constant = ref.AsHeapObject();
 
     auto root_index = broker()->FindRootIndex(constant);
     if (root_index.has_value()) {
@@ -1401,8 +1401,7 @@ class MaglevGraphBuilder {
                       base::Vector<const compiler::MapRef> maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
-  ReduceResult BuildCheckValue(ValueNode* node,
-                               const compiler::HeapObjectRef& ref);
+  ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);
@@ -1634,7 +1633,7 @@ class MaglevGraphBuilder {
   int NumPredecessors(int offset) { return predecessors_[offset]; }
 
   compiler::JSHeapBroker* broker() const { return broker_; }
-  const compiler::FeedbackVectorRef& feedback() const {
+  compiler::FeedbackVectorRef feedback() const {
     return compilation_unit_->feedback();
   }
   const FeedbackNexus FeedbackNexusForOperand(int slot_operand_index) const {
@@ -1646,10 +1645,10 @@ class MaglevGraphBuilder {
     return FeedbackNexus(feedback().object(), slot,
                          broker()->feedback_nexus_config());
   }
-  const compiler::BytecodeArrayRef& bytecode() const {
+  compiler::BytecodeArrayRef bytecode() const {
     return compilation_unit_->bytecode();
   }
-  const compiler::JSFunctionRef& function() const {
+  compiler::JSFunctionRef function() const {
     return compilation_unit_->function();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {

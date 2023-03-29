@@ -40,7 +40,7 @@ namespace compiler {
 
 class ObjectRef;
 
-std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
+std::ostream& operator<<(std::ostream& os, ObjectRef ref);
 
 #define TRACE_BROKER(broker, x)                                          \
   do {                                                                   \
@@ -188,7 +188,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
-  bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
+  bool IsArrayOrObjectPrototype(JSObjectRef object) const;
   bool IsArrayOrObjectPrototype(Handle<JSObject> object) const;
 
   bool HasFeedback(FeedbackSource const& source) const;
@@ -253,7 +253,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                       : isolate()->AsLocalIsolate();
   }
 
-  base::Optional<RootIndex> FindRootIndex(const HeapObjectRef& object) {
+  base::Optional<RootIndex> FindRootIndex(HeapObjectRef object) {
     // No root constant is a JSReceiver.
     if (object.IsJSReceiver()) return {};
     Address address = object.object()->ptr();

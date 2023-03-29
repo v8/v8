@@ -67,9 +67,7 @@ bool MapInference::AllOfInstanceTypesUnsafe(
     std::function<bool(InstanceType)> f) const {
   CHECK(HaveMaps());
 
-  auto instance_type = [f](const MapRef& map) {
-    return f(map.instance_type());
-  };
+  auto instance_type = [f](MapRef map) { return f(map.instance_type()); };
   return std::all_of(maps_.begin(), maps_.end(), instance_type);
 }
 
@@ -77,9 +75,7 @@ bool MapInference::AnyOfInstanceTypesUnsafe(
     std::function<bool(InstanceType)> f) const {
   CHECK(HaveMaps());
 
-  auto instance_type = [f](const MapRef& map) {
-    return f(map.instance_type());
-  };
+  auto instance_type = [f](MapRef map) { return f(map.instance_type()); };
 
   return std::any_of(maps_.begin(), maps_.end(), instance_type);
 }
@@ -89,7 +85,7 @@ ZoneVector<MapRef> const& MapInference::GetMaps() {
   return maps_;
 }
 
-bool MapInference::Is(const MapRef& expected_map) {
+bool MapInference::Is(MapRef expected_map) {
   if (!HaveMaps()) return false;
   const ZoneVector<MapRef>& maps = GetMaps();
   if (maps.size() != 1) return false;
@@ -102,7 +98,7 @@ void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
   ZoneHandleSet<Map> maps;
-  for (const MapRef& map : maps_) {
+  for (MapRef map : maps_) {
     maps.insert(map.object(), jsgraph->graph()->zone());
   }
   *effect = jsgraph->graph()->NewNode(
@@ -133,10 +129,10 @@ bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
                                     const FeedbackSource& feedback) {
   if (Safe()) return true;
 
-  auto is_stable = [](const MapRef& map) { return map.is_stable(); };
+  auto is_stable = [](MapRef map) { return map.is_stable(); };
   if (dependencies != nullptr &&
       std::all_of(maps_.cbegin(), maps_.cend(), is_stable)) {
-    for (const MapRef& map : maps_) {
+    for (MapRef map : maps_) {
       dependencies->DependOnStableMap(map);
     }
     SetGuarded();

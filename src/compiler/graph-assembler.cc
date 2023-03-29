@@ -104,7 +104,7 @@ TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
       AddClonedNode(jsgraph()->HeapConstant(object)));
 }
 
-TNode<Object> JSGraphAssembler::Constant(const ObjectRef& ref) {
+TNode<Object> JSGraphAssembler::Constant(ObjectRef ref) {
   return TNode<Object>::UncheckedCast(
       AddClonedNode(jsgraph()->Constant(ref, broker())));
 }

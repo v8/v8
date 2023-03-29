@@ -824,7 +824,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
 JSNativeContextSpecialization::InferHasInPrototypeChainResult
 JSNativeContextSpecialization::InferHasInPrototypeChain(
-    Node* receiver, Effect effect, HeapObjectRef const& prototype) {
+    Node* receiver, Effect effect, HeapObjectRef prototype) {
   ZoneRefUnorderedSet<MapRef> receiver_maps(zone());
   NodeProperties::InferMapsResult result = NodeProperties::InferMapsUnsafe(
       broker(), receiver, effect, &receiver_maps);
@@ -1022,7 +1022,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), graph()->zone());
 
-  for (const MapRef& map : resolution_maps) {
+  for (MapRef map : resolution_maps) {
     access_infos.push_back(broker()->GetPropertyAccessInfo(
         map, broker()->then_string(), AccessMode::kLoad));
   }
@@ -1057,7 +1057,7 @@ namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
                                  Type type, MaybeHandle<Map> map,
-                                 NameRef const& name) {
+                                 NameRef name) {
   WriteBarrierKind kind = kFullWriteBarrier;
   if (representation == MachineRepresentation::kTaggedSigned) {
     kind = kNoWriteBarrier;
@@ -1081,8 +1081,8 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 // code which hasn't been modified to support super property access.
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* lookup_start_object, Node* receiver, Node* value,
-    NameRef const& name, AccessMode access_mode, Node* key,
-    PropertyCellRef const& property_cell, Node* effect) {
+    NameRef name, AccessMode access_mode, Node* key,
+    PropertyCellRef property_cell, Node* effect) {
   if (!property_cell.Cache(broker())) {
     TRACE_BROKER_MISSING(broker(), "usable data for " << property_cell);
     return NoChange();
@@ -1491,7 +1491,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Either infer maps from the graph or use the feedback.
   ZoneVector<MapRef> inferred_maps(zone());
   if (!InferMaps(lookup_start_object, effect, &inferred_maps)) {
-    for (const MapRef& map : feedback.maps()) {
+    for (MapRef map : feedback.maps()) {
       inferred_maps.push_back(map);
     }
   }
@@ -1521,7 +1521,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
-    for (const MapRef& map : inferred_maps) {
+    for (MapRef map : inferred_maps) {
       if (map.is_deprecated()) continue;
 
       // TODO(v8:12547): Support writing to objects in shared space, which need
@@ -2086,7 +2086,7 @@ void JSNativeContextSpecialization::RemoveImpossibleMaps(
   if (root_map.has_value() && !root_map->is_abandoned_prototype_map()) {
     maps->erase(
         std::remove_if(maps->begin(), maps->end(),
-                       [root_map, this](const MapRef& map) {
+                       [root_map, this](MapRef map) {
                          return map.is_abandoned_prototype_map() ||
                                 !map.FindRootMap(broker()).equals(*root_map);
                        }),
@@ -2204,7 +2204,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         }
       }
     }
-    for (MapRef const& prototype_map : prototype_maps) {
+    for (MapRef prototype_map : prototype_maps) {
       dependencies()->DependOnStableMap(prototype_map);
     }
   } else if (access_mode == AccessMode::kHas) {
@@ -2737,7 +2737,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* api_holder, Node* frame_state, Node* value,
     Node** effect, Node** control,
-    FunctionTemplateInfoRef const& function_template_info) {
+    FunctionTemplateInfoRef function_template_info) {
   if (!function_template_info.call_code(broker()).has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
@@ -2787,8 +2787,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
 base::Optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyLoad(
     Node* lookup_start_object, Node* receiver, Node* context, Node* frame_state,
-    Node* effect, Node* control, NameRef const& name,
-    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
+    Node* effect, Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
+    PropertyAccessInfo const& access_info) {
   // Determine actual holder and perform prototype chain checks.
   OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value() && !access_info.HasDictionaryHolder()) {
@@ -2861,7 +2861,7 @@ JSNativeContextSpecialization::BuildPropertyTest(
 base::Optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* lookup_start_object, Node* receiver, Node* value, Node* context,
-    Node* frame_state, Node* effect, Node* control, NameRef const& name,
+    Node* frame_state, Node* effect, Node* control, NameRef name,
     ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
     AccessMode access_mode) {
   switch (access_mode) {
@@ -2886,7 +2886,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyStore(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
-    Node* control, NameRef const& name, ZoneVector<Node*>* if_exceptions,
+    Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
@@ -3855,7 +3855,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
 }
 
 Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
-    const MapRef& map, Node* properties, Node* effect, Node* control) {
+    MapRef map, Node* properties, Node* effect, Node* control) {
   // TODO(bmeurer/jkummerow): Property deletions can undo map transitions
   // while keeping the backing store around, meaning that even though the
   // map might believe that objects have no unused property fields, there
@@ -3922,7 +3922,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   return a.Finish();
 }
 
-Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef const& name,
+Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef name,
                                                           Node* value,
                                                           Node* effect,
                                                           Node* control) {
@@ -3957,17 +3957,17 @@ bool JSNativeContextSpecialization::InferMaps(Node* object, Effect effect,
   NodeProperties::InferMapsResult result =
       NodeProperties::InferMapsUnsafe(broker(), object, effect, &map_set);
   if (result == NodeProperties::kReliableMaps) {
-    for (const MapRef& map : map_set) {
+    for (MapRef map : map_set) {
       maps->push_back(map);
     }
     return true;
   } else if (result == NodeProperties::kUnreliableMaps) {
     // For untrusted maps, we can still use the information
     // if the maps are stable.
-    for (const MapRef& map : map_set) {
+    for (MapRef map : map_set) {
       if (!map.is_stable()) return false;
     }
-    for (const MapRef& map : map_set) {
+    for (MapRef map : map_set) {
       maps->push_back(map);
     }
     return true;

@@ -3525,7 +3525,7 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
 
  public:
   explicit GetIterator(uint64_t bitfield, int load_slot, int call_slot,
-                       const compiler::FeedbackVectorRef& feedback)
+                       compiler::FeedbackVectorRef feedback)
       : Base(bitfield),
         load_slot_(load_slot),
         call_slot_(call_slot),
@@ -3722,7 +3722,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
  public:
   using OutputRegister = Register;
 
-  explicit Constant(uint64_t bitfield, const compiler::HeapObjectRef& object)
+  explicit Constant(uint64_t bitfield, compiler::HeapObjectRef object)
       : Base(bitfield), object_(object) {}
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
@@ -3742,7 +3742,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   Handle<Object> DoReify(LocalIsolate* isolate);
 
-  const compiler::HeapObjectRef& ref() const { return object_; }
+  compiler::HeapObjectRef ref() const { return object_; }
 
  private:
   const compiler::HeapObjectRef object_;
@@ -3801,7 +3801,7 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
 
  public:
   explicit CreateArrayLiteral(uint64_t bitfield,
-                              const compiler::HeapObjectRef& constant_elements,
+                              compiler::HeapObjectRef constant_elements,
                               const compiler::FeedbackSource& feedback,
                               int flags)
       : Base(bitfield),
@@ -3833,9 +3833,10 @@ class CreateShallowArrayLiteral
   using Base = FixedInputValueNodeT<0, CreateShallowArrayLiteral>;
 
  public:
-  explicit CreateShallowArrayLiteral(
-      uint64_t bitfield, const compiler::HeapObjectRef& constant_elements,
-      const compiler::FeedbackSource& feedback, int flags)
+  explicit CreateShallowArrayLiteral(uint64_t bitfield,
+                                     compiler::HeapObjectRef constant_elements,
+                                     const compiler::FeedbackSource& feedback,
+                                     int flags)
       : Base(bitfield),
         constant_elements_(constant_elements),
         feedback_(feedback),
@@ -3867,7 +3868,7 @@ class CreateObjectLiteral
  public:
   explicit CreateObjectLiteral(
       uint64_t bitfield,
-      const compiler::ObjectBoilerplateDescriptionRef& boilerplate_descriptor,
+      compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor,
       const compiler::FeedbackSource& feedback, int flags)
       : Base(bitfield),
         boilerplate_descriptor_(boilerplate_descriptor),
@@ -3923,7 +3924,7 @@ class CreateShallowObjectLiteral
  public:
   explicit CreateShallowObjectLiteral(
       uint64_t bitfield,
-      const compiler::ObjectBoilerplateDescriptionRef& boilerplate_descriptor,
+      compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor,
       const compiler::FeedbackSource& feedback, int flags)
       : Base(bitfield),
         boilerplate_descriptor_(boilerplate_descriptor),
@@ -4081,8 +4082,7 @@ class CreateRegExpLiteral
   using Base = FixedInputValueNodeT<0, CreateRegExpLiteral>;
 
  public:
-  explicit CreateRegExpLiteral(uint64_t bitfield,
-                               const compiler::StringRef& pattern,
+  explicit CreateRegExpLiteral(uint64_t bitfield, compiler::StringRef pattern,
                                const compiler::FeedbackSource& feedback,
                                int flags)
       : Base(bitfield), pattern_(pattern), feedback_(feedback), flags_(flags) {}
@@ -4227,7 +4227,7 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   using Base = FixedInputNodeT<1, CheckValue>;
 
  public:
-  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef& value)
+  explicit CheckValue(uint64_t bitfield, compiler::HeapObjectRef value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -4256,7 +4256,7 @@ class CheckValueEqualsString
 
  public:
   explicit CheckValueEqualsString(uint64_t bitfield,
-                                  const compiler::InternalizedStringRef& value)
+                                  compiler::InternalizedStringRef value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties =
@@ -4686,8 +4686,7 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
 
  public:
   explicit GetTemplateObject(
-      uint64_t bitfield,
-      const compiler::SharedFunctionInfoRef& shared_function_info,
+      uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
       const compiler::FeedbackSource& feedback)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
@@ -5660,7 +5659,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   using Base = FixedInputValueNodeT<1, LoadGlobal>;
 
  public:
-  explicit LoadGlobal(uint64_t bitfield, const compiler::NameRef& name,
+  explicit LoadGlobal(uint64_t bitfield, compiler::NameRef name,
                       const compiler::FeedbackSource& feedback,
                       TypeofMode typeof_mode)
       : Base(bitfield),
@@ -5673,7 +5672,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  const compiler::NameRef& name() const { return name_; }
+  compiler::NameRef name() const { return name_; }
   compiler::FeedbackSource feedback() const { return feedback_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
@@ -5694,7 +5693,7 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
   using Base = FixedInputValueNodeT<2, StoreGlobal>;
 
  public:
-  explicit StoreGlobal(uint64_t bitfield, const compiler::NameRef& name,
+  explicit StoreGlobal(uint64_t bitfield, compiler::NameRef name,
                        const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -5703,7 +5702,7 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
-  const compiler::NameRef& name() const { return name_; }
+  compiler::NameRef name() const { return name_; }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   Input& context() { return input(0); }
@@ -5723,7 +5722,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
-  explicit LoadNamedGeneric(uint64_t bitfield, const compiler::NameRef& name,
+  explicit LoadNamedGeneric(uint64_t bitfield, compiler::NameRef name,
                             const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -5755,8 +5754,7 @@ class LoadNamedFromSuperGeneric
   using Base = FixedInputValueNodeT<3, LoadNamedFromSuperGeneric>;
 
  public:
-  explicit LoadNamedFromSuperGeneric(uint64_t bitfield,
-                                     const compiler::NameRef& name,
+  explicit LoadNamedFromSuperGeneric(uint64_t bitfield, compiler::NameRef name,
                                      const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -5790,7 +5788,7 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
   using Base = FixedInputValueNodeT<3, SetNamedGeneric>;
 
  public:
-  explicit SetNamedGeneric(uint64_t bitfield, const compiler::NameRef& name,
+  explicit SetNamedGeneric(uint64_t bitfield, compiler::NameRef name,
                            const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -5887,8 +5885,7 @@ class DefineNamedOwnGeneric
   using Base = FixedInputValueNodeT<3, DefineNamedOwnGeneric>;
 
  public:
-  explicit DefineNamedOwnGeneric(uint64_t bitfield,
-                                 const compiler::NameRef& name,
+  explicit DefineNamedOwnGeneric(uint64_t bitfield, compiler::NameRef name,
                                  const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -6798,8 +6795,7 @@ class ThrowReferenceErrorIfHole
   using Base = FixedInputNodeT<1, ThrowReferenceErrorIfHole>;
 
  public:
-  explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
-                                     const compiler::NameRef& name)
+  explicit ThrowReferenceErrorIfHole(uint64_t bitfield, compiler::NameRef name)
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
@@ -6807,7 +6803,7 @@ class ThrowReferenceErrorIfHole
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  const compiler::NameRef& name() const { return name_; }
+  compiler::NameRef name() const { return name_; }
 
   Input& value() { return Node::input(0); }
 

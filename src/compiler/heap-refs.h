@@ -300,7 +300,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   Handle<Object> object() const;
 
-  bool equals(const ObjectRef& other) const;
+  bool equals(ObjectRef other) const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -323,7 +323,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool should_access_heap() const;
 
   struct Hash {
-    size_t operator()(const ObjectRef& ref) const {
+    size_t operator()(ObjectRef ref) const {
       return base::hash_combine(ref.object().address());
     }
   };
@@ -345,19 +345,17 @@ class V8_EXPORT_PRIVATE ObjectRef {
   template <typename TRef>
   friend class OptionalRef;
 
-  friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
-  friend bool operator<(const ObjectRef& lhs, const ObjectRef& rhs);
+  friend std::ostream& operator<<(std::ostream& os, ObjectRef ref);
+  friend bool operator<(ObjectRef lhs, ObjectRef rhs);
 };
 
-inline bool operator==(const ObjectRef& lhs, const ObjectRef& rhs) {
-  return lhs.equals(rhs);
-}
+inline bool operator==(ObjectRef lhs, ObjectRef rhs) { return lhs.equals(rhs); }
 
-inline bool operator!=(const ObjectRef& lhs, const ObjectRef& rhs) {
+inline bool operator!=(ObjectRef lhs, ObjectRef rhs) {
   return !lhs.equals(rhs);
 }
 
-inline bool operator<(const ObjectRef& lhs, const ObjectRef& rhs) {
+inline bool operator<(ObjectRef lhs, ObjectRef rhs) {
   return lhs.data_ < rhs.data_;
 }
 
@@ -475,8 +473,8 @@ class JSObjectRef : public JSReceiverRef {
   // {dependencies} is non-null, a dependency will be taken to protect
   // against inconsistency due to weak memory concurrency.
   OptionalObjectRef GetOwnConstantElement(
-      JSHeapBroker* broker, const FixedArrayBaseRef& elements_ref,
-      uint32_t index, CompilationDependencies* dependencies) const;
+      JSHeapBroker* broker, FixedArrayBaseRef elements_ref, uint32_t index,
+      CompilationDependencies* dependencies) const;
   // The direct-read implementation of the above, extracted into a helper since
   // it's also called from compilation-dependency validation. This helper is
   // guaranteed to not create new Ref instances.
@@ -504,7 +502,7 @@ class JSObjectRef : public JSReceiverRef {
   // background-serialized) elements.
   OptionalFixedArrayBaseRef elements(JSHeapBroker* broker,
                                      RelaxedLoadTag) const;
-  bool IsElementsTenured(const FixedArrayBaseRef& elements);
+  bool IsElementsTenured(FixedArrayBaseRef elements);
 
   OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker) const;
 };
@@ -656,7 +654,7 @@ class NativeContextRef : public ContextRef {
   MapRef GetFunctionMapFromIndex(JSHeapBroker* broker, int index) const;
   MapRef GetInitialJSArrayMap(JSHeapBroker* broker, ElementsKind kind) const;
   OptionalJSFunctionRef GetConstructorFunction(JSHeapBroker* broker,
-                                               const MapRef& map) const;
+                                               MapRef map) const;
   bool GlobalIsDetached(JSHeapBroker* broker) const;
 };
 
@@ -1090,11 +1088,11 @@ class JSGlobalObjectRef : public JSObjectRef {
 
   Handle<JSGlobalObject> object() const;
 
-  bool IsDetachedFrom(JSGlobalProxyRef const& proxy) const;
+  bool IsDetachedFrom(JSGlobalProxyRef proxy) const;
 
   // Can be called even when there is no property cell for the given name.
   OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker,
-                                          NameRef const& name) const;
+                                          NameRef name) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {
