@@ -261,8 +261,12 @@ class JobTask {
    * Controls the maximum number of threads calling Run() concurrently, given
    * the number of threads currently assigned to this job and executing Run().
    * Run() is only invoked if the number of threads previously running Run() was
-   * less than the value returned. Since GetMaxConcurrency() is a leaf function,
-   * it must not call back any JobHandle methods.
+   * less than the value returned. In general, this should return the latest
+   * number of incomplete work items (smallest unit of work) left to process,
+   * including items that are currently in progress. |worker_count| is the
+   * number of threads currently assigned to this job which some callers may
+   * need to determine their return value. Since GetMaxConcurrency() is a leaf
+   * function, it must not call back any JobHandle methods.
    */
   virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
 };

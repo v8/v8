@@ -176,8 +176,8 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     isolate()->stack_guard()->RequestInstallMaglevCode();
   }
 
-  size_t GetMaxConcurrency(size_t) const override {
-    return incoming_queue()->size();
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    return incoming_queue()->size() + worker_count;
   }
 
  private:
