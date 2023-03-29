@@ -13,6 +13,7 @@ v8_builder(
     schedule = "*/10 * * * *",
     in_list = "pgo",
     execution_timeout = 3600,
+    notifies = ["infra-failure", "infra"],
 )
 
 v8_builder(

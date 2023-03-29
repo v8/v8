@@ -677,7 +677,7 @@ def v8_notifier(notify_emails = [], **kwargs):
     emails = list(notify_emails)
     infra_cc = "v8-infra-alerts-cc@google.com"
     if not infra_cc in emails:
-        emails.append("v8-infra-alerts-cc@google.com")
+        emails.append(infra_cc)
     luci.notifier(
         notify_emails = emails,
         **kwargs
