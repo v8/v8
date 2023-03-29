@@ -497,3 +497,13 @@ input.range-toggle-setting {
   border: var(--range-position-border) solid transparent;
   color: transparent;
 }
+
+.range-background-canvas-div {
+  float: left;
+  position: absolute;
+  z-index: -1;
+}
+
+.range-background-div {
+  --range-position-border: 0px;
+}

@@ -77,3 +77,9 @@ export const PROF_COLS = [
   { perc: 15, col: { r: 255, g: 0, b: 0 } },
   { perc: 100, col: { r: 0, g: 0, b: 0 } }
 ];
+export const RANGE_BACKGROUND_BORDER_COLOR = "#6D6B6B";
+export const RANGE_BACKGROUND_SELECT_COLOR = "#FFFF33";
+export const RANGE_BACKGROUND_FOCUS_COLOR = "#2D7ECA";
+export const RANGE_POSITION_BORDER_WIDTH = 1;
+export const RANGE_REGISTER_BORDER_WIDTH = 1;
+export const RANGE_REGISTER_BORDER_WIDTH_X2 = 2 * RANGE_REGISTER_BORDER_WIDTH;
