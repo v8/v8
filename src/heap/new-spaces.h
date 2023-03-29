@@ -628,6 +628,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void RefillFreeList() final;
 
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
+  bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
 

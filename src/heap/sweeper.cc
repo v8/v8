@@ -995,16 +995,23 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
     } else {
       // Some sweeper task already took ownership of that page, wait until
       // sweeping is finished.
-      base::MutexGuard guard(&mutex_);
-      while (!page->SweepingDone()) {
-        cv_page_swept_.Wait(&mutex_);
-      }
+      WaitForPageToBeSwept(page);
     }
   } else {
     DCHECK(page->InNewSpace() && !v8_flags.minor_mc);
   }
 
   CHECK(page->SweepingDone());
+}
+
+void Sweeper::WaitForPageToBeSwept(Page* page) {
+  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(sweeping_in_progress());
+
+  base::MutexGuard guard(&mutex_);
+  while (!page->SweepingDone()) {
+    cv_page_swept_.Wait(&mutex_);
+  }
 }
 
 bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {

@@ -141,6 +141,7 @@ class Sweeper {
                          int required_freed_bytes, int max_pages = 0);
 
   void EnsurePageIsSwept(Page* page);
+  void WaitForPageToBeSwept(Page* page);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks

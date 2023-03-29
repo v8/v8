@@ -109,7 +109,9 @@ V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
   if (!PagedSpaceBase::EnsureAllocation(size_in_bytes, alignment, origin,
                                         out_max_aligned_size)) {
     if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
-      return false;
+      if (!WaitForSweepingForAllocation(size_in_bytes, origin)) {
+        return false;
+      }
     }
   }
 

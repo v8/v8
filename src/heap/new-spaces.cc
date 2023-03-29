@@ -7,6 +7,7 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
@@ -1050,6 +1051,39 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
 
 bool PagedSpaceForNewSpace::AllocatePage() {
   return TryExpandImpl(MemoryAllocator::AllocationMode::kUsePool);
+}
+
+bool PagedSpaceForNewSpace::WaitForSweepingForAllocation(
+    int size_in_bytes, AllocationOrigin origin) {
+  // This method should be called only when there are no more pages for main
+  // thread to sweep.
+  DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+  if (!v8_flags.concurrent_sweeping || !heap()->sweeping_in_progress())
+    return false;
+  Sweeper* sweeper = heap()->sweeper();
+  if (!sweeper->AreSweeperTasksRunning() &&
+      !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
+#if DEBUG
+    for (Page* p : *this) {
+      DCHECK(p->SweepingDone());
+      p->ForAllFreeListCategories([this](FreeListCategory* category) {
+        DCHECK_IMPLIES(!category->is_empty(), category->is_linked(free_list()));
+      });
+    }
+#endif  // DEBUG
+    // All pages are already swept and relinked to the free list
+    return false;
+  }
+  // When getting here we know that any unswept new space page is currently
+  // being handled by a concurrent sweeping thread. Rather than try to cancel
+  // tasks and restart them, we wait "per page". This should be faster.
+  for (Page* p : *this) {
+    if (!p->SweepingDone()) sweeper->WaitForPageToBeSwept(p);
+  }
+  RefillFreeList();
+  DCHECK(!sweeper->ShouldRefillFreelistForSpace(NEW_SPACE));
+  return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                       origin);
 }
 
 // -----------------------------------------------------------------------------
