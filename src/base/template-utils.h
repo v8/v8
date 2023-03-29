@@ -8,6 +8,7 @@
 #include <array>
 #include <functional>
 #include <iosfwd>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
