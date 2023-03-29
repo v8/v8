@@ -375,6 +375,18 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
 
+  {
+    DisallowGarbageCollection no_gc;
+    DCHECK_EQ(1, args.length());
+    WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
+
+    FrameFinder<WasmFrame> frame_finder(isolate);
+    int func_index = frame_finder.frame()->function_index();
+    DCHECK_EQ(instance, frame_finder.frame()->wasm_instance());
+
+    wasm::TriggerTierUp(instance, func_index);
+  }
+
   // We're reusing this interrupt mechanism to interrupt long-running loops.
   StackLimitCheck check(isolate);
   // We don't need to handle stack overflows here, because the function that
@@ -384,19 +396,11 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   // itself might have pushed us above the limit where a stack check would
   // fail.
   if (check.InterruptRequested()) {
+    // Note: This might trigger a GC, which invalidates the {args} object (see
+    // https://crbug.com/v8/13036#2).
     Object result = isolate->stack_guard()->HandleInterrupts();
     if (result.IsException()) return result;
   }
-
-  DisallowGarbageCollection no_gc;
-  DCHECK_EQ(1, args.length());
-  WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
-
-  FrameFinder<WasmFrame> frame_finder(isolate);
-  int func_index = frame_finder.frame()->function_index();
-  DCHECK_EQ(instance, frame_finder.frame()->wasm_instance());
-
-  wasm::TriggerTierUp(instance, func_index);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
