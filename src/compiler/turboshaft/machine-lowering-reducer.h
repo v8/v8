@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
 
+#include "src/base/logging.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
@@ -364,24 +365,24 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> REDUCE(FloatIs)(OpIndex value, FloatIsOp::Kind kind,
+  V<Word32> REDUCE(FloatIs)(OpIndex value, NumericKind kind,
                             FloatRepresentation input_rep) {
     DCHECK_EQ(input_rep, FloatRepresentation::Float64());
     switch (kind) {
-      case FloatIsOp::Kind::kFloat64Hole: {
+      case NumericKind::kFloat64Hole: {
         return __ Word32Equal(__ Float64ExtractHighWord32(value),
                               kHoleNanUpper32);
       }
-      case FloatIsOp::Kind::kFinite: {
+      case NumericKind::kFinite: {
         V<Float64> diff = __ Float64Sub(value, value);
         return __ Float64Equal(diff, diff);
       }
-      case FloatIsOp::Kind::kInteger: {
+      case NumericKind::kInteger: {
         V<Float64> trunc = BuildFloat64RoundTruncate(value);
         V<Float64> diff = __ Float64Sub(value, trunc);
         return __ Float64Equal(diff, 0.0);
       }
-      case FloatIsOp::Kind::kSafeInteger: {
+      case NumericKind::kSafeInteger: {
         Label<Word32> done(this);
         V<Float64> trunc = BuildFloat64RoundTruncate(value);
         V<Float64> diff = __ Float64Sub(value, trunc);
@@ -393,7 +394,7 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
-      case FloatIsOp::Kind::kMinusZero: {
+      case NumericKind::kMinusZero: {
         if (Is64()) {
           V<Word64> value64 = __ BitcastFloat64ToWord64(value);
           return __ Word64Equal(value64, kMinusZeroBits);
@@ -408,13 +409,46 @@ class MachineLoweringReducer : public Next {
           return result;
         }
       }
-      case FloatIsOp::Kind::kNaN: {
+      case NumericKind::kNaN: {
         V<Word32> diff = __ Float64Equal(value, value);
         return __ Word32Equal(diff, 0);
       }
     }
 
     UNREACHABLE();
+  }
+
+  OpIndex REDUCE(ObjectIsNumericValue)(OpIndex input, NumericKind kind,
+                                       FloatRepresentation input_rep) {
+    DCHECK_EQ(input_rep, FloatRepresentation::Float64());
+    Label<Word32> done(this);
+
+    switch (kind) {
+      case NumericKind::kFinite:
+      case NumericKind::kInteger:
+      case NumericKind::kSafeInteger:
+        GOTO_IF(IsSmi(input), done, 1);
+        break;
+      case NumericKind::kMinusZero:
+      case NumericKind::kNaN:
+        GOTO_IF(IsSmi(input), done, 0);
+        break;
+      case NumericKind::kFloat64Hole:
+        // ObjectIsFloat64Hole is not used, but can be implemented when needed.
+        UNREACHABLE();
+    }
+
+    V<Map> map = __ LoadMapField(input);
+    GOTO_IF_NOT(
+        __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())), done,
+        0);
+
+    V<Float64> value = __ template LoadField<Float64>(
+        input, AccessBuilder::ForHeapNumberValue());
+    GOTO(done, __ FloatIs(value, kind, input_rep));
+
+    BIND(done, result);
+    return result;
   }
 
   OpIndex REDUCE(ConvertToObject)(

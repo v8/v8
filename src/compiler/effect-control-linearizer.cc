@@ -1439,6 +1439,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerObjectIsDetectableCallable(node);
       break;
     case IrOpcode::kObjectIsMinusZero:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsMinusZero(node);
       break;
     case IrOpcode::kNumberIsMinusZero:
@@ -1446,6 +1447,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsMinusZero(node);
       break;
     case IrOpcode::kObjectIsNaN:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsNaN(node);
       break;
     case IrOpcode::kNumberIsNaN:
@@ -1678,6 +1680,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsFinite(node);
       break;
     case IrOpcode::kObjectIsFiniteNumber:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsFiniteNumber(node);
       break;
     case IrOpcode::kNumberIsInteger:
@@ -1685,6 +1688,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsInteger(node);
       break;
     case IrOpcode::kObjectIsInteger:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsInteger(node);
       break;
     case IrOpcode::kNumberIsSafeInteger:
@@ -1692,6 +1696,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNumberIsSafeInteger(node);
       break;
     case IrOpcode::kObjectIsSafeInteger:
+      if (v8_flags.turboshaft) return false;
       result = LowerObjectIsSafeInteger(node);
       break;
     case IrOpcode::kCheckFloat64Hole:
@@ -4564,6 +4569,7 @@ Node* EffectControlLinearizer::LowerNumberIsFinite(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsFiniteNumber(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* object = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
   Node* one = __ Int32Constant(1);
@@ -4598,6 +4604,7 @@ Node* EffectControlLinearizer::LowerNumberIsInteger(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsInteger(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* object = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
   Node* one = __ Int32Constant(1);
@@ -4642,6 +4649,7 @@ Node* EffectControlLinearizer::LowerNumberIsSafeInteger(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* object = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
   Node* one = __ Int32Constant(1);
@@ -4671,6 +4679,7 @@ Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
 
@@ -4725,6 +4734,7 @@ Node* EffectControlLinearizer::LowerNumberIsMinusZero(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNaN(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
 

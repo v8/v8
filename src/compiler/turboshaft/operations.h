@@ -125,6 +125,7 @@ struct FrameStateOp;
   V(CheckTurboshaftTypeOf)           \
   V(ObjectIs)                        \
   V(FloatIs)                         \
+  V(ObjectIsNumericValue)            \
   V(ConvertToObject)                 \
   V(ConvertToObjectOrDeopt)          \
   V(ConvertObjectToPrimitive)        \
@@ -2491,18 +2492,22 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind);
 std::ostream& operator<<(std::ostream& os,
                          ObjectIsOp::InputAssumptions input_assumptions);
 
+enum class NumericKind : uint8_t {
+  kFloat64Hole,
+  kFinite,
+  kInteger,
+  kSafeInteger,
+  kMinusZero,
+  kNaN,
+};
+std::ostream& operator<<(std::ostream& os, NumericKind kind);
+
 struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
-  enum class Kind : uint8_t {
-    kFloat64Hole,
-    kFinite,
-    kInteger,
-    kSafeInteger,
-    kMinusZero,
-    kNaN,
-  };
-  Kind kind;
+  NumericKind kind;
   FloatRepresentation input_rep;
 
+  FloatIsOp(OpIndex input, NumericKind kind, FloatRepresentation input_rep)
+      : Base(input), kind(kind), input_rep(input_rep) {}
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
@@ -2510,14 +2515,32 @@ struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  FloatIsOp(OpIndex input, Kind kind, FloatRepresentation input_rep)
-      : Base(input), kind(kind), input_rep(input_rep) {}
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), input_rep));
   }
   auto options() const { return std::tuple{kind, input_rep}; }
 };
-std::ostream& operator<<(std::ostream& os, FloatIsOp::Kind kind);
+
+struct ObjectIsNumericValueOp
+    : FixedArityOperationT<1, ObjectIsNumericValueOp> {
+  NumericKind kind;
+  FloatRepresentation input_rep;
+
+  ObjectIsNumericValueOp(OpIndex input, NumericKind kind,
+                         FloatRepresentation input_rep)
+      : Base(input), kind(kind), input_rep(input_rep) {}
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
+  auto options() const { return std::tuple{kind, input_rep}; }
+};
 
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   enum class Kind : uint8_t {

@@ -667,23 +667,42 @@ OpIndex GraphBuilder::Process(
                               RegisterRepresentation::PointerSized(),
                               RegisterRepresentation::Tagged());
     case IrOpcode::kNumberIsFinite:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kFinite,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFinite,
                         FloatRepresentation::Float64());
     case IrOpcode::kNumberIsInteger:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kInteger,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kInteger,
                         FloatRepresentation::Float64());
     case IrOpcode::kNumberIsSafeInteger:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kSafeInteger,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kSafeInteger,
                         FloatRepresentation::Float64());
     case IrOpcode::kNumberIsFloat64Hole:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kFloat64Hole,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFloat64Hole,
                         FloatRepresentation::Float64());
     case IrOpcode::kNumberIsMinusZero:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kMinusZero,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kMinusZero,
                         FloatRepresentation::Float64());
     case IrOpcode::kNumberIsNaN:
-      return __ FloatIs(Map(node->InputAt(0)), FloatIsOp::Kind::kNaN,
+      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kNaN,
                         FloatRepresentation::Float64());
+    case IrOpcode::kObjectIsMinusZero:
+      return __ ObjectIsNumericValue(Map(node->InputAt(0)),
+                                     NumericKind::kMinusZero,
+                                     FloatRepresentation::Float64());
+    case IrOpcode::kObjectIsNaN:
+      return __ ObjectIsNumericValue(Map(node->InputAt(0)), NumericKind::kNaN,
+                                     FloatRepresentation::Float64());
+    case IrOpcode::kObjectIsFiniteNumber:
+      return __ ObjectIsNumericValue(Map(node->InputAt(0)),
+                                     NumericKind::kFinite,
+                                     FloatRepresentation::Float64());
+    case IrOpcode::kObjectIsInteger:
+      return __ ObjectIsNumericValue(Map(node->InputAt(0)),
+                                     NumericKind::kInteger,
+                                     FloatRepresentation::Float64());
+    case IrOpcode::kObjectIsSafeInteger:
+      return __ ObjectIsNumericValue(Map(node->InputAt(0)),
+                                     NumericKind::kSafeInteger,
+                                     FloatRepresentation::Float64());
 
 #define OBJECT_IS_CASE(kind)                                             \
   case IrOpcode::kObjectIs##kind: {                                      \

@@ -761,19 +761,19 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
-std::ostream& operator<<(std::ostream& os, FloatIsOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, NumericKind kind) {
   switch (kind) {
-    case FloatIsOp::Kind::kFloat64Hole:
+    case NumericKind::kFloat64Hole:
       return os << "Float64Hole";
-    case FloatIsOp::Kind::kFinite:
+    case NumericKind::kFinite:
       return os << "Finite";
-    case FloatIsOp::Kind::kInteger:
+    case NumericKind::kInteger:
       return os << "Integer";
-    case FloatIsOp::Kind::kSafeInteger:
+    case NumericKind::kSafeInteger:
       return os << "SafeInteger";
-    case FloatIsOp::Kind::kMinusZero:
+    case NumericKind::kMinusZero:
       return os << "MinusZero";
-    case FloatIsOp::Kind::kNaN:
+    case NumericKind::kNaN:
       return os << "NaN";
   }
 }
