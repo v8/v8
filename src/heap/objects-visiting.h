@@ -182,7 +182,7 @@ class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
   static V8_INLINE T Cast(HeapObject object);
 
  private:
-  template <typename Visitor, typename T>
+  template <typename T>
   V8_INLINE ResultType VisitStringLocked(T object);
 
   friend class HeapVisitor<ResultType, ConcreteVisitor>;

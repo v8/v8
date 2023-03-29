@@ -221,7 +221,7 @@ UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
 T ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
-  if constexpr (EnableConcurrentVisitation()) {
+  if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {
     return ConcurrentVisitorCastHelper<T>::Cast(object);
   }
   return T::cast(object);
@@ -232,7 +232,7 @@ T ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
   ResultType                                                                  \
       ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(    \
           Map map, TypeName object) {                                         \
-    if constexpr (EnableConcurrentVisitation()) {                             \
+    if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {            \
       return VisitStringLocked(object);                                       \
     }                                                                         \
     return HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(map,     \
@@ -243,7 +243,7 @@ UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
 
 template <typename ResultType, typename ConcreteVisitor>
-template <typename Visitor, typename T>
+template <typename T>
 ResultType ConcurrentHeapVisitor<ResultType,
                                  ConcreteVisitor>::VisitStringLocked(T object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
