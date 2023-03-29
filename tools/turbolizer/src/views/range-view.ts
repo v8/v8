@@ -593,7 +593,7 @@ class RowConstructor {
   {
     const intervalEl = createElement("div", "range-interval");
     intervalEl.dataset.tooltip = tooltip.text;
-    const title = `${childRange.id}:${index} ${tooltip}`;
+    const title = `${childRange.id}:${index} ${tooltip.text}`;
     intervalEl.setAttribute("title", isDeferred ? `deferred: ${title}` : title);
     this.setIntervalColor(intervalEl, tooltip.text);
 
