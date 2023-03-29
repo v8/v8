@@ -747,11 +747,15 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
     const char* embedded_source, v8::Isolate* isolate) {
+  bool owns_isolate = false;
   // If no isolate is passed in, create it (and a new context) from scratch.
-  if (isolate == nullptr) isolate = v8::Isolate::Allocate();
+  if (isolate == nullptr) {
+    isolate = v8::Isolate::Allocate();
+    owns_isolate = true;
+  }
 
   // Optionally run a script to embed, and serialize to create a snapshot blob.
-  v8::SnapshotCreator snapshot_creator(isolate);
+  v8::SnapshotCreator snapshot_creator(isolate, nullptr, nullptr, owns_isolate);
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);

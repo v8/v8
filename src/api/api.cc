@@ -529,7 +529,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #endif  // V8_ENABLE_SANDBOX
 
 struct SnapshotCreatorData {
-  explicit SnapshotCreatorData(Isolate* v8_isolate) : isolate_(v8_isolate) {}
+  explicit SnapshotCreatorData(Isolate* v8_isolate, bool owns_isolate)
+      : isolate_(v8_isolate), owns_isolate_(owns_isolate) {}
 
   static SnapshotCreatorData* cast(void* data) {
     return reinterpret_cast<SnapshotCreatorData*>(data);
@@ -542,14 +543,16 @@ struct SnapshotCreatorData {
   std::vector<Global<Context>> contexts_;
   std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers_;
   bool created_ = false;
+  const bool owns_isolate_;
 };
 
 }  // namespace
 
 SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
                                  const intptr_t* external_references,
-                                 const StartupData* existing_snapshot) {
-  SnapshotCreatorData* data = new SnapshotCreatorData(v8_isolate);
+                                 const StartupData* existing_snapshot,
+                                 bool owns_isolate) {
+  SnapshotCreatorData* data = new SnapshotCreatorData(v8_isolate, owns_isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i_isolate->set_array_buffer_allocator(&data->allocator_);
   i_isolate->set_api_external_references(external_references);
@@ -578,7 +581,9 @@ SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   Isolate* v8_isolate = data->isolate_;
   v8_isolate->Exit();
-  v8_isolate->Dispose();
+  if (data->owns_isolate_) {
+    v8_isolate->Dispose();
+  }
   delete data;
 }
 
