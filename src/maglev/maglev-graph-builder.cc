@@ -4418,6 +4418,16 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
 ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 2) {
+    // For < 2 args, we'll be calculating Math.Pow(arg[0], undefined), which is
+    // ToNumber(arg[0]) ** NaN == NaN. So we can just return NaN.
+    // However, if there is a single argument and it's tagged, we have to call
+    // ToNumber on it before returning NaN, for side effects. This call could
+    // lazy deopt, which would mean we'd need a continuation to actually set
+    // the NaN return value... it's easier to just bail out, this should be
+    // an uncommon case anyway.
+    if (args.count() == 1 && args[0]->properties().is_tagged()) {
+      return ReduceResult::Fail();
+    }
     return GetRootConstant(RootIndex::kNanValue);
   }
   // If both arguments are tagged, it is cheaper to call Math.Pow builtin,
