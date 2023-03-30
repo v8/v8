@@ -131,14 +131,13 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
-                       Register value, Register scratch0, Register scratch1,
+                       Register scratch0, Register scratch1,
                        RecordWriteMode mode, StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
         offset_immediate_(0),
-        value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
@@ -153,14 +152,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
-                       Register value, Register scratch0, Register scratch1,
+                       Register scratch0, Register scratch1,
                        RecordWriteMode mode, StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         offset_(no_reg),
         offset_immediate_(offset),
-        value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
@@ -174,11 +172,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm());
-    if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTagged(value_, value_);
-    }
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(object_, scratch0_,
+                     MemoryChunk::kPointersFromHereAreInterestingMask, eq,
                      exit());
     if (offset_ == no_reg) {
       __ addi(scratch1_, object_, Operand(offset_immediate_));
@@ -217,7 +212,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const object_;
   Register const offset_;
   int32_t const offset_immediate_;  // Valid if offset_ == no_reg.
-  Register const value_;
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
@@ -1147,22 +1141,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (addressing_mode == kMode_MRI) {
         int32_t offset = i.InputInt32(1);
         ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, offset, value, scratch0, scratch1, mode,
+            this, object, offset, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreTaggedField(value, MemOperand(object, offset), r0);
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
         ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, offset, value, scratch0, scratch1, mode,
+            this, object, offset, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreTaggedField(value, MemOperand(object, offset), r0);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+      // Checking the {value}'s page flags first favors old-to-old pointers,
+      // which can skip the OOL code. Checking the {object}'s flags first
+      // would favor new-to-new pointers.
+      if (COMPRESS_POINTERS_BOOL) {
+        MachineRepresentation rep =
+            LocationOperand::cast(instr->InputAt(2))->representation();
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          __ DecompressTagged(value, value);
+        }
+      }
+      __ CheckPageFlag(value, scratch0,
+                       MemoryChunk::kPointersToHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
       break;
