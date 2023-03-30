@@ -1337,14 +1337,24 @@ void Debug::PrepareStep(StepAction step_action) {
           // initial yield of async generators).
           Handle<JSReceiver> return_value(
               JSReceiver::cast(thread_local_.return_value_), isolate_);
-          Handle<Object> awaited_by = JSReceiver::GetDataProperty(
+          Handle<Object> awaited_by_holder = JSReceiver::GetDataProperty(
               isolate_, return_value,
               isolate_->factory()->promise_awaited_by_symbol());
-          if (awaited_by->IsJSGeneratorObject()) {
-            DCHECK(!has_suspended_generator());
-            thread_local_.suspended_generator_ = *awaited_by;
-            ClearStepping();
-            return;
+          if (awaited_by_holder->IsWeakFixedArray(isolate_)) {
+            Handle<WeakFixedArray> weak_fixed_array =
+                Handle<WeakFixedArray>::cast(awaited_by_holder);
+            if (weak_fixed_array->length() == 1 &&
+                weak_fixed_array->Get(0).IsWeak()) {
+              Handle<HeapObject> awaited_by(
+                  weak_fixed_array->Get(0).GetHeapObjectAssumeWeak(isolate_),
+                  isolate_);
+              if (awaited_by->IsJSGeneratorObject()) {
+                DCHECK(!has_suspended_generator());
+                thread_local_.suspended_generator_ = *awaited_by;
+                ClearStepping();
+                return;
+              }
+            }
           }
         }
       }

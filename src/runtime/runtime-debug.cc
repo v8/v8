@@ -871,9 +871,14 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
                         Just(ShouldThrow::kThrowOnError))
         .Check();
 
-    Object::SetProperty(
-        isolate, promise, isolate->factory()->promise_awaited_by_symbol(),
-        generator, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
+    Handle<WeakFixedArray> awaited_by_holder(
+        isolate->factory()->NewWeakFixedArray(1));
+    awaited_by_holder->Set(
+        0, MaybeObject::MakeWeak(MaybeObject::FromObject(*generator)));
+    Object::SetProperty(isolate, promise,
+                        isolate->factory()->promise_awaited_by_symbol(),
+                        awaited_by_holder, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Check();
   }
 
