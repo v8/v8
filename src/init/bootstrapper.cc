@@ -3155,22 +3155,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           factory->numberingSystem_string(),
                           Builtin::kLocalePrototypeNumberingSystem, true);
 
-      // Intl Locale Info functions
-      SimpleInstallGetter(isolate(), prototype, factory->calendars_string(),
-                          Builtin::kLocalePrototypeCalendars, true);
-      SimpleInstallGetter(isolate(), prototype, factory->collations_string(),
-                          Builtin::kLocalePrototypeCollations, true);
-      SimpleInstallGetter(isolate(), prototype, factory->hourCycles_string(),
-                          Builtin::kLocalePrototypeHourCycles, true);
-      SimpleInstallGetter(isolate(), prototype,
-                          factory->numberingSystems_string(),
-                          Builtin::kLocalePrototypeNumberingSystems, true);
-      SimpleInstallGetter(isolate(), prototype, factory->textInfo_string(),
-                          Builtin::kLocalePrototypeTextInfo, true);
-      SimpleInstallGetter(isolate(), prototype, factory->timeZones_string(),
-                          Builtin::kLocalePrototypeTimeZones, true);
-      SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
-                          Builtin::kLocalePrototypeWeekInfo, true);
+      if (!v8_flags.harmony_remove_intl_locale_info_getters) {
+        // Intl Locale Info functions
+        SimpleInstallGetter(isolate(), prototype, factory->calendars_string(),
+                            Builtin::kLocalePrototypeCalendars, true);
+        SimpleInstallGetter(isolate(), prototype, factory->collations_string(),
+                            Builtin::kLocalePrototypeCollations, true);
+        SimpleInstallGetter(isolate(), prototype, factory->hourCycles_string(),
+                            Builtin::kLocalePrototypeHourCycles, true);
+        SimpleInstallGetter(isolate(), prototype,
+                            factory->numberingSystems_string(),
+                            Builtin::kLocalePrototypeNumberingSystems, true);
+        SimpleInstallGetter(isolate(), prototype, factory->textInfo_string(),
+                            Builtin::kLocalePrototypeTextInfo, true);
+        SimpleInstallGetter(isolate(), prototype, factory->timeZones_string(),
+                            Builtin::kLocalePrototypeTimeZones, true);
+        SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
+                            Builtin::kLocalePrototypeWeekInfo, true);
+      }
     }
 
     {  // -- D i s p l a y N a m e s
@@ -4533,6 +4535,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rab_gsab_transfer)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_remove_intl_locale_info_getters)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
@@ -5671,6 +5674,27 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_INTL_SUPPORT
+void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {
+  if (!v8_flags.harmony_intl_locale_info_func) return;
+  Handle<JSObject> prototype(
+      JSObject::cast(native_context()->intl_locale_function().prototype()),
+      isolate_);
+  SimpleInstallFunction(isolate(), prototype, "getCalendars",
+                        Builtin::kLocalePrototypeGetCalendars, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getCollations",
+                        Builtin::kLocalePrototypeGetCollations, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getHourCycles",
+                        Builtin::kLocalePrototypeGetHourCycles, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getNumberingSystems",
+                        Builtin::kLocalePrototypeGetNumberingSystems, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getTimeZones",
+                        Builtin::kLocalePrototypeGetTimeZones, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getTextInfo",
+                        Builtin::kLocalePrototypeGetTextInfo, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "getWeekInfo",
+                        Builtin::kLocalePrototypeGetWeekInfo, 0, false);
+}
+
 void Genesis::InitializeGlobal_harmony_intl_duration_format() {
   if (!v8_flags.harmony_intl_duration_format) return;
   Handle<JSObject> intl = Handle<JSObject>::cast(

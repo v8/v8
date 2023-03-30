@@ -43,6 +43,7 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
     'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
     'Intl.DurationFormat': '--harmony-intl-duration-format',
+    'Intl.Locale-info': '--harmony-intl-locale-info-func',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
     'host-gc-required': '--expose-gc-as=v8GC',

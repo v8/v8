@@ -1796,6 +1796,20 @@ namespace internal {
   CPP(LocalePrototypeCollation)                                        \
   /* ecma402 #sec-Intl.Locale.prototype.collations */                  \
   CPP(LocalePrototypeCollations)                                       \
+  /* ecma402 #sec-Intl.Locale.prototype.getCalendars */                \
+  CPP(LocalePrototypeGetCalendars)                                     \
+  /* ecma402 #sec-Intl.Locale.prototype.getCollations */               \
+  CPP(LocalePrototypeGetCollations)                                    \
+  /* ecma402 #sec-Intl.Locale.prototype.getHourCycles */               \
+  CPP(LocalePrototypeGetHourCycles)                                    \
+  /* ecma402 #sec-Intl.Locale.prototype.getNumberingSystems */         \
+  CPP(LocalePrototypeGetNumberingSystems)                              \
+  /* ecma402 #sec-Intl.Locale.prototype.getTimeZones */                \
+  CPP(LocalePrototypeGetTimeZones)                                     \
+  /* ecma402 #sec-Intl.Locale.prototype.getTextInfo */                 \
+  CPP(LocalePrototypeGetTextInfo)                                      \
+  /* ecma402 #sec-Intl.Locale.prototype.getWeekInfo */                 \
+  CPP(LocalePrototypeGetWeekInfo)                                      \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                   \
   CPP(LocalePrototypeHourCycle)                                        \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycles */                  \
