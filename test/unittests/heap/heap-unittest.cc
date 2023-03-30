@@ -186,7 +186,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
     SemiSpaceNewSpace::From(new_space)->Shrink();
     return;
   }
-  // MinorMC shrinks the space as part of sweeping.
+  // MinorMC shrinks the space as part of sweeping. Here we fake a GC cycle, in
+  // which we just shrink without marking or sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -197,16 +198,28 @@ void ShrinkNewSpace(NewSpace* new_space) {
                      GCTracer::MarkingType::kAtomic);
   tracer->StartAtomicPause();
   paged_new_space->StartShrinking();
-  for (Page* page = paged_new_space->first_page();
-       page != paged_new_space->last_page() &&
+  for (auto it = paged_new_space->begin();
+       it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    Page* current_page = page;
-    page = page->next_page();
-    if (current_page->allocated_bytes() == 0) {
-      paged_new_space->ReleasePage(current_page);
+    Page* page = *it++;
+    if (page->allocated_bytes() == 0) {
+      paged_new_space->ReleasePage(page);
+    } else {
+      // The number of live bytes should be zero, because at this point we're
+      // after a GC.
+      DCHECK_EQ(0, heap->non_atomic_marking_state()->live_bytes(page));
+      // We set it to the number of allocated bytes, because FinishShrinking
+      // below expects that all pages have been swept and those that remain
+      // contain live bytes.
+      heap->non_atomic_marking_state()->SetLiveBytes(page,
+                                                     page->allocated_bytes());
     }
   }
   paged_new_space->FinishShrinking();
+  for (Page* page : *paged_new_space) {
+    // We reset the number of live bytes to zero, as is expected after a GC.
+    heap->non_atomic_marking_state()->SetLiveBytes(page, 0);
+  }
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
   tracer->NotifyFullSweepingCompleted();
