@@ -164,8 +164,7 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   // in the wrong half state. This can happen if an object gets cast to two
   // unrelated types subsequently (as the state only tracks the field index)
   // independent of the underlying type.
-  if (struct_type.is_bottom() ||
-      struct_type.is_reference_to(wasm::HeapType::kNone) ||
+  if (struct_type.is_uninhabited() ||
       !(is_mutable ? state->immutable_state : state->mutable_state)
            .LookupField(field_info.field_index, object)
            .IsEmpty()) {
@@ -237,8 +236,7 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   // half state. This can happen if an object gets cast to two unrelated types
   // subsequently (as the state only tracks the field index) independent of the
   // underlying type.
-  if (struct_type.is_bottom() ||
-      struct_type.is_reference_to(wasm::HeapType::kNone) ||
+  if (struct_type.is_uninhabited() ||
       !(is_mutable ? state->immutable_state : state->mutable_state)
            .LookupField(field_info.field_index, object)
            .IsEmpty()) {

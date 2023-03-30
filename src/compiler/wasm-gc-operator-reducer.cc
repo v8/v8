@@ -66,7 +66,7 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
 namespace {
 bool InDeadBranch(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
-         NodeProperties::GetType(node).AsWasm().type.is_bottom();
+         NodeProperties::GetType(node).AsWasm().type.is_uninhabited();
 }
 
 Node* GetAlias(Node* node) {
@@ -113,7 +113,7 @@ Reduction WasmGCOperatorReducer::ReduceStart(Node* node) {
 
 wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
                                                                 Node* control) {
-  if (InDeadBranch(object)) return {};
+  if (object->opcode() == IrOpcode::kDead) return {};
   if (!IsReduced(control)) return {};
   wasm::TypeInModule type_from_node = NodeProperties::GetType(object).AsWasm();
   ControlPathTypes state = GetState(control);
@@ -136,7 +136,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -165,7 +165,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmArrayLength(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -196,7 +196,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       if (!condition) break;
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, branch);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
 
       wasm::ValueType to_type =
           OpParameter<WasmTypeCheckConfig>(condition_node->op()).to;
@@ -213,7 +213,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       Node* control = NodeProperties::GetControlInput(condition_node);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
       // If the checked value is null, narrow the type to the corresponding
       // null type, otherwise to a non-null reference.
       bool is_null =
@@ -261,7 +261,7 @@ Reduction WasmGCOperatorReducer::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -285,7 +285,7 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -335,7 +335,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   Node* rtt = NodeProperties::GetValueInput(node, 1);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
   bool to_nullable =
@@ -406,7 +406,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
 
