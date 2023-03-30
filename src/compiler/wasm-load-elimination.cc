@@ -160,9 +160,15 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
     return NoChange();
   }
   // The node is in unreachable code if its input is uninhabitable (bottom or
-  // ref none type).
+  // ref none type). It can also be treated as unreachable if the field index is
+  // in the wrong half state. This can happen if an object gets cast to two
+  // unrelated types subsequently (as the state only tracks the field index)
+  // independent of the underlying type.
   if (struct_type.is_bottom() ||
-      struct_type.is_reference_to(wasm::HeapType::kNone)) {
+      struct_type.is_reference_to(wasm::HeapType::kNone) ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
+           .IsEmpty()) {
     Node* unreachable =
         graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
     MachineRepresentation rep =
@@ -174,12 +180,9 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
     node->Kill();
     return Replace(dead_value);
   }
-  // If the input type is not (ref null? none) or bottom, we can't have type
-  // inconsistencies and therefore the field may not be in the wrong half-state.
+  // If the input type is not (ref null? none) or bottom and we don't have type
+  // inconsistencies, then the result type must be valid.
   DCHECK(!NodeProperties::GetType(node).AsWasm().type.is_bottom());
-  DCHECK((is_mutable ? &state->immutable_state : &state->mutable_state)
-             ->LookupField(field_info.field_index, object)
-             .IsEmpty());
 
   HalfState const* half_state =
       is_mutable ? &state->mutable_state : &state->immutable_state;
@@ -226,9 +229,19 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
     return NoChange();
   }
 
+  const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
+  bool is_mutable = field_info.type->mutability(field_info.field_index);
+
   // The struct.set is unreachable if its input struct is an uninhabitable type.
+  // It can also be treated as unreachable if the field index is in the wrong
+  // half state. This can happen if an object gets cast to two unrelated types
+  // subsequently (as the state only tracks the field index) independent of the
+  // underlying type.
   if (struct_type.is_bottom() ||
-      struct_type.is_reference_to(wasm::HeapType::kNone)) {
+      struct_type.is_reference_to(wasm::HeapType::kNone) ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
+           .IsEmpty()) {
     Node* unreachable =
         graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
     ReplaceWithValue(node, unreachable, unreachable, control);
@@ -236,14 +249,7 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
     return Replace(unreachable);
   }
 
-  const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
-  bool is_mutable = field_info.type->mutability(field_info.field_index);
-
   if (is_mutable) {
-    // The field may not be in the immutable half-state.
-    DCHECK(state->immutable_state.LookupField(field_info.field_index, object)
-               .IsEmpty());
-
     HalfState const* mutable_state =
         state->mutable_state.KillField(field_info.field_index, object);
     mutable_state =
@@ -252,10 +258,6 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
         zone()->New<AbstractState>(*mutable_state, state->immutable_state);
     return UpdateState(node, new_state);
   } else {
-    // The field may not be in the mutable half-state.
-    DCHECK(state->mutable_state.LookupField(field_info.field_index, object)
-               .IsEmpty());
-
     // We should not initialize the same immutable field twice.
     DCHECK(state->immutable_state.LookupField(field_info.field_index, object)
                .IsEmpty());
