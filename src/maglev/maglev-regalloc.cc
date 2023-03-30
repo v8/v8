@@ -2024,6 +2024,8 @@ void StraightForwardRegisterAllocator::HoistLoopReloads(
     DCHECK(general_registers_.blocked().is_empty());
     if (registers.free().is_empty()) break;
     if (node->has_register()) continue;
+    // The value is in a liveness hole, don't try to reload it.
+    if (!node->is_loadable()) continue;
     if ((node->use_double_register() && std::is_same_v<RegisterT, Register>) ||
         (!node->use_double_register() &&
          std::is_same_v<RegisterT, DoubleRegister>)) {
