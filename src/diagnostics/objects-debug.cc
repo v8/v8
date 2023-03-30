@@ -1321,6 +1321,12 @@ void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
   CHECK_GE(remaining().Number(), 0);
 }
 
+void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
+  CHECK(mapper().IsCallable());
+  CHECK_GE(counter().Number(), 0);
+}
+
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());
 
