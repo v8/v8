@@ -41,6 +41,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceWasmTypeCheck(node);
     case IrOpcode::kWasmTypeCast:
       return ReduceWasmTypeCast(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     case IrOpcode::kWasmExternInternalize:
       return ReduceWasmExternInternalize(node);
     case IrOpcode::kMerge:
@@ -111,11 +113,13 @@ Reduction WasmGCOperatorReducer::ReduceStart(Node* node) {
   return UpdateStates(node, ControlPathTypes(zone()));
 }
 
-wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
-                                                                Node* control) {
+wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
+    Node* object, Node* control, bool allow_non_wasm) {
   if (object->opcode() == IrOpcode::kDead) return {};
   if (!IsReduced(control)) return {};
-  wasm::TypeInModule type_from_node = NodeProperties::GetType(object).AsWasm();
+  Type raw_type = NodeProperties::GetType(object);
+  if (allow_non_wasm && !raw_type.IsWasm()) return {};
+  wasm::TypeInModule type_from_node = raw_type.AsWasm();
   ControlPathTypes state = GetState(control);
   NodeWithType type_from_state = state.LookupState(object);
   // We manually resolve TypeGuard aliases in the state.
@@ -325,6 +329,24 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
     return Replace(input);
   }
   return TakeStatesFromFirstControl(node);
+}
+
+Reduction WasmGCOperatorReducer::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  // Since TypeGuards can be generated for JavaScript, and this phase is run
+  // for wasm-into-JS inlining, we cannot assume the object has a wasm type.
+  wasm::TypeInModule object_type =
+      ObjectTypeFromContext(object, control, /* allow_non_wasm = */ true);
+  if (object_type.type.is_uninhabited()) return NoChange();
+  wasm::TypeInModule guarded_type = TypeGuardTypeOf(node->op()).AsWasm();
+
+  wasm::TypeInModule new_type = wasm::Intersection(object_type, guarded_type);
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
+                                   false);
 }
 
 Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {

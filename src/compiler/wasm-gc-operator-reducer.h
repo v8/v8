@@ -62,6 +62,7 @@ class WasmGCOperatorReducer final
   Reduction ReduceCheckNull(Node* node);
   Reduction ReduceWasmTypeCheck(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
+  Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceIf(Node* node, bool condition);
@@ -71,7 +72,10 @@ class WasmGCOperatorReducer final
   void UpdateSourcePosition(Node* new_node, Node* old_node);
   // Returns the intersection of the type marked on {object} and the type
   // information about object tracked on {control}'s control path (if present).
-  wasm::TypeInModule ObjectTypeFromContext(Node* object, Node* control);
+  // If {allow_non_wasm}, we bail out if the object's type is not a wasm type
+  // by returning bottom.
+  wasm::TypeInModule ObjectTypeFromContext(Node* object, Node* control,
+                                           bool allow_non_wasm = false);
   Reduction UpdateNodeAndAliasesTypes(Node* state_owner,
                                       ControlPathTypes parent_state, Node* node,
                                       wasm::TypeInModule type,
