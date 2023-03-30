@@ -1749,10 +1749,11 @@ class MachineLoweringReducer : public Next {
     // runs of the below loop. Otherwise we just generate a single sequence of
     // checks after which we deopt in case no map matches.
     enum class Run { kTryMigrate, kDeopt };
-    base::SmallVector<Run, 2> runs =
-        (flags & CheckMapsFlag::kTryMigrateInstance)
-            ? base::SmallVector<Run, 2>{Run::kTryMigrate, Run::kDeopt}
-            : base::SmallVector<Run, 2>{Run::kDeopt};
+    base::SmallVector<Run, 2> runs;
+    if (flags & CheckMapsFlag::kTryMigrateInstance) {
+      runs.push_back(Run::kTryMigrate);
+    }
+    runs.push_back(Run::kDeopt);
 
     for (Run run : runs) {
       // Load the current map of the {heap_object}.
