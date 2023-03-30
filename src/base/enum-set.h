@@ -37,6 +37,9 @@ class EnumSet {
   constexpr bool contains_only(E element) const {
     return bits_ == Mask(element);
   }
+  constexpr bool is_subset_of(EnumSet set) const {
+    return (bits_ & set.bits_) == bits_;
+  }
   void Add(E element) { bits_ |= Mask(element); }
   void Add(EnumSet set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }

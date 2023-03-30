@@ -6096,7 +6096,21 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
 
 class MergePointInterpreterFrameState;
 
+// ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
+// both are Int32. For Phi untagging however, it's interesting to have a
+// difference between the 2, as a TruncatedInt32 would allow untagging to
+// Float64, whereas a Int32 use wouldn't (because it would require a deopting
+// Float64->Int32 conversion, whereas the truncating version of this conversion
+// cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
+enum class UseRepresentation : uint8_t {
+  kTagged,
+  kInt32,
+  kTruncatedInt32,
+  kUint32,
+  kFloat64,
+};
 typedef base::EnumSet<ValueRepresentation> ValueRepresentationSet;
+typedef base::EnumSet<UseRepresentation> UseRepresentationSet;
 
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
@@ -6141,17 +6155,13 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
-  void RecordUseReprHint(ValueRepresentation repr) {
-    RecordUseReprHint(ValueRepresentationSet{repr});
+  void RecordUseReprHint(UseRepresentation repr) {
+    RecordUseReprHint(UseRepresentationSet{repr});
   }
 
-  void RecordUseReprHint(ValueRepresentationSet repr_mask);
+  void RecordUseReprHint(UseRepresentationSet repr_mask);
 
-  bool has_use_repr_hint(ValueRepresentation repr) {
-    return uses_repr_hint_.contains(repr);
-  }
-
-  ValueRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
 
  private:
   Phi** next() { return &next_; }
@@ -6160,7 +6170,7 @@ class Phi : public ValueNodeT<Phi> {
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
 
-  ValueRepresentationSet uses_repr_hint_;
+  UseRepresentationSet uses_repr_hint_;
 
   friend base::ThreadedListTraits<Phi>;
 };

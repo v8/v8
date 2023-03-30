@@ -632,7 +632,7 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(ValueNode* value) {
   if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(ValueRepresentation::kTagged);
+    phi->RecordUseReprHint(UseRepresentation::kTagged);
   }
 
   switch (value->properties().value_representation()) {
@@ -706,11 +706,7 @@ NodeType TaggedToFloat64ConversionTypeToNodeType(
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32FromNumber(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   if (Phi* phi = value->TryCast<Phi>()) {
-    // TODO(dmercadier): it would be interesting to record a TruncatedInt32 use
-    // here rather than a Int32 use: Int32 uses prevent untagging Phis to
-    // Float64 (because usually we would require a deopting conversion), but
-    // truncating Int32 uses should allow Float64 phis.
-    phi->RecordUseReprHint(ValueRepresentation::kInt32);
+    phi->RecordUseReprHint(UseRepresentation::kTruncatedInt32);
   }
 
   switch (value->properties().value_representation()) {
@@ -780,7 +776,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32(ValueNode* value) {
 
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
   if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(ValueRepresentation::kInt32);
+    phi->RecordUseReprHint(UseRepresentation::kInt32);
   }
 
   switch (value->properties().value_representation()) {
@@ -826,7 +822,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
 ValueNode* MaglevGraphBuilder::GetFloat64(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(ValueRepresentation::kFloat64);
+    phi->RecordUseReprHint(UseRepresentation::kFloat64);
   }
 
   switch (value->properties().value_representation()) {
@@ -2961,7 +2957,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 // uint32_alternative in node_info.
 ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   if (Phi* phi = object->TryCast<Phi>()) {
-    phi->RecordUseReprHint(ValueRepresentation::kUint32);
+    phi->RecordUseReprHint(UseRepresentation::kUint32);
   }
 
   switch (object->properties().value_representation()) {

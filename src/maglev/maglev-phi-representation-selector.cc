@@ -87,15 +87,15 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
     }
   }
 
-  ValueRepresentationSet use_reprs = node->get_uses_repr_hints();
+  UseRepresentationSet use_reprs = node->get_uses_repr_hints();
 
   TRACE_UNTAGGING("  + use_reprs  : " << std::hex << use_reprs.ToIntegral()
                                       << std::dec);
   TRACE_UNTAGGING("  + input_reprs: " << std::hex << use_reprs.ToIntegral()
                                       << std::dec);
 
-  if (use_reprs.contains(ValueRepresentation::kTagged) ||
-      use_reprs.contains(ValueRepresentation::kUint32) || use_reprs.empty()) {
+  if (use_reprs.contains(UseRepresentation::kTagged) ||
+      use_reprs.contains(UseRepresentation::kUint32) || use_reprs.empty()) {
     // We don't untag phis that are used as tagged (because we'd have to retag
     // them later). We also ignore phis that are used as Uint32, because this is
     // a fairly rare case and supporting it doesn't improve performance all that
@@ -115,15 +115,14 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   }
 
   // Only allowed to have Int32 and Float64 inputs from here.
-  DCHECK_EQ(input_reprs - base::EnumSet<ValueRepresentation>(
-                              {ValueRepresentation::kInt32,
-                               ValueRepresentation::kFloat64}),
-            base::EnumSet<ValueRepresentation>());
+  DCHECK_EQ(
+      input_reprs - ValueRepresentationSet({ValueRepresentation::kInt32,
+                                            ValueRepresentation::kFloat64}),
+      ValueRepresentationSet());
 
-  DCHECK_EQ(use_reprs - base::EnumSet<ValueRepresentation>(
-                            {ValueRepresentation::kInt32,
-                             ValueRepresentation::kFloat64}),
-            base::EnumSet<ValueRepresentation>());
+  DCHECK_EQ(use_reprs - UseRepresentationSet({UseRepresentation::kInt32,
+                                              UseRepresentation::kFloat64}),
+            UseRepresentationSet());
 
   // The rules for untagging are that we can only widen input representations,
   // i.e. promote Int32 -> Float64.
@@ -151,10 +150,12 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   }
 
   base::EnumSet<ValueRepresentation> allowed_inputs_for_uses;
-  if (use_reprs.contains(ValueRepresentation::kInt32)) {
+  if (use_reprs.contains(UseRepresentation::kInt32)) {
     allowed_inputs_for_uses = {ValueRepresentation::kInt32};
   } else {
-    DCHECK(use_reprs.contains_only(ValueRepresentation::kFloat64));
+    DCHECK(!use_reprs.empty() &&
+           use_reprs.is_subset_of({UseRepresentation::kFloat64,
+                                   UseRepresentation::kTruncatedInt32}));
     allowed_inputs_for_uses = {ValueRepresentation::kInt32,
                                ValueRepresentation::kFloat64};
   }
