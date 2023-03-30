@@ -136,4 +136,10 @@
   'octane/pdfjs': [SLOW],
 }],  # 'tsan'
 
+##############################################################################
+['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
+  # BUG(v8:13808) Skipped until bug is fixed.
+  'octane/pdfjs': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
+
 ]
