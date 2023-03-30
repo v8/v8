@@ -17,6 +17,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -2218,6 +2219,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   Assert(eq, AbortReason::kExpectedUndefinedOrCell);
   bind(&done_checking);
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  b(kUnsignedLessThanEqual, &ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  b(kUnsignedGreaterThanEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  b(kEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  b(kEqual, &ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::Check(Condition cond, AbortReason reason) {

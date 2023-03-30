@@ -74,10 +74,9 @@ class PropertyCallbackArguments final
   using Super = CustomArguments<T>;
   static constexpr int kArgsLength = T::kArgsLength;
   static constexpr int kThisIndex = T::kThisIndex;
-  static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
@@ -178,10 +177,9 @@ class FunctionCallbackArguments
   static constexpr int kArgsLengthWithReceiver = T::kArgsLengthWithReceiver;
 
   static constexpr int kHolderIndex = T::kHolderIndex;
-  static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
   static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);

@@ -21843,7 +21843,8 @@ class ApiCallOptimizationChecker {
     }
     CHECK(holder == info.Holder());
     count++;
-    CHECK(info.GetReturnValue().Get()->IsUndefined());
+    Local<Value> return_value = info.GetReturnValue().Get();
+    CHECK(return_value->IsUndefined());
     info.GetReturnValue().Set(v8_str("returned"));
   }
 

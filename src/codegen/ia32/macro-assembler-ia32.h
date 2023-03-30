@@ -581,6 +581,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // ---------------------------------------------------------------------------
   // Exception handling
 

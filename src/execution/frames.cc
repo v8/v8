@@ -1738,7 +1738,10 @@ Object JavaScriptFrame::unchecked_function() const {
   return function_slot_object();
 }
 
-Object CommonFrameWithJSLinkage::receiver() const { return GetParameter(-1); }
+Object CommonFrameWithJSLinkage::receiver() const {
+  // TODO(cbruni): document this better
+  return GetParameter(-1);
+}
 
 Object JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
