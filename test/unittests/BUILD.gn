@@ -467,6 +467,7 @@ v8_source_set("v8_unittests_sources") {
     "utils/version-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
+    "zone/zone-compact-set-unittest.cc",
     "zone/zone-unittest.cc",
     "zone/zone-vector-unittest.cc",
   ]

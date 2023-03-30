@@ -32,7 +32,7 @@
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 
 namespace v8::internal {
 class HeapObject;

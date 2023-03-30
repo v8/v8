@@ -15,7 +15,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

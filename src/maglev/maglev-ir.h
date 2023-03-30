@@ -32,7 +32,7 @@
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

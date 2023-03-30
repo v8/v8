@@ -22,7 +22,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler-definitions.h"

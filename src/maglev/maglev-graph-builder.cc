@@ -43,7 +43,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/type-hints.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 
 namespace v8::internal::maglev {
 

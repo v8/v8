@@ -11,7 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/handles/maybe-handles.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/zone/zone-compact-set.h"
 
 namespace v8 {
 namespace internal {
