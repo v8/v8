@@ -5119,7 +5119,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
 
   // Other threads have terminated, we can now run the artifical
   // serialize-deserialize pass (which destructively mutates heap state).
-  if (last_run && i::v8_flags.stress_snapshot) {
+  if (success && last_run && i::v8_flags.stress_snapshot) {
     HandleScope handle_scope(isolate);
     static constexpr bool kClearRecompilableData = true;
     auto context = v8::Local<v8::Context>::New(isolate, evaluation_context_);
