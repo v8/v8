@@ -1098,7 +1098,7 @@ bool Heap::CreateReadOnlyObjects() {
     set_wasm_null_padding(filler);
     CHECK_EQ(read_only_space_->top() + kOffsetAfterMapWord, next_page);
   } else {
-    set_wasm_null_padding(roots.null_value());
+    set_wasm_null_padding(roots.undefined_value());
   }
 
   // Finally, allocate the wasm-null object.
