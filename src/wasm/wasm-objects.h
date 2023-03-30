@@ -611,8 +611,9 @@ class WasmExportedFunction : public JSFunction {
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Object object);
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
-      Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-      int arity, Handle<Code> export_wrapper);
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      Handle<WasmInternalFunction> internal, int func_index, int arity,
+      Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
 
@@ -760,6 +761,9 @@ class WasmInternalFunction
   static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
                                                         Isolate* isolate);
 
+  V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
+      Handle<WasmInternalFunction> internal);
+
   DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address)
 
   // Dispatched behavior.
@@ -768,6 +772,10 @@ class WasmInternalFunction
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
+ private:
+  // Make this private so it is not use by accident. Use {GetOrCreateExternal}
+  // instead.
+  HeapObject external();
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of

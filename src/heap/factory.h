@@ -636,16 +636,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(Address opt_call_target,
                                                        Handle<HeapObject> ref,
-                                                       Handle<Map> rtt);
+                                                       Handle<Map> rtt,
+                                                       int function_index);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
       Handle<Code> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
-      Address call_target, Handle<Object> ref, int func_index,
+      Handle<WasmInternalFunction> internal, int func_index,
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
-      int wrapper_budget, Handle<Map> rtt, wasm::Promise promise);
+      int wrapper_budget, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       Handle<JSReceiver> callable, wasm::Suspend suspend,
       Handle<WasmInstanceObject> instance);

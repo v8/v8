@@ -1561,16 +1561,15 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
   CHECK(result_cast->IsWasmInternalFunction());
-  Handle<JSFunction> cast_function = Handle<JSFunction>::cast(
-      handle(Handle<WasmInternalFunction>::cast(result_cast)->external(),
-             tester.isolate()));
+  Handle<JSFunction> cast_function = WasmInternalFunction::GetOrCreateExternal(
+      Handle<WasmInternalFunction>::cast(result_cast));
 
   Handle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
   CHECK(result_cast_reference->IsWasmInternalFunction());
-  Handle<JSFunction> cast_function_reference = Handle<JSFunction>::cast(handle(
-      Handle<WasmInternalFunction>::cast(result_cast_reference)->external(),
-      tester.isolate()));
+  Handle<JSFunction> cast_function_reference =
+      WasmInternalFunction::GetOrCreateExternal(
+          Handle<WasmInternalFunction>::cast(result_cast_reference));
 
   CHECK_EQ(cast_function->code().instruction_start(),
            cast_function_reference->code().instruction_start());

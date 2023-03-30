@@ -40,6 +40,8 @@ extern class WasmInternalFunction extends HeapObject {
   external: JSFunction|Undefined;
   // This field is used when the call target is null.
   code: Code;
+  // The function index if ref is a WasmInstanceObject, -1 otherwise.
+  function_index: Smi;
   // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
   call_target: ExternalPointer;
 }

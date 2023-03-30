@@ -3511,7 +3511,9 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       BuiltinWasmWrapperConstants::kParamCountOffset;
   constexpr int kSuspenderOffset =
       BuiltinWasmWrapperConstants::kSuspenderOffset;
-  constexpr int kReturnCountOffset = kSuspenderOffset - kSystemPointerSize;
+  constexpr int kFunctionDataOffset =
+      BuiltinWasmWrapperConstants::kFunctionDataOffset;
+  constexpr int kReturnCountOffset = kFunctionDataOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
   // The number of reference parameters.
@@ -3522,11 +3524,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // reference params count.
   constexpr int kRefParamsCountOffset =
       kValueTypesArrayStartOffset - kSystemPointerSize;
-  // We set and use this slot only when moving parameters into the parameter
-  // registers (so no GC scan is needed).
-  constexpr int kFunctionDataOffset =
-      kRefParamsCountOffset - kSystemPointerSize;
-  constexpr int kLastSpillOffset = kFunctionDataOffset;
+  constexpr int kLastSpillOffset = kRefParamsCountOffset;
   constexpr int kNumSpillSlots =
       (-TypedFrameConstants::kFixedFrameSizeFromFp - kLastSpillOffset) >>
       kSystemPointerSizeLog2;
@@ -3541,6 +3539,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   DEFINE_PINNED(function_data, kJSFunctionRegister);
   DEFINE_PINNED(wasm_instance, kWasmInstanceRegister);
   LoadFunctionDataAndWasmInstance(masm, function_data, wasm_instance);
+  // Set the function_data slot early, before any GC happens (e.g. in tierup).
+  __ Str(function_data, MemOperand(fp, kFunctionDataOffset));
 
   DEFINE_REG(scratch);
   if (!stack_switch) {
@@ -3647,9 +3647,12 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     // Set a sentinel value for the suspender spill slot in the new frame.
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
     __ Str(scratch, MemOperand(fp, kSuspenderOffset));
+    // Set {function_data} in the new frame.
+    __ Str(function_data, MemOperand(fp, kFunctionDataOffset));
   } else {
     original_fp = fp;
   }
+
   regs.ResetExcept(original_fp, function_data, wasm_instance);
 
   Label prepare_for_wasm_call;
@@ -3680,6 +3683,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ Str(param_count, MemOperand(original_fp, kParamCountOffset));
   __ Str(return_count, MemOperand(fp, kReturnCountOffset));
   __ Str(valuetypes_array_ptr, MemOperand(fp, kValueTypesArrayStartOffset));
+  // We have already set {function_data}.
 
   // -------------------------------------------
   // Parameter handling.
@@ -4008,9 +4012,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   __ Str(ref_param_count, MemOperand(fp, kRefParamsCountOffset));
   __ bind(&ref_params_done);
-  // There is no potential GC calls after this point,
-  // so storing it in the spill to reuse register.
-  __ Str(function_data, MemOperand(fp, kFunctionDataOffset));
 
   regs.ResetExcept(valuetypes_array_ptr, param_count, current_int_param_slot,
                    current_float_param_slot, wasm_instance, original_fp);
@@ -4416,6 +4417,15 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ jmp(&return_done);
 
   __ bind(&return_kWasmFuncRef);
+  // The builtin needs the context in {kContextRegister}.
+  __ Ldr(kContextRegister, MemOperand(fp, kFunctionDataOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmExportedFunctionData::kInstanceOffset));
+  __ LoadTaggedField(kContextRegister,
+                     FieldMemOperand(kContextRegister,
+                                     WasmInstanceObject::kNativeContextOffset));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFuncRefToJS),
           RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
@@ -4475,11 +4485,13 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
 
   __ Sub(sp, sp, RoundUp(-(BuiltinWasmWrapperConstants::kGCScanSlotCountOffset
                            - TypedFrameConstants::kFixedFrameSizeFromFp), 16));
-  // Set a sentinel value for the spill slot visited by the GC.
+  // Set a sentinel value for the spill slots visited by the GC.
   DEFINE_REG(undefined);
   __ LoadRoot(undefined, RootIndex::kUndefinedValue);
   __ Str(undefined,
-          MemOperand(fp, BuiltinWasmWrapperConstants::kSuspenderOffset));
+         MemOperand(fp, BuiltinWasmWrapperConstants::kSuspenderOffset));
+  __ Str(undefined,
+         MemOperand(fp, BuiltinWasmWrapperConstants::kFunctionDataOffset));
 
   // TODO(thibaudm): Throw if any of the following holds:
   // - caller is null
@@ -4592,15 +4604,16 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       BuiltinWasmWrapperConstants::kInParamCountOffset;
   constexpr int kParamCountOffset =
       BuiltinWasmWrapperConstants::kParamCountOffset;
-  // Extra slot for allignment.
   __ Sub(sp, sp, Immediate(4 * kSystemPointerSize));
   __ Str(param_count, MemOperand(fp, kParamCountOffset));
   __ Str(param_count, MemOperand(fp, kInParamCountOffset));
-  // Set a sentinel value for the spill slot visited by the GC.
+  // Set a sentinel value for the spill slots visited by the GC.
   DEFINE_REG(scratch);
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Str(scratch,
          MemOperand(fp, BuiltinWasmWrapperConstants::kSuspenderOffset));
+  __ Str(scratch,
+         MemOperand(fp, BuiltinWasmWrapperConstants::kFunctionDataOffset));
 
   regs.ResetExcept(closure);
 
