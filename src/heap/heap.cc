@@ -1339,7 +1339,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   for (SpaceIterator it(this); it.HasNext();) {
     Space* space = it.Next();
 
-    for (MemoryChunk* chunk = space->first_page(); chunk != space->last_page();
+    for (MemoryChunk* chunk = space->first_page(); chunk != nullptr;
          chunk = chunk->list_node().next())
       DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
   }
