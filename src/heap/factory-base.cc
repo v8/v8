@@ -86,7 +86,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code.set_kind_specific_flags(options.kind_specific_flags, kRelaxedStore);
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
   code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
-  code.init_code_entry_point(isolate_for_sandbox, kNullAddress);
+  code.init_instruction_start(isolate_for_sandbox, kNullAddress);
   code.set_instruction_size(options.instruction_size);
   code.set_metadata_size(options.metadata_size);
   code.set_relocation_info(*options.reloc_info);

@@ -1572,8 +1572,8 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       Handle<WasmInternalFunction>::cast(result_cast_reference)->external(),
       tester.isolate()));
 
-  CHECK_EQ(cast_function->code().InstructionStart(),
-           cast_function_reference->code().InstructionStart());
+  CHECK_EQ(cast_function->code().instruction_start(),
+           cast_function_reference->code().instruction_start());
 
   tester.CheckResult(test_deprecated, 1);
   tester.CheckResult(test_fail_deprecated, 0);

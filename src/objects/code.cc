@@ -49,7 +49,7 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
 }
 
 void InstructionStream::Relocate(intptr_t delta) {
-  Code code = unchecked_code();
+  Code code = unchecked_code(kAcquireLoad);
   // This is called during evacuation and code.instruction_stream() will point
   // to the old object. So pass *this directly to the RelocIterator.
   for (RelocIterator it(code, *this, code.unchecked_relocation_info(),
@@ -61,21 +61,24 @@ void InstructionStream::Relocate(intptr_t delta) {
 }
 
 void Code::FlushICache() const {
-  FlushInstructionCache(InstructionStart(), instruction_size());
+  FlushInstructionCache(instruction_start(), instruction_size());
 }
 
 void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
                            const CodeDesc& desc) {
   // Copy code.
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  CopyBytes(reinterpret_cast<byte*>(InstructionStart()), desc.buffer,
+  CopyBytes(reinterpret_cast<byte*>(instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
-  CopyBytes(reinterpret_cast<byte*>(InstructionStart() + desc.instr_size),
+  CopyBytes(reinterpret_cast<byte*>(instruction_start() + desc.instr_size),
             desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
 
   // Copy reloc info.
-  CopyRelocInfoToByteArray(reloc_info, desc);
+  DCHECK_EQ(reloc_info.length(), desc.reloc_size);
+  CopyBytes(reloc_info.GetDataStartAddress(),
+            desc.buffer + desc.buffer_size - desc.reloc_size,
+            static_cast<size_t>(desc.reloc_size));
 
   // Unbox handles and relocate.
   RelocateFromDesc(reloc_info, heap, desc);
@@ -97,8 +100,8 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(p->IsCode(GetPtrComprCageBaseSlow(*p)));
-      InstructionStream code = FromCode(Code::cast(*p));
-      it.rinfo()->set_target_address(code.instruction_start(),
+      InstructionStream istream = Code::cast(*p).instruction_stream();
+      it.rinfo()->set_target_address(istream.instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
@@ -124,7 +127,7 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
 #endif
     } else {
       intptr_t delta =
-          InstructionStart() - reinterpret_cast<Address>(desc.buffer);
+          instruction_start() - reinterpret_cast<Address>(desc.buffer);
       it.rinfo()->apply(delta);
     }
   }
@@ -404,9 +407,9 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "address = " << reinterpret_cast<void*>(code.ptr()) << "\n\n";
 
   {
-    int code_size = code.InstructionSize();
+    int code_size = code.instruction_size();
     os << "Instructions (size = " << code_size << ")\n";
-    DisassembleCodeRange(isolate, os, code, code.InstructionStart(), code_size,
+    DisassembleCodeRange(isolate, os, code, code.instruction_start(), code_size,
                          current_pc);
 
     if (int pool_size = code.constant_pool_size()) {

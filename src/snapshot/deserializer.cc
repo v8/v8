@@ -494,14 +494,14 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Code code = Code::cast(raw_obj);
-    code.init_code_entry_point(main_thread_isolate(), kNullAddress);
+    code.init_instruction_start(main_thread_isolate(), kNullAddress);
     if (!code.has_instruction_stream()) {
-      code.SetEntryPointForOffHeapBuiltin(
+      code.SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
                                      .InstructionStartOf(code.builtin_id()));
     } else {
-      code.UpdateCodeEntryPoint(main_thread_isolate(),
-                                code.instruction_stream());
+      code.UpdateInstructionStart(main_thread_isolate(),
+                                  code.instruction_stream());
     }
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {
@@ -782,7 +782,7 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(RelocInfo* rinfo) {
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
             static_cast<unsigned>(rinfo->code().instruction_size()));
-  Address target = rinfo->code().InstructionStart() + target_offset;
+  Address target = rinfo->code().instruction_start() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
       rinfo->pc(), target, rinfo->rmode());
 }

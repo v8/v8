@@ -167,7 +167,7 @@ static void InitializeVM() {
   START_AFTER_RESET();
 
 #define RUN() \
-  simulator.RunFrom(reinterpret_cast<Instruction*>(code->code_entry_point()))
+  simulator.RunFrom(reinterpret_cast<Instruction*>(code->instruction_start()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
@@ -6789,7 +6789,7 @@ static void LdrLiteralRangeHelper(
   END();
 
   if (outcome == EmitExpected) {
-    Address pool_start = code->InstructionStart() + pc_offset_before_emission;
+    Address pool_start = code->instruction_start() + pc_offset_before_emission;
     Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
     CHECK(branch->IsImmBranch());
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());

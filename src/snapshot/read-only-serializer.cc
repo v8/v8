@@ -166,8 +166,8 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   // TODO(v8:13840, olivf): Integrate this into the ReadOnlyHeapImageSerializer
   // without actually having to wipe.
   isolate()->heap()->read_only_space()->Unseal();
-  CodeEntryPointVector saved_entry_points;
-  WipeCodeEntryPointsForDeterministicSerialization(saved_entry_points);
+  InstructionStartVector saved_entry_points;
+  WipeInstructionStartsForDeterministicSerialization(saved_entry_points);
 
   // WasmNull's payload is aligned to the OS page and consists of
   // WasmNull::kPayloadSize bytes of unmapped memory. To avoid inflating the
@@ -189,7 +189,7 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
       isolate()->read_only_heap()->read_only_space(), sink_, isolate(),
       unmapped);
 
-  RestoreCodeEntryPoints(saved_entry_points);
+  RestoreInstructionStarts(saved_entry_points);
   isolate()->heap()->read_only_space()->Seal(
       ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
 
@@ -210,28 +210,29 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
 }
 
 #ifdef V8_STATIC_ROOTS
-void ReadOnlySerializer::WipeCodeEntryPointsForDeterministicSerialization(
-    ReadOnlySerializer::CodeEntryPointVector& saved_entry_points) {
+void ReadOnlySerializer::WipeInstructionStartsForDeterministicSerialization(
+    ReadOnlySerializer::InstructionStartVector& saved_entry_points) {
   // See also ObjectSerializer::OutputRawData.
   ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
   for (HeapObject object = iterator.Next(); !object.is_null();
        object = iterator.Next()) {
     if (!object.IsCode()) continue;
     Code code = Code::cast(object);
-    saved_entry_points.push_back(code.code_entry_point());
-    code.SetCodeEntryPointForSerialization(isolate(), kNullAddress);
+    saved_entry_points.push_back(code.instruction_start());
+    code.SetInstructionStartForSerialization(isolate(), kNullAddress);
   }
 }
 
-void ReadOnlySerializer::RestoreCodeEntryPoints(
-    const ReadOnlySerializer::CodeEntryPointVector& saved_entry_points) {
+void ReadOnlySerializer::RestoreInstructionStarts(
+    const ReadOnlySerializer::InstructionStartVector& saved_entry_points) {
   int i = 0;
   ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
   for (HeapObject object = iterator.Next(); !object.is_null();
        object = iterator.Next()) {
     if (!object.IsCode()) continue;
     Code code = Code::cast(object);
-    code.SetCodeEntryPointForSerialization(isolate(), saved_entry_points[i++]);
+    code.SetInstructionStartForSerialization(isolate(),
+                                             saved_entry_points[i++]);
   }
 }
 #endif  // V8_STATIC_ROOTS

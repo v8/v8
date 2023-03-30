@@ -10097,8 +10097,8 @@ JSEntryStubs Isolate::GetJSEntryStubs() {
   for (auto& pair : stubs) {
     i::Code js_entry = i_isolate->builtins()->code(pair.first);
     pair.second->code.start =
-        reinterpret_cast<const void*>(js_entry.InstructionStart());
-    pair.second->code.length_in_bytes = js_entry.InstructionSize();
+        reinterpret_cast<const void*>(js_entry.instruction_start());
+    pair.second->code.length_in_bytes = js_entry.instruction_size();
   }
 
   return entry_stubs;

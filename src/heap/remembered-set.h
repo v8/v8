@@ -328,7 +328,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      base::Memory<Address>(entry_address) = code.entry();
+      base::Memory<Address>(entry_address) = code.instruction_start();
     }
     return result;
   }

@@ -517,7 +517,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   code->Print(os);
 #endif
   using myF0 = Address();
-  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->code_entry_point());
+  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
   Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 

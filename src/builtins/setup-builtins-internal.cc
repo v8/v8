@@ -256,7 +256,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
             Builtins::IsIsolateIndependent(target_code.builtin_id()));
         if (!target_code.is_builtin()) continue;
         Code new_target = builtins->code(target_code.builtin_id());
-        rinfo->set_target_address(new_target.InstructionStart(),
+        rinfo->set_target_address(new_target.instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
@@ -271,7 +271,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code.InstructionStart(), code.instruction_size());
+      FlushInstructionCache(code.instruction_start(), code.instruction_size());
     }
   }
 }

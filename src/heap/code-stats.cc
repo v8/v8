@@ -222,8 +222,8 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
     cit.Next();
   }
 
-  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.InstructionSize());
-  delta += static_cast<int>(code.InstructionSize() - prev_pc_offset);
+  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.instruction_size());
+  delta += static_cast<int>(code.instruction_size() - prev_pc_offset);
   EnterComment(isolate, "NoComment", delta);
 }
 #endif

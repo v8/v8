@@ -249,12 +249,12 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   }
 
   const char* code_name = name;
-  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.InstructionStart());
+  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.instruction_start());
 
   // Unwinding info comes right after debug info.
   if (v8_flags.perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
 
-  WriteJitCodeLoadEntry(code_pointer, code.InstructionSize(), code_name,
+  WriteJitCodeLoadEntry(code_pointer, code.instruction_size(), code_name,
                         length);
 }
 
@@ -379,7 +379,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
 
   debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
   debug_info.time_stamp_ = GetTimestamp();
-  debug_info.address_ = code.InstructionStart();
+  debug_info.address_ = code.instruction_start();
   debug_info.entry_count_ = entry_count;
 
   // Add the sizes of fixed parts of entries.
@@ -389,7 +389,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
   debug_info.size_ = size + padding;
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
-  Address code_start = code.InstructionStart();
+  Address code_start = code.instruction_start();
 
   last_script = Smi::zero();
   int script_names_index = 0;

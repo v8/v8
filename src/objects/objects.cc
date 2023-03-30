@@ -2279,7 +2279,7 @@ int HeapObject::SizeFromMap(Map map) const {
 #undef MAKE_TORQUE_SIZE_FOR
 
   if (instance_type == INSTRUCTION_STREAM_TYPE) {
-    return InstructionStream::unchecked_cast(*this).CodeSize();
+    return InstructionStream::unchecked_cast(*this).Size();
   }
   if (instance_type == COVERAGE_INFO_TYPE) {
     return CoverageInfo::SizeFor(

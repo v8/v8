@@ -837,23 +837,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  // TODO(v8:11880): remove once InstructionStream::bytecode_or_interpreter_data
-  // field is cached in or moved to Code.
-  TNode<InstructionStream> FromCodeNonBuiltin(TNode<Code> code) {
-    // Compute the InstructionStream object pointer from the code entry point.
-    TNode<RawPtrT> code_entry = Load<RawPtrT>(
-        code, IntPtrConstant(Code::kCodeEntryPointOffset - kHeapObjectTag));
-    TNode<Object> o = BitcastWordToTagged(IntPtrSub(
-        code_entry,
-        IntPtrConstant(InstructionStream::kHeaderSize - kHeapObjectTag)));
-    return CAST(o);
-  }
-
-  TNode<Code> ToCode(TNode<InstructionStream> code) {
-    return LoadObjectField<Code>(code, InstructionStream::kCodeOffset);
-  }
-
-  TNode<RawPtrT> GetCodeEntry(TNode<Code> code);
+  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
   // The following Call wrappers call an object according to the semantics that

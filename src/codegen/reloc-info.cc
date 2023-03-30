@@ -518,8 +518,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code lookup_result = isolate->heap()->FindCodeForInnerPointer(pc);
-      CHECK_GE(target, lookup_result.InstructionStart());
-      CHECK_LT(target, lookup_result.InstructionEnd());
+      CHECK_GE(target, lookup_result.instruction_start());
+      CHECK_LT(target, lookup_result.instruction_end());
       break;
     }
     case OFF_HEAP_TARGET: {

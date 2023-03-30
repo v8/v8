@@ -1224,12 +1224,14 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
 
     // Should only be logged as "Builtin" with a name, never as "Function".
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
-                       builtin->InstructionStart(), builtin->InstructionSize());
+                       builtin->instruction_start(),
+                       builtin->instruction_size());
     CHECK(logger.ContainsLine(
         {"code-creation,Builtin,2,", std::string(buffer.begin())}));
 
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
-                       builtin->InstructionStart(), builtin->InstructionSize());
+                       builtin->instruction_start(),
+                       builtin->instruction_size());
     CHECK(!logger.ContainsLine(
         {"code-creation,JS,2,", std::string(buffer.begin())}));
   }

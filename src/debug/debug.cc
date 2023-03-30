@@ -1482,10 +1482,10 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         Address advance;
         if (bytecode_offset == kFunctionEntryBytecodeOffset) {
           advance = BUILTIN_CODE(isolate, BaselineOutOfLinePrologueDeopt)
-                        ->InstructionStart();
+                        ->instruction_start();
         } else {
           advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
-                        ->InstructionStart();
+                        ->instruction_start();
         }
         PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
         InterpretedFrame::cast(it.Reframe())
@@ -1506,7 +1506,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
                   ? Builtin::kInterpreterEnterAtBytecode
                   : Builtin::kInterpreterEnterAtNextBytecode;
           Address advance_pc =
-              isolate->builtins()->code(advance).InstructionStart();
+              isolate->builtins()->code(advance).instruction_start();
           PointerAuthentication::ReplacePC(pc_addr, advance_pc,
                                            kSystemPointerSize);
         }

@@ -986,7 +986,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kCodeOffset, kDataStart, v);
 
     InstructionStream istream = InstructionStream::cast(obj);
-    Code code = istream.unchecked_code();
+    Code code = istream.unchecked_code(kAcquireLoad);
     RelocIterator it(code, istream, code.unchecked_relocation_info(),
                      kRelocModeMask);
     v->VisitRelocInfo(&it);
@@ -999,7 +999,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return InstructionStream::unchecked_cast(object).CodeSize();
+    return InstructionStream::unchecked_cast(object).Size();
   }
 };
 

@@ -231,7 +231,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
   __ Pop(code_obj);
-  __ LoadCodeEntry(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj);
   __ AddS64(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 
@@ -443,7 +443,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
     }
 
-    __ LoadCodeEntry(r3, r3);
+    __ LoadCodeInstructionStart(r3, r3);
 
     // Load the OSR entrypoint offset from the deoptimization data.
     // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -1788,7 +1788,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadTaggedField(
       r5, FieldMemOperand(r5, InterpreterData::kInterpreterTrampolineOffset),
       r0);
-  __ LoadCodeEntry(r5, r5);
+  __ LoadCodeInstructionStart(r5, r5);
   __ b(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -2225,7 +2225,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// TODO(v8:11615): Observe Code::kMaxArguments in
 // CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {

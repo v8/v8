@@ -932,7 +932,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Metadata offsets in InstructionStream objects are relative to the start of
   // the metadata section, whereas WasmCode expects offsets relative to
-  // InstructionStart.
+  // instruction_start.
   const int base_offset = code->instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // InstructionStream objects contains real offsets but WasmCode expects an
@@ -951,7 +951,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->InstructionStart();
+                   code->instruction_start();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =

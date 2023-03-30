@@ -53,8 +53,8 @@ Code GcSafeCode::UnsafeCastToCode() const {
 
 #define GCSAFE_CODE_FWD_ACCESSOR(ReturnType, Name) \
   ReturnType GcSafeCode::Name() const { return UnsafeCastToCode().Name(); }
-GCSAFE_CODE_FWD_ACCESSOR(Address, InstructionStart)
-GCSAFE_CODE_FWD_ACCESSOR(Address, InstructionEnd)
+GCSAFE_CODE_FWD_ACCESSOR(Address, instruction_start)
+GCSAFE_CODE_FWD_ACCESSOR(Address, instruction_end)
 GCSAFE_CODE_FWD_ACCESSOR(bool, is_builtin)
 GCSAFE_CODE_FWD_ACCESSOR(Builtin, builtin_id)
 GCSAFE_CODE_FWD_ACCESSOR(CodeKind, kind)
@@ -92,7 +92,7 @@ Address GcSafeCode::constant_pool(InstructionStream istream) const {
 bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
   DeoptimizationData deopt_data = DeoptimizationData::unchecked_cast(
       UnsafeCastToCode().unchecked_deoptimization_data());
-  Address code_start_address = InstructionStart();
+  Address code_start_address = instruction_start();
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
@@ -112,7 +112,7 @@ Object GcSafeCode::raw_instruction_stream(
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().InstructionSize();
+    return GetCode().instruction_size();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().length();
@@ -158,7 +158,7 @@ int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
 Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().InstructionStart();
+    return GetCode().instruction_start();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().GetFirstBytecodeAddress();
@@ -168,7 +168,7 @@ Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
 Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().InstructionEnd();
+    return GetCode().instruction_end();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     BytecodeArray bytecode_array = GetBytecodeArray();
@@ -239,6 +239,12 @@ BytecodeArray AbstractCode::GetBytecodeArray() {
 
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
+INT_ACCESSORS(InstructionStream, body_size, kBodySizeOffset)
+
+Address InstructionStream::body_end() const {
+  static_assert(kOnHeapBodyIsContiguous);
+  return instruction_start() + body_size();
+}
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
@@ -291,7 +297,6 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
       name, type, offset, !ObjectInYoungGeneration(value),               \
       !ObjectInYoungGeneration(value))
 
-// Concurrent marker needs to access kind specific flags in code.
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, HeapObject, kCodeOffset)
 #undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
@@ -325,58 +330,12 @@ void InstructionStream::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
 #endif
 }
 
-Code InstructionStream::GCSafeCode(AcquireLoadTag) const {
-  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
-  HeapObject object =
-      TaggedField<HeapObject, kCodeOffset>::Acquire_Load(cage_base, *this);
-  DCHECK(!ObjectInYoungGeneration(object));
-  Code code = ForwardingAddress(Code::unchecked_cast(object));
-  return code;
-}
-
-// Helper functions for converting InstructionStream objects to
-// Code and back.
-inline Code ToCode(InstructionStream code) { return code.code(kAcquireLoad); }
-
-inline InstructionStream FromCode(Code code) {
-  DCHECK(code.has_instruction_stream());
-  // Compute the InstructionStream object pointer from the code entry point.
-  Address ptr =
-      code.code_entry_point() - InstructionStream::kHeaderSize + kHeapObjectTag;
-  return InstructionStream::cast(Object(ptr));
-}
-
-inline InstructionStream FromCode(Code code, PtrComprCageBase code_cage_base,
-                                  RelaxedLoadTag tag) {
-  DCHECK(code.has_instruction_stream());
-  // Since the code entry point field is not aligned we can't load it atomically
-  // and use for InstructionStream object pointer calculation. So, we load and
-  // decompress the code field.
-  return code.instruction_stream(code_cage_base, tag);
-}
-
-inline InstructionStream FromCode(Code code, Isolate* isolate,
-                                  RelaxedLoadTag tag) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return FromCode(code, PtrComprCageBase{isolate->code_cage_base()}, tag);
-#else
-  return FromCode(code, GetPtrComprCageBase(code), tag);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
 // TODO(jgruber): Remove this method once main_cage_base is gone.
 void InstructionStream::WipeOutHeader() {
   WRITE_FIELD(*this, kCodeOffset, Smi::FromInt(0));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     set_main_cage_base(kNullAddress, kRelaxedStore);
   }
-}
-
-void Code::ClearInstructionStreamPadding() {
-  // Clear the padding after `body_end`.
-  size_t trailing_padding_size =
-      CodeSize() - InstructionStream::kHeaderSize - body_size();
-  memset(reinterpret_cast<void*>(body_end()), 0, trailing_padding_size);
 }
 
 ByteArray Code::SourcePositionTable(Isolate* isolate,
@@ -392,27 +351,24 @@ ByteArray Code::SourcePositionTable(Isolate* isolate,
   return source_position_table(isolate);
 }
 
-Address Code::body_start() const { return InstructionStart(); }
+Address Code::body_start() const { return instruction_start(); }
 
 Address Code::body_end() const { return body_start() + body_size(); }
 
 int Code::body_size() const { return instruction_size() + metadata_size(); }
 
-// TODO(jgruber): Remove instruction_size.
-int Code::InstructionSize() const { return instruction_size(); }
-
 Address InstructionStream::instruction_start() const {
   return field_address(kHeaderSize);
 }
 
-Address Code::InstructionEnd() const {
-  return InstructionStart() + instruction_size();
+Address Code::instruction_end() const {
+  return instruction_start() + instruction_size();
 }
 
 Address Code::metadata_start() const {
   if (has_instruction_stream()) {
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-    return InstructionStart() + instruction_size();
+    return instruction_start() + instruction_size();
   }
   // An embedded builtin. Remapping is irrelevant wrt the metadata section so
   // we can simply use the global blob.
@@ -424,7 +380,7 @@ Address Code::metadata_start() const {
 }
 
 Address Code::InstructionStart(Isolate* isolate, Address pc) const {
-  if (V8_LIKELY(has_instruction_stream())) return code_entry_point();
+  if (V8_LIKELY(has_instruction_stream())) return instruction_start();
   // Note we intentionally don't bounds-check that `pc` is within the returned
   // instruction area.
   return EmbeddedData::FromBlobForPc(isolate, pc)
@@ -432,26 +388,17 @@ Address Code::InstructionStart(Isolate* isolate, Address pc) const {
 }
 
 Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
-  return InstructionStart(isolate, pc) + InstructionSize();
+  return InstructionStart(isolate, pc) + instruction_size();
 }
 
 int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   const Address offset = pc - InstructionStart(isolate, pc);
-  DCHECK_LE(offset, InstructionSize());
+  DCHECK_LE(offset, instruction_size());
   return static_cast<int>(offset);
 }
 
 Address Code::metadata_end() const {
   return metadata_start() + metadata_size();
-}
-
-int Code::SizeIncludingMetadata() const {
-  int size = CodeSize();
-  size += relocation_info().Size();
-  if (kind() != CodeKind::BASELINE) {
-    size += deoptimization_data().Size();
-  }
-  return size;
 }
 
 Address Code::safepoint_table_address() const {
@@ -497,7 +444,7 @@ FixedArray Code::unchecked_deoptimization_data() const {
           *this));
 }
 
-Code InstructionStream::unchecked_code() const {
+Code InstructionStream::unchecked_code(AcquireLoadTag tag) const {
   PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
   return Code::unchecked_cast(
       TaggedField<HeapObject, kCodeOffset>::Acquire_Load(cage_base, *this));
@@ -519,28 +466,34 @@ int Code::relocation_size() const {
   return V8_LIKELY(has_instruction_stream()) ? relocation_info().length() : 0;
 }
 
-Address InstructionStream::entry() const { return instruction_start(); }
-
 bool Code::contains(Isolate* isolate, Address inner_pointer) const {
   const Address start = InstructionStart(isolate, inner_pointer);
   if (inner_pointer < start) return false;
-  return inner_pointer < start + InstructionSize();
+  return inner_pointer < start + instruction_size();
 }
 
-// static
-void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
-  DCHECK_EQ(dest.length(), desc.reloc_size);
-  CopyBytes(dest.GetDataStartAddress(),
-            desc.buffer + desc.buffer_size - desc.reloc_size,
-            static_cast<size_t>(desc.reloc_size));
+int InstructionStream::Size() const { return SizeFor(body_size()); }
+int Code::InstructionStreamObjectSize() const {
+  return InstructionStream::SizeFor(body_size());
 }
 
-int InstructionStream::CodeSize() const {
-  return SizeFor(Code::unchecked_cast(raw_code(kAcquireLoad)).body_size());
+void InstructionStream::clear_padding() {
+  // Header padding.
+  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+         kHeaderSize - kUnalignedSize);
+  // Trailing padding.
+  memset(reinterpret_cast<void*>(body_end()), 0,
+         TrailingPaddingSizeFor(body_size()));
 }
-int Code::CodeSize() const { return InstructionStream::SizeFor(body_size()); }
 
-DEF_GETTER(InstructionStream, Size, int) { return CodeSize(); }
+int Code::SizeIncludingMetadata() const {
+  int size = InstructionStreamObjectSize();
+  size += relocation_info().Size();
+  if (kind() != CodeKind::BASELINE) {
+    size += deoptimization_data().Size();
+  }
+  return size;
+}
 
 CodeKind Code::kind() const {
   static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
@@ -556,7 +509,7 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
       ByteArray::cast(bytecode_offset_table()), bytecodes);
-  Address pc = baseline_pc - InstructionStart();
+  Address pc = baseline_pc - instruction_start();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
 }
@@ -666,12 +619,6 @@ inline void Code::set_is_promise_rejection(bool value) {
   int16_t previous = kind_specific_flags(kRelaxedLoad);
   int16_t updated = IsPromiseRejectionField::update(previous, value);
   set_kind_specific_flags(updated, kRelaxedStore);
-}
-
-inline HandlerTable::CatchPrediction
-InstructionStream::GetBuiltinCatchPrediction() const {
-  if (is_promise_rejection()) return HandlerTable::PROMISE;
-  return HandlerTable::UNCAUGHT;
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() const {
@@ -903,10 +850,17 @@ bool Code::has_instruction_stream(RelaxedLoadTag tag) const {
 
 PtrComprCageBase Code::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
+  return code_cage_base(GetIsolateFromWritableObject(*this));
+#else   // V8_EXTERNAL_CODE_SPACE
+  return code_cage_base(nullptr /* parameter unused */);
+#endif  // V8_EXTERNAL_CODE_SPACE
+}
+
+PtrComprCageBase Code::code_cage_base(Isolate* isolate) const {
+#ifdef V8_EXTERNAL_CODE_SPACE
   // Only available if the current Code object is not in RO space (otherwise we
   // can't grab the current Isolate from it).
   DCHECK(!InReadOnlySpace());
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
   return PtrComprCageBase(isolate->code_cage_base());
 #else   // V8_EXTERNAL_CODE_SPACE
   // Without external code space: `code_cage_base == main_cage_base`. We can
@@ -946,42 +900,41 @@ Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
   return ExternalCodeField<Object>::Relaxed_Load(cage_base, *this);
 }
 
-DEF_GETTER(Code, code_entry_point, Address) {
-  return ReadField<Address>(kCodeEntryPointOffset);
+DEF_GETTER(Code, instruction_start, Address) {
+  return ReadField<Address>(kInstructionStartOffset);
 }
 
-void Code::init_code_entry_point(Isolate* isolate, Address value) {
-  set_code_entry_point(isolate, value);
+void Code::init_instruction_start(Isolate* isolate, Address value) {
+  set_instruction_start(isolate, value);
 }
 
-void Code::set_code_entry_point(Isolate* isolate, Address value) {
-  WriteField<Address>(kCodeEntryPointOffset, value);
+void Code::set_instruction_start(Isolate* isolate, Address value) {
+  WriteField<Address>(kInstructionStartOffset, value);
 }
 
-void Code::SetInstructionStreamAndEntryPoint(Isolate* isolate_for_sandbox,
-                                             InstructionStream code,
-                                             WriteBarrierMode mode) {
+void Code::SetInstructionStreamAndInstructionStart(Isolate* isolate_for_sandbox,
+                                                   InstructionStream code,
+                                                   WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
-  set_code_entry_point(isolate_for_sandbox, code.instruction_start());
+  set_instruction_start(isolate_for_sandbox, code.instruction_start());
 }
 
-void Code::SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
-                                          Address entry) {
+void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+                                                Address entry) {
   DCHECK(!has_instruction_stream());
-  set_code_entry_point(isolate_for_sandbox, entry);
+  set_instruction_start(isolate_for_sandbox, entry);
 }
 
-void Code::SetCodeEntryPointForSerialization(Isolate* isolate, Address entry) {
-  set_code_entry_point(isolate, entry);
+void Code::SetInstructionStartForSerialization(Isolate* isolate,
+                                               Address entry) {
+  set_instruction_start(isolate, entry);
 }
 
-void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
-                                InstructionStream istream) {
+void Code::UpdateInstructionStart(Isolate* isolate_for_sandbox,
+                                  InstructionStream istream) {
   DCHECK_EQ(raw_instruction_stream(), istream);
-  set_code_entry_point(isolate_for_sandbox, istream.instruction_start());
+  set_instruction_start(isolate_for_sandbox, istream.instruction_start());
 }
-
-Address Code::InstructionStart() const { return code_entry_point(); }
 
 void Code::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,

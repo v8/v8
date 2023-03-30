@@ -587,7 +587,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
   // Keep the old pc offset before visiting the code since we need it to
   // calculate the new pc after a potential InstructionStream move.
-  const uintptr_t pc_offset_from_start = old_pc - holder.InstructionStart();
+  const uintptr_t pc_offset_from_start = old_pc - holder.instruction_start();
 
   // Visit.
   GcSafeCode visited_holder = holder;

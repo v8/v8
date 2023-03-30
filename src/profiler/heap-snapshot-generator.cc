@@ -1500,16 +1500,21 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
-  std::unique_ptr<char[]> name = shared.DebugNameCStr();
-  Code code = shared.GetCode(isolate());
-  HeapObject maybe_code_obj =
-      code.has_instruction_stream() ? FromCode(code) : HeapObject::cast(code);
-  if (name[0] != '\0') {
-    TagObject(maybe_code_obj,
-              names_->GetFormatted("(code for %s)", name.get()));
-  } else {
-    TagObject(maybe_code_obj,
-              names_->GetFormatted("(%s code)", CodeKindToString(code.kind())));
+  {
+    std::unique_ptr<char[]> name = shared.DebugNameCStr();
+    Code code = shared.GetCode(isolate());
+    TagObject(code, name[0] != '\0'
+                        ? names_->GetFormatted("(code for %s)", name.get())
+                        : names_->GetFormatted("(%s code)",
+                                               CodeKindToString(code.kind())));
+    if (code.has_instruction_stream()) {
+      TagObject(
+          code.instruction_stream(),
+          name[0] != '\0'
+              ? names_->GetFormatted("(instruction stream for %s)", name.get())
+              : names_->GetFormatted("(%s instruction stream)",
+                                     CodeKindToString(code.kind())));
+    }
   }
 
   Object name_or_scope_info = shared.name_or_scope_info(kAcquireLoad);
@@ -1575,9 +1580,10 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
-  TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
+  TagObject(code, names_->GetFormatted("(%s builtin code)", name));
   if (code.has_instruction_stream()) {
-    TagObject(FromCode(code), names_->GetFormatted("(%s builtin)", name));
+    TagObject(code.instruction_stream(),
+              names_->GetFormatted("(%s builtin instruction stream)", name));
   }
 }
 

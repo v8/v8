@@ -1516,7 +1516,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ ldr(r2,
          FieldMemOperand(r2, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeEntry(r2, r2);
+  __ LoadCodeInstructionStart(r2, r2);
   __ b(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -1779,7 +1779,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ ldr(r1,
          FieldMemOperand(r0, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
-  __ LoadCodeEntry(r0, r0);
+  __ LoadCodeInstructionStart(r0, r0);
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
@@ -2014,7 +2014,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// TODO(v8:11615): Observe Code::kMaxArguments in
 // CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
@@ -3687,7 +3687,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(3, 0);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
-  __ LoadCodeEntry(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj);
   __ add(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 

@@ -1178,7 +1178,8 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
   // TODO(miladfarca): Pass in scratch registers.
-  LoadU64(ip, FieldMemOperand(code_target_address, Code::kCodeEntryPointOffset),
+  LoadU64(ip,
+          FieldMemOperand(code_target_address, Code::kInstructionStartOffset),
           r0);
   LoadU32(r0,
           FieldMemOperand(code_target_address, Code::kInstructionSizeOffset),
@@ -2025,7 +2026,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure, scratch,
                                          r8);
   static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-  __ LoadCodeEntry(r5, optimized_code_entry);
+  __ LoadCodeInstructionStart(r5, optimized_code_entry);
   __ Jump(r5);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -5085,22 +5086,23 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
-          FieldMemOperand(code_object, Code::kCodeEntryPointOffset), r0);
+          FieldMemOperand(code_object, Code::kInstructionStartOffset), r0);
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Jump(code_object);
 }
 

@@ -159,7 +159,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     code_offset = baseline_frame->GetBytecodeOffset();
     code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
   } else {
-    code_offset = static_cast<int>(frame->pc() - function.code_entry_point());
+    code_offset = static_cast<int>(frame->pc() - function.instruction_start());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(function, code,
                                                       code_offset);

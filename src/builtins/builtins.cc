@@ -272,7 +272,7 @@ void Builtins::PrintBuiltinSize() {
     const char* kind = KindNameOf(builtin);
     Code code = Builtins::code(builtin);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
-           code.InstructionSize());
+           code.instruction_size());
   }
 }
 
@@ -369,7 +369,7 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
       Builtin::kInterpreterEntryTrampolineForProfiling);
 
   CodeDesc desc;
-  desc.buffer = reinterpret_cast<byte*>(code.InstructionStart());
+  desc.buffer = reinterpret_cast<byte*>(code.instruction_start());
 
   int instruction_size = code.instruction_size();
   desc.buffer_size = instruction_size;

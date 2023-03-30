@@ -339,7 +339,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
     uint8_t* dst = raw_code_start + offset;
     DCHECK_LE(RawCodeOffset() + offset + code.instruction_size(),
               blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.InstructionStart()),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.instruction_start()),
                 code.instruction_size());
   }
 

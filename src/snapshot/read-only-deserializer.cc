@@ -144,12 +144,12 @@ void ReadOnlyDeserializer::PostProcessNewObjectsIfStaticRootsEnabled() {
 
     if (InstanceTypeChecker::IsCode(instance_type)) {
       Code code = Code::cast(object);
-      code.init_code_entry_point(main_thread_isolate(), kNullAddress);
+      code.init_instruction_start(main_thread_isolate(), kNullAddress);
       // RO space only contains builtin Code objects which don't have an
       // attached InstructionStream.
       DCHECK(code.is_builtin());
       DCHECK(!code.has_instruction_stream());
-      code.SetEntryPointForOffHeapBuiltin(
+      code.SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
                                      .InstructionStartOf(code.builtin_id()));
     }

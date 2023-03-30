@@ -15698,9 +15698,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<Code> code) {
-  return LoadObjectField<RawPtrT>(code,
-                                  IntPtrConstant(Code::kCodeEntryPointOffset));
+TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
+  return LoadObjectField<RawPtrT>(
+      code, IntPtrConstant(Code::kInstructionStartOffset));
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {

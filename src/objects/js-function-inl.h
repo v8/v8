@@ -80,8 +80,8 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-Address JSFunction::code_entry_point() const {
-  return Code::cast(code()).code_entry_point();
+Address JSFunction::instruction_start() const {
+  return Code::cast(code()).instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?

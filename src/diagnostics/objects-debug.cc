@@ -1115,23 +1115,23 @@ void Code::CodeVerify(Isolate* isolate) {
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
 #if defined(V8_COMPRESS_POINTERS) && defined(V8_SHORT_BUILTIN_CALLS)
-    if (istream.instruction_start() == code_entry_point()) {
+    if (istream.instruction_start() == instruction_start()) {
       // Most common case, all good.
     } else {
       // When shared pointer compression cage is enabled and it has the
       // embedded code blob copy then the
       // InstructionStream::instruction_start() might return the address of
       // the remapped builtin regardless of whether the builtins copy existed
-      // when the code_entry_point value was cached in the Code (see
+      // when the instruction_start value was cached in the Code (see
       // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
-      // Code object lookup via code_entry_point value to ensure it
+      // Code object lookup via instruction_start value to ensure it
       // corresponds to this current Code object.
       Code lookup_result =
-          isolate->heap()->FindCodeForInnerPointer(code_entry_point());
+          isolate->heap()->FindCodeForInnerPointer(instruction_start());
       CHECK_EQ(lookup_result, *this);
     }
 #else
-    CHECK_EQ(istream.instruction_start(), code_entry_point());
+    CHECK_EQ(istream.instruction_start(), instruction_start());
 #endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
 }
@@ -1149,7 +1149,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
                 IsAligned(instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
-        CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
+        Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
