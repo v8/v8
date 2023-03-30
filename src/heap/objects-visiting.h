@@ -6,11 +6,14 @@
 #define V8_HEAP_OBJECTS_VISITING_H_
 
 #include "src/base/logging.h"
+#include "src/objects/bytecode-array.h"
+#include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/objects/visitors.h"
 

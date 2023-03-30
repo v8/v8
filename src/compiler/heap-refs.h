@@ -35,6 +35,10 @@ class ScriptContextTable;
 template <typename>
 class Signature;
 
+namespace interpreter {
+class Register;
+}  // namespace interpreter
+
 namespace wasm {
 class ValueType;
 struct WasmModule;

@@ -95,7 +95,8 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
       local_isolate_(isolate_->main_thread_local_isolate()),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()) {}
+      position_table_(isolate_->factory()->empty_byte_array()),
+      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
 
 Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
                                   const CodeDesc& desc, CodeKind kind)
@@ -103,7 +104,8 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       local_isolate_(local_isolate),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()) {}
+      position_table_(isolate_->factory()->empty_byte_array()),
+      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
 
 Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
     int length, AllocationType allocation) {

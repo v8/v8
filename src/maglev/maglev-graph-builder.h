@@ -32,6 +32,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/utils/memcopy.h"
 

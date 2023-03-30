@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/deoptimizer/translation-array.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"

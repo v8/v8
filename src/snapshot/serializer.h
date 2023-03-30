@@ -10,6 +10,8 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/log.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"

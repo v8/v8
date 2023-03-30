@@ -25,6 +25,7 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/deoptimization-data-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.

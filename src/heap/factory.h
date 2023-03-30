@@ -46,6 +46,8 @@ class EmbedderDataArray;
 class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
+class DeoptimizationData;
+class DeoptimizationLiteralArray;
 class EnumCache;
 class FreshlyAllocatedBigInt;
 class Isolate;
@@ -1045,11 +1047,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     uint32_t inlined_bytecode_size_ = 0;
     BytecodeOffset osr_offset_ = BytecodeOffset::None();
     int32_t kind_specific_flags_ = 0;
-    // Either source_position_table for non-baseline code
-    // or bytecode_offset_table for baseline code.
+    // Either source_position_table for non-baseline code or
+    // bytecode_offset_table for baseline code.
     Handle<ByteArray> position_table_;
-    Handle<DeoptimizationData> deoptimization_data_ =
-        DeoptimizationData::Empty(isolate_);
+    Handle<DeoptimizationData> deoptimization_data_;
     Handle<HeapObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_turbofanned_ = false;
