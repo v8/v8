@@ -440,7 +440,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
 
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
-      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
+      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3, r0, ip);
     }
 
     __ LoadCodeInstructionStart(r3, r3);

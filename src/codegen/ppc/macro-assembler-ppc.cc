@@ -1173,22 +1173,21 @@ void MacroAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
 #endif
 
 void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-    Register code_target_address) {
+    Register code_target_address, Register scratch1, Register scratch2) {
   // Builtins do not use the constant pool (see is_constant_pool_available).
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
-  // TODO(miladfarca): Pass in scratch registers.
-  LoadU64(ip,
+  LoadU64(scratch2,
           FieldMemOperand(code_target_address, Code::kInstructionStartOffset),
-          r0);
-  LoadU32(r0,
+          scratch1);
+  LoadU32(scratch1,
           FieldMemOperand(code_target_address, Code::kInstructionSizeOffset),
-          r0);
-  add(ip, r0, ip);
+          scratch1);
+  add(scratch2, scratch1, scratch2);
   LoadU32(kConstantPoolRegister,
           FieldMemOperand(code_target_address, Code::kConstantPoolOffsetOffset),
-          r0);
-  add(kConstantPoolRegister, ip, kConstantPoolRegister);
+          scratch1);
+  add(kConstantPoolRegister, scratch2, kConstantPoolRegister);
 }
 
 void MacroAssembler::LoadPC(Register dst) {
