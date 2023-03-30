@@ -2301,7 +2301,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
   Node* value = node->InputAt(0);
 
-  ZoneHandleSet<Map> const& maps = p.maps();
+  ZoneRefSet<Map> const& maps = p.maps();
   size_t const map_count = maps.size();
 
   if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
@@ -2313,7 +2313,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
     // Perform the map checks.
     for (size_t i = 0; i < map_count; ++i) {
-      Node* map = __ HeapConstant(maps[i]);
+      Node* map = __ HeapConstant(maps[i].object());
       Node* check = __ TaggedEqual(value_map, map);
       if (i == map_count - 1) {
         __ BranchWithCriticalSafetyCheck(check, &done, &migrate);
@@ -2334,7 +2334,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
     // Perform the map checks again.
     for (size_t i = 0; i < map_count; ++i) {
-      Node* map = __ HeapConstant(maps[i]);
+      Node* map = __ HeapConstant(maps[i].object());
       Node* check = __ TaggedEqual(value_map, map);
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
@@ -2355,7 +2355,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
     for (size_t i = 0; i < map_count; ++i) {
-      Node* map = __ HeapConstant(maps[i]);
+      Node* map = __ HeapConstant(maps[i].object());
       Node* check = __ TaggedEqual(value_map, map);
 
       if (i == map_count - 1) {
@@ -2406,7 +2406,7 @@ Node* EffectControlLinearizer::CallBuiltinForBigIntBinop(Node* left,
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   DCHECK(!v8_flags.turboshaft);
-  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
+  ZoneRefSet<Map> const& maps = CompareMapsParametersOf(node->op());
   size_t const map_count = maps.size();
   Node* value = node->InputAt(0);
 
@@ -2416,7 +2416,7 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
   for (size_t i = 0; i < map_count; ++i) {
-    Node* map = __ HeapConstant(maps[i]);
+    Node* map = __ HeapConstant(maps[i].object());
     Node* check = __ TaggedEqual(value_map, map);
 
     auto next_map = __ MakeLabel();
@@ -6384,8 +6384,8 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
   auto if_map_same = __ MakeDeferredLabel();
   auto done = __ MakeLabel();
 
-  Node* source_map = __ HeapConstant(transition.source());
-  Node* target_map = __ HeapConstant(transition.target());
+  Node* source_map = __ HeapConstant(transition.source().object());
+  Node* target_map = __ HeapConstant(transition.target().object());
 
   // Load the current map of {object}.
   Node* object_map = __ LoadField(AccessBuilder::ForMap(), object);
@@ -7292,9 +7292,9 @@ void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,
   DCHECK(IsMoreGeneralElementsKindTransition(from, to));
   DCHECK(to == HOLEY_ELEMENTS || to == HOLEY_DOUBLE_ELEMENTS);
 
-  Handle<Map> target(to == HOLEY_ELEMENTS ? FastMapParameterOf(node->op())
-                                          : DoubleMapParameterOf(node->op()));
-  Node* target_map = __ HeapConstant(target);
+  MapRef target(to == HOLEY_ELEMENTS ? FastMapParameterOf(node->op())
+                                     : DoubleMapParameterOf(node->op()));
+  Node* target_map = __ HeapConstant(target.object());
 
   if (IsSimpleMapChangeTransition(from, to)) {
     __ StoreField(AccessBuilder::ForMap(), array, target_map);

@@ -509,9 +509,10 @@ struct is_iterator_range<base::iterator_range<T>> : std::true_type {};
 
 // General helpers.
 
-inline bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
-  return std::any_of(maps.begin(), maps.end(),
-                     [](Handle<Map> map) { return map->IsHeapNumberMap(); });
+inline bool AnyMapIsHeapNumber(const compiler::ZoneRefSet<Map>& maps) {
+  return std::any_of(maps.begin(), maps.end(), [](compiler::MapRef map) {
+    return map.IsHeapNumberMap();
+  });
 }
 
 inline Condition ToCondition(AssertCondition cond) {

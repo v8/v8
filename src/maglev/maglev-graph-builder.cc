@@ -43,7 +43,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/type-hints.h"
-#include "src/zone/zone-compact-set.h"
 
 namespace v8::internal::maglev {
 
@@ -2185,9 +2184,9 @@ class KnownMapsMerger {
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
     // A non-value value here means the universal set, i.e., we don't know
     // anything about the possible maps of the object.
-    base::Optional<ZoneHandleSet<Map>> known_stable_map_set =
+    base::Optional<compiler::ZoneRefSet<Map>> known_stable_map_set =
         GetKnownMapSet(object, known_node_aspects.stable_maps);
-    base::Optional<ZoneHandleSet<Map>> known_unstable_map_set =
+    base::Optional<compiler::ZoneRefSet<Map>> known_unstable_map_set =
         GetKnownMapSet(object, known_node_aspects.unstable_maps);
 
     IntersectKnownMaps(known_stable_map_set, true);
@@ -2206,8 +2205,8 @@ class KnownMapsMerger {
   }
   bool emit_check_with_migration() const { return emit_check_with_migration_; }
 
-  ZoneHandleSet<Map> intersect_set() const {
-    ZoneHandleSet<Map> map_set;
+  compiler::ZoneRefSet<Map> intersect_set() const {
+    compiler::ZoneRefSet<Map> map_set;
     map_set.Union(stable_map_set_, zone());
     map_set.Union(unstable_map_set_, zone());
     return map_set;
@@ -2220,15 +2219,15 @@ class KnownMapsMerger {
   base::Vector<const compiler::MapRef> maps_;
   bool known_maps_are_subset_of_maps_;
   bool emit_check_with_migration_;
-  ZoneHandleSet<Map> stable_map_set_;
-  ZoneHandleSet<Map> unstable_map_set_;
+  compiler::ZoneRefSet<Map> stable_map_set_;
+  compiler::ZoneRefSet<Map> unstable_map_set_;
   NodeType node_type_ = NodeType::kJSReceiverWithKnownMap;
 
   Zone* zone() const { return broker_->zone(); }
 
-  base::Optional<ZoneHandleSet<Map>> GetKnownMapSet(
+  base::Optional<compiler::ZoneRefSet<Map>> GetKnownMapSet(
       ValueNode* object,
-      const ZoneMap<ValueNode*, ZoneHandleSet<Map>>& map_of_map_set) {
+      const ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>>& map_of_map_set) {
     auto it = map_of_map_set.find(object);
     if (it == map_of_map_set.end()) {
       return {};
@@ -2236,11 +2235,10 @@ class KnownMapsMerger {
     return it->second;
   }
 
-  compiler::OptionalMapRef GetMapRefFromMaps(Handle<Map> handle) {
-    auto it =
-        std::find_if(maps_.begin(), maps_.end(), [&](compiler::MapRef map_ref) {
-          return map_ref.object().is_identical_to(handle);
-        });
+  compiler::OptionalMapRef FindMapRefInMaps(compiler::MapRef source_map) {
+    auto it = std::find_if(
+        maps_.begin(), maps_.end(),
+        [&](compiler::MapRef map_ref) { return map_ref == source_map; });
     if (it == maps_.end()) return {};
     return *it;
   }
@@ -2262,20 +2260,19 @@ class KnownMapsMerger {
       if (add_dependency) {
         broker_->dependencies()->DependOnStableMap(map);
       }
-      stable_map_set_.insert(map.object(), zone());
+      stable_map_set_.insert(map, zone());
     } else {
-      unstable_map_set_.insert(map.object(), zone());
+      unstable_map_set_.insert(map, zone());
     }
   }
 
-  void IntersectKnownMaps(base::Optional<ZoneHandleSet<Map>>& known_maps,
+  void IntersectKnownMaps(base::Optional<compiler::ZoneRefSet<Map>>& known_maps,
                           bool is_set_with_stable_maps) {
     if (known_maps.has_value()) {
       // TODO(v8:7700): Make intersection non-quadratic.
-      for (Handle<Map> handle : *known_maps) {
-        auto map = GetMapRefFromMaps(handle);
-        if (map.has_value()) {
-          InsertMap(*map, false);
+      for (compiler::MapRef known_map : *known_maps) {
+        if (std::find(maps_.begin(), maps_.end(), known_map) != maps_.end()) {
+          InsertMap(known_map, false);
         } else {
           known_maps_are_subset_of_maps_ = false;
         }
@@ -2570,8 +2567,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
       known_info->type = NodeType::kJSReceiverWithKnownMap;
       auto map = access_info.field_map().value();
-      ZoneHandleSet<Map> stable_maps(map.object());
-      ZoneHandleSet<Map> unstable_maps;
+      compiler::ZoneRefSet<Map> stable_maps(map);
+      compiler::ZoneRefSet<Map> unstable_maps;
       known_node_aspects().stable_maps.emplace(value, stable_maps);
       known_node_aspects().unstable_maps.emplace(value, unstable_maps);
       broker()->dependencies()->DependOnStableMap(map);
@@ -2652,14 +2649,14 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     DCHECK(transition.IsJSReceiverMap());
     node_info->type = NodeType::kJSReceiverWithKnownMap;
     if (transition.is_stable()) {
-      ZoneHandleSet<Map> stable_maps(transition.object());
-      ZoneHandleSet<Map> unstable_maps;
+      compiler::ZoneRefSet<Map> stable_maps(transition);
+      compiler::ZoneRefSet<Map> unstable_maps;
       known_node_aspects().stable_maps.emplace(receiver, stable_maps);
       known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
       broker()->dependencies()->DependOnStableMap(transition);
     } else {
-      ZoneHandleSet<Map> stable_maps;
-      ZoneHandleSet<Map> unstable_maps(transition.object());
+      compiler::ZoneRefSet<Map> stable_maps;
+      compiler::ZoneRefSet<Map> unstable_maps(transition);
       known_node_aspects().stable_maps.emplace(receiver, stable_maps);
       known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
     }
@@ -2776,11 +2773,11 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
-    ZoneHandleSet<Map> inferred_maps;
+    compiler::ZoneRefSet<Map> inferred_maps;
 
     if (Constant* n = lookup_start_object->TryCast<Constant>()) {
       compiler::MapRef constant_map = n->object().map(broker());
-      inferred_maps = ZoneHandleSet<Map>(constant_map.object());
+      inferred_maps = compiler::ZoneRefSet<Map>(constant_map);
     } else {
       // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
       // consider passing the merger into there.
@@ -2790,22 +2787,20 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       inferred_maps = merger.intersect_set();
     }
 
-    for (Handle<Map> map : inferred_maps) {
-      if (map->is_deprecated()) continue;
+    for (compiler::MapRef map : inferred_maps) {
+      if (map.is_deprecated()) continue;
 
       // TODO(v8:12547): Support writing to objects in shared space, which
       // need a write barrier that calls Object::Share to ensure the RHS is
       // shared.
       if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-              map->instance_type()) &&
+              map.instance_type()) &&
           access_mode == compiler::AccessMode::kStore) {
         return ReduceResult::Fail();
       }
 
-      compiler::MapRef map_ref = MakeRefAssumeMemoryFence(broker(), map);
       compiler::PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(map_ref, feedback.name(),
-                                          access_mode);
+          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -5146,10 +5141,9 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
-  for (const ZoneHandleSet<Map>& map_set :
+  for (const compiler::ZoneRefSet<Map>& map_set :
        {stable_it->second, unstable_it->second}) {
-    for (Handle<Map> map_handle : map_set) {
-      compiler::MapRef map = MakeRefAssumeMemoryFence(broker(), map_handle);
+    for (compiler::MapRef map : map_set) {
       receiver_map_refs.push_back(map);
       while (true) {
         if (IsSpecialReceiverInstanceType(map.instance_type())) {

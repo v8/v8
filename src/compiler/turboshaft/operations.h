@@ -32,7 +32,6 @@
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
-#include "src/zone/zone-compact-set.h"
 
 namespace v8::internal {
 class HeapObject;
@@ -3327,7 +3326,7 @@ struct NewArgumentsElementsOp
 };
 
 struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
-  ZoneHandleSet<Map> maps;
+  ZoneRefSet<Map> maps;
 
   static constexpr OpProperties properties = OpProperties::Reading();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -3336,7 +3335,7 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
 
   OpIndex heap_object() const { return Base::input(0); }
 
-  CompareMapsOp(OpIndex heap_object, ZoneHandleSet<Map> maps)
+  CompareMapsOp(OpIndex heap_object, ZoneRefSet<Map> maps)
       : Base(heap_object), maps(std::move(maps)) {}
 
   void Validate(const Graph& graph) const {
@@ -3348,7 +3347,7 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
 };
 
 struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
-  ZoneHandleSet<Map> maps;
+  ZoneRefSet<Map> maps;
   CheckMapsFlags flags;
   FeedbackSource feedback;
 
@@ -3358,7 +3357,7 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   OpIndex heap_object() const { return Base::input(0); }
   OpIndex frame_state() const { return Base::input(1); }
 
-  CheckMapsOp(OpIndex heap_object, OpIndex frame_state, ZoneHandleSet<Map> maps,
+  CheckMapsOp(OpIndex heap_object, OpIndex frame_state, ZoneRefSet<Map> maps,
               CheckMapsFlags flags, const FeedbackSource& feedback)
       : Base(heap_object, frame_state),
         maps(std::move(maps)),

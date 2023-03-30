@@ -2320,7 +2320,7 @@ class AssemblerOpInterface {
   }
 
   V<Word32> CompareMaps(V<HeapObject> heap_object,
-                        const ZoneHandleSet<Map>& maps) {
+                        const ZoneRefSet<Map>& maps) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -2328,7 +2328,7 @@ class AssemblerOpInterface {
   }
 
   void CheckMaps(V<HeapObject> heap_object, OpIndex frame_state,
-                 const ZoneHandleSet<Map>& maps, CheckMapsFlags flags,
+                 const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                  const FeedbackSource& feedback) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;

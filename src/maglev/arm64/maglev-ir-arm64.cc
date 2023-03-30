@@ -331,12 +331,12 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(object_map, object);
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
-    Handle<Map> map_handle = maps().at(i);
+    Handle<Map> map_handle = maps().at(i).object();
     __ Move(map, map_handle);
     __ CmpTagged(object_map, map);
     __ B(&done, eq);
   }
-  Handle<Map> last_map_handle = maps().at(map_count - 1);
+  Handle<Map> last_map_handle = maps().at(map_count - 1).object();
   __ Move(map, last_map_handle);
   __ CmpTagged(object_map, map);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
@@ -386,7 +386,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count; ++i) {
     ZoneLabelRef continue_label(masm);
-    Handle<Map> map_handle = maps().at(i);
+    Handle<Map> map_handle = maps().at(i).object();
     {
       Register map = scratch;
       __ Move(map, map_handle);
@@ -442,7 +442,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             // The migrated object is returned on success, retry the map check.
             __ Move(object, return_val);
             __ LoadMap(object_map, object);
-            __ Move(scratch, node->maps().at(map_index));
+            __ Move(scratch, node->maps().at(map_index).object());
             __ CmpTagged(object_map, scratch);
             __ B(*done, eq);
             __ B(*continue_label);

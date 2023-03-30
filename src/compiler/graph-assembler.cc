@@ -339,9 +339,9 @@ void JSGraphAssembler::TransitionAndStoreElement(MapRef double_map,
                                                  TNode<HeapObject> object,
                                                  TNode<Number> index,
                                                  TNode<Object> value) {
-  AddNode(graph()->NewNode(simplified()->TransitionAndStoreElement(
-                               double_map.object(), fast_map.object()),
-                           object, index, value, effect(), control()));
+  AddNode(graph()->NewNode(
+      simplified()->TransitionAndStoreElement(double_map, fast_map), object,
+      index, value, effect(), control()));
 }
 
 TNode<Number> JSGraphAssembler::StringLength(TNode<String> string) {

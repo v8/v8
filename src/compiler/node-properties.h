@@ -220,7 +220,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
   static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* receiver,
                                          Effect effect,
-                                         ZoneRefUnorderedSet<MapRef>* maps_out);
+                                         ZoneRefSet<Map>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
   static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);

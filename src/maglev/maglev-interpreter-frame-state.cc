@@ -18,24 +18,26 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                            lhs.MergeWith(rhs);
                            return !lhs.is_empty();
                          });
-  DestructivelyIntersect(
-      stable_maps, other.stable_maps,
-      [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
-        for (Handle<Map> map : rhs) {
-          lhs.insert(map, zone);
-        }
-        // We should always add the value even if the set is empty.
-        return true;
-      });
-  DestructivelyIntersect(
-      unstable_maps, other.unstable_maps,
-      [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
-        for (Handle<Map> map : rhs) {
-          lhs.insert(map, zone);
-        }
-        // We should always add the value even if the set is empty.
-        return true;
-      });
+  DestructivelyIntersect(stable_maps, other.stable_maps,
+                         [zone](compiler::ZoneRefSet<Map>& lhs,
+                                const compiler::ZoneRefSet<Map>& rhs) {
+                           for (compiler::MapRef map : rhs) {
+                             lhs.insert(map, zone);
+                           }
+                           // We should always add the value even if the set is
+                           // empty.
+                           return true;
+                         });
+  DestructivelyIntersect(unstable_maps, other.unstable_maps,
+                         [zone](compiler::ZoneRefSet<Map>& lhs,
+                                const compiler::ZoneRefSet<Map>& rhs) {
+                           for (compiler::MapRef map : rhs) {
+                             lhs.insert(map, zone);
+                           }
+                           // We should always add the value even if the set is
+                           // empty.
+                           return true;
+                         });
   DestructivelyIntersect(loaded_constant_properties,
                          other.loaded_constant_properties);
   DestructivelyIntersect(loaded_properties, other.loaded_properties);

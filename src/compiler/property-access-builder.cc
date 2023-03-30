@@ -95,10 +95,10 @@ void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
       }
     }
   }
-  ZoneHandleSet<Map> map_set;
+  ZoneRefSet<Map> map_set;
   CheckMapsFlags flags = CheckMapsFlag::kNone;
   for (MapRef map : maps) {
-    map_set.insert(map.object(), graph()->zone());
+    map_set.insert(map, graph()->zone());
     if (map.is_migration_target()) {
       flags |= CheckMapsFlag::kTryMigrateInstance;
     }
@@ -231,7 +231,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
       FieldAccess const storage_access = {kTaggedBase,
                                           field_access.offset,
                                           name.object(),
-                                          MaybeHandle<Map>(),
+                                          OptionalMapRef(),
                                           Type::Any(),
                                           MachineType::AnyTagged(),
                                           kPointerWriteBarrier,
@@ -259,7 +259,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
       FieldAccess const storage_access = {kTaggedBase,
                                           field_access.offset,
                                           name.object(),
-                                          MaybeHandle<Map>(),
+                                          OptionalMapRef(),
                                           Type::OtherInternal(),
                                           MachineType::TaggedPointer(),
                                           kPointerWriteBarrier,
@@ -294,7 +294,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       kTaggedBase,
       access_info.field_index().offset(),
       name.object(),
-      MaybeHandle<Map>(),
+      OptionalMapRef(),
       access_info.field_type(),
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
@@ -308,7 +308,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     if (field_map.has_value()) {
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());
-        field_access.map = field_map->object();
+        field_access.map = field_map;
       }
     }
   }

@@ -1205,7 +1205,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
 TNode<Number> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypePush(
     MapInference* inference) {
   int const num_push_arguments = ArgumentCount();
-  ZoneVector<MapRef> const& receiver_maps = inference->GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference->GetMaps();
 
   base::SmallVector<MachineRepresentation, 4> argument_reps;
   base::SmallVector<Node*, 4> argument_nodes;
@@ -2736,7 +2736,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   // definitely a constructor or not a constructor.
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   MapRef first_receiver_map = receiver_maps[0];
   bool const is_constructor = first_receiver_map.is_constructor();
@@ -2924,7 +2924,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   // Try to determine the {object} map.
   MapInference inference(broker(), object, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& object_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& object_maps = inference.GetMaps();
 
   MapRef candidate_map = object_maps[0];
   HeapObjectRef candidate_prototype = candidate_map.prototype(broker());
@@ -3306,7 +3306,7 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
 namespace {
 
 bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
-                                    ZoneVector<MapRef> const& receiver_maps,
+                                    ZoneRefSet<Map> const& receiver_maps,
                                     ElementsKind* kind_return) {
   DCHECK_NE(0, receiver_maps.size());
   *kind_return = receiver_maps[0].elements_kind();
@@ -3320,7 +3320,7 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
 }
 
 bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
-                                   ZoneVector<MapRef> const& receiver_maps,
+                                   ZoneRefSet<Map> const& receiver_maps,
                                    std::vector<ElementsKind>* kinds,
                                    bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
@@ -3364,7 +3364,7 @@ class IteratingArrayBuiltinHelper {
 
     // Try to determine the {receiver} map.
     if (!inference_.HaveMaps()) return;
-    ZoneVector<MapRef> const& receiver_maps = inference_.GetMaps();
+    ZoneRefSet<Map> const& receiver_maps = inference_.GetMaps();
 
     if (!CanInlineArrayIteratingBuiltin(broker, receiver_maps,
                                         &elements_kind_)) {
@@ -3757,7 +3757,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
     // Try to infer the {receiver} maps from the graph.
     MapInference inference(broker(), receiver, effect);
     if (inference.HaveMaps()) {
-      ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+      ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
       MapRef first_receiver_map = receiver_maps[0];
 
       // See if we can constant-fold the compatible receiver checks.
@@ -4325,8 +4325,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Speculate on that array's map is still equal to the dynamic map of
   // arguments_list; generate a map check.
   effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone,
-                              ZoneHandleSet<Map>(array_map.object()),
+      simplified()->CheckMaps(CheckMapsFlag::kNone, ZoneRefSet<Map>(array_map),
                               feedback_source),
       arguments_list, effect, control);
 
@@ -5668,7 +5667,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds, true)) {
@@ -5702,7 +5701,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
@@ -5849,7 +5848,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
@@ -6104,7 +6103,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   // Check that the maps are of JSArray (and more).
   // TODO(turbofan): Consider adding special case for the common pattern
@@ -6258,7 +6257,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 
   MapInference inference(broker(), iterated_object, iterator_effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& iterated_object_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& iterated_object_maps = inference.GetMaps();
 
   // Check that various {iterated_object_maps} have compatible elements kinds.
   ElementsKind elements_kind = iterated_object_maps[0].elements_kind();
@@ -6893,7 +6892,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
 
 bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   if (!inference->HaveMaps()) return false;
-  ZoneVector<MapRef> const& receiver_maps = inference->GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference->GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
   // have the initial Promise.prototype as their [[Prototype]].
@@ -6976,7 +6975,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!DoPromiseChecks(&inference)) return inference.NoChange();
-  ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
 
   if (!dependencies()->DependOnPromiseHookProtector()) {
     return inference.NoChange();
@@ -7053,12 +7052,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // {receiver_maps}, so insert a MapGuard as a hint for the lowering
   // of the call to "then" below.
   {
-    ZoneHandleSet<Map> maps;
-    for (MapRef map : receiver_maps) {
-      maps.insert(map.object(), graph()->zone());
-    }
-    effect = graph()->NewNode(simplified()->MapGuard(maps), receiver, effect,
-                              control);
+    effect = graph()->NewNode(simplified()->MapGuard(receiver_maps), receiver,
+                              effect, control);
   }
 
   // Massage the {node} to call "then" instead by first removing all inputs
@@ -7139,9 +7134,9 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   // information for further optimizations.
   MapRef promise_map =
       native_context().promise_function(broker()).initial_map(broker());
-  effect = graph()->NewNode(
-      simplified()->MapGuard(ZoneHandleSet<Map>(promise_map.object())), promise,
-      effect, control);
+  effect =
+      graph()->NewNode(simplified()->MapGuard(ZoneRefSet<Map>(promise_map)),
+                       promise, effect, control);
 
   ReplaceWithValue(node, promise, effect, control);
   return Replace(promise);
@@ -7308,7 +7303,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
   std::set<ElementsKind> elements_kinds;
   bool maybe_rab_gsab = false;
   if (instance_type == JS_TYPED_ARRAY_TYPE) {
-    for (const auto& map : inference.GetMaps()) {
+    for (MapRef map : inference.GetMaps()) {
       ElementsKind kind = map.elements_kind();
       elements_kinds.insert(kind);
       if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
@@ -7365,7 +7360,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
 
   std::set<ElementsKind> elements_kinds;
   bool maybe_rab_gsab = false;
-  for (const auto& map : inference.GetMaps()) {
+  for (MapRef map : inference.GetMaps()) {
     ElementsKind kind = map.elements_kind();
     elements_kinds.insert(kind);
     if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
@@ -7631,7 +7626,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
   {
     MapInference inference(broker(), receiver, effect);
     if (!inference.HaveMaps()) return NoChange();
-    ZoneVector<MapRef> const& receiver_maps = inference.GetMaps();
+    ZoneRefSet<Map> const& receiver_maps = inference.GetMaps();
     receiver_instance_type = receiver_maps[0].instance_type();
     for (size_t i = 1; i < receiver_maps.size(); ++i) {
       if (receiver_maps[i].instance_type() != receiver_instance_type) {
@@ -7919,7 +7914,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
 
   DCHECK_IMPLIES((builtin == Builtin::kTypedArrayPrototypeLength ||
                   builtin == Builtin::kTypedArrayPrototypeByteLength),
-                 base::none_of(inference.GetMaps(), [](const auto& map) {
+                 base::none_of(inference.GetMaps(), [](MapRef map) {
                    return IsRabGsabTypedArrayElementsKind(map.elements_kind());
                  }));
 
@@ -8279,7 +8274,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
   MapInference inference(broker(), regexp, effect);
   if (!inference.Is(regexp_initial_map)) return inference.NoChange();
-  ZoneVector<MapRef> const& regexp_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& regexp_maps = inference.GetMaps();
 
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), graph()->zone());

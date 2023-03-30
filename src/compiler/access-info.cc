@@ -352,7 +352,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
-  return IsFastDataConstant() ? ConstFieldInfo(field_owner_map_->object())
+  return IsFastDataConstant() ? ConstFieldInfo(*field_owner_map_)
                               : ConstFieldInfo::None();
 }
 

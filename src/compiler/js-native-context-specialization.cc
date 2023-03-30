@@ -825,7 +825,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 JSNativeContextSpecialization::InferHasInPrototypeChainResult
 JSNativeContextSpecialization::InferHasInPrototypeChain(
     Node* receiver, Effect effect, HeapObjectRef prototype) {
-  ZoneRefUnorderedSet<MapRef> receiver_maps(zone());
+  ZoneRefSet<Map> receiver_maps;
   NodeProperties::InferMapsResult result = NodeProperties::InferMapsUnsafe(
       broker(), receiver, effect, &receiver_maps);
   if (result == NodeProperties::kNoMaps) return kMayBeInPrototypeChain;
@@ -1016,7 +1016,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Check if we know something about the {resolution}.
   MapInference inference(broker(), resolution, effect);
   if (!inference.HaveMaps()) return NoChange();
-  ZoneVector<MapRef> const& resolution_maps = inference.GetMaps();
+  ZoneRefSet<Map> const& resolution_maps = inference.GetMaps();
 
   // Compute property access info for "then" on {resolution}.
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
@@ -1056,8 +1056,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
 namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
-                                 Type type, MaybeHandle<Map> map,
-                                 NameRef name) {
+                                 Type type, OptionalMapRef map, NameRef name) {
   WriteBarrierKind kind = kFullWriteBarrier;
   if (representation == MachineRepresentation::kTaggedSigned) {
     kind = kNoWriteBarrier;
@@ -1146,10 +1145,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     effect = graph()->NewNode(
         simplified()->CheckMaps(
             CheckMapsFlag::kNone,
-            ZoneHandleSet<Map>(native_context()
-                                   .global_proxy_object(broker())
-                                   .map(broker())
-                                   .object())),
+            ZoneRefSet<Map>(
+                native_context().global_proxy_object(broker()).map(broker()))),
         lookup_start_object, effect, control);
   }
 
@@ -1182,7 +1179,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         DCHECK_NE(AccessMode::kHas, access_mode);
 
         // Load from constant type cell can benefit from type feedback.
-        MaybeHandle<Map> map;
+        OptionalMapRef map;
         Type property_cell_value_type = Type::NonInternal();
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_details.cell_type() == PropertyCellType::kConstantType) {
@@ -1205,7 +1202,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             // mutated without the cell state being updated.
             if (property_cell_value_map.is_stable()) {
               dependencies()->DependOnStableMap(property_cell_value_map);
-              map = property_cell_value_map.object();
+              map = property_cell_value_map;
             }
           }
         }
@@ -1248,9 +1245,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
                                             value, effect, control);
           // Check {value} map against the {property_cell_value} map.
           effect = graph()->NewNode(
-              simplified()->CheckMaps(
-                  CheckMapsFlag::kNone,
-                  ZoneHandleSet<Map>(property_cell_value_map.object())),
+              simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                      ZoneRefSet<Map>(property_cell_value_map)),
               value, effect, control);
           property_cell_value_type = Type::OtherInternal();
           representation = MachineRepresentation::kTaggedPointer;
@@ -1263,7 +1259,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         }
         effect = graph()->NewNode(simplified()->StoreField(ForPropertyCellValue(
                                       representation, property_cell_value_type,
-                                      MaybeHandle<Map>(), name)),
+                                      OptionalMapRef(), name)),
                                   jsgraph()->Constant(property_cell, broker()),
                                   value, effect, control);
         break;
@@ -1272,12 +1268,12 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Record a code dependency on the cell, and just deoptimize if the
         // property ever becomes read-only.
         dependencies()->DependOnGlobalProperty(property_cell);
-        effect = graph()->NewNode(
-            simplified()->StoreField(ForPropertyCellValue(
-                MachineRepresentation::kTagged, Type::NonInternal(),
-                MaybeHandle<Map>(), name)),
-            jsgraph()->Constant(property_cell, broker()), value, effect,
-            control);
+        effect =
+            graph()->NewNode(simplified()->StoreField(ForPropertyCellValue(
+                                 MachineRepresentation::kTagged,
+                                 Type::NonInternal(), OptionalMapRef(), name)),
+                             jsgraph()->Constant(property_cell, broker()),
+                             value, effect, control);
         break;
       }
       case PropertyCellType::kUndefined:
@@ -1687,10 +1683,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           insert_map_guard = false;
         } else {
           // Explicitly branch on the {lookup_start_object_maps}.
-          ZoneHandleSet<Map> maps;
-          for (MapRef map : lookup_start_object_maps) {
-            maps.insert(map.object(), graph()->zone());
-          }
+          ZoneRefSet<Map> maps(lookup_start_object_maps.begin(),
+                               lookup_start_object_maps.end(), graph()->zone());
           Node* check = this_effect =
               graph()->NewNode(simplified()->CompareMaps(maps),
                                lookup_start_object, this_effect, this_control);
@@ -1719,10 +1713,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
         // Introduce a MapGuard to learn from this on the effect chain.
         if (insert_map_guard) {
-          ZoneHandleSet<Map> maps;
-          for (MapRef map : lookup_start_object_maps) {
-            maps.insert(map.object(), graph()->zone());
-          }
+          ZoneRefSet<Map> maps(lookup_start_object_maps.begin(),
+                               lookup_start_object_maps.end(), graph()->zone());
           this_effect =
               graph()->NewNode(simplified()->MapGuard(maps),
                                lookup_start_object, this_effect, this_control);
@@ -2233,7 +2225,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                           transition_target.elements_kind())
                   ? ElementsTransition::kFastTransition
                   : ElementsTransition::kSlowTransition,
-              transition_source.object(), transition_target.object())),
+              transition_source, transition_target)),
           receiver, effect, control);
     }
 
@@ -2285,7 +2277,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                             transition_target.elements_kind())
                     ? ElementsTransition::kFastTransition
                     : ElementsTransition::kSlowTransition,
-                transition_source.object(), transition_target.object())),
+                transition_source, transition_target)),
             receiver, this_effect, this_control);
       }
 
@@ -2300,10 +2292,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         fallthrough_control = nullptr;
       } else {
         // Explicitly branch on the {receiver_maps}.
-        ZoneHandleSet<Map> maps;
-        for (MapRef map : receiver_maps) {
-          maps.insert(map.object(), graph()->zone());
-        }
+        ZoneRefSet<Map> maps(receiver_maps.begin(), receiver_maps.end(),
+                             graph()->zone());
         Node* check = this_effect =
             graph()->NewNode(simplified()->CompareMaps(maps), receiver,
                              this_effect, fallthrough_control);
@@ -2934,7 +2924,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
         kTaggedBase,
         field_index.offset(),
         name.object(),
-        MaybeHandle<Map>(),
+        OptionalMapRef(),
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
@@ -2967,7 +2957,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
               kTaggedBase,
               field_index.offset(),
               name.object(),
-              MaybeHandle<Map>(),
+              OptionalMapRef(),
               Type::OtherInternal(),
               MachineType::TaggedPointer(),
               kPointerWriteBarrier,
@@ -2996,11 +2986,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
           OptionalMapRef field_map = access_info.field_map();
           if (field_map.has_value()) {
             // Emit a map check for the value.
-            effect =
-                graph()->NewNode(simplified()->CheckMaps(
-                                     CheckMapsFlag::kNone,
-                                     ZoneHandleSet<Map>(field_map->object())),
-                                 value, effect, control);
+            effect = graph()->NewNode(
+                simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                        ZoneRefSet<Map>(*field_map)),
+                value, effect, control);
           } else {
             // Ensure that {value} is a HeapObject.
             value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
@@ -3159,11 +3148,10 @@ JSNativeContextSpecialization::BuildElementAccess(
   if (IsAnyStore(keyed_mode.access_mode()) &&
       IsSmiOrObjectElementsKind(elements_kind) &&
       !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(
-                             CheckMapsFlag::kNone,
-                             ZoneHandleSet<Map>(factory()->fixed_array_map())),
-                         elements, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                ZoneRefSet<Map>(broker()->fixed_array_map())),
+        elements, effect, control);
   }
 
   // Check if the {receiver} is a JSArray.
@@ -3953,7 +3941,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
 
 bool JSNativeContextSpecialization::InferMaps(Node* object, Effect effect,
                                               ZoneVector<MapRef>* maps) const {
-  ZoneRefUnorderedSet<MapRef> map_set(broker()->zone());
+  ZoneRefSet<Map> map_set;
   NodeProperties::InferMapsResult result =
       NodeProperties::InferMapsUnsafe(broker(), object, effect, &map_set);
   if (result == NodeProperties::kReliableMaps) {

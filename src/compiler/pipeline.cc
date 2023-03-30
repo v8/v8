@@ -1990,8 +1990,8 @@ struct LoadEliminationPhase {
                                               data->common(), temp_zone);
     RedundancyElimination redundancy_elimination(&graph_reducer,
                                                  data->jsgraph(), temp_zone);
-    LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
-                                     temp_zone);
+    LoadElimination load_elimination(&graph_reducer, data->broker(),
+                                     data->jsgraph(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     CommonOperatorReducer common_reducer(

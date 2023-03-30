@@ -1728,11 +1728,11 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     NameRef property_name = boilerplate_map.GetPropertyKey(broker(), i);
     FieldIndex index =
         FieldIndex::ForDetails(*boilerplate_map.object(), property_details);
-    ConstFieldInfo const_field_info(boilerplate_map.object());
+    ConstFieldInfo const_field_info(boilerplate_map);
     FieldAccess access = {kTaggedBase,
                           index.offset(),
                           property_name.object(),
-                          MaybeHandle<Map>(),
+                          OptionalMapRef(),
                           Type::Any(),
                           MachineType::AnyTagged(),
                           kFullWriteBarrier,

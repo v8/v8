@@ -15,15 +15,13 @@ namespace internal {
 namespace compiler {
 
 MapInference::MapInference(JSHeapBroker* broker, Node* object, Effect effect)
-    : broker_(broker), object_(object), maps_(broker->zone()) {
-  ZoneRefUnorderedSet<MapRef> maps(broker->zone());
+    : broker_(broker), object_(object) {
   auto result =
-      NodeProperties::InferMapsUnsafe(broker_, object_, effect, &maps);
-  maps_.insert(maps_.end(), maps.begin(), maps.end());
+      NodeProperties::InferMapsUnsafe(broker_, object_, effect, &maps_);
   maps_state_ = (result == NodeProperties::kUnreliableMaps)
                     ? kUnreliableDontNeedGuard
                     : kReliableOrGuarded;
-  DCHECK_EQ(maps_.empty(), result == NodeProperties::kNoMaps);
+  DCHECK_EQ(maps_.is_empty(), result == NodeProperties::kNoMaps);
 }
 
 MapInference::~MapInference() { CHECK(Safe()); }
@@ -39,7 +37,7 @@ void MapInference::SetNeedGuardIfUnreliable() {
 
 void MapInference::SetGuarded() { maps_state_ = kReliableOrGuarded; }
 
-bool MapInference::HaveMaps() const { return !maps_.empty(); }
+bool MapInference::HaveMaps() const { return !maps_.is_empty(); }
 
 bool MapInference::AllOfInstanceTypesAreJSReceiver() const {
   return AllOfInstanceTypesUnsafe(
@@ -80,16 +78,15 @@ bool MapInference::AnyOfInstanceTypesUnsafe(
   return std::any_of(maps_.begin(), maps_.end(), instance_type);
 }
 
-ZoneVector<MapRef> const& MapInference::GetMaps() {
+ZoneRefSet<Map> const& MapInference::GetMaps() {
   SetNeedGuardIfUnreliable();
   return maps_;
 }
 
 bool MapInference::Is(MapRef expected_map) {
   if (!HaveMaps()) return false;
-  const ZoneVector<MapRef>& maps = GetMaps();
-  if (maps.size() != 1) return false;
-  return maps[0].equals(expected_map);
+  if (maps_.size() != 1) return false;
+  return maps_.at(0).equals(expected_map);
 }
 
 void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
@@ -97,12 +94,8 @@ void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
                                    const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
-  ZoneHandleSet<Map> maps;
-  for (MapRef map : maps_) {
-    maps.insert(map.object(), jsgraph->graph()->zone());
-  }
   *effect = jsgraph->graph()->NewNode(
-      jsgraph->simplified()->CheckMaps(CheckMapsFlag::kNone, maps, feedback),
+      jsgraph->simplified()->CheckMaps(CheckMapsFlag::kNone, maps_, feedback),
       object_, *effect, control);
   SetGuarded();
 }
@@ -131,7 +124,7 @@ bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
 
   auto is_stable = [](MapRef map) { return map.is_stable(); };
   if (dependencies != nullptr &&
-      std::all_of(maps_.cbegin(), maps_.cend(), is_stable)) {
+      std::all_of(maps_.begin(), maps_.end(), is_stable)) {
     for (MapRef map : maps_) {
       dependencies->DependOnStableMap(map);
     }

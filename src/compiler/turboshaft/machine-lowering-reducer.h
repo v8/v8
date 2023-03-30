@@ -1725,13 +1725,13 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object,
-                                const ZoneHandleSet<Map>& maps) {
+                                const ZoneRefSet<Map>& maps) {
     Label<Word32> done(this);
 
     V<Map> heap_object_map = __ LoadMapField(heap_object);
 
     for (size_t i = 0; i < maps.size(); ++i) {
-      V<Map> map = __ HeapConstant(maps[i]);
+      V<Map> map = __ HeapConstant(maps[i].object());
       GOTO_IF(__ TaggedEqual(heap_object_map, map), done, 1);
     }
     GOTO(done, 0);
@@ -1741,8 +1741,7 @@ class MachineLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(CheckMaps)(V<HeapObject> heap_object, OpIndex frame_state,
-                            const ZoneHandleSet<Map>& maps,
-                            CheckMapsFlags flags,
+                            const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
     Label<> done(this);
     // If we need to migrate maps, we generate the same chain of map checks
@@ -1761,7 +1760,7 @@ class MachineLoweringReducer : public Next {
 
       // Perform the map checks.
       for (size_t i = 0; i < maps.size(); ++i) {
-        V<Map> map = __ HeapConstant(maps[i]);
+        V<Map> map = __ HeapConstant(maps[i].object());
         GOTO_IF(__ TaggedEqual(heap_object_map, map), done);
       }
 

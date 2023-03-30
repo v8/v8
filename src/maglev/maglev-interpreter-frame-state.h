@@ -15,7 +15,6 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
-#include "src/zone/zone-compact-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -219,11 +218,11 @@ struct KnownNodeAspects {
   // Permanently valid if checked in a dominator.
   ZoneMap<ValueNode*, NodeInfo> node_infos;
   // TODO(v8:7700): Investigate a better data structure to use than
-  // ZoneHandleSet.
+  // compiler::ZoneRefSet.
   // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<ValueNode*, ZoneHandleSet<Map>> stable_maps;
+  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> stable_maps;
   // Flushed after side-effecting calls.
-  ZoneMap<ValueNode*, ZoneHandleSet<Map>> unstable_maps;
+  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> unstable_maps;
 
   // Valid across side-effecting calls, as long as we install a dependency.
   ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>

@@ -568,13 +568,13 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
 }
 
 Node* LowerCompareMapsWithoutLoad(Node* checked_map,
-                                  ZoneHandleSet<Map> const& checked_against,
+                                  ZoneRefSet<Map> const& checked_against,
                                   JSGraph* jsgraph) {
   Node* true_node = jsgraph->TrueConstant();
   Node* false_node = jsgraph->FalseConstant();
   Node* replacement = false_node;
-  for (Handle<Map> map : checked_against) {
-    Node* map_node = jsgraph->HeapConstant(map);
+  for (MapRef map : checked_against) {
+    Node* map_node = jsgraph->HeapConstant(map.object());
     // We cannot create a HeapConstant type here as we are off-thread.
     NodeProperties::SetType(map_node, Type::Internal());
     Node* comparison = jsgraph->graph()->NewNode(
@@ -779,7 +779,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           Type const map_type = NodeProperties::GetType(map);
           if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  map_type.AsHeapConstant()->Ref().AsMap().object())) {
+                  map_type.AsHeapConstant()->Ref().AsMap())) {
             current->MarkForDeletion();
             break;
           }

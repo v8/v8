@@ -109,11 +109,11 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
 
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
-    Handle<Map> map = maps().at(i);
+    Handle<Map> map = maps().at(i).object();
     __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
     __ j(equal, &done);
   }
-  Handle<Map> last_map = maps().at(map_count - 1);
+  Handle<Map> last_map = maps().at(map_count - 1).object();
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), last_map);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
@@ -178,7 +178,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count; ++i) {
     ZoneLabelRef continue_label(masm);
-    Handle<Map> map = maps().at(i);
+    Handle<Map> map = maps().at(i).object();
     __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
 
     bool last_map = (i == map_count - 1);
@@ -236,7 +236,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             __ Move(object, return_val);
             // Manually load the map pointer without uncompressing it.
             __ Cmp(FieldOperand(object, HeapObject::kMapOffset),
-                   node->maps().at(map_index));
+                   node->maps().at(map_index).object());
             __ j(equal, *done);
             __ jmp(*continue_label);
           },

@@ -13,6 +13,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
 #include "src/utils/boxed-float.h"
+#include "src/zone/zone-compact-set.h"
 
 namespace v8 {
 
@@ -144,9 +145,18 @@ enum class RefSerializationKind {
 
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
+FORWARD_DECL(Object)
 #undef FORWARD_DECL
 
-class ObjectRef;
+template <class T>
+struct is_ref : public std::false_type {};
+
+#define DEFINE_IS_REF(Name) \
+  template <>               \
+  struct is_ref<Name##Ref> : public std::true_type {};
+HEAP_BROKER_OBJECT_LIST(DEFINE_IS_REF)
+DEFINE_IS_REF(Object)
+#undef DEFINE_IS_REF
 
 template <class T>
 struct ref_traits;
@@ -280,6 +290,12 @@ class OptionalRef {
     return ArrowOperatorHelper(value());
   }
 
+  bool equals(OptionalRef other) const { return data_ == other.data_; }
+
+  size_t hash_value() const {
+    return has_value() ? value().hash_value() : base::hash_value(0);
+  }
+
  private:
   explicit OptionalRef(ObjectData* data) : data_(data) {
     CHECK_NOT_NULL(data_);
@@ -289,6 +305,16 @@ class OptionalRef {
   template <typename SRef>
   friend class OptionalRef;
 };
+
+template <typename T>
+inline bool operator==(OptionalRef<T> lhs, OptionalRef<T> rhs) {
+  return lhs.equals(rhs);
+}
+
+template <typename T>
+inline size_t hash_value(OptionalRef<T> ref) {
+  return ref.hash_value();
+}
 
 // Define aliases for OptionalFooRef = OptionalRef<FooRef>.
 #define V(Name) using Optional##Name##Ref = OptionalRef<Name##Ref>;
@@ -305,6 +331,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
   Handle<Object> object() const;
 
   bool equals(ObjectRef other) const;
+
+  size_t hash_value() const { return base::hash_combine(object().address()); }
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -327,9 +355,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool should_access_heap() const;
 
   struct Hash {
-    size_t operator()(ObjectRef ref) const {
-      return base::hash_combine(ref.object().address());
-    }
+    size_t operator()(ObjectRef ref) const { return ref.hash_value(); }
   };
 
  protected:
@@ -351,6 +377,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   friend std::ostream& operator<<(std::ostream& os, ObjectRef ref);
   friend bool operator<(ObjectRef lhs, ObjectRef rhs);
+  template <typename T, typename Enable>
+  friend struct ::v8::internal::ZoneCompactSetTraits;
 };
 
 inline bool operator==(ObjectRef lhs, ObjectRef rhs) { return lhs.equals(rhs); }
@@ -362,6 +390,8 @@ inline bool operator!=(ObjectRef lhs, ObjectRef rhs) {
 inline bool operator<(ObjectRef lhs, ObjectRef rhs) {
   return lhs.data_ < rhs.data_;
 }
+
+inline size_t hash_value(ObjectRef ref) { return ref.hash_value(); }
 
 template <class T>
 using ZoneRefUnorderedSet = ZoneUnorderedSet<T, ObjectRef::Hash>;
@@ -1139,6 +1169,27 @@ HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
 }  // namespace compiler
+
+template <typename T>
+struct ZoneCompactSetTraits<T, std::enable_if_t<compiler::is_ref<T>::value>> {
+  using handle_type = T;
+  using data_type = compiler::ObjectData;
+
+  static data_type* HandleToPointer(handle_type handle) {
+    return handle.data();
+  }
+  static handle_type PointerToHandle(data_type* ptr) {
+    return handle_type(ptr);
+  }
+};
+
+namespace compiler {
+
+template <typename T>
+using ZoneRefSet = ZoneCompactSet<typename ref_traits<T>::ref_type>;
+
+}  // namespace compiler
+
 }  // namespace internal
 }  // namespace v8
 

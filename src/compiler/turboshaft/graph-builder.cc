@@ -1734,7 +1734,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kCompareMaps: {
-      const ZoneHandleSet<v8::internal::Map>& maps =
+      const ZoneRefSet<v8::internal::Map>& maps =
           CompareMapsParametersOf(node->op());
       return __ CompareMaps(Map(node->InputAt(0)), maps);
     }
