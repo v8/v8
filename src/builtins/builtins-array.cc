@@ -18,6 +18,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
@@ -1048,8 +1049,22 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-    case SHARED_ARRAY_ELEMENTS:
-      UNREACHABLE();
+    case SHARED_ARRAY_ELEMENTS: {
+      uint32_t length =
+          Handle<JSSharedArray>::cast(object)->elements().length();
+      if (range <= length) {
+        length = range;
+        indices->clear();
+      }
+      for (uint32_t i = 0; i < length; i++) {
+        // JSSharedArrays are created non-resizable and do not have holes.
+        SLOW_DCHECK(object->GetElementsAccessor()->HasElement(
+            *object, i, object->elements()));
+        indices->push_back(i);
+      }
+      if (length == range) return;
+      break;
+    }
     case NO_ELEMENTS:
       break;
   }
