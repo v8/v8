@@ -36,6 +36,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/property-cell.h"
@@ -837,13 +838,14 @@ ValueNode* MaglevGraphBuilder::GetFloat64(
       if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
         return GetFloat64Constant(constant->value().value());
       }
-      if (conversion_type == TaggedToFloat64ConversionType::kNumberOrOddball) {
-        if (RootConstant* constant = value->TryCast<RootConstant>()) {
-          Object root_object = local_isolate_->root(constant->index());
-          if (root_object.IsOddball(local_isolate_)) {
-            return GetFloat64Constant(
-                Oddball::cast(root_object).to_number_raw());
-          }
+      if (RootConstant* constant = value->TryCast<RootConstant>()) {
+        Object root_object = local_isolate_->root(constant->index());
+        if (conversion_type ==
+                TaggedToFloat64ConversionType::kNumberOrOddball &&
+            root_object.IsOddball(local_isolate_)) {
+          return GetFloat64Constant(Oddball::cast(root_object).to_number_raw());
+        } else if (root_object.IsHeapNumber()) {
+          return GetFloat64Constant(HeapNumber::cast(root_object).value());
         }
       }
 
@@ -4380,7 +4382,7 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args,
     Float64Round::Kind kind) {
   if (args.count() == 0) {
-    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+    return GetRootConstant(RootIndex::kNanValue);
   }
   ValueNode* arg = args[0];
   switch (arg->value_representation()) {
