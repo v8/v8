@@ -5249,116 +5249,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprBrOnCast:
       case kExprBrOnCastNull: {
         NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-        uint32_t pc_offset = opcode_length + branch_depth.length;
-
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
-                              validate);
-        this->Validate(this->pc_ + opcode_length, imm);
-        if (!VALIDATE(this->ok())) return 0;
-        pc_offset += imm.length;
-
-        std::optional<Value> rtt;
-        HeapType target_type = imm.type;
-        if (imm.type.is_index()) {
-          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
-                                             &rtt.value());
-          // Differently to other instructions we don't push the RTT yet.
-        }
-
-        Value obj = Peek(0);
-
-        if (!VALIDATE((obj.type.is_object_reference() &&
-                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
-                                           this->module_)) ||
-                      obj.type.is_bottom())) {
-          this->DecodeError(
-              obj.pc(),
-              "Invalid types for %s: %s of type %s has to "
-              "be in the same reference type hierarchy as (ref %s)",
-              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
-              obj.type.name().c_str(), target_type.name().c_str());
-          return 0;
-        }
-
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError("%s must target a branch of arity at least 1",
-                            WasmOpcodes::OpcodeName(opcode));
-          return 0;
-        }
-        // Attention: contrary to most other instructions, we modify the
-        // stack before calling the interface function. This makes it
-        // significantly more convenient to pass around the values that
-        // will be on the stack when the branch is taken.
-        // TODO(jkummerow): Reconsider this choice.
-        Drop(obj);
-        bool null_succeeds = opcode == kExprBrOnCastNull;
-        Push(CreateValue(ValueType::RefMaybeNull(
-            target_type, null_succeeds ? kNullable : kNonNullable)));
-        // The {value_on_branch} parameter we pass to the interface must
-        // be pointer-identical to the object on the stack.
-        Value* value_on_branch = stack_value(1);
-        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
-            if (rtt.has_value()) {
-              CALL_INTERFACE(Drop);  // rtt
-            }
-            // The branch will still not be taken on null if not
-            // {null_succeeds}.
-            if (obj.type.is_nullable() && !null_succeeds) {
-              CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
-                             branch_depth.depth, false);
-            } else {
-              CALL_INTERFACE(Forward, obj, value_on_branch);
-              CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
-              // We know that the following code is not reachable, but according
-              // to the spec it technically is. Set it to spec-only reachable.
-              SetSucceedingCodeDynamicallyUnreachable();
-            }
-            c->br_merge()->reached = true;
-          } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type,
-                                                     null_succeeds))) {
-            if (rtt.has_value()) {
-              CALL_INTERFACE(BrOnCast, obj, rtt.value(), value_on_branch,
-                             branch_depth.depth, null_succeeds);
-            } else {
-              CALL_INTERFACE(BrOnCastAbstract, obj, target_type,
-                             value_on_branch, branch_depth.depth,
-                             null_succeeds);
-            }
-            c->br_merge()->reached = true;
-          } else {
-            // Otherwise the types are unrelated. Do not branch.
-            if (rtt.has_value()) {
-              CALL_INTERFACE(Drop);  // rtt
-            }
-          }
-        }
-
-        Drop(1);    // value_on_branch
-        Push(obj);  // Restore stack state on fallthrough.
-        if (current_code_reachable_and_ok_ && null_succeeds) {
-          // As null branches, the type on fallthrough will be the non-null
-          // variant of the input type.
-          // Note that this is handled differently for br_on_cast_fail for which
-          // the Forward is handled by TurboFan.
-          // TODO(mliedtke): This currently deviates from the spec and is
-          // discussed at
-          // https://github.com/WebAssembly/gc/issues/342#issuecomment-1354505307.
-          stack_value(1)->type = obj.type.AsNonNull();
-          CALL_INTERFACE(Forward, obj, stack_value(1));
-        }
-        return pc_offset;
+        return ParseBrOnCast(opcode, opcode_length);
       }
       case kExprBrOnCastDeprecated: {
         NON_CONST_ONLY
@@ -5438,108 +5329,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprBrOnCastFail:
       case kExprBrOnCastFailNull: {
         NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-        uint32_t pc_offset = opcode_length + branch_depth.length;
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
-                              validate);
-        this->Validate(this->pc_ + opcode_length, imm);
-        if (!VALIDATE(this->ok())) return 0;
-        pc_offset += imm.length;
-
-        std::optional<Value> rtt;
-        HeapType target_type = imm.type;
-        if (imm.type.is_index()) {
-          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
-                                             &rtt.value());
-          // Differently to other instructions we don't push the RTT yet.
-        }
-
-        Value obj = Peek(0);
-
-        if (!VALIDATE((obj.type.is_object_reference() &&
-                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
-                                           this->module_)) ||
-                      obj.type.is_bottom())) {
-          this->DecodeError(
-              obj.pc(),
-              "Invalid types for %s: %s of type %s has to "
-              "be in the same reference type hierarchy as (ref %s)",
-              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
-              obj.type.name().c_str(), target_type.name().c_str());
-          return 0;
-        }
-
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError("%s must target a branch of arity at least 1",
-                            WasmOpcodes::OpcodeName(opcode));
-          return 0;
-        }
-
-        bool null_succeeds = opcode == kExprBrOnCastFailNull;
-        if (null_succeeds) {
-          // If null is treated as a successful cast, then the branch type is
-          // guaranteed to be non-null.
-          Drop(obj);
-          Push(CreateValue(obj.type.AsNonNull()));
-        }
-        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
-
-        Value result_on_fallthrough = CreateValue(ValueType::RefMaybeNull(
-            target_type, (obj.type.is_bottom() || !null_succeeds)
-                             ? kNonNullable
-                             : obj.type.nullability()));
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast between compatible types.
-          if (V8_UNLIKELY(
-                  TypeCheckAlwaysFails(obj, target_type, null_succeeds))) {
-            if (rtt.has_value()) {
-              CALL_INTERFACE(Drop);  // rtt
-            }
-            // The types are incompatible (i.e. neither of the two types is a
-            // subtype of the other). Always branch.
-            CALL_INTERFACE(Forward, obj, stack_value(1));
-            CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
-            // We know that the following code is not reachable, but according
-            // to the spec it technically is. Set it to spec-only reachable.
-            SetSucceedingCodeDynamicallyUnreachable();
-            c->br_merge()->reached = true;
-          } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
-            if (rtt.has_value()) {
-              CALL_INTERFACE(Drop);  // rtt
-            }
-            // The branch can still be taken on null.
-            if (obj.type.is_nullable() && !null_succeeds) {
-              CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
-                             &result_on_fallthrough);
-              c->br_merge()->reached = true;
-            }
-            // Otherwise, the type check always succeeds. Do not branch. Also,
-            // the object is already on the stack; do not manipulate the stack.
-          } else {
-            if (rtt.has_value()) {
-              CALL_INTERFACE(BrOnCastFail, obj, rtt.value(),
-                             &result_on_fallthrough, branch_depth.depth,
-                             null_succeeds);
-            } else {
-              CALL_INTERFACE(BrOnCastFailAbstract, obj, target_type,
-                             &result_on_fallthrough, branch_depth.depth,
-                             null_succeeds);
-            }
-            c->br_merge()->reached = true;
-          }
-        }
-        // Make sure the correct value is on the stack state on fallthrough.
-        Drop(obj);
-        Push(result_on_fallthrough);
-        return pc_offset;
+        return ParseBrOnCastFail(opcode, opcode_length);
       }
       case kExprBrOnCastFailDeprecated: {
         NON_CONST_ONLY
@@ -5804,6 +5594,221 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   enum class WasmArrayAccess { kRead, kWrite };
+
+  int ParseBrOnCast(WasmOpcode opcode, uint32_t opcode_length) {
+    BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
+                                      validate);
+    if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                        control_.size())) {
+      return 0;
+    }
+    uint32_t pc_offset = opcode_length + branch_depth.length;
+
+    HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
+                          validate);
+    this->Validate(this->pc_ + opcode_length, imm);
+    if (!VALIDATE(this->ok())) return 0;
+    pc_offset += imm.length;
+
+    std::optional<Value> rtt;
+    HeapType target_type = imm.type;
+    if (imm.type.is_index()) {
+      rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                         &rtt.value());
+      // Differently to other instructions we don't push the RTT yet.
+    }
+
+    Value obj = Peek(0);
+
+    if (!VALIDATE((obj.type.is_object_reference() &&
+                   IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                       this->module_)) ||
+                  obj.type.is_bottom())) {
+      this->DecodeError(obj.pc(),
+                        "Invalid types for %s: %s of type %s has to "
+                        "be in the same reference type hierarchy as (ref %s)",
+                        WasmOpcodes::OpcodeName(opcode),
+                        SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+                        target_type.name().c_str());
+      return 0;
+    }
+
+    Control* c = control_at(branch_depth.depth);
+    if (c->br_merge()->arity == 0) {
+      this->DecodeError("%s must target a branch of arity at least 1",
+                        WasmOpcodes::OpcodeName(opcode));
+      return 0;
+    }
+    // Attention: contrary to most other instructions, we modify the
+    // stack before calling the interface function. This makes it
+    // significantly more convenient to pass around the values that
+    // will be on the stack when the branch is taken.
+    // TODO(jkummerow): Reconsider this choice.
+    Drop(obj);
+    bool null_succeeds = opcode == kExprBrOnCastNull;
+    Push(CreateValue(ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable)));
+    // The {value_on_branch} parameter we pass to the interface must
+    // be pointer-identical to the object on the stack.
+    Value* value_on_branch = stack_value(1);
+    if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      // This logic ensures that code generation can assume that functions
+      // can only be cast to function types, and data objects to data types.
+      if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+        if (rtt.has_value()) {
+          CALL_INTERFACE(Drop);  // rtt
+        }
+        // The branch will still not be taken on null if not
+        // {null_succeeds}.
+        if (obj.type.is_nullable() && !null_succeeds) {
+          CALL_INTERFACE(BrOnNonNull, obj, value_on_branch, branch_depth.depth,
+                         false);
+        } else {
+          CALL_INTERFACE(Forward, obj, value_on_branch);
+          CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+          // We know that the following code is not reachable, but according
+          // to the spec it technically is. Set it to spec-only reachable.
+          SetSucceedingCodeDynamicallyUnreachable();
+        }
+        c->br_merge()->reached = true;
+      } else if (V8_LIKELY(
+                     !TypeCheckAlwaysFails(obj, target_type, null_succeeds))) {
+        if (rtt.has_value()) {
+          CALL_INTERFACE(BrOnCast, obj, rtt.value(), value_on_branch,
+                         branch_depth.depth, null_succeeds);
+        } else {
+          CALL_INTERFACE(BrOnCastAbstract, obj, target_type, value_on_branch,
+                         branch_depth.depth, null_succeeds);
+        }
+        c->br_merge()->reached = true;
+      } else {
+        // Otherwise the types are unrelated. Do not branch.
+        if (rtt.has_value()) {
+          CALL_INTERFACE(Drop);  // rtt
+        }
+      }
+    }
+
+    Drop(1);    // value_on_branch
+    Push(obj);  // Restore stack state on fallthrough.
+    if (current_code_reachable_and_ok_ && null_succeeds) {
+      // As null branches, the type on fallthrough will be the non-null
+      // variant of the input type.
+      // Note that this is handled differently for br_on_cast_fail for which
+      // the Forward is handled by TurboFan.
+      // TODO(mliedtke): This currently deviates from the spec and is
+      // discussed at
+      // https://github.com/WebAssembly/gc/issues/342#issuecomment-1354505307.
+      stack_value(1)->type = obj.type.AsNonNull();
+      CALL_INTERFACE(Forward, obj, stack_value(1));
+    }
+    return pc_offset;
+  }
+
+  int ParseBrOnCastFail(WasmOpcode opcode, uint32_t opcode_length) {
+    BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
+                                      validate);
+    if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                        control_.size())) {
+      return 0;
+    }
+    uint32_t pc_offset = opcode_length + branch_depth.length;
+    HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
+                          validate);
+    this->Validate(this->pc_ + opcode_length, imm);
+    if (!VALIDATE(this->ok())) return 0;
+    pc_offset += imm.length;
+
+    std::optional<Value> rtt;
+    HeapType target_type = imm.type;
+    if (imm.type.is_index()) {
+      rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                         &rtt.value());
+      // Differently to other instructions we don't push the RTT yet.
+    }
+
+    Value obj = Peek(0);
+
+    if (!VALIDATE((obj.type.is_object_reference() &&
+                   IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                       this->module_)) ||
+                  obj.type.is_bottom())) {
+      this->DecodeError(obj.pc(),
+                        "Invalid types for %s: %s of type %s has to "
+                        "be in the same reference type hierarchy as (ref %s)",
+                        WasmOpcodes::OpcodeName(opcode),
+                        SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+                        target_type.name().c_str());
+      return 0;
+    }
+
+    Control* c = control_at(branch_depth.depth);
+    if (c->br_merge()->arity == 0) {
+      this->DecodeError("%s must target a branch of arity at least 1",
+                        WasmOpcodes::OpcodeName(opcode));
+      return 0;
+    }
+
+    bool null_succeeds = opcode == kExprBrOnCastFailNull;
+    if (null_succeeds) {
+      // If null is treated as a successful cast, then the branch type is
+      // guaranteed to be non-null.
+      Drop(obj);
+      Push(CreateValue(obj.type.AsNonNull()));
+    }
+    if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+
+    Value result_on_fallthrough = CreateValue(ValueType::RefMaybeNull(
+        target_type, (obj.type.is_bottom() || !null_succeeds)
+                         ? kNonNullable
+                         : obj.type.nullability()));
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      // This logic ensures that code generation can assume that functions
+      // can only be cast between compatible types.
+      if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, target_type, null_succeeds))) {
+        if (rtt.has_value()) {
+          CALL_INTERFACE(Drop);  // rtt
+        }
+        // The types are incompatible (i.e. neither of the two types is a
+        // subtype of the other). Always branch.
+        CALL_INTERFACE(Forward, obj, stack_value(1));
+        CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+        // We know that the following code is not reachable, but according
+        // to the spec it technically is. Set it to spec-only reachable.
+        SetSucceedingCodeDynamicallyUnreachable();
+        c->br_merge()->reached = true;
+      } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+        if (rtt.has_value()) {
+          CALL_INTERFACE(Drop);  // rtt
+        }
+        // The branch can still be taken on null.
+        if (obj.type.is_nullable() && !null_succeeds) {
+          CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
+                         &result_on_fallthrough);
+          c->br_merge()->reached = true;
+        }
+        // Otherwise, the type check always succeeds. Do not branch. Also,
+        // the object is already on the stack; do not manipulate the stack.
+      } else {
+        if (rtt.has_value()) {
+          CALL_INTERFACE(BrOnCastFail, obj, rtt.value(), &result_on_fallthrough,
+                         branch_depth.depth, null_succeeds);
+        } else {
+          CALL_INTERFACE(BrOnCastFailAbstract, obj, target_type,
+                         &result_on_fallthrough, branch_depth.depth,
+                         null_succeeds);
+        }
+        c->br_merge()->reached = true;
+      }
+    }
+    // Make sure the correct value is on the stack state on fallthrough.
+    Drop(obj);
+    Push(result_on_fallthrough);
+    return pc_offset;
+  }
 
   int DecodeStringNewWtf8(unibrow::Utf8Variant variant,
                           uint32_t opcode_length) {
