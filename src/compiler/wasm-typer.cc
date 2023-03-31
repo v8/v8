@@ -171,6 +171,11 @@ Reduction WasmTyper::Reduce(Node* node) {
           object_type.module};
       break;
     }
+    case IrOpcode::kNull: {
+      TypeInModule from_node = NodeProperties::GetType(node).AsWasm();
+      computed_type = {wasm::ToNullSentinel(from_node), from_node.module};
+      break;
+    }
     default:
       return NoChange();
   }
