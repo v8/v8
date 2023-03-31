@@ -1166,6 +1166,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // The resulting array will be uninitialized, which means GC might fail for
+  // reference arrays until initialization. Follow this up with a
+  // {DisallowGarbageCollection} scope until initialization.
+  WasmArray NewWasmArrayUninitialized(uint32_t length, Handle<Map> map);
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace internal

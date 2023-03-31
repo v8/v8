@@ -1756,10 +1756,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   return handle(result, isolate());
 }
 
-Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
-                                        uint32_t length,
-                                        wasm::WasmValue initial_value,
-                                        Handle<Map> map) {
+WasmArray Factory::NewWasmArrayUninitialized(uint32_t length, Handle<Map> map) {
   HeapObject raw =
       AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1767,6 +1764,15 @@ Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
   WasmArray result = WasmArray::cast(raw);
   result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   result.set_length(length);
+  return result;
+}
+
+Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
+                                        uint32_t length,
+                                        wasm::WasmValue initial_value,
+                                        Handle<Map> map) {
+  WasmArray result = NewWasmArrayUninitialized(length, map);
+  DisallowGarbageCollection no_gc;
   if (type->element_type().is_numeric()) {
     if (initial_value.zero_byte_representation()) {
       memset(reinterpret_cast<void*>(result.ElementAddress(0)), 0,
@@ -1790,13 +1796,8 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
     Handle<Map> map) {
   uint32_t length = static_cast<uint32_t>(elements.size());
-  HeapObject raw =
-      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
+  WasmArray result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
-  raw.set_map_after_allocation(*map);
-  WasmArray result = WasmArray::cast(raw);
-  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
-  result.set_length(length);
   if (type->element_type().is_numeric()) {
     for (uint32_t i = 0; i < length; i++) {
       Address address = result.ElementAddress(i);
@@ -1819,13 +1820,8 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
       reinterpret_cast<wasm::ArrayType*>(map->wasm_type_info().native_type())
           ->element_type();
   DCHECK(element_type.is_numeric());
-  HeapObject raw =
-      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
+  WasmArray result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
-  raw.set_map_after_allocation(*map);
-  WasmArray result = WasmArray::cast(raw);
-  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
-  result.set_length(length);
   MemCopy(reinterpret_cast<void*>(result.ElementAddress(0)),
           reinterpret_cast<void*>(source),
           length * element_type.value_kind_size());
@@ -1837,22 +1833,6 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
     Handle<WasmInstanceObject> instance, uint32_t segment_index,
     uint32_t start_offset, uint32_t length, Handle<Map> map) {
   DCHECK(WasmArray::type(*map)->element_type().is_reference());
-  HeapObject raw =
-      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
-  {
-    DisallowGarbageCollection no_gc;
-    raw.set_map_after_allocation(*map);
-    WasmArray result = WasmArray::cast(raw);
-    result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
-    result.set_length(length);
-    // We have to initialize the elements to a default value, because we might
-    // allocate new objects while computing the elements below.
-    for (uint32_t i = 0; i < length; i++) {
-      result.SetTaggedElement(i, undefined_value(), SKIP_WRITE_BARRIER);
-    }
-  }
-
-  Handle<WasmArray> result = handle(WasmArray::cast(raw), isolate());
 
   // Lazily initialize the element segment if needed.
   AccountingAllocator allocator;
@@ -1867,12 +1847,14 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
       handle(FixedArray::cast(instance->element_segments().get(segment_index)),
              isolate());
 
-  for (uint32_t i = 0; i < length; i++) {
-    result->SetTaggedElement(
-        i, handle(elements->get(start_offset + i), isolate()));
+  WasmArray result = NewWasmArrayUninitialized(length, map);
+  DisallowGarbageCollection no_gc;
+  if (length > 0) {
+    isolate()->heap()->CopyRange(result, result.ElementSlot(0),
+                                 elements->RawFieldOfElementAt(start_offset),
+                                 length, SKIP_WRITE_BARRIER);
   }
-
-  return result;
+  return handle(result, isolate());
 }
 
 Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
