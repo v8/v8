@@ -679,18 +679,12 @@ DEFINE_INT(interrupt_budget, 66 * KB,
 DEFINE_INT(ticks_before_optimization, 3,
            "the number of times we have to go through the interrupt budget "
            "before considering this function for optimization")
-DEFINE_INT(bytecode_size_allowance_per_tick, 150,
-           "increases the number of ticks required for optimization by "
-           "bytecode.length/X")
 DEFINE_INT(invocation_count_for_osr, 500,
            "number of invocations we want to see after requesting previous "
            "tier up to increase the OSR urgency")
 DEFINE_INT(
     osr_to_tierup, 4,
     "number of times we follow the OSR path before we try to tier up again")
-DEFINE_INT(
-    max_bytecode_size_for_early_opt, 81,
-    "Maximum bytecode length for a function to be optimized on the first tick")
 DEFINE_BOOL(global_ic_updated_flag, false,
             "Track, globally, whether any IC changed, and use this in tierup "
             "heuristics.")
@@ -704,9 +698,7 @@ DEFINE_BOOL(reset_ticks_on_ic_update, true,
             "On IC change, reset the ticks for just that function.")
 DEFINE_BOOL(increase_budget_forward_jump, false,
             "Increase interrupt budget on forward jumps in generated code")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 0)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)

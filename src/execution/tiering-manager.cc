@@ -28,8 +28,7 @@ namespace internal {
 
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
-  V(HotAndStable, "hot and stable")   \
-  V(SmallFunction, "small function")
+  V(HotAndStable, "hot and stable")
 
 enum class OptimizationReason : uint8_t {
 #define OPTIMIZATION_REASON_CONSTANTS(Constant, message) k##Constant,
@@ -63,10 +62,6 @@ class OptimizationDecision {
   }
   static constexpr OptimizationDecision TurbofanHotAndStable() {
     return {OptimizationReason::kHotAndStable, CodeKind::TURBOFAN,
-            ConcurrencyMode::kConcurrent};
-  }
-  static constexpr OptimizationDecision TurbofanSmallFunction() {
-    return {OptimizationReason::kSmallFunction, CodeKind::TURBOFAN,
             ConcurrencyMode::kConcurrent};
   }
   static constexpr OptimizationDecision DoNotOptimize() {
@@ -236,11 +231,6 @@ void TryRequestOsrAtNextOpportunity(Isolate* isolate, JSFunction function) {
   TrySetOsrUrgency(isolate, function, FeedbackVector::kMaxOsrUrgency);
 }
 
-bool ShouldOptimizeAsSmallFunction(int bytecode_size, bool any_ic_changed) {
-  return !any_ic_changed &&
-         bytecode_size < v8_flags.max_bytecode_size_for_early_opt;
-}
-
 }  // namespace
 
 void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
@@ -338,25 +328,14 @@ OptimizationDecision TieringManager::ShouldOptimize(
   }
   const int ticks =
       feedback_vector.profiler_ticks() + (after_next_tick ? 1 : 0);
-  const int ticks_for_optimization =
-      v8_flags.ticks_before_optimization +
-      (bytecode.length() / v8_flags.bytecode_size_allowance_per_tick);
+  const int ticks_for_optimization = v8_flags.ticks_before_optimization;
   if (ticks >= ticks_for_optimization) {
     return OptimizationDecision::TurbofanHotAndStable();
-  } else if (ShouldOptimizeAsSmallFunction(bytecode.length(),
-                                           any_ic_changed_)) {
-    // If no IC was patched since the last tick and this function is very
-    // small, optimistically optimize it now.
-    return OptimizationDecision::TurbofanSmallFunction();
   } else if (!after_next_tick && v8_flags.trace_opt_verbose) {
     PrintF("[not yet optimizing %s, not enough ticks: %d/%d and ",
            shared.DebugNameCStr().get(), ticks, ticks_for_optimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
-    } else {
-      PrintF(" too large for small function optimization: %d/%d]\n",
-             bytecode.length(),
-             v8_flags.max_bytecode_size_for_early_opt.value());
     }
   }
 
