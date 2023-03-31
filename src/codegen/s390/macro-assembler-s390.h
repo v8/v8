@@ -1731,6 +1731,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   template <typename Field>
   void DecodeField(Register dst, Register src) {
     ExtractBitRange(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);

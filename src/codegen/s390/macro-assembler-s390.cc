@@ -15,6 +15,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -1826,10 +1827,9 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   LoadTaggedField(cp, FieldMemOperand(fun, JSFunction::kContextOffset));
   LoadTaggedField(temp_reg,
                   FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
-  LoadU16(
-      expected_reg,
-      FieldMemOperand(temp_reg,
-                      SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadU16(expected_reg,
+          FieldMemOperand(temp_reg,
+                          SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunctionCode(fun, new_target, expected_reg, actual_parameter_count,
                      type);
@@ -2384,6 +2384,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     bind(&done_checking);
   }
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  ble(&ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  bge(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  beq(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  beq(&ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 static const int kRegisterPassedArguments = 5;
@@ -2695,7 +2736,7 @@ void MacroAssembler::MulHighS32(Register dst, Register src1,
   {                                \
     lr(r1, src1);                  \
     instr(r0, src2);               \
-    LoadU32(dst, r0);               \
+    LoadU32(dst, r0);              \
   }
 
 void MacroAssembler::MulHighU32(Register dst, Register src1,
@@ -2751,7 +2792,7 @@ void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
   {                           \
     lgfr(r1, src1);           \
     instr(r0, src2);          \
-    LoadU32(dst, r1);          \
+    LoadU32(dst, r1);         \
   }
 
 void MacroAssembler::DivS32(Register dst, Register src1,
@@ -2770,7 +2811,7 @@ void MacroAssembler::DivS32(Register dst, Register src1, Register src2) {
     lr(r0, src1);              \
     srdl(r0, Operand(32));     \
     instr(r0, src2);           \
-    LoadU32(dst, r1);           \
+    LoadU32(dst, r1);          \
   }
 
 void MacroAssembler::DivU32(Register dst, Register src1,
@@ -2825,7 +2866,7 @@ void MacroAssembler::DivU64(Register dst, Register src1, Register src2) {
   {                           \
     lgfr(r1, src1);           \
     instr(r0, src2);          \
-    LoadU32(dst, r0);          \
+    LoadU32(dst, r0);         \
   }
 
 void MacroAssembler::ModS32(Register dst, Register src1,
@@ -2844,7 +2885,7 @@ void MacroAssembler::ModS32(Register dst, Register src1, Register src2) {
     lr(r0, src1);              \
     srdl(r0, Operand(32));     \
     instr(r0, src2);           \
-    LoadU32(dst, r0);           \
+    LoadU32(dst, r0);          \
   }
 
 void MacroAssembler::ModU32(Register dst, Register src1,

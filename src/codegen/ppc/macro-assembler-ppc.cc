@@ -15,6 +15,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -2392,6 +2393,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     bind(&done_checking);
   }
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  ble(&ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  bge(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  beq(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  beq(&ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 static const int kRegisterPassedArguments = 8;
