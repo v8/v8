@@ -709,7 +709,7 @@ DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 3000)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
 
 // Tiering: JIT fuzzing.
 //
