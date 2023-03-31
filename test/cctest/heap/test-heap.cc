@@ -657,6 +657,8 @@ TEST(BytecodeArray) {
   // evacuation candidate.
   Page* evac_page = Page::FromHeapObject(*constant_pool);
   heap::ForceEvacuationCandidate(evac_page);
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   // BytecodeArray should survive.
@@ -3354,6 +3356,8 @@ TEST(ReleaseOverReservedPages) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   // Ensure that the young generation is empty.
   CcTest::CollectGarbage(NEW_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
@@ -3991,7 +3995,9 @@ TEST(LargeObjectSlotRecording) {
 
   heap::SimulateIncrementalMarking(heap, true);
 
-  // Move the evaucation candidate object.
+  // Move the evacuation candidate object.
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   // Verify that the pointers in the large object got updated.
@@ -6311,6 +6317,8 @@ TEST(RememberedSet_OldToOld) {
 
   // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
   // create OLD_TO_OLD remembered set to track the reference.
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
   CHECK_NE(prev_location.ptr(), arr->ptr());
 }

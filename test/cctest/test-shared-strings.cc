@@ -832,6 +832,8 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     // old space.
     CcTest::CollectAllGarbage(i_isolate);
     heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     CcTest::CollectAllGarbage(i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -966,6 +968,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -1027,6 +1031,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
         !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
     heap::ForceEvacuationCandidate(Page::FromHeapObject(*one_byte_seq));
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 
     // In-place-internalizable strings are promoted into the shared heap when

@@ -4159,6 +4159,11 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   int gc_calls = 0;
   v8::Global<v8::Object> handle;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   {
     struct WeakData {
@@ -4169,8 +4174,8 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
     WeakData* data =
         new WeakData{heap_profiler->TakeHeapSnapshot(), &gc_calls, &handle};
 
-    v8::HandleScope inner_scope(env->GetIsolate());
-    handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
+    v8::HandleScope inner_scope(isolate);
+    handle.Reset(isolate, v8::Object::New(isolate));
     handle.SetWeak(
         data,
         [](const v8::WeakCallbackInfo<WeakData>& data) {
