@@ -3903,7 +3903,8 @@ class RepresentationSelector {
         if (InputIs(node, Type::Boolean())) {
           VisitUnop<T>(node, UseInfo::Bool(), MachineRepresentation::kWord32);
           if (lower<T>()) {
-            DeferReplacement(node, node->InputAt(0));
+            DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                       node->op(), node->InputAt(0)));
           }
         } else if (InputIs(node, Type::String())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -3916,7 +3917,8 @@ class RepresentationSelector {
             VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord32);
             if (lower<T>()) {
-              DeferReplacement(node, node->InputAt(0));
+              DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                         node->op(), node->InputAt(0)));
             }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -3930,7 +3932,8 @@ class RepresentationSelector {
             VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
             if (lower<T>()) {
-              DeferReplacement(node, node->InputAt(0));
+              DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                         node->op(), node->InputAt(0)));
             }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -4578,9 +4581,17 @@ class RepresentationSelector {
   }
 
   Node* InsertTypeOverrideForVerifier(const Type& type, Node* node) {
-    if (verification_enabled()) {
+    if (V8_UNLIKELY(verification_enabled())) {
       DCHECK(!type.IsInvalid());
       node = graph()->NewNode(common()->SLVerifierHint(nullptr, type), node);
+      verifier_->RecordHint(node);
+    }
+    return node;
+  }
+
+  Node* InsertSemanticsHintForVerifier(const Operator* semantics, Node* node) {
+    if (V8_UNLIKELY(verification_enabled())) {
+      node = graph()->NewNode(common()->SLVerifierHint(semantics, {}), node);
       verifier_->RecordHint(node);
     }
     return node;

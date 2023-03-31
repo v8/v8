@@ -452,8 +452,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
   } else {
     out << "nullptr";
   }
-  out << ", ";
   if (const auto& t = p.override_output_type()) {
+    out << ", ";
     t->PrintTo(out);
   } else {
     out << ", nullopt";

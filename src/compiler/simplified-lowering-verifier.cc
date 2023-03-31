@@ -408,7 +408,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
           default:
             UNREACHABLE();
         }
-        CheckType(node, output_type);
       }
 
       if (p.override_output_type()) {
