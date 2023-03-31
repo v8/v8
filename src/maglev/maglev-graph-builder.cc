@@ -2722,6 +2722,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
+    EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
     return ReduceResult::DoneWithAbort();
   }
 
