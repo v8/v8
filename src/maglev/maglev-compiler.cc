@@ -290,7 +290,7 @@ class UseMarkingProcessor {
   };
 
   struct LoopUsedNodes {
-    std::unordered_map<ValueNode*, NodeUse> used_nodes;
+    std::map<ValueNode*, NodeUse> used_nodes;
     NodeIdT first_call;
     NodeIdT last_call;
     BasicBlock* header;
