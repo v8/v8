@@ -1579,6 +1579,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < immediate; ++i) {
       TRACE("DecodeStringLiteral[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
+      if (tracer_) tracer_->StringOffset(pc_offset());
       // TODO(12868): Throw if the string's utf-16 length > String::kMaxLength.
       WireBytesRef pos = wasm::consume_string(this, unibrow::Utf8Variant::kWtf8,
                                               "string literal", tracer_);
