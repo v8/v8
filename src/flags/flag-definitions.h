@@ -668,10 +668,12 @@ DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
            "allocating feedback vectors, used when bytecode size is known")
 
 // Tiering: Maglev.
-DEFINE_INT(invocation_count_for_maglev, 100,
+DEFINE_INT(invocation_count_for_maglev, 300,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
+DEFINE_INT(invocation_count_for_turbofan, 1000,
+           "interrupt budget which should be used for the profiler counter")
 DEFINE_INT(interrupt_budget, 66 * KB,
            "interrupt budget which should be used for the profiler counter")
 DEFINE_INT(ticks_before_optimization, 3,
@@ -700,13 +702,14 @@ DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
 DEFINE_BOOL(reset_ticks_on_ic_update, true,
             "On IC change, reset the ticks for just that function.")
-DEFINE_BOOL(maglev_increase_budget_forward_jump, false,
-            "Increase interrupt budget on forward jumps in maglev code")
+DEFINE_BOOL(increase_budget_forward_jump, false,
+            "Increase interrupt budget on forward jumps in generated code")
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 0)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 3000)
 
 // Tiering: JIT fuzzing.
 //
@@ -723,6 +726,7 @@ DEFINE_NEG_IMPLICATION(jit_fuzzing, baseline_batch_compilation)
 // Tier up to Maglev should happen soon afterwards.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev, 10)
 // And tier up to Turbofan should happen after a couple dozen or so executions.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_turbofan, 20)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, interrupt_budget, 10 * KB)
 // Additionally, some other JIT-related thresholds should also be lowered.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)

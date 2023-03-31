@@ -611,11 +611,10 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 }
 
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
-  int weight =
-      (!v8_flags.maglev || v8_flags.maglev_increase_budget_forward_jump)
-          ? (iterator().GetRelativeJumpTargetOffset() -
-             iterator().current_bytecode_size_without_prefix())
-          : 0;
+  int weight = v8_flags.increase_budget_forward_jump
+                   ? (iterator().GetRelativeJumpTargetOffset() -
+                      iterator().current_bytecode_size_without_prefix())
+                   : 0;
   UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
 }
 

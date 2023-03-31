@@ -1277,6 +1277,9 @@ static void TickLines(bool optimize) {
                    func_name);
     base::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
                    func_name);
+  } else if (v8_flags.sparkplug) {
+    base::SNPrintF(prepare_opt, "%%CompileBaseline(%s);\n", func_name);
+    optimize_call[0] = '\0';
   } else {
     prepare_opt[0] = '\0';
     optimize_call[0] = '\0';
@@ -1284,7 +1287,7 @@ static void TickLines(bool optimize) {
   base::SNPrintF(script,
                  "function %s() {\n"
                  "  var n = 0;\n"
-                 "  var m = 100*100;\n"
+                 "  var m = 20;\n"
                  "  while (m > 1) {\n"
                  "    m--;\n"
                  "    n += m * m * m;\n"

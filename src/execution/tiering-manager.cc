@@ -164,7 +164,7 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
   }
   return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
              ? v8_flags.invocation_count_for_maglev * bytecode_length
-             : v8_flags.interrupt_budget;
+             : v8_flags.invocation_count_for_turbofan * bytecode_length;
 }
 
 }  // namespace
