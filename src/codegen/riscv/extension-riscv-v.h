@@ -6,6 +6,7 @@
 #define V8_CODEGEN_RISCV_EXTENSION_RISCV_V_H_
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/constant-riscv-v.h"
 #include "src/codegen/riscv/register-riscv.h"
