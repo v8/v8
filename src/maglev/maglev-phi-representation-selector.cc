@@ -91,7 +91,7 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
 
   TRACE_UNTAGGING("  + use_reprs  : " << std::hex << use_reprs.ToIntegral()
                                       << std::dec);
-  TRACE_UNTAGGING("  + input_reprs: " << std::hex << use_reprs.ToIntegral()
+  TRACE_UNTAGGING("  + input_reprs: " << std::hex << input_reprs.ToIntegral()
                                       << std::dec);
 
   if (use_reprs.contains(UseRepresentation::kTagged) ||
