@@ -802,6 +802,23 @@ WASM_EXEC_TEST(SelectWithType_float_parameters) {
   r.Build(
       {WASM_SELECT_F(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))});
   CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
+  CHECK_FLOAT_EQ(1.0f, r.Call(2.0f, 1.0f, 0));
+}
+
+WASM_EXEC_TEST(Select_double_parameters) {
+  WasmRunner<double, double, double, int32_t> r(execution_tier);
+  r.Build(
+      {WASM_SELECT(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))});
+  CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
+  CHECK_FLOAT_EQ(1.0f, r.Call(2.0f, 1.0f, 0));
+}
+
+WASM_EXEC_TEST(SelectWithType_double_parameters) {
+  WasmRunner<double, double, double, int32_t> r(execution_tier);
+  r.Build(
+      {WASM_SELECT_D(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))});
+  CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
+  CHECK_FLOAT_EQ(1.0f, r.Call(2.0f, 1.0f, 0));
 }
 
 WASM_EXEC_TEST(Select) {
@@ -895,6 +912,53 @@ WASM_EXEC_TEST(SelectWithType_strict3) {
                          WASM_LOCAL_TEE(0, WASM_LOCAL_GET(1)))});
   FOR_INT32_INPUTS(i) {
     int32_t expected = 5;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
+WASM_EXEC_TEST(Select64) {
+  WasmRunner<int64_t, int32_t> r(execution_tier);
+  // return select(11, 22, a);
+  r.Build({WASM_SELECT(WASM_I64V_1(11), WASM_I64V_1(22), WASM_LOCAL_GET(0))});
+  FOR_INT32_INPUTS(i) {
+    int64_t expected = i ? 11 : 22;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
+WASM_EXEC_TEST(Select64WithType) {
+  WasmRunner<int64_t, int32_t> r(execution_tier);
+  // return select(11, 22, a);
+  r.Build({WASM_SELECT_L(WASM_I64V_1(11), WASM_I64V_1(22), WASM_LOCAL_GET(0))});
+  FOR_INT32_INPUTS(i) {
+    int64_t expected = i ? 11 : 22;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
+WASM_EXEC_TEST(Select64_strict1) {
+  WasmRunner<int64_t, int32_t> r(execution_tier);
+  r.AllocateLocal(kWasmI64);
+  r.AllocateLocal(kWasmI64);
+  // select(b=5, c=6, a)
+  r.Build({WASM_SELECT(WASM_LOCAL_TEE(1, WASM_I64V_1(5)),
+                       WASM_LOCAL_TEE(2, WASM_I64V_1(6)), WASM_LOCAL_GET(0))});
+  FOR_INT32_INPUTS(i) {
+    int64_t expected = i ? 5 : 6;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
+WASM_EXEC_TEST(Select64WithType_strict1) {
+  WasmRunner<int64_t, int32_t> r(execution_tier);
+  r.AllocateLocal(kWasmI64);
+  r.AllocateLocal(kWasmI64);
+  // select(b=5, c=6, a)
+  r.Build(
+      {WASM_SELECT_L(WASM_LOCAL_TEE(1, WASM_I64V_1(5)),
+                     WASM_LOCAL_TEE(2, WASM_I64V_1(6)), WASM_LOCAL_GET(0))});
+  FOR_INT32_INPUTS(i) {
+    int64_t expected = i ? 5 : 6;
     CHECK_EQ(expected, r.Call(i));
   }
 }
