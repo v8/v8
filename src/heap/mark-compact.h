@@ -402,8 +402,6 @@ class MarkCompactCollector final : public CollectorBase {
     uint32_t offset;
   };
 
-  static V8_EXPORT_PRIVATE bool IsMapOrForwarded(Map map);
-
   static bool ShouldRecordRelocSlot(RelocInfo* rinfo, HeapObject target);
   static RecordRelocSlotInfo ProcessRelocInfo(RelocInfo* rinfo,
                                               HeapObject target);

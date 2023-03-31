@@ -730,7 +730,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
           &invalidated_old_to_old_cleanup, &invalidated_old_to_shared_cleanup);
     }
     Map map = object.map(cage_base, kAcquireLoad);
-    DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
+    DCHECK(MapWord::IsMapOrForwarded(map));
     int size = ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
     live_bytes += size;
     free_start = free_end + size;

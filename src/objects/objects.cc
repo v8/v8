@@ -7086,6 +7086,18 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
   weak_cell.set_key_list_next(undefined);
 }
 
+// static
+bool MapWord::IsMapOrForwarded(Map map) {
+  MapWord map_word = map.map_word(kRelaxedLoad);
+
+  if (map_word.IsForwardingAddress()) {
+    // During GC we can't access forwarded maps without synchronization.
+    return true;
+  } else {
+    return map_word.ToMap().IsMap();
+  }
+}
+
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 // Keep this at the end of this file

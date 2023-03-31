@@ -431,18 +431,6 @@ void MarkCompactCollector::TearDown() {
   }
 }
 
-// static
-bool MarkCompactCollector::IsMapOrForwarded(Map map) {
-  MapWord map_word = map.map_word(kRelaxedLoad);
-
-  if (map_word.IsForwardingAddress()) {
-    // During GC we can't access forwarded maps without synchronization.
-    return true;
-  } else {
-    return map_word.ToMap().IsMap();
-  }
-}
-
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
 
@@ -3747,7 +3735,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
     DCHECK(!Heap::InFromPage(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   } else {
-    DCHECK(MarkCompactCollector::IsMapOrForwarded(map_word.ToMap()));
+    DCHECK(MapWord::IsMapOrForwarded(map_word.ToMap()));
   }
 }
 

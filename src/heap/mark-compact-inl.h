@@ -190,7 +190,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         HeapObject black_object = HeapObject::FromAddress(addr);
         map = black_object.map(cage_base, kAcquireLoad);
         // Map might be forwarded during GC.
-        DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
+        DCHECK(MapWord::IsMapOrForwarded(map));
         size = black_object.SizeFromMap(map);
         int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(size);
         CHECK_LE(addr + aligned_size, chunk_->area_end());
@@ -222,7 +222,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         object = HeapObject::FromAddress(addr);
         map = object.map(cage_base, kAcquireLoad);
         // Map might be forwarded during GC.
-        DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
+        DCHECK(MapWord::IsMapOrForwarded(map));
         size = object.SizeFromMap(map);
         CHECK_LE(addr + ALIGN_TO_ALLOCATION_ALIGNMENT(size),
                  chunk_->area_end());
