@@ -339,6 +339,22 @@ ValueNode* FromFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
   return tagged;
 }
 
+ValueNode* FromHoleyFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
+                                    NodeType node_type, ValueNode* value,
+                                    BasicBlock* predecessor) {
+  DCHECK_EQ(value->properties().value_representation(),
+            ValueRepresentation::kHoleyFloat64);
+  DCHECK(!value->properties().is_conversion());
+
+  // Create a tagged version, and insert it at the end of the predecessor.
+  ValueNode* tagged =
+      Node::New<HoleyFloat64ToTagged>(compilation_unit.zone(), {value});
+
+  predecessor->nodes().Add(tagged);
+  compilation_unit.RegisterNodeInGraphLabeller(tagged);
+  return tagged;
+}
+
 ValueNode* NonTaggedToTagged(MaglevCompilationUnit& compilation_unit,
                              ZoneMap<int, SmiConstant*>& smi_constants,
                              NodeType node_type, ValueNode* value,
@@ -356,6 +372,9 @@ ValueNode* NonTaggedToTagged(MaglevCompilationUnit& compilation_unit,
     case ValueRepresentation::kFloat64:
       return FromFloat64ToTagged(compilation_unit, node_type, value,
                                  predecessor);
+    case ValueRepresentation::kHoleyFloat64:
+      return FromHoleyFloat64ToTagged(compilation_unit, node_type, value,
+                                      predecessor);
   }
 }
 ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,

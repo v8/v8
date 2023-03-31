@@ -559,54 +559,6 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
   __ bind(*done);
 }
 
-void LoadFixedArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-}
-void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  Register result_reg = ToRegister(result());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(elements);
-    __ CmpObjectType(elements, FIXED_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-    __ cmpq(index, Immediate(0));
-    __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
-  }
-  if (this->decompresses_tagged_result()) {
-    __ DecompressTagged(result_reg,
-                        FieldOperand(elements, index, times_tagged_size,
-                                     FixedArray::kHeaderSize));
-  } else {
-    __ mov_tagged(result_reg, FieldOperand(elements, index, times_tagged_size,
-                                           FixedArray::kHeaderSize));
-  }
-}
-
-void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-}
-void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  DoubleRegister result_reg = ToDoubleRegister(result());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(elements);
-    __ CmpObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-    __ cmpq(index, Immediate(0));
-    __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
-  }
-  __ Movsd(result_reg, FieldOperand(elements, index, times_8,
-                                    FixedDoubleArray::kHeaderSize));
-}
-
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(index_input());
@@ -1599,18 +1551,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void Float64SilenceNaN::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-
-void Float64SilenceNaN::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
-}
-
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());
@@ -1795,7 +1735,7 @@ void JumpToFailIfNotHeapNumberOrOddball(
         }
       }
       break;
-    case TaggedToFloat64ConversionType::kNumber:
+    case TaggedToFloat64ConversionType::kOnlyNumber:
       // Check if HeapNumber, jump to fail otherwise.
       if (fail) {
         __ IsObjectType(value, InstanceType::HEAP_NUMBER_TYPE);
@@ -1903,6 +1843,19 @@ void TruncateNumberOrOddballToInt32::GenerateCode(
   DCHECK_EQ(value, result_reg);
   EmitTruncateNumberOrOddballToInt32(masm, value, result_reg, conversion_type(),
                                      nullptr);
+}
+
+void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  // The hole value is a signalling NaN, so just silence it to get the float64
+  // value.
+  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  __ Subsd(value, kScratchDoubleReg);
 }
 
 void SetPendingMessage::SetValueLocationConstraints() {

@@ -1052,16 +1052,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void Float64SilenceNaN::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-
-void Float64SilenceNaN::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
-}
-
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());
@@ -1313,7 +1303,7 @@ void JumpToFailIfNotHeapNumberOrOddball(
         }
       }
       break;
-    case TaggedToFloat64ConversionType::kNumber:
+    case TaggedToFloat64ConversionType::kOnlyNumber:
       // Check if HeapNumber, jump to fail otherwise.
       if (fail) {
         __ IsObjectType(value, InstanceType::HEAP_NUMBER_TYPE);
@@ -1424,8 +1414,20 @@ void TruncateNumberOrOddballToInt32::GenerateCode(
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
   DCHECK_EQ(value, result_reg);
-  EmitTruncateNumberOrOddballToInt32(masm, value, result_reg, conversion_type(),
-                                     nullptr);
+  EmitTruncateNumberOrOddballToInt32(
+      masm, value, result_reg, TaggedToFloat64ConversionType::kNumberOrOddball,
+      nullptr);
+}
+
+void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the float64
+  // value.
+  __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
 void IncreaseInterruptBudget::SetValueLocationConstraints() {
@@ -1794,50 +1796,6 @@ DEF_STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, DoubleRegister,
                       ToDoubleRegister, /*check_detached*/ false)
 
 #undef DEF_STORE_TYPED_ARRAY
-
-void LoadFixedArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-}
-void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(elements);
-    __ IsObjectType(elements, FIXED_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
-  }
-  Register result_reg = ToRegister(result());
-  __ Add(result_reg, elements, Operand(index, LSL, kTaggedSizeLog2));
-  if (this->decompresses_tagged_result()) {
-    __ DecompressTagged(result_reg,
-                        FieldMemOperand(result_reg, FixedArray::kHeaderSize));
-  } else {
-    __ Ldr(result_reg.W(),
-           FieldMemOperand(result_reg, FixedArray::kHeaderSize));
-  }
-}
-
-void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
-  UseAndClobberRegister(elements_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-}
-void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(elements);
-    __ IsObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
-  }
-  __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
-  __ Ldr(ToDoubleRegister(result()),
-         FieldMemOperand(elements, FixedArray::kHeaderSize));
-}
 
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());

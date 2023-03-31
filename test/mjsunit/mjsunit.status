@@ -1929,8 +1929,6 @@
   'compiler/bigint-shift-left': [FAIL],
   'compiler/bigint-multiply-truncate': [FAIL],
   'wasm/bigint-opt': [FAIL],
-  # Maglev doesn't promote Number to NumberOrOddball ops based on uses.
-  'getters-on-elements': [FAIL],
   # Maglev doesn't inline the call being tested here.
   'compiler/call-with-arraylike-or-spread': [FAIL],
   'compiler/call-with-arraylike-or-spread-3': [FAIL],

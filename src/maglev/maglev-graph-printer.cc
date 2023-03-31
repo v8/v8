@@ -617,6 +617,9 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
     case ValueRepresentation::kFloat64:
       os_ << "ᶠ";
       break;
+    case ValueRepresentation::kHoleyFloat64:
+      os_ << "ʰᶠ";
+      break;
     case ValueRepresentation::kWord64:
       UNREACHABLE();
   }
@@ -640,7 +643,12 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
       os_ << " (compressed)";
     }
   }
-  os_ << " → " << phi->result().operand() << "\n";
+  os_ << " → " << phi->result().operand();
+  if (phi->has_valid_live_range()) {
+    os_ << ", live range: [" << phi->live_range().start << "-"
+        << phi->live_range().end << "]";
+  }
+  os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
@@ -757,6 +765,9 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kFloat64:
             os_ << "ᶠ";
+            break;
+          case ValueRepresentation::kHoleyFloat64:
+            os_ << "ʰᶠ";
             break;
           case ValueRepresentation::kWord64:
             UNREACHABLE();

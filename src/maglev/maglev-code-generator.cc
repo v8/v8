@@ -625,6 +625,8 @@ class ExceptionHandlerTrampolineBuilder {
         case ValueRepresentation::kFloat64:
           materialising_moves->emplace_back(target, source);
           break;
+        case ValueRepresentation::kHoleyFloat64:
+          UNREACHABLE();
       }
     }
   }
@@ -851,7 +853,7 @@ class MaglevCodeGeneratingNodeProcessor {
              << graph_labeller()->NodeId(phi) << ")";
           __ RecordComment(ss.str());
         }
-        if (phi->value_representation() == ValueRepresentation::kFloat64) {
+        if (phi->use_double_register()) {
           DCHECK(!phi->decompresses_tagged_result());
           double_register_moves.RecordMove(node, source, target, false);
         } else {
@@ -859,7 +861,7 @@ class MaglevCodeGeneratingNodeProcessor {
                                     kDoesNotNeedDecompression);
         }
         if (target.IsAnyRegister()) {
-          if (phi->value_representation() == ValueRepresentation::kFloat64) {
+          if (phi->use_double_register()) {
             double_registers_set_by_phis.set(target.GetDoubleRegister());
           } else {
             registers_set_by_phis.set(target.GetRegister());
@@ -1233,6 +1235,10 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->StoreDoubleRegister(
             operand.GetDoubleRegister());
         break;
+      case ValueRepresentation::kHoleyFloat64:
+        translation_array_builder_->StoreHoleyDoubleRegister(
+            operand.GetDoubleRegister());
+        break;
     }
   }
 
@@ -1253,6 +1259,9 @@ class MaglevTranslationArrayBuilder {
         break;
       case ValueRepresentation::kFloat64:
         translation_array_builder_->StoreDoubleStackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kHoleyFloat64:
+        translation_array_builder_->StoreHoleyDoubleStackSlot(stack_slot);
         break;
     }
   }

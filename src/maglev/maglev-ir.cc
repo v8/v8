@@ -11,6 +11,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/heap-refs.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
@@ -389,7 +390,11 @@ void CheckValueInputIs(const NodeBase* node, int i,
   ValueNode* input = node->input(i).node();
   DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
-  if (got != expected) {
+  // Allow Float64 values to be inputs when HoleyFloat64 is expected.
+  bool valid =
+      (got == expected) || (got == ValueRepresentation::kFloat64 &&
+                            expected == ValueRepresentation::kHoleyFloat64);
+  if (!valid) {
     std::ostringstream str;
     str << "Type representation error: node ";
     if (graph_labeller) {
@@ -460,6 +465,7 @@ void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
     CASE_REPR(Int32)
     CASE_REPR(Uint32)
     CASE_REPR(Float64)
+    CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
     case ValueRepresentation::kWord64:
       UNREACHABLE();
@@ -667,8 +673,8 @@ Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
 namespace {
 template <typename NodeT>
 void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
-  if constexpr (NodeT::kProperties.value_representation() !=
-                ValueRepresentation::kFloat64) {
+  if constexpr (!IsDoubleRepresentation(
+                    NodeT::kProperties.value_representation())) {
     return node->DoLoadToRegister(masm, reg);
   } else {
     UNREACHABLE();
@@ -677,8 +683,8 @@ void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
 template <typename NodeT>
 void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm,
                           DoubleRegister reg) {
-  if constexpr (NodeT::kProperties.value_representation() ==
-                ValueRepresentation::kFloat64) {
+  if constexpr (IsDoubleRepresentation(
+                    NodeT::kProperties.value_representation())) {
     return node->DoLoadToRegister(masm, reg);
   } else {
     UNREACHABLE();
@@ -1163,6 +1169,21 @@ DEF_OPERATION(Int32GreaterThan)
 DEF_OPERATION(Int32GreaterThanOrEqual)
 #undef DEF_OPERATION
 
+void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister value = ToDoubleRegister(input());
+  __ DoubleToInt64Repr(scratch, value);
+  __ EmitEagerDeoptIf(__ IsInt64Constant(scratch, kHoleNanInt64),
+                      DeoptimizeReason::kHole, this);
+}
+
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -1379,6 +1400,49 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
   }
 
   __ bind(*done);
+}
+
+void LoadFixedArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  if (this->decompresses_tagged_result()) {
+    __ LoadFixedArrayElement(result_reg, elements, index);
+  } else {
+    __ LoadFixedArrayElementWithoutDecompressing(result_reg, elements, index);
+  }
+}
+
+void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
+}
+
+void LoadHoleyFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadHoleyFixedDoubleArrayElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
 }
 
 int StoreMap::MaxCallStackArgs() const {
@@ -2523,7 +2587,7 @@ void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
   if (canonicalize_smi()) {
     __ TryTruncateDoubleToInt32(object, value, &box);
     __ SmiTagInt32(object, &box);
-    __ jmp(&done);
+    __ Jump(&done, Label::kNear);
     __ bind(&box);
   }
   __ AllocateHeapNumber(register_snapshot(), object, value);
@@ -2532,34 +2596,43 @@ void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void Float64Round::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-  if (kind_ == Kind::kNearest) {
-    set_double_temporaries_needed(1);
-  }
-}
-void HoleyFloat64Box::SetValueLocationConstraints() {
+void HoleyFloat64ToTagged::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
+void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   ZoneLabelRef done(masm);
   DoubleRegister value = ToDoubleRegister(input());
   // Using return as scratch register.
   Register repr = ToRegister(result());
   Register object = ToRegister(result());
+  Label box;
+  if (canonicalize_smi()) {
+    __ TryTruncateDoubleToInt32(object, value, &box);
+    __ SmiTagInt32(object, &box);
+    __ Jump(*done, Label::kNear);
+    __ bind(&box);
+  }
   __ DoubleToInt64Repr(repr, value);
   __ JumpToDeferredIf(
       __ IsInt64Constant(repr, kHoleNanInt64),
       [](MaglevAssembler* masm, Register object, ZoneLabelRef done) {
+        // TODO(leszeks): Evaluate whether this is worth deferring.
         __ LoadRoot(object, RootIndex::kUndefinedValue);
         __ Jump(*done);
       },
       object, done);
   __ AllocateHeapNumber(register_snapshot(), object, value);
   __ bind(*done);
+}
+
+void Float64Round::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  if (kind_ == Kind::kNearest) {
+    set_double_temporaries_needed(1);
+  }
 }
 
 void CheckedSmiTagFloat64::SetValueLocationConstraints() {

@@ -120,8 +120,7 @@ class MergePointInterpreterFrameState;
   V(Float64LessThanOrEqual)             \
   V(Float64GreaterThan)                 \
   V(Float64GreaterThanOrEqual)          \
-  V(Float64Ieee754Unary)                \
-  V(Float64SilenceNaN)
+  V(Float64Ieee754Unary)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
@@ -176,6 +175,7 @@ class MergePointInterpreterFrameState;
   V(LoadTaggedFieldByFieldIndex)             \
   V(LoadFixedArrayElement)                   \
   V(LoadFixedDoubleArrayElement)             \
+  V(LoadHoleyFixedDoubleArrayElement)        \
   V(LoadSignedIntDataViewElement)            \
   V(LoadDoubleDataViewElement)               \
   V(LoadSignedIntTypedArrayElement)          \
@@ -223,10 +223,12 @@ class MergePointInterpreterFrameState;
   V(Int32ToNumber)                           \
   V(Uint32ToNumber)                          \
   V(Float64ToTagged)                         \
-  V(HoleyFloat64Box)                         \
+  V(HoleyFloat64ToTagged)                    \
   V(CheckedSmiTagFloat64)                    \
   V(CheckedNumberOrOddballToFloat64)         \
   V(UncheckedNumberOrOddballToFloat64)       \
+  V(CheckedHoleyFloat64ToFloat64)            \
+  V(HoleyFloat64ToMaybeNanFloat64)           \
   V(LogicalNot)                              \
   V(SetPendingMessage)                       \
   V(StringAt)                                \
@@ -440,11 +442,17 @@ enum class ValueRepresentation : uint8_t {
   kInt32,
   kUint32,
   kFloat64,
+  kHoleyFloat64,
   kWord64
 };
 
+inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
+  return repr == ValueRepresentation::kFloat64 ||
+         repr == ValueRepresentation::kHoleyFloat64;
+}
+
 enum class TaggedToFloat64ConversionType : uint8_t {
-  kNumber,
+  kOnlyNumber,
   kNumberOrOddball,
 };
 
@@ -490,6 +498,8 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "Uint32";
     case ValueRepresentation::kFloat64:
       return os << "Float64";
+    case ValueRepresentation::kHoleyFloat64:
+      return os << "HoleyFloat64";
     case ValueRepresentation::kWord64:
       return os << "Word64";
   }
@@ -498,7 +508,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline std::ostream& operator<<(
     std::ostream& os, const TaggedToFloat64ConversionType& conversion_type) {
   switch (conversion_type) {
-    case TaggedToFloat64ConversionType::kNumber:
+    case TaggedToFloat64ConversionType::kOnlyNumber:
       return os << "Number";
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       return os << "NumberOrOddball";
@@ -751,6 +761,10 @@ class OpProperties {
   static constexpr OpProperties Float64() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kFloat64));
+  }
+  static constexpr OpProperties HoleyFloat64() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kHoleyFloat64));
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
@@ -1762,8 +1776,7 @@ class ValueNode : public Node {
   bool is_dead() const { return next_use_ == kInvalidNodeId; }
 
   constexpr bool use_double_register() const {
-    return (properties().value_representation() ==
-            ValueRepresentation::kFloat64);
+    return IsDoubleRepresentation(properties().value_representation());
   }
 
   constexpr bool is_tagged() const {
@@ -1804,6 +1817,8 @@ class ValueNode : public Node {
       case ValueRepresentation::kWord64:
         return MachineRepresentation::kWord64;
       case ValueRepresentation::kFloat64:
+        return MachineRepresentation::kFloat64;
+      case ValueRepresentation::kHoleyFloat64:
         return MachineRepresentation::kFloat64;
     }
   }
@@ -2315,7 +2330,7 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
  public:
   static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -2348,7 +2363,7 @@ class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -2422,7 +2437,7 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
@@ -2443,7 +2458,7 @@ class Float64Ieee754Unary
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
@@ -2454,23 +2469,6 @@ class Float64Ieee754Unary
 
  private:
   ExternalReference ieee_function_;
-};
-
-class Float64SilenceNaN : public FixedInputValueNodeT<1, Float64SilenceNaN> {
-  using Base = FixedInputValueNodeT<1, Float64SilenceNaN>;
-
- public:
-  explicit Float64SilenceNaN(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Float64();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  Input& input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
@@ -2706,7 +2704,7 @@ class Float64ToUint8Clamped
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
@@ -2801,15 +2799,20 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
-class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64Box>;
+class HoleyFloat64ToTagged
+    : public FixedInputValueNodeT<1, HoleyFloat64ToTagged> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64ToTagged>;
 
  public:
-  explicit HoleyFloat64Box(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };
+  explicit HoleyFloat64ToTagged(
+      uint64_t bitfield, ConversionMode mode = ConversionMode::kCanonicalizeSmi)
+      : Base(ConversionModeBitField::update(bitfield, mode)) {}
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -2817,6 +2820,13 @@ class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  bool canonicalize_smi() {
+    return ConversionModeBitField::decode(bitfield()) ==
+           ConversionMode::kCanonicalizeSmi;
+  }
+  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
 class CheckedSmiTagFloat64
@@ -2826,7 +2836,7 @@ class CheckedSmiTagFloat64
  public:
   explicit CheckedSmiTagFloat64(uint64_t bitfield) : Base(bitfield) {}
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::ConversionNode();
@@ -2928,7 +2938,7 @@ class CheckedTruncateFloat64ToInt32
                                               OpProperties::Int32() |
                                               OpProperties::ConversionNode();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
@@ -2959,7 +2969,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
@@ -2978,7 +2988,7 @@ class CheckedTruncateFloat64ToUint32
  public:
   explicit CheckedTruncateFloat64ToUint32(uint64_t bitfield) : Base(bitfield) {}
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Uint32() |
@@ -3010,9 +3020,10 @@ class CheckedTruncateFloat64ToUint32
   };
 
 DEFINE_TRUNCATE_NODE(TruncateUint32ToInt32, Uint32, OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, Float64, OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, HoleyFloat64,
+                     OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(UnsafeTruncateUint32ToInt32, Uint32, OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, Float64,
+DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 
 #undef DEFINE_TRUNCATE_NODE
@@ -3078,6 +3089,47 @@ class UncheckedNumberOrOddballToFloat64
       NextBitField<TaggedToFloat64ConversionType, 1>;
 };
 
+class CheckedHoleyFloat64ToFloat64
+    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToFloat64> {
+  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToFloat64>;
+
+ public:
+  explicit CheckedHoleyFloat64ToFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Float64() |
+                                              OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class HoleyFloat64ToMaybeNanFloat64
+    : public FixedInputValueNodeT<1, HoleyFloat64ToMaybeNanFloat64> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64ToMaybeNanFloat64>;
+
+ public:
+  explicit HoleyFloat64ToMaybeNanFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class TruncateNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {
   using Base = FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32>;
@@ -3088,15 +3140,15 @@ class TruncateNumberOrOddballToInt32
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {}
 
-  static constexpr OpProperties kProperties = OpProperties ::Int32();
+  static constexpr OpProperties kProperties = OpProperties::Int32();
   static constexpr
-      typename Base ::InputTypes kInputTypes{ValueRepresentation ::kTagged};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  Input& input() { return Node ::input(0); }
+  Input& input() { return Node::input(0); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std ::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -5180,6 +5232,29 @@ class LoadFixedDoubleArrayElement
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class LoadHoleyFixedDoubleArrayElement
+    : public FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElement>;
+
+ public:
+  explicit LoadHoleyFixedDoubleArrayElement(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::HoleyFloat64();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class StoreFixedDoubleArrayElement
     : public FixedInputNodeT<3, StoreFixedDoubleArrayElement> {
   using Base = FixedInputNodeT<3, StoreFixedDoubleArrayElement>;
@@ -5190,7 +5265,7 @@ class StoreFixedDoubleArrayElement
   static constexpr OpProperties kProperties = OpProperties::Writing();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kFloat64};
+      ValueRepresentation::kHoleyFloat64};
 
   static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;
@@ -5381,10 +5456,10 @@ STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, OpProperties::Writing(),
 
 STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement,
                   OpProperties::EagerDeopt() | OpProperties::Writing(),
-                  ValueRepresentation::kFloat64, FLOAT32_ELEMENTS,
+                  ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
 STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, OpProperties::Writing(),
-                  ValueRepresentation::kFloat64, FLOAT32_ELEMENTS,
+                  ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
 #undef STORE_TYPED_ARRAY
 
@@ -5440,7 +5515,7 @@ class StoreDoubleDataViewElement
   static constexpr OpProperties kProperties = OpProperties::Writing();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kFloat64, ValueRepresentation::kTagged};
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kTagged};
 
   static constexpr int kObjectIndex = 0;
   static constexpr int kIndexIndex = 1;
@@ -6108,6 +6183,7 @@ enum class UseRepresentation : uint8_t {
   kTruncatedInt32,
   kUint32,
   kFloat64,
+  kHoleyFloat64,
 };
 typedef base::EnumSet<ValueRepresentation> ValueRepresentationSet;
 typedef base::EnumSet<UseRepresentation> UseRepresentationSet;

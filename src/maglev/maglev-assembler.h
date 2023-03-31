@@ -112,6 +112,14 @@ class MaglevAssembler : public MacroAssembler {
                                         int offset);
   inline void LoadExternalPointerField(Register result, MemOperand operand);
 
+  inline void LoadFixedArrayElement(Register result, Register array,
+                                    Register index);
+  inline void LoadFixedArrayElementWithoutDecompressing(Register result,
+                                                        Register array,
+                                                        Register index);
+  inline void LoadFixedDoubleArrayElement(DoubleRegister result, Register array,
+                                          Register index);
+
   inline void LoadSignedField(Register result, MemOperand operand,
                               int element_size);
   inline void LoadUnsignedField(Register result, MemOperand operand,

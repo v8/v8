@@ -188,6 +188,12 @@ struct FastLiteralField {
     return ReduceResult::DoneWithAbort(); \
   }
 
+enum class ToNumberHint {
+  kDisallowToNumber,
+  kAssumeNumber,
+  kAssumeNumberOrOddball
+};
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(
@@ -907,28 +913,49 @@ class MaglevGraphBuilder {
 
   ValueNode* GetInternalizedString(interpreter::Register reg);
 
-  ValueNode* GetTruncatedInt32FromNumber(
-      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+  // Get an Int32 representation node whose value is equivalent to the ToInt32
+  // truncation of the given node (including a ToNumber call). Only trivial
+  // ToNumber is allowed -- values that are already numeric, and optionally
+  // oddballs.
+  //
+  // Deopts if the ToNumber is non-trivial.
+  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value, ToNumberHint hint);
 
-  ValueNode* GetTruncatedInt32FromNumber(
-      interpreter::Register reg,
-      TaggedToFloat64ConversionType conversion_type) {
-    return GetTruncatedInt32FromNumber(current_interpreter_frame_.get(reg),
-                                       conversion_type);
+  ValueNode* GetTruncatedInt32ForToNumber(interpreter::Register reg,
+                                          ToNumberHint hint) {
+    return GetTruncatedInt32ForToNumber(current_interpreter_frame_.get(reg),
+                                        hint);
   }
 
-  ValueNode* GetUint32ClampedFromNumber(ValueNode* value);
+  // Get an Int32 representation node whose value is equivalent to the ToUint8
+  // truncation of the given node (including a ToNumber call). Only trivial
+  // ToNumber is allowed -- values that are already numeric, and optionally
+  // oddballs.
+  //
+  // Deopts if the ToNumber is non-trivial.
+  ValueNode* GetUint8ClampedForToNumber(ValueNode* value, ToNumberHint hint);
 
-  ValueNode* GetUint32ClampedFromNumber(interpreter::Register reg) {
-    return GetUint32ClampedFromNumber(current_interpreter_frame_.get(reg));
+  ValueNode* GetUint8ClampedForToNumber(interpreter::Register reg,
+                                        ToNumberHint hint) {
+    return GetUint8ClampedForToNumber(current_interpreter_frame_.get(reg),
+                                      hint);
   }
 
+  // Get an Int32 representation node whose value is equivalent to the ToInt32
+  // truncation of the given node. Only trivial truncation is allowed, namely
+  // values that are already int32 or uint32.
+  //
+  // Deopts if the truncation is non-trivial.
   ValueNode* GetTruncatedInt32(ValueNode* node);
 
   ValueNode* GetTruncatedInt32(interpreter::Register reg) {
     return GetTruncatedInt32(current_interpreter_frame_.get(reg));
   }
 
+  // Get an Int32 representation node whose value is equivalent to the given
+  // node.
+  //
+  // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value);
 
   ValueNode* GetInt32(interpreter::Register reg) {
@@ -936,12 +963,35 @@ class MaglevGraphBuilder {
     return GetInt32(value);
   }
 
-  ValueNode* GetFloat64(ValueNode* value,
-                        TaggedToFloat64ConversionType conversion_type);
+  // Get a Float64 representation node whose value is equivalent to the given
+  // node.
+  //
+  // Deopts if the value is not exactly representable as a Float64.
+  ValueNode* GetFloat64(ValueNode* value);
 
-  ValueNode* GetFloat64(interpreter::Register reg,
-                        TaggedToFloat64ConversionType conversion_type) {
-    return GetFloat64(current_interpreter_frame_.get(reg), conversion_type);
+  ValueNode* GetFloat64(interpreter::Register reg) {
+    return GetFloat64(current_interpreter_frame_.get(reg));
+  }
+
+  // Get a Float64 representation node whose value is the result of ToNumber on
+  // the given node. Only trivial ToNumber is allowed -- values that are already
+  // numeric, and optionally oddballs.
+  //
+  // Deopts if the ToNumber value is not exactly representable as a Float64, or
+  // the ToNumber is non-trivial.
+  ValueNode* GetFloat64ForToNumber(ValueNode* value, ToNumberHint hint);
+
+  ValueNode* GetFloat64ForToNumber(interpreter::Register reg,
+                                   ToNumberHint hint) {
+    return GetFloat64ForToNumber(current_interpreter_frame_.get(reg), hint);
+  }
+
+  ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value, ToNumberHint hint);
+
+  ValueNode* GetHoleyFloat64ForToNumber(interpreter::Register reg,
+                                        ToNumberHint hint) {
+    return GetHoleyFloat64ForToNumber(current_interpreter_frame_.get(reg),
+                                      hint);
   }
 
   ValueNode* GetRawAccumulator() {
@@ -961,21 +1011,28 @@ class MaglevGraphBuilder {
     return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorTruncatedInt32FromNumber(
-      TaggedToFloat64ConversionType conversion_type) {
-    return GetTruncatedInt32FromNumber(
-        interpreter::Register::virtual_accumulator(), conversion_type);
+  ValueNode* GetAccumulatorTruncatedInt32ForToNumber(ToNumberHint hint) {
+    return GetTruncatedInt32ForToNumber(
+        interpreter::Register::virtual_accumulator(), hint);
   }
 
-  ValueNode* GetAccumulatorUint32ClampedFromNumber() {
-    return GetUint32ClampedFromNumber(
-        interpreter::Register::virtual_accumulator());
+  ValueNode* GetAccumulatorUint8ClampedForToNumber(ToNumberHint hint) {
+    return GetUint8ClampedForToNumber(
+        interpreter::Register::virtual_accumulator(), hint);
   }
 
-  ValueNode* GetAccumulatorFloat64(
-      TaggedToFloat64ConversionType conversion_type) {
-    return GetFloat64(interpreter::Register::virtual_accumulator(),
-                      conversion_type);
+  ValueNode* GetAccumulatorFloat64() {
+    return GetFloat64(interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorFloat64ForToNumber(ToNumberHint hint) {
+    return GetFloat64ForToNumber(interpreter::Register::virtual_accumulator(),
+                                 hint);
+  }
+
+  ValueNode* GetAccumulatorHoleyFloat64ForToNumber(ToNumberHint hint) {
+    return GetHoleyFloat64ForToNumber(
+        interpreter::Register::virtual_accumulator(), hint);
   }
 
   ValueNode* GetSilencedNaN(ValueNode* value) {
@@ -995,7 +1052,7 @@ class MaglevGraphBuilder {
     }
 
     // Silence all other values.
-    return AddNewNode<Float64SilenceNaN>({value});
+    return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
   }
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
@@ -1021,10 +1078,20 @@ class MaglevGraphBuilder {
     return GetTruncatedInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadRegisterFloat64(
-      int operand_index, TaggedToFloat64ConversionType conversion_type) {
-    return GetFloat64(iterator_.GetRegisterOperand(operand_index),
-                      conversion_type);
+  ValueNode* LoadRegisterFloat64(int operand_index) {
+    return GetFloat64(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterFloat64ForToNumber(int operand_index,
+                                            ToNumberHint hint) {
+    return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
+                                 hint);
+  }
+
+  ValueNode* LoadRegisterHoleyFloat64ForToNumber(int operand_index,
+                                                 ToNumberHint hint) {
+    return GetHoleyFloat64ForToNumber(
+        iterator_.GetRegisterOperand(operand_index), hint);
   }
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* node, int index) {
@@ -1545,27 +1612,21 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   void BuildInt32UnaryOperationNode();
-  void BuildTruncatingInt32BitwiseNotForNumber(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildTruncatingInt32BitwiseNotForToNumber(ToNumberHint hint);
   template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();
   template <Operation kOperation>
-  void BuildTruncatingInt32BinaryOperationNodeForNumber(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildTruncatingInt32BinaryOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
-  void BuildTruncatingInt32BinarySmiOperationNodeForNumber(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildTruncatingInt32BinarySmiOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
-  void BuildFloat64UnaryOperationNode(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildFloat64UnaryOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
-  void BuildFloat64BinaryOperationNode(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildFloat64BinaryOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
-  void BuildFloat64BinarySmiOperationNode(
-      TaggedToFloat64ConversionType conversion_type);
+  void BuildFloat64BinarySmiOperationNodeForToNumber(ToNumberHint hint);
 
   template <Operation kOperation>
   void VisitUnaryOperation();
