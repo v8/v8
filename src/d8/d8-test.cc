@@ -318,41 +318,15 @@ class FastCApiObject {
   }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   template <typename T>
-  static const FastApiTypedArray<T>* AnyCTypeToTypedArray(AnyCType arg);
-
-  template <>
-  const FastApiTypedArray<uint8_t>* AnyCTypeToTypedArray<uint8_t>(
-      AnyCType arg) {
-    return arg.uint8_ta_value;
-  }
-
-  template <>
-  const FastApiTypedArray<int32_t>* AnyCTypeToTypedArray<int32_t>(
-      AnyCType arg) {
-    return arg.int32_ta_value;
-  }
-  template <>
-  const FastApiTypedArray<uint32_t>* AnyCTypeToTypedArray<uint32_t>(
-      AnyCType arg) {
-    return arg.uint32_ta_value;
-  }
-  template <>
-  const FastApiTypedArray<int64_t>* AnyCTypeToTypedArray<int64_t>(
-      AnyCType arg) {
-    return arg.int64_ta_value;
-  }
-  template <>
-  const FastApiTypedArray<uint64_t>* AnyCTypeToTypedArray<uint64_t>(
-      AnyCType arg) {
-    return arg.uint64_ta_value;
-  }
-  template <>
-  const FastApiTypedArray<float>* AnyCTypeToTypedArray<float>(AnyCType arg) {
-    return arg.float_ta_value;
-  }
-  template <>
-  const FastApiTypedArray<double>* AnyCTypeToTypedArray<double>(AnyCType arg) {
-    return arg.double_ta_value;
+  static const FastApiTypedArray<T>* AnyCTypeToTypedArray(AnyCType arg) {
+    if constexpr (std::is_same_v<T, uint8_t>) return arg.uint8_ta_value;
+    if constexpr (std::is_same_v<T, int32_t>) return arg.int32_ta_value;
+    if constexpr (std::is_same_v<T, uint32_t>) return arg.uint32_ta_value;
+    if constexpr (std::is_same_v<T, int64_t>) return arg.int64_ta_value;
+    if constexpr (std::is_same_v<T, uint64_t>) return arg.uint64_ta_value;
+    if constexpr (std::is_same_v<T, float>) return arg.float_ta_value;
+    if constexpr (std::is_same_v<T, double>) return arg.double_ta_value;
+    UNREACHABLE();
   }
 
   template <typename T>
