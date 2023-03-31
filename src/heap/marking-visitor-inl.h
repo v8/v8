@@ -168,7 +168,6 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
     Map map, BytecodeArray object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
@@ -201,8 +200,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo shared_info) {
-  if (!concrete_visitor()->ShouldVisit(shared_info)) return 0;
-
   int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
   this->VisitMapPointer(shared_info);
   SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
@@ -266,7 +263,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
     Map map, FixedArray object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
   concrete_visitor()->VisitMapPointerIfNeeded(object);
   FixedArray::BodyDescriptor::IterateBody(map, object, size,
@@ -357,7 +353,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSTypedArray(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
-  if (!concrete_visitor()->ShouldVisit(table)) return 0;
   local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
   for (InternalIndex i : table.IterateEntries()) {
@@ -429,8 +424,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
     Map map, WeakCell weak_cell) {
-  if (!concrete_visitor()->ShouldVisit(weak_cell)) return 0;
-
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
@@ -466,7 +459,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitDescriptorArrayStrongly(Map map, DescriptorArray array) {
-  concrete_visitor()->ShouldVisit(array);
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
@@ -562,7 +554,6 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
-  if (!concrete_visitor()->ShouldVisit(map)) return 0;
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   VisitDescriptorsForMap(map);
 
@@ -576,7 +567,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
     Map map, TransitionArray array) {
-  if (!concrete_visitor()->ShouldVisit(array)) return 0;
   this->VisitMapPointer(array);
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
@@ -690,7 +680,6 @@ void YoungGenerationMarkingVisitorBase<
         concrete_visitor()->marking_state()->TryMark(heap_object)) {
       Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
       if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
-        CHECK(concrete_visitor()->ShouldVisit(heap_object));
         const int visited_size = heap_object.SizeFromMap(map);
         concrete_visitor()->marking_state()->IncrementLiveBytes(
             MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),

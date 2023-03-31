@@ -103,7 +103,6 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
   ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(      \
       Map map, TypeName object) {                                            \
     ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);          \
-    if (!visitor->ShouldVisit(object)) return ResultType();                  \
     /* If you see the following DCHECK fail, then the size computation of    \
      * BodyDescriptor doesn't match the size return via obj.Size(). This is  \
      * problematic as the GC requires those sizes to match for accounting    \
@@ -130,7 +129,6 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
     Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map.instance_size();
   visitor->VisitMapPointerIfNeeded(object);
 #ifdef V8_ENABLE_SANDBOX
@@ -161,7 +159,6 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
     Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map.instance_size();
   visitor->VisitMapPointerIfNeeded(object);
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
@@ -172,7 +169,6 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
     Map map, FreeSpace object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
   visitor->VisitMapPointerIfNeeded(object);
   return static_cast<ResultType>(object.size(kRelaxedLoad));
 }
@@ -182,7 +178,6 @@ template <typename T, typename TBodyDescriptor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
     Map map, T object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return 0;
   visitor->VisitMapPointerIfNeeded(object);
   const int size = TBodyDescriptor::SizeOf(map, object);
   const int used_size = map.UsedInstanceSize();
@@ -248,7 +243,6 @@ ResultType ConcurrentHeapVisitor<ResultType,
                                  ConcreteVisitor>::VisitStringLocked(T object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   SharedObjectLockGuard guard(object);
-  if (!visitor->ShouldVisit(object)) return ResultType();
   visitor->VisitMapPointerIfNeeded(object);
   // The object has been locked. At this point shared read access is
   // guaranteed but we must re-read the map and check whether the string has

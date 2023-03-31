@@ -84,8 +84,6 @@ class YoungGenerationConcurrentMarkingVisitor final
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
 
-  constexpr bool ShouldVisit(HeapObject object) const { return true; }
-
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 
@@ -132,8 +130,6 @@ class ConcurrentMarkingVisitor final
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
-
-  constexpr bool ShouldVisit(HeapObject object) const { return true; }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
