@@ -23,6 +23,7 @@
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/deopt-data.h"
@@ -152,7 +153,8 @@ struct FrameStateOp;
   V(ArgumentsLength)                 \
   V(NewArgumentsElements)            \
   V(CompareMaps)                     \
-  V(CheckMaps)
+  V(CheckMaps)                       \
+  V(FastApiCall)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -849,7 +851,6 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
       : Base(input), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK(IsSupported(kind, rep));
     DCHECK(ValidOpInputRep(graph, input(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
@@ -3371,6 +3372,123 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   }
 
   auto options() const { return std::tuple{maps, flags, feedback}; }
+};
+
+struct FastApiCallParameters : public NON_EXPORTED_BASE(ZoneObject) {
+  const FastApiCallFunctionVector c_functions;
+  fast_api_call::OverloadsResolutionResult resolution_result;
+
+  const CFunctionInfo* c_signature() const { return c_functions[0].signature; }
+
+  FastApiCallParameters(
+      const FastApiCallFunctionVector& c_functions,
+      const fast_api_call::OverloadsResolutionResult& resolution_result)
+      : c_functions(c_functions), resolution_result(resolution_result) {
+    DCHECK_LT(0, c_functions.size());
+  }
+
+  static const FastApiCallParameters* Create(
+      const FastApiCallFunctionVector& c_functions,
+      const fast_api_call::OverloadsResolutionResult& resolution_result,
+      Zone* graph_zone) {
+    return graph_zone->New<FastApiCallParameters>(std::move(c_functions),
+                                                  resolution_result);
+  }
+};
+
+struct FastApiCallOp : OperationT<FastApiCallOp> {
+  static constexpr uint32_t kSuccessValue = 1;
+  static constexpr uint32_t kFailureValue = 0;
+  const FastApiCallParameters* parameters;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32(),
+                     RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex data_argument() const { return input(0); }
+  base::Vector<const OpIndex> arguments() const {
+    return inputs().SubVector(1, inputs().size());
+  }
+
+  FastApiCallOp(OpIndex data_argument, base::Vector<const OpIndex> arguments,
+                const FastApiCallParameters* parameters)
+      : Base(1 + arguments.size()), parameters(parameters) {
+    base::Vector<OpIndex> inputs = this->inputs();
+    inputs[0] = data_argument;
+    inputs.SubVector(1, 1 + arguments.size()).OverwriteWith(arguments);
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, data_argument(),
+                           RegisterRepresentation::Tagged()));
+    for (unsigned int i = 0; i < parameters->c_signature()->ArgumentCount();
+         ++i) {
+      const CTypeInfo& arg_type = parameters->c_signature()->ArgumentInfo(i);
+      uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+      switch (arg_type.GetSequenceType()) {
+        case CTypeInfo::SequenceType::kScalar:
+          if (flags &
+              static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
+            DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                   RegisterRepresentation::Float64()));
+          } else if (flags &
+                     static_cast<uint8_t>(CTypeInfo::Flags::kClampBit)) {
+            DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                   RegisterRepresentation::Float64()));
+          } else {
+            switch (arg_type.GetType()) {
+              case CTypeInfo::Type::kVoid:
+                UNREACHABLE();
+              case CTypeInfo::Type::kBool:
+              case CTypeInfo::Type::kUint8:
+              case CTypeInfo::Type::kInt32:
+              case CTypeInfo::Type::kUint32:
+                DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                       RegisterRepresentation::Word32()));
+                break;
+              case CTypeInfo::Type::kInt64:
+              case CTypeInfo::Type::kUint64:
+                DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                       RegisterRepresentation::Word64()));
+                break;
+              case CTypeInfo::Type::kV8Value:
+              case CTypeInfo::Type::kApiObject:
+              case CTypeInfo::Type::kPointer:
+              case CTypeInfo::Type::kSeqOneByteString:
+                DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                       RegisterRepresentation::Tagged()));
+                break;
+              case CTypeInfo::Type::kFloat32:
+              case CTypeInfo::Type::kFloat64:
+                DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                       RegisterRepresentation::Float64()));
+                break;
+              case CTypeInfo::Type::kAny:
+                break;
+            }
+          }
+          break;
+        case CTypeInfo::SequenceType::kIsSequence:
+        case CTypeInfo::SequenceType::kIsTypedArray:
+          DCHECK(ValidOpInputRep(graph, arguments()[i],
+                                 RegisterRepresentation::Tagged()));
+          break;
+        case CTypeInfo::SequenceType::kIsArrayBuffer:
+          UNREACHABLE();
+      }
+    }
+  }
+
+  static FastApiCallOp& New(Graph* graph, OpIndex data_argument,
+                            base::Vector<const OpIndex> arguments,
+                            const FastApiCallParameters* parameters) {
+    return Base::New(graph, 1 /*data_argument*/ + arguments.size(),
+                     data_argument, arguments, parameters);
+  }
+
+  auto options() const { return std::tuple{parameters}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

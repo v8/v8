@@ -20,6 +20,8 @@
 #include "src/codegen/reloc-info.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/globals.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matching.h"
@@ -1021,13 +1023,22 @@ class AssemblerOpInterface {
     }
     return stack().ReduceObjectIs(input, kind, input_assumptions);
   }
-  OpIndex FloatIs(OpIndex input, NumericKind kind,
-                  FloatRepresentation input_rep) {
+  V<Word32> ObjectIsSmi(V<Tagged> object) {
+    return ObjectIs(object, ObjectIsOp::Kind::kSmi,
+                    ObjectIsOp::InputAssumptions::kNone);
+  }
+
+  V<Word32> FloatIs(OpIndex input, NumericKind kind,
+                    FloatRepresentation input_rep) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceFloatIs(input, kind, input_rep);
   }
+  V<Word32> Float64IsNaN(V<Float64> input) {
+    return FloatIs(input, NumericKind::kNaN, FloatRepresentation::Float64());
+  }
+
   OpIndex ObjectIsNumericValue(OpIndex input, NumericKind kind,
                                FloatRepresentation input_rep) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -1035,12 +1046,8 @@ class AssemblerOpInterface {
     }
     return stack().ReduceObjectIsNumericValue(input, kind, input_rep);
   }
-  V<Word32> ObjectIsSmi(V<Tagged> object) {
-    return ObjectIs(object, ObjectIsOp::Kind::kSmi,
-                    ObjectIsOp::InputAssumptions::kNone);
-  }
 
-  OpIndex ConvertToObject(
+  V<Object> ConvertToObject(
       OpIndex input, ConvertToObjectOp::Kind kind,
       RegisterRepresentation input_rep,
       ConvertToObjectOp::InputInterpretation input_interpretation,
@@ -1051,12 +1058,24 @@ class AssemblerOpInterface {
     return stack().ReduceConvertToObject(input, kind, input_rep,
                                          input_interpretation, minus_zero_mode);
   }
-  V<Tagged> ConvertFloat64ToNumber(V<Float64> input,
+#define CONVERT_TO_OBJECT(name, kind, input_rep, input_interpretation)   \
+  V<kind> name(V<input_rep> input) {                                     \
+    return V<kind>::Cast(ConvertToObject(                                \
+        input, ConvertToObjectOp::Kind::k##kind,                         \
+        RegisterRepresentation::input_rep(),                             \
+        ConvertToObjectOp::InputInterpretation::k##input_interpretation, \
+        CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
+  }
+  CONVERT_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
+  CONVERT_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
+  CONVERT_TO_OBJECT(ConvertToBoolean, Boolean, Word32, Signed)
+#undef CONVERT_TO_OBJECT
+  V<Number> ConvertFloat64ToNumber(V<Float64> input,
                                    CheckForMinusZeroMode minus_zero_mode) {
-    return ConvertToObject(input, ConvertToObjectOp::Kind::kNumber,
-                           RegisterRepresentation::Float64(),
-                           ConvertToObjectOp::InputInterpretation::kSigned,
-                           minus_zero_mode);
+    return V<Number>::Cast(ConvertToObject(
+        input, ConvertToObjectOp::Kind::kNumber,
+        RegisterRepresentation::Float64(),
+        ConvertToObjectOp::InputInterpretation::kSigned, minus_zero_mode));
   }
 
   OpIndex ConvertToObjectOrDeopt(
@@ -1129,20 +1148,20 @@ class AssemblerOpInterface {
         return Word64Constant(value);
     }
   }
-  OpIndex IntPtrConstant(intptr_t value) {
+  V<WordPtr> IntPtrConstant(intptr_t value) {
     return UintPtrConstant(static_cast<uintptr_t>(value));
   }
-  OpIndex UintPtrConstant(uintptr_t value) {
+  V<WordPtr> UintPtrConstant(uintptr_t value) {
     return WordConstant(static_cast<uint64_t>(value),
                         WordRepresentation::PointerSized());
   }
-  OpIndex Float32Constant(float value) {
+  V<Float32> Float32Constant(float value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceConstant(ConstantOp::Kind::kFloat32, value);
   }
-  OpIndex Float64Constant(double value) {
+  V<Float64> Float64Constant(double value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -1169,13 +1188,16 @@ class AssemblerOpInterface {
     return stack().ReduceConstant(ConstantOp::Kind::kTaggedIndex,
                                   uint64_t{static_cast<uint32_t>(value)});
   }
-  OpIndex HeapConstant(Handle<HeapObject> value) {
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObject, T>>>
+  V<T> HeapConstant(Handle<T> value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConstant(ConstantOp::Kind::kHeapObject, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kHeapObject,
+                                  ConstantOp::Storage{value});
   }
-  OpIndex BuiltinCode(Builtin builtin, Isolate* isolate) {
+  V<Code> BuiltinCode(Builtin builtin, Isolate* isolate) {
     return HeapConstant(BuiltinCodeHandle(builtin, isolate));
   }
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
@@ -1491,8 +1513,12 @@ class AssemblerOpInterface {
     return value;
   }
 
+  // Helpers to read the most common fields.
   V<Map> LoadMapField(V<Object> object) {
     return LoadField<Map>(object, AccessBuilder::ForMap());
+  }
+  V<Word32> LoadInstanceTypeField(V<Map> map) {
+    return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
   void StoreField(V<Tagged> object, const FieldAccess& access, V<Any> value) {
@@ -1543,13 +1569,13 @@ class AssemblerOpInterface {
           access.header_size, rep.SizeInBytesLog2());
   }
 
-  V<Tagged> Allocate(
-      V<WordPtr> size, AllocationType type,
+  V<HeapObject> Allocate(
+      ConstOrV<WordPtr> size, AllocationType type,
       AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceAllocate(size, type, allow_large_objects);
+    return stack().ReduceAllocate(resolve(size), type, allow_large_objects);
   }
 
   OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
@@ -1624,6 +1650,11 @@ class AssemblerOpInterface {
       return OpIndex::Invalid();
     }
     return stack().ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
+  }
+  template <typename T>
+  V<T> Conditional(V<Word32> cond, V<T> vtrue, V<T> vfalse) {
+    return Select(cond, vtrue, vfalse, V<T>::rep, BranchHint::kNone,
+                  SelectOp::Implementation::kBranch);
   }
   void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
               Block* default_case,
@@ -2334,6 +2365,15 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceCheckMaps(heap_object, frame_state, maps, flags, feedback);
+  }
+
+  OpIndex FastApiCall(OpIndex data_argument,
+                      base::Vector<const OpIndex> arguments,
+                      const FastApiCallParameters* parameters) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceFastApiCall(data_argument, arguments, parameters);
   }
 
   template <typename Rep>

@@ -1743,6 +1743,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerStoreMessage(node);
       break;
     case IrOpcode::kFastApiCall:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerFastApiCall(node);
       break;
     case IrOpcode::kLoadFieldByIndex:
@@ -1795,21 +1799,25 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerConvertReceiver(node);
       break;
     case IrOpcode::kFloat64RoundUp:
+      if (v8_flags.turboshaft) return false;
       if (!LowerFloat64RoundUp(node).To(&result)) {
         return false;
       }
       break;
     case IrOpcode::kFloat64RoundDown:
+      if (v8_flags.turboshaft) return false;
       if (!LowerFloat64RoundDown(node).To(&result)) {
         return false;
       }
       break;
     case IrOpcode::kFloat64RoundTruncate:
+      if (v8_flags.turboshaft) return false;
       if (!LowerFloat64RoundTruncate(node).To(&result)) {
         return false;
       }
       break;
     case IrOpcode::kFloat64RoundTiesEven:
+      if (v8_flags.turboshaft) return false;
       if (!LowerFloat64RoundTiesEven(node).To(&result)) {
         return false;
       }
@@ -6565,7 +6573,7 @@ Node* EffectControlLinearizer::ClampFastCallArgument(
   auto done = __ MakeLabel(MachineRepresentation::kWord64);
 
   Node* check_is_zero = __ Float64Equal(rounded, __ Float64Constant(0));
-  __ Branch(check_is_zero, &check_for_nan, &check_done);
+  __ Branch(check_is_zero, &if_zero_or_nan, &check_for_nan);
 
   // Check if {rounded} is NaN.
   __ Bind(&check_for_nan);
@@ -6883,6 +6891,7 @@ Node* EffectControlLinearizer::GenerateSlowApiCall(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
 
@@ -7805,6 +7814,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundUp(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   // Nothing to be done if a fast hardware instruction is available.
   if (machine()->Float64RoundUp().IsSupported()) {
     return Nothing<Node*>();
@@ -7981,6 +7991,7 @@ Node* EffectControlLinearizer::BuildFloat64RoundDown(Node* value) {
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundDown(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   // Nothing to be done if a fast hardware instruction is available.
   if (machine()->Float64RoundDown().IsSupported()) {
     return Nothing<Node*>();
@@ -7991,6 +8002,7 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundDown(Node* node) {
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTiesEven(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   // Nothing to be done if a fast hardware instruction is available.
   if (machine()->Float64RoundTiesEven().IsSupported()) {
     return Nothing<Node*>();
@@ -8126,6 +8138,7 @@ Node* EffectControlLinearizer::BuildFloat64RoundTruncate(Node* input) {
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   // Nothing to be done if a fast hardware instruction is available.
   if (machine()->Float64RoundTruncate().IsSupported()) {
     return Nothing<Node*>();

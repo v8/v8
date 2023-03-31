@@ -819,6 +819,12 @@ class GraphVisitor {
                                        MapToNewGraph(op.frame_state()), op.maps,
                                        op.flags, op.feedback);
   }
+  OpIndex AssembleOutputGraphFastApiCall(const FastApiCallOp& op) {
+    auto arguments = MapToNewGraph<8>(op.arguments());
+    return assembler().ReduceFastApiCall(MapToNewGraph(op.data_argument()),
+                                         base::VectorOf(arguments),
+                                         op.parameters);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (current_block_needs_variables_) {

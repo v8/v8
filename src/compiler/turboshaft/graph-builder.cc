@@ -18,6 +18,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
@@ -1745,6 +1746,75 @@ OpIndex GraphBuilder::Process(
       __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, p.maps(),
                    p.flags(), p.feedback());
       return OpIndex{};
+    }
+
+    case IrOpcode::kFastApiCall: {
+      DCHECK(dominating_frame_state.valid());
+      FastApiCallNode n(node);
+      const auto& params = n.Parameters();
+      const FastApiCallFunctionVector& c_functions = params.c_functions();
+      const int c_arg_count = params.argument_count();
+
+      base::SmallVector<OpIndex, 16> slow_call_arguments;
+      DCHECK_EQ(node->op()->ValueInputCount() - c_arg_count,
+                n.SlowCallArgumentCount());
+      OpIndex slow_call_callee = Map(n.SlowCallArgument(0));
+      for (int i = 1; i < n.SlowCallArgumentCount(); ++i) {
+        slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
+      }
+
+      // Overload resolution.
+      auto resolution_result =
+          fast_api_call::OverloadsResolutionResult::Invalid();
+      if (c_functions.size() != 1) {
+        DCHECK_EQ(c_functions.size(), 2);
+        resolution_result =
+            fast_api_call::ResolveOverloads(c_functions, c_arg_count);
+        if (!resolution_result.is_valid()) {
+          return __ Call(
+              slow_call_callee, dominating_frame_state,
+              base::VectorOf(slow_call_arguments),
+              TSCallDescriptor::Create(params.descriptor(), __ graph_zone()));
+        }
+      }
+
+      // Prepare FastCallApiOp parameters.
+      base::SmallVector<OpIndex, 16> arguments;
+      for (int i = 0; i < c_arg_count; ++i) {
+        arguments.push_back(Map(NodeProperties::GetValueInput(node, i)));
+      }
+      OpIndex data_argument =
+          Map(n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
+      const FastApiCallParameters* parameters = FastApiCallParameters::Create(
+          c_functions, resolution_result, __ graph_zone());
+
+      Label<Object> done(this);
+
+      OpIndex fast_call_result =
+          __ FastApiCall(data_argument, base::VectorOf(arguments), parameters);
+      V<Word32> result_state =
+          __ template Projection<Word32>(fast_call_result, 0);
+
+      IF(LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
+        GOTO(done, __ template Projection<Object>(fast_call_result, 1));
+      }
+      ELSE {
+        // We need to generate a fallback (both fast and slow call) in case:
+        // 1) the generated code might fail, in case e.g. a Smi was passed where
+        // a JSObject was expected and an error must be thrown or
+        // 2) the embedder requested fallback possibility via providing options
+        // arg. None of the above usually holds true for Wasm functions with
+        // primitive types only, so we avoid generating an extra branch here.
+        V<Object> slow_call_result = __ Call(
+            slow_call_callee, dominating_frame_state,
+            base::VectorOf(slow_call_arguments),
+            TSCallDescriptor::Create(params.descriptor(), __ graph_zone()));
+        GOTO(done, slow_call_result);
+      }
+      END_IF
+
+      BIND(done, result);
+      return result;
     }
 
     case IrOpcode::kBeginRegion:

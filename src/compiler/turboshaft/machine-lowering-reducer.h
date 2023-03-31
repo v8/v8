@@ -7,6 +7,8 @@
 
 #include "src/base/logging.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/codegen/external-reference.h"
+#include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/feedback-source.h"
@@ -158,7 +160,7 @@ class MachineLoweringReducer : public Next {
           }
 
           // Check for BigInt.
-          V<Tagged> map = __ LoadMapField(input);
+          V<Map> map = __ LoadMapField(input);
           V<Word32> is_bigint_map =
               __ TaggedEqual(map, __ HeapConstant(factory_->bigint_map()));
           GOTO_IF_NOT(is_bigint_map, done, 0);
@@ -219,7 +221,7 @@ class MachineLoweringReducer : public Next {
         }
 
         // Load bitfield from map.
-        V<Tagged> map = __ LoadMapField(input);
+        V<Map> map = __ LoadMapField(input);
         V<Word32> bitfield =
             __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField());
 
@@ -253,8 +255,7 @@ class MachineLoweringReducer : public Next {
             V8_FALLTHROUGH;
           case ObjectIsOp::Kind::kReceiver: {
             static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-            V<Word32> instance_type = __ template LoadField<Word32>(
-                map, AccessBuilder::ForMapInstanceType());
+            V<Word32> instance_type = __ LoadInstanceTypeField(map);
             check =
                 __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE, instance_type);
             break;
@@ -264,8 +265,7 @@ class MachineLoweringReducer : public Next {
             static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             // Rule out all primitives except oddballs (true, false, undefined,
             // null).
-            V<Word32> instance_type = __ template LoadField<Word32>(
-                map, AccessBuilder::ForMapInstanceType());
+            V<Word32> instance_type = __ LoadInstanceTypeField(map);
             GOTO_IF_NOT(__ Uint32LessThanOrEqual(ODDBALL_TYPE, instance_type),
                         done, 0);
 
@@ -304,7 +304,7 @@ class MachineLoweringReducer : public Next {
           GOTO_IF(IsSmi(input), done, 1);
         }
 
-        V<Tagged> map = __ LoadMapField(input);
+        V<Map> map = __ LoadMapField(input);
         GOTO(done,
              __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())));
 
@@ -322,9 +322,8 @@ class MachineLoweringReducer : public Next {
         }
 
         // Load instance type from map.
-        V<Tagged> map = __ LoadMapField(input);
-        V<Word32> instance_type = __ template LoadField<Word32>(
-            map, AccessBuilder::ForMapInstanceType());
+        V<Map> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
 
         V<Word32> check;
         switch (kind) {
@@ -351,9 +350,8 @@ class MachineLoweringReducer : public Next {
       case ObjectIsOp::Kind::kInternalizedString: {
         DCHECK_EQ(input_assumptions, ObjectIsOp::InputAssumptions::kHeapObject);
         // Load instance type from map.
-        V<Tagged> map = __ LoadMapField(input);
-        V<Word32> instance_type = __ template LoadField<Word32>(
-            map, AccessBuilder::ForMapInstanceType());
+        V<Map> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
 
         return __ Word32Equal(
             __ Word32BitwiseAnd(instance_type,
@@ -378,13 +376,13 @@ class MachineLoweringReducer : public Next {
         return __ Float64Equal(diff, diff);
       }
       case NumericKind::kInteger: {
-        V<Float64> trunc = BuildFloat64RoundTruncate(value);
+        V<Float64> trunc = __ Float64RoundToZero(value);
         V<Float64> diff = __ Float64Sub(value, trunc);
         return __ Float64Equal(diff, 0.0);
       }
       case NumericKind::kSafeInteger: {
         Label<Word32> done(this);
-        V<Float64> trunc = BuildFloat64RoundTruncate(value);
+        V<Float64> trunc = __ Float64RoundToZero(value);
         V<Float64> diff = __ Float64Sub(value, trunc);
         GOTO_IF_NOT(__ Float64Equal(diff, 0), done, 0);
         V<Word32> in_range =
@@ -914,7 +912,7 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ SmiUntag(object));
           }
           ELSE {
-            V<Tagged> map = __ LoadMapField(object);
+            V<Map> map = __ LoadMapField(object);
             __ DeoptimizeIfNot(
                 __ TaggedEqual(map,
                                __ HeapConstant(factory_->heap_number_map())),
@@ -941,7 +939,7 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ ChangeInt32ToInt64(__ SmiUntag(object)));
         }
         ELSE {
-          V<Tagged> map = __ LoadMapField(object);
+          V<Map> map = __ LoadMapField(object);
           __ DeoptimizeIfNot(
               __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
               frame_state, DeoptimizeReason::kNotAHeapNumber, feedback);
@@ -984,7 +982,7 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ ChangeInt32ToIntPtr(__ SmiUntag(object)));
         }
         ELSE {
-          V<Tagged> map = __ LoadMapField(object);
+          V<Map> map = __ LoadMapField(object);
           IF(LIKELY(__ TaggedEqual(
               map, __ HeapConstant(factory_->heap_number_map())))) {
             V<Float64> heap_number_value = __ template LoadField<Float64>(
@@ -1024,8 +1022,7 @@ class MachineLoweringReducer : public Next {
             }
           }
           ELSE {
-            V<Word32> instance_type = __ template LoadField<Word32>(
-                map, AccessBuilder::ForMapInstanceType());
+            V<Word32> instance_type = __ LoadInstanceTypeField(map);
             __ DeoptimizeIfNot(
                 __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE),
                 frame_state, DeoptimizeReason::kNotAString, feedback);
@@ -1174,12 +1171,10 @@ class MachineLoweringReducer : public Next {
 
   OpIndex REDUCE(NewConsString)(OpIndex length, OpIndex first, OpIndex second) {
     // Determine the instance types of {first} and {second}.
-    V<Tagged> first_map = __ LoadMapField(first);
-    V<Word32> first_type = __ template LoadField<Word32>(
-        first_map, AccessBuilder::ForMapInstanceType());
-    V<Tagged> second_map = __ LoadMapField(second);
-    V<Word32> second_type = __ template LoadField<Word32>(
-        second_map, AccessBuilder::ForMapInstanceType());
+    V<Map> first_map = __ LoadMapField(first);
+    V<Word32> first_type = __ LoadInstanceTypeField(first_map);
+    V<Map> second_map = __ LoadMapField(second);
+    V<Word32> second_type = __ LoadInstanceTypeField(second_map);
 
     Label<Tagged> allocate_string(this);
     // Determine the proper map for the resulting ConsString.
@@ -1393,8 +1388,7 @@ class MachineLoweringReducer : public Next {
         // this is a HeapNumber -- otherwise the load is fine and we don't need
         // to copy anything anyway.
         GOTO_IF(__ ObjectIsSmi(field), done, field);
-        V<Tagged> map =
-            __ template LoadField<Tagged>(field, AccessBuilder::ForMap());
+        V<Map> map = __ LoadMapField(field);
         GOTO_IF_NOT(
             __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
             done, field);
@@ -1489,9 +1483,8 @@ class MachineLoweringReducer : public Next {
       GOTO(loop, string, pos);
 
       LOOP(loop, receiver, position) {
-        V<Tagged> map = __ LoadMapField(receiver);
-        V<Word32> instance_type = __ template LoadField<Word32>(
-            map, AccessBuilder::ForMapInstanceType());
+        V<Map> map = __ LoadMapField(receiver);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
         V<Word32> representation =
             __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
 
@@ -1781,6 +1774,220 @@ class MachineLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  OpIndex REDUCE(FloatUnary)(OpIndex input, FloatUnaryOp::Kind kind,
+                             FloatRepresentation rep) {
+    LABEL_BLOCK(no_change) { return Next::ReduceFloatUnary(input, kind, rep); }
+    switch (kind) {
+      case FloatUnaryOp::Kind::kRoundUp:
+      case FloatUnaryOp::Kind::kRoundDown:
+      case FloatUnaryOp::Kind::kRoundTiesEven:
+      case FloatUnaryOp::Kind::kRoundToZero: {
+        DCHECK_EQ(rep, FloatRepresentation::Float64());
+        if (FloatUnaryOp::IsSupported(kind, rep)) {
+          // If we have a fast machine operation for this, we can just keep it.
+          goto no_change;
+        }
+        // Otherwise we have to lower it.
+        V<Float64> two_52 = __ Float64Constant(4503599627370496.0E0);
+        V<Float64> minus_two_52 = __ Float64Constant(-4503599627370496.0E0);
+
+        if (kind == FloatUnaryOp::Kind::kRoundUp) {
+          // General case for ceil.
+          //
+          //   if 0.0 < input then
+          //     if 2^52 <= input then
+          //       input
+          //     else
+          //       let temp1 = (2^52 + input) - 2^52 in
+          //       if temp1 < input then
+          //         temp1 + 1
+          //       else
+          //         temp1
+          //   else
+          //     if input == 0 then
+          //       input
+          //     else
+          //       if input <= -2^52 then
+          //         input
+          //       else
+          //         let temp1 = -0 - input in
+          //         let temp2 = (2^52 + temp1) - 2^52 in
+          //         if temp1 < temp2 then -0 - (temp2 - 1) else -0 - temp2
+
+          Label<Float64> done(this);
+
+          IF(LIKELY(__ Float64LessThan(0.0, input))) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
+                    input);
+            V<Float64> temp1 =
+                __ Float64Sub(__ Float64Add(two_52, input), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(temp1, input), done, temp1);
+            GOTO(done, __ Float64Add(temp1, 1.0));
+          }
+          ELSE_IF(UNLIKELY(__ Float64Equal(input, 0.0))) { GOTO(done, input); }
+          ELSE_IF(UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52))) {
+            GOTO(done, input);
+          }
+          ELSE {
+            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp2 =
+                __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(temp1, temp2), done,
+                        __ Float64Sub(-0.0, temp2));
+            GOTO(done, __ Float64Sub(-0.0, __ Float64Sub(temp2, 1.0)));
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        } else if (kind == FloatUnaryOp::Kind::kRoundDown) {
+          // General case for floor.
+          //
+          //   if 0.0 < input then
+          //     if 2^52 <= input then
+          //       input
+          //     else
+          //       let temp1 = (2^52 + input) - 2^52 in
+          //       if input < temp1 then
+          //         temp1 - 1
+          //       else
+          //         temp1
+          //   else
+          //     if input == 0 then
+          //       input
+          //     else
+          //       if input <= -2^52 then
+          //         input
+          //       else
+          //         let temp1 = -0 - input in
+          //         let temp2 = (2^52 + temp1) - 2^52 in
+          //         if temp2 < temp1 then
+          //           -1 - temp2
+          //         else
+          //           -0 - temp2
+
+          Label<Float64> done(this);
+
+          IF(LIKELY(__ Float64LessThan(0.0, input))) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
+                    input);
+            V<Float64> temp1 =
+                __ Float64Sub(__ Float64Add(two_52, input), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(input, temp1), done, temp1);
+            GOTO(done, __ Float64Sub(temp1, 1.0));
+          }
+          ELSE_IF(UNLIKELY(__ Float64Equal(input, 0.0))) { GOTO(done, input); }
+          ELSE_IF(UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52))) {
+            GOTO(done, input);
+          }
+          ELSE {
+            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp2 =
+                __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(temp2, temp1), done,
+                        __ Float64Sub(-0.0, temp2));
+            GOTO(done, __ Float64Sub(-1.0, temp2));
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        } else if (kind == FloatUnaryOp::Kind::kRoundTiesEven) {
+          // Generate case for round ties to even:
+          //
+          //   let value = floor(input) in
+          //   let temp1 = input - value in
+          //   if temp1 < 0.5 then
+          //     value
+          //   else if 0.5 < temp1 then
+          //     value + 1.0
+          //   else
+          //     let temp2 = value % 2.0 in
+          //     if temp2 == 0.0 then
+          //       value
+          //     else
+          //       value + 1.0
+
+          Label<Float64> done(this);
+
+          V<Float64> value = __ Float64RoundDown(input);
+          V<Float64> temp1 = __ Float64Sub(input, value);
+          GOTO_IF(__ Float64LessThan(temp1, 0.5), done, value);
+          GOTO_IF(__ Float64LessThan(0.5, temp1), done,
+                  __ Float64Add(value, 1.0));
+
+          V<Float64> temp2 = __ Float64Mod(value, 2.0);
+          GOTO_IF(__ Float64Equal(temp2, 0.0), done, value);
+          GOTO(done, __ Float64Add(value, 1.0));
+
+          BIND(done, result);
+          return result;
+        } else if (kind == FloatUnaryOp::Kind::kRoundToZero) {
+          // General case for trunc.
+          //
+          //   if 0.0 < input then
+          //     if 2^52 <= input then
+          //       input
+          //     else
+          //       let temp1 = (2^52 + input) - 2^52 in
+          //       if input < temp1 then
+          //         temp1 - 1
+          //       else
+          //         temp1
+          //   else
+          //     if input == 0 then
+          //        input
+          //     if input <= -2^52 then
+          //       input
+          //     else
+          //       let temp1 = -0 - input in
+          //       let temp2 = (2^52 + temp1) - 2^52 in
+          //       if temp1 < temp2 then
+          //          -0 - (temp2 - 1)
+          //       else
+          //          -0 - temp2
+
+          Label<Float64> done(this);
+
+          IF(__ Float64LessThan(0.0, input)) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
+                    input);
+
+            V<Float64> temp1 =
+                __ Float64Sub(__ Float64Add(two_52, input), two_52);
+            GOTO_IF(__ Float64LessThan(input, temp1), done,
+                    __ Float64Sub(temp1, 1.0));
+            GOTO(done, temp1);
+          }
+          ELSE {
+            GOTO_IF(UNLIKELY(__ Float64Equal(input, 0.0)), done, input);
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52)),
+                    done, input);
+
+            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp2 =
+                __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
+
+            IF(__ Float64LessThan(temp1, temp2)) {
+              GOTO(done, __ Float64Sub(-0.0, __ Float64Sub(temp2, 1.0)));
+            }
+            ELSE { GOTO(done, __ Float64Sub(-0.0, temp2)); }
+            END_IF
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        }
+        UNREACHABLE();
+      }
+      default:
+        DCHECK(FloatUnaryOp::IsSupported(kind, rep));
+        goto no_change;
+    }
+    UNREACHABLE();
+  }
+
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.
   // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
   // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
@@ -1807,7 +2014,7 @@ class MachineLoweringReducer : public Next {
     static constexpr auto zero_bitfield =
         BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
 
-    V<Tagged> map = __ HeapConstant(factory_->bigint_map());
+    V<Map> map = __ HeapConstant(factory_->bigint_map());
     auto bigint = V<FreshlyAllocatedBigInt>::Cast(
         __ Allocate(__ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
                     AllocationType::kYoung));
@@ -1868,7 +2075,7 @@ class MachineLoweringReducer : public Next {
       V<Tagged> heap_object, OpIndex frame_state,
       ConvertObjectToPrimitiveOrDeoptOp::ObjectKind input_kind,
       const FeedbackSource& feedback) {
-    V<Tagged> map = __ LoadMapField(heap_object);
+    V<Map> map = __ LoadMapField(heap_object);
     V<Word32> check_number =
         __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map()));
     switch (input_kind) {
@@ -1897,8 +2104,7 @@ class MachineLoweringReducer : public Next {
           // we have an oddball here.
           STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                             Oddball::kToNumberRawOffset);
-          V<Word32> instance_type = __ template LoadField<Word32>(
-              map, AccessBuilder::ForMapInstanceType());
+          V<Word32> instance_type = __ LoadInstanceTypeField(map);
           __ DeoptimizeIfNot(__ Word32Equal(instance_type, ODDBALL_TYPE),
                              frame_state,
                              DeoptimizeReason::kNotANumberOrOddball, feedback);
@@ -1992,71 +2198,6 @@ class MachineLoweringReducer : public Next {
       case BigIntBinopOp::Kind::kShiftRightArithmetic:
         return Builtin::kBigIntShiftRightNoThrow;
     }
-  }
-
-  V<Float64> BuildFloat64RoundTruncate(V<Float64> input) {
-    if (FloatUnaryOp::IsSupported(FloatUnaryOp::Kind::kRoundToZero,
-                                  FloatRepresentation::Float64())) {
-      return __ FloatRoundToZero(input, FloatRepresentation::Float64());
-    }
-
-    // General case for trunc.
-    //
-    //   if 0.0 < input then
-    //     if 2^52 <= input then
-    //       input
-    //     else
-    //       let temp1 = (2^52 + input) - 2^52 in
-    //       if input < temp1 then
-    //         temp1 - 1
-    //       else
-    //         temp1
-    //   else
-    //     if input == 0 then
-    //        input
-    //     if input <= -2^52 then
-    //       input
-    //     else
-    //       let temp1 = -0 - input in
-    //       let temp2 = (2^52 + temp1) - 2^52 in
-    //       if temp1 < temp2 then
-    //          -0 - (temp2 - 1)
-    //       else
-    //          -0 - temp2
-
-    Label<Float64> done(this);
-
-    constexpr double two_52 = 4503599627370496.0E0;
-
-    IF(__ Float64LessThan(0.0, input)) {
-      GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done, input);
-
-      V<Float64> temp1 = __ Float64Sub(__ Float64Add(two_52, input), two_52);
-      GOTO_IF(__ Float64LessThan(input, temp1), done,
-              __ Float64Sub(temp1, 1.0));
-      GOTO(done, temp1);
-    }
-    ELSE {
-      GOTO_IF(UNLIKELY(__ Float64Equal(input, 0.0)), done, input);
-
-      constexpr double minus_two_52 = -4503599627370496.0E0;
-      GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52)), done,
-              input);
-
-      constexpr double minus_zero = -0.0;
-      V<Float64> temp1 = __ Float64Sub(minus_zero, input);
-      V<Float64> temp2 = __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
-
-      IF(__ Float64LessThan(temp1, temp2)) {
-        GOTO(done, __ Float64Sub(minus_zero, __ Float64Sub(temp2, 1.0)));
-      }
-      ELSE { GOTO(done, __ Float64Sub(minus_zero, temp2)); }
-      END_IF
-    }
-    END_IF
-
-    BIND(done, result);
-    return result;
   }
 
   Factory* factory_;

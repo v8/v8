@@ -2911,6 +2911,7 @@ filegroup(
         "src/compiler/turboshaft/decompression-optimization-phase.h",
         "src/compiler/turboshaft/define-assembler-macros.inc",
         "src/compiler/turboshaft/deopt-data.h",
+        "src/compiler/turboshaft/fast-api-call-reducer.h",
         "src/compiler/turboshaft/fast-hash.h",
         "src/compiler/turboshaft/graph-builder.cc",
         "src/compiler/turboshaft/graph-builder.h",

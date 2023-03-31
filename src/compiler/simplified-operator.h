@@ -8,6 +8,7 @@
 #include <iosfwd>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/container-utils.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
@@ -728,6 +729,17 @@ class FastApiCallParameters {
   const FastApiCallFunctionVector& c_functions() const { return c_functions_; }
   FeedbackSource const& feedback() const { return feedback_; }
   CallDescriptor* descriptor() const { return descriptor_; }
+  const CFunctionInfo* signature() const {
+    DCHECK(!c_functions_.empty());
+    return c_functions_[0].signature;
+  }
+  unsigned int argument_count() const {
+    const unsigned int count = signature()->ArgumentCount();
+    DCHECK(base::all_of(c_functions_, [count](const auto& f) {
+      return f.signature->ArgumentCount() == count;
+    }));
+    return count;
+  }
 
  private:
   // A single FastApiCall node can represent multiple overloaded functions.

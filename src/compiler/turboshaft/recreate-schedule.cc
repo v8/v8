@@ -195,6 +195,7 @@ SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitive)
 SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitiveOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
+SHOULD_HAVE_BEEN_LOWERED(FastApiCall)
 SHOULD_HAVE_BEEN_LOWERED(FloatIs)
 SHOULD_HAVE_BEEN_LOWERED(LoadFieldByIndex)
 SHOULD_HAVE_BEEN_LOWERED(NewArgumentsElements)
@@ -435,6 +436,7 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
+  DCHECK(FloatUnaryOp::IsSupported(op.kind, op.rep));
   bool float64 = op.rep == FloatRepresentation::Float64();
   const Operator* o;
   switch (op.kind) {

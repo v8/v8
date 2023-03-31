@@ -254,6 +254,7 @@ class TypeInferenceAnalysis {
         case Opcode::kNewArgumentsElements:
         case Opcode::kCompareMaps:
         case Opcode::kCheckMaps:
+        case Opcode::kFastApiCall:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {
