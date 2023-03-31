@@ -120,9 +120,11 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
                                             ValueRepresentation::kFloat64}),
       ValueRepresentationSet());
 
-  DCHECK_EQ(use_reprs - UseRepresentationSet({UseRepresentation::kInt32,
-                                              UseRepresentation::kFloat64}),
-            UseRepresentationSet());
+  DCHECK_EQ(
+      use_reprs - UseRepresentationSet({UseRepresentation::kInt32,
+                                        UseRepresentation::kTruncatedInt32,
+                                        UseRepresentation::kFloat64}),
+      UseRepresentationSet());
 
   // The rules for untagging are that we can only widen input representations,
   // i.e. promote Int32 -> Float64.
