@@ -7847,6 +7847,8 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
   v8::HandleScope scope(iso);
   v8::Local<Context> context = Context::New(iso);
   Context::Scope context_scope(context);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   FlagAndPersistent object_a, object_b;
 
@@ -7869,6 +7871,7 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &ResetUseValueAndSetFlag,
                           v8::WeakCallbackType::kParameter);
+
   if (global_gc || v8_flags.single_generation) {
     CcTest::PreciseCollectAllGarbage();
   } else {
@@ -13627,6 +13630,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
   env->Exit();
 }
 
+namespace {
 static v8::base::HashMap* instruction_stream_map = nullptr;
 static v8::base::HashMap* jitcode_line_info = nullptr;
 static int saw_bar = 0;
@@ -13759,6 +13763,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
       UNREACHABLE();
   }
 }
+}  // namespace
 
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::v8_flags.stress_compaction = true;
@@ -13834,7 +13839,13 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     }
 
     // Force code movement.
-    CcTest::CollectAllAvailableGarbage(i_isolate);
+    {
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          heap);
+      CcTest::CollectAllAvailableGarbage(i_isolate);
+    }
 
     isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
 

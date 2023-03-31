@@ -158,6 +158,8 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(heap, *buf1));
 
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromHeapObject(*buf1);
@@ -451,6 +453,9 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
+
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);

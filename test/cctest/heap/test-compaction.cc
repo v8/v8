@@ -260,6 +260,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
         Page* page_to_fill =
             Page::FromAddress(page_to_fill_handles.front()->address());
 
+        // We need to invoke GC without stack, otherwise no compaction is
+        // performed.
+        DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
         heap->set_force_oom(true);
         CcTest::CollectAllGarbage();
         heap->EnsureSweepingCompleted(
@@ -340,6 +344,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
           heap::CreatePadding(heap, used_memory, AllocationType::kOld,
                               object_size);
       Page* page_to_fill = Page::FromHeapObject(*page_to_fill_handles.front());
+
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
       heap->set_force_oom(true);
       CcTest::CollectAllGarbage();
@@ -444,6 +452,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
           heap::CreatePadding(heap, used_memory, AllocationType::kOld,
                               object_size);
       Page* page_to_fill = Page::FromHeapObject(*page_to_fill_handles.front());
+
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
       heap->set_force_oom(true);
       CcTest::CollectAllGarbage();

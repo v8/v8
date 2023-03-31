@@ -4195,6 +4195,10 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
+              // We need to invoke GC without stack, otherwise no compaction is
+              // performed.
+              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+                  isolate->heap());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
               CcTest::CollectAllGarbage();
