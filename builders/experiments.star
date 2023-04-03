@@ -120,12 +120,14 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - arm64",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"target_arch": "arm", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["clemensb@chromium.org"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - arm64 - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"target_arch": "arm", "target_bits": 64},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["clemensb@chromium.org"],
     ),
