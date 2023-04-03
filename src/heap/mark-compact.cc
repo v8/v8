@@ -40,6 +40,7 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-barrier.h"
+#include "src/heap/marking-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
@@ -157,10 +158,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
                                           Address end) {
   Address next_object_must_be_here_or_later = start;
 
-  for (auto object_and_size :
-       LiveObjectRange<kAllLiveObjects>(page, bitmap(page))) {
-    HeapObject object = object_and_size.first;
-    size_t size = object_and_size.second;
+  for (auto [object, size] : LiveObjectRange(page)) {
     Address current = object.address();
     if (current < start) continue;
     if (current >= end) break;
@@ -4509,10 +4507,8 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           HeapObject* failed_object) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjects");
-  for (auto object_and_size :
-       LiveObjectRange<kAllLiveObjects>(chunk, marking_state->bitmap(chunk))) {
-    HeapObject const object = object_and_size.first;
-    if (!visitor->Visit(object, object_and_size.second)) {
+  for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
+    if (!visitor->Visit(object, size)) {
       *failed_object = object;
       return false;
     }
@@ -4534,11 +4530,9 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
       DCHECK(success);
     }
   } else {
-    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
-             chunk, marking_state->bitmap(chunk))) {
-      HeapObject const object = object_and_size.first;
+    for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
       DCHECK(marking_state->IsMarked(object));
-      const bool success = visitor->Visit(object, object_and_size.second);
+      const bool success = visitor->Visit(object, size);
       USE(success);
       DCHECK(success);
     }
@@ -4549,8 +4543,7 @@ template <typename MarkingState>
 void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
                                            MarkingState* marking_state) {
   int new_live_size = 0;
-  for (auto object_and_size :
-       LiveObjectRange<kAllLiveObjects>(chunk, marking_state->bitmap(chunk))) {
+  for (auto object_and_size : LiveObjectRange(Page::cast(chunk))) {
     new_live_size += ALIGN_TO_ALLOCATION_ALIGNMENT(object_and_size.second);
   }
   marking_state->SetLiveBytes(chunk, new_live_size);
@@ -4732,8 +4725,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
     PointersUpdatingVisitor visitor(heap_);
-    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
-             chunk_, marking_state_->bitmap(chunk_))) {
+    for (auto object_and_size : LiveObjectRange(Page::cast(chunk_))) {
       object_and_size.first.IterateBodyFast(visitor.cage_base(), &visitor);
     }
   }
@@ -5698,9 +5690,7 @@ void MinorMarkCompactCollector::MakeIterable(
   // remove here.
   Address free_start = p->area_start();
 
-  for (auto object_and_size :
-       LiveObjectRange<kAllLiveObjects>(p, marking_state()->bitmap(p))) {
-    HeapObject const object = object_and_size.first;
+  for (auto [object, size] : LiveObjectRange(p)) {
     DCHECK(non_atomic_marking_state()->IsMarked(object));
     Address free_end = object.address();
     if (free_end != free_start) {
@@ -5715,8 +5705,6 @@ void MinorMarkCompactCollector::MakeIterable(
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size));
     }
     PtrComprCageBase cage_base(p->heap()->isolate());
-    Map map = object.map(cage_base, kAcquireLoad);
-    int size = object.SizeFromMap(map);
     free_start = free_end + size;
   }
 
@@ -6139,9 +6127,7 @@ void MinorMarkCompactCollector::TraceFragmentation() {
   for (Page* p :
        PageRange(new_space->first_allocatable_address(), new_space->top())) {
     Address free_start = p->area_start();
-    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
-             p, non_atomic_marking_state()->bitmap(p))) {
-      HeapObject const object = object_and_size.first;
+    for (auto [object, size] : LiveObjectRange(p)) {
       Address free_end = object.address();
       if (free_end != free_start) {
         size_t free_bytes = free_end - free_start;
@@ -6153,8 +6139,6 @@ void MinorMarkCompactCollector::TraceFragmentation() {
           free_bytes_index++;
         }
       }
-      Map map = object.map(cage_base, kAcquireLoad);
-      int size = object.SizeFromMap(map);
       live_bytes += size;
       free_start = free_end + size;
     }

@@ -22,6 +22,7 @@
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-inl.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -713,9 +714,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   // the given live object.
   Address free_start = p->area_start();
   PtrComprCageBase cage_base(heap_->isolate());
-  for (auto object_and_size :
-       LiveObjectRange<kAllLiveObjects>(p, marking_state_->bitmap(p))) {
-    HeapObject const object = object_and_size.first;
+  for (auto [object, size] : LiveObjectRange(p)) {
     if (code_object_registry) code_objects.push_back(object.address());
     DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
@@ -729,9 +728,6 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
           sweeping_mode, &invalidated_old_to_new_cleanup,
           &invalidated_old_to_old_cleanup, &invalidated_old_to_shared_cleanup);
     }
-    Map map = object.map(cage_base, kAcquireLoad);
-    DCHECK(MapWord::IsMapOrForwarded(map));
-    int size = ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
     live_bytes += size;
     free_start = free_end + size;
 
@@ -921,14 +917,10 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   } else {
     PtrComprCageBase cage_base(chunk->heap()->isolate());
     Address free_start = chunk->area_start();
-    for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
-             chunk, marking_state_->bitmap(chunk))) {
-      HeapObject object = object_and_size.first;
+    for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
       HandlePromotedObject(object, marking_state_, cage_base, &record_visitor);
       Address free_end = object.address();
       HandleFreeSpace(free_start, free_end, heap_);
-      Map map = object.map(cage_base, kAcquireLoad);
-      int size = object.SizeFromMap(map);
       free_start = free_end + size;
     }
     HandleFreeSpace(free_start, chunk->area_end(), heap_);

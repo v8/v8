@@ -11,10 +11,12 @@
 #include "src/common/globals.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/map.h"
 #include "src/utils/utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+class Page;
 
 class MarkBit {
  public:
@@ -84,6 +86,9 @@ inline bool MarkBit::Clear() {
 class V8_EXPORT_PRIVATE Bitmap {
  public:
   using CellType = MarkBit::CellType;
+  using CellIndex = uint32_t;
+  using MarkBitIndex = uint32_t;
+
   static constexpr uint32_t kBitsPerCell = 32;
   static_assert(kBitsPerCell == (sizeof(CellType) * kBitsPerByte));
   static constexpr uint32_t kBitsPerCellLog2 = 5;
@@ -92,13 +97,8 @@ class V8_EXPORT_PRIVATE Bitmap {
   static constexpr uint32_t kBytesPerCellLog2 =
       kBitsPerCellLog2 - kBitsPerByteLog2;
 
-  // The length is the number of bits in this bitmap. (+1) accounts for
-  // the case where the markbits are queried for a one-word filler at the
-  // end of the page.
-  //
-  // TODO(v8:12612): Remove the (+1) when adjusting AdvanceToNextValidObject().
-  static constexpr size_t kLength =
-      ((1 << kPageSizeBits) >> kTaggedSizeLog2) + 1;
+  // The length is the number of bits in this bitmap.
+  static constexpr size_t kLength = ((1 << kPageSizeBits) >> kTaggedSizeLog2);
 
   static constexpr size_t kCellsCount =
       (kLength + kBitsPerCell - 1) >> kBitsPerCellLog2;
@@ -106,12 +106,16 @@ class V8_EXPORT_PRIVATE Bitmap {
   // The size of the bitmap in bytes is CellsCount() * kBytesPerCell.
   static constexpr size_t kSize = kCellsCount * kBytesPerCell;
 
-  V8_INLINE static constexpr uint32_t AddressToIndex(Address address) {
+  V8_INLINE static constexpr MarkBitIndex AddressToIndex(Address address) {
     return (address & kPageAlignmentMask) >> kTaggedSizeLog2;
   }
 
-  V8_INLINE static constexpr uint32_t IndexToCell(uint32_t index) {
+  V8_INLINE static constexpr CellIndex IndexToCell(MarkBitIndex index) {
     return index >> kBitsPerCellLog2;
+  }
+
+  V8_INLINE static constexpr Address IndexToBase(MarkBitIndex index) {
+    return index << kBitsPerCellLog2 << kTaggedSizeLog2;
   }
 
   V8_INLINE static constexpr uint32_t IndexInCell(uint32_t index) {
@@ -374,7 +378,53 @@ void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print();
 template <>
 V8_EXPORT_PRIVATE bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::IsClean();
 
-}  // namespace internal
-}  // namespace v8
+class LiveObjectRange final {
+ public:
+  class iterator final {
+   public:
+    using value_type = std::pair<HeapObject, int /* size */>;
+    using pointer = const value_type*;
+    using reference = const value_type&;
+    using iterator_category = std::forward_iterator_tag;
+
+    inline iterator();
+    explicit inline iterator(const Page* page);
+
+    inline iterator& operator++();
+    inline iterator operator++(int);
+
+    bool operator==(iterator other) const {
+      return current_object_ == other.current_object_;
+    }
+    bool operator!=(iterator other) const { return !(*this == other); }
+
+    value_type operator*() {
+      return std::make_pair(current_object_, current_size_);
+    }
+
+   private:
+    inline bool AdvanceToNextMarkedObject();
+    inline void AdvanceToNextValidObject();
+
+    const Page* const page_ = nullptr;
+    MarkBit::CellType* const cells_ = nullptr;
+    const PtrComprCageBase cage_base_;
+    Bitmap::CellIndex current_cell_index_ = 0;
+    Bitmap::CellType current_cell_ = 0;
+    HeapObject current_object_;
+    Map current_map_;
+    int current_size_ = 0;
+  };
+
+  explicit LiveObjectRange(const Page* page) : page_(page) {}
+
+  inline iterator begin();
+  inline iterator end();
+
+ private:
+  const Page* const page_;
+};
+
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MARKING_H_

@@ -1532,6 +1532,7 @@ filegroup(
         "src/heap/mark-compact-inl.h",
         "src/heap/marking.cc",
         "src/heap/marking.h",
+        "src/heap/marking-inl.h",
         "src/heap/marking-barrier.cc",
         "src/heap/marking-barrier.h",
         "src/heap/marking-barrier-inl.h",
