@@ -4749,7 +4749,7 @@ void Simulator::DecodeRVIType() {
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
           if ((rs1_reg() != ra || imm12() != 0)) {
-            if ((Address)get_pc() == code.instruction_start()) {
+            if ((Address)get_pc() == code.InstructionStart()) {
               sreg_t arg0 = get_register(a0);
               sreg_t arg1 = get_register(a1);
               sreg_t arg2 = get_register(a2);

@@ -11,7 +11,6 @@
 
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler.h"
-#include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-data.h"
 #include "src/objects/tagged-index.h"
@@ -214,14 +213,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
-  // Operand pointing to an external reference.
-  // May emit code to set up the scratch register. The operand is
-  // only guaranteed to be correct as long as the scratch register
-  // isn't changed.
-  // If the operand is used more than once, use a scratch register
-  // that is guaranteed not to be clobbered.
-  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
-                                        Register scratch);
 
   inline void GenPCRelativeJump(Register rd, int32_t imm32) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
