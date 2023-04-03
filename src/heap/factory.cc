@@ -148,6 +148,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       /*constant_pool_offset=*/code_desc_.constant_pool_offset_relative(),
       /*code_comments_offset=*/code_desc_.code_comments_offset_relative(),
       /*unwinding_info_offset=*/code_desc_.unwinding_info_offset_relative(),
+      /*reloc_info=*/reloc_info,
       /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
           ? interpreter_data_
           : deoptimization_data_,
@@ -190,7 +191,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
                                 new_code_options.metadata_size);
       DCHECK_EQ(raw_istream.body_size(), code->body_size());
       raw_istream.set_code(*code, kReleaseStore);
-      raw_istream.set_relocation_info(*reloc_info);
       raw_istream.clear_padding();
 
       // Allow self references to created code object by patching the handle to
@@ -2523,6 +2523,8 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
       /*constant_pool_offset=*/code->constant_pool_offset(),
       /*code_comments_offset=*/code->code_comments_offset(),
       /*unwinding_info_offset=*/code->unwinding_info_offset(),
+      /*reloc_info=*/
+      Handle<ByteArray>(read_only_roots().empty_byte_array(), isolate()),
       /*bytecode_or_deoptimization_data=*/
       Handle<FixedArray>(read_only_roots().empty_fixed_array(), isolate()),
       /*bytecode_offsets_or_source_position_table=*/

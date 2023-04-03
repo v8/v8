@@ -1110,6 +1110,8 @@ void Code::CodeVerify(Isolate* isolate) {
     CHECK_LE(code_comments_offset(), unwinding_info_offset());
     CHECK_LE(unwinding_info_offset(), metadata_size());
 
+    relocation_info().ObjectVerify(isolate);
+
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
 #if defined(V8_COMPRESS_POINTERS) && defined(V8_SHORT_BUILTIN_CALLS)
@@ -1150,8 +1152,6 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
         Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
-
-  relocation_info().ObjectVerify(isolate);
 
   for (RelocIterator it(code(kAcquireLoad)); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);

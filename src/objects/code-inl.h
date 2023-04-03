@@ -101,6 +101,7 @@ INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
+ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS_CHECKED2(Code, deoptimization_data, FixedArray,
                    kDeoptimizationDataOrInterpreterDataOffset,
                    kind() != CodeKind::BASELINE,
@@ -148,7 +149,6 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
 
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, HeapObject, kCodeOffset)
-ACCESSORS(InstructionStream, relocation_info, ByteArray, kRelocationInfoOffset)
 #undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
 #undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2
 
@@ -182,6 +182,7 @@ void InstructionStream::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
 
 // TODO(jgruber): Remove this method once main_cage_base is gone.
 void InstructionStream::WipeOutHeader() {
+  WRITE_FIELD(*this, kCodeOffset, Smi::FromInt(0));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     set_main_cage_base(kNullAddress, kRelaxedStore);
   }
@@ -282,11 +283,9 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-ByteArray InstructionStream::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
+ByteArray Code::unchecked_relocation_info() const {
   return ByteArray::unchecked_cast(
-      TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
-                                                                   *this));
+      TaggedField<HeapObject, kRelocationInfoOffset>::load(*this));
 }
 
 FixedArray Code::unchecked_deoptimization_data() const {
@@ -303,32 +302,18 @@ Code InstructionStream::unchecked_code(AcquireLoadTag tag) const {
 
 byte* Code::relocation_start() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_start()
+             ? relocation_info().GetDataStartAddress()
              : nullptr;
 }
 
 byte* Code::relocation_end() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_end()
+             ? relocation_info().GetDataEndAddress()
              : nullptr;
 }
 
 int Code::relocation_size() const {
-  return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_size()
-             : 0;
-}
-
-byte* InstructionStream::relocation_start() const {
-  return relocation_info().GetDataStartAddress();
-}
-
-byte* InstructionStream::relocation_end() const {
-  return relocation_info().GetDataEndAddress();
-}
-
-int InstructionStream::relocation_size() const {
-  return relocation_info().length();
+  return V8_LIKELY(has_instruction_stream()) ? relocation_info().length() : 0;
 }
 
 bool Code::contains(Isolate* isolate, Address inner_pointer) const {
@@ -353,7 +338,7 @@ void InstructionStream::clear_padding() {
 
 int Code::SizeIncludingMetadata() const {
   int size = InstructionStreamObjectSize();
-  size += relocation_size();
+  size += relocation_info().Size();
   if (kind() != CodeKind::BASELINE) {
     size += deoptimization_data().Size();
   }
@@ -739,11 +724,6 @@ InstructionStream Code::instruction_stream() const {
   PtrComprCageBase cage_base = code_cage_base();
   return Code::instruction_stream(cage_base);
 }
-
-InstructionStream Code::unchecked_instruction_stream() const {
-  return InstructionStream::unchecked_cast(raw_instruction_stream());
-}
-
 InstructionStream Code::instruction_stream(PtrComprCageBase cage_base) const {
   DCHECK(has_instruction_stream());
   return ExternalCodeField<InstructionStream>::load(cage_base, *this);

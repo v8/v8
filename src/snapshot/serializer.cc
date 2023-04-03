@@ -1290,7 +1290,12 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
       Handle<InstructionStream>::cast(object_);
   Handle<Code> code = handle(on_heap_istream->code(kAcquireLoad), isolate_);
 
-  ByteArray relocation_info = on_heap_istream->relocation_info();
+  // With enabled pointer compression normal accessors no longer work for
+  // off-heap objects, so we have to get the relocation info data via the
+  // on-heap InstructionStream object.
+  // TODO(v8:13784): we can clean this up since we moved all data fields from
+  // InstructionStream to Code
+  ByteArray relocation_info = code->unchecked_relocation_info();
 
   // To make snapshots reproducible, we make a copy of the InstructionStream
   // object and wipe all pointers in the copy, which we then serialize.

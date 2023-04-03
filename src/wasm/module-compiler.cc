@@ -1437,7 +1437,7 @@ namespace {
 void RecordStats(Code code, Counters* counters) {
   if (!code.has_instruction_stream()) return;
   counters->wasm_generated_code_size()->Increment(code.body_size());
-  counters->wasm_reloc_size()->Increment(code.relocation_size());
+  counters->wasm_reloc_size()->Increment(code.relocation_info().length());
 }
 
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };

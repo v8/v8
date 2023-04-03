@@ -68,8 +68,6 @@ class Code : public HeapObject {
   DECL_RELAXED_GETTER(instruction_stream, InstructionStream)
   DECL_ACCESSORS(raw_instruction_stream, Object)
   DECL_RELAXED_GETTER(raw_instruction_stream, Object)
-  // An unchecked accessor to be used during GC.
-  inline InstructionStream unchecked_instruction_stream() const;
 
   // Whether this Code object has an associated InstructionStream (embedded
   // builtins don't).
@@ -144,6 +142,8 @@ class Code : public HeapObject {
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
   DECL_ACCESSORS(bytecode_offset_table, ByteArray)
+  // [relocation_info]: InstructionStream relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
   DECL_PRIMITIVE_ACCESSORS(inlined_bytecode_size, unsigned)
   DECL_PRIMITIVE_ACCESSORS(osr_offset, BytecodeOffset)
   // [code_comments_offset]: Offset of the code comment section.
@@ -152,6 +152,7 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(constant_pool_offset, int)
 
   // Unchecked accessors to be used during GC.
+  inline ByteArray unchecked_relocation_info() const;
   inline FixedArray unchecked_deoptimization_data() const;
 
   inline CodeKind kind() const;
@@ -319,6 +320,7 @@ class Code : public HeapObject {
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                                   \
   /* Strong pointer fields. */                                                \
+  V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kPointerFieldsStrongEndOffset, 0)                                         \
@@ -544,15 +546,6 @@ class InstructionStream : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(body_size, int)
   inline Address body_end() const;
 
-  // [relocation_info]: InstructionStream relocation information
-  DECL_ACCESSORS(relocation_info, ByteArray)
-  // Unchecked accessor to be used during GC.
-  inline ByteArray unchecked_relocation_info() const;
-
-  inline byte* relocation_start() const;
-  inline byte* relocation_end() const;
-  inline int relocation_size() const;
-
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during
   // deserialization. The deserializer will overwrite some pointers, rather
@@ -586,10 +579,7 @@ class InstructionStream : public HeapObject {
 
   // Layout description.
 #define ISTREAM_FIELDS(V)                                             \
-  V(kStartOfStrongFieldsOffset, 0)                                    \
   V(kCodeOffset, kTaggedSize)                                         \
-  V(kRelocationInfoOffset, kTaggedSize)                               \
-  V(kEndOfStrongFieldsOffset, 0)                                      \
   /* Data or code not directly visited by GC directly starts here. */ \
   V(kDataStart, 0)                                                    \
   V(kMainCageBaseUpper32BitsOffset,                                   \

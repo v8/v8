@@ -962,8 +962,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(static_cast<int>(HeapObject::kHeaderSize) ==
                 static_cast<int>(kCodeOffset));
-  static_assert(kCodeOffset + kTaggedSize == kRelocationInfoOffset);
-  static_assert(kRelocationInfoOffset + kTaggedSize == kDataStart);
+  static_assert(kCodeOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -984,12 +983,11 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
     // GC does not visit data/code in the header and in the body directly.
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
+    IteratePointers(obj, kCodeOffset, kDataStart, v);
 
     InstructionStream istream = InstructionStream::cast(obj);
     Code code = istream.unchecked_code(kAcquireLoad);
-    RelocIterator it(code, istream, istream.unchecked_relocation_info(),
+    RelocIterator it(code, istream, code.unchecked_relocation_info(),
                      kRelocModeMask);
     v->VisitRelocInfo(&it);
   }

@@ -981,7 +981,6 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
       InstanceTypeChecker::IsFeedbackCell(type) ||
       InstanceTypeChecker::IsFeedbackMetadata(type) ||
       InstanceTypeChecker::IsFeedbackVector(type) ||
-      InstanceTypeChecker::IsInstructionStream(type) ||
       InstanceTypeChecker::IsInterpreterData(type) ||
       InstanceTypeChecker::IsLoadHandler(type) ||
       InstanceTypeChecker::IsObjectBoilerplateDescription(type) ||
@@ -1173,8 +1172,6 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
   } else if (obj.IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
-  } else if (obj.IsInstructionStream()) {
-    ExtractInstructionStreamReferences(entry, InstructionStream::cast(obj));
   } else if (obj.IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
   } else if (obj.IsFeedbackCell()) {
@@ -1593,6 +1590,10 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
   if (!code.has_instruction_stream()) return;
 
+  TagObject(code.relocation_info(), "(code relocation info)", HeapEntry::kCode);
+  SetInternalReference(entry, "relocation_info", code.relocation_info(),
+                       Code::kRelocationInfoOffset);
+
   if (code.kind() == CodeKind::BASELINE) {
     TagObject(code.bytecode_or_interpreter_data(), "(interpreter data)");
     SetInternalReference(entry, "interpreter_data",
@@ -1623,18 +1624,6 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
                          code.source_position_table(),
                          Code::kPositionTableOffset);
   }
-}
-
-void V8HeapExplorer::ExtractInstructionStreamReferences(
-    HeapEntry* entry, InstructionStream istream) {
-  TagObject(istream.code(kAcquireLoad), "(code)", HeapEntry::kCode);
-  SetInternalReference(entry, "code", istream.code(kAcquireLoad),
-                       InstructionStream::kCodeOffset);
-
-  TagObject(istream.relocation_info(), "(code relocation info)",
-            HeapEntry::kCode);
-  SetInternalReference(entry, "relocation_info", istream.relocation_info(),
-                       InstructionStream::kRelocationInfoOffset);
 }
 
 void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell cell) {
