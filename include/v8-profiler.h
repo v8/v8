@@ -24,7 +24,7 @@ enum class EmbedderStateTag : uint8_t;
 class HeapGraphNode;
 struct HeapStatsUpdate;
 class Object;
-enum StateTag : int;
+enum StateTag : uint16_t;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
