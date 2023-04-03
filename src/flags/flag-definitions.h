@@ -672,7 +672,7 @@ DEFINE_INT(invocation_count_for_maglev, 300,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
-DEFINE_INT(invocation_count_for_turbofan, 600,
+DEFINE_INT(invocation_count_for_turbofan, 800,
            "interrupt budget which should be used for the profiler counter")
 DEFINE_INT(interrupt_budget, 66 * KB,
            "interrupt budget which should be used for the profiler counter")
@@ -701,7 +701,7 @@ DEFINE_BOOL(increase_budget_forward_jump, false,
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2400)
 
 // Tiering: JIT fuzzing.
 //
