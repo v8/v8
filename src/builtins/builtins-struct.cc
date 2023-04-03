@@ -36,6 +36,19 @@ using UniqueNameHandleSet =
 
 }  // namespace
 
+BUILTIN(SharedSpaceJSObjectHasInstance) {
+  HandleScope scope(isolate);
+  Handle<Object> constructor = args.receiver();
+  if (!constructor->IsJSFunction()) {
+    return *isolate->factory()->false_value();
+  }
+
+  Maybe<bool> result = AlwaysSharedSpaceJSObject::HasInstance(
+      isolate, Handle<JSFunction>::cast(constructor),
+      args.atOrUndefined(isolate, 1));
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
 BUILTIN(SharedStructTypeConstructor) {
   DCHECK(v8_flags.shared_string_table);
 
@@ -146,6 +159,12 @@ BUILTIN(SharedStructTypeConstructor) {
         isolate, instance_map, num_properties, AllocationType::kSharedOld);
     DCHECK_EQ(num_properties, instance_map->EnumLength());
   }
+
+  JSObject::AddProperty(
+      isolate, constructor, factory->has_instance_symbol(),
+      handle(isolate->native_context()->shared_space_js_object_has_instance(),
+             isolate),
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
 
   return *constructor;
 }

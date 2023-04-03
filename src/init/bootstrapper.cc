@@ -520,31 +520,6 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
                          instance_size, inobject_properties, prototype, call);
 }
 
-V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
-    Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    int inobject_properties, ElementsKind element_kind, Builtin builtin) {
-  Factory* factory = isolate->factory();
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      name, builtin, FunctionKind::kNormalFunction);
-  info->set_language_mode(LanguageMode::kStrict);
-  Handle<JSFunction> constructor =
-      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->strict_function_with_readonly_prototype_map())
-          .Build();
-  Handle<Map> instance_map =
-      factory->NewMap(type, instance_size, element_kind, inobject_properties,
-                      AllocationType::kSharedMap);
-  // Shared objects have fixed layout ahead of time, so there's no slack.
-  instance_map->SetInObjectUnusedPropertyFields(0);
-  // Shared objects are not extensible and have a null prototype.
-  instance_map->set_is_extensible(false);
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
-  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
-  constructor->map().set_has_non_instance_prototype(true);
-  return constructor;
-}
-
 // This sets a constructor instance type on the constructor map which will be
 // used in IsXxxConstructor() predicates. Having such predicates helps figuring
 // out if a protector cell should be invalidated. If there are no protector
@@ -613,6 +588,36 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
       SimpleCreateFunction(isolate, internalized_symbol, call, len, adapt);
   JSObject::AddProperty(isolate, base, symbol, fun, attrs);
   return fun;
+}
+
+V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
+    Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
+    int inobject_properties, ElementsKind element_kind, Builtin builtin) {
+  Factory* factory = isolate->factory();
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      name, builtin, FunctionKind::kNormalFunction);
+  info->set_language_mode(LanguageMode::kStrict);
+  Handle<JSFunction> constructor =
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .set_map(isolate->strict_function_with_readonly_prototype_map())
+          .Build();
+  Handle<Map> instance_map =
+      factory->NewMap(type, instance_size, element_kind, inobject_properties,
+                      AllocationType::kSharedMap);
+  // Shared objects have fixed layout ahead of time, so there's no slack.
+  instance_map->SetInObjectUnusedPropertyFields(0);
+  // Shared objects are not extensible and have a null prototype.
+  instance_map->set_is_extensible(false);
+  JSFunction::SetInitialMap(isolate, constructor, instance_map,
+                            factory->null_value(), factory->null_value());
+  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
+  constructor->map().set_has_non_instance_prototype(true);
+  JSObject::AddProperty(
+      isolate, constructor, factory->has_instance_symbol(),
+      handle(isolate->native_context()->shared_space_js_object_has_instance(),
+             isolate),
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
+  return constructor;
 }
 
 V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
@@ -4760,18 +4765,31 @@ void Genesis::InitializeGlobal_harmony_struct() {
   if (!v8_flags.harmony_struct) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<String> name =
-      isolate()->factory()->InternalizeUtf8String("SharedStructType");
-  Handle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
-      isolate(), name, isolate()->strict_function_with_readonly_prototype_map(),
-      Builtin::kSharedStructTypeConstructor);
-  JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
-                               isolate());
-  shared_struct_type_fun->shared().set_native(true);
-  shared_struct_type_fun->shared().DontAdaptArguments();
-  shared_struct_type_fun->shared().set_length(1);
-  JSObject::AddProperty(isolate(), global, "SharedStructType",
-                        shared_struct_type_fun, DONT_ENUM);
+
+  {
+    // Install shared objects @@hasInstance in the native context.
+    Handle<JSFunction> has_instance = SimpleCreateFunction(
+        isolate(), factory()->empty_string(),
+        Builtin::kSharedSpaceJSObjectHasInstance, 1, false);
+    native_context()->set_shared_space_js_object_has_instance(*has_instance);
+  }
+
+  {
+    // SharedStructType
+    Handle<String> name =
+        isolate()->factory()->InternalizeUtf8String("SharedStructType");
+    Handle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
+        isolate(), name,
+        isolate()->strict_function_with_readonly_prototype_map(),
+        Builtin::kSharedStructTypeConstructor);
+    JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
+                                 isolate());
+    shared_struct_type_fun->shared().set_native(true);
+    shared_struct_type_fun->shared().DontAdaptArguments();
+    shared_struct_type_fun->shared().set_length(1);
+    JSObject::AddProperty(isolate(), global, "SharedStructType",
+                          shared_struct_type_fun, DONT_ENUM);
+  }
 
   {  // SharedArray
     Handle<String> shared_array_str =

@@ -7,16 +7,16 @@
 function Foo() {}
 
 function TestInstanceOfMutex() {
-  Foo instanceof Atomics.Mutex;
+  return Foo instanceof Atomics.Mutex;
 }
 function TestInstanceOfCondition() {
-  Foo instanceof Atomics.Condition;
+  return Foo instanceof Atomics.Condition;
 }
 function TestInstanceOfSharedArray() {
-  Foo instanceof SharedArray;
+  return Foo instanceof SharedArray;
 }
 function TestInstanceOfSharedStruct() {
-  Foo instanceof (new SharedStructType(["foo"]));
+  return Foo instanceof (new SharedStructType(["foo"]));
 }
 
 %PrepareFunctionForOptimization(TestInstanceOfMutex);
@@ -25,10 +25,10 @@ function TestInstanceOfSharedStruct() {
 %PrepareFunctionForOptimization(TestInstanceOfSharedStruct);
 
 for (let i = 0; i < 10; i++) {
-  assertThrows(TestInstanceOfMutex, TypeError);
-  assertThrows(TestInstanceOfCondition, TypeError);
-  assertThrows(TestInstanceOfSharedArray, TypeError);
-  assertThrows(TestInstanceOfSharedStruct, TypeError);
+  assertFalse(TestInstanceOfMutex());
+  assertFalse(TestInstanceOfCondition());
+  assertFalse(TestInstanceOfSharedArray());
+  assertFalse(TestInstanceOfSharedStruct());
 }
 
 %OptimizeFunctionOnNextCall(TestInstanceOfMutex);
@@ -36,7 +36,7 @@ for (let i = 0; i < 10; i++) {
 %OptimizeFunctionOnNextCall(TestInstanceOfSharedArray);
 %OptimizeFunctionOnNextCall(TestInstanceOfSharedStruct);
 
-assertThrows(TestInstanceOfMutex, TypeError);
-assertThrows(TestInstanceOfCondition, TypeError);
-assertThrows(TestInstanceOfSharedArray, TypeError);
-assertThrows(TestInstanceOfSharedStruct, TypeError);
+assertFalse(TestInstanceOfMutex());
+assertFalse(TestInstanceOfCondition());
+assertFalse(TestInstanceOfSharedArray());
+assertFalse(TestInstanceOfSharedStruct());

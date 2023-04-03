@@ -1016,6 +1016,7 @@ namespace internal {
   TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
                                                                                \
   /* JS Structs and friends */                                                 \
+  CPP(SharedSpaceJSObjectHasInstance)                                          \
   CPP(SharedStructTypeConstructor)                                             \
   CPP(SharedStructConstructor)                                                 \
   CPP(SharedArrayConstructor)                                                  \
