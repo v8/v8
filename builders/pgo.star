@@ -16,30 +16,24 @@ v8_builder(
     notifies = ["infra-failure", "infra"],
 )
 
-v8_builder(
-    name = "V8 Linux PGO instrumentation - builder",
-    bucket = "ci",
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    executable = "recipe:v8/compilator",
-    properties = {
-        "default_targets": ["d8_pgo"],
-        "builder_group": "client.v8",
-    },
-    use_goma = GOMA.NO,
-    use_remoteexec = RECLIENT.DEFAULT,
-    in_list = "pgo",
-)
+def pgo_compilator(name, os):
+    v8_builder(
+        name = name,
+        bucket = "ci",
+        dimensions = {"os": os, "cpu": "x86-64"},
+        executable = "recipe:v8/compilator",
+        properties = {
+            "default_targets": ["d8_pgo"],
+            "builder_group": "client.v8",
+        },
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        in_list = "pgo",
+    )
 
-v8_builder(
-    name = "V8 Linux64 PGO instrumentation - builder",
-    bucket = "ci",
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    executable = "recipe:v8/compilator",
-    properties = {
-        "default_targets": ["d8_pgo"],
-        "builder_group": "client.v8",
-    },
-    use_goma = GOMA.NO,
-    use_remoteexec = RECLIENT.DEFAULT,
-    in_list = "pgo",
-)
+# GN variables depend on the builder name and are defined in
+# https://chromium.googlesource.com/v8/v8/+/refs/heads/main/infra/mb/mb_config.pyl
+pgo_compilator("V8 Linux PGO instrumentation - builder", os = "Ubuntu-18.04")
+pgo_compilator("V8 Linux64 PGO instrumentation - builder", os = "Ubuntu-18.04")
+pgo_compilator("V8 Win32 PGO instrumentation - builder", os = "Windows-10")
+pgo_compilator("V8 Win64 PGO instrumentation - builder", os = "Windows-10")
