@@ -892,6 +892,10 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
 }
 
 ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
+  if (Phi* phi = value->TryCast<Phi>()) {
+    phi->RecordUseReprHint(UseRepresentation::kFloat64);
+  }
+
   return GetFloat64ForToNumber(value, ToNumberHint::kDisallowToNumber);
 }
 

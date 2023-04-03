@@ -180,6 +180,10 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
                   << std::hex << intersection.ToIntegral() << std::dec);
   if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
     TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
+    // A HoleyFloat64 phi should not be used as Float64, as this would convert
+    // the_hole to NaN, which is sometimes wrong (such as in `phi == phi`, which
+    // is true for the_hole, but false for NaN).
+    DCHECK(!use_reprs.contains(UseRepresentation::kFloat64));
     return ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64);
   } else if (intersection.contains(ValueRepresentation::kFloat64)) {
     TRACE_UNTAGGING("  => Untagging to kFloat64");
@@ -282,7 +286,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kFloat64:
-          return Opcode::kCheckedHoleyFloat64ToFloat64;
+          return Opcode::kHoleyFloat64ToMaybeNanFloat64;
 
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
