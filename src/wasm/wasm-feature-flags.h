@@ -90,12 +90,6 @@
   /* V8 side owner: gdeepti */                                                 \
   V(relaxed_simd, "relaxed simd", false)                                       \
                                                                                \
-  /* Extended Constant Expressions Proposal. */                                \
-  /* https://github.com/WebAssembly/extended-const */                          \
-  /* V8 side owner: manoskouk */                                               \
-  /* Staged in v11.3. */                                                       \
-  V(extended_const, "extended constant expressions", false)                    \
-                                                                               \
   /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \
   /* Staged in v11.3 */                                                        \
@@ -113,7 +107,14 @@
   /* Shipped in v11.2 * */                                                     \
   /* ITS: https://groups.google.com/a/chromium.org/g/blink-dev/c/6VEOK4WZ7Wk   \
    */                                                                          \
-  V(return_call, "return call opcodes", true)
+  V(return_call, "return call opcodes", true)                                  \
+                                                                               \
+  /* Extended Constant Expressions Proposal. */                                \
+  /* https://github.com/WebAssembly/extended-const */                          \
+  /* V8 side owner: manoskouk */                                               \
+  /* Staged in v11.3. */                                                       \
+  /* Shipped in v11.4. */                                                      \
+  V(extended_const, "extended constant expressions", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
