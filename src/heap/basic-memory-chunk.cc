@@ -8,6 +8,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/marking-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
@@ -65,7 +66,7 @@ BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
       owner_(space),
       reservation_(std::move(reservation)) {
   if (space->identity() != RO_SPACE) {
-    marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
+    marking_bitmap()->template Clear<AccessMode::NON_ATOMIC>();
   }
 }
 

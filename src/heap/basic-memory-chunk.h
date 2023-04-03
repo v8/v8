@@ -301,11 +301,9 @@ class BasicMemoryChunk {
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
   }
 
-  template <AccessMode mode>
-  ConcurrentBitmap<mode>* marking_bitmap() const {
+  MarkingBitmap* marking_bitmap() const {
     DCHECK(!InReadOnlySpace());
-    return static_cast<ConcurrentBitmap<mode>*>(
-        Bitmap::Cast(address() + kMarkingBitmapOffset));
+    return MarkingBitmap::Cast(address() + kMarkingBitmapOffset);
   }
 
   Address HighWaterMark() const { return address() + high_water_mark_; }

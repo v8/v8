@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class Bitmap;
+class MarkingBitmap;
 class CodeObjectRegistry;
 class FreeListCategory;
 class Heap;

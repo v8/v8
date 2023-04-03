@@ -12,16 +12,14 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-using MarkingTest = TestWithBitmap<T>;
+using MarkingTest = TestWithBitmap;
 
-TYPED_TEST_SUITE(MarkingTest, BitmapTypes);
-
-TYPED_TEST(MarkingTest, TransitionMarkBit) {
+TEST_F(MarkingTest, TransitionMarkBit) {
   auto bitmap = this->bitmap();
   const int kLocationsSize = 3;
-  int position[kLocationsSize] = {
-      Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
+  int position[kLocationsSize] = {MarkingBitmap::kBitsPerCell - 2,
+                                  MarkingBitmap::kBitsPerCell - 1,
+                                  MarkingBitmap::kBitsPerCell};
   for (int i = 0; i < kLocationsSize; i++) {
     MarkBit mark_bit = bitmap->MarkBitFromIndexForTesting(position[i]);
     CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());

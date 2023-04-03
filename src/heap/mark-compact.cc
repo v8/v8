@@ -106,8 +106,7 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   explicit MarkingVerifier(Heap* heap)
       : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
-  virtual ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) = 0;
+  virtual MarkingBitmap* bitmap(const MemoryChunk* chunk) = 0;
 
   virtual void VerifyMap(Map map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
@@ -234,8 +233,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
  protected:
-  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) override {
+  MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
     return marking_state_->bitmap(chunk);
   }
 
@@ -5215,7 +5213,7 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
   // might not have recorded them in first place.
 
   // Remove mark bits in evacuated area.
-  marking_state->bitmap(page)->ClearRange(
+  marking_state->bitmap(page)->ClearRange<AccessMode::NON_ATOMIC>(
       page->AddressToMarkbitIndex(page->area_start()),
       page->AddressToMarkbitIndex(failed_start));
 
@@ -5417,8 +5415,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       : MarkingVerifier(heap),
         marking_state_(heap->non_atomic_marking_state()) {}
 
-  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) override {
+  MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
     return marking_state_->bitmap(chunk);
   }
 
@@ -5586,7 +5583,7 @@ void MinorMarkCompactCollector::StartMarking() {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     for (Page* page : *heap()->new_space()) {
-      CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
+      CHECK(page->marking_bitmap()->IsClean());
     }
   }
 #endif  // VERIFY_HEAP

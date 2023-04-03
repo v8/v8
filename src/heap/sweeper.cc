@@ -642,7 +642,7 @@ void Sweeper::CleanupTypedSlotsInFreeMemory(
 
 void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
                                                        size_t live_bytes) {
-  marking_state_->bitmap(page)->Clear();
+  marking_state_->bitmap(page)->Clear<AccessMode::NON_ATOMIC>();
   // Keep the old live bytes counter of the page until RefillFreeList, where
   // the space size is refined.
   // The allocated_bytes() counter is precisely the total size of objects.

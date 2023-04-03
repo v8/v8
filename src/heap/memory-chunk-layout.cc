@@ -15,7 +15,7 @@ namespace internal {
 size_t MemoryChunkLayout::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return ::RoundUp(MemoryChunk::kHeaderSize + Bitmap::kSize,
+  return ::RoundUp(MemoryChunk::kHeaderSize + MarkingBitmap::kSize,
                    MemoryAllocator::GetCommitPageSize());
 }
 
@@ -48,7 +48,7 @@ size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
-  return RoundUp(MemoryChunk::kHeaderSize + Bitmap::kSize,
+  return RoundUp(MemoryChunk::kHeaderSize + MarkingBitmap::kSize,
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 

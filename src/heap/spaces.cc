@@ -173,8 +173,8 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState* marking_state = heap()->marking_state();
-  marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
-                                        AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->SetRange<AccessMode::ATOMIC>(
+      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, static_cast<intptr_t>(end - start));
 }
 
@@ -185,8 +185,8 @@ void Page::CreateBlackAreaBackground(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   AtomicMarkingState* marking_state = heap()->atomic_marking_state();
-  marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
-                                        AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->SetRange<AccessMode::ATOMIC>(
+      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
   heap()->incremental_marking()->IncrementLiveBytesBackground(
       this, static_cast<intptr_t>(end - start));
 }
@@ -198,8 +198,8 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState* marking_state = heap()->marking_state();
-  marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
-                                          AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->ClearRange<AccessMode::ATOMIC>(
+      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, -static_cast<intptr_t>(end - start));
 }
 
@@ -210,8 +210,8 @@ void Page::DestroyBlackAreaBackground(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   AtomicMarkingState* marking_state = heap()->atomic_marking_state();
-  marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
-                                          AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->ClearRange<AccessMode::ATOMIC>(
+      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
   heap()->incremental_marking()->IncrementLiveBytesBackground(
       this, -static_cast<intptr_t>(end - start));
 }

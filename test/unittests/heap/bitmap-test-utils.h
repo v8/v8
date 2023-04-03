@@ -7,13 +7,13 @@
 
 #include "src/base/build_config.h"
 #include "src/base/platform/memory.h"
+#include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8::internal {
 
-template <typename T>
 class TestWithBitmap : public ::testing::Test {
  public:
   static constexpr size_t kPageSize = 1u << kPageSizeBits;
@@ -30,14 +30,13 @@ class TestWithBitmap : public ::testing::Test {
     return reinterpret_cast<uint8_t*>(memory_ +
                                       MemoryChunkLayout::kMarkingBitmapOffset);
   }
-  T* bitmap() { return reinterpret_cast<T*>(raw_bitmap()); }
+  MarkingBitmap* bitmap() {
+    return reinterpret_cast<MarkingBitmap*>(raw_bitmap());
+  }
 
  private:
   uint8_t* memory_;
 };
-
-using BitmapTypes = ::testing::Types<ConcurrentBitmap<AccessMode::NON_ATOMIC>,
-                                     ConcurrentBitmap<AccessMode::ATOMIC>>;
 
 }  // namespace v8::internal
 

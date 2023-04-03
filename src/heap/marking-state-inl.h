@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARKING_STATE_INL_H_
 #define V8_HEAP_MARKING_STATE_INL_H_
 
+#include "src/heap/marking-inl.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-chunk.h"
 
@@ -55,13 +56,14 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
 template <typename ConcreteState, AccessMode access_mode>
 void MarkingStateBase<ConcreteState, access_mode>::ClearLiveness(
     MemoryChunk* chunk) {
-  static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
+  static_cast<ConcreteState*>(this)
+      ->bitmap(chunk)
+      ->template Clear<access_mode>();
   static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
 }
 
-ConcurrentBitmap<AccessMode::ATOMIC>* MarkingState::bitmap(
-    const BasicMemoryChunk* chunk) const {
-  return chunk->marking_bitmap<AccessMode::ATOMIC>();
+MarkingBitmap* MarkingState::bitmap(const BasicMemoryChunk* chunk) const {
+  return chunk->marking_bitmap();
 }
 
 void MarkingState::IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -80,9 +82,9 @@ void MarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
   chunk->live_byte_count_.store(value, std::memory_order_relaxed);
 }
 
-ConcurrentBitmap<AccessMode::NON_ATOMIC>* NonAtomicMarkingState::bitmap(
+MarkingBitmap* NonAtomicMarkingState::bitmap(
     const BasicMemoryChunk* chunk) const {
-  return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
+  return chunk->marking_bitmap();
 }
 
 void NonAtomicMarkingState::IncrementLiveBytes(MemoryChunk* chunk,
@@ -102,9 +104,8 @@ void NonAtomicMarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
   chunk->live_byte_count_.store(value, std::memory_order_relaxed);
 }
 
-ConcurrentBitmap<AccessMode::ATOMIC>* AtomicMarkingState::bitmap(
-    const BasicMemoryChunk* chunk) const {
-  return chunk->marking_bitmap<AccessMode::ATOMIC>();
+MarkingBitmap* AtomicMarkingState::bitmap(const BasicMemoryChunk* chunk) const {
+  return chunk->marking_bitmap();
 }
 
 void AtomicMarkingState::IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {

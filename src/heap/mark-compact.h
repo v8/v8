@@ -113,9 +113,8 @@ class YoungGenerationMarkingState final
       : MarkingStateBase(cage_base) {}
   V8_INLINE ~YoungGenerationMarkingState();
 
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
+  MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const {
+    return chunk->marking_bitmap();
   }
 
   V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);

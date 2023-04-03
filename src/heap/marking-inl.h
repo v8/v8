@@ -14,14 +14,143 @@
 
 namespace v8::internal {
 
+template <>
+inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
+    uint32_t cell_index, uint32_t mask) {
+  cells()[cell_index] |= mask;
+}
+
+template <>
+inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
+    uint32_t cell_index, uint32_t mask) {
+  base::AsAtomic32::SetBits(cells() + cell_index, mask, mask);
+}
+
+template <>
+inline void MarkingBitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(
+    uint32_t cell_index, uint32_t mask) {
+  cells()[cell_index] &= ~mask;
+}
+
+template <>
+inline void MarkingBitmap::ClearBitsInCell<AccessMode::ATOMIC>(
+    uint32_t cell_index, uint32_t mask) {
+  base::AsAtomic32::SetBits(cells() + cell_index, 0u, mask);
+}
+
+template <>
+inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::ATOMIC>(
+    uint32_t start_cell_index, uint32_t end_cell_index) {
+  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+    base::Relaxed_Store(cell_base + i, 0);
+  }
+}
+
+template <>
+inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::NON_ATOMIC>(
+    uint32_t start_cell_index, uint32_t end_cell_index) {
+  for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+    cells()[i] = 0;
+  }
+}
+
+template <>
+inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::ATOMIC>(
+    uint32_t start_cell_index, uint32_t end_cell_index) {
+  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+    base::Relaxed_Store(cell_base + i, 0xffffffff);
+  }
+}
+
+template <>
+inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::NON_ATOMIC>(
+    uint32_t start_cell_index, uint32_t end_cell_index) {
+  for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+    cells()[i] = 0xffffffff;
+  }
+}
+
+template <AccessMode mode>
+void MarkingBitmap::Clear() {
+  ClearCellRangeRelaxed<mode>(0, kCellsCount);
+  if constexpr (mode == AccessMode::ATOMIC) {
+    // This fence prevents re-ordering of publishing stores with the mark-bit
+    // setting stores.
+    base::SeqCst_MemoryFence();
+  }
+}
+
+template <AccessMode mode>
+inline void MarkingBitmap::SetRange(MarkBitIndex start_index,
+                                    MarkBitIndex end_index) {
+  if (start_index >= end_index) return;
+  end_index--;
+
+  const CellIndex start_cell_index = IndexToCell(start_index);
+  const MarkBit::CellType start_index_mask = IndexInCellMask(start_index);
+  const CellIndex end_cell_index = IndexToCell(end_index);
+  const MarkBit::CellType end_index_mask = IndexInCellMask(end_index);
+
+  if (start_cell_index != end_cell_index) {
+    // Firstly, fill all bits from the start address to the end of the first
+    // cell with 1s.
+    SetBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
+    // Then fill all in between cells with 1s.
+    SetCellRangeRelaxed<mode>(start_cell_index + 1, end_cell_index);
+    // Finally, fill all bits until the end address in the last cell with 1s.
+    SetBitsInCell<mode>(end_cell_index, end_index_mask | (end_index_mask - 1));
+  } else {
+    SetBitsInCell<mode>(start_cell_index,
+                        end_index_mask | (end_index_mask - start_index_mask));
+  }
+  if (mode == AccessMode::ATOMIC) {
+    // This fence prevents re-ordering of publishing stores with the mark-bit
+    // setting stores.
+    base::SeqCst_MemoryFence();
+  }
+}
+
+template <AccessMode mode>
+inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
+                                      MarkBitIndex end_index) {
+  if (start_index >= end_index) return;
+  end_index--;
+
+  const CellIndex start_cell_index = IndexToCell(start_index);
+  const MarkBit::CellType start_index_mask = IndexInCellMask(start_index);
+  const CellIndex end_cell_index = IndexToCell(end_index);
+  const MarkBit::CellType end_index_mask = IndexInCellMask(end_index);
+
+  if (start_cell_index != end_cell_index) {
+    // Firstly, fill all bits from the start address to the end of the first
+    // cell with 0s.
+    ClearBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
+    // Then fill all in between cells with 0s.
+    ClearCellRangeRelaxed<mode>(start_cell_index + 1, end_cell_index);
+    // Finally, set all bits until the end address in the last cell with 0s.
+    ClearBitsInCell<mode>(end_cell_index,
+                          end_index_mask | (end_index_mask - 1));
+  } else {
+    ClearBitsInCell<mode>(start_cell_index,
+                          end_index_mask | (end_index_mask - start_index_mask));
+  }
+  if (mode == AccessMode::ATOMIC) {
+    // This fence prevents re-ordering of publishing stores with the mark-bit
+    // clearing stores.
+    base::SeqCst_MemoryFence();
+  }
+}
+
 LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
 
 LiveObjectRange::iterator::iterator(const Page* page)
     : page_(page),
-      cells_(page->marking_bitmap<AccessMode::ATOMIC>()->cells()),
+      cells_(page->marking_bitmap()->cells()),
       cage_base_(page->heap()->isolate()),
-      current_cell_index_(
-          Bitmap::IndexToCell(Bitmap::AddressToIndex(page->area_start()))),
+      current_cell_index_(MarkingBitmap::IndexToCell(
+          MarkingBitmap::AddressToIndex(page->area_start()))),
       current_cell_(cells_[current_cell_index_]) {
   AdvanceToNextValidObject();
 }
@@ -68,12 +197,14 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     // whole page.
     DCHECK_LE(next_object, page_->area_end());
     // Move to the corresponding cell of the end index.
-    const auto next_markbit_index = Bitmap::AddressToIndex(next_object);
-    DCHECK_GE(Bitmap::IndexToCell(next_markbit_index), current_cell_index_);
-    current_cell_index_ = Bitmap::IndexToCell(next_markbit_index);
-    DCHECK_LT(current_cell_index_, Bitmap::kCellsCount);
+    const auto next_markbit_index = MarkingBitmap::AddressToIndex(next_object);
+    DCHECK_GE(MarkingBitmap::IndexToCell(next_markbit_index),
+              current_cell_index_);
+    current_cell_index_ = MarkingBitmap::IndexToCell(next_markbit_index);
+    DCHECK_LT(current_cell_index_, MarkingBitmap::kCellsCount);
     // Mask out lower addresses in the cell.
-    const MarkBit::CellType mask = Bitmap::IndexInCellMask(next_markbit_index);
+    const MarkBit::CellType mask =
+        MarkingBitmap::IndexInCellMask(next_markbit_index);
     current_cell_ = cells_[current_cell_index_] & ~(mask - 1);
   }
   // The next block finds any marked object starting from the current cell.
@@ -81,7 +212,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     if (current_cell_) {
       const auto trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
       Address current_cell_base =
-          page_->address() + Bitmap::IndexToBase(current_cell_index_);
+          page_->address() + MarkingBitmap::IndexToBase(current_cell_index_);
       Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
       // The object may be a filler which we want to skip.
       current_object_ = HeapObject::FromAddress(object_address);
@@ -92,7 +223,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
       CHECK(page_->ContainsLimit(object_address + current_size_));
       return true;
     }
-    if (++current_cell_index_ >= Bitmap::kCellsCount) break;
+    if (++current_cell_index_ >= MarkingBitmap::kCellsCount) break;
     current_cell_ = cells_[current_cell_index_];
   }
   return false;
