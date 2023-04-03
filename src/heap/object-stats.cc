@@ -1040,7 +1040,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
   Code code = istream.code(kAcquireLoad);
   RecordSimpleVirtualObjectStats(HeapObject(), istream,
                                  CodeKindToVirtualInstanceType(code.kind()));
-  RecordSimpleVirtualObjectStats(istream, code.relocation_info(),
+  RecordSimpleVirtualObjectStats(istream, istream.relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
   if (CodeKindIsOptimizedJSFunction(code.kind())) {
     Object source_position_table = code.source_position_table();

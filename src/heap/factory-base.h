@@ -76,7 +76,6 @@ struct NewCodeOptions {
   int constant_pool_offset;
   int code_comments_offset;
   int32_t unwinding_info_offset;
-  Handle<ByteArray> reloc_info;
   Handle<HeapObject> bytecode_or_deoptimization_data;
   Handle<ByteArray> bytecode_offsets_or_source_position_table;
 };
