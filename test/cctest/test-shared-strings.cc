@@ -224,41 +224,51 @@ UNINITIALIZED_TEST(YoungInternalization) {
 
   // Allocate two young strings in isolate1 then intern them. Young strings
   // aren't in-place internalizable and are copied when internalized.
-  Handle<String> young_one_byte_seq1 =
-      factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
-  Handle<String> young_two_byte_seq1 =
-      factory1->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
-          .ToHandleChecked();
-  Handle<String> one_byte_intern1 =
-      factory1->InternalizeString(young_one_byte_seq1);
-  Handle<String> two_byte_intern1 =
-      factory1->InternalizeString(young_two_byte_seq1);
-  CHECK(!young_one_byte_seq1->InSharedHeap());
-  CHECK(!young_two_byte_seq1->InSharedHeap());
-  CHECK(one_byte_intern1->InSharedHeap());
-  CHECK(two_byte_intern1->InSharedHeap());
-  CHECK(!young_one_byte_seq1.equals(one_byte_intern1));
-  CHECK(!young_two_byte_seq1.equals(two_byte_intern1));
-  CHECK_NE(*young_one_byte_seq1, *one_byte_intern1);
-  CHECK_NE(*young_two_byte_seq1, *two_byte_intern1);
+  Handle<String> young_one_byte_seq1;
+  Handle<String> young_two_byte_seq1;
+  Handle<String> one_byte_intern1;
+  Handle<String> two_byte_intern1;
+  {
+    ParkedScope parked_scope(i_isolate2->main_thread_local_isolate());
+    young_one_byte_seq1 = factory1->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    young_two_byte_seq1 =
+        factory1->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    one_byte_intern1 = factory1->InternalizeString(young_one_byte_seq1);
+    two_byte_intern1 = factory1->InternalizeString(young_two_byte_seq1);
+    CHECK(!young_one_byte_seq1->InSharedHeap());
+    CHECK(!young_two_byte_seq1->InSharedHeap());
+    CHECK(one_byte_intern1->InSharedHeap());
+    CHECK(two_byte_intern1->InSharedHeap());
+    CHECK(!young_one_byte_seq1.equals(one_byte_intern1));
+    CHECK(!young_two_byte_seq1.equals(two_byte_intern1));
+    CHECK_NE(*young_one_byte_seq1, *one_byte_intern1);
+    CHECK_NE(*young_two_byte_seq1, *two_byte_intern1);
+  }
 
   // Allocate two young strings with the same contents in isolate2 then intern
   // them. They should be the same as the interned strings from isolate1.
-  Handle<String> young_one_byte_seq2 =
-      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
-  Handle<String> young_two_byte_seq2 =
-      factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
-          .ToHandleChecked();
-  Handle<String> one_byte_intern2 =
-      factory2->InternalizeString(young_one_byte_seq2);
-  Handle<String> two_byte_intern2 =
-      factory2->InternalizeString(young_two_byte_seq2);
-  CHECK(!young_one_byte_seq2.equals(one_byte_intern2));
-  CHECK(!young_two_byte_seq2.equals(two_byte_intern2));
-  CHECK_NE(*young_one_byte_seq2, *one_byte_intern2);
-  CHECK_NE(*young_two_byte_seq2, *two_byte_intern2);
-  CHECK_EQ(*one_byte_intern1, *one_byte_intern2);
-  CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
+  Handle<String> young_one_byte_seq2;
+  Handle<String> young_two_byte_seq2;
+  Handle<String> one_byte_intern2;
+  Handle<String> two_byte_intern2;
+  {
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
+    young_one_byte_seq2 = factory2->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    young_two_byte_seq2 =
+        factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    one_byte_intern2 = factory2->InternalizeString(young_one_byte_seq2);
+    two_byte_intern2 = factory2->InternalizeString(young_two_byte_seq2);
+    CHECK(!young_one_byte_seq2.equals(one_byte_intern2));
+    CHECK(!young_two_byte_seq2.equals(two_byte_intern2));
+    CHECK_NE(*young_one_byte_seq2, *one_byte_intern2);
+    CHECK_NE(*young_two_byte_seq2, *two_byte_intern2);
+    CHECK_EQ(*one_byte_intern1, *one_byte_intern2);
+    CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
+  }
 }
 
 class ConcurrentStringThreadBase : public v8::base::Thread {
@@ -2091,7 +2101,8 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
     Heap* heap = i_client->heap();
 
     {
-      HandleScope scope(i_client);
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
 
       Handle<FixedArray> young_object =
           factory->NewFixedArray(1, AllocationType::kYoung);
