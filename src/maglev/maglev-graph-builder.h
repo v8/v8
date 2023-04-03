@@ -1039,9 +1039,17 @@ class MaglevGraphBuilder {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kFloat64);
 
-    // We only need to check for silenced NaN in non-conversion nodes, since
-    // conversions can't be signalling NaNs.
-    if (value->properties().is_conversion()) return value;
+    // We only need to check for silenced NaN in non-conversion nodes or
+    // conversion from tagged, since they can't be signalling NaNs.
+    if (value->properties().is_conversion()) {
+      // A conversion node should have at least one input.
+      DCHECK_GE(value->input_count(), 1);
+      // If the conversion node is tagged, we could be reading a fabricated sNaN
+      // value (built using a BufferArray for example).
+      if (!value->input(0).node()->properties().is_tagged()) {
+        return value;
+      }
+    }
 
     // Special case constants, since we know what they are.
     Float64Constant* constant = value->TryCast<Float64Constant>();
