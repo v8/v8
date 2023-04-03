@@ -623,9 +623,9 @@ class ExceptionHandlerTrampolineBuilder {
           materialising_moves->emplace_back(target, source);
           break;
         case ValueRepresentation::kFloat64:
+        case ValueRepresentation::kHoleyFloat64:
           materialising_moves->emplace_back(target, source);
           break;
-        case ValueRepresentation::kHoleyFloat64:
           UNREACHABLE();
       }
     }
