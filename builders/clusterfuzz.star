@@ -4,7 +4,7 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
-def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.NO, use_remoteexec = RECLIENT.DEFAULT, **kwargs):
+def clusterfuzz_builder(properties, close_tree = True, use_remoteexec = RECLIENT.DEFAULT, **kwargs):
     properties["builder_group"] = "client.v8.clusterfuzz"
     properties["default_targets"] = ["v8_clusterfuzz"]
     return v8_builder(
@@ -13,7 +13,7 @@ def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.NO, use_r
         properties = properties,
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
-        use_goma = use_goma,
+        use_goma = GOMA.NO,
         use_remoteexec = use_remoteexec,
         experiments = {"v8.resultdb": 100},
         **kwargs

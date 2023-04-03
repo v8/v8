@@ -21,6 +21,7 @@ def try_builder(
         cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
         disable_resultdb_exports = disable_resultdb_exports,
+        use_goma = GOMA.NO,
         **kwargs
     )
 
@@ -55,7 +56,6 @@ try_builder(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -65,7 +65,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -75,7 +74,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"default_targets": ["d8"], "target_platform": "android", "target_arch": "arm"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -101,7 +99,6 @@ try_builder(
             name = "osx_sdk",
         ),
     ],
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -126,7 +123,6 @@ try_builder(
         "coverage": "llvm",
     },
     execution_timeout = 7200,
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -140,7 +136,6 @@ try_builder(
         "gclient_vars": {"checkout_clang_coverage_tools": "True"},
         "coverage": "llvm",
     },
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -150,7 +145,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -160,7 +154,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 5400,
-    use_goma = GOMA.NO,
 )
 
 try_builder(
@@ -173,7 +166,6 @@ try_builder(
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["v8_gcc_light"]},
-    use_goma = GOMA.NO,
 )
 
 try_builder(
@@ -183,7 +175,6 @@ try_builder(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -193,7 +184,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -203,7 +193,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -213,7 +202,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -225,7 +213,6 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 4400,
     build_numbers = True,
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     disable_resultdb_exports = True,
 )
@@ -238,7 +225,6 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     build_numbers = True,
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     reclient_jobs = RECLIENT_JOBS.J150,
     disable_resultdb_exports = True,
@@ -249,7 +235,6 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -259,7 +244,6 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -268,7 +252,6 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -278,7 +261,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -288,7 +270,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
-    use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
@@ -307,8 +288,7 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"default_targets": ["d8"], "use_goma": False},
-    use_goma = GOMA.NO,
+    properties = {"default_targets": ["d8"]},
 )
 
 try_builder(
@@ -318,8 +298,7 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"default_targets": ["d8"], "use_goma": False},
-    use_goma = GOMA.NO,
+    properties = {"default_targets": ["d8"]},
 )
 
 try_builder(
