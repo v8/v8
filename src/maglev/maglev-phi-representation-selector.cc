@@ -91,10 +91,8 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
 
   UseRepresentationSet use_reprs = node->get_uses_repr_hints();
 
-  TRACE_UNTAGGING("  + use_reprs  : " << std::hex << use_reprs.ToIntegral()
-                                      << std::dec);
-  TRACE_UNTAGGING("  + input_reprs: " << std::hex << input_reprs.ToIntegral()
-                                      << std::dec);
+  TRACE_UNTAGGING("  + use_reprs  : " << use_reprs);
+  TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
 
   if (use_reprs.contains(UseRepresentation::kTagged) ||
       use_reprs.contains(UseRepresentation::kUint32) || use_reprs.empty()) {
@@ -176,8 +174,7 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
 
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
-  TRACE_UNTAGGING("  + intersection reprs: "
-                  << std::hex << intersection.ToIntegral() << std::dec);
+  TRACE_UNTAGGING("  + intersection reprs: " << intersection);
   if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
     TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
     // A HoleyFloat64 phi should not be used as Float64, as this would convert

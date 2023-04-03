@@ -5,8 +5,10 @@
 #ifndef V8_BASE_ENUM_SET_H_
 #define V8_BASE_ENUM_SET_H_
 
+#include <ostream>
 #include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 
 namespace v8 {
@@ -91,6 +93,23 @@ class EnumSet {
 
   T bits_ = 0;
 };
+
+template <typename E, typename T>
+std::ostream& operator<<(std::ostream& os, EnumSet<E, T> set) {
+  os << "{";
+  bool first = true;
+  while (!set.empty()) {
+    if (!first) os << ", ";
+    first = false;
+
+    T bits = set.ToIntegral();
+    E element = static_cast<E>(bits::CountTrailingZerosNonZero(bits));
+    os << element;
+    set.Remove(element);
+  }
+  os << "}";
+  return os;
+}
 
 }  // namespace base
 }  // namespace v8
