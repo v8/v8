@@ -1113,8 +1113,8 @@ void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
     holder->FastPropertyAtPut(field_index, *value, tag);
     return;
   }
-  DCHECK(holder_->IsJSSharedArray(isolate_));
   Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
+  DCHECK(IsElement(*holder));
   ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
   accessor->SetAtomic(holder, number_, *value, kSeqCstAccess);
 }
