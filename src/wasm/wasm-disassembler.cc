@@ -570,6 +570,10 @@ class ImmediatesPrinter {
     use_type(src.index);
   }
 
+  void BrOnCastFlags(BrOnCastImmediate& imm) {
+    out_ << " " << static_cast<unsigned>(imm.raw_value);
+  }
+
  private:
   void use_type(uint32_t type_index) { owner_->used_types_.insert(type_index); }
 

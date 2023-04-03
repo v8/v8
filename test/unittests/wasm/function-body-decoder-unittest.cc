@@ -4337,80 +4337,92 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct});
+      {WASM_I32V(42), WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST(0, super_struct, sub_struct), WASM_GC_OP(kExprRefCast),
+       sub_struct});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct});
-  ExpectValidates(
-      FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)});
+      {WASM_I32V(42), WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST(0, super_struct, sub_struct), WASM_GC_OP(kExprRefCast),
+       sub_struct});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)});
+       WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct)});
+  ExpectValidates(
+      FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
+      {WASM_I32V(42), WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct)});
 
   // Wrong branch type.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct), WASM_UNREACHABLE},
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, sub_struct),
+       WASM_UNREACHABLE},
       kAppendEnd, "br_on_cast must target a branch of arity at least 1");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)},
+      {WASM_I32V(42), WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct)},
       kAppendEnd,
       "type error in branch[0] (expected (ref null 1), got (ref null 0))");
   ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {supertype}),
                 {WASM_I32V(42), WASM_LOCAL_GET(0),
-                 WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)},
+                 WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct)},
                 kAppendEnd,
                 "type error in branch[0] (expected (ref null 1), got (ref 0))");
 
   // Wrong fallthrough type.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct)}, kAppendEnd,
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, sub_struct)},
+      kAppendEnd,
       "type error in fallthru[0] (expected (ref null 1), got (ref null 0))");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {supertype}),
-      {WASM_BLOCK_I(WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct))},
+      {WASM_BLOCK_I(WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct))},
       kAppendEnd, "type error in branch[0] (expected i32, got (ref null 0))");
-  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {supertype}),
-                {WASM_BLOCK_I(WASM_LOCAL_GET(0),
-                              WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct))},
-                kAppendEnd,
-                "type error in branch[0] (expected i32, got (ref 0))");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {supertype}, {supertype}),
+      {WASM_BLOCK_I(WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct))},
+      kAppendEnd, "type error in branch[0] (expected i32, got (ref 0))");
 
   // Argument type error.
-  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
-                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
-                 WASM_GC_OP(kExprRefCast), sub_struct},
-                kAppendEnd,
-                "Invalid types for br_on_cast: local.get of type externref has "
-                "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, sub_struct),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kExternRefCode, sub_struct),
        WASM_GC_OP(kExprRefCast), sub_struct},
       kAppendEnd,
-      "Invalid types for br_on_cast null: local.get of type externref has "
+      "Invalid types for br_on_cast: local.get of type externref has "
+      "to be in the same reference type hierarchy as (ref 1)");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, kExternRefCode, sub_struct),
+       WASM_GC_OP(kExprRefCast), sub_struct},
+      kAppendEnd,
+      "Invalid types for br_on_cast: local.get of type externref has "
       "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)}, kAppendEnd,
-      "Invalid types for br_on_cast_fail: local.get of type externref has to "
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, kExternRefCode, sub_struct)},
+      kAppendEnd,
+      "Invalid types for br_on_cast: local.get of type externref has to "
       "be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)}, kAppendEnd,
-      "Invalid types for br_on_cast_fail null: local.get of type "
+      {WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, kExternRefCode, sub_struct)},
+      kAppendEnd,
+      "Invalid types for br_on_cast: local.get of type "
       "externref has to be in the same reference type hierarchy as (ref 1)");
 
   // Cast between types of different type hierarchies is invalid.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, fct_type), WASM_UNREACHABLE},
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, fct_type),
+       WASM_UNREACHABLE},
       kAppendEnd,
       "Invalid types for br_on_cast: local.get of type (ref null 0) has "
       "to be in the same reference type hierarchy as (ref 2)");
@@ -4892,6 +4904,8 @@ TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
   // br_on_cast{,_fail}: prefix + opcode + br_depth + type_index
   ExpectLength(4, 0xfb, kExprBrOnCastDeprecated & 0xFF);
   ExpectLength(4, 0xfb, kExprBrOnCastFail & 0xFF);
+  // br_on_cast: prefix + opcode + flags + br_depth + source_type + target_type
+  ExpectLength(6, 0xfb, kExprBrOnCastGeneric & 0xFF);
 
   // struct.new, with leb immediate operand.
   ExpectLength(3, 0xfb, 0x07, 0x42);

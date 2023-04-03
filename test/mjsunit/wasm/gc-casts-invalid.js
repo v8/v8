@@ -7,6 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestRefTestInvalid() {
+  print(arguments.callee.name);
   let struct = 0;
   let array = 1;
   let sig = 2;
@@ -47,4 +48,143 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                   /has to be in the same reference type hierarchy/);
     }
   }
+})();
+
+(function TestBrOnCastExpectsNonNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  builder.addFunction('fct', makeSig([wasmRefNullType(struct)], []))
+  .addBody([
+    kExprBlock, kAnyRefCode,
+      kExprLocalGet, 0,
+      ...wasmBrOnCast(0, wasmRefType(struct), wasmRefType(struct)),
+      kExprDrop,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprReturn,
+  ]);
+
+  assertThrows(() => builder.instantiate(),
+    WebAssembly.CompileError,
+    /br_on_cast\[0\] expected type \(ref 0\), found local.get of type \(ref null 0\)/);
+})();
+
+(function TestBrOnCastExpectsNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
+  .addBody([
+    kExprBlock, kAnyRefCode,
+      kExprLocalGet, 0,
+      ...wasmBrOnCast(0, wasmRefNullType(struct), wasmRefNullType(struct)),
+      kExprDrop,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprReturn,
+  ]);
+  // Specifying a nullable source and providing a non-nullable value is not an
+  // error (as non-nullable values can be cast implicitly to nullable).
+  builder.instantiate();
+})();
+
+(function TestBrOnCastNullBranches() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let nonNullable =
+    builder.addType(makeSig([], [wasmRefType(struct)]));
+  builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
+  .addBody([
+    kExprBlock, nonNullable,
+      kExprLocalGet, 0,
+      ...wasmBrOnCast(0, wasmRefType(struct), wasmRefNullType(struct)),
+      kExprDrop,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprReturn,
+  ]);
+  // Even though the source is non-nullable, if the br_on_cast is set to produce
+  // a nullable value on cast, the label target must be nullable as well.
+  assertThrows(() => builder.instantiate(),
+    WebAssembly.CompileError,
+    /type error in branch\[0\] \(expected \(ref 0\), got \(ref null 0\)\)/);
+})();
+
+(function TestBrOnCastInvalidFlags() {
+  print(arguments.callee.name);
+  for (let value of [-1, 8, 127, 255, 256]) {
+    let builder = new WasmModuleBuilder();
+    let struct = builder.addStruct([makeField(kWasmI32, true)]);
+    builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprLocalGet, 0,
+        kGCPrefix, kExprBrOnCastGeneric,
+          ...wasmUnsignedLeb(value), 0, kAnyRefCode, struct,
+        kExprDrop,
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprReturn,
+    ]);
+    assertThrows(() => builder.instantiate(),
+      WebAssembly.CompileError,
+      /invalid br_on_cast flags [0-9]+/);
+  }
+})();
+
+(function TestBrOnCastSourceTypeUpcast() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
+  .addBody([
+    kExprBlock, kAnyRefCode,
+      kExprLocalGet, 0,
+      ...wasmBrOnCast(0, wasmRefType(kWasmAnyRef), wasmRefType(struct)),
+      kGCPrefix, kExprStructGet, struct, 0,
+      kExprDrop,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprReturn,
+  ]);
+  // While the value stack type is (ref struct), the source type in the
+  // br_on_cast is specified as (ref any), so the fallthrough type becomes
+  // the less specific (ref any).
+  assertThrows(() => builder.instantiate(),
+    WebAssembly.CompileError,
+    /struct.get\[0\] expected type \(ref null 0\), found local.get of type \(ref any\)/);
+})();
+
+(function TestBrOnCastFailSourceTypeUpcast() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let structRefSig =
+      builder.addType(makeSig([], [wasmRefType(struct)]));
+
+  builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
+  .addBody([
+    kExprBlock, structRefSig,
+      kExprLocalGet, 0,
+      ...wasmBrOnCastFail(0, wasmRefNullType(kWasmAnyRef), wasmRefType(struct)),
+      kExprDrop,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprReturn,
+  ]);
+  // While the value stack type is (ref struct), the source type in the
+  // br_on_cast_fail is specified as (ref any), so the branch type becomes
+  // the less specific (ref any).
+  assertThrows(() => builder.instantiate(),
+    WebAssembly.CompileError,
+    /type error in branch\[0\] \(expected \(ref 0\), got anyref\)/);
 })();
