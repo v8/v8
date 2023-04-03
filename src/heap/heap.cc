@@ -315,11 +315,11 @@ size_t Heap::MaxReserved() const {
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
   // Compute the semi space size and cap it.
   size_t ratio = old_generation <= kOldGenerationLowMemory
-                     ? kOldGenerationToSemiSpaceRatioLowMemory
-                     : kOldGenerationToSemiSpaceRatio;
+                     ? OldGenerationToSemiSpaceRatioLowMemory()
+                     : OldGenerationToSemiSpaceRatio();
   size_t semi_space = old_generation / ratio;
-  semi_space = std::min({semi_space, kMaxSemiSpaceSize});
-  semi_space = std::max({semi_space, kMinSemiSpaceSize});
+  semi_space = std::min({semi_space, DefaultMaxSemiSpaceSize()});
+  semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
   semi_space = RoundUp(semi_space, Page::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
@@ -366,7 +366,7 @@ void Heap::GenerationSizesFromHeapSize(size_t heap_size,
 }
 
 size_t Heap::MinYoungGenerationSize() {
-  return YoungGenerationSizeFromSemiSpaceSize(kMinSemiSpaceSize);
+  return YoungGenerationSizeFromSemiSpaceSize(DefaultMinSemiSpaceSize());
 }
 
 size_t Heap::MinOldGenerationSize() {
@@ -379,7 +379,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
 #ifdef V8_COMPRESS_POINTERS
   // Isolate and the young generation are also allocated on the heap.
   return kPtrComprCageReservationSize -
-         YoungGenerationSizeFromSemiSpaceSize(kMaxSemiSpaceSize) -
+         YoungGenerationSizeFromSemiSpaceSize(DefaultMaxSemiSpaceSize()) -
          RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
 #else
   return std::numeric_limits<size_t>::max();
@@ -400,13 +400,19 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
 }
 
+namespace {
+int NumberOfSemiSpaces() { return v8_flags.minor_mc ? 1 : 2; }
+}  // namespace
+
 size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
-  return semi_space_size * (2 + kNewLargeObjectSpaceToSemiSpaceRatio);
+  return semi_space_size *
+         (NumberOfSemiSpaces() + kNewLargeObjectSpaceToSemiSpaceRatio);
 }
 
 size_t Heap::SemiSpaceSizeFromYoungGenerationSize(
     size_t young_generation_size) {
-  return young_generation_size / (2 + kNewLargeObjectSpaceToSemiSpaceRatio);
+  return young_generation_size /
+         (NumberOfSemiSpaces() + kNewLargeObjectSpaceToSemiSpaceRatio);
 }
 
 size_t Heap::Capacity() {
@@ -3050,7 +3056,7 @@ void* Heap::AllocateExternalBackingStore(
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();
-    if (new_space_backing_store_bytes >= 2 * kMaxSemiSpaceSize &&
+    if (new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
       // store bytes and may free enough external bytes for this allocation.
@@ -4873,7 +4879,7 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   // Initialize max_semi_space_size_.
   {
-    max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
+    max_semi_space_size_ = DefaultMaxSemiSpaceSize();
     if (constraints.max_young_generation_size_in_bytes() > 0) {
       max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
           constraints.max_young_generation_size_in_bytes());
@@ -4897,13 +4903,6 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       max_semi_space_size_ =
           SemiSpaceSizeFromYoungGenerationSize(young_generation_size);
     }
-    if (v8_flags.minor_mc) {
-      // The conditions above this one assume a new space implementation
-      // consisting of two equally sized semi spaces. If MinorMC is used, new
-      // space contains only a single space. Thus max size can be doubled
-      // without regressing memory.
-      max_semi_space_size_ *= 2;
-    }
     if (v8_flags.stress_compaction) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
@@ -4912,7 +4911,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     max_semi_space_size_ =
         static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
             static_cast<uint64_t>(max_semi_space_size_)));
-    max_semi_space_size_ = std::max({max_semi_space_size_, kMinSemiSpaceSize});
+    max_semi_space_size_ =
+        std::max({max_semi_space_size_, DefaultMinSemiSpaceSize()});
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
@@ -4951,8 +4951,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   // Initialize initial_semispace_size_.
   {
-    initial_semispace_size_ = kMinSemiSpaceSize;
-    if (max_semi_space_size_ == kMaxSemiSpaceSize) {
+    initial_semispace_size_ = DefaultMinSemiSpaceSize();
+    if (max_semi_space_size_ == DefaultMaxSemiSpaceSize()) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
       initial_semispace_size_ =
           std::max(initial_semispace_size_, static_cast<size_t>(1 * MB));

@@ -334,26 +334,9 @@ class Heap {
 
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
-  // Young generation size is the same for compressed heaps and 32-bit heaps.
-  static constexpr size_t kOldGenerationToSemiSpaceRatio =
-      128 * kHeapLimitMultiplier / kPointerMultiplier;
-  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
-      256 * kHeapLimitMultiplier / kPointerMultiplier;
   static constexpr size_t kOldGenerationLowMemory =
       128 * MB * kHeapLimitMultiplier;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
-#if ENABLE_HUGEPAGE
-  static constexpr size_t kMinSemiSpaceSize =
-      kHugePageSize * kPointerMultiplier;
-  static constexpr size_t kMaxSemiSpaceSize =
-      kHugePageSize * 16 * kPointerMultiplier;
-#else
-  static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
-  static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
-#endif
-
-  static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
-  static_assert(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -381,6 +364,43 @@ class Heap {
                 Internals::kFalseValueRootIndex);
   static_assert(static_cast<int>(RootIndex::kempty_string) ==
                 Internals::kEmptyStringRootIndex);
+
+  static size_t DefaultMinSemiSpaceSize() {
+#if ENABLE_HUGEPAGE
+    static constexpr size_t kMinSemiSpaceSize =
+        kHugePageSize * kPointerMultiplier;
+#else
+    static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
+#endif
+    static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
+
+    return kMinSemiSpaceSize;
+  }
+
+  static size_t DefaultMaxSemiSpaceSize() {
+#if ENABLE_HUGEPAGE
+    static constexpr size_t kMaxSemiSpaceSize =
+        kHugePageSize * 16 * kPointerMultiplier;
+#else
+    static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
+#endif
+    static_assert(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
+
+    return (v8_flags.minor_mc ? 2 : 1) * kMaxSemiSpaceSize;
+  }
+
+  // Young generation size is the same for compressed heaps and 32-bit heaps.
+  static size_t OldGenerationToSemiSpaceRatio() {
+    static constexpr size_t kOldGenerationToSemiSpaceRatio =
+        128 * kHeapLimitMultiplier / kPointerMultiplier;
+    return kOldGenerationToSemiSpaceRatio / (v8_flags.minor_mc ? 2 : 1);
+  }
+  static size_t OldGenerationToSemiSpaceRatioLowMemory() {
+    static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
+        256 * kHeapLimitMultiplier / kPointerMultiplier;
+    return kOldGenerationToSemiSpaceRatioLowMemory /
+           (v8_flags.minor_mc ? 2 : 1);
+  }
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
