@@ -609,6 +609,9 @@ class GraphVisitor {
     return assembler().ReduceObjectIsNumericValue(MapToNewGraph(op.input()),
                                                   op.kind, op.input_rep);
   }
+  OpIndex AssembleOutputGraphConvert(const ConvertOp& op) {
+    return assembler().ReduceConvert(MapToNewGraph(op.input()), op.from, op.to);
+  }
   OpIndex AssembleOutputGraphConvertToObject(const ConvertToObjectOp& op) {
     return assembler().ReduceConvertToObject(
         MapToNewGraph(op.input()), op.kind, op.input_rep,

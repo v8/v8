@@ -225,6 +225,7 @@ class TypeInferenceAnalysis {
         case Opcode::kObjectIs:
         case Opcode::kFloatIs:
         case Opcode::kObjectIsNumericValue:
+        case Opcode::kConvert:
         case Opcode::kConvertToObject:
         case Opcode::kConvertToObjectOrDeopt:
         case Opcode::kConvertObjectToPrimitive:

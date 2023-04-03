@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_BUILTIN_CALL_DESCRIPTORS_H_
 #define V8_COMPILER_TURBOSHAFT_BUILTIN_CALL_DESCRIPTORS_H_
 
+#include "src/builtins/builtins.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/frame.h"
@@ -90,6 +91,26 @@ struct BuiltinCallDescriptor {
   using NewRestArgumentsElements =
       NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
 
+  struct NumberToString : public Descriptor<NumberToString> {
+    static constexpr auto Function = Builtin::kNumberToString;
+    using arguments_t = std::tuple<V<Number>>;
+    using result_t = V<String>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
+    static constexpr auto Function = Builtin::kPlainPrimitiveToNumber;
+    using arguments_t = std::tuple<V<PlainPrimitive>>;
+    using result_t = V<Number>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
   struct StringEqual : public Descriptor<StringEqual> {
     static constexpr auto Function = Builtin::kStringEqual;
     using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
@@ -156,6 +177,16 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 #endif  // V8_INTL_SUPPORT
+
+  struct ToBoolean : public Descriptor<ToBoolean> {
+    static constexpr auto Function = Builtin::kToBoolean;
+    using arguments_t = std::tuple<V<Object>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -35,6 +35,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 
@@ -752,6 +753,31 @@ OpIndex GraphBuilder::Process(
       CHECK_OBJECT_IS_CASE(CheckedBigIntToBigInt64, BigInt64, BigInt,
                            NotABigInt64, CheckParametersOf(op).feedback())
 #undef CHECK_OBJECT_IS_CASE
+
+    case IrOpcode::kPlainPrimitiveToNumber:
+      return __ ConvertPlainPrimitiveToNumber(Map(node->InputAt(0)));
+    case IrOpcode::kPlainPrimitiveToWord32:
+      return __ ConvertObjectToPrimitive(
+          Map(node->InputAt(0)), ConvertObjectToPrimitiveOp::Kind::kInt32,
+          ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive);
+    case IrOpcode::kPlainPrimitiveToFloat64:
+      return __ ConvertObjectToPrimitive(
+          Map(node->InputAt(0)), ConvertObjectToPrimitiveOp::Kind::kFloat64,
+          ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive);
+
+    case IrOpcode::kConvertTaggedHoleToUndefined: {
+      V<Object> input = Map(node->InputAt(0));
+      V<Word32> is_the_hole = __ TaggedEqual(
+          input, __ HeapConstant(isolate->factory()->the_hole_value()));
+      return __ Conditional(
+          is_the_hole, __ HeapConstant(isolate->factory()->undefined_value()),
+          input);
+    }
+
+    case IrOpcode::kToBoolean:
+      return __ ConvertToBoolean(Map(node->InputAt(0)));
+    case IrOpcode::kNumberToString:
+      return __ ConvertNumberToString(Map(node->InputAt(0)));
 
 #define CONVERT_TO_OBJECT_CASE(name, kind, input_type, input_interpretation) \
   case IrOpcode::k##name:                                                    \

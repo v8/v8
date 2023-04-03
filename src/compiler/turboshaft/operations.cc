@@ -778,6 +778,21 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
+  switch (kind) {
+    case ConvertOp::Kind::kObject:
+      return os << "Object";
+    case ConvertOp::Kind::kBoolean:
+      return os << "Boolean";
+    case ConvertOp::Kind::kNumber:
+      return os << "Number";
+    case ConvertOp::Kind::kPlainPrimitive:
+      return os << "PlainPrimitive";
+    case ConvertOp::Kind::kString:
+      return os << "String";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
   switch (kind) {
     case ConvertToObjectOp::Kind::kBigInt:
@@ -855,6 +870,8 @@ std::ostream& operator<<(
       return os << "Smi";
     case ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive:
+      return os << "PlainPrimitive";
   }
 }
 

@@ -449,7 +449,28 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(ConvertToObject)(
+  V<Object> REDUCE(Convert)(V<Object> input, ConvertOp::Kind from,
+                            ConvertOp::Kind to) {
+    switch (to) {
+      case ConvertOp::Kind::kNumber: {
+        DCHECK_EQ(from, ConvertOp::Kind::kPlainPrimitive);
+        return __ CallBuiltin_PlainPrimitiveToNumber(
+            isolate_, V<PlainPrimitive>::Cast(input));
+      }
+      case ConvertOp::Kind::kBoolean: {
+        DCHECK_EQ(from, ConvertOp::Kind::kObject);
+        return __ CallBuiltin_ToBoolean(isolate_, input);
+      }
+      case ConvertOp::Kind::kString: {
+        DCHECK_EQ(from, ConvertOp::Kind::kNumber);
+        return __ CallBuiltin_NumberToString(isolate_, V<Number>::Cast(input));
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  V<Object> REDUCE(ConvertToObject)(
       OpIndex input, ConvertToObjectOp::Kind kind,
       RegisterRepresentation input_rep,
       ConvertToObjectOp::InputInterpretation input_interpretation,
@@ -799,10 +820,9 @@ class MachineLoweringReducer : public Next {
         if (input_assumptions ==
             ConvertObjectToPrimitiveOp::InputAssumptions::kSmi) {
           return __ SmiUntag(object);
-        } else {
-          DCHECK_EQ(
-              input_assumptions,
-              ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
+        } else if (input_assumptions ==
+                   ConvertObjectToPrimitiveOp::InputAssumptions::
+                       kNumberOrOddball) {
           Label<Word32> done(this);
 
           IF(__ ObjectIsSmi(object)) { GOTO(done, __ SmiUntag(object)); }
@@ -815,6 +835,19 @@ class MachineLoweringReducer : public Next {
           }
           END_IF
 
+          BIND(done, result);
+          return result;
+        } else {
+          DCHECK_EQ(
+              input_assumptions,
+              ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive);
+          Label<Word32> done(this);
+          GOTO_IF(LIKELY(__ ObjectIsSmi(object)), done, __ SmiUntag(object));
+          V<Number> number = __ ConvertPlainPrimitiveToNumber(object);
+          GOTO_IF(__ ObjectIsSmi(number), done, __ SmiUntag(number));
+          V<Float64> f64 = __ template LoadField<Float64>(
+              number, AccessBuilder::ForHeapNumberValue());
+          GOTO(done, __ JSTruncateFloat64ToWord32(f64));
           BIND(done, result);
           return result;
         }
@@ -869,27 +902,43 @@ class MachineLoweringReducer : public Next {
                   ConvertObjectToPrimitiveOp::InputAssumptions::kObject);
         return __ TaggedEqual(object, __ HeapConstant(factory_->true_value()));
       case ConvertObjectToPrimitiveOp::Kind::kFloat64: {
-        DCHECK_EQ(
-            input_assumptions,
-            ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball);
-        Label<Float64> done(this);
+        if (input_assumptions ==
+            ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball) {
+          Label<Float64> done(this);
 
-        IF(__ ObjectIsSmi(object)) {
-          GOTO(done, __ ChangeInt32ToFloat64(__ SmiUntag(object)));
-        }
-        ELSE {
-          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                            Oddball::kToNumberRawOffset);
-          V<Float64> value = __ template LoadField<Float64>(
+          IF(__ ObjectIsSmi(object)) {
+            GOTO(done, __ ChangeInt32ToFloat64(__ SmiUntag(object)));
+          }
+          ELSE {
+            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                              Oddball::kToNumberRawOffset);
+            V<Float64> value = __ template LoadField<Float64>(
+                object, AccessBuilder::ForHeapNumberValue());
+            GOTO(done, value);
+          }
+          END_IF
+
+          BIND(done, result);
+          return result;
+        } else {
+          DCHECK_EQ(
+              input_assumptions,
+              ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive);
+          Label<Float64> done(this);
+          GOTO_IF(LIKELY(__ ObjectIsSmi(object)), done,
+                  __ ChangeInt32ToFloat64(__ SmiUntag(object)));
+          V<Number> number = __ ConvertPlainPrimitiveToNumber(object);
+          GOTO_IF(__ ObjectIsSmi(number), done,
+                  __ ChangeInt32ToFloat64(__ SmiUntag(number)));
+          V<Float64> f64 = __ template LoadField<Float64>(
               object, AccessBuilder::ForHeapNumberValue());
-          GOTO(done, value);
+          GOTO(done, f64);
+          BIND(done, result);
+          return result;
         }
-        END_IF
-
-        BIND(done, result);
-        return result;
       }
     }
+    UNREACHABLE();
   }
 
   OpIndex REDUCE(ConvertObjectToPrimitiveOrDeopt)(

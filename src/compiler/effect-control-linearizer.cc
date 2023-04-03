@@ -1416,6 +1416,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedTruncateTaggedToWord32(node, frame_state);
       break;
     case IrOpcode::kNumberToString:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberToString(node);
       break;
     case IrOpcode::kObjectIsArrayBufferView:
@@ -1491,6 +1492,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerRestLength(node);
       break;
     case IrOpcode::kToBoolean:
+      if (v8_flags.turboshaft) return false;
       result = LowerToBoolean(node);
       break;
     case IrOpcode::kTypeOf:
@@ -1706,6 +1708,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckNotTaggedHole(node, frame_state);
       break;
     case IrOpcode::kConvertTaggedHoleToUndefined:
+      if (v8_flags.turboshaft) return false;
       result = LowerConvertTaggedHoleToUndefined(node);
       break;
     case IrOpcode::kCheckEqualsInternalizedString:
@@ -1719,12 +1722,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerCheckEqualsSymbol(node, frame_state);
       break;
     case IrOpcode::kPlainPrimitiveToNumber:
+      if (v8_flags.turboshaft) return false;
       result = LowerPlainPrimitiveToNumber(node);
       break;
     case IrOpcode::kPlainPrimitiveToWord32:
+      if (v8_flags.turboshaft) return false;
       result = LowerPlainPrimitiveToWord32(node);
       break;
     case IrOpcode::kPlainPrimitiveToFloat64:
+      if (v8_flags.turboshaft) return false;
       result = LowerPlainPrimitiveToFloat64(node);
       break;
     case IrOpcode::kEnsureWritableFastElements:
@@ -4420,6 +4426,7 @@ Node* EffectControlLinearizer::LowerAllocate(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* argument = node->InputAt(0);
 
   Callable const callable =
@@ -4429,8 +4436,7 @@ Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), argument,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), argument);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
@@ -4931,6 +4937,7 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* obj = node->InputAt(0);
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kToBoolean);
@@ -6015,6 +6022,7 @@ Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,
 }
 
 Node* EffectControlLinearizer::LowerConvertTaggedHoleToUndefined(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_is_hole = __ MakeDeferredLabel();
@@ -6249,11 +6257,13 @@ Node* EffectControlLinearizer::SmiShiftBitsConstant() {
 }
 
 Node* EffectControlLinearizer::LowerPlainPrimitiveToNumber(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   return __ PlainPrimitiveToNumber(TNode<Object>::UncheckedCast(value));
 }
 
 Node* EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
@@ -6281,6 +6291,7 @@ Node* EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();

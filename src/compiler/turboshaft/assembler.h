@@ -42,10 +42,6 @@ enum class Builtin : int32_t;
 
 namespace v8::internal::compiler::turboshaft {
 
-// Currently we don't have an actual Boolean type. We define an alias to allow
-// `V<Boolean>` to be used.
-using Boolean = Oddball;
-
 class ConditionWithHint final {
  public:
   ConditionWithHint(
@@ -1047,6 +1043,25 @@ class AssemblerOpInterface {
     return stack().ReduceObjectIsNumericValue(input, kind, input_rep);
   }
 
+  V<Object> Convert(V<Object> input, ConvertOp::Kind from, ConvertOp::Kind to) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvert(input, from, to);
+  }
+  V<Number> ConvertPlainPrimitiveToNumber(V<PlainPrimitive> input) {
+    return V<Number>::Cast(Convert(input, ConvertOp::Kind::kPlainPrimitive,
+                                   ConvertOp::Kind::kNumber));
+  }
+  V<Boolean> ConvertToBoolean(V<Object> input) {
+    return V<Boolean>::Cast(
+        Convert(input, ConvertOp::Kind::kObject, ConvertOp::Kind::kBoolean));
+  }
+  V<String> ConvertNumberToString(V<Number> input) {
+    return V<String>::Cast(
+        Convert(input, ConvertOp::Kind::kNumber, ConvertOp::Kind::kString));
+  }
+
   V<Object> ConvertToObject(
       OpIndex input, ConvertToObjectOp::Kind kind,
       RegisterRepresentation input_rep,
@@ -1068,7 +1083,7 @@ class AssemblerOpInterface {
   }
   CONVERT_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
-  CONVERT_TO_OBJECT(ConvertToBoolean, Boolean, Word32, Signed)
+  CONVERT_TO_OBJECT(ConvertWord32ToBoolean, Boolean, Word32, Signed)
 #undef CONVERT_TO_OBJECT
   V<Number> ConvertFloat64ToNumber(V<Float64> input,
                                    CheckForMinusZeroMode minus_zero_mode) {
@@ -1651,10 +1666,11 @@ class AssemblerOpInterface {
     }
     return stack().ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
   }
-  template <typename T>
-  V<T> Conditional(V<Word32> cond, V<T> vtrue, V<T> vfalse) {
-    return Select(cond, vtrue, vfalse, V<T>::rep, BranchHint::kNone,
-                  SelectOp::Implementation::kBranch);
+  template <typename T, typename U>
+  V<std::common_type_t<T, U>> Conditional(V<Word32> cond, V<T> vtrue,
+                                          V<U> vfalse) {
+    return Select(cond, vtrue, vfalse, V<std::common_type_t<T, U>>::rep,
+                  BranchHint::kNone, SelectOp::Implementation::kBranch);
   }
   void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
               Block* default_case,
@@ -1799,6 +1815,15 @@ class AssemblerOpInterface {
         typename BuiltinCallDescriptor::NewRestArgumentsElements>(
         isolate, {frame, formal_parameter_count, arguments_count});
   }
+  V<String> CallBuiltin_NumberToString(Isolate* isolate, V<Number> input) {
+    return CallBuiltin<typename BuiltinCallDescriptor::NumberToString>(isolate,
+                                                                       {input});
+  }
+  V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
+                                               V<PlainPrimitive> input) {
+    return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
+        isolate, {input});
+  }
   V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
                                      V<String> right, V<WordPtr> length) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
@@ -1837,6 +1862,10 @@ class AssemblerOpInterface {
                                         V<WordPtr> start, V<WordPtr> end) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringSubstring>(
         isolate, {string, start, end});
+  }
+  V<Boolean> CallBuiltin_ToBoolean(Isolate* isolate, V<Object> object) {
+    return CallBuiltin<typename BuiltinCallDescriptor::ToBoolean>(isolate,
+                                                                  {object});
   }
 
   template <typename Descriptor>

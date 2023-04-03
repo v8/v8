@@ -40,7 +40,7 @@ transitioning builtin ToNumeric(implicit context: Context)(input: JSAny):
 }
 
 // ES section #sec-tostring-applied-to-the-number-type
-builtin NumberToString(implicit context: Context)(input: Number): String {
+builtin NumberToString(input: Number): String {
   return ::NumberToString(input);
 }
 

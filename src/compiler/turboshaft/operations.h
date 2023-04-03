@@ -126,6 +126,7 @@ struct FrameStateOp;
   V(ObjectIs)                        \
   V(FloatIs)                         \
   V(ObjectIsNumericValue)            \
+  V(Convert)                         \
   V(ConvertToObject)                 \
   V(ConvertToObjectOrDeopt)          \
   V(ConvertObjectToPrimitive)        \
@@ -2542,6 +2543,34 @@ struct ObjectIsNumericValueOp
   auto options() const { return std::tuple{kind, input_rep}; }
 };
 
+struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
+  enum class Kind {
+    kObject,
+    kBoolean,
+    kNumber,
+    kPlainPrimitive,
+    kString,
+  };
+  Kind from;
+  Kind to;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  ConvertOp(OpIndex input, Kind from, Kind to)
+      : Base(input), from(from), to(to) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+  }
+  auto options() const { return std::tuple{from, to}; }
+};
+std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind);
+
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   enum class Kind : uint8_t {
     kBigInt,
@@ -2679,6 +2708,7 @@ struct ConvertObjectToPrimitiveOp
     kObject,
     kSmi,
     kNumberOrOddball,
+    kPlainPrimitive,
   };
   Kind kind;
   InputAssumptions input_assumptions;
