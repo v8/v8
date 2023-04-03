@@ -590,7 +590,7 @@ class InstructionStream : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS
 
-  static_assert(kCodeAlignment > kHeaderSize);
+  static_assert(kCodeAlignment >= kHeaderSize);
   // We do two things to ensure kCodeAlignment of the entry address:
   // 1) Add kCodeAlignmentMinusCodeHeader padding once in the beginning of every
   //    MemoryChunk.
