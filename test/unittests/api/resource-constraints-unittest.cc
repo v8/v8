@@ -30,7 +30,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   const size_t initial_semi_space_multiplier =
       internal::v8_flags.minor_mc ? 2 : 3;
   v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaultsFromHeapSize(100u * MB, 3000u * MB);
+  constraints.ConfigureDefaultsFromHeapSize(50u * MB, 3000u * MB);
   // Check that for large heap sizes max semi space size is set to the maximum
   // supported capacity (i.e. 8MB with pointer compression and 16MB without;
   // MinorMC supports double capacity).
@@ -43,7 +43,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   // without).
   ASSERT_EQ(initial_semi_space_multiplier * 512 * pm * KB,
             constraints.initial_young_generation_size_in_bytes());
-  ASSERT_EQ(100u * MB - initial_semi_space_multiplier * 512 * pm * KB,
+  ASSERT_EQ(50u * MB - initial_semi_space_multiplier * 512 * pm * KB,
             constraints.initial_old_generation_size_in_bytes());
 }
 
