@@ -2595,7 +2595,11 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
       break;
     case RO_V_VFMV_VF:
-      Format(instr, "vfmv.v.f  'vd, 'fs1");
+      if (instr->RvvVM()) {
+        Format(instr, "vfmv.v.f  'vd, 'fs1");
+      } else {
+        Format(instr, "vfmerge.vfm 'vd, 'vs2, 'fs1, v0");
+      }
       break;
     case RO_V_VFMADD_VF:
       Format(instr, "vfmadd.vf 'vd, 'fs1, 'vs2'vm");

@@ -2780,6 +2780,43 @@ UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int16_t, 16, 8, ARRAY(int8_t),
 
 #undef UTEST_RVV_VI_VIE_FORM_WITH_RES
 
+// Tests for vector Floating-Point merge instruction
+#define UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES(type, int_type, width,     \
+                                              expect_res)                \
+  TEST(RISCV_UTEST_vfmerge_vf_##type) {                                  \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                   \
+    constexpr uint32_t n = kRvvVLEN / width;                             \
+    CcTest::InitializeVM();                                              \
+    for (type fval : compiler::ValueHelper::GetVector<type>()) {         \
+      int_type rs1_fval = base::bit_cast<int_type>(fval);                \
+      for (uint32_t mask = 0; mask < (1 << n); mask++) {                 \
+        int_type src[n] = {0};                                           \
+        int_type dst[n] = {0};                                           \
+        dst[0] = rs1_fval;                                               \
+        for (uint32_t i = 0; i < n; i++) src[i] = i;                     \
+        auto fn = [mask](MacroAssembler& assm) {                         \
+          __ VU.set(t0, VSew::E##width, Vlmul::m1);                      \
+          __ vl(v1, a0, 0, VSew::E##width);                              \
+          __ vl(v24, a1, 0, VSew::E##width);                             \
+          __ vmv_vi(v0, mask);                                           \
+          __ vfmv_fs(ft0, v24);                                          \
+          __ vfmerge_vf(v2, ft0, v1);                                    \
+          __ vs(v2, a1, 0, VSew::E##width);                              \
+        };                                                               \
+        GenAndRunTest<int64_t, int64_t>((int64_t)src, (int64_t)dst, fn); \
+        for (uint32_t i = 0; i < n; i++) {                               \
+          CHECK_EQ(expect_res, dst[i]);                                  \
+        }                                                                \
+      }                                                                  \
+    }                                                                    \
+  }
+
+UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES(double, int64_t, 64,
+                                      ((mask >> i) & 0x1) ? rs1_fval : src[i])
+UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES(float, int32_t, 32,
+                                      ((mask >> i) & 0x1) ? rs1_fval : src[i])
+#undef UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES
+
 // Tests for vector permutation instructions vector slide instructions
 #define UTEST_RVV_VP_VSLIDE_VI_FORM_WITH_RES(instr_name, type, width, array, \
                                              expect_res)                     \

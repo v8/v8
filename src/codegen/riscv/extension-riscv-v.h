@@ -95,9 +95,10 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
   void vmadc_vx(VRegister vd, Register rs1, VRegister vs2);
   void vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
 
-  void vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask = NoMask);
+  void vfmv_vf(VRegister vd, FPURegister fs1);
   void vfmv_fs(FPURegister fd, VRegister vs2);
   void vfmv_sf(VRegister vd, FPURegister fs);
+  void vfmerge_vf(VRegister vd, FPURegister fs1, VRegister vs2);
 
   void vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
                  MaskType mask = NoMask);

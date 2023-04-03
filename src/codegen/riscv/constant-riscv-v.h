@@ -264,6 +264,7 @@ constexpr Opcode RO_V_VFMV_VF = OP_FVF | (VMV_FUNCT6 << kRvvFunct6Shift);
 constexpr Opcode RO_V_VMERGE_VI = RO_V_VMV_VI;
 constexpr Opcode RO_V_VMERGE_VV = RO_V_VMV_VV;
 constexpr Opcode RO_V_VMERGE_VX = RO_V_VMV_VX;
+constexpr Opcode RO_V_VFMERGE_VF = RO_V_VFMV_VF;
 
 constexpr Opcode VMSEQ_FUNCT6 = 0b011000;
 constexpr Opcode RO_V_VMSEQ_VI = OP_IVI | (VMSEQ_FUNCT6 << kRvvFunct6Shift);

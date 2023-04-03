@@ -830,6 +830,39 @@ struct type_sew_t<128> {
   }                               \
   RVV_VI_LOOP_CMP_END
 
+#define RVV_VI_VF_MERGE_LOOP_BASE \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); i++) {
+#define RVV_VI_VF_MERGE_LOOP_END \
+  set_rvv_vstart(0);             \
+  }
+
+#define RVV_VI_VF_MERGE_LOOP(BODY16, BODY32, BODY64)      \
+  RVV_VI_VF_MERGE_LOOP_BASE                               \
+  switch (rvv_vsew()) {                                   \
+    case E16: {                                           \
+      UNIMPLEMENTED();                                    \
+    }                                                     \
+    case E32: {                                           \
+      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);   \
+      float fs1 = get_fpu_register_float(rs1_reg());      \
+      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);        \
+      BODY32;                                             \
+      break;                                              \
+    }                                                     \
+    case E64: {                                           \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
+      double fs1 = get_fpu_register_double(rs1_reg());    \
+      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
+      BODY64;                                             \
+      break;                                              \
+    }                                                     \
+    default:                                              \
+      UNREACHABLE();                                      \
+      break;                                              \
+  }                                                       \
+  RVV_VI_VF_MERGE_LOOP_END                                \
+  rvv_trace_vd();
+
 #define RVV_VI_VFP_LOOP_BASE                           \
   for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) { \
     RVV_VI_LOOP_MASK_SKIP();
@@ -7148,16 +7181,31 @@ void Simulator::DecodeRvvFVF() {
           { vd = fsgnj64(vs2, fs1, false, true); })
       break;
     case RO_V_VFMV_VF:
-      RVV_VI_VFP_VF_LOOP(
-          {},
-          {
-            vd = fs1;
-            USE(vs2);
-          },
-          {
-            vd = fs1;
-            USE(vs2);
-          })
+      if (instr_.RvvVM()) {
+        RVV_VI_VF_MERGE_LOOP(
+            {},
+            {
+              vd = fs1;
+              USE(vs2);
+            },
+            {
+              vd = fs1;
+              USE(vs2);
+            });
+      } else {
+        RVV_VI_VF_MERGE_LOOP(
+            {},
+            {
+              bool use_first =
+                  (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+              vd = use_first ? fs1 : vs2;
+            },
+            {
+              bool use_first =
+                  (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+              vd = use_first ? fs1 : vs2;
+            });
+      }
       break;
     case RO_V_VFADD_VF:
       RVV_VI_VFP_VF_LOOP(
