@@ -253,6 +253,12 @@ class TypeInferenceAnalysis {
         case Opcode::kStringComparison:
         case Opcode::kArgumentsLength:
         case Opcode::kNewArgumentsElements:
+        case Opcode::kLoadTypedElement:
+        case Opcode::kLoadDataViewElement:
+        case Opcode::kLoadStackArgument:
+        case Opcode::kStoreTypedElement:
+        case Opcode::kStoreDataViewElement:
+        case Opcode::kStoreSignedSmallElement:
         case Opcode::kCompareMaps:
         case Opcode::kCheckMaps:
         case Opcode::kFastApiCall:

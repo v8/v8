@@ -153,6 +153,12 @@ struct FrameStateOp;
   V(StringComparison)                \
   V(ArgumentsLength)                 \
   V(NewArgumentsElements)            \
+  V(LoadTypedElement)                \
+  V(LoadDataViewElement)             \
+  V(LoadStackArgument)               \
+  V(StoreTypedElement)               \
+  V(StoreDataViewElement)            \
+  V(StoreSignedSmallElement)         \
   V(CompareMaps)                     \
   V(CheckMaps)                       \
   V(FastApiCall)
@@ -3354,6 +3360,203 @@ struct NewArgumentsElementsOp
   }
 
   auto options() const { return std::tuple{type, formal_parameter_count}; }
+};
+
+inline constexpr RegisterRepresentation RegisterRepresentationForArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalInt8Array:
+    case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
+    case kExternalInt16Array:
+    case kExternalUint16Array:
+    case kExternalInt32Array:
+    case kExternalUint32Array:
+      return RegisterRepresentation::Word32();
+    case kExternalFloat32Array:
+      return RegisterRepresentation::Float32();
+    case kExternalFloat64Array:
+      return RegisterRepresentation::Float64();
+    case kExternalBigInt64Array:
+    case kExternalBigUint64Array:
+      return RegisterRepresentation::Word64();
+  }
+}
+
+inline base::Vector<const RegisterRepresentation> VectorForRep(
+    RegisterRepresentation rep) {
+  static constexpr std::array<RegisterRepresentation, 6> table{
+      RegisterRepresentation::Word32(),  RegisterRepresentation::Word64(),
+      RegisterRepresentation::Float32(), RegisterRepresentation::Float64(),
+      RegisterRepresentation::Tagged(),  RegisterRepresentation::Compressed()};
+  return base::VectorOf(&table[static_cast<size_t>(rep.value())], 1);
+}
+
+struct LoadTypedElementOp : FixedArityOperationT<4, LoadTypedElementOp> {
+  ExternalArrayType array_type;
+
+  static constexpr OpProperties properties = OpProperties::Reading();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return VectorForRep(RegisterRepresentationForArrayType(array_type));
+  }
+
+  OpIndex buffer() const { return Base::input(0); }
+  OpIndex base() const { return Base::input(1); }
+  OpIndex external() const { return Base::input(2); }
+  OpIndex index() const { return Base::input(3); }
+
+  LoadTypedElementOp(OpIndex buffer, OpIndex base, OpIndex external,
+                     OpIndex index, ExternalArrayType array_type)
+      : Base(buffer, base, external, index), array_type(array_type) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, buffer(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, base(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, external(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+  }
+
+  auto options() const { return std::tuple{array_type}; }
+};
+
+struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
+  ExternalArrayType element_type;
+
+  static constexpr OpProperties properties = OpProperties::Reading();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return VectorForRep(RegisterRepresentationForArrayType(element_type));
+  }
+
+  OpIndex object() const { return Base::input(0); }
+  OpIndex storage() const { return Base::input(1); }
+  OpIndex index() const { return Base::input(2); }
+  OpIndex is_little_endian() const { return Base::input(3); }
+
+  LoadDataViewElementOp(OpIndex object, OpIndex storage, OpIndex index,
+                        OpIndex is_little_endian,
+                        ExternalArrayType element_type)
+      : Base(object, storage, index, is_little_endian),
+        element_type(element_type) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, storage(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, is_little_endian(),
+                           RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{element_type}; }
+};
+
+struct LoadStackArgumentOp : FixedArityOperationT<2, LoadStackArgumentOp> {
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex base() const { return Base::input(0); }
+  OpIndex index() const { return Base::input(1); }
+
+  LoadStackArgumentOp(OpIndex base, OpIndex index) : Base(base, index) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(
+        ValidOpInputRep(graph, base(), RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StoreTypedElementOp : FixedArityOperationT<5, StoreTypedElementOp> {
+  ExternalArrayType array_type;
+
+  static constexpr OpProperties properties = OpProperties::Writing();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex buffer() const { return Base::input(0); }
+  OpIndex base() const { return Base::input(1); }
+  OpIndex external() const { return Base::input(2); }
+  OpIndex index() const { return Base::input(3); }
+  OpIndex value() const { return Base::input(4); }
+
+  StoreTypedElementOp(OpIndex buffer, OpIndex base, OpIndex external,
+                      OpIndex index, OpIndex value,
+                      ExternalArrayType array_type)
+      : Base(buffer, base, external, index, value), array_type(array_type) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, buffer(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, base(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, external(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, value(),
+                           RegisterRepresentationForArrayType(array_type)));
+  }
+
+  auto options() const { return std::tuple{array_type}; }
+};
+
+struct StoreDataViewElementOp
+    : FixedArityOperationT<5, StoreDataViewElementOp> {
+  ExternalArrayType element_type;
+
+  static constexpr OpProperties properties = OpProperties::Writing();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex object() const { return Base::input(0); }
+  OpIndex storage() const { return Base::input(1); }
+  OpIndex index() const { return Base::input(2); }
+  OpIndex value() const { return Base::input(3); }
+  OpIndex is_little_endian() const { return Base::input(4); }
+
+  StoreDataViewElementOp(OpIndex object, OpIndex storage, OpIndex index,
+                         OpIndex value, OpIndex is_little_endian,
+                         ExternalArrayType element_type)
+      : Base(object, storage, index, value, is_little_endian),
+        element_type(element_type) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, storage(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, value(),
+                           RegisterRepresentationForArrayType(element_type)));
+    DCHECK(ValidOpInputRep(graph, is_little_endian(),
+                           RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{element_type}; }
+};
+
+struct StoreSignedSmallElementOp
+    : FixedArityOperationT<3, StoreSignedSmallElementOp> {
+  static constexpr OpProperties properties = OpProperties::Writing();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex array() const { return Base::input(0); }
+  OpIndex index() const { return Base::input(1); }
+  OpIndex value() const { return Base::input(2); }
+
+  StoreSignedSmallElementOp(OpIndex array, OpIndex index, OpIndex value)
+      : Base(array, index, value) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, array(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(),
+                           RegisterRepresentation::PointerSized()));
+    DCHECK(ValidOpInputRep(graph, value(), RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{}; }
 };
 
 struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {

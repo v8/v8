@@ -198,12 +198,18 @@ SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
 SHOULD_HAVE_BEEN_LOWERED(FastApiCall)
 SHOULD_HAVE_BEEN_LOWERED(FloatIs)
+SHOULD_HAVE_BEEN_LOWERED(LoadDataViewElement)
 SHOULD_HAVE_BEEN_LOWERED(LoadFieldByIndex)
+SHOULD_HAVE_BEEN_LOWERED(LoadStackArgument)
+SHOULD_HAVE_BEEN_LOWERED(LoadTypedElement)
 SHOULD_HAVE_BEEN_LOWERED(NewArgumentsElements)
 SHOULD_HAVE_BEEN_LOWERED(NewArray)
 SHOULD_HAVE_BEEN_LOWERED(NewConsString)
 SHOULD_HAVE_BEEN_LOWERED(ObjectIs)
 SHOULD_HAVE_BEEN_LOWERED(ObjectIsNumericValue)
+SHOULD_HAVE_BEEN_LOWERED(StoreDataViewElement)
+SHOULD_HAVE_BEEN_LOWERED(StoreSignedSmallElement)
+SHOULD_HAVE_BEEN_LOWERED(StoreTypedElement)
 SHOULD_HAVE_BEEN_LOWERED(StringAt)
 SHOULD_HAVE_BEEN_LOWERED(StringComparison)
 SHOULD_HAVE_BEEN_LOWERED(StringEqual)
@@ -974,7 +980,12 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   const Operator* o;
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
-    o = machine.UnalignedLoad(loaded_rep);
+    if (loaded_rep.representation() == MachineRepresentation::kWord8 ||
+        machine.UnalignedLoadSupported(loaded_rep.representation())) {
+      o = machine.Load(loaded_rep);
+    } else {
+      o = machine.UnalignedLoad(loaded_rep);
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     o = machine.ProtectedLoad(loaded_rep);
@@ -1009,7 +1020,16 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
+    if (op.stored_rep.ToMachineType().representation() ==
+            MachineRepresentation::kWord8 ||
+        machine.UnalignedStoreSupported(
+            op.stored_rep.ToMachineType().representation())) {
+      o = machine.Store(StoreRepresentation(
+          op.stored_rep.ToMachineType().representation(), op.write_barrier));
+    } else {
+      o = machine.UnalignedStore(
+          op.stored_rep.ToMachineType().representation());
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);

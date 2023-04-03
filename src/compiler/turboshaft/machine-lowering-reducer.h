@@ -14,6 +14,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
@@ -708,7 +709,7 @@ class MachineLoweringReducer : public Next {
           IF(LIKELY(
               __ Uint32LessThanOrEqual(code, String::kMaxOneByteCharCode))) {
             // Load the isolate wide single character string table.
-            OpIndex table =
+            V<Tagged> table =
                 __ HeapConstant(factory_->single_character_string_table());
 
             // Compute the {table} index for {code}.
@@ -1766,6 +1767,176 @@ class MachineLoweringReducer : public Next {
     }
   }
 
+  OpIndex REDUCE(LoadTypedElement)(OpIndex buffer, V<Object> base,
+                                   V<WordPtr> external, V<WordPtr> index,
+                                   ExternalArrayType array_type) {
+    // We need to keep the {buffer} alive so that the GC will not release the
+    // ArrayBuffer (if there's any) as long as we are still operating on it.
+    __ Retain(buffer);
+
+    V<WordPtr> data_ptr = BuildTypedArrayDataPointer(base, external);
+
+    // Perform the actual typed element access.
+    return __ LoadElement(
+        data_ptr, AccessBuilder::ForTypedArrayElement(array_type, true), index);
+  }
+
+  OpIndex REDUCE(LoadDataViewElement)(V<Object> object, V<Object> storage,
+                                      V<WordPtr> index,
+                                      V<Word32> is_little_endian,
+                                      ExternalArrayType element_type) {
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
+
+    const MachineType machine_type =
+        AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
+
+    OpIndex value =
+        __ Load(storage, index, LoadOp::Kind::RawUnaligned(),
+                MemoryRepresentation::FromMachineType(machine_type));
+
+    Block* done = __ NewBlock();
+    OpIndex little_value, big_value;
+    IF(is_little_endian) {
+#if V8_TARGET_LITTLE_ENDIAN
+      little_value = value;
+      __ Goto(done);
+#else
+      little_value = BuildReverseBytes(element_type, value);
+      __ Goto(done);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+    }
+    ELSE {
+#if V8_TARGET_LITTLE_ENDIAN
+      big_value = BuildReverseBytes(element_type, value);
+      __ Goto(done);
+#else
+      big_value = value;
+      __ Goto(done);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+    }
+    END_IF
+
+    __ Bind(done);
+    return __ Phi({little_value, big_value},
+                  RegisterRepresentationForArrayType(element_type));
+  }
+
+  V<Object> REDUCE(LoadStackArgument)(V<WordPtr> base, V<WordPtr> index) {
+    V<WordPtr> argument = __ template LoadElement<WordPtr>(
+        base, AccessBuilder::ForStackArgument(), index);
+    return __ BitcastWordToTagged(argument);
+  }
+
+  OpIndex REDUCE(StoreTypedElement)(OpIndex buffer, V<Object> base,
+                                    V<WordPtr> external, V<WordPtr> index,
+                                    OpIndex value,
+                                    ExternalArrayType array_type) {
+    // We need to keep the {buffer} alive so that the GC will not release the
+    // ArrayBuffer (if there's any) as long as we are still operating on it.
+    __ Retain(buffer);
+
+    V<WordPtr> data_ptr = BuildTypedArrayDataPointer(base, external);
+
+    // Perform the actual typed element access.
+    __ StoreElement(data_ptr,
+                    AccessBuilder::ForTypedArrayElement(array_type, true),
+                    index, value);
+    return {};
+  }
+
+  OpIndex REDUCE(StoreDataViewElement)(V<Object> object, V<Object> storage,
+                                       V<WordPtr> index, OpIndex value,
+                                       V<Word32> is_little_endian,
+                                       ExternalArrayType element_type) {
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
+
+    const MachineType machine_type =
+        AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
+
+    Block* done = __ NewBlock();
+    OpIndex little_value, big_value;
+    IF(is_little_endian) {
+#if V8_TARGET_LITTLE_ENDIAN
+      little_value = value;
+      __ Goto(done);
+#else
+      little_value = BuildReverseBytes(element_type, value);
+      __ Goto(done);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+    }
+    ELSE {
+#if V8_TARGET_LITTLE_ENDIAN
+      big_value = BuildReverseBytes(element_type, value);
+      __ Goto(done);
+#else
+      big_value = value;
+      __ Goto(done);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+    }
+    END_IF
+
+    __ Bind(done);
+    OpIndex value_to_store =
+        __ Phi({little_value, big_value},
+               RegisterRepresentationForArrayType(element_type));
+    __ Store(storage, index, value_to_store, StoreOp::Kind::RawUnaligned(),
+             MemoryRepresentation::FromMachineType(machine_type),
+             WriteBarrierKind::kNoWriteBarrier);
+    return {};
+  }
+
+  OpIndex REDUCE(StoreSignedSmallElement)(V<JSArray> array, V<WordPtr> index,
+                                          V<Word32> value) {
+    // Store a signed small in an output array.
+    //
+    //   kind = ElementsKind(array)
+    //
+    //   -- STORE PHASE ----------------------
+    //   if kind == HOLEY_DOUBLE_ELEMENTS {
+    //     float_value = convert int32 to float
+    //     Store array[index] = float_value
+    //   } else {
+    //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
+    //     smi_value = convert int32 to smi
+    //     Store array[index] = smi_value
+    //   }
+    //
+    V<Map> map = __ LoadMapField(array);
+    V<Word32> bitfield2 =
+        __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
+    V<Word32> kind = __ Word32ShiftRightLogical(
+        __ Word32BitwiseAnd(bitfield2, Map::Bits2::ElementsKindBits::kMask),
+        Map::Bits2::ElementsKindBits::kShift);
+
+    V<Object> elements = __ template LoadField<Object>(
+        array, AccessBuilder::ForJSObjectElements());
+    IF(__ Int32LessThan(HOLEY_ELEMENTS, kind)) {
+      // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
+      V<Float64> f64 = __ ChangeInt32ToFloat64(value);
+      __ StoreElement(elements, AccessBuilder::ForFixedDoubleArrayElement(),
+                      index, f64);
+    }
+    ELSE {
+      // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
+      // In this case, we know our value is a signed small, and we can optimize
+      // the ElementAccess information.
+      ElementAccess access = AccessBuilder::ForFixedArrayElement();
+      access.type = compiler::Type::SignedSmall();
+      access.machine_type = MachineType::TaggedSigned();
+      access.write_barrier_kind = kNoWriteBarrier;
+      __ StoreElement(elements, access, index, __ SmiTag(value));
+    }
+    END_IF
+
+    return {};
+  }
+
   V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object,
                                 const ZoneRefSet<Map>& maps) {
     Label<Word32> done(this);
@@ -2246,6 +2417,60 @@ class MachineLoweringReducer : public Next {
         return Builtin::kBigIntShiftLeftNoThrow;
       case BigIntBinopOp::Kind::kShiftRightArithmetic:
         return Builtin::kBigIntShiftRightNoThrow;
+    }
+  }
+
+  V<WordPtr> BuildTypedArrayDataPointer(V<Object> base, V<WordPtr> external) {
+    if (__ MatchZero(base)) return external;
+    V<WordPtr> untagged_base = __ BitcastTaggedToWord(base);
+    if (COMPRESS_POINTERS_BOOL) {
+      // Zero-extend Tagged_t to UintPtr according to current compression
+      // scheme so that the addition with |external_pointer| (which already
+      // contains compensated offset value) will decompress the tagged value.
+      // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
+      // details.
+      untagged_base = __ ChangeUint32ToUintPtr(untagged_base);
+    }
+    return __ WordPtrAdd(untagged_base, external);
+  }
+
+  OpIndex BuildReverseBytes(ExternalArrayType type, OpIndex value) {
+    switch (type) {
+      case kExternalInt8Array:
+      case kExternalUint8Array:
+      case kExternalUint8ClampedArray:
+        return value;
+      case kExternalInt16Array:
+        return __ Word32ShiftRightArithmetic(__ Word32ReverseBytes(value), 16);
+      case kExternalUint16Array:
+        return __ Word32ShiftRightLogical(__ Word32ReverseBytes(value), 16);
+      case kExternalInt32Array:
+      case kExternalUint32Array:
+        return __ Word32ReverseBytes(value);
+      case kExternalFloat32Array: {
+        V<Word32> bytes = __ BitcastFloat32ToWord32(value);
+        V<Word32> reversed = __ Word32ReverseBytes(bytes);
+        return __ BitcastWord32ToFloat32(reversed);
+      }
+      case kExternalFloat64Array: {
+        if constexpr (Is64()) {
+          V<Word64> bytes = __ BitcastFloat64ToWord64(value);
+          V<Word64> reversed = __ Word64ReverseBytes(bytes);
+          return __ BitcastWord64ToFloat64(reversed);
+        } else {
+          V<Word32> reversed_lo =
+              __ Word32ReverseBytes(__ Float64ExtractLowWord32(value));
+          V<Word32> reversed_hi =
+              __ Word32ReverseBytes(__ Float64ExtractHighWord32(value));
+          V<Float64> temp = __ Float64InsertWord32(
+              0.0, reversed_hi, Float64InsertWord32Op::Kind::kLowHalf);
+          return __ Float64InsertWord32(temp, reversed_lo,
+                                        Float64InsertWord32Op::Kind::kHighHalf);
+        }
+      }
+      case kExternalBigInt64Array:
+      case kExternalBigUint64Array:
+        UNREACHABLE();
     }
   }
 

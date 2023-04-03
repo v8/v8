@@ -988,12 +988,14 @@ class AssemblerOpInterface {
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
 
-  OpIndex Float64InsertWord32(OpIndex float64, OpIndex word32,
-                              Float64InsertWord32Op::Kind kind) {
+  V<Float64> Float64InsertWord32(ConstOrV<Float64> float64,
+                                 ConstOrV<Word32> word32,
+                                 Float64InsertWord32Op::Kind kind) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceFloat64InsertWord32(float64, word32, kind);
+    return stack().ReduceFloat64InsertWord32(resolve(float64), resolve(word32),
+                                             kind);
   }
 
   OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
@@ -1003,23 +1005,23 @@ class AssemblerOpInterface {
     }
     return stack().ReduceTaggedBitcast(input, from, to);
   }
-  OpIndex BitcastTaggedToWord(OpIndex tagged) {
+  V<WordPtr> BitcastTaggedToWord(V<Object> tagged) {
     return TaggedBitcast(tagged, RegisterRepresentation::Tagged(),
                          RegisterRepresentation::PointerSized());
   }
-  OpIndex BitcastWordToTagged(OpIndex word) {
+  V<Object> BitcastWordToTagged(V<WordPtr> word) {
     return TaggedBitcast(word, RegisterRepresentation::PointerSized(),
                          RegisterRepresentation::Tagged());
   }
 
-  OpIndex ObjectIs(OpIndex input, ObjectIsOp::Kind kind,
-                   ObjectIsOp::InputAssumptions input_assumptions) {
+  V<Word32> ObjectIs(V<Object> input, ObjectIsOp::Kind kind,
+                     ObjectIsOp::InputAssumptions input_assumptions) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceObjectIs(input, kind, input_assumptions);
   }
-  V<Word32> ObjectIsSmi(V<Tagged> object) {
+  V<Word32> ObjectIsSmi(V<Object> object) {
     return ObjectIs(object, ObjectIsOp::Kind::kSmi,
                     ObjectIsOp::InputAssumptions::kNone);
   }
@@ -1563,10 +1565,15 @@ class AssemblerOpInterface {
     Store(object, value, kind, rep, access.write_barrier_kind, access.offset);
   }
 
-  template <typename Rep = Any>
-  V<Rep> LoadElement(V<Tagged> object, const ElementAccess& access,
-                     V<WordPtr> index) {
-    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+  template <typename T = Any, typename Base>
+  V<T> LoadElement(V<Base> object, const ElementAccess& access,
+                   V<WordPtr> index) {
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
     LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(access.machine_type);
@@ -1574,9 +1581,15 @@ class AssemblerOpInterface {
                 rep.SizeInBytesLog2());
   }
 
-  void StoreElement(V<Tagged> object, const ElementAccess& access,
+  template <typename Base>
+  void StoreElement(V<Base> object, const ElementAccess& access,
                     V<WordPtr> index, V<Any> value) {
-    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
     LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(access.machine_type);
@@ -2377,6 +2390,61 @@ class AssemblerOpInterface {
     }
     return stack().ReduceNewArgumentsElements(arguments_count, type,
                                               formal_parameter_count);
+  }
+
+  OpIndex LoadTypedElement(OpIndex buffer, V<Object> base, V<WordPtr> external,
+                           V<WordPtr> index, ExternalArrayType array_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadTypedElement(buffer, base, external, index,
+                                          array_type);
+  }
+
+  OpIndex LoadDataViewElement(V<Object> object, V<Object> storage,
+                              V<WordPtr> index, V<Word32> is_little_endian,
+                              ExternalArrayType element_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadDataViewElement(object, storage, index,
+                                             is_little_endian, element_type);
+  }
+
+  V<Object> LoadStackArgument(V<Object> base, V<WordPtr> index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadStackArgument(base, index);
+  }
+
+  void StoreTypedElement(OpIndex buffer, V<Object> base, V<WordPtr> external,
+                         V<WordPtr> index, OpIndex value,
+                         ExternalArrayType array_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceStoreTypedElement(buffer, base, external, index, value,
+                                    array_type);
+  }
+
+  void StoreDataViewElement(V<Object> object, V<Object> storage,
+                            V<WordPtr> index, OpIndex value,
+                            V<Word32> is_little_endian,
+                            ExternalArrayType element_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceStoreDataViewElement(object, storage, index, value,
+                                       is_little_endian, element_type);
+  }
+
+  void StoreSignedSmallElement(V<Object> array, V<WordPtr> index,
+                               V<Word32> value) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceStoreSignedSmallElement(array, index, value);
   }
 
   V<Word32> CompareMaps(V<HeapObject> heap_object,

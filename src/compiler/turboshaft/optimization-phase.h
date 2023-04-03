@@ -813,6 +813,41 @@ class GraphVisitor {
         MapToNewGraph(op.arguments_count()), op.type,
         op.formal_parameter_count);
   }
+  OpIndex AssembleOutputGraphLoadTypedElement(const LoadTypedElementOp& op) {
+    return assembler().ReduceLoadTypedElement(
+        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
+        MapToNewGraph(op.external()), MapToNewGraph(op.index()), op.array_type);
+  }
+  OpIndex AssembleOutputGraphLoadDataViewElement(
+      const LoadDataViewElementOp& op) {
+    return assembler().ReduceLoadDataViewElement(
+        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.is_little_endian()),
+        op.element_type);
+  }
+  OpIndex AssembleOutputGraphLoadStackArgument(const LoadStackArgumentOp& op) {
+    return assembler().ReduceLoadStackArgument(MapToNewGraph(op.base()),
+                                               MapToNewGraph(op.index()));
+  }
+  OpIndex AssembleOutputGraphStoreTypedElement(const StoreTypedElementOp& op) {
+    return assembler().ReduceStoreTypedElement(
+        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
+        MapToNewGraph(op.external()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.array_type);
+  }
+  OpIndex AssembleOutputGraphStoreDataViewElement(
+      const StoreDataViewElementOp& op) {
+    return assembler().ReduceStoreDataViewElement(
+        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.value()),
+        MapToNewGraph(op.is_little_endian()), op.element_type);
+  }
+  OpIndex AssembleOutputGraphStoreSignedSmallElement(
+      const StoreSignedSmallElementOp& op) {
+    return assembler().ReduceStoreSignedSmallElement(MapToNewGraph(op.array()),
+                                                     MapToNewGraph(op.index()),
+                                                     MapToNewGraph(op.value()));
+  }
   OpIndex AssembleOutputGraphCompareMaps(const CompareMapsOp& op) {
     return assembler().ReduceCompareMaps(MapToNewGraph(op.heap_object()),
                                          op.maps);

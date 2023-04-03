@@ -1760,6 +1760,34 @@ OpIndex GraphBuilder::Process(
                                      p.formal_parameter_count());
     }
 
+    case IrOpcode::kLoadTypedElement:
+      return __ LoadTypedElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 Map(node->InputAt(2)), Map(node->InputAt(3)),
+                                 ExternalArrayTypeOf(node->op()));
+    case IrOpcode::kLoadDataViewElement:
+      return __ LoadDataViewElement(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          Map(node->InputAt(3)), ExternalArrayTypeOf(node->op()));
+    case IrOpcode::kLoadStackArgument:
+      return __ LoadStackArgument(Map(node->InputAt(0)), Map(node->InputAt(1)));
+
+    case IrOpcode::kStoreTypedElement:
+      __ StoreTypedElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           Map(node->InputAt(2)), Map(node->InputAt(3)),
+                           Map(node->InputAt(4)),
+                           ExternalArrayTypeOf(node->op()));
+      return OpIndex::Invalid();
+    case IrOpcode::kStoreDataViewElement:
+      __ StoreDataViewElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                              Map(node->InputAt(2)), Map(node->InputAt(3)),
+                              Map(node->InputAt(4)),
+                              ExternalArrayTypeOf(node->op()));
+      return OpIndex::Invalid();
+    case IrOpcode::kStoreSignedSmallElement:
+      __ StoreSignedSmallElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 Map(node->InputAt(2)));
+      return OpIndex::Invalid();
+
     case IrOpcode::kCompareMaps: {
       const ZoneRefSet<v8::internal::Map>& maps =
           CompareMapsParametersOf(node->op());

@@ -1760,21 +1760,27 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerLoadFieldByIndex(node);
       break;
     case IrOpcode::kLoadTypedElement:
+      if (v8_flags.turboshaft) return false;
       result = LowerLoadTypedElement(node);
       break;
     case IrOpcode::kLoadDataViewElement:
+      if (v8_flags.turboshaft) return false;
       result = LowerLoadDataViewElement(node);
       break;
     case IrOpcode::kLoadStackArgument:
+      if (v8_flags.turboshaft) return false;
       result = LowerLoadStackArgument(node);
       break;
     case IrOpcode::kStoreTypedElement:
+      if (v8_flags.turboshaft) return false;
       LowerStoreTypedElement(node);
       break;
     case IrOpcode::kStoreDataViewElement:
+      if (v8_flags.turboshaft) return false;
       LowerStoreDataViewElement(node);
       break;
     case IrOpcode::kStoreSignedSmallElement:
+      if (v8_flags.turboshaft) return false;
       LowerStoreSignedSmallElement(node);
       break;
     case IrOpcode::kFindOrderedHashMapEntry:
@@ -7156,6 +7162,7 @@ Node* EffectControlLinearizer::BuildReverseBytes(ExternalArrayType type,
 }
 
 Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
   Node* object = node->InputAt(0);
   Node* storage = node->InputAt(1);
@@ -7198,6 +7205,7 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
 }
 
 void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
   Node* object = node->InputAt(0);
   Node* storage = node->InputAt(1);
@@ -7260,6 +7268,7 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
 }
 
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
   Node* base = node->InputAt(1);
@@ -7278,6 +7287,7 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerLoadStackArgument(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
@@ -7288,6 +7298,7 @@ Node* EffectControlLinearizer::LowerLoadStackArgument(Node* node) {
 }
 
 void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
   Node* base = node->InputAt(1);
@@ -7606,6 +7617,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
 }
 
 void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* array = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);  // int32
