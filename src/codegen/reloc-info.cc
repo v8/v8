@@ -254,7 +254,9 @@ void RelocIterator::next() {
 }
 
 RelocIterator::RelocIterator(Code code, int mode_mask)
-    : RelocIterator(code, code.unchecked_relocation_info(), mode_mask) {}
+    : RelocIterator(
+          code, code.unchecked_instruction_stream().unchecked_relocation_info(),
+          mode_mask) {}
 
 RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
                              int mode_mask)

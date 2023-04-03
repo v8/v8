@@ -89,7 +89,6 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code.init_instruction_start(isolate_for_sandbox, kNullAddress);
   code.set_instruction_size(options.instruction_size);
   code.set_metadata_size(options.metadata_size);
-  code.set_relocation_info(*options.reloc_info);
   code.set_inlined_bytecode_size(options.inlined_bytecode_size);
   code.set_osr_offset(options.osr_offset);
   code.set_handler_table_offset(options.handler_table_offset);
