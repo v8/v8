@@ -1103,6 +1103,10 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     const Value& dst_index, const Value& length)                               \
   F(ArrayFill, const ArrayIndexImmediate& imm, const Value& array,             \
     const Value& index, const Value& value, const Value& length)               \
+  F(ArrayInitSegment, const ArrayIndexImmediate& array_imm,                    \
+    const IndexImmediate& segment_imm, const Value& array,                     \
+    const Value& array_index, const Value& segment_offset,                     \
+    const Value& length)                                                       \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
   F(RefTest, const Value& obj, const Value& rtt, Value* result,                \
@@ -2221,7 +2225,9 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprArrayNewData:
-          case kExprArrayNewElem: {
+          case kExprArrayNewElem:
+          case kExprArrayInitData:
+          case kExprArrayInitElem: {
             ArrayIndexImmediate array_imm(decoder, pc + length, validate);
             IndexImmediate data_imm(decoder, pc + length + array_imm.length,
                                     "segment index", validate);
@@ -2517,6 +2523,8 @@ class WasmDecoder : public Decoder {
           case kExprArrayCopy:
             return {5, 0};
           case kExprArrayFill:
+          case kExprArrayInitData:
+          case kExprArrayInitElem:
             return {4, 0};
           case kExprStructNewDefault:
             return {0, 1};
@@ -4747,7 +4755,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         const byte* elem_index_pc =
             this->pc_ + opcode_length + array_imm.length;
-        IndexImmediate elem_segment(this, elem_index_pc, "data segment",
+        IndexImmediate elem_segment(this, elem_index_pc, "element segment",
                                     validate);
         if (!this->ValidateElementSegment(elem_index_pc, elem_segment)) {
           return 0;
@@ -4777,6 +4785,88 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                            &array);
         Drop(3);  // rtt, length, offset
         Push(array);
+        return opcode_length + array_imm.length + elem_segment.length;
+      }
+      case kExprArrayInitData: {
+        NON_CONST_ONLY
+        ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
+                                      validate);
+        if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
+        if (!array_imm.array_type->mutability()) {
+          this->DecodeError(
+              "array.init_data can only be used with mutable arrays, found "
+              "array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+        ValueType element_type = array_imm.array_type->element_type();
+        if (element_type.is_reference()) {
+          this->DecodeError(
+              "array.init_data can only be used with numeric-type arrays, "
+              "found array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+#if V8_TARGET_BIG_ENDIAN
+        // Byte sequences in data segments are interpreted as little endian for
+        // the purposes of this instruction. This means that those will have to
+        // be transformed in big endian architectures. TODO(7748): Implement.
+        if (element_type.value_kind_size() > 1) {
+          UNIMPLEMENTED();
+        }
+#endif
+        const byte* data_index_pc =
+            this->pc_ + opcode_length + array_imm.length;
+        IndexImmediate data_segment(this, data_index_pc, "data segment",
+                                    validate);
+        if (!this->ValidateDataSegment(data_index_pc, data_segment)) return 0;
+
+        Value array = Peek(3, 0, ValueType::RefNull(array_imm.index));
+        Value array_index = Peek(2, 1, kWasmI32);
+        Value data_offset = Peek(1, 2, kWasmI32);
+        Value length = Peek(0, 3, kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitSegment, array_imm,
+                                           data_segment, array, array_index,
+                                           data_offset, length);
+        Drop(4);
+        return opcode_length + array_imm.length + data_segment.length;
+      }
+      case kExprArrayInitElem: {
+        NON_CONST_ONLY
+        ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
+                                      validate);
+        if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
+        if (!array_imm.array_type->mutability()) {
+          this->DecodeError(
+              "array.init_elem can only be used with mutable arrays, found "
+              "array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+        ValueType element_type = array_imm.array_type->element_type();
+        if (element_type.is_numeric()) {
+          this->DecodeError(
+              "array.init_elem can only be used with reference-type arrays, "
+              "found array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+        const byte* elem_index_pc =
+            this->pc_ + opcode_length + array_imm.length;
+        IndexImmediate elem_segment(this, elem_index_pc, "element segment",
+                                    validate);
+        if (!this->ValidateElementSegment(elem_index_pc, elem_segment)) {
+          return 0;
+        }
+
+        Value array = Peek(3, 0, ValueType::RefNull(array_imm.index));
+        Value array_index = Peek(2, 1, kWasmI32);
+        Value elem_offset = Peek(1, 2, kWasmI32);
+        Value length = Peek(0, 3, kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitSegment, array_imm,
+                                           elem_segment, array, array_index,
+                                           elem_offset, length);
+        Drop(4);
         return opcode_length + array_imm.length + elem_segment.length;
       }
       case kExprArrayGetS:

@@ -507,6 +507,8 @@ let kExprArrayNew = 0x1b;
 let kExprArrayNewDefault = 0x1c;
 let kExprArrayNewData = 0x1d;
 let kExprArrayNewElem = 0x1f;
+let kExprArrayInitData = 0x54;
+let kExprArrayInitElem = 0x55;
 let kExprArrayFill = 0x0f;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
@@ -1539,6 +1541,7 @@ class WasmModuleBuilder {
     return this;
   }
 
+  // TODO(manoskouk): Refactor this to use initializer expression for {addr}.
   addDataSegment(addr, data, is_global = false) {
     this.data_segments.push(
         {addr: addr, data: data, is_global: is_global, is_active: true});

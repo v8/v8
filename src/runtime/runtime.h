@@ -640,6 +640,7 @@ namespace internal {
   F(WasmDebugBreak, 0, 1)                     \
   F(WasmArrayCopy, 5, 1)                      \
   F(WasmArrayNewSegment, 5, 1)                \
+  F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
   F(WasmSyncStackLimit, 0, 1)                 \
   F(WasmCreateResumePromise, 2, 1)            \

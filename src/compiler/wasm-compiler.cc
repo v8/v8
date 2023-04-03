@@ -5404,12 +5404,22 @@ Node* WasmGraphBuilder::ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
 }
 
 Node* WasmGraphBuilder::ArrayNewSegment(const wasm::ArrayType* type,
-                                        uint32_t data_segment, Node* offset,
+                                        uint32_t segment_index, Node* offset,
                                         Node* length, Node* rtt,
                                         wasm::WasmCodePosition position) {
   return gasm_->CallBuiltin(
       Builtin::kWasmArrayNewSegment, Operator::kNoDeopt | Operator::kNoThrow,
-      gasm_->Uint32Constant(data_segment), offset, length, rtt);
+      gasm_->Uint32Constant(segment_index), offset, length, rtt);
+}
+
+void WasmGraphBuilder::ArrayInitSegment(const wasm::ArrayType* type,
+                                        uint32_t segment_index, Node* array,
+                                        Node* array_index, Node* segment_offset,
+                                        Node* length,
+                                        wasm::WasmCodePosition position) {
+  gasm_->CallBuiltin(Builtin::kWasmArrayInitSegment, Operator::kNoProperties,
+                     array_index, segment_offset, length,
+                     gasm_->SmiConstant(segment_index), array);
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

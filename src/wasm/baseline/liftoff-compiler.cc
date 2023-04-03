@@ -5838,7 +5838,7 @@ class LiftoffCompiler {
                      __ cache_state()->stack_state.end()[-5],
                      __ cache_state()->stack_state.end()[-3]},
                     decoder->position());
-    __ cache_state()->stack_state.pop_back(5);
+    __ DropValues(5);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
@@ -5894,20 +5894,20 @@ class LiftoffCompiler {
 
   void ArrayNewSegment(FullDecoder* decoder,
                        const ArrayIndexImmediate& array_imm,
-                       const IndexImmediate& data_segment,
+                       const IndexImmediate& segment_imm,
                        const Value& /* offset */, const Value& /* length */,
                        const Value& /* rtt */, Value* /* result */) {
     LiftoffRegList pinned;
-    LiftoffRegister data_segment_reg =
+    LiftoffRegister segment_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(data_segment_reg,
-                    WasmValue(static_cast<int32_t>(data_segment.index)));
-    LiftoffAssembler::VarState data_segment_var(kI32, data_segment_reg, 0);
+    __ LoadConstant(segment_index_reg,
+                    WasmValue(static_cast<int32_t>(segment_imm.index)));
+    LiftoffAssembler::VarState segment_index_var(kI32, segment_index_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmArrayNewSegment,
                     MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
                     {
-                        data_segment_var,
+                        segment_index_var,
                         __ cache_state()->stack_state.end()[-3],  // offset
                         __ cache_state()->stack_state.end()[-2],  // length
                         __ cache_state()->stack_state.end()[-1]   // rtt
@@ -5915,11 +5915,35 @@ class LiftoffCompiler {
                     decoder->position());
 
     // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(3);
+    __ DropValues(3);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result(kReturnRegister0);
     __ PushRegister(kRef, result);
+  }
+
+  void ArrayInitSegment(FullDecoder* decoder,
+                        const ArrayIndexImmediate& /* array_imm */,
+                        const IndexImmediate& segment_imm,
+                        const Value& /* array */,
+                        const Value& /* array_index */,
+                        const Value& /* segment_offset*/,
+                        const Value& /* length */) {
+    LiftoffRegister segment_index_reg = __ GetUnusedRegister(kGpReg, {});
+    LoadSmi(segment_index_reg, static_cast<int32_t>(segment_imm.index));
+    LiftoffAssembler::VarState segment_index_var(kSmiKind, segment_index_reg,
+                                                 0);
+
+    // Builtin parameter order: segment_index, array_index, segment_offset,
+    //                          length, array.
+    CallRuntimeStub(WasmCode::kWasmArrayInitSegment,
+                    MakeSig::Params(kI32, kI32, kI32, kSmiKind, kRefNull),
+                    {__ cache_state()->stack_state.end()[-3],
+                     __ cache_state()->stack_state.end()[-2],
+                     __ cache_state()->stack_state.end()[-1], segment_index_var,
+                     __ cache_state()->stack_state.end()[-4]},
+                    decoder->position());
+    __ DropValues(4);
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {

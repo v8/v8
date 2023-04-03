@@ -808,9 +808,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   }
 
   if (type->element_type().is_numeric()) {
+    // No chance of overflow due to the check above.
     uint32_t length_in_bytes = length * element_size;
 
-    DCHECK_EQ(length_in_bytes / element_size, length);
     if (!base::IsInBounds<uint32_t>(
             offset, length_in_bytes,
             instance->data_segment_sizes().get(segment_index))) {
@@ -845,6 +845,89 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     } else {
       return *result;
     }
+  }
+}
+
+RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(6, args.length());
+  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
+                                      isolate);
+  uint32_t segment_index = args.positive_smi_value_at(1);
+  Handle<WasmArray> array(WasmArray::cast(args[2]), isolate);
+  uint32_t array_index = args.positive_smi_value_at(3);
+  uint32_t segment_offset = args.positive_smi_value_at(4);
+  uint32_t length = args.positive_smi_value_at(5);
+
+  wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
+      array->map().wasm_type_info().native_type());
+
+  uint32_t element_size = type->element_type().value_kind_size();
+
+  if (type->element_type().is_numeric()) {
+    if (!base::IsInBounds<uint32_t>(array_index, length, array->length())) {
+      return ThrowWasmError(isolate,
+                            MessageTemplate::kWasmTrapArrayOutOfBounds);
+    }
+
+    // No chance of overflow, due to the check above and the limit in array
+    // length.
+    uint32_t length_in_bytes = length * element_size;
+
+    if (!base::IsInBounds<uint32_t>(
+            segment_offset, length_in_bytes,
+            instance->data_segment_sizes().get(segment_index))) {
+      return ThrowWasmError(isolate,
+                            MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
+    }
+
+    Address source =
+        instance->data_segment_starts().get(segment_index) + segment_offset;
+    Address dest = array->ElementAddress(array_index);
+    MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
+            length_in_bytes);
+    return *isolate->factory()->undefined_value();
+  } else {
+    Handle<Object> elem_segment_raw =
+        handle(instance->element_segments().get(segment_index), isolate);
+    const wasm::WasmElemSegment* module_elem_segment =
+        &instance->module()->elem_segments[segment_index];
+    // If the segment is initialized in the instance, we have to get its length
+    // from there, as it might have been dropped. If the segment is
+    // uninitialized, we need to fetch its length from the module.
+    int segment_length =
+        elem_segment_raw->IsFixedArray()
+            ? Handle<FixedArray>::cast(elem_segment_raw)->length()
+            : module_elem_segment->element_count;
+    if (!base::IsInBounds<size_t>(segment_offset, length, segment_length)) {
+      return ThrowWasmError(
+          isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
+    }
+    if (!base::IsInBounds(array_index, length, array->length())) {
+      return ThrowWasmError(isolate,
+                            MessageTemplate::kWasmTrapArrayOutOfBounds);
+    }
+
+    // If the element segment has not been initialized yet, lazily initialize it
+    // now.
+    AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+    base::Optional<MessageTemplate> opt_error =
+        wasm::InitializeElementSegment(&zone, isolate, instance, segment_index);
+    if (opt_error.has_value()) {
+      return ThrowWasmError(isolate, opt_error.value());
+    }
+
+    auto elements = handle(
+        FixedArray::cast(instance->element_segments().get(segment_index)),
+        isolate);
+    if (length > 0) {
+      isolate->heap()->CopyRange(*array, array->ElementSlot(array_index),
+                                 elements->RawFieldOfElementAt(segment_offset),
+                                 length, UPDATE_WRITE_BARRIER);
+    }
+    return *isolate->factory()->undefined_value();
   }
 }
 

@@ -1834,7 +1834,8 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
     uint32_t start_offset, uint32_t length, Handle<Map> map) {
   DCHECK(WasmArray::type(*map)->element_type().is_reference());
 
-  // Lazily initialize the element segment if needed.
+  // If the element segment has not been initialized yet, lazily initialize it
+  // now.
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   base::Optional<MessageTemplate> opt_error =
