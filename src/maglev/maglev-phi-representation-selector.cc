@@ -134,7 +134,7 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   // Inputs can always be used as more generic uses, and tighter uses always
   // block more generic inputs. So, we can find the minimum generic use and
   // maximum generic input, extend inputs upwards, uses downwards, and convert
-  // to the most generic use in the intersection.
+  // to the least generic use in the intersection.
   //
   // Of interest is the fact that we don't want to insert conversions which
   // reduce genericity, e.g. Float64->Int32 conversions, since they could deopt
@@ -175,19 +175,15 @@ void MaglevPhiRepresentationSelector::Process(Phi* node,
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
-  if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
-    TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
-    // A HoleyFloat64 phi should not be used as Float64, as this would convert
-    // the_hole to NaN, which is sometimes wrong (such as in `phi == phi`, which
-    // is true for the_hole, but false for NaN).
-    DCHECK(!use_reprs.contains(UseRepresentation::kFloat64));
-    return ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64);
+  if (intersection.contains(ValueRepresentation::kInt32)) {
+    TRACE_UNTAGGING("  => Untagging to Int32");
+    return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
   } else if (intersection.contains(ValueRepresentation::kFloat64)) {
     TRACE_UNTAGGING("  => Untagging to kFloat64");
     return ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
-  } else if (intersection.contains(ValueRepresentation::kInt32)) {
-    TRACE_UNTAGGING("  => Untagging to Int32");
-    return ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
+  } else if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
+    TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
+    return ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64);
   }
 
   DCHECK(intersection.empty());
