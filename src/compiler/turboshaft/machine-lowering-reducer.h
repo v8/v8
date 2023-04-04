@@ -932,7 +932,7 @@ class MachineLoweringReducer : public Next {
           GOTO_IF(__ ObjectIsSmi(number), done,
                   __ ChangeInt32ToFloat64(__ SmiUntag(number)));
           V<Float64> f64 = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
+              number, AccessBuilder::ForHeapNumberValue());
           GOTO(done, f64);
           BIND(done, result);
           return result;
