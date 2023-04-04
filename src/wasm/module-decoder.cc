@@ -76,11 +76,6 @@ ModuleResult DecodeWasmModule(
     std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id,
     DecodingMethod decoding_method) {
-  size_t max_size = max_module_size();
-  if (wire_bytes.size() > max_size) {
-    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
-                                  max_size, wire_bytes.size()}};
-  }
   if (counters) {
     auto size_counter =
         SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
