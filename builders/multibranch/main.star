@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
 
 in_category = in_branch_console("main")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -15,19 +15,16 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
@@ -35,19 +32,16 @@ in_category(
         name = "V8 Linux - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - noi18n - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - verify csa",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     # this is only a builder
@@ -55,7 +49,6 @@ in_category(
         name = "V8 Linux - vtunejit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.ITTAPI],
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
@@ -68,7 +61,6 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -80,7 +72,6 @@ in_category(
         triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -90,7 +81,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - custom snapshot - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -100,46 +90,39 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 - internal snapshot",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - debug - header includes",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - verify csa",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - no pointer compression",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - no wasm - builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 gcc light - debug builder",
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"default_targets": ["v8_gcc_light"]},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
     ),
     main_multibranch_builder(
@@ -151,20 +134,17 @@ in_category(
         name = "V8 Linux64 - minor mc - debug",
         parent_builder = "V8 Linux64 - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - debug - single generation",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - verify deterministic",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "11.3",
     ),
@@ -176,7 +156,6 @@ in_category(
         name = "V8 Fuchsia - builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
@@ -184,7 +163,6 @@ in_category(
         name = "V8 Fuchsia - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
@@ -196,13 +174,11 @@ in_category(
         name = "V8 Win32 - builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win32", "binary": "d8.exe"}},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -218,8 +194,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Win32 - msvc - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"use_goma": False},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
         close_tree = False,
         # TODO(crbug.com/v8/8811): Enable again when it is green.
@@ -229,20 +203,16 @@ in_category(
         name = "V8 Win64",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win64", "binary": "d8.exe"}},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - msvc",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"use_goma": False},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.NO,
         close_tree = False,
     ),
@@ -255,7 +225,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "mac64", "binary": "d8"}},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -312,7 +281,6 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64 - no pointer compression debug",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
@@ -344,7 +312,6 @@ in_category(
         triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NONE,
         use_remoteexec = RECLIENT.NONE,
     ),
     main_multibranch_builder(
