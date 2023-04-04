@@ -1496,7 +1496,6 @@ void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
   msg << kNext << vector.maybe_has_maglev_code();
   msg << kNext << vector.maybe_has_turbofan_code();
   msg << kNext << vector.invocation_count();
-  msg << kNext << vector.profiler_ticks() << kNext;
 
 #ifdef OBJECT_PRINT
   std::ostringstream buffer;

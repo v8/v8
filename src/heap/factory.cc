@@ -503,7 +503,6 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector.set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()));
   vector.set_length(length);
   vector.set_invocation_count(0);
-  vector.set_profiler_ticks(0);
   vector.set_placeholder0(0);
   vector.reset_osr_state();
   vector.reset_flags();

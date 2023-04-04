@@ -672,32 +672,20 @@ DEFINE_INT(invocation_count_for_maglev, 100,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
-DEFINE_INT(invocation_count_for_turbofan, 800,
+DEFINE_INT(invocation_count_for_turbofan, 2400,
            "interrupt budget which should be used for the profiler counter")
-DEFINE_INT(interrupt_budget, 66 * KB,
+DEFINE_INT(interrupt_budget, 3 * 66 * KB,
            "interrupt budget which should be used for the profiler counter")
-DEFINE_INT(ticks_before_optimization, 3,
-           "the number of times we have to go through the interrupt budget "
-           "before considering this function for optimization")
 DEFINE_INT(invocation_count_for_osr, 500,
            "number of invocations we want to see after requesting previous "
            "tier up to increase the OSR urgency")
 DEFINE_INT(
     osr_to_tierup, 4,
     "number of times we follow the OSR path before we try to tier up again")
-DEFINE_BOOL(global_ic_updated_flag, false,
-            "Track, globally, whether any IC changed, and use this in tierup "
-            "heuristics.")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
-DEFINE_BOOL(reset_interrupt_on_ic_update, true,
-            "On IC change, reset the interrupt budget for just that function.")
-DEFINE_BOOL(reset_ticks_on_ic_update, true,
-            "On IC change, reset the ticks for just that function.")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
 
