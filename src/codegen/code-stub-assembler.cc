@@ -11177,10 +11177,6 @@ void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
 void CodeStubAssembler::ReportFeedbackUpdate(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
     const char* reason) {
-  // Reset profiler ticks.
-  StoreObjectFieldNoWriteBarrier(
-      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0));
-
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.
   CallRuntime(Runtime::kTraceUpdateFeedback, NoContextConstant(),
