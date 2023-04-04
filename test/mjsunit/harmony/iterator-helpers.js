@@ -566,3 +566,45 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: 2, done: false}, flatMapIter.next());
   assertThrows(() => {flatMapIter.return()});
 })();
+
+// --- Test Reduce helper
+
+(function TestReduceWithInitialValue() {
+  const iter = gen();
+  assertEquals('function', typeof iter.reduce);
+  assertEquals(1, iter.reduce.length);
+  assertEquals('reduce', iter.reduce.name);
+  const reduceResult = iter.reduce((x, sum) => {
+    return sum + x;
+  }, 1);
+  assertEquals(86, reduceResult);
+})();
+
+(function TestReduceWithoutInitialvalue() {
+  const iter = gen();
+  const reduceResult = iter.reduce((x, sum) => {
+    return sum + x;
+  });
+  assertEquals(85, reduceResult);
+})();
+
+(function TestReduceWithoutInitialvalueAndNoIteratorValue() {
+  const iterator = {
+    i: 1,
+    next() {
+      if (this.i == 1) {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      return {value: undefined, done: true};
+    },
+  };
+  Object.setPrototypeOf(
+      iterator,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+
+  assertThrows(() => {iterator.reduce((x, sum) => {
+                 return sum + x;
+               })});
+})();

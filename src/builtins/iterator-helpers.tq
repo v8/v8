@@ -609,4 +609,82 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
   unreachable;
 }
 
+// --- Reduce helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
+transitioning javascript builtin IteratorPrototypeReduce(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.reduce';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(reducer) is false, throw a TypeError exception.
+  const reducer = Cast<Callable>(arguments[0])
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let next: JSReceiver;
+  let accumulator: JSAny;
+  let counter: Number;
+
+  // 5. If initialValue is not present, then
+  if (arguments.length == 1) {
+    //   a. Let next be ? IteratorStep(iterated).
+    //   b. If next is false, throw a TypeError exception.
+    next = IteratorStep(iterated, fastIteratorResultMap)
+        otherwise ThrowTypeError(
+        MessageTemplate::kIteratorReduceNoInitial, methodName);
+    //   c. Let accumulator be ? IteratorValue(next).
+    accumulator = IteratorValue(next, fastIteratorResultMap);
+    //   d. Let counter be 1.
+    counter = 1;
+  } else {
+    // 6. Else,
+    //   a. Let accumulator be initialValue.
+    accumulator = arguments[1];
+    //   b. Let counter be 0.
+    counter = 0;
+  }
+
+  // 7. Repeat,
+  while (true) {
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return accumulator.
+      return accumulator;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      //  d. Let result be Completion(Call(reducer, undefined, « accumulator,
+      //  value, 𝔽(counter) »)).
+      const result =
+          Call(context, reducer, Undefined, accumulator, value, counter);
+
+      //  f. Set accumulator to result.[[Value]].
+      accumulator = result;
+
+      //  g. Set counter to counter + 1.
+      counter = counter + 1;
+
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+  unreachable;
+}
+
 }  // namespace iterator
