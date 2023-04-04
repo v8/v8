@@ -56,7 +56,7 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
-TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
+TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   v8::HandleScope scope(v8_isolate());
   uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
