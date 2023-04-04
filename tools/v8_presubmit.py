@@ -338,7 +338,7 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
-      results = pool.map_async(worker, commands).get(timeout=240)
+      results = pool.map_async(worker, commands).get(timeout=360)
     except KeyboardInterrupt:
       print("\nCaught KeyboardInterrupt, terminating workers.")
       pool.terminate()
