@@ -698,6 +698,8 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
 namespace {
 NodeType ToNumberHintToNodeType(ToNumberHint conversion_type) {
   switch (conversion_type) {
+    case ToNumberHint::kAssumeSmi:
+      return NodeType::kSmi;
     case ToNumberHint::kDisallowToNumber:
     case ToNumberHint::kAssumeNumber:
       return NodeType::kNumber;
@@ -708,6 +710,8 @@ NodeType ToNumberHintToNodeType(ToNumberHint conversion_type) {
 TaggedToFloat64ConversionType ToNumberHintToConversionType(
     ToNumberHint conversion_type) {
   switch (conversion_type) {
+    case ToNumberHint::kAssumeSmi:
+      UNREACHABLE();
     case ToNumberHint::kDisallowToNumber:
     case ToNumberHint::kAssumeNumber:
       return TaggedToFloat64ConversionType::kOnlyNumber;
@@ -786,6 +790,10 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
         return node_info->int32_alternative =
                    AddNewNode<UnsafeSmiUntag>({value});
       }
+      if (desired_type == NodeType::kSmi) {
+        return node_info->int32_alternative =
+                   AddNewNode<CheckedSmiUntag>({value});
+      }
       TaggedToFloat64ConversionType conversion_type =
           ToNumberHintToConversionType(hint);
       if (NodeTypeIs(old_type, desired_type)) {
@@ -811,23 +819,6 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kWord64:
       UNREACHABLE();
-  }
-  UNREACHABLE();
-}
-
-ValueNode* MaglevGraphBuilder::GetTruncatedInt32(ValueNode* value) {
-  switch (value->properties().value_representation()) {
-    case ValueRepresentation::kWord64:
-      UNREACHABLE();
-    case ValueRepresentation::kTagged:
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
-      return GetInt32(value);
-    case ValueRepresentation::kInt32:
-      // Already good.
-      return value;
-    case ValueRepresentation::kUint32:
-      return AddNewNode<TruncateUint32ToInt32>({value});
   }
   UNREACHABLE();
 }
@@ -946,6 +937,9 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
   switch (representation) {
     case ValueRepresentation::kTagged: {
       switch (hint) {
+        case ToNumberHint::kAssumeSmi:
+          // Get the float64 value of a Smi value its int32 representation.
+          return GetFloat64(GetInt32(value));
         case ToNumberHint::kDisallowToNumber:
         case ToNumberHint::kAssumeNumber:
           // Number->Float64 conversions are exact alternatives, so they can
@@ -974,6 +968,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
                  AddNewNode<ChangeUint32ToFloat64>({value});
     case ValueRepresentation::kHoleyFloat64: {
       switch (hint) {
+        case ToNumberHint::kAssumeSmi:
         case ToNumberHint::kDisallowToNumber:
         case ToNumberHint::kAssumeNumber:
           // Number->Float64 conversions are exact alternatives, so they can
@@ -1209,11 +1204,11 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
-  static const bool input_is_truncated =
-      BinaryOperationIsBitwiseInt32<kOperation>();
+  // Use BuildTruncatingInt32BitwiseNotForToNumber with Smi input hint
+  // for truncating operations.
+  static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
-  ValueNode* value = input_is_truncated ? GetAccumulatorTruncatedInt32()
-                                        : GetAccumulatorInt32();
+  ValueNode* value = GetAccumulatorInt32();
   using OpNodeT = Int32NodeFor<kOperation>;
   SetAccumulator(AddNewNode<OpNodeT>({value}));
 }
@@ -1265,16 +1260,12 @@ ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
-  // Truncating Int32 nodes treat their input as a signed int32 regardless
-  // of whether it's really signed or not, so we allow Uint32 by loading a
-  // TruncatedInt32 value.
-  static const bool inputs_are_truncated =
-      BinaryOperationIsBitwiseInt32<kOperation>();
+  // Use BuildTruncatingInt32BinaryOperationNodeForToNumber with Smi input hint
+  // for truncating operations.
+  static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = inputs_are_truncated ? LoadRegisterTruncatedInt32(0)
-                                         : LoadRegisterInt32(0);
-  ValueNode* right = inputs_are_truncated ? GetAccumulatorTruncatedInt32()
-                                          : GetAccumulatorInt32();
+  ValueNode* left = LoadRegisterInt32(0);
+  ValueNode* right = GetAccumulatorInt32();
 
   if (ValueNode* result =
           TryFoldInt32BinaryOperation<kOperation>(left, right)) {
@@ -1289,7 +1280,7 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
     ToNumberHint hint) {
-  DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
+  static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
   ValueNode* left;
   ValueNode* right;
@@ -1316,19 +1307,13 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   // Truncating Int32 nodes treat their input as a signed int32 regardless
   // of whether it's really signed or not, so we allow Uint32 by loading a
   // TruncatedInt32 value.
-  static const bool inputs_are_truncated =
-      BinaryOperationIsBitwiseInt32<kOperation>();
+  static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = inputs_are_truncated ? GetAccumulatorTruncatedInt32()
-                                         : GetAccumulatorInt32();
+  ValueNode* left = GetAccumulatorInt32();
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
-    // value, so use the truncated value if necessary (and if not just a
-    // conversion) and return.
-    if (inputs_are_truncated && !left->properties().is_conversion()) {
-      current_interpreter_frame_.set_accumulator(left);
-    }
+    // value, so just return.
     return;
   }
   if (ValueNode* result =
@@ -1346,7 +1331,7 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
     ToNumberHint hint) {
-  DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
+  static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetTruncatedInt32ForToNumber(
       current_interpreter_frame_.accumulator(), hint);
@@ -1414,6 +1399,8 @@ void MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
 namespace {
 ToNumberHint BinopHintToToNumberHint(BinaryOperationHint hint) {
   switch (hint) {
+    case BinaryOperationHint::kSignedSmall:
+      return ToNumberHint::kAssumeSmi;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
       return ToNumberHint::kAssumeNumber;
@@ -1421,7 +1408,6 @@ ToNumberHint BinopHintToToNumberHint(BinaryOperationHint hint) {
       return ToNumberHint::kAssumeNumberOrOddball;
 
     case BinaryOperationHint::kNone:
-    case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kString:
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
@@ -1434,20 +1420,21 @@ ToNumberHint BinopHintToToNumberHint(BinaryOperationHint hint) {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitUnaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(0);
-  switch (nexus.GetBinaryOperationFeedback()) {
+  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      return BuildInt32UnaryOperationNode<kOperation>();
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      ToNumberHint hint =
-          BinopHintToToNumberHint(nexus.GetBinaryOperationFeedback());
+      ToNumberHint hint = BinopHintToToNumberHint(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         static_assert(kOperation == Operation::kBitwiseNot);
         return BuildTruncatingInt32BitwiseNotForToNumber(hint);
+      } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
+        return BuildInt32UnaryOperationNode<kOperation>();
       }
       return BuildFloat64UnaryOperationNodeForToNumber<kOperation>(hint);
       break;
@@ -1465,25 +1452,26 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  switch (nexus.GetBinaryOperationFeedback()) {
+  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      if constexpr (kOperation == Operation::kExponentiate) {
-        // Exponentiate never updates the feedback to be a Smi.
-        UNREACHABLE();
-      } else {
-        return BuildInt32BinaryOperationNode<kOperation>();
-      }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      ToNumberHint hint =
-          BinopHintToToNumberHint(nexus.GetBinaryOperationFeedback());
+      ToNumberHint hint = BinopHintToToNumberHint(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinaryOperationNodeForToNumber<kOperation>(
             hint);
+      } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
+        if constexpr (kOperation == Operation::kExponentiate) {
+          // Exponentiate never updates the feedback to be a Smi.
+          UNREACHABLE();
+        } else {
+          return BuildInt32BinaryOperationNode<kOperation>();
+        }
       } else {
         return BuildFloat64BinaryOperationNodeForToNumber<kOperation>(hint);
       }
@@ -1502,25 +1490,26 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinarySmiOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  switch (nexus.GetBinaryOperationFeedback()) {
+  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      if constexpr (kOperation == Operation::kExponentiate) {
-        // Exponentiate never updates the feedback to be a Smi.
-        UNREACHABLE();
-      } else {
-        return BuildInt32BinarySmiOperationNode<kOperation>();
-      }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      ToNumberHint hint =
-          BinopHintToToNumberHint(nexus.GetBinaryOperationFeedback());
+      ToNumberHint hint = BinopHintToToNumberHint(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinarySmiOperationNodeForToNumber<
             kOperation>(hint);
+      } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
+        if constexpr (kOperation == Operation::kExponentiate) {
+          // Exponentiate never updates the feedback to be a Smi.
+          UNREACHABLE();
+        } else {
+          return BuildInt32BinarySmiOperationNode<kOperation>();
+        }
       } else {
         return BuildFloat64BinarySmiOperationNodeForToNumber<kOperation>(hint);
       }

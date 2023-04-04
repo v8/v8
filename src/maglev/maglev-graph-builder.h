@@ -190,6 +190,7 @@ struct FastLiteralField {
 
 enum class ToNumberHint {
   kDisallowToNumber,
+  kAssumeSmi,
   kAssumeNumber,
   kAssumeNumberOrOddball
 };
@@ -941,17 +942,6 @@ class MaglevGraphBuilder {
                                       hint);
   }
 
-  // Get an Int32 representation node whose value is equivalent to the ToInt32
-  // truncation of the given node. Only trivial truncation is allowed, namely
-  // values that are already int32 or uint32.
-  //
-  // Deopts if the truncation is non-trivial.
-  ValueNode* GetTruncatedInt32(ValueNode* node);
-
-  ValueNode* GetTruncatedInt32(interpreter::Register reg) {
-    return GetTruncatedInt32(current_interpreter_frame_.get(reg));
-  }
-
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
   //
@@ -1005,10 +995,6 @@ class MaglevGraphBuilder {
 
   ValueNode* GetAccumulatorInt32() {
     return GetInt32(interpreter::Register::virtual_accumulator());
-  }
-
-  ValueNode* GetAccumulatorTruncatedInt32() {
-    return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
   }
 
   ValueNode* GetAccumulatorTruncatedInt32ForToNumber(ToNumberHint hint) {
@@ -1080,10 +1066,6 @@ class MaglevGraphBuilder {
 
   ValueNode* LoadRegisterInt32(int operand_index) {
     return GetInt32(iterator_.GetRegisterOperand(operand_index));
-  }
-
-  ValueNode* LoadRegisterTruncatedInt32(int operand_index) {
-    return GetTruncatedInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterFloat64(int operand_index) {
