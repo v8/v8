@@ -295,7 +295,6 @@ class MergePointInterpreterFrameState;
   V(StoreTaggedFieldNoWriteBarrier)         \
   V(StoreTaggedFieldWithWriteBarrier)       \
   V(CheckedStoreSmiField)                   \
-  V(IncreaseInterruptBudget)                \
   V(ReduceInterruptBudgetForLoop)           \
   V(ReduceInterruptBudgetForReturn)         \
   V(ThrowReferenceErrorIfHole)              \
@@ -641,22 +640,11 @@ class BasicBlockRef {
     return next_ref_ != nullptr;
   }
 
-  int interrupt_budget_correction() const {
-    DCHECK_EQ(state_, kRefList);
-    return interrupt_budget_correction_;
-  }
-
-  void set_interrupt_budget_correction(int interrupt_budget_correction) {
-    DCHECK_EQ(state_, kRefList);
-    interrupt_budget_correction_ = interrupt_budget_correction;
-  }
-
  private:
   union {
     BasicBlock* block_ptr_;
     BasicBlockRef* next_ref_;
   };
-  int interrupt_budget_correction_ = 0;
 #ifdef DEBUG
   enum { kBlockPointer, kRefList } state_;
 #endif  // DEBUG
@@ -6823,26 +6811,6 @@ class ConvertHoleToUndefined
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class IncreaseInterruptBudget
-    : public FixedInputNodeT<0, IncreaseInterruptBudget> {
-  using Base = FixedInputNodeT<0, IncreaseInterruptBudget>;
-
- public:
-  explicit IncreaseInterruptBudget(uint64_t bitfield, int amount)
-      : Base(bitfield), amount_(amount) {
-    DCHECK_GT(amount, 0);
-  }
-
-  int amount() const { return amount_; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const int amount_;
-};
-
 class ReduceInterruptBudgetForLoop
     : public FixedInputNodeT<0, ReduceInterruptBudgetForLoop> {
   using Base = FixedInputNodeT<0, ReduceInterruptBudgetForLoop>;
@@ -7075,14 +7043,10 @@ class ConditionalControlNode : public ControlNode {
 class BranchControlNode : public ConditionalControlNode {
  public:
   BranchControlNode(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                    int true_correction, BasicBlockRef* if_false_refs,
-                    int false_correction)
+                    BasicBlockRef* if_false_refs)
       : ConditionalControlNode(bitfield),
         if_true_(if_true_refs),
-        if_false_(if_false_refs) {
-    if_true_.set_interrupt_budget_correction(true_correction);
-    if_false_.set_interrupt_budget_correction(false_correction);
-  }
+        if_false_(if_false_refs) {}
 
   BasicBlock* if_true() const { return if_true_.block_ptr(); }
   BasicBlock* if_false() const { return if_false_.block_ptr(); }
@@ -7115,12 +7079,9 @@ class BranchControlNodeT
 
  protected:
   explicit BranchControlNodeT(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                              int true_interrupt_correction,
-                              BasicBlockRef* if_false_refs,
-                              int false_interrupt_correction)
+                              BasicBlockRef* if_false_refs)
       : FixedInputNodeTMixin<InputCount, BranchControlNode, Derived>(
-            bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-            false_interrupt_correction) {}
+            bitfield, if_true_refs, if_false_refs) {}
 };
 
 class Jump : public UnconditionalControlNodeT<Jump> {
@@ -7301,13 +7262,9 @@ class BranchIfRootConstant
 
  public:
   explicit BranchIfRootConstant(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                                int true_interrupt_correction,
                                 BasicBlockRef* if_false_refs,
-                                int false_interrupt_correction,
                                 RootIndex root_index)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction),
-        root_index_(root_index) {}
+      : Base(bitfield, if_true_refs, if_false_refs), root_index_(root_index) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
@@ -7333,11 +7290,8 @@ class BranchIfUndefinedOrNull
  public:
   explicit BranchIfUndefinedOrNull(uint64_t bitfield,
                                    BasicBlockRef* if_true_refs,
-                                   int true_interrupt_correction,
-                                   BasicBlockRef* if_false_refs,
-                                   int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction) {}
+                                   BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
@@ -7357,11 +7311,8 @@ class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
 
  public:
   explicit BranchIfJSReceiver(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                              int true_interrupt_correction,
-                              BasicBlockRef* if_false_refs,
-                              int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction) {}
+                              BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
@@ -7379,11 +7330,8 @@ class BranchIfToBooleanTrue
 
  public:
   explicit BranchIfToBooleanTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                                 int true_interrupt_correction,
-                                 BasicBlockRef* if_false_refs,
-                                 int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction) {}
+                                 BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
@@ -7407,12 +7355,8 @@ class BranchIfInt32Compare
 
   explicit BranchIfInt32Compare(uint64_t bitfield, Operation operation,
                                 BasicBlockRef* if_true_refs,
-                                int true_interrupt_correction,
-                                BasicBlockRef* if_false_refs,
-                                int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction),
-        operation_(operation) {}
+                                BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kInt32, ValueRepresentation::kInt32};
@@ -7439,11 +7383,9 @@ class BranchIfFloat64Compare
 
   explicit BranchIfFloat64Compare(
       uint64_t bitfield, Operation operation, BasicBlockRef* if_true_refs,
-      int true_interrupt_correction, BasicBlockRef* if_false_refs,
-      int false_interrupt_correction,
+      BasicBlockRef* if_false_refs,
       JumpModeIfNaN jump_mode_if_nan = JumpModeIfNaN::kJumpToFalse)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction),
+      : Base(bitfield, if_true_refs, if_false_refs),
         operation_(operation),
         jump_mode_if_nan_(jump_mode_if_nan) {}
 
@@ -7471,12 +7413,8 @@ class BranchIfReferenceCompare
 
   explicit BranchIfReferenceCompare(uint64_t bitfield, Operation operation,
                                     BasicBlockRef* if_true_refs,
-                                    int true_interrupt_correction,
-                                    BasicBlockRef* if_false_refs,
-                                    int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction),
-        operation_(operation) {}
+                                    BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
@@ -7502,12 +7440,8 @@ class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
   explicit BranchIfTypeOf(uint64_t bitfield,
                           interpreter::TestTypeOfFlags::LiteralFlag literal,
                           BasicBlockRef* if_true_refs,
-                          int true_interrupt_correction,
-                          BasicBlockRef* if_false_refs,
-                          int false_interrupt_correction)
-      : Base(bitfield, if_true_refs, true_interrupt_correction, if_false_refs,
-             false_interrupt_correction),
-        literal_(literal) {}
+                          BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), literal_(literal) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};

@@ -1981,20 +1981,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ bind(&check_done);
 }
 
-void IncreaseInterruptBudget::SetValueLocationConstraints() {
-  set_temporaries_needed(1);
-}
-void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedField(scratch,
-                     FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
-  __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(amount()));
-}
-
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

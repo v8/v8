@@ -301,21 +301,12 @@ class MaglevGraphBuilder {
   bool ShouldEmitInterruptBudgetChecks() {
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
-  BasicBlock* CreateEdgeSplitBlock(int offset,
-                                   int interrupt_budget_correction) {
+  BasicBlock* CreateEdgeSplitBlock(int offset) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== New empty block ==" << std::endl;
     }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr, zone());
-    // Add an interrupt budget correction if necessary. This makes the edge
-    // split block no longer empty, which is unexpected, but we're not changing
-    // interpreter frame state, so that's ok.
-    if (v8_flags.increase_budget_forward_jump &&
-        ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
-      DCHECK_GT(interrupt_budget_correction, 0);
-      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
-    }
     BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
     result->set_edge_split_block();
 #ifdef DEBUG
@@ -375,8 +366,7 @@ class MaglevGraphBuilder {
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEdgeSplitBlock(
-            offset, old_jump_targets->interrupt_budget_correction());
+        predecessor = CreateEdgeSplitBlock(offset);
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
@@ -1292,21 +1282,11 @@ class MaglevGraphBuilder {
   // Update all jumps which were targetting the not-yet-created block at the
   // given `block_offset`, to now point to the given `block`.
   void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) {
-    int interrupt_budget_correction = 0;
     BasicBlockRef* jump_target_refs_head =
         jump_targets_[block_offset].SetToBlockAndReturnNext(block);
     while (jump_target_refs_head != nullptr) {
-      // Only one jump target should ever set the interrupt budget correction.
-      DCHECK_EQ(interrupt_budget_correction, 0);
-      interrupt_budget_correction =
-          jump_target_refs_head->interrupt_budget_correction();
       jump_target_refs_head =
           jump_target_refs_head->SetToBlockAndReturnNext(block);
-    }
-    if (v8_flags.increase_budget_forward_jump &&
-        ShouldEmitInterruptBudgetChecks() && interrupt_budget_correction != 0) {
-      DCHECK_GT(interrupt_budget_correction, 0);
-      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
     }
     DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
   }

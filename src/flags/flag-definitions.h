@@ -696,8 +696,6 @@ DEFINE_BOOL(reset_interrupt_on_ic_update, true,
             "On IC change, reset the interrupt budget for just that function.")
 DEFINE_BOOL(reset_ticks_on_ic_update, true,
             "On IC change, reset the ticks for just that function.")
-DEFINE_BOOL(increase_budget_forward_jump, false,
-            "Increase interrupt budget on forward jumps in generated code")
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)

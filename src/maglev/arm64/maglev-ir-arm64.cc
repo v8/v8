@@ -1430,26 +1430,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-void IncreaseInterruptBudget::SetValueLocationConstraints() {
-  set_temporaries_needed(1);
-}
-void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register feedback_cell = temps.Acquire();
-  Register budget = temps.Acquire().W();
-  __ Ldr(feedback_cell,
-         MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedField(
-      feedback_cell,
-      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
-  __ Ldr(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-  __ Add(budget, budget, Immediate(amount()));
-  __ Str(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-}
-
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

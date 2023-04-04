@@ -83,9 +83,7 @@ class BasicBlock {
   }
 
   void set_edge_split_block() {
-    DCHECK_IMPLIES(!nodes_.is_empty(),
-                   nodes_.LengthForTest() == 1 &&
-                       nodes_.first()->Is<IncreaseInterruptBudget>());
+    DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
     is_edge_split_block_ = true;

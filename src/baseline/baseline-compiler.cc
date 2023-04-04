@@ -610,29 +610,19 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
   if (label) __ Jump(label);
 }
 
-void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
-  int weight = v8_flags.increase_budget_forward_jump
-                   ? (iterator().GetRelativeJumpTargetOffset() -
-                      iterator().current_bytecode_size_without_prefix())
-                   : 0;
-  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
-}
-
-void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(
-    RootIndex root) {
+void BaselineCompiler::JumpIfRoot(RootIndex root) {
   Label dont_jump;
   __ JumpIfNotRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
                    Label::kNear);
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
   __ Bind(&dont_jump);
 }
 
-void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
-    RootIndex root) {
+void BaselineCompiler::JumpIfNotRoot(RootIndex root) {
   Label dont_jump;
   __ JumpIfRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
                 Label::kNear);
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
   __ Bind(&dont_jump);
 }
 
@@ -1960,9 +1950,7 @@ void BaselineCompiler::VisitJumpLoop() {
 #endif  // !V8_JITLESS
 }
 
-void BaselineCompiler::VisitJump() {
-  UpdateInterruptBudgetAndDoInterpreterJump();
-}
+void BaselineCompiler::VisitJump() { __ Jump(BuildForwardJumpLabel()); }
 
 void BaselineCompiler::VisitJumpConstant() { VisitJump(); }
 
@@ -2001,40 +1989,35 @@ void BaselineCompiler::VisitJumpIfToBooleanFalseConstant() {
 void BaselineCompiler::VisitJumpIfToBooleanTrue() {
   Label dont_jump;
   JumpIfToBoolean(false, &dont_jump, Label::kNear);
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
   __ Bind(&dont_jump);
 }
 
 void BaselineCompiler::VisitJumpIfToBooleanFalse() {
   Label dont_jump;
   JumpIfToBoolean(true, &dont_jump, Label::kNear);
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
   __ Bind(&dont_jump);
 }
 
-void BaselineCompiler::VisitJumpIfTrue() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kTrueValue);
-}
+void BaselineCompiler::VisitJumpIfTrue() { JumpIfRoot(RootIndex::kTrueValue); }
 
 void BaselineCompiler::VisitJumpIfFalse() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kFalseValue);
+  JumpIfRoot(RootIndex::kFalseValue);
 }
 
-void BaselineCompiler::VisitJumpIfNull() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kNullValue);
-}
+void BaselineCompiler::VisitJumpIfNull() { JumpIfRoot(RootIndex::kNullValue); }
 
 void BaselineCompiler::VisitJumpIfNotNull() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(RootIndex::kNullValue);
+  JumpIfNotRoot(RootIndex::kNullValue);
 }
 
 void BaselineCompiler::VisitJumpIfUndefined() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kUndefinedValue);
+  JumpIfRoot(RootIndex::kUndefinedValue);
 }
 
 void BaselineCompiler::VisitJumpIfNotUndefined() {
-  UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
-      RootIndex::kUndefinedValue);
+  JumpIfNotRoot(RootIndex::kUndefinedValue);
 }
 
 void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
@@ -2044,7 +2027,7 @@ void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
   __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kNullValue,
                    &dont_jump, Label::kNear);
   __ Bind(&do_jump);
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
   __ Bind(&dont_jump);
 }
 
@@ -2059,7 +2042,7 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
   __ JumpIfObjectTypeFast(kLessThan, kInterpreterAccumulatorRegister,
                           FIRST_JS_RECEIVER_TYPE, &dont_jump);
 #endif
-  UpdateInterruptBudgetAndDoInterpreterJump();
+  __ Jump(BuildForwardJumpLabel());
 
   __ Bind(&is_smi);
   __ Bind(&dont_jump);
