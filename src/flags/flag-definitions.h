@@ -668,7 +668,7 @@ DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
            "allocating feedback vectors, used when bytecode size is known")
 
 // Tiering: Maglev.
-DEFINE_INT(invocation_count_for_maglev, 300,
+DEFINE_INT(invocation_count_for_maglev, 100,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
@@ -701,7 +701,7 @@ DEFINE_BOOL(increase_budget_forward_jump, false,
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2400)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
 
 // Tiering: JIT fuzzing.
 //
