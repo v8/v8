@@ -75,7 +75,7 @@ class MarkingState final
   explicit MarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   // Concurrent marking uses local live bytes so we may do these accesses
   // non-atomically.
@@ -92,7 +92,7 @@ class NonAtomicMarkingState final
   explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 
@@ -109,7 +109,7 @@ class AtomicMarkingState final
   explicit AtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 };

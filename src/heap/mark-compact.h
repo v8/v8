@@ -113,7 +113,7 @@ class YoungGenerationMarkingState final
       : MarkingStateBase(cage_base) {}
   V8_INLINE ~YoungGenerationMarkingState();
 
-  MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const {
+  const MarkingBitmap* bitmap(const MemoryChunk* chunk) const {
     return chunk->marking_bitmap();
   }
 

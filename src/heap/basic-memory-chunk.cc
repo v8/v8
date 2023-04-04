@@ -61,14 +61,9 @@ BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
       area_start_(area_start),
       area_end_(area_end),
       allocated_bytes_(area_end - area_start),
-      wasted_memory_(0),
       high_water_mark_(area_start - reinterpret_cast<Address>(this)),
       owner_(space),
-      reservation_(std::move(reservation)) {
-  if (space->identity() != RO_SPACE) {
-    marking_bitmap()->template Clear<AccessMode::NON_ATOMIC>();
-  }
-}
+      reservation_(std::move(reservation)) {}
 
 bool BasicMemoryChunk::InOldSpace() const {
   return owner()->identity() == OLD_SPACE;

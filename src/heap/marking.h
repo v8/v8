@@ -9,7 +9,6 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
-#include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/utils/utils.h"
@@ -137,21 +136,14 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
 
   // Gets the MarkBit for an `address` which may be unaligned (include the tag
   // bit).
-  V8_INLINE static MarkBit MarkBitFromAddress(Address address) {
-    const auto index = AddressToIndex(address);
-    const auto mask = IndexInCellMask(index);
-    MarkBit::CellType* cell =
-        FromAddress(address)->cells() + IndexToCell(index);
-    return MarkBit(cell, mask);
-  }
+  V8_INLINE static MarkBit MarkBitFromAddress(Address address);
 
-  V8_INLINE MarkBit::CellType* cells() {
-    return reinterpret_cast<MarkBit::CellType*>(this);
-  }
+  MarkingBitmap() = default;
+  MarkingBitmap(const MarkingBitmap&) = delete;
+  MarkingBitmap& operator=(const MarkingBitmap&) = delete;
 
-  V8_INLINE const MarkBit::CellType* cells() const {
-    return reinterpret_cast<const MarkBit::CellType*>(this);
-  }
+  V8_INLINE CellType* cells() { return cells_; }
+  V8_INLINE const CellType* cells() const { return cells_; }
 
   // Returns true if all bits in the range [start_index, end_index) are cleared.
   bool AllBitsClearInRange(MarkBitIndex start_index,
@@ -189,10 +181,7 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   }
 
  private:
-  V8_INLINE static MarkingBitmap* FromAddress(Address address) {
-    Address page_address = address & ~kPageAlignmentMask;
-    return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
-  }
+  V8_INLINE static MarkingBitmap* FromAddress(Address address);
 
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.
@@ -214,17 +203,9 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // access is atomic then *still* use a relaxed memory ordering.
   inline void ClearCellRangeRelaxed(uint32_t start_cell_index,
                                     uint32_t end_cell_index);
+
+  CellType cells_[kCellsCount] = {0};
 };
-
-// static
-MarkBit MarkBit::From(Address address) {
-  return MarkingBitmap::MarkBitFromAddress(address);
-}
-
-// static
-MarkBit MarkBit::From(HeapObject heap_object) {
-  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
-}
 
 class LiveObjectRange final {
  public:
@@ -255,7 +236,7 @@ class LiveObjectRange final {
     inline void AdvanceToNextValidObject();
 
     const Page* const page_ = nullptr;
-    MarkBit::CellType* const cells_ = nullptr;
+    const MarkBit::CellType* const cells_ = nullptr;
     const PtrComprCageBase cage_base_;
     MarkingBitmap::CellIndex current_cell_index_ = 0;
     MarkingBitmap::CellType current_cell_ = 0;

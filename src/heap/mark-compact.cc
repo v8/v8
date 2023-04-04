@@ -106,7 +106,7 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   explicit MarkingVerifier(Heap* heap)
       : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
-  virtual MarkingBitmap* bitmap(const MemoryChunk* chunk) = 0;
+  virtual const MarkingBitmap* bitmap(const MemoryChunk* chunk) = 0;
 
   virtual void VerifyMap(Map map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
@@ -233,8 +233,8 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
  protected:
-  MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
-    return marking_state_->bitmap(chunk);
+  const MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
+    return chunk->marking_bitmap();
   }
 
   bool IsMarked(HeapObject object) override {
@@ -5415,8 +5415,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       : MarkingVerifier(heap),
         marking_state_(heap->non_atomic_marking_state()) {}
 
-  MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
-    return marking_state_->bitmap(chunk);
+  const MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
+    return chunk->marking_bitmap();
   }
 
   bool IsMarked(HeapObject object) override {

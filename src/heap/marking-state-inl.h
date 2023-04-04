@@ -62,7 +62,7 @@ void MarkingStateBase<ConcreteState, access_mode>::ClearLiveness(
   static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
 }
 
-MarkingBitmap* MarkingState::bitmap(const BasicMemoryChunk* chunk) const {
+MarkingBitmap* MarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 
@@ -82,8 +82,7 @@ void MarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
   chunk->live_byte_count_.store(value, std::memory_order_relaxed);
 }
 
-MarkingBitmap* NonAtomicMarkingState::bitmap(
-    const BasicMemoryChunk* chunk) const {
+MarkingBitmap* NonAtomicMarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 
@@ -104,7 +103,7 @@ void NonAtomicMarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
   chunk->live_byte_count_.store(value, std::memory_order_relaxed);
 }
 
-MarkingBitmap* AtomicMarkingState::bitmap(const BasicMemoryChunk* chunk) const {
+MarkingBitmap* AtomicMarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 

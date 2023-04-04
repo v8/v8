@@ -220,6 +220,16 @@ class MemoryChunk : public BasicMemoryChunk {
   void ClearWasUsedForAllocation() { was_used_for_allocation_ = false; }
   bool WasUsedForAllocation() const { return was_used_for_allocation_; }
 
+  MarkingBitmap* marking_bitmap() {
+    DCHECK(!InReadOnlySpace());
+    return &marking_bitmap_;
+  }
+
+  const MarkingBitmap* marking_bitmap() const {
+    DCHECK(!InReadOnlySpace());
+    return &marking_bitmap_;
+  }
+
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
@@ -246,27 +256,27 @@ class MemoryChunk : public BasicMemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
+  // A single slot set for small pages (of size kPageSize) or an array of slot
+  // set for large pages. In the latter case the number of entries in the array
+  // is ceil(size() / kPageSize).
+  TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
+  InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES] = {
+      nullptr};
 
   // Used by the marker to keep track of the scanning progress in large objects
   // that have a progress bar and are scanned in increments.
   class ProgressBar progress_bar_;
 
   // Count of bytes marked black on page.
-  std::atomic<intptr_t> live_byte_count_;
-
-  // A single slot set for small pages (of size kPageSize) or an array of slot
-  // set for large pages. In the latter case the number of entries in the array
-  // is ceil(size() / kPageSize).
-  TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
-  InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  std::atomic<intptr_t> live_byte_count_{0};
 
   base::Mutex* mutex_;
   base::SharedMutex* shared_mutex_;
-
-  std::atomic<ConcurrentSweepingState> concurrent_sweeping_;
-
   base::Mutex* page_protection_change_mutex_;
+
+  std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
+      ConcurrentSweepingState::kDone};
 
   // This field is only relevant for code pages. It depicts the number of
   // times a component requested this page to be read+writeable. The
@@ -278,14 +288,14 @@ class MemoryChunk : public BasicMemoryChunk {
   // with the number of open CodeSpaceMemoryModificationScopes. The caller
   // that triggers the page allocation is responsible for decrementing the
   // counter.
-  uintptr_t write_unprotect_counter_;
+  uintptr_t write_unprotect_counter_ = 0;
 
   // Tracks off-heap memory used by this memory chunk.
-  std::atomic<size_t> external_backing_store_bytes_[kNumTypes];
+  std::atomic<size_t> external_backing_store_bytes_[kNumTypes] = {0};
 
   heap::ListNode<MemoryChunk> list_node_;
 
-  FreeListCategory** categories_;
+  FreeListCategory** categories_ = nullptr;
 
   CodeObjectRegistry* code_object_registry_;
 
@@ -296,6 +306,8 @@ class MemoryChunk : public BasicMemoryChunk {
   // Marks a chunk that was used for allocation since it was last swept. Used
   // only for new space pages.
   size_t was_used_for_allocation_ = false;
+
+  MarkingBitmap marking_bitmap_;
 
  private:
   friend class ConcurrentMarkingState;

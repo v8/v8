@@ -301,11 +301,6 @@ class BasicMemoryChunk {
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
   }
 
-  MarkingBitmap* marking_bitmap() const {
-    DCHECK(!InReadOnlySpace());
-    return MarkingBitmap::Cast(address() + kMarkingBitmapOffset);
-  }
-
   Address HighWaterMark() const { return address() + high_water_mark_; }
 
   static inline void UpdateHighWaterMark(Address mark) {
@@ -369,7 +364,7 @@ class BasicMemoryChunk {
   // linear allocation area.
   size_t allocated_bytes_;
   // Freed memory that was not added to the free list.
-  size_t wasted_memory_;
+  size_t wasted_memory_ = 0;
 
   // Assuming the initial allocation on a page is sequential, count highest
   // number of bytes ever allocated on the page.

@@ -10,6 +10,7 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
 
 namespace v8::internal {
@@ -141,6 +142,30 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
     // clearing stores.
     base::SeqCst_MemoryFence();
   }
+}
+
+// static
+MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
+  Address page_address = address & ~kPageAlignmentMask;
+  return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
+}
+
+// static
+MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
+  const auto index = AddressToIndex(address);
+  const auto mask = IndexInCellMask(index);
+  MarkBit::CellType* cell = FromAddress(address)->cells() + IndexToCell(index);
+  return MarkBit(cell, mask);
+}
+
+// static
+MarkBit MarkBit::From(Address address) {
+  return MarkingBitmap::MarkBitFromAddress(address);
+}
+
+// static
+MarkBit MarkBit::From(HeapObject heap_object) {
+  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
 LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}

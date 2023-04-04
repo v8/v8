@@ -48,7 +48,7 @@ class ConcurrentMarkingState final
                          MemoryChunkDataMap* memory_chunk_data)
       : MarkingStateBase(cage_base), memory_chunk_data_(memory_chunk_data) {}
 
-  MarkingBitmap* bitmap(const BasicMemoryChunk* chunk) const {
+  MarkingBitmap* bitmap(MemoryChunk* chunk) const {
     return chunk->marking_bitmap();
   }
 
