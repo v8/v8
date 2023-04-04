@@ -444,6 +444,7 @@ class ValidateFunctionsTask : public JobTask {
   bool ValidateFunction(int func_index) {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
+    DCHECK_LT(0, function.code.offset());
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset()};

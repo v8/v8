@@ -436,3 +436,24 @@ function testErrorPosition(bytes, pos, message) {
   testErrorPosition(
       bytes, pos, 'data segments count 0 mismatch \\(1 expected\\)');
 })();
+
+(function testMissingCodeSection() {
+  let bytes = new Binary;
+  bytes.emit_header();
+  bytes.emit_bytes([
+    kTypeSectionCode,       // section id
+    4,                      // section length
+    1,                      // number of types
+    kWasmFunctionTypeForm,  // type
+    0,                      // number of parameter
+    0,                      // number of returns
+    kFunctionSectionCode,   // section id
+    2,                      // section length
+    1,                      // number of functions
+    0,                      // signature index
+  ]);
+
+  let pos = bytes.length;
+  testErrorPosition(
+      bytes, pos, 'function count is 1, but code section is absent');
+})();

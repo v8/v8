@@ -272,6 +272,31 @@ class WasmSectionIterator {
   }
 };
 
+inline void DumpModule(const base::Vector<const byte> module_bytes, bool ok) {
+  std::string path;
+  if (v8_flags.dump_wasm_module_path) {
+    path = v8_flags.dump_wasm_module_path;
+    if (path.size() && !base::OS::isDirectorySeparator(path[path.size() - 1])) {
+      path += base::OS::DirectorySeparator();
+    }
+  }
+  // File are named `<hash>.{ok,failed}.wasm`.
+  // Limit the hash to 8 characters (32 bits).
+  uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
+  base::EmbeddedVector<char, 32> buf;
+  SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
+  path += buf.begin();
+  size_t rv = 0;
+  if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
+    rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
+    base::Fclose(file);
+  }
+  if (rv != 1) {
+    OFStream os(stderr);
+    os << "Error while dumping wasm file to " << path << std::endl;
+  }
+}
+
 // The main logic for decoding the bytes of a module.
 class ModuleDecoderImpl : public Decoder {
  public:
@@ -287,32 +312,6 @@ class ModuleDecoderImpl : public Decoder {
 
   void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
-  }
-
-  void DumpModule(const base::Vector<const byte> module_bytes) {
-    std::string path;
-    if (v8_flags.dump_wasm_module_path) {
-      path = v8_flags.dump_wasm_module_path;
-      if (path.size() &&
-          !base::OS::isDirectorySeparator(path[path.size() - 1])) {
-        path += base::OS::DirectorySeparator();
-      }
-    }
-    // File are named `<hash>.{ok,failed}.wasm`.
-    // Limit the hash to 8 characters (32 bits).
-    uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
-    base::EmbeddedVector<char, 32> buf;
-    SNPrintF(buf, "%08x.%s.wasm", hash, ok() ? "ok" : "failed");
-    path += buf.begin();
-    size_t rv = 0;
-    if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
-      rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
-      base::Fclose(file);
-    }
-    if (rv != 1) {
-      OFStream os(stderr);
-      os << "Error while dumping wasm file to " << path << std::endl;
-    }
   }
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
@@ -1653,19 +1652,25 @@ class ModuleDecoderImpl : public Decoder {
       section_iter.advance(true);
     }
 
-    if (ok() && validate_functions) {
-      // Pass nullptr for an "empty" filter function.
-      error_ = ValidateFunctions(module_.get(), enabled_features_, wire_bytes,
-                                 nullptr);
-    }
-
-    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
-
+    // Check for module structure errors before validating function bodies, to
+    // produce consistent error message independent of whether validation
+    // happens here or later.
     if (section_iterator_decoder.failed()) {
       return section_iterator_decoder.toResult(nullptr);
     }
 
-    return FinishDecoding();
+    ModuleResult result = FinishDecoding();
+    if (!result.failed() && validate_functions) {
+      // Pass nullptr for an "empty" filter function.
+      if (WasmError validation_error = ValidateFunctions(
+              module_.get(), enabled_features_, wire_bytes, nullptr)) {
+        result = ModuleResult{validation_error};
+      }
+    }
+
+    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes, result.ok());
+
+    return result;
   }
 
   // Decodes a single anonymous function starting at {start_}.
