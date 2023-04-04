@@ -10,6 +10,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
+#include "src/objects/instruction-stream-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,7 +23,6 @@ OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
 
 CAST_ACCESSOR(GcSafeCode)
-CAST_ACCESSOR(InstructionStream)
 CAST_ACCESSOR(Code)
 
 Code GcSafeCode::UnsafeCastToCode() const {
@@ -87,15 +87,6 @@ Object GcSafeCode::raw_instruction_stream(
   return UnsafeCastToCode().raw_instruction_stream(code_cage_base);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
-NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
-INT_ACCESSORS(InstructionStream, body_size, kBodySizeOffset)
-
-Address InstructionStream::body_end() const {
-  static_assert(kOnHeapBodyIsContiguous);
-  return instruction_start() + body_size();
-}
-
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
@@ -120,73 +111,6 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
                    kind() == CodeKind::BASELINE &&
                        !ObjectInYoungGeneration(value))
 
-// Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with InstructionStream
-// as a host and using main_cage_base(kRelaxedLoad) for computing the base.
-#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(              \
-    name, type, offset, get_condition, set_condition)                       \
-  type InstructionStream::name(AcquireLoadTag tag) const {                  \
-    PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);              \
-    return InstructionStream::name(cage_base, tag);                         \
-  }                                                                         \
-  type InstructionStream::name(PtrComprCageBase cage_base, AcquireLoadTag)  \
-      const {                                                               \
-    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
-    DCHECK(get_condition);                                                  \
-    return value;                                                           \
-  }                                                                         \
-  void InstructionStream::set_##name(type value, ReleaseStoreTag,           \
-                                     WriteBarrierMode mode) {               \
-    DCHECK(set_condition);                                                  \
-    TaggedField<type, offset>::Release_Store(*this, value);                 \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
-  }
-
-#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(name, type, offset) \
-  RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(                 \
-      name, type, offset, !ObjectInYoungGeneration(value),               \
-      !ObjectInYoungGeneration(value))
-
-RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
-RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, HeapObject, kCodeOffset)
-ACCESSORS(InstructionStream, relocation_info, ByteArray, kRelocationInfoOffset)
-#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
-#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2
-
-PtrComprCageBase InstructionStream::main_cage_base() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Address cage_base_hi = ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(cage_base_hi << 32);
-#else
-  return GetPtrComprCageBase(*this);
-#endif
-}
-
-PtrComprCageBase InstructionStream::main_cage_base(RelaxedLoadTag) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Address cage_base_hi =
-      Relaxed_ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(cage_base_hi << 32);
-#else
-  return GetPtrComprCageBase(*this);
-#endif
-}
-
-void InstructionStream::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Tagged_t cage_base_hi = static_cast<Tagged_t>(cage_base >> 32);
-  Relaxed_WriteField<Tagged_t>(kMainCageBaseUpper32BitsOffset, cage_base_hi);
-#else
-  UNREACHABLE();
-#endif
-}
-
-// TODO(jgruber): Remove this method once main_cage_base is gone.
-void InstructionStream::WipeOutHeader() {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    set_main_cage_base(kNullAddress, kRelaxedStore);
-  }
-}
-
 ByteArray Code::SourcePositionTable(Isolate* isolate,
                                     SharedFunctionInfo sfi) const {
   if (!has_instruction_stream()) {
@@ -205,10 +129,6 @@ Address Code::body_start() const { return instruction_start(); }
 Address Code::body_end() const { return body_start() + body_size(); }
 
 int Code::body_size() const { return instruction_size() + metadata_size(); }
-
-Address InstructionStream::instruction_start() const {
-  return field_address(kHeaderSize);
-}
 
 Address Code::instruction_end() const {
   return instruction_start() + instruction_size();
@@ -282,23 +202,10 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-ByteArray InstructionStream::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
-  return ByteArray::unchecked_cast(
-      TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
-                                                                   *this));
-}
-
 FixedArray Code::unchecked_deoptimization_data() const {
   return FixedArray::unchecked_cast(
       TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
           *this));
-}
-
-Code InstructionStream::unchecked_code(AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
-  return Code::unchecked_cast(
-      TaggedField<HeapObject, kCodeOffset>::Acquire_Load(cage_base, *this));
 }
 
 byte* Code::relocation_start() const {
@@ -319,36 +226,14 @@ int Code::relocation_size() const {
              : 0;
 }
 
-byte* InstructionStream::relocation_start() const {
-  return relocation_info().GetDataStartAddress();
-}
-
-byte* InstructionStream::relocation_end() const {
-  return relocation_info().GetDataEndAddress();
-}
-
-int InstructionStream::relocation_size() const {
-  return relocation_info().length();
-}
-
 bool Code::contains(Isolate* isolate, Address inner_pointer) const {
   const Address start = InstructionStart(isolate, inner_pointer);
   if (inner_pointer < start) return false;
   return inner_pointer < start + instruction_size();
 }
 
-int InstructionStream::Size() const { return SizeFor(body_size()); }
 int Code::InstructionStreamObjectSize() const {
   return InstructionStream::SizeFor(body_size());
-}
-
-void InstructionStream::clear_padding() {
-  // Header padding.
-  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
-         kHeaderSize - kUnalignedSize);
-  // Trailing padding.
-  memset(reinterpret_cast<void*>(body_end()), 0,
-         TrailingPaddingSizeFor(body_size()));
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -576,37 +461,8 @@ int Code::unwinding_info_size() const {
 bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
 // static
-InstructionStream InstructionStream::FromTargetAddress(Address address) {
-  {
-    // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
-    // in the current isolate.
-    Address start =
-        reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlobCode());
-    Address end = start + Isolate::CurrentEmbeddedBlobCodeSize();
-    CHECK(address < start || address >= end);
-  }
-
-  HeapObject code =
-      HeapObject::FromAddress(address - InstructionStream::kHeaderSize);
-  // Unchecked cast because we can't rely on the map currently not being a
-  // forwarding pointer.
-  return InstructionStream::unchecked_cast(code);
-}
-
-// static
 Code Code::FromTargetAddress(Address address) {
   return InstructionStream::FromTargetAddress(address).code(kAcquireLoad);
-}
-
-// static
-InstructionStream InstructionStream::FromEntryAddress(
-    Address location_of_address) {
-  Address code_entry = base::Memory<Address>(location_of_address);
-  HeapObject code =
-      HeapObject::FromAddress(code_entry - InstructionStream::kHeaderSize);
-  // Unchecked cast because we can't rely on the map currently not being a
-  // forwarding pointer.
-  return InstructionStream::unchecked_cast(code);
 }
 
 bool Code::CanContainWeakObjects() {

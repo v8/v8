@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
+#include "src/objects/instruction-stream.h"
 
 namespace v8 {
 namespace internal {

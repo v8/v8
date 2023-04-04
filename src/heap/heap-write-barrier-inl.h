@@ -17,6 +17,7 @@
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots-inl.h"
 

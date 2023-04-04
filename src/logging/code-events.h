@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
