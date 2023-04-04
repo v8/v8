@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
 def clusterfuzz_builder(properties, close_tree = True, use_remoteexec = RECLIENT.DEFAULT, **kwargs):
     properties["builder_group"] = "client.v8.clusterfuzz"
@@ -13,7 +13,6 @@ def clusterfuzz_builder(properties, close_tree = True, use_remoteexec = RECLIENT
         properties = properties,
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
-        use_goma = GOMA.NO,
         use_remoteexec = use_remoteexec,
         experiments = {"v8.resultdb": 100},
         **kwargs

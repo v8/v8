@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "in_console", "v8_builder", "v8_failure_notifier")
+load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "in_console", "v8_builder", "v8_failure_notifier")
 
 def experiment_builder(**kwargs):
     notify_owners = kwargs.pop("notify_owners", None)
@@ -23,7 +23,6 @@ def experiment_builder(**kwargs):
         bucket = bucket,
         properties = properties,
         experiments = experiments,
-        use_goma = GOMA.NO,
         **kwargs
     )
 

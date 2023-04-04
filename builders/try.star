@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "RECLIENT", "RECLIENT_JOBS", "v8_builder")
+load("//lib/lib.star", "CQ", "GCLIENT_VARS", "RECLIENT", "RECLIENT_JOBS", "v8_builder")
 
 def try_builder(
         name,
@@ -21,7 +21,6 @@ def try_builder(
         cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
         disable_resultdb_exports = disable_resultdb_exports,
-        use_goma = GOMA.NO,
         **kwargs
     )
 
