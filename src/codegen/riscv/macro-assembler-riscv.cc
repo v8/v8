@@ -3856,7 +3856,7 @@ void MacroAssembler::Branch(int32_t offset) {
 }
 
 void MacroAssembler::Branch(int32_t offset, Condition cond, Register rs,
-                            const Operand& rt, Label::Distance near_jump) {
+                            const Operand& rt, Label::Distance distance) {
   bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt);
   DCHECK(is_near);
   USE(is_near);
@@ -3879,7 +3879,7 @@ void MacroAssembler::Branch(Label* L) {
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
-                            const Operand& rt, Label::Distance near_jump) {
+                            const Operand& rt, Label::Distance distance) {
   if (L->is_bound()) {
     if (!BranchShortCheck(0, L, cond, rs, rt)) {
       if (cond != cc_always) {
@@ -3894,7 +3894,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted() && near_jump == Label::Distance::kFar) {
+    if (is_trampoline_emitted() && distance == Label::Distance::kFar) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
@@ -5743,13 +5743,14 @@ void MacroAssembler::SmiToInt32(Register smi) {
   SmiUntag(smi);
 }
 
-void MacroAssembler::JumpIfSmi(Register value, Label* smi_label) {
+void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,
+                               Label::Distance distance) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(0, kSmiTag);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
-  Branch(smi_label, eq, scratch, Operand(zero_reg));
+  Branch(smi_label, eq, scratch, Operand(zero_reg), distance);
 }
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
@@ -5764,13 +5765,14 @@ Operand MacroAssembler::ClearedValue() const {
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
-void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
+void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
+                                  Label::Distance distance) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   DCHECK_EQ(0, kSmiTag);
   andi(scratch, value, kSmiTagMask);
-  Branch(not_smi_label, ne, scratch, Operand(zero_reg));
+  Branch(not_smi_label, ne, scratch, Operand(zero_reg), distance);
 }
 
 void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
