@@ -1590,16 +1590,13 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
                                         .object());
   }
 
-  Handle<DeoptimizationLiteralArray> literals =
-      isolate->factory()->NewDeoptimizationLiteralArray(deopt_literals_.size() +
-                                                        1);
   int inlined_functions_size =
       static_cast<int>(graph_->inlined_functions().size());
+  Handle<DeoptimizationLiteralArray> literals =
+      isolate->factory()->NewDeoptimizationLiteralArray(
+          deopt_literals_.size() + inlined_functions_size + 1);
   Handle<PodArray<InliningPosition>> inlining_positions =
       PodArray<InliningPosition>::New(isolate, inlined_functions_size);
-  for (int i = 0; i < inlined_functions_size; ++i) {
-    inlining_positions->set(i, graph_->inlined_functions()[i].position);
-  }
 
   DisallowGarbageCollection no_gc;
 
@@ -1611,11 +1608,16 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_literals.set(*it.entry(), it.key());
   }
   // Add the bytecode to the deopt literals to make sure it's held strongly.
-  // TODO(leszeks): Do this for inlined functions too.
-  raw_literals.set(deopt_literals_.size(), *code_gen_state_.compilation_info()
-                                                ->toplevel_compilation_unit()
-                                                ->bytecode()
-                                                .object());
+  auto literal_offsets = deopt_literals_.size();
+  for (int i = 0; i < inlined_functions_size; i++) {
+    auto inlined_function_info = graph_->inlined_functions()[i];
+    inlining_positions->set(i, inlined_function_info.position);
+    raw_literals.set(literal_offsets++, *inlined_function_info.bytecode_array);
+  }
+  raw_literals.set(literal_offsets, *code_gen_state_.compilation_info()
+                                         ->toplevel_compilation_unit()
+                                         ->bytecode()
+                                         .object());
   raw_data.SetLiteralArray(raw_literals);
   raw_data.SetInliningPositions(*inlining_positions);
 
