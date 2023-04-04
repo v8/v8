@@ -512,9 +512,12 @@ const SnapshotObjectId HeapObjectsMap::kGcRootsFirstSubrootId =
 const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     static_cast<int>(Root::kNumberOfRoots) * HeapObjectsMap::kObjectIdStep;
+const SnapshotObjectId HeapObjectsMap::kFirstAvailableNativeId = 2;
 
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
-    : next_id_(kFirstAvailableObjectId), heap_(heap) {
+    : next_id_(kFirstAvailableObjectId),
+      next_native_id_(kFirstAvailableNativeId),
+      heap_(heap) {
   // The dummy element at zero index is needed as entries_map_ cannot hold
   // an entry with zero value. Otherwise it's impossible to tell if
   // LookupOrInsert has added a new item or just returning exisiting one
@@ -571,7 +574,7 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
 
 
 void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
-  FindOrAddEntry(addr, size, false);
+  FindOrAddEntry(addr, size, MarkEntryAccessed::kNo);
 }
 
 
@@ -585,10 +588,11 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   return entry_info.id;
 }
 
-
-SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
-                                                unsigned int size,
-                                                bool accessed) {
+SnapshotObjectId HeapObjectsMap::FindOrAddEntry(
+    Address addr, unsigned int size, MarkEntryAccessed accessed,
+    IsNativeObject is_native_object) {
+  bool accessed_bool = accessed == MarkEntryAccessed::kYes;
+  bool is_native_object_bool = is_native_object == IsNativeObject::kYes;
   DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   base::HashMap::Entry* entry = entries_map_.LookupOrInsert(
       reinterpret_cast<void*>(addr), ComputeAddressHash(addr));
@@ -596,17 +600,19 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_.at(entry_index);
-    entry_info.accessed = accessed;
+    entry_info.accessed = accessed_bool;
     if (v8_flags.heap_profiler_trace_objects) {
       PrintF("Update object size : %p with old size %d and new size %d\n",
              reinterpret_cast<void*>(addr), entry_info.size, size);
     }
     entry_info.size = size;
+    DCHECK_EQ(is_native_object_bool, entry_info.id % 2 == 0);
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_.size());
-  SnapshotObjectId id = get_next_id();
-  entries_.push_back(EntryInfo(id, addr, size, accessed));
+  SnapshotObjectId id =
+      is_native_object_bool ? get_next_native_id() : get_next_id();
+  entries_.push_back(EntryInfo(id, addr, size, accessed_bool));
   DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   return id;
 }
@@ -2619,10 +2625,27 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   DCHECK(node->IsEmbedderNode());
   size_t size = node->SizeInBytes();
   Address lookup_address = reinterpret_cast<Address>(node->GetNativeObject());
-  SnapshotObjectId id =
-      (lookup_address) ? heap_object_map_->FindOrAddEntry(lookup_address, 0)
-                       : static_cast<SnapshotObjectId>(
-                             reinterpret_cast<uintptr_t>(node) << 1);
+  HeapObjectsMap::MarkEntryAccessed accessed =
+      HeapObjectsMap::MarkEntryAccessed::kYes;
+  HeapObjectsMap::IsNativeObject is_native_object =
+      HeapObjectsMap::IsNativeObject::kNo;
+  if (!lookup_address) {
+    // If there is not a native object associated with this embedder object,
+    // then request the address of the embedder object.
+    lookup_address = reinterpret_cast<Address>(node->GetAddress());
+    is_native_object = HeapObjectsMap::IsNativeObject::kYes;
+  }
+  if (!lookup_address) {
+    // If the Node implementation did not provide either a native address or an
+    // embedder address, then use the address of the Node itself for the lookup.
+    // In this case, we'll set the "accessed" flag on the newly created
+    // HeapEntry to false, to indicate that this entry should not persist for
+    // future snapshots.
+    lookup_address = reinterpret_cast<Address>(node);
+    accessed = HeapObjectsMap::MarkEntryAccessed::kNo;
+  }
+  SnapshotObjectId id = heap_object_map_->FindOrAddEntry(
+      lookup_address, 0, accessed, is_native_object);
   auto* heap_entry = snapshot_->AddEntry(EmbedderGraphNodeType(node),
                                          EmbedderGraphNodeName(names_, node),
                                          id, static_cast<int>(size), 0);

@@ -883,6 +883,15 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
+    /**
+     * Returns the address of the object in the embedder heap, or nullptr to not
+     * specify the address. If this address is provided, then V8 can generate
+     * consistent IDs for objects across subsequent heap snapshots, which allows
+     * devtools to determine which objects were retained from one snapshot to
+     * the next. This value is used only if GetNativeObject returns nullptr.
+     */
+    virtual const void* GetAddress() { return nullptr; }
+
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };

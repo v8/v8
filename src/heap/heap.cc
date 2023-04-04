@@ -3314,7 +3314,7 @@ void Heap::OnMoveEvent(HeapObject source, HeapObject target,
   HeapProfiler* heap_profiler = isolate_->heap_profiler();
   if (heap_profiler->is_tracking_object_moves()) {
     heap_profiler->ObjectMoveEvent(source.address(), target.address(),
-                                   size_in_bytes);
+                                   size_in_bytes, /*is_embedder_object=*/false);
   }
   for (auto& tracker : allocation_trackers_) {
     tracker->MoveEvent(source.address(), target.address(), size_in_bytes);

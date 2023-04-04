@@ -213,7 +213,8 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
     JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo shared = frame->function().shared();
     SnapshotObjectId id =
-        ids_->FindOrAddEntry(shared.address(), shared.Size(), false);
+        ids_->FindOrAddEntry(shared.address(), shared.Size(),
+                             HeapObjectsMap::MarkEntryAccessed::kNo);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
     it.Advance();
   }
