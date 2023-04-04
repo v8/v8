@@ -13,7 +13,7 @@ namespace internal {
 namespace {
 
 constexpr int Tagged = kTaggedSize;
-constexpr int FullCell = Bitmap::kBitsPerCell * Tagged;
+constexpr int FullCell = MarkingBitmap::kBitsPerCell * Tagged;
 
 template <typename TMixin>
 class WithInnerPointerResolutionMixin : public TMixin {
@@ -33,11 +33,11 @@ class InnerPointerResolutionTest
     enum { REGULAR, FREE, LARGE } type = REGULAR;
     enum { UNMARKED, MARKED, MARKED_AREA } marked = UNMARKED;
     // If index_in_cell >= 0, the object is placed at the lowest address s.t.
-    // Bitmap::IndexInCell(AddressToMarkbitIndex(address)) == index_in_cell.
-    // To achieve this, padding (i.e., introducing a free-space object of the
-    // appropriate size) may be necessary. If padding == CONSECUTIVE, no such
-    // padding is allowed and it is just checked that object layout is as
-    // intended.
+    // MarkingBitmap::IndexInCell(AddressToMarkbitIndex(address)) ==
+    // index_in_cell. To achieve this, padding (i.e., introducing a free-space
+    // object of the appropriate size) may be necessary. If padding ==
+    // CONSECUTIVE, no such padding is allowed and it is just checked that
+    // object layout is as intended.
     int index_in_cell = -1;
     enum { CONSECUTIVE, PAD_UNMARKED, PAD_MARKED } padding = CONSECUTIVE;
     // The id of the page on which the object was allocated and its address are
@@ -116,15 +116,17 @@ class InnerPointerResolutionTest
       DCHECK_EQ(0, object.size % Tagged);
 
       // Check if padding is needed.
-      int index_in_cell = Bitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+      int index_in_cell =
+          MarkingBitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
       if (object.index_in_cell < 0) {
         object.index_in_cell = index_in_cell;
       } else if (object.padding != ObjectRequest::CONSECUTIVE) {
         DCHECK_LE(0, object.index_in_cell);
-        DCHECK_GT(Bitmap::kBitsPerCell, object.index_in_cell);
+        DCHECK_GT(MarkingBitmap::kBitsPerCell, object.index_in_cell);
         const int needed_padding_size =
-            ((Bitmap::kBitsPerCell + object.index_in_cell - index_in_cell) %
-             Bitmap::kBitsPerCell) *
+            ((MarkingBitmap::kBitsPerCell + object.index_in_cell -
+              index_in_cell) %
+             MarkingBitmap::kBitsPerCell) *
             Tagged;
         if (needed_padding_size > 0) {
           ObjectRequest pad{needed_padding_size,
@@ -139,13 +141,14 @@ class InnerPointerResolutionTest
           ptr += needed_padding_size;
           DCHECK_LE(ptr, page->area_end());
           CreateObject(pad);
-          index_in_cell = Bitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+          index_in_cell =
+              MarkingBitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
         }
       }
 
       // This will fail if the marking bitmap's implementation parameters change
-      // (e.g., Bitmap::kBitsPerCell) or the size of the page header changes.
-      // In this case, the tests will need to be revised accordingly.
+      // (e.g., MarkingBitmap::kBitsPerCell) or the size of the page header
+      // changes. In this case, the tests will need to be revised accordingly.
       EXPECT_EQ(index_in_cell, object.index_in_cell);
 
       object.page_id = page_id;
@@ -159,7 +162,7 @@ class InnerPointerResolutionTest
     // simulates freeing the page's LAB.
     const int remaining_size = static_cast<int>(page->area_end() - ptr);
     const uint32_t index = page->AddressToMarkbitIndex(ptr);
-    const int index_in_cell = Bitmap::IndexInCell(index);
+    const int index_in_cell = MarkingBitmap::IndexInCell(index);
     ObjectRequest last{remaining_size,
                        ObjectRequest::FREE,
                        ObjectRequest::UNMARKED,
@@ -220,7 +223,7 @@ class InnerPointerResolutionTest
         break;
       case ObjectRequest::MARKED_AREA: {
         MemoryChunk* page = LookupPage(object.page_id);
-        heap()->marking_state()->bitmap(page)->SetRange(
+        heap()->marking_state()->bitmap(page)->SetRange<AccessMode::NON_ATOMIC>(
             page->AddressToMarkbitIndex(object.address),
             page->AddressToMarkbitIndex(object.address + object.size));
         break;
