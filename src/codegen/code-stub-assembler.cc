@@ -15700,8 +15700,9 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
+  static_assert(FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte == 32);
   return IsSetWord32<Code::MarkedForDeoptimizationField>(
-      LoadObjectField<Int16T>(code, Code::kKindSpecificFlagsOffset));
+      LoadObjectField<Int32T>(code, Code::kFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(

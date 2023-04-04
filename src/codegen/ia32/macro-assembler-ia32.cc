@@ -707,7 +707,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 }
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
-  test(FieldOperand(code, Code::kKindSpecificFlagsOffset),
+  test(FieldOperand(code, Code::kFlagsOffset),
        Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 

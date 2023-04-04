@@ -2490,7 +2490,7 @@ void MacroAssembler::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch,
                   MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
   Label not_deoptimized;
   Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -2725,7 +2725,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
-  Ldr(scratch.W(), FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(code, Code::kFlagsOffset));
   Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
        if_marked_for_deoptimization);
 }

@@ -66,7 +66,6 @@ struct NewCodeOptions {
   Builtin builtin;
   bool is_turbofanned;
   int stack_slots;
-  int kind_specific_flags;
   AllocationType allocation;
   int instruction_size;
   int metadata_size;

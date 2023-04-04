@@ -395,7 +395,6 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   CodeDesc::Verify(&desc);
 
   return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-      .set_kind_specific_flags(code.kind_specific_flags(kRelaxedLoad))
       // Mimic the InterpreterEntryTrampoline.
       .set_builtin(Builtin::kInterpreterEntryTrampoline)
       .Build();

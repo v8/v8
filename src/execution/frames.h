@@ -7,6 +7,7 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"

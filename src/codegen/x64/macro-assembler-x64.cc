@@ -2599,7 +2599,8 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 }
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
-  testl(FieldOperand(code, Code::kKindSpecificFlagsOffset),
+  static_assert(FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte == 32);
+  testl(FieldOperand(code, Code::kFlagsOffset),
         Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -3397,8 +3398,7 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
-  testl(FieldOperand(scratch, Code::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  TestCodeIsMarkedForDeoptimization(scratch);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);
 }

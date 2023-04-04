@@ -192,50 +192,6 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
   return false;
 }
 
-Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate)
-    : isolate_(isolate),
-      safepoint_scope_(std::make_unique<SafepointScope>(
-          isolate, isolate->is_shared_space_isolate()
-                       ? SafepointKind::kGlobal
-                       : SafepointKind::kIsolate)),
-      object_iterator_(
-          isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
-      state_(kIteratingCodeSpace) {}
-
-Code Code::OptimizedCodeIterator::Next() {
-  while (true) {
-    HeapObject object = object_iterator_->Next();
-    if (object.is_null()) {
-      // No objects left in the current iterator, try to move to the next space
-      // based on the state.
-      switch (state_) {
-        case kIteratingCodeSpace: {
-          object_iterator_ =
-              isolate_->heap()->code_lo_space()->GetObjectIterator(
-                  isolate_->heap());
-          state_ = kIteratingCodeLOSpace;
-          continue;
-        }
-        case kIteratingCodeLOSpace:
-          // No other spaces to iterate, so clean up and we're done. Keep the
-          // object iterator so that it keeps returning null on Next(), to avoid
-          // needing to branch on state_ before the while loop, but drop the
-          // safepoint scope since we no longer need to stop the heap from
-          // moving.
-          safepoint_scope_.reset();
-          state_ = kDone;
-          V8_FALLTHROUGH;
-        case kDone:
-          return Code();
-      }
-    }
-    InstructionStream istream = InstructionStream::cast(object);
-    Code code = istream.code(kAcquireLoad);
-    if (!CodeKindCanDeoptimize(code.kind())) continue;
-    return code;
-  }
-}
-
 #ifdef ENABLE_DISASSEMBLER
 
 namespace {

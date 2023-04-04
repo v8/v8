@@ -1009,11 +1009,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_kind_specific_flags(int32_t flags) {
-      kind_specific_flags_ = flags;
-      return *this;
-    }
-
     CodeBuilder& set_stack_slots(int stack_slots) {
       stack_slots_ = stack_slots;
       return *this;
@@ -1047,7 +1042,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     BytecodeOffset osr_offset_ = BytecodeOffset::None();
-    int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code or
     // bytecode_offset_table for baseline code.
     Handle<ByteArray> position_table_;

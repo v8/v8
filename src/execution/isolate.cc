@@ -446,17 +446,11 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(code.address());
 
     // These static asserts ensure we don't miss relevant fields. We don't hash
-    // code cage base and code entry point. Other data fields must remain the
-    // same.
-    static_assert(Code::kCodePointerFieldsStrongEndOffset ==
+    // instruction_start, but other data fields must remain the same.
+    static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
-
     static_assert(Code::kInstructionStartOffsetEnd + 1 == Code::kFlagsOffset);
-    static_assert(Code::kFlagsOffsetEnd + 1 == Code::kBuiltinIdOffset);
-    static_assert(Code::kBuiltinIdOffsetEnd + 1 ==
-                  Code::kKindSpecificFlagsOffset);
-    static_assert(Code::kKindSpecificFlagsOffsetEnd + 1 ==
-                  Code::kInstructionSizeOffset);
+    static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
     static_assert(Code::kInstructionSizeOffsetEnd + 1 ==
                   Code::kMetadataSizeOffset);
     static_assert(Code::kMetadataSizeOffsetEnd + 1 ==
@@ -472,7 +466,8 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     static_assert(Code::kConstantPoolOffsetOffsetEnd + 1 ==
                   Code::kCodeCommentsOffsetOffset);
     static_assert(Code::kCodeCommentsOffsetOffsetEnd + 1 ==
-                  Code::kUnalignedSize);
+                  Code::kBuiltinIdOffset);
+    static_assert(Code::kBuiltinIdOffsetEnd + 1 == Code::kUnalignedSize);
     static constexpr int kStartOffset = Code::kFlagsOffset;
 
     for (int j = kStartOffset; j < Code::kUnalignedSize; j++) {
@@ -2267,6 +2262,19 @@ Object Isolate::UnwindAndFindHandler() {
 }
 
 namespace {
+
+HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
+  switch (builtin_id) {
+#define CASE(Name)       \
+  case Builtin::k##Name: \
+    return HandlerTable::PROMISE;
+    BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(CASE)
+#undef CASE
+    default:
+      return HandlerTable::UNCAUGHT;
+  }
+}
+
 HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
   HandlerTable::CatchPrediction prediction;
   if (frame->is_optimized()) {
@@ -2281,7 +2289,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->kind(cage_base) == CodeKind::BUILTIN) {
-          prediction = code->GetBuiltinCatchPrediction(cage_base);
+          auto prediction = CatchPredictionFor(code->GetCode().builtin_id());
           if (prediction == HandlerTable::UNCAUGHT) continue;
           return prediction;
         }
@@ -2364,14 +2372,14 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
           break;
         }
 
-        CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
+        auto prediction = ToCatchType(CatchPredictionFor(code->builtin_id()));
         if (prediction != NOT_CAUGHT) return prediction;
         break;
       }
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
         base::Optional<Code> code = frame->LookupCode();
-        CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
+        auto prediction = ToCatchType(CatchPredictionFor(code->builtin_id()));
         if (prediction != NOT_CAUGHT) return prediction;
         break;
       }
@@ -2844,7 +2852,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
           !code->is_turbofanned()) {
         continue;
       }
-      catch_prediction = code->GetBuiltinCatchPrediction();
+      catch_prediction = CatchPredictionFor(code->builtin_id());
     } else {
       continue;
     }

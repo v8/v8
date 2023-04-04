@@ -364,12 +364,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   ReplacePlaceholders(isolate);
 
-#define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  builtins->code(Builtin::k##Name).set_is_promise_rejection(true);
-
-  BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
-#undef SET_PROMISE_REJECTION_PREDICTION
-
   builtins->MarkInitialized();
 }
 

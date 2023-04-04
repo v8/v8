@@ -1075,16 +1075,20 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= HeapObject::kHeaderSize &&
-           offset <= Code::kPointerFieldsStrongEndOffset;
+    return offset >= Code::kStartOfStrongFieldsOffset &&
+           offset < Code::kEndOfStrongFieldsOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    Code::kPointerFieldsStrongEndOffset, v);
+    IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
+                    Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 
+    static_assert(Code::kEndOfStrongFieldsWithMainCageBaseOffset ==
+                  Code::kInstructionStreamOffset);
+    static_assert(Code::kInstructionStreamOffset + kTaggedSize ==
+                  Code::kEndOfStrongFieldsOffset);
     v->VisitCodePointer(Code::cast(obj),
                         obj.RawCodeField(kInstructionStreamOffset));
   }

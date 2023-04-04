@@ -122,16 +122,6 @@ bool AbstractCode::has_instruction_stream(PtrComprCageBase cage_base) {
   return GetCode().has_instruction_stream();
 }
 
-HandlerTable::CatchPrediction AbstractCode::GetBuiltinCatchPrediction(
-    PtrComprCageBase cage_base) {
-  Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().GetBuiltinCatchPrediction();
-  } else {
-    UNREACHABLE();
-  }
-}
-
 bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
   return HeapObject::IsCode(cage_base);
 }

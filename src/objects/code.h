@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
-#include "src/codegen/handler-table.h"
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/heap-object.h"
@@ -18,8 +17,6 @@ namespace internal {
 
 class BytecodeArray;
 class CodeDesc;
-class ObjectIterator;
-class SafepointScope;
 
 enum class Builtin;
 
@@ -102,10 +99,8 @@ class Code : public HeapObject {
   inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
                                      InstructionStream istream);
 
-  DECL_RELAXED_UINT16_ACCESSORS(kind_specific_flags)
-
-  inline void initialize_flags(CodeKind kind, Builtin builtin_id,
-                               bool is_turbofanned, int stack_slots);
+  inline void initialize_flags(CodeKind kind, bool is_turbofanned,
+                               int stack_slots);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -117,14 +112,6 @@ class Code : public HeapObject {
 
   DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
   DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
-
-  // [is_promise_rejection]: For kind BUILTIN tells whether the
-  // exception thrown by the code will lead to promise rejection or
-  // uncaught if both this and is_exception_caught is set.
-  // Use GetBuiltinCatchPrediction to access this.
-  DECL_PRIMITIVE_ACCESSORS(is_promise_rejection, bool)
-
-  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   DECL_PRIMITIVE_ACCESSORS(metadata_size, int)
   // [handler_table_offset]: The offset where the exception handler table
@@ -154,7 +141,11 @@ class Code : public HeapObject {
   // Unchecked accessors to be used during GC.
   inline FixedArray unchecked_deoptimization_data() const;
 
+  DECL_RELAXED_UINT32_ACCESSORS(flags)
+
   inline CodeKind kind() const;
+
+  inline void set_builtin_id(Builtin builtin_id);
   inline Builtin builtin_id() const;
   inline bool is_builtin() const;
 
@@ -319,28 +310,28 @@ class Code : public HeapObject {
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                                   \
   /* Strong pointer fields. */                                                \
+  V(kStartOfStrongFieldsOffset, 0)                                            \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
-  V(kPointerFieldsStrongEndOffset, 0)                                         \
-  /* Strong InstructionStream pointer fields. */                              \
+  V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
+  /* The InstructionStream field is special: it uses code_cage_base. */       \
   V(kInstructionStreamOffset, kTaggedSize)                                    \
-  V(kCodePointerFieldsStrongEndOffset, 0)                                     \
-  /* Raw data fields. */                                                      \
-  /* Data or code not directly visited by GC directly starts here. */         \
-  V(kDataStart, 0)                                                            \
+  V(kEndOfStrongFieldsOffset, 0)                                              \
+  /* Untagged data not directly visited by GC starts here. */                 \
   V(kInstructionStartOffset, kSystemPointerSize)                              \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
-  V(kFlagsOffset, kInt32Size)                                                 \
-  V(kBuiltinIdOffset, kInt16Size)                                             \
-  V(kKindSpecificFlagsOffset, kInt16Size)                                     \
+  V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \
   V(kMetadataSizeOffset, kIntSize)                                            \
+  /* TODO(jgruber): TF-specific fields could be merged with builtin_id. */    \
   V(kInlinedBytecodeSizeOffset, kIntSize)                                     \
   V(kOsrOffsetOffset, kInt32Size)                                             \
   V(kHandlerTableOffsetOffset, kIntSize)                                      \
   V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
   V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
   V(kCodeCommentsOffsetOffset, kIntSize)                                      \
+  /* TODO(jgruber): 12 bits would suffice, steal from here if needed. */      \
+  V(kBuiltinIdOffset, kInt16Size)                                             \
   V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
   /* Total size. */                                                           \
   V(kSize, 0)
@@ -360,38 +351,24 @@ class Code : public HeapObject {
   class BodyDescriptor;
 
   // Flags layout.
-#define FLAGS_BIT_FIELDS(V, _)      \
-  V(KindField, CodeKind, 4, _)      \
-  V(IsTurbofannedField, bool, 1, _) \
-  V(StackSlotsField, int, 24, _)
+#define FLAGS_BIT_FIELDS(V, _)                \
+  V(KindField, CodeKind, 4, _)                \
+  V(IsTurbofannedField, bool, 1, _)           \
+  /* Steal bits from here if needed: */       \
+  V(StackSlotsField, int, 24, _)              \
+  V(MarkedForDeoptimizationField, bool, 1, _) \
+  V(EmbeddedObjectsClearedField, bool, 1, _)  \
+  V(CanHaveWeakObjectsField, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
-  // TODO(v8:13784): merge this with KindSpecificFlags by dropping the
-  // IsPromiseRejection field or taking one bit from the StackSlots field.
-  // The other 3 bits are still free.
-  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 29);
+  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 32);
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
   static_assert(kCodeKindCount <= KindField::kNumValues);
 
-  // KindSpecificFlags layout.
-#define KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _)  \
-  V(MarkedForDeoptimizationField, bool, 1, _) \
-  V(EmbeddedObjectsClearedField, bool, 1, _)  \
-  V(CanHaveWeakObjectsField, bool, 1, _)      \
-  V(IsPromiseRejectionField, bool, 1, _)
-  DEFINE_BIT_FIELDS(KIND_SPECIFIC_FLAGS_BIT_FIELDS)
-#undef KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  // The other 12 bits are still free.
-  static_assert(KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
-  static_assert(KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
-                FIELD_SIZE(Code::kKindSpecificFlagsOffset) * kBitsPerByte);
-
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
       MarkedForDeoptimizationField::kShift;
-
-  class OptimizedCodeIterator;
 
   // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;
@@ -400,8 +377,6 @@ class Code : public HeapObject {
  private:
   inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void set_instruction_start(Isolate* isolate, Address value);
-
-  DECL_RELAXED_UINT16_ACCESSORS(flags)
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
@@ -615,22 +590,6 @@ class InstructionStream : public HeapObject {
 
  private:
   OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
-};
-
-class Code::OptimizedCodeIterator {
- public:
-  explicit OptimizedCodeIterator(Isolate* isolate);
-  OptimizedCodeIterator(const OptimizedCodeIterator&) = delete;
-  OptimizedCodeIterator& operator=(const OptimizedCodeIterator&) = delete;
-  Code Next();
-
- private:
-  Isolate* isolate_;
-  std::unique_ptr<SafepointScope> safepoint_scope_;
-  std::unique_ptr<ObjectIterator> object_iterator_;
-  enum { kIteratingCodeSpace, kIteratingCodeLOSpace, kDone } state_;
-
-  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 }  // namespace internal

@@ -360,11 +360,7 @@ int Code::SizeIncludingMetadata() const {
   return size;
 }
 
-CodeKind Code::kind() const {
-  static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
-  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
-  return KindField::decode(flags);
-}
+CodeKind Code::kind() const { return KindField::decode(flags(kRelaxedLoad)); }
 
 int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
                                          BytecodeArray bytecodes) {
@@ -454,41 +450,21 @@ inline bool Code::has_tagged_outgoing_params() const {
 }
 
 inline bool Code::is_turbofanned() const {
-  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
-  return IsTurbofannedField::decode(flags);
+  return IsTurbofannedField::decode(flags(kRelaxedLoad));
 }
 
 inline bool Code::is_maglevved() const { return kind() == CodeKind::MAGLEV; }
 
 inline bool Code::can_have_weak_objects() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int16_t flags = kind_specific_flags(kRelaxedLoad);
-  return CanHaveWeakObjectsField::decode(flags);
+  return CanHaveWeakObjectsField::decode(flags(kRelaxedLoad));
 }
 
 inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int16_t previous = kind_specific_flags(kRelaxedLoad);
-  int16_t updated = CanHaveWeakObjectsField::update(previous, value);
-  set_kind_specific_flags(updated, kRelaxedStore);
-}
-
-inline bool Code::is_promise_rejection() const {
-  DCHECK_EQ(kind(), CodeKind::BUILTIN);
-  int16_t flags = kind_specific_flags(kRelaxedLoad);
-  return IsPromiseRejectionField::decode(flags);
-}
-
-inline void Code::set_is_promise_rejection(bool value) {
-  DCHECK_EQ(kind(), CodeKind::BUILTIN);
-  int16_t previous = kind_specific_flags(kRelaxedLoad);
-  int16_t updated = IsPromiseRejectionField::update(previous, value);
-  set_kind_specific_flags(updated, kRelaxedStore);
-}
-
-inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() const {
-  if (is_promise_rejection()) return HandlerTable::PROMISE;
-  return HandlerTable::UNCAUGHT;
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = CanHaveWeakObjectsField::update(previous, value);
+  set_flags(updated, kRelaxedStore);
 }
 
 unsigned Code::inlined_bytecode_size() const {
@@ -515,39 +491,36 @@ bool Code::uses_safepoint_table() const {
 }
 
 int Code::stack_slots() const {
-  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
-  const int slots = StackSlotsField::decode(flags);
+  const int slots = StackSlotsField::decode(flags(kRelaxedLoad));
   DCHECK_IMPLIES(!uses_safepoint_table(), slots == 0);
   return slots;
 }
 
 bool Code::marked_for_deoptimization() const {
   DCHECK(CodeKindCanDeoptimize(kind()));
-  int16_t flags = kind_specific_flags(kRelaxedLoad);
-  return MarkedForDeoptimizationField::decode(flags);
+  return MarkedForDeoptimizationField::decode(flags(kRelaxedLoad));
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(
                            GetIsolateFromWritableObject(*this)));
-  int16_t previous = kind_specific_flags(kRelaxedLoad);
-  int16_t updated = MarkedForDeoptimizationField::update(previous, flag);
-  set_kind_specific_flags(updated, kRelaxedStore);
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
+  set_flags(updated, kRelaxedStore);
 }
 
 bool Code::embedded_objects_cleared() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int16_t flags = kind_specific_flags(kRelaxedLoad);
-  return Code::EmbeddedObjectsClearedField::decode(flags);
+  return Code::EmbeddedObjectsClearedField::decode(flags(kRelaxedLoad));
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  int16_t previous = kind_specific_flags(kRelaxedLoad);
-  int16_t updated = Code::EmbeddedObjectsClearedField::update(previous, flag);
-  set_kind_specific_flags(updated, kRelaxedStore);
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = Code::EmbeddedObjectsClearedField::update(previous, flag);
+  set_flags(updated, kRelaxedStore);
 }
 
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
@@ -681,11 +654,6 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   }
 }
 
-// This field has to have relaxed atomic accessors because it is accessed in the
-// concurrent marker.
-static_assert(FIELD_SIZE(Code::kKindSpecificFlagsOffset) == kInt16Size);
-RELAXED_UINT16_ACCESSORS(Code, kind_specific_flags, kKindSpecificFlagsOffset)
-
 Object Code::raw_instruction_stream() const {
   PtrComprCageBase cage_base = code_cage_base();
   return Code::raw_instruction_stream(cage_base);
@@ -811,7 +779,20 @@ void Code::clear_padding() {
          kSize - kUnalignedSize);
 }
 
-RELAXED_UINT16_ACCESSORS(Code, flags, kFlagsOffset)
+RELAXED_UINT32_ACCESSORS(Code, flags, kFlagsOffset)
+
+void Code::initialize_flags(CodeKind kind, bool is_turbofanned,
+                            int stack_slots) {
+  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
+  DCHECK(!CodeKindIsInterpretedJSFunction(kind));
+  uint32_t value = KindField::encode(kind) |
+                   IsTurbofannedField::encode(is_turbofanned) |
+                   StackSlotsField::encode(stack_slots);
+  static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
+  set_flags(value, kRelaxedStore);
+  DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
+  DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
+}
 
 // Ensure builtin_id field fits into int16_t, so that we can rely on sign
 // extension to convert int16_t{-1} to kNoBuiltinId.
@@ -819,24 +800,15 @@ RELAXED_UINT16_ACCESSORS(Code, flags, kFlagsOffset)
 static_assert(static_cast<int>(Builtin::kNoBuiltinId) == -1);
 static_assert(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
-void Code::initialize_flags(CodeKind kind, Builtin builtin_id,
-                            bool is_turbofanned, int stack_slots) {
-  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
-  DCHECK(!CodeKindIsInterpretedJSFunction(kind));
-  uint32_t value = KindField::encode(kind) |
-                   IsTurbofannedField::encode(is_turbofanned) |
-                   StackSlotsField::encode(stack_slots);
-  static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
-  RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, value);
-  DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
-  DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
-
+void Code::set_builtin_id(Builtin builtin_id) {
+  static_assert(FIELD_SIZE(kBuiltinIdOffset) == kInt16Size);
   WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
 }
 
 Builtin Code::builtin_id() const {
   // Rely on sign-extension when converting int16_t to int to preserve
   // kNoBuiltinId value.
+  static_assert(FIELD_SIZE(kBuiltinIdOffset) == kInt16Size);
   static_assert(static_cast<int>(static_cast<int16_t>(Builtin::kNoBuiltinId)) ==
                 static_cast<int>(Builtin::kNoBuiltinId));
   int value = ReadField<int16_t>(kBuiltinIdOffset);

@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_ABSTRACT_CODE_H_
 #define V8_OBJECTS_ABSTRACT_CODE_H_
 
-#include "src/codegen/handler-table.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/heap-object.h"
 
@@ -50,9 +49,6 @@ class AbstractCode : public HeapObject {
   inline Builtin builtin_id(PtrComprCageBase cage_base);
 
   inline bool has_instruction_stream(PtrComprCageBase cage_base);
-
-  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction(
-      PtrComprCageBase cage_base);
 
   DECL_CAST(AbstractCode)
 

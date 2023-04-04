@@ -4574,24 +4574,6 @@ TEST(DebugCoverageWithScriptDataOutOfScope) {
   CHECK_EQ(26, function_data.EndOffset());
 }
 
-TEST(BuiltinsExceptionPrediction) {
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* iisolate = CcTest::i_isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Context::New(isolate);
-
-  i::Builtins* builtins = iisolate->builtins();
-  bool fail = false;
-  for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
-       ++builtin) {
-    i::Code code = builtins->code(builtin);
-    if (code.kind() != i::CodeKind::BUILTIN) continue;
-    auto prediction = code.GetBuiltinCatchPrediction();
-    USE(prediction);
-  }
-  CHECK(!fail);
-}
-
 TEST(DebugGetPossibleBreakpointsReturnLocations) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
