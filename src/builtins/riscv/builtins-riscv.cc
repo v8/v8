@@ -3119,36 +3119,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == a1 || function_address == a2);
 
-  Label profiler_enabled, end_profiler_check;
+  Label profiler_enabled, done_api_call;
   {
     UseScratchRegisterScope temp(masm);
     Register scratch = temp.Acquire();
-    __ RecordComment("Check if profiler is enabled");
-    __ Lb(scratch,
-          __ ExternalReferenceAsOperand(
-              ExternalReference::is_profiling_address(isolate), scratch));
-    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg),
-              Label::Distance::kNear);
-#ifdef V8_RUNTIME_CALL_STATS
-    __ RecordComment("Check if RCS is enabled");
-    __ li(scratch, ExternalReference::address_of_runtime_stats_flag());
-    __ Lw(scratch, MemOperand(scratch, 0));
-    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg),
-              Label::Distance::kNear);
-#endif
-    {
-      __ RecordComment("Call the api function directly.");
-      __ Move(scratch, function_address);
-      __ BranchShort(&end_profiler_check);
-    }
-
-    __ bind(&profiler_enabled);
-    {
-      // Additional parameter is the address of the actual callback.
-      __ li(scratch, thunk_ref);
-    }
-    __ bind(&end_profiler_check);
-
     {
       ASM_CODE_COMMENT_STRING(masm,
                               "Allocate HandleScope in callee-save registers.");
@@ -3159,7 +3133,22 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
       __ Add32(s2, s2, Operand(1));
       __ Sw(s2, MemOperand(s5, kLevelOffset));
     }
+    __ RecordComment("Check if profiler is enabled");
+    __ Lb(scratch,
+          __ ExternalReferenceAsOperand(
+              ExternalReference::is_profiling_address(isolate), scratch));
+    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg));
+#ifdef V8_RUNTIME_CALL_STATS
+    __ RecordComment("Check if RCS is enabled");
+    __ li(scratch, ExternalReference::address_of_runtime_stats_flag());
+    __ Lw(scratch, MemOperand(scratch, 0));
+    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg));
+#endif  // V8_RUNTIME_CALL_STATS
+
+    // Call the api function directly.
+    __ mv(scratch, function_address);
     __ StoreReturnAddressAndCall(scratch);
+    __ bind(&done_api_call);
   }
 
   Label promote_scheduled_exception;
@@ -3217,11 +3206,20 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ bind(&finish_return);
   }
   __ Ret();
+  {
+    UseScratchRegisterScope temp(masm);
+    Register scratch = temp.Acquire();
+    // Call the api function via thunk wrapper.
+    __ bind(&profiler_enabled);
+    // Additional parameter is the address of the actual callback.
+    __ li(scratch, thunk_ref);
+    __ StoreReturnAddressAndCall(scratch);
+    __ Branch(&done_api_call);
 
-  __ RecordComment("Re-throw by promoting a scheduled exception.");
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
-
+    __ RecordComment("Re-throw by promoting a scheduled exception.");
+    __ bind(&promote_scheduled_exception);
+    __ TailCallRuntime(Runtime::kPromoteScheduledException);
+  }
   {
     ASM_CODE_COMMENT_STRING(
         masm, "HandleScope limit has changed. Delete allocated extensions.");
