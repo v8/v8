@@ -1511,20 +1511,20 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
     Label map_found;
     auto& maps = access_info.maps();
 
-    if (HasOnlyNumberMaps(base::VectorOf(maps))) {
-      __ CompareRoot(object_map, RootIndex::kHeapNumberMap);
-      __ JumpIf(kNotEqual, &next);
-      // Fallthrough... to map_found.
-      DCHECK(!is_number.is_bound());
-      __ bind(&is_number);
-    } else if (HasOnlyStringMaps(base::VectorOf(maps))) {
+    bool has_number_map = false;
+    if (HasOnlyStringMaps(base::VectorOf(maps))) {
       __ CompareInstanceTypeRange(object_map, FIRST_STRING_TYPE,
                                   LAST_STRING_TYPE);
       __ JumpIf(kUnsignedGreaterThan, &next);
       // Fallthrough... to map_found.
     } else {
       for (auto it = maps.begin(); it != maps.end(); ++it) {
-        __ CompareTagged(object_map, it->object());
+        if (it->object()->IsHeapNumberMap()) {
+          __ CompareRoot(object_map, RootIndex::kHeapNumberMap);
+          has_number_map = true;
+        } else {
+          __ CompareTagged(object_map, it->object());
+        }
         if (it == maps.end() - 1) {
           __ JumpIf(kNotEqual, &next);
           // Fallthrough... to map_found.
@@ -1534,6 +1534,10 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
       }
     }
 
+    if (has_number_map) {
+      DCHECK(!is_number.is_bound());
+      __ bind(&is_number);
+    }
     __ bind(&map_found);
     f(masm, node, access_info, object, object_map, std::forward<Args>(args)...);
     __ Jump(&done);
