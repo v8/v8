@@ -67,32 +67,40 @@ def job(debugger, param, *args):
   ptr_arg_cmd(debugger, 'job', param, "_v8_internal_Print_Object({})")
 
 
-V8_PRINT_HANDLE_CMD = "_v8_internal_Print_Object(*(v8::internal::Object**)({}.%s))"
-
-
 @lldbCommand
 def jh(debugger, param, *args):
   """Print v8::internal::Handle value"""
-  ptr_arg_cmd(debugger, 'jh', param, V8_PRINT_HANDLE_CMD % "location_")
+  V8_PRINT_CMD = "_v8_internal_Print_Object(*(v8::internal::Object**)({}.%s))"
+  ptr_arg_cmd(debugger, 'jh', param, V8_PRINT_CMD % "location_")
+
+
+def get_address_from_local(value):
+  # After https://crrev.com/c/4335544, v8::MaybeLocal contains a local_.
+  field = value.GetValueForExpressionPath(".local_")
+  if field.IsValid():
+    value = field
+  # After https://crrev.com/c/4335544, v8::Local contains a location_.
+  field = value.GetValueForExpressionPath(".location_")
+  if field.IsValid():
+    return field.value
+  # Before https://crrev.com/c/4335544, v8::Local contained a val_.
+  field = value.GetValueForExpressionPath(".val_")
+  if field.IsValid():
+    return field.value
+  # We don't know how to print this...
+  return None
 
 
 @lldbCommand
 def jlh(debugger, param, *args):
   """Print v8::Local handle value"""
-  is_success, result, cmd = ptr_arg_cmd(
-      debugger,
-      'jlh',
-      param,
-      V8_PRINT_HANDLE_CMD % "location_",
-      print_error=False)
-  if is_success or result is None:
-    return
-  if "location_" in result.description and "v8::Local" in result.description:
-    # Try fallback for before https://crrev.com/c/4335544
-    ptr_arg_cmd(debugger, 'jlh', param, V8_PRINT_HANDLE_CMD % "val_")
+  V8_PRINT_CMD = "_v8_internal_Print_Object(*(v8::internal::Address**)({0}))"
+  value = current_frame(debugger).EvaluateExpression(param)
+  indirect_pointer = get_address_from_local(value)
+  if indirect_pointer is not None:
+    ptr_arg_cmd(debugger, 'jlh', param, V8_PRINT_CMD.format(indirect_pointer))
   else:
-    print("Failed to evaluate command {} :".format(cmd))
-    print(result.description)
+    print("Failed to print value of type {}".format(value.type.name))
 
 
 @lldbCommand
