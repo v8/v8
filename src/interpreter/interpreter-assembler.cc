@@ -1021,10 +1021,12 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                                    const RegListNodePair& args,
                                    int return_count);
 
-void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight) {
+void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
+                                                 bool backward) {
   Comment("[ UpdateInterruptBudget");
 
-  // Assert that the weight is positive.
+  // Assert that the weight is positive (negative weights should be implemented
+  // as backward updates).
   CSA_DCHECK(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
 
   Label load_budget_from_bytecode(this), load_budget_done(this);
@@ -1040,22 +1042,29 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight) {
 
   Label done(this);
   TVARIABLE(Int32T, new_budget);
-  // Update budget by |weight| and check if it reaches zero.
-  new_budget = Int32Sub(budget_after_bytecode, weight);
-  TNode<BoolT> condition =
-      Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
-  Label ok(this), interrupt_check(this, Label::kDeferred);
-  Branch(condition, &ok, &interrupt_check);
+  if (backward) {
+    // Update budget by |weight| and check if it reaches zero.
+    new_budget = Int32Sub(budget_after_bytecode, weight);
+    TNode<BoolT> condition =
+        Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
+    Label ok(this), interrupt_check(this, Label::kDeferred);
+    Branch(condition, &ok, &interrupt_check);
 
-  BIND(&interrupt_check);
-  // JumpLoop should do a stack check as part of the interrupt.
-  CallRuntime(bytecode() == Bytecode::kJumpLoop
-                  ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
-                  : Runtime::kBytecodeBudgetInterrupt_Ignition,
-              GetContext(), function);
-  Goto(&done);
+    BIND(&interrupt_check);
+    // JumpLoop should do a stack check as part of the interrupt.
+    CallRuntime(bytecode() == Bytecode::kJumpLoop
+                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
+                    : Runtime::kBytecodeBudgetInterrupt_Ignition,
+                GetContext(), function);
+    Goto(&done);
 
-  BIND(&ok);
+    BIND(&ok);
+  } else {
+    // For a forward jump, we know we only increase the interrupt budget, so
+    // no need to check if it's below zero.
+    new_budget = Int32Add(budget_after_bytecode, weight);
+  }
+
   // Update budget.
   StoreObjectFieldNoWriteBarrier(
       feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value());
@@ -1072,30 +1081,33 @@ TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
 }
 
-TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta) {
-  TNode<IntPtrT> next_offset = IntPtrAdd(BytecodeOffset(), delta);
+TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta,
+                                             bool backward) {
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
+#endif
+  TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
+                                        : IntPtrAdd(BytecodeOffset(), delta);
   bytecode_offset_ = next_offset;
   return next_offset;
 }
 
-void InterpreterAssembler::JumpToOffset(TNode<IntPtrT> new_bytecode_offset) {
+void InterpreterAssembler::Jump(TNode<IntPtrT> jump_offset, bool backward) {
   DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
-#ifdef V8_TRACE_UNOPTIMIZED
-  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
-#endif
-  bytecode_offset_ = new_bytecode_offset;
+
+  UpdateInterruptBudget(TruncateIntPtrToInt32(jump_offset), backward);
+  TNode<IntPtrT> new_bytecode_offset = Advance(jump_offset, backward);
   TNode<RawPtrT> target_bytecode =
       UncheckedCast<RawPtrT>(LoadBytecode(new_bytecode_offset));
   DispatchToBytecode(target_bytecode, new_bytecode_offset);
 }
 
 void InterpreterAssembler::Jump(TNode<IntPtrT> jump_offset) {
-  JumpToOffset(IntPtrAdd(BytecodeOffset(), jump_offset));
+  Jump(jump_offset, false);
 }
 
 void InterpreterAssembler::JumpBackward(TNode<IntPtrT> jump_offset) {
-  UpdateInterruptBudget(TruncateIntPtrToInt32(jump_offset));
-  JumpToOffset(IntPtrSub(BytecodeOffset(), jump_offset));
+  Jump(jump_offset, true);
 }
 
 void InterpreterAssembler::JumpConditional(TNode<BoolT> condition,
@@ -1322,7 +1334,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   TNode<Int32T> profiling_weight =
       Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()),
                Int32Constant(kFirstBytecodeOffset));
-  UpdateInterruptBudget(profiling_weight);
+  UpdateInterruptBudget(profiling_weight, true);
 }
 
 TNode<Int8T> InterpreterAssembler::LoadOsrState(

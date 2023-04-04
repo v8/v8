@@ -104,8 +104,9 @@ class BaselineCompiler {
   Label* BuildForwardJumpLabel();
   void UpdateInterruptBudgetAndJumpToLabel(int weight, Label* label,
                                            Label* skip_interrupt_label);
-  void JumpIfRoot(RootIndex root);
-  void JumpIfNotRoot(RootIndex root);
+  void UpdateInterruptBudgetAndDoInterpreterJump();
+  void UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex root);
+  void UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(RootIndex root);
 
   // Feedback vector.
   MemOperand FeedbackVector();

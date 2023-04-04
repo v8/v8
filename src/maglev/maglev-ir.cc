@@ -4388,6 +4388,11 @@ void TestTypeOf::PrintParams(std::ostream& os,
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
 }
 
+void IncreaseInterruptBudget::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
 void ReduceInterruptBudgetForLoop::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << amount() << ")";
