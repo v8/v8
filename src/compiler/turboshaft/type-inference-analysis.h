@@ -226,11 +226,13 @@ class TypeInferenceAnalysis {
         case Opcode::kFloatIs:
         case Opcode::kObjectIsNumericValue:
         case Opcode::kConvert:
-        case Opcode::kConvertToObject:
-        case Opcode::kConvertToObjectOrDeopt:
+        case Opcode::kConvertOrDeopt:
+        case Opcode::kConvertPrimitiveToObject:
+        case Opcode::kConvertPrimitiveToObjectOrDeopt:
         case Opcode::kConvertObjectToPrimitive:
         case Opcode::kConvertObjectToPrimitiveOrDeopt:
         case Opcode::kTruncateObjectToPrimitive:
+        case Opcode::kTruncateObjectToPrimitiveOrDeopt:
         case Opcode::kTag:
         case Opcode::kUntag:
         case Opcode::kNewConsString:

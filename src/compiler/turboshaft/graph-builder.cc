@@ -778,57 +778,85 @@ OpIndex GraphBuilder::Process(
       return __ ConvertToBoolean(Map(node->InputAt(0)));
     case IrOpcode::kNumberToString:
       return __ ConvertNumberToString(Map(node->InputAt(0)));
+    case IrOpcode::kChangeTaggedToTaggedSigned:
+      return __ Convert(Map(node->InputAt(0)),
+                        ConvertOp::Kind::kNumberOrOddball,
+                        ConvertOp::Kind::kSmi);
 
-#define CONVERT_TO_OBJECT_CASE(name, kind, input_type, input_interpretation) \
-  case IrOpcode::k##name:                                                    \
-    return __ ConvertToObject(                                               \
-        Map(node->InputAt(0)), ConvertToObjectOp::Kind::k##kind,             \
-        V<input_type>::rep,                                                  \
-        ConvertToObjectOp::InputInterpretation::k##input_interpretation,     \
+    case IrOpcode::kCheckedTaggedToTaggedSigned:
+      DCHECK(dominating_frame_state.valid());
+      return __ ConvertOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                               ConvertOrDeoptOp::Kind::kObject,
+                               ConvertOrDeoptOp::Kind::kSmi,
+                               CheckParametersOf(node->op()).feedback());
+    case IrOpcode::kCheckedTaggedToTaggedPointer:
+      DCHECK(dominating_frame_state.valid());
+      return __ ConvertOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                               ConvertOrDeoptOp::Kind::kObject,
+                               ConvertOrDeoptOp::Kind::kHeapObject,
+                               CheckParametersOf(node->op()).feedback());
+
+#define CONVERT_PRIMITIVE_TO_OBJECT_CASE(name, kind, input_type,          \
+                                         input_interpretation)            \
+  case IrOpcode::k##name:                                                 \
+    return __ ConvertPrimitiveToObject(                                   \
+        Map(node->InputAt(0)), ConvertPrimitiveToObjectOp::Kind::k##kind, \
+        V<input_type>::rep,                                               \
+        ConvertPrimitiveToObjectOp::InputInterpretation::                 \
+            k##input_interpretation,                                      \
         CheckForMinusZeroMode::kDontCheckForMinusZero);
-      CONVERT_TO_OBJECT_CASE(ChangeInt32ToTagged, Number, Word32, Signed)
-      CONVERT_TO_OBJECT_CASE(ChangeUint32ToTagged, Number, Word32, Unsigned)
-      CONVERT_TO_OBJECT_CASE(ChangeInt64ToTagged, Number, Word64, Signed)
-      CONVERT_TO_OBJECT_CASE(ChangeUint64ToTagged, Number, Word64, Unsigned)
-      CONVERT_TO_OBJECT_CASE(ChangeFloat64ToTaggedPointer, HeapNumber, Float64,
-                             Signed)
-      CONVERT_TO_OBJECT_CASE(ChangeInt64ToBigInt, BigInt, Word64, Signed)
-      CONVERT_TO_OBJECT_CASE(ChangeUint64ToBigInt, BigInt, Word64, Unsigned)
-      CONVERT_TO_OBJECT_CASE(ChangeInt31ToTaggedSigned, Smi, Word32, Signed)
-      CONVERT_TO_OBJECT_CASE(ChangeBitToTagged, Boolean, Word32, Signed)
-      CONVERT_TO_OBJECT_CASE(StringFromSingleCharCode, String, Word32, CharCode)
-      CONVERT_TO_OBJECT_CASE(StringFromSingleCodePoint, String, Word32,
-                             CodePoint)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeInt32ToTagged, Number, Word32,
+                                       Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeUint32ToTagged, Number, Word32,
+                                       Unsigned)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeInt64ToTagged, Number, Word64,
+                                       Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeUint64ToTagged, Number, Word64,
+                                       Unsigned)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeFloat64ToTaggedPointer, HeapNumber,
+                                       Float64, Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeInt64ToBigInt, BigInt, Word64,
+                                       Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeUint64ToBigInt, BigInt, Word64,
+                                       Unsigned)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeInt31ToTaggedSigned, Smi, Word32,
+                                       Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeBitToTagged, Boolean, Word32,
+                                       Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(StringFromSingleCharCode, String, Word32,
+                                       CharCode)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(StringFromSingleCodePoint, String,
+                                       Word32, CodePoint)
 
     case IrOpcode::kChangeFloat64ToTagged:
-      return __ ConvertToObject(Map(node->InputAt(0)),
-                                ConvertToObjectOp::Kind::kNumber,
-                                RegisterRepresentation::Float64(),
-                                ConvertToObjectOp::InputInterpretation::kSigned,
-                                CheckMinusZeroModeOf(node->op()));
-#undef CONVERT_TO_OBJECT_CASE
+      return __ ConvertPrimitiveToObject(
+          Map(node->InputAt(0)), ConvertPrimitiveToObjectOp::Kind::kNumber,
+          RegisterRepresentation::Float64(),
+          ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+          CheckMinusZeroModeOf(node->op()));
+#undef CONVERT_PRIMITIVE_TO_OBJECT_CASE
 
-#define CONVERT_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_type,      \
-                                        input_interpretation)        \
-  case IrOpcode::k##name: {                                          \
-    DCHECK(dominating_frame_state.valid());                          \
-    const CheckParameters& params = CheckParametersOf(node->op());   \
-    return __ ConvertToObjectOrDeopt(                                \
-        Map(node->InputAt(0)), dominating_frame_state,               \
-        ConvertToObjectOrDeoptOp::Kind::k##kind, V<input_type>::rep, \
-        ConvertToObjectOrDeoptOp::InputInterpretation::              \
-            k##input_interpretation,                                 \
-        params.feedback());                                          \
+#define CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(name, kind, input_type,     \
+                                                  input_interpretation)       \
+  case IrOpcode::k##name: {                                                   \
+    DCHECK(dominating_frame_state.valid());                                   \
+    const CheckParameters& params = CheckParametersOf(node->op());            \
+    return __ ConvertPrimitiveToObjectOrDeopt(                                \
+        Map(node->InputAt(0)), dominating_frame_state,                        \
+        ConvertPrimitiveToObjectOrDeoptOp::Kind::k##kind, V<input_type>::rep, \
+        ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::              \
+            k##input_interpretation,                                          \
+        params.feedback());                                                   \
   }
-      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned, Smi, Word32,
-                                      Signed)
-      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedUint32ToTaggedSigned, Smi, Word32,
-                                      Unsigned)
-      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedInt64ToTaggedSigned, Smi, Word64,
-                                      Signed)
-      CONVERT_TO_OBJECT_OR_DEOPT_CASE(CheckedUint64ToTaggedSigned, Smi, Word64,
-                                      Unsigned)
-#undef CONVERT_TO_OBJECT_OR_DEOPT_CASE
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt32ToTaggedSigned, Smi,
+                                                Word32, Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedUint32ToTaggedSigned,
+                                                Smi, Word32, Unsigned)
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedInt64ToTaggedSigned, Smi,
+                                                Word64, Signed)
+      CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE(CheckedUint64ToTaggedSigned,
+                                                Smi, Word64, Unsigned)
+#undef CONVERT_PRIMITIVE_TO_OBJECT_OR_DEOPT_CASE
 
 #define CONVERT_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions)   \
   case IrOpcode::k##name:                                                 \
@@ -862,6 +890,26 @@ OpIndex GraphBuilder::Process(
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,
                                         HeapObject)
 #undef TRUNCATE_OBJECT_TO_PRIMITIVE_CASE
+
+    case IrOpcode::kCheckedTruncateTaggedToWord32:
+      DCHECK(dominating_frame_state.valid());
+      using IR = TruncateObjectToPrimitiveOrDeoptOp::InputRequirement;
+      IR input_requirement;
+      switch (CheckTaggedInputParametersOf(node->op()).mode()) {
+        case CheckTaggedInputMode::kNumber:
+          input_requirement = IR::kNumber;
+          break;
+        case CheckTaggedInputMode::kNumberOrBoolean:
+          input_requirement = IR::kNumberOrBoolean;
+          break;
+        case CheckTaggedInputMode::kNumberOrOddball:
+          input_requirement = IR::kNumberOrOddball;
+          break;
+      }
+      return __ TruncateObjectToPrimitiveOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          TruncateObjectToPrimitiveOrDeoptOp::Kind::kInt32, input_requirement,
+          CheckTaggedInputParametersOf(node->op()).feedback());
 
 #define CHANGE_OR_DEOPT_INT_CASE(kind)                                     \
   case IrOpcode::kChecked##kind: {                                         \
@@ -1800,6 +1848,27 @@ OpIndex GraphBuilder::Process(
       __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, p.maps(),
                    p.flags(), p.feedback());
       return OpIndex{};
+    }
+
+    case IrOpcode::kCheckedUint32Bounds:
+    case IrOpcode::kCheckedUint64Bounds: {
+      WordRepresentation rep = node->opcode() == IrOpcode::kCheckedUint32Bounds
+                                   ? WordRepresentation::Word32()
+                                   : WordRepresentation::Word64();
+      const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
+      OpIndex index = Map(node->InputAt(0));
+      OpIndex limit = Map(node->InputAt(1));
+      V<Word32> check = __ UintLessThan(index, limit, rep);
+      if ((params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds) != 0) {
+        IF_NOT(LIKELY(check)) { __ Unreachable(); }
+        END_IF
+      } else {
+        DCHECK(dominating_frame_state.valid());
+        __ DeoptimizeIfNot(check, dominating_frame_state,
+                           DeoptimizeReason::kOutOfBounds,
+                           params.check_parameters().feedback());
+      }
+      return index;
     }
 
     case IrOpcode::kFastApiCall: {

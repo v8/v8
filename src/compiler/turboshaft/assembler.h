@@ -1064,46 +1064,61 @@ class AssemblerOpInterface {
         Convert(input, ConvertOp::Kind::kNumber, ConvertOp::Kind::kString));
   }
 
-  V<Object> ConvertToObject(
-      OpIndex input, ConvertToObjectOp::Kind kind,
+  V<Object> ConvertOrDeopt(V<Object> input, OpIndex frame_state,
+                           ConvertOrDeoptOp::Kind from,
+                           ConvertOrDeoptOp::Kind to,
+                           const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvertOrDeopt(input, frame_state, from, to, feedback);
+  }
+
+  V<Object> ConvertPrimitiveToObject(
+      OpIndex input, ConvertPrimitiveToObjectOp::Kind kind,
       RegisterRepresentation input_rep,
-      ConvertToObjectOp::InputInterpretation input_interpretation,
+      ConvertPrimitiveToObjectOp::InputInterpretation input_interpretation,
       CheckForMinusZeroMode minus_zero_mode) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertToObject(input, kind, input_rep,
-                                         input_interpretation, minus_zero_mode);
+    return stack().ReduceConvertPrimitiveToObject(
+        input, kind, input_rep, input_interpretation, minus_zero_mode);
   }
-#define CONVERT_TO_OBJECT(name, kind, input_rep, input_interpretation)   \
-  V<kind> name(V<input_rep> input) {                                     \
-    return V<kind>::Cast(ConvertToObject(                                \
-        input, ConvertToObjectOp::Kind::k##kind,                         \
-        RegisterRepresentation::input_rep(),                             \
-        ConvertToObjectOp::InputInterpretation::k##input_interpretation, \
-        CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
+#define CONVERT_PRIMITIVE_TO_OBJECT(name, kind, input_rep, \
+                                    input_interpretation)  \
+  V<kind> name(V<input_rep> input) {                       \
+    return V<kind>::Cast(ConvertPrimitiveToObject(         \
+        input, ConvertPrimitiveToObjectOp::Kind::k##kind,  \
+        RegisterRepresentation::input_rep(),               \
+        ConvertPrimitiveToObjectOp::InputInterpretation::  \
+            k##input_interpretation,                       \
+        CheckForMinusZeroMode::kDontCheckForMinusZero));   \
   }
-  CONVERT_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
-  CONVERT_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
-  CONVERT_TO_OBJECT(ConvertWord32ToBoolean, Boolean, Word32, Signed)
-#undef CONVERT_TO_OBJECT
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertWord32ToBoolean, Boolean, Word32, Signed)
+#undef CONVERT_PRIMITIVE_TO_OBJECT
   V<Number> ConvertFloat64ToNumber(V<Float64> input,
                                    CheckForMinusZeroMode minus_zero_mode) {
-    return V<Number>::Cast(ConvertToObject(
-        input, ConvertToObjectOp::Kind::kNumber,
+    return V<Number>::Cast(ConvertPrimitiveToObject(
+        input, ConvertPrimitiveToObjectOp::Kind::kNumber,
         RegisterRepresentation::Float64(),
-        ConvertToObjectOp::InputInterpretation::kSigned, minus_zero_mode));
+        ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+        minus_zero_mode));
   }
 
-  OpIndex ConvertToObjectOrDeopt(
-      OpIndex input, OpIndex frame_state, ConvertToObjectOrDeoptOp::Kind kind,
+  OpIndex ConvertPrimitiveToObjectOrDeopt(
+      OpIndex input, OpIndex frame_state,
+      ConvertPrimitiveToObjectOrDeoptOp::Kind kind,
       RegisterRepresentation input_rep,
-      ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation,
+      ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
+          input_interpretation,
       const FeedbackSource& feedback) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertToObjectOrDeopt(
+    return stack().ReduceConvertPrimitiveToObjectOrDeopt(
         input, frame_state, kind, input_rep, input_interpretation, feedback);
   }
 
@@ -1137,6 +1152,18 @@ class AssemblerOpInterface {
     }
     return stack().ReduceTruncateObjectToPrimitive(object, kind,
                                                    input_assumptions);
+  }
+
+  OpIndex TruncateObjectToPrimitiveOrDeopt(
+      V<Object> object, OpIndex frame_state,
+      TruncateObjectToPrimitiveOrDeoptOp::Kind kind,
+      TruncateObjectToPrimitiveOrDeoptOp::InputRequirement input_requirement,
+      const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceTruncateObjectToPrimitiveOrDeopt(
+        object, frame_state, kind, input_requirement, feedback);
   }
 
   V<Word32> Word32Constant(uint32_t value) {

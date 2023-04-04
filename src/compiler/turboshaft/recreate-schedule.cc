@@ -190,10 +190,11 @@ SHOULD_HAVE_BEEN_LOWERED(ChangeOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(CheckMaps)
 SHOULD_HAVE_BEEN_LOWERED(CompareMaps)
 SHOULD_HAVE_BEEN_LOWERED(Convert)
-SHOULD_HAVE_BEEN_LOWERED(ConvertToObject)
-SHOULD_HAVE_BEEN_LOWERED(ConvertToObjectOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitive)
 SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitiveOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertPrimitiveToObject)
+SHOULD_HAVE_BEEN_LOWERED(ConvertPrimitiveToObjectOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
 SHOULD_HAVE_BEEN_LOWERED(FastApiCall)
@@ -222,6 +223,7 @@ SHOULD_HAVE_BEEN_LOWERED(StringToCaseIntl)
 #endif  // V8_INTL_SUPPORT
 SHOULD_HAVE_BEEN_LOWERED(Tag)
 SHOULD_HAVE_BEEN_LOWERED(TruncateObjectToPrimitive)
+SHOULD_HAVE_BEEN_LOWERED(TruncateObjectToPrimitiveOrDeopt)
 SHOULD_HAVE_BEEN_LOWERED(Untag)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
@@ -1345,6 +1347,7 @@ Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const UnreachableOp& op) {
   Node* node = MakeNode(common.Throw(), {});
+  schedule->AddNode(current_block, MakeNode(common.Unreachable(), {}));
   schedule->AddThrow(current_block, node);
   current_block = nullptr;
   return nullptr;

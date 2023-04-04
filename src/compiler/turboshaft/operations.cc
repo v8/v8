@@ -786,60 +786,76 @@ std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
       return os << "Boolean";
     case ConvertOp::Kind::kNumber:
       return os << "Number";
+    case ConvertOp::Kind::kNumberOrOddball:
+      return os << "NumberOrOddball";
     case ConvertOp::Kind::kPlainPrimitive:
       return os << "PlainPrimitive";
     case ConvertOp::Kind::kString:
       return os << "String";
+    case ConvertOp::Kind::kSmi:
+      return os << "Smi";
   }
 }
 
-std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, ConvertOrDeoptOp::Kind kind) {
   switch (kind) {
-    case ConvertToObjectOp::Kind::kBigInt:
-      return os << "BigInt";
-    case ConvertToObjectOp::Kind::kBoolean:
-      return os << "Boolean";
-    case ConvertToObjectOp::Kind::kHeapNumber:
-      return os << "HeapNumber";
-    case ConvertToObjectOp::Kind::kNumber:
-      return os << "Number";
-    case ConvertToObjectOp::Kind::kSmi:
+    case ConvertOrDeoptOp::Kind::kObject:
+      return os << "Object";
+    case ConvertOrDeoptOp::Kind::kHeapObject:
+      return os << "HeapObject";
+    case ConvertOrDeoptOp::Kind::kSmi:
       return os << "Smi";
-    case ConvertToObjectOp::Kind::kString:
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         ConvertPrimitiveToObjectOp::Kind kind) {
+  switch (kind) {
+    case ConvertPrimitiveToObjectOp::Kind::kBigInt:
+      return os << "BigInt";
+    case ConvertPrimitiveToObjectOp::Kind::kBoolean:
+      return os << "Boolean";
+    case ConvertPrimitiveToObjectOp::Kind::kHeapNumber:
+      return os << "HeapNumber";
+    case ConvertPrimitiveToObjectOp::Kind::kNumber:
+      return os << "Number";
+    case ConvertPrimitiveToObjectOp::Kind::kSmi:
+      return os << "Smi";
+    case ConvertPrimitiveToObjectOp::Kind::kString:
       return os << "String";
   }
 }
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertToObjectOp::InputInterpretation input_interpretation) {
+    ConvertPrimitiveToObjectOp::InputInterpretation input_interpretation) {
   switch (input_interpretation) {
-    case ConvertToObjectOp::InputInterpretation::kSigned:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertToObjectOp::InputInterpretation::kUnsigned:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
-    case ConvertToObjectOp::InputInterpretation::kCharCode:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kCharCode:
       return os << "CharCode";
-    case ConvertToObjectOp::InputInterpretation::kCodePoint:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kCodePoint:
       return os << "CodePoint";
   }
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         ConvertToObjectOrDeoptOp::Kind kind) {
+                         ConvertPrimitiveToObjectOrDeoptOp::Kind kind) {
   switch (kind) {
-    case ConvertToObjectOrDeoptOp::Kind::kSmi:
+    case ConvertPrimitiveToObjectOrDeoptOp::Kind::kSmi:
       return os << "Smi";
   }
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation) {
+std::ostream& operator<<(std::ostream& os,
+                         ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
+                             input_interpretation) {
   switch (input_interpretation) {
-    case ConvertToObjectOrDeoptOp::InputInterpretation::kSigned:
+    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertToObjectOrDeoptOp::InputInterpretation::kUnsigned:
+    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
 }
@@ -929,6 +945,14 @@ std::ostream& operator<<(
       return os << "HeapObject";
     case TruncateObjectToPrimitiveOp::InputAssumptions::kObject:
       return os << "Object";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TruncateObjectToPrimitiveOrDeoptOp::Kind kind) {
+  switch (kind) {
+    case TruncateObjectToPrimitiveOrDeoptOp::Kind::kInt32:
+      return os << "Int32";
   }
 }
 

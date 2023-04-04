@@ -1088,6 +1088,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerChangeTaggedToFloat64(node);
       break;
     case IrOpcode::kChangeTaggedToTaggedSigned:
+      if (v8_flags.turboshaft) return false;
       result = LowerChangeTaggedToTaggedSigned(node);
       break;
     case IrOpcode::kTruncateTaggedToBit:
@@ -1281,6 +1282,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedInt64ToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32Bounds:
+      if (v8_flags.turboshaft) {
+        // We do have a {frame_state} iff we do actually need it for a deopt
+        // (`kAbortOnOutOfBounds` is not set).
+        DCHECK_IMPLIES(!(CheckBoundsParametersOf(node->op()).flags() &
+                         CheckBoundsFlag::kAbortOnOutOfBounds),
+                       frame_state != nullptr);
+        if (frame_state) gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint32Bounds(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32ToInt32:
@@ -1298,6 +1308,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedUint32ToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64Bounds:
+      if (v8_flags.turboshaft) {
+        // We do have a {frame_state} iff we do actually need it for a deopt
+        // (`kAbortOnOutOfBounds` is not set).
+        DCHECK_IMPLIES(!(CheckBoundsParametersOf(node->op()).flags() &
+                         CheckBoundsFlag::kAbortOnOutOfBounds),
+                       frame_state != nullptr);
+        if (frame_state) gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedUint64Bounds(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToInt32:
@@ -1368,9 +1387,17 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedTaggedToFloat64(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToTaggedSigned:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToTaggedPointer:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
     case IrOpcode::kCheckBigInt:
@@ -1413,6 +1440,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerTruncateTaggedToWord32(node);
       break;
     case IrOpcode::kCheckedTruncateTaggedToWord32:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckedTruncateTaggedToWord32(node, frame_state);
       break;
     case IrOpcode::kNumberToString:
@@ -2224,6 +2255,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
@@ -3677,6 +3709,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
                                                         Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* index = node->InputAt(0);
   Node* limit = node->InputAt(1);
   const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
@@ -3725,6 +3758,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32ToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
                                                         Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* const index = node->InputAt(0);
   Node* const limit = node->InputAt(1);
   const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
@@ -4100,6 +4134,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedSigned(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -4112,6 +4147,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -4399,6 +4435,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   const CheckTaggedInputParameters& params =
       CheckTaggedInputParametersOf(node->op());
   Node* value = node->InputAt(0);
