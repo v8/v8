@@ -1187,6 +1187,27 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
     }
   }
 
+  if (it->IsPrivateName()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(it->name());
+    Handle<String> name_string(String::cast(private_symbol->description()),
+                               it->isolate());
+    if (private_symbol->is_private_brand()) {
+      Handle<String> class_name =
+          (name_string->length() == 0)
+              ? it->isolate()->factory()->anonymous_string()
+              : name_string;
+      THROW_NEW_ERROR(
+          it->isolate(),
+          NewTypeError(MessageTemplate::kInvalidPrivateBrandInstance,
+                       class_name),
+          Object);
+    }
+    THROW_NEW_ERROR(
+        it->isolate(),
+        NewTypeError(MessageTemplate::kInvalidPrivateMemberRead, name_string),
+        Object);
+  }
+
   return it->isolate()->factory()->undefined_value();
 }
 
