@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
@@ -26,6 +27,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
@@ -605,7 +607,16 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Find the JavaScript function on the top of the stack.
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done() && stack_depth--) it.Advance();
-  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  if (!it.done()) {
+    if (it.frame()->is_turbofan()) {
+      // This can happen if %OptimizeOsr is in inlined function.
+      return ReadOnlyRoots(isolate).undefined_value();
+    } else if (it.frame()->is_maglev()) {
+      function = MaglevFrame::cast(it.frame())->GetInnermostFunction();
+    } else {
+      function = handle(it.frame()->function(), isolate);
+    }
+  }
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
   if (V8_UNLIKELY(!v8_flags.turbofan) || V8_UNLIKELY(!v8_flags.use_osr)) {
@@ -666,7 +677,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     } else {
       MaglevFrame* frame = MaglevFrame::cast(it.frame());
       Handle<BytecodeArray> bytecode_array(
-          frame->function().shared().GetBytecodeArray(isolate), isolate);
+          function->shared().GetBytecodeArray(isolate), isolate);
       const int current_offset = frame->GetBytecodeOffsetForOSR().ToInt();
       osr_offset =
           OffsetOfNextJumpLoop(isolate, bytecode_array, current_offset);

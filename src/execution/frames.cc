@@ -1531,6 +1531,12 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), code);
 }
 
+Handle<JSFunction> MaglevFrame::GetInnermostFunction() const {
+  std::vector<FrameSummary> frames;
+  Summarize(&frames);
+  return frames.back().AsJavaScript().function();
+}
+
 BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
   const DeoptimizationData data = GetDeoptimizationData(&deopt_index);
