@@ -115,8 +115,12 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return index >> kBitsPerCellLog2;
   }
 
-  V8_INLINE static constexpr Address IndexToBase(MarkBitIndex index) {
-    return index << kBitsPerCellLog2 << kTaggedSizeLog2;
+  V8_INLINE static constexpr Address IndexToAddressOffset(MarkBitIndex index) {
+    return index << kTaggedSizeLog2;
+  }
+
+  V8_INLINE static constexpr Address CellToBase(CellIndex cell_index) {
+    return IndexToAddressOffset(cell_index << kBitsPerCellLog2);
   }
 
   V8_INLINE static constexpr uint32_t IndexInCell(MarkBitIndex index) {

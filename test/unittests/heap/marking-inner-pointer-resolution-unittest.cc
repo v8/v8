@@ -33,7 +33,7 @@ class InnerPointerResolutionTest
     enum { REGULAR, FREE, LARGE } type = REGULAR;
     enum { UNMARKED, MARKED, MARKED_AREA } marked = UNMARKED;
     // If index_in_cell >= 0, the object is placed at the lowest address s.t.
-    // MarkingBitmap::IndexInCell(AddressToMarkbitIndex(address)) ==
+    // MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(address)) ==
     // index_in_cell. To achieve this, padding (i.e., introducing a free-space
     // object of the appropriate size) may be necessary. If padding ==
     // CONSECUTIVE, no such padding is allowed and it is just checked that
@@ -117,7 +117,7 @@ class InnerPointerResolutionTest
 
       // Check if padding is needed.
       int index_in_cell =
-          MarkingBitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+          MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(ptr));
       if (object.index_in_cell < 0) {
         object.index_in_cell = index_in_cell;
       } else if (object.padding != ObjectRequest::CONSECUTIVE) {
@@ -142,7 +142,7 @@ class InnerPointerResolutionTest
           DCHECK_LE(ptr, page->area_end());
           CreateObject(pad);
           index_in_cell =
-              MarkingBitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+              MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(ptr));
         }
       }
 
@@ -161,7 +161,7 @@ class InnerPointerResolutionTest
     // Create one last object that uses the remaining space on the page; this
     // simulates freeing the page's LAB.
     const int remaining_size = static_cast<int>(page->area_end() - ptr);
-    const uint32_t index = page->AddressToMarkbitIndex(ptr);
+    const uint32_t index = MarkingBitmap::AddressToIndex(ptr);
     const int index_in_cell = MarkingBitmap::IndexInCell(index);
     ObjectRequest last{remaining_size,
                        ObjectRequest::FREE,
@@ -224,8 +224,8 @@ class InnerPointerResolutionTest
       case ObjectRequest::MARKED_AREA: {
         MemoryChunk* page = LookupPage(object.page_id);
         heap()->marking_state()->bitmap(page)->SetRange<AccessMode::NON_ATOMIC>(
-            page->AddressToMarkbitIndex(object.address),
-            page->AddressToMarkbitIndex(object.address + object.size));
+            MarkingBitmap::AddressToIndex(object.address),
+            MarkingBitmap::LimitAddressToIndex(object.address + object.size));
         break;
       }
     }

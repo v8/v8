@@ -36,14 +36,15 @@ Address FindPreviousObjectForConservativeMarking(const Page* page,
   // The first actual bit of the bitmap, corresponding to page->area_start(),
   // is at start_index which is somewhere in (not necessarily at the start of)
   // start_cell_index.
-  const uint32_t start_index = page->AddressToMarkbitIndex(page->area_start());
+  const uint32_t start_index =
+      MarkingBitmap::AddressToIndex(page->area_start());
   const uint32_t start_cell_index = MarkingBitmap::IndexToCell(start_index);
   // We assume that all markbits before start_index are clear:
   // SLOW_DCHECK(bitmap->AllBitsClearInRange(0, start_index));
   // This has already been checked for the entire bitmap before starting marking
   // by MarkCompactCollector::VerifyMarkbitsAreClean.
 
-  const uint32_t index = page->AddressToMarkbitIndex(maybe_inner_ptr);
+  const uint32_t index = MarkingBitmap::AddressToIndex(maybe_inner_ptr);
   uint32_t cell_index = MarkingBitmap::IndexToCell(index);
   const MarkBit::CellType mask = 1u << MarkingBitmap::IndexInCell(index);
   MarkBit::CellType cell = cells[cell_index];
@@ -76,8 +77,9 @@ Address FindPreviousObjectForConservativeMarking(const Page* page,
   // If the leftmost sequence of set bits does not reach the start of the cell,
   // we found it.
   if (index_of_last_leftmost_one > 0) {
-    return page->MarkbitIndexToAddress(
-        cell_index * MarkingBitmap::kBitsPerCell + index_of_last_leftmost_one);
+    return page->address() + MarkingBitmap::IndexToAddressOffset(
+                                 cell_index * MarkingBitmap::kBitsPerCell +
+                                 index_of_last_leftmost_one);
   }
 
   // The leftmost sequence of set bits reaches the start of the cell. We must
@@ -102,8 +104,9 @@ Address FindPreviousObjectForConservativeMarking(const Page* page,
   const uint32_t index_of_last_leading_one =
       MarkingBitmap::kBitsPerCell - leading_ones;
   DCHECK_LT(0, index_of_last_leading_one);
-  return page->MarkbitIndexToAddress(cell_index * MarkingBitmap::kBitsPerCell +
-                                     index_of_last_leading_one);
+  return page->address() + MarkingBitmap::IndexToAddressOffset(
+                               cell_index * MarkingBitmap::kBitsPerCell +
+                               index_of_last_leading_one);
 }
 
 }  // namespace

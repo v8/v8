@@ -244,7 +244,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     if (current_cell_) {
       const auto trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
       Address current_cell_base =
-          page_->address() + MarkingBitmap::IndexToBase(current_cell_index_);
+          page_->address() + MarkingBitmap::CellToBase(current_cell_index_);
       Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
       // The object may be a filler which we want to skip.
       current_object_ = HeapObject::FromAddress(object_address);
