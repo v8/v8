@@ -3678,6 +3678,20 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   g_current_isolate_ = isolate;
   g_current_per_isolate_thread_data_ = data;
 
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  if (isolate) {
+    V8HeapCompressionScheme::InitBase(isolate->cage_base());
+#ifdef V8_EXTERNAL_CODE_SPACE
+    ExternalCodeCompressionScheme::InitBase(isolate->code_cage_base());
+#endif  // V8_EXTERNAL_CODE_SPACE
+  } else {
+    V8HeapCompressionScheme::InitBase(kNullAddress);
+#ifdef V8_EXTERNAL_CODE_SPACE
+    ExternalCodeCompressionScheme::InitBase(kNullAddress);
+#endif  // V8_EXTERNAL_CODE_SPACE
+  }
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+
   if (isolate && isolate->main_thread_local_isolate()) {
     WriteBarrier::SetForThread(
         isolate->main_thread_local_heap()->marking_barrier());

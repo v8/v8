@@ -26,6 +26,25 @@ Address InstructionStream::body_end() const {
   return instruction_start() + body_size();
 }
 
+// Same as ACCESSORS_CHECKED2 macro but with InstructionStream
+// as a host and using main_cage_base() for computing the base.
+#define INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset,           \
+                                              get_condition, set_condition) \
+  type InstructionStream::name() const {                                    \
+    PtrComprCageBase cage_base = main_cage_base();                          \
+    return InstructionStream::name(cage_base);                              \
+  }                                                                         \
+  type InstructionStream::name(PtrComprCageBase cage_base) const {          \
+    type value = TaggedField<type, offset>::load(cage_base, *this);         \
+    DCHECK(get_condition);                                                  \
+    return value;                                                           \
+  }                                                                         \
+  void InstructionStream::set_##name(type value, WriteBarrierMode mode) {   \
+    DCHECK(set_condition);                                                  \
+    TaggedField<type, offset>::store(*this, value);                         \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
+  }
+
 // Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with InstructionStream
 // as a host and using main_cage_base(kRelaxedLoad) for computing the base.
 #define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(              \
@@ -47,6 +66,11 @@ Address InstructionStream::body_end() const {
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
   }
 
+#define INSTRUCTION_STREAM_ACCESSORS(name, type, offset)                 \
+  INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset,              \
+                                        !ObjectInYoungGeneration(value), \
+                                        !ObjectInYoungGeneration(value))
+
 #define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(name, type, offset) \
   RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(                 \
       name, type, offset, !ObjectInYoungGeneration(value),               \
@@ -54,10 +78,14 @@ Address InstructionStream::body_end() const {
 
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
 RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, HeapObject, kCodeOffset)
-ACCESSORS(InstructionStream, relocation_info, ByteArray, kRelocationInfoOffset)
+INSTRUCTION_STREAM_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+#undef INSTRUCTION_STREAM_ACCESSORS
+#undef INSTRUCTION_STREAM_ACCESSORS_CHECKED2
 #undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
 #undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2
 
+// TODO(v8:13788): load base value from respective scheme class and drop
+// the kMainCageBaseUpper32BitsOffset field.
 PtrComprCageBase InstructionStream::main_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
   Address cage_base_hi = ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
@@ -67,6 +95,8 @@ PtrComprCageBase InstructionStream::main_cage_base() const {
 #endif
 }
 
+// TODO(v8:13788): load base value from respective scheme class and drop
+// the kMainCageBaseUpper32BitsOffset field.
 PtrComprCageBase InstructionStream::main_cage_base(RelaxedLoadTag) const {
 #ifdef V8_EXTERNAL_CODE_SPACE
   Address cage_base_hi =
