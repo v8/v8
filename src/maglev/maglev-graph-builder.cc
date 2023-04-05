@@ -6231,9 +6231,9 @@ void MaglevGraphBuilder::VisitJumpLoop() {
       AddNewNode<ReduceInterruptBudgetForLoop>({},
                                                relative_jump_bytecode_offset);
     }
-    AddNewNode<JumpLoopPrologue>({}, loop_offset, feedback_slot,
-                                 BytecodeOffset(iterator_.current_offset()),
-                                 compilation_unit_);
+    AddNewNode<TryOnStackReplacement>(
+        {}, loop_offset, feedback_slot,
+        BytecodeOffset(iterator_.current_offset()), compilation_unit_);
   }
   BasicBlock* block =
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());

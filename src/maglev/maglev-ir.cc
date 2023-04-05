@@ -18,6 +18,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -3803,7 +3804,7 @@ namespace {
 
 void AttemptOnStackReplacement(MaglevAssembler* masm,
                                ZoneLabelRef no_code_for_osr,
-                               JumpLoopPrologue* node, Register scratch0,
+                               TryOnStackReplacement* node, Register scratch0,
                                Register scratch1, int32_t loop_depth,
                                FeedbackSlot feedback_slot,
                                BytecodeOffset osr_offset) {
@@ -3847,8 +3848,14 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       __ Move(kContextRegister, masm->native_context().object());
-      __ Push(Smi::FromInt(osr_offset.ToInt()));
-      __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
+      if (node->unit()->is_inline()) {
+        __ Push(Smi::FromInt(osr_offset.ToInt()),
+                node->unit()->function().object());
+        __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglevInlined, 2);
+      } else {
+        __ Push(Smi::FromInt(osr_offset.ToInt()));
+        __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
+      }
       save_register_state.DefineSafepoint();
       __ Move(maybe_target_code, kReturnRegister0);
     }
@@ -3879,16 +3886,17 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
 
 }  // namespace
 
-int JumpLoopPrologue::MaxCallStackArgs() const {
+int TryOnStackReplacement::MaxCallStackArgs() const {
   // For the kCompileOptimizedOSRFromMaglev call.
+  if (unit()->is_inline()) return 2;
   return 1;
 }
-void JumpLoopPrologue::SetValueLocationConstraints() {
+void TryOnStackReplacement::SetValueLocationConstraints() {
   if (!v8_flags.use_osr) return;
   set_temporaries_needed(2);
 }
-void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
+void TryOnStackReplacement::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
   if (!v8_flags.use_osr) return;
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch0 = temps.Acquire();

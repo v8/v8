@@ -278,7 +278,7 @@ class MergePointInterpreterFrameState;
   V(DebugBreak)                             \
   V(FunctionEntryStackCheck)                \
   V(GeneratorStore)                         \
-  V(JumpLoopPrologue)                       \
+  V(TryOnStackReplacement)                  \
   V(StoreMap)                               \
   V(StoreDoubleField)                       \
   V(CheckedStoreFixedArraySmiElement)       \
@@ -3483,14 +3483,14 @@ class GeneratorStore : public NodeT<GeneratorStore> {
   const int bytecode_offset_;
 };
 
-class JumpLoopPrologue : public FixedInputNodeT<0, JumpLoopPrologue> {
-  using Base = FixedInputNodeT<0, JumpLoopPrologue>;
+class TryOnStackReplacement : public FixedInputNodeT<0, TryOnStackReplacement> {
+  using Base = FixedInputNodeT<0, TryOnStackReplacement>;
 
  public:
-  explicit JumpLoopPrologue(uint64_t bitfield, int32_t loop_depth,
-                            FeedbackSlot feedback_slot,
-                            BytecodeOffset osr_offset,
-                            MaglevCompilationUnit* unit)
+  explicit TryOnStackReplacement(uint64_t bitfield, int32_t loop_depth,
+                                 FeedbackSlot feedback_slot,
+                                 BytecodeOffset osr_offset,
+                                 MaglevCompilationUnit* unit)
       : Base(bitfield),
         loop_depth_(loop_depth),
         feedback_slot_(feedback_slot),
@@ -3499,6 +3499,8 @@ class JumpLoopPrologue : public FixedInputNodeT<0, JumpLoopPrologue> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::EagerDeopt();
+
+  const MaglevCompilationUnit* unit() const { return unit_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

@@ -40,6 +40,8 @@ class TieringManager {
   // How much to reduce the interrupt budget by on OSR.
   static int OsrTierupWeight();
 
+  void MarkForTurboFanOptimization(JSFunction function);
+
  private:
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.

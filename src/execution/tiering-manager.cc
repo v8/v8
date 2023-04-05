@@ -139,6 +139,10 @@ void TieringManager::Optimize(JSFunction function, OptimizationDecision d) {
   function.MarkForOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 
+void TieringManager::MarkForTurboFanOptimization(JSFunction function) {
+  Optimize(function, OptimizationDecision::TurbofanHotAndStable());
+}
+
 namespace {
 
 bool TiersUpToMaglev(CodeKind code_kind) {
