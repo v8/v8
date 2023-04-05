@@ -24,7 +24,6 @@ namespace compiler {
 
 void JSHeapBroker::AttachLocalIsolateForMaglev(
     maglev::MaglevCompilationInfo* info, LocalIsolate* local_isolate) {
-  set_canonical_handles(info->DetachCanonicalHandles());
   DCHECK_NULL(local_isolate_);
   local_isolate_ = local_isolate;
   DCHECK_NOT_NULL(local_isolate_);
@@ -39,7 +38,6 @@ void JSHeapBroker::DetachLocalIsolateForMaglev(
   std::unique_ptr<PersistentHandles> ph =
       local_isolate_->heap()->DetachPersistentHandles();
   local_isolate_ = nullptr;
-  info->set_canonical_handles(DetachCanonicalHandles());
   info->set_persistent_handles(std::move(ph));
 }
 

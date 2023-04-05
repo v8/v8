@@ -102,9 +102,6 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
                              MacroAssemblerGenerator generator,
                              const char* s_name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
   byte buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
@@ -144,9 +141,6 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
 Code BuildAdaptor(Isolate* isolate, Builtin builtin, Address builtin_address,
                   const char* name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
   byte buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
@@ -168,9 +162,6 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
                                   CodeAssemblerGenerator generator, int argc,
                                   const char* name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
 
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
@@ -188,9 +179,6 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
                                   CallDescriptors::Key interface_descriptor,
                                   const char* name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.

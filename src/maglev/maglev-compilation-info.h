@@ -97,6 +97,14 @@ class MaglevCompilationInfo final {
  private:
   MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function);
 
+  // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
+  // Use DetachCanonicalHandles() to transfer ownership instead.
+  // We explicitly allow the JSHeapBroker to store the raw pointer as it is
+  // guaranteed that the MaglevCompilationInfo's lifetime exceeds the lifetime
+  // of the broker.
+  CanonicalHandlesMap* canonical_handles() { return canonical_handles_.get(); }
+  friend compiler::JSHeapBroker;
+
   Zone zone_;
   const std::unique_ptr<compiler::JSHeapBroker> broker_;
   // Must be initialized late since it requires an initialized heap broker.

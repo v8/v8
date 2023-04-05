@@ -28,10 +28,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  public:
   MaglevCompilationHandleScope(Isolate* isolate,
                                maglev::MaglevCompilationInfo* info)
-      : info_(info),
-        persistent_(isolate),
-        exported_info_(info),
-        canonical_(isolate, &exported_info_) {
+      : info_(info), persistent_(isolate), exported_info_(info) {
     info->ReopenHandlesInNewHandleScope(isolate);
   }
 
@@ -43,7 +40,6 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
   maglev::MaglevCompilationInfo* const info_;
   PersistentHandlesScope persistent_;
   ExportedMaglevCompilationInfo exported_info_;
-  CanonicalHandleScopeForMaglev canonical_;
 };
 
 }  // namespace
@@ -62,6 +58,8 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
           function->raw_feedback_cell().map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(v8_flags.maglev);
+  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
+      isolate->heap(), ZoneAllocationPolicy(&zone_));
   compiler::CurrentHeapBrokerScope current_broker(broker_.get());
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
@@ -76,12 +74,12 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
       zone()->New<compiler::CompilationDependencies>(broker(), zone());
   USE(deps);  // The deps register themselves in the heap broker.
 
+  broker()->AttachCompilationInfo(this);
+
   // Heap broker initialization may already use IsPendingAllocation.
   isolate->heap()->PublishPendingAllocations();
-
-  broker()->SetTargetNativeContextRef(
+  broker()->InitializeAndStartSerializing(
       handle(function->native_context(), isolate));
-  broker()->InitializeAndStartSerializing();
   broker()->StopSerializing();
 
   // Serialization may have allocated.

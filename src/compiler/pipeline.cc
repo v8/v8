@@ -158,13 +158,13 @@ static constexpr char kRegisterAllocatorVerifierZoneName[] =
 
 namespace {
 
-Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
-  Context current = closure->context();
+Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
+  Context current = info->closure()->context();
   size_t distance = 0;
   while (!current.IsNativeContext()) {
     if (current.IsModuleContext()) {
-      return Just(
-          OuterContext(handle(current, current.GetIsolate()), distance));
+      return Just(OuterContext(
+          info->CanonicalHandle(current, current.GetIsolate()), distance));
     }
     current = current.previous();
     distance++;
@@ -452,10 +452,10 @@ class PipelineData {
   void ChooseSpecializationContext() {
     if (info()->function_context_specializing()) {
       DCHECK(info()->has_context());
-      specialization_context_ =
-          Just(OuterContext(handle(info()->context(), isolate()), 0));
+      specialization_context_ = Just(OuterContext(
+          info()->CanonicalHandle(info()->context(), isolate()), 0));
     } else {
-      specialization_context_ = GetModuleContext(info()->closure());
+      specialization_context_ = GetModuleContext(info());
     }
   }
 
@@ -1608,7 +1608,8 @@ struct HeapBrokerInitializationPhase {
   DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(HeapBrokerInitialization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->broker()->InitializeAndStartSerializing();
+    data->broker()->AttachCompilationInfo(data->info());
+    data->broker()->InitializeAndStartSerializing(data->native_context());
   }
 };
 
@@ -2878,7 +2879,6 @@ void PipelineImpl::InitializeHeapBroker() {
     data->node_origins()->AddDecorator();
   }
 
-  data->broker()->SetTargetNativeContextRef(data->native_context());
   Run<HeapBrokerInitializationPhase>();
   data->broker()->StopSerializing();
   data->EndPhaseKind();
@@ -3678,8 +3678,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
-    OptimizedCompilationInfo* info, Isolate* isolate,
-    std::unique_ptr<JSHeapBroker>* out_broker) {
+    OptimizedCompilationInfo* info, Isolate* isolate) {
   ZoneStats zone_stats(isolate->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
@@ -3693,8 +3692,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   {
     CompilationHandleScope compilation_scope(isolate, info);
-    CanonicalHandleScopeForTurbofan canonical(isolate, info);
-    info->ReopenHandlesInNewHandleScope(isolate);
+    info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
     pipeline.InitializeHeapBroker();
   }
 
@@ -3708,19 +3706,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     pipeline.AssembleCode(&linkage);
   }
 
-  const bool will_retire_broker = out_broker == nullptr;
-  if (!will_retire_broker) {
-    // If the broker is going to be kept alive, pass the persistent and the
-    // canonical handles containers back to the JSHeapBroker since it will
-    // outlive the OptimizedCompilationInfo.
-    data.broker()->SetPersistentAndCopyCanonicalHandlesForTesting(
-        info->DetachPersistentHandles(), info->DetachCanonicalHandles());
-  }
-
   Handle<Code> code;
-  if (pipeline.FinalizeCode(will_retire_broker).ToHandle(&code) &&
+  if (pipeline.FinalizeCode().ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
-    if (!will_retire_broker) *out_broker = data.ReleaseBroker();
     return code;
   }
   return {};

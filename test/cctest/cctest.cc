@@ -323,9 +323,9 @@ HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
 #ifdef V8_ENABLE_TURBOFAN
-i::Handle<i::JSFunction> Optimize(
-    i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags) {
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
   i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
@@ -346,7 +346,7 @@ i::Handle<i::JSFunction> Optimize(
   i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
   i::Handle<i::Code> code =
-      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
+      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
   function->set_code(*code, v8::kReleaseStore);
   return function;

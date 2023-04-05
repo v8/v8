@@ -89,22 +89,24 @@ class ObjectData : public ZoneObject {
 
     // It is safe to access read only heap objects and builtins from a
     // background thread. When we read fields of these objects, we may create
-    // ObjectData on the background thread even without a canonical handle
-    // scope. This is safe too since we don't create handles but just get
-    // handles from read only root table or builtins table which is what
-    // canonical scope uses as well. For all other objects we should have
-    // created ObjectData in canonical handle scope on the main thread.
+    // ObjectData on the background thread.
+    // This is safe too since we don't create handles but just get handles from
+    // read only root table or builtins table.
+    // All other objects need to be canonicalized in a persistent handle scope.
+    // See CanonicalPersistentHandle().
     Isolate* isolate = broker->isolate();
-    CHECK_IMPLIES(broker->mode() == JSHeapBroker::kDisabled ||
-                      broker->mode() == JSHeapBroker::kSerializing,
-                  isolate->handle_scope_data()->canonical_scope != nullptr);
-    CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
-                  kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
-                      kind == kNeverSerializedHeapObject ||
-                      kind == kBackgroundSerializedHeapObject);
-    CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
-                  object->IsHeapObject() &&
-                      ReadOnlyHeap::Contains(HeapObject::cast(*object)));
+    USE(isolate);
+    DCHECK_IMPLIES(broker->mode() == JSHeapBroker::kDisabled ||
+                       broker->mode() == JSHeapBroker::kSerializing,
+                   PersistentHandlesScope::IsActive(isolate) &&
+                       broker->IsCanonicalHandle(object));
+    DCHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
+                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
+                       kind == kNeverSerializedHeapObject ||
+                       kind == kBackgroundSerializedHeapObject);
+    DCHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
+                   object->IsHeapObject() &&
+                       ReadOnlyHeap::Contains(HeapObject::cast(*object)));
   }
 
 #define DECLARE_IS(Name) bool Is##Name() const;
@@ -935,7 +937,8 @@ OptionalObjectRef ContextRef::get(JSHeapBroker* broker, int index) const {
   return TryMakeRef(broker, object()->get(index));
 }
 
-void JSHeapBroker::InitializeAndStartSerializing() {
+void JSHeapBroker::InitializeAndStartSerializing(
+    Handle<NativeContext> target_native_context) {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
 
   CHECK_EQ(mode_, kDisabled);
@@ -949,7 +952,7 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
   CollectArrayAndObjectPrototypes();
 
-  SetTargetNativeContextRef(target_native_context().object());
+  SetTargetNativeContextRef(target_native_context);
 }
 
 namespace {

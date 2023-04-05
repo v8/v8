@@ -987,16 +987,15 @@ class OptimizedCodeCache : public AllStatic {
   }
 };
 
-// Runs PrepareJob in the proper compilation & canonical scopes. Handles will be
-// allocated in a persistent handle scope that is detached and handed off to the
+// Runs PrepareJob in the proper compilation scopes. Handles will be allocated
+// in a persistent handle scope that is detached and handed off to the
 // {compilation_info} after PrepareJob.
 bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
                                OptimizedCompilationInfo* compilation_info,
                                ConcurrencyMode mode) {
   CompilationHandleScope compilation(isolate, compilation_info);
-  CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
   CompilerTracer::TracePrepareJob(isolate, compilation_info, mode);
-  compilation_info->ReopenHandlesInNewHandleScope(isolate);
+  compilation_info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
 
