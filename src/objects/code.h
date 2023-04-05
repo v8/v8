@@ -378,6 +378,11 @@ class Code : public HeapObject {
   inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void set_instruction_start(Isolate* isolate, Address value);
 
+  // TODO(jgruber): These field names are incomplete, we've squashed in more
+  // overloaded contents in the meantime. Update the field names.
+  HeapObject raw_deoptimization_data_or_interpreter_data() const;
+  ByteArray raw_position_table() const;
+
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
     // End of bytecode equals the start of the next bytecode.

@@ -340,18 +340,6 @@ inline bool Code::is_turbofanned() const {
 
 inline bool Code::is_maglevved() const { return kind() == CodeKind::MAGLEV; }
 
-inline bool Code::can_have_weak_objects() const {
-  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  return CanHaveWeakObjectsField::decode(flags(kRelaxedLoad));
-}
-
-inline void Code::set_can_have_weak_objects(bool value) {
-  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int32_t previous = flags(kRelaxedLoad);
-  int32_t updated = CanHaveWeakObjectsField::update(previous, value);
-  set_flags(updated, kRelaxedStore);
-}
-
 unsigned Code::inlined_bytecode_size() const {
   unsigned size = RELAXED_READ_UINT_FIELD(*this, kInlinedBytecodeSizeOffset);
   DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
@@ -382,12 +370,10 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
   return MarkedForDeoptimizationField::decode(flags(kRelaxedLoad));
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(
                            GetIsolateFromWritableObject(*this)));
   int32_t previous = flags(kRelaxedLoad);
@@ -396,15 +382,23 @@ void Code::set_marked_for_deoptimization(bool flag) {
 }
 
 bool Code::embedded_objects_cleared() const {
-  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   return Code::EmbeddedObjectsClearedField::decode(flags(kRelaxedLoad));
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
-  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
   int32_t previous = flags(kRelaxedLoad);
   int32_t updated = Code::EmbeddedObjectsClearedField::update(previous, flag);
+  set_flags(updated, kRelaxedStore);
+}
+
+inline bool Code::can_have_weak_objects() const {
+  return CanHaveWeakObjectsField::decode(flags(kRelaxedLoad));
+}
+
+inline void Code::set_can_have_weak_objects(bool value) {
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = CanHaveWeakObjectsField::update(previous, value);
   set_flags(updated, kRelaxedStore);
 }
 

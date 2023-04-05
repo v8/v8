@@ -3833,7 +3833,7 @@ void Isolate::InitializeLoggingAndCounters() {
 
 namespace {
 
-void CreateOffHeapTrampolines(Isolate* isolate) {
+void FinalizeBuiltinCodeObjects(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
   DCHECK_NOT_NULL(isolate->embedded_blob_data());
@@ -3841,15 +3841,15 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
   HandleScope scope(isolate);
   Builtins* builtins = isolate->builtins();
-
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
 
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Address instruction_start = d.InstructionStartOf(builtin);
-    Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
-        builtins->code_handle(builtin), instruction_start);
+    Handle<Code> trampoline =
+        isolate->factory()->NewCodeObjectForEmbeddedBuiltin(
+            builtins->code_handle(builtin), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
@@ -3895,7 +3895,6 @@ void Isolate::CreateAndSetEmbeddedBlob() {
   base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
 
   PrepareBuiltinSourcePositionMap();
-
   PrepareBuiltinLabelInfoMap();
 
   // If a sticky blob has been set, we reuse it.
@@ -3923,8 +3922,7 @@ void Isolate::CreateAndSetEmbeddedBlob() {
   }
 
   MaybeRemapEmbeddedBuiltinsIntoCodeRange();
-
-  CreateOffHeapTrampolines(this);
+  FinalizeBuiltinCodeObjects(this);
 }
 
 void Isolate::InitializeIsShortBuiltinCallsEnabled() {

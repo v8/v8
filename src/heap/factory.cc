@@ -2485,8 +2485,8 @@ Handle<DeoptimizationLiteralArray> Factory::NewDeoptimizationLiteralArray(
       NewWeakFixedArray(length, AllocationType::kOld));
 }
 
-Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
-                                              Address off_heap_entry) {
+Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
+                                                      Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
@@ -2504,35 +2504,45 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // Code objects cannot be shared.
   static_assert(!Builtins::kCodeObjectsAreInROSpace);
   const AllocationType allocation_type = AllocationType::kOld;
-#endif  // !defined(V8_SHORT_BUILTIN_CALLS) ||
-        // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#endif
+
+  DCHECK(code->has_instruction_stream());  // Just generated as on-heap code.
+  DCHECK(Builtins::IsBuiltinId(code->builtin_id()));
+  DCHECK_EQ(code->inlined_bytecode_size(), 0);
+  DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
+  DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(),
+            read_only_roots().empty_fixed_array());
+  // .. because we don't explicitly initialize these flags:
+  DCHECK(!code->marked_for_deoptimization());
+  DCHECK(!code->can_have_weak_objects());
+  DCHECK(!code->embedded_objects_cleared());
+  // This check would fail. We explicitly replace any existing position tables
+  // with the empty byte array below. Note this isn't strictly necessary - we
+  // could keep the position tables if we'd properly allocate them into RO
+  // space when needed.
+  // DCHECK_EQ(code->raw_position_table(), *empty_byte_array());
 
   NewCodeOptions new_code_options = {
-      /*kind=*/code->kind(),
-      /*builtin=*/code->builtin_id(),
-      /*is_turbofanned=*/code->is_turbofanned(),
-      /*stack_slots=*/code->stack_slots(),
-      /*allocation=*/allocation_type,
-      /*instruction_size=*/code->instruction_size(),
-      /*metadata_size=*/code->metadata_size(),
-      /*inlined_bytecode_size=*/code->inlined_bytecode_size(),
-      /*osr_offset=*/code->osr_offset(),
-      /*handler_table_offset=*/code->handler_table_offset(),
-      /*constant_pool_offset=*/code->constant_pool_offset(),
-      /*code_comments_offset=*/code->code_comments_offset(),
-      /*unwinding_info_offset=*/code->unwinding_info_offset(),
-      /*bytecode_or_deoptimization_data=*/
-      Handle<FixedArray>(read_only_roots().empty_fixed_array(), isolate()),
-      /*bytecode_offsets_or_source_position_table=*/
-      Handle<ByteArray>(read_only_roots().empty_byte_array(), isolate())};
+      code->kind(),
+      code->builtin_id(),
+      code->is_turbofanned(),
+      code->stack_slots(),
+      allocation_type,
+      code->instruction_size(),
+      code->metadata_size(),
+      code->inlined_bytecode_size(),
+      code->osr_offset(),
+      code->handler_table_offset(),
+      code->constant_pool_offset(),
+      code->code_comments_offset(),
+      code->unwinding_info_offset(),
+      handle(code->raw_deoptimization_data_or_interpreter_data(), isolate()),
+      /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
+  };
 
   Handle<Code> off_heap_trampoline = NewCode(new_code_options);
   off_heap_trampoline->set_instruction_start(isolate(),
                                              code->instruction_start());
-
-  DCHECK_EQ(code->inlined_bytecode_size(), 0);
-  DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
-
   return off_heap_trampoline;
 }
 

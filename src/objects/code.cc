@@ -20,6 +20,15 @@
 namespace v8 {
 namespace internal {
 
+ByteArray Code::raw_position_table() const {
+  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
+}
+
+HeapObject Code::raw_deoptimization_data_or_interpreter_data() const {
+  return TaggedField<HeapObject,
+                     kDeoptimizationDataOrInterpreterDataOffset>::load(*this);
+}
+
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();

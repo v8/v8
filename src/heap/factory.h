@@ -756,10 +756,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
 
-  // Allocates a new code object and initializes it as the trampoline to the
-  // given off-heap entry point.
-  Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
-                                       Address off_heap_entry);
+  // Allocates a new code object and initializes it to point to the given
+  // off-heap entry point.
+  //
+  // Note it wouldn't be strictly necessary to create new Code objects, instead
+  // Code::instruction_start and instruction_stream could be reset. But creating
+  // a new Code object doesn't hurt much (it only makes mksnapshot slightly more
+  // expensive) and has real benefits:
+  // - it moves all special-casing to mksnapshot-time; at normal runtime, the
+  //   system only sees a) non-builtin Code objects (not in RO space, with
+  //   instruction_stream set) and b) builtin Code objects (maybe in RO space,
+  //   without instruction_stream set).
+  // - it's a convenient bottleneck to make the RO-space allocation decision.
+  Handle<Code> NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
+                                               Address off_heap_entry);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
