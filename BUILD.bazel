@@ -450,6 +450,7 @@ filegroup(
     name = "v8_config_headers_files",
     srcs = [
         "include/v8-platform.h",
+        "include/v8-source-location.h",
         "include/v8config.h",
     ],
 )
@@ -3266,7 +3267,6 @@ filegroup(
         "src/heap/cppgc/raw-heap.h",
         "src/heap/cppgc/remembered-set.cc",
         "src/heap/cppgc/remembered-set.h",
-        "src/heap/cppgc/source-location.cc",
         "src/heap/cppgc/stats-collector.cc",
         "src/heap/cppgc/stats-collector.h",
         "src/heap/cppgc/sweeper.cc",

@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include "v8-source-location.h"  // NOLINT(build/include_directory)
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -1010,12 +1011,23 @@ class Platform {
 
   /**
    * Schedules a task to be invoked on a worker thread.
+   * Embedders should override PostTaskOnWorkerThreadImpl() instead of
+   * CallOnWorkerThread().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * PostTaskOnWorkerThreadImpl().
    */
-  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) = 0;
+  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) {
+    PostTaskOnWorkerThreadImpl(TaskPriority::kUserVisible, std::move(task),
+                               SourceLocation::Current());
+  }
 
   /**
    * Schedules a task that blocks the main thread to be invoked with
    * high-priority on a worker thread.
+   * Embedders should override PostTaskOnWorkerThreadImpl() instead of
+   * CallBlockingTaskOnWorkerThread().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * PostTaskOnWorkerThreadImpl().
    */
   virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a high
@@ -1025,6 +1037,10 @@ class Platform {
 
   /**
    * Schedules a task to be invoked with low-priority on a worker thread.
+   * Embedders should override PostTaskOnWorkerThreadImpl() instead of
+   * CallLowPriorityTaskOnWorkerThread().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * PostTaskOnWorkerThreadImpl().
    */
   virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a low
@@ -1035,9 +1051,17 @@ class Platform {
   /**
    * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
    * expires.
+   * Embedders should override PostDelayedTaskOnWorkerThreadImpl() instead of
+   * CallDelayedOnWorkerThread().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * PostDelayedTaskOnWorkerThreadImpl().
    */
   virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                         double delay_in_seconds) = 0;
+                                         double delay_in_seconds) {
+    PostDelayedTaskOnWorkerThreadImpl(TaskPriority::kUserVisible,
+                                      std::move(task), delay_in_seconds,
+                                      SourceLocation::Current());
+  }
 
   /**
    * Returns true if idle tasks are enabled for the given |isolate|.
@@ -1087,6 +1111,9 @@ class Platform {
    * thread (A=>B/B=>A deadlock) and [2] JobTask::Run or
    * JobTask::GetMaxConcurrency may be invoked synchronously from JobHandle
    * (B=>JobHandle::foo=>B deadlock).
+   * Embedders should override CreateJobImpl() instead of PostJob().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * CreateJobImpl().
    */
   virtual std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task) {
@@ -1107,9 +1134,16 @@ class Platform {
    *    return v8::platform::NewDefaultJobHandle(
    *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
+   *
+   * Embedders should override CreateJobImpl() instead of CreateJob().
+   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
+   * CreateJobImpl().
    */
   virtual std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+    return CreateJobImpl(priority, std::move(job_task),
+                         SourceLocation::Current());
+  }
 
   /**
    * Instantiates a ScopedBlockingCall to annotate a scope that may/will block.
@@ -1187,6 +1221,33 @@ class Platform {
    * nothing special needed.
    */
   V8_EXPORT static double SystemClockTimeMillis();
+
+  /**
+   * Creates and returns a JobHandle associated with a Job.
+   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
+   */
+  virtual std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) {
+    return nullptr;
+  }
+
+  /**
+   * Schedules a task with |priority| to be invoked on a worker thread.
+   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
+   */
+  virtual void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                          std::unique_ptr<Task> task,
+                                          const SourceLocation& location) {}
+
+  /**
+   * Schedules a task with |priority| to be invoked on a worker thread after
+   * |delay_in_seconds| expires.
+   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
+   */
+  virtual void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) {}
 };
 
 }  // namespace v8
