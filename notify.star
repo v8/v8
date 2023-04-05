@@ -119,6 +119,7 @@ v8_notifier(
 
 luci.notify(tree_closing_enabled = True)
 
+# V8 tree closer filtering on flakiness steps.
 luci.tree_closer(
     name = "v8 tree closer",
     tree_status_host = "v8-status.appspot.com",
@@ -137,6 +138,12 @@ luci.tree_closer(
         ".* \\(with patch\\)",
         ".* \\(without patch\\)",
     ],
+)
+
+# Generic tree closer only checking the overall build result.
+luci.tree_closer(
+    name = "generic tree closer",
+    tree_status_host = "v8-status.appspot.com",
 )
 
 v8_notifier(
