@@ -686,8 +686,6 @@ DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
-DEFINE_BOOL(increase_budget_forward_jump, false,
-            "Increase interrupt budget on forward jumps in generated code")
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
 
