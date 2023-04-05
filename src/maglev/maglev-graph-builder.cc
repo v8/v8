@@ -4189,6 +4189,11 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
     TRACE_CANNOT_INLINE("no feedback vector");
     return false;
   }
+  if (compilation_unit_->shared_function_info().equals(
+          function.shared(broker()))) {
+    TRACE_CANNOT_INLINE("direct recursion");
+    return false;
+  }
   SharedFunctionInfo::Inlineability inlineability =
       shared.GetInlineability(broker());
   if (inlineability != SharedFunctionInfo::Inlineability::kIsInlineable) {
@@ -4752,7 +4757,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (!is_inline() && TargetIsCurrentCompilingUnit(function)) {
+  if (MaglevIsTopTier() && !is_inline() &&
+      TargetIsCurrentCompilingUnit(function)) {
     return BuildCallSelf(function, args);
   }
   if (v8_flags.maglev_inlining) {

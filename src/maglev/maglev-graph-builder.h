@@ -301,6 +301,7 @@ class MaglevGraphBuilder {
   bool ShouldEmitInterruptBudgetChecks() {
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
+  bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
   BasicBlock* CreateEdgeSplitBlock(int offset,
                                    int interrupt_budget_correction) {
     if (v8_flags.trace_maglev_graph_building) {
