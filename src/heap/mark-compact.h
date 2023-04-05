@@ -339,6 +339,8 @@ class MarkCompactCollector final : public CollectorBase {
   ~MarkCompactCollector() final;
 
  private:
+  class ClientRootMarkingVisitor;
+
   Sweeper* sweeper() { return sweeper_; }
 
   void ComputeEvacuationHeuristics(size_t area_size,

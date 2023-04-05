@@ -1050,6 +1050,48 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   MarkCompactCollector* const collector_;
 };
 
+class MarkCompactCollector::ClientRootMarkingVisitor final
+    : public RootVisitor {
+ public:
+  explicit ClientRootMarkingVisitor(MarkCompactCollector* collector)
+      : collector_(collector) {}
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final {
+    DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
+    MarkObjectByPointer(root, p);
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      MarkObjectByPointer(root, p);
+    }
+  }
+
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) final {
+#if DEBUG
+    DCHECK(!HeapObject::cast(*code_slot).InWritableSharedSpace());
+    Object maybe_istream = *istream_or_smi_zero_slot;
+    DCHECK(maybe_istream == Smi::zero() ||
+           !HeapObject::cast(maybe_istream).InWritableSharedSpace());
+#endif
+  }
+
+ private:
+  V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
+    Object object = *p;
+    if (!object.IsHeapObject()) return;
+    HeapObject heap_object = HeapObject::cast(object);
+    // In clients we only care about pointers into the shared spaces.
+    if (!heap_object.InWritableSharedSpace()) return;
+    collector_->MarkRootObject(root, heap_object);
+  }
+
+  MarkCompactCollector* const collector_;
+};
+
 // This visitor is used to visit the body of special objects held alive by
 // other roots.
 //
@@ -1142,7 +1184,13 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
   }
 
   void VisitCodePointer(Code host, CodeObjectSlot slot) override {
-    MarkObject(host, slot.load(code_cage_base()));
+#if DEBUG
+    Object istream_object = slot.load(code_cage_base());
+    InstructionStream istream;
+    if (istream_object.GetHeapObject(&istream)) {
+      DCHECK(!istream.InWritableSharedSpace());
+    }
+#endif
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -1152,9 +1200,11 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) override {
+#if DEBUG
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    MarkObject(rinfo->instruction_stream(), target);
+    DCHECK(!target.InWritableSharedSpace());
+#endif
   }
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) override {
@@ -1993,7 +2043,7 @@ bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
 void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
-  heap()->IterateRootsIncludingClients(
+  heap()->IterateRoots(
       root_visitor,
       base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTracedHandles,
                               SkipRoot::kConservativeStack,
@@ -2006,11 +2056,16 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate());
 
   if (isolate()->is_shared_space_isolate()) {
-    ClientCustomRootBodyMarkingVisitor client_custom_root_body_visitor(this);
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [this, &client_custom_root_body_visitor](Isolate* client) {
-          ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
-        });
+    isolate()->global_safepoint()->IterateClientIsolates([this](
+                                                             Isolate* client) {
+      ClientRootMarkingVisitor client_root_visitor(this);
+      client->heap()->IterateRoots(
+          &client_root_visitor,
+          base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack,
+                                  SkipRoot::kReadOnlyBuiltins});
+      ClientCustomRootBodyMarkingVisitor client_custom_root_body_visitor(this);
+      ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
+    });
   }
 }
 
