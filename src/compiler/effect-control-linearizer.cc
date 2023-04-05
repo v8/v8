@@ -1174,6 +1174,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckInternalizedString(node, frame_state);
       break;
     case IrOpcode::kCheckIf:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       LowerCheckIf(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Add:
@@ -1546,18 +1550,23 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerNewConsString(node);
       break;
     case IrOpcode::kSameValue:
+      if (v8_flags.turboshaft) return false;
       result = LowerSameValue(node);
       break;
     case IrOpcode::kSameValueNumbersOnly:
+      if (v8_flags.turboshaft) return false;
       result = LowerSameValueNumbersOnly(node);
       break;
     case IrOpcode::kNumberSameValue:
+      if (v8_flags.turboshaft) return false;
       result = LowerNumberSameValue(node);
       break;
     case IrOpcode::kDeadValue:
+      if (v8_flags.turboshaft) return false;
       result = LowerDeadValue(node);
       break;
     case IrOpcode::kStringConcat:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringConcat(node);
       break;
     case IrOpcode::kStringFromSingleCharCode:
@@ -1581,6 +1590,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringLength(node);
       break;
     case IrOpcode::kStringToNumber:
+      if (v8_flags.turboshaft) return false;
       result = LowerStringToNumber(node);
       break;
     case IrOpcode::kStringCharCodeAt:
@@ -1743,6 +1753,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerConvertTaggedHoleToUndefined(node);
       break;
     case IrOpcode::kCheckEqualsInternalizedString:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       LowerCheckEqualsInternalizedString(node, frame_state);
       break;
     case IrOpcode::kAllocate:
@@ -1750,6 +1764,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerAllocate(node);
       break;
     case IrOpcode::kCheckEqualsSymbol:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       LowerCheckEqualsSymbol(node, frame_state);
       break;
     case IrOpcode::kPlainPrimitiveToNumber:
@@ -1774,9 +1792,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerTransitionElementsKind(node);
       break;
     case IrOpcode::kLoadMessage:
+      if (v8_flags.turboshaft) return false;
       result = LowerLoadMessage(node);
       break;
     case IrOpcode::kStoreMessage:
+      if (v8_flags.turboshaft) return false;
       LowerStoreMessage(node);
       break;
     case IrOpcode::kFastApiCall:
@@ -1833,6 +1853,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerTransitionAndStoreElement(node);
       break;
     case IrOpcode::kRuntimeAbort:
+      if (v8_flags.turboshaft) return false;
       LowerRuntimeAbort(node);
       break;
     case IrOpcode::kAssertType:
@@ -1866,6 +1887,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       }
       break;
     case IrOpcode::kDateNow:
+      if (v8_flags.turboshaft) return false;
       result = LowerDateNow(node);
       break;
     case IrOpcode::kDoubleArrayMax:
@@ -2604,6 +2626,7 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
 }
 
 void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckIfParameters& p = CheckIfParametersOf(node->op());
   __ DeoptimizeIfNot(p.reason(), p.feedback(), value, frame_state);
@@ -3110,6 +3133,7 @@ Node* EffectControlLinearizer::EndStringBuilderConcat(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   if (string_builder_optimizer_->IsFirstConcatInStringBuilder(node)) {
     // This is the 1st node of a string builder. We thus need to create and
     // initialize the string builder's backing store and SlicedString.
@@ -5201,6 +5225,7 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerSameValue(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -5215,6 +5240,7 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerSameValueNumbersOnly(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -5229,6 +5255,7 @@ Node* EffectControlLinearizer::LowerSameValueNumbersOnly(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNumberSameValue(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -5254,6 +5281,7 @@ Node* EffectControlLinearizer::LowerNumberSameValue(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerDeadValue(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* input = NodeProperties::GetValueInput(node, 0);
   if (input->opcode() != IrOpcode::kUnreachable) {
     // There is no fundamental reason not to connect to end here, except it
@@ -5267,6 +5295,7 @@ Node* EffectControlLinearizer::LowerDeadValue(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* string = node->InputAt(0);
 
   Callable const callable =
@@ -5276,8 +5305,7 @@ Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), string,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), string);
 }
 
 Node* EffectControlLinearizer::StringCharCodeAt(Node* receiver,
@@ -6084,6 +6112,7 @@ Node* EffectControlLinearizer::LowerConvertTaggedHoleToUndefined(Node* node) {
 
 void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
     Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* exp = node->InputAt(0);
   Node* val = node->InputAt(1);
 
@@ -6158,6 +6187,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
 
 void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
                                                      Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* exp = node->InputAt(0);
   Node* val = node->InputAt(1);
   Node* check = __ TaggedEqual(exp, val);
@@ -6481,6 +6511,7 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerLoadMessage(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* offset = node->InputAt(0);
   Node* object_pattern =
       __ LoadField(AccessBuilder::ForExternalIntPtr(), offset);
@@ -6488,6 +6519,7 @@ Node* EffectControlLinearizer::LowerLoadMessage(Node* node) {
 }
 
 void EffectControlLinearizer::LowerStoreMessage(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* offset = node->InputAt(0);
   Node* object = node->InputAt(1);
   Node* object_pattern = __ BitcastTaggedToWord(object);
@@ -7713,6 +7745,7 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
 }
 
 void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   AbortReason reason = AbortReasonOf(node->op());
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kAbort;
@@ -8329,6 +8362,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
 }
 
 Node* EffectControlLinearizer::LowerDateNow(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kDateCurrentTime;
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(

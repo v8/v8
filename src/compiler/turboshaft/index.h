@@ -264,6 +264,7 @@ class V : public OpIndex {
   static V<T> Cast(V<U> index) {
     return V<T>(OpIndex{index});
   }
+  static V<T> Cast(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return v_traits<T>::allows_representation(rep);

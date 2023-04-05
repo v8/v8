@@ -417,8 +417,8 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(ObjectIsNumericValue)(OpIndex input, NumericKind kind,
-                                       FloatRepresentation input_rep) {
+  V<Word32> REDUCE(ObjectIsNumericValue)(V<Object> input, NumericKind kind,
+                                         FloatRepresentation input_rep) {
     DCHECK_EQ(input_rep, FloatRepresentation::Float64());
     Label<Word32> done(this);
 
@@ -454,9 +454,14 @@ class MachineLoweringReducer : public Next {
                             ConvertOp::Kind to) {
     switch (to) {
       case ConvertOp::Kind::kNumber: {
-        DCHECK_EQ(from, ConvertOp::Kind::kPlainPrimitive);
-        return __ CallBuiltin_PlainPrimitiveToNumber(
-            isolate_, V<PlainPrimitive>::Cast(input));
+        if (from == ConvertOp::Kind::kPlainPrimitive) {
+          return __ CallBuiltin_PlainPrimitiveToNumber(
+              isolate_, V<PlainPrimitive>::Cast(input));
+        } else {
+          DCHECK_EQ(from, ConvertOp::Kind::kString);
+          return __ CallBuiltin_StringToNumber(isolate_,
+                                               V<String>::Cast(input));
+        }
       }
       case ConvertOp::Kind::kBoolean: {
         DCHECK_EQ(from, ConvertOp::Kind::kObject);
@@ -851,7 +856,7 @@ class MachineLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(ConvertObjectToPrimitive)(
-      OpIndex object, ConvertObjectToPrimitiveOp::Kind kind,
+      V<Object> object, ConvertObjectToPrimitiveOp::Kind kind,
       ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
     switch (kind) {
       case ConvertObjectToPrimitiveOp::Kind::kInt32:
@@ -881,10 +886,11 @@ class MachineLoweringReducer : public Next {
               ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive);
           Label<Word32> done(this);
           GOTO_IF(LIKELY(__ ObjectIsSmi(object)), done, __ SmiUntag(object));
-          V<Number> number = __ ConvertPlainPrimitiveToNumber(object);
+          V<Number> number =
+              __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
           GOTO_IF(__ ObjectIsSmi(number), done, __ SmiUntag(number));
           V<Float64> f64 = __ template LoadField<Float64>(
-              number, AccessBuilder::ForHeapNumberValue());
+              V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(f64));
           BIND(done, result);
           return result;
@@ -965,11 +971,12 @@ class MachineLoweringReducer : public Next {
           Label<Float64> done(this);
           GOTO_IF(LIKELY(__ ObjectIsSmi(object)), done,
                   __ ChangeInt32ToFloat64(__ SmiUntag(object)));
-          V<Number> number = __ ConvertPlainPrimitiveToNumber(object);
+          V<Number> number =
+              __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
           GOTO_IF(__ ObjectIsSmi(number), done,
                   __ ChangeInt32ToFloat64(__ SmiUntag(number)));
           V<Float64> f64 = __ template LoadField<Float64>(
-              number, AccessBuilder::ForHeapNumberValue());
+              V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
           GOTO(done, f64);
           BIND(done, result);
           return result;
@@ -1773,6 +1780,12 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  V<String> REDUCE(StringConcat)(V<String> left, V<String> right) {
+    // TODO(nicohartmann@): Port StringBuilder once it is stable.
+    return __ CallBuiltin_StringAdd_CheckNone(isolate_, __ NoContextConstant(),
+                                              left, right);
+  }
+
   V<Boolean> REDUCE(StringComparison)(V<String> left, V<String> right,
                                       StringComparisonOp::Kind kind) {
     switch (kind) {
@@ -2263,6 +2276,114 @@ class MachineLoweringReducer : public Next {
         goto no_change;
     }
     UNREACHABLE();
+  }
+
+  OpIndex REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
+                                                V<Object> value,
+                                                OpIndex frame_state) {
+    Label<> done(this);
+    // Check if {expected} and {value} are the same, which is the likely case.
+    GOTO_IF(LIKELY(__ TaggedEqual(expected, value)), done);
+
+    // Now {value} could still be a non-internalized String that matches
+    // {expected}.
+    __ DeoptimizeIf(__ ObjectIsSmi(value), frame_state,
+                    DeoptimizeReason::kWrongName, FeedbackSource{});
+    V<Map> value_map = __ LoadMapField(value);
+    V<Word32> value_instance_type = __ LoadInstanceTypeField(value_map);
+
+    // ThinString
+    IF(__ Word32Equal(value_instance_type, THIN_STRING_TYPE)) {
+      // The {value} is a ThinString, let's check the actual value.
+      V<String> value_actual = __ template LoadField<String>(
+          value, AccessBuilder::ForThinStringActual());
+      __ DeoptimizeIfNot(__ TaggedEqual(expected, value_actual), frame_state,
+                         DeoptimizeReason::kWrongName, FeedbackSource{});
+    }
+    ELSE {
+      // Check that the {value} is a non-internalized String, if it's anything
+      // else it cannot match the recorded feedback {expected} anyways.
+      __ DeoptimizeIfNot(
+          __ Word32Equal(
+              __ Word32BitwiseAnd(value_instance_type,
+                                  kIsNotStringMask | kIsNotInternalizedMask),
+              kStringTag | kNotInternalizedTag),
+          frame_state, DeoptimizeReason::kWrongName, FeedbackSource{});
+
+      // Try to find the {value} in the string table.
+      MachineSignature::Builder builder(__ graph_zone(), 1, 2);
+      builder.AddReturn(MachineType::AnyTagged());
+      builder.AddParam(MachineType::Pointer());
+      builder.AddParam(MachineType::AnyTagged());
+      OpIndex try_string_to_index_or_lookup_existing = __ ExternalConstant(
+          ExternalReference::try_string_to_index_or_lookup_existing());
+      OpIndex isolate_ptr =
+          __ ExternalConstant(ExternalReference::isolate_address(isolate_));
+      V<String> value_internalized = __ Call(
+          try_string_to_index_or_lookup_existing, {isolate_ptr, value},
+          TSCallDescriptor::Create(Linkage::GetSimplifiedCDescriptor(
+                                       __ graph_zone(), builder.Build()),
+                                   __ graph_zone()));
+
+      // Now see if the results match.
+      __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),
+                         frame_state, DeoptimizeReason::kWrongName,
+                         FeedbackSource{});
+    }
+    END_IF
+    GOTO(done);
+
+    BIND(done);
+    return OpIndex::Invalid();
+  }
+
+  V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
+    return __ BitcastWordToTagged(__ template LoadField<WordPtr>(
+        offset, AccessBuilder::ForExternalIntPtr()));
+  }
+
+  OpIndex REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
+    __ StoreField(offset, AccessBuilder::ForExternalIntPtr(),
+                  __ BitcastTaggedToWord(object));
+    return OpIndex::Invalid();
+  }
+
+  V<Boolean> REDUCE(SameValue)(OpIndex left, OpIndex right,
+                               SameValueOp::Mode mode) {
+    switch (mode) {
+      case SameValueOp::Mode::kSameValue:
+        return __ CallBuiltin_SameValue(isolate_, left, right);
+      case SameValueOp::Mode::kSameValueNumbersOnly:
+        return __ CallBuiltin_SameValueNumbersOnly(isolate_, left, right);
+    }
+  }
+
+  V<Word32> REDUCE(Float64SameValue)(OpIndex left, OpIndex right) {
+    Label<Word32> done(this);
+
+    IF(__ Float64Equal(left, right)) {
+      // Even if the values are float64-equal, we still need to distinguish
+      // zero and minus zero.
+      V<Word32> left_hi = __ Float64ExtractHighWord32(left);
+      V<Word32> right_hi = __ Float64ExtractHighWord32(right);
+      GOTO(done, __ Word32Equal(left_hi, right_hi));
+    }
+    ELSE {
+      // Return true iff both {lhs} and {rhs} are NaN.
+      GOTO_IF(__ Float64Equal(left, left), done, 0);
+      GOTO_IF(__ Float64Equal(right, right), done, 0);
+      GOTO(done, 1);
+    }
+    END_IF
+
+    BIND(done, result);
+    return result;
+  }
+
+  OpIndex REDUCE(RuntimeAbort)(AbortReason reason) {
+    __ CallRuntime_Abort(isolate_, __ NoContextConstant(),
+                         __ SmiTag(static_cast<int>(reason)));
+    return OpIndex::Invalid();
   }
 
   // TODO(nicohartmann@): Remove this once ECL has been fully ported.

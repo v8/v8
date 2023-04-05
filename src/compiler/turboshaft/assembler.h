@@ -1063,6 +1063,10 @@ class AssemblerOpInterface {
     return V<String>::Cast(
         Convert(input, ConvertOp::Kind::kNumber, ConvertOp::Kind::kString));
   }
+  V<Number> ConvertStringToNumber(V<String> input) {
+    return V<Number>::Cast(
+        Convert(input, ConvertOp::Kind::kString, ConvertOp::Kind::kNumber));
+  }
 
   V<Object> ConvertOrDeopt(V<Object> input, OpIndex frame_state,
                            ConvertOrDeoptOp::Kind from,
@@ -1522,8 +1526,14 @@ class AssemblerOpInterface {
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());
   }
 
-  template <typename Rep = Any>
-  V<Rep> LoadField(V<Tagged> object, const FieldAccess& access) {
+  template <typename Rep = Any, typename Base>
+  V<Rep> LoadField(V<Base> object, const FieldAccess& access) {
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
     MachineType machine_type = access.machine_type;
     if (machine_type.IsMapWord()) {
       machine_type = MachineType::TaggedPointer();
@@ -1565,7 +1575,14 @@ class AssemblerOpInterface {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
-  void StoreField(V<Tagged> object, const FieldAccess& access, V<Any> value) {
+  template <typename Base>
+  void StoreField(V<Base> object, const FieldAccess& access, V<Any> value) {
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
     // External pointer must never be stored by optimized code.
     DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
            !V8_ENABLE_SANDBOX_BOOL);
@@ -1864,6 +1881,22 @@ class AssemblerOpInterface {
     return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
         isolate, {input});
   }
+  V<Boolean> CallBuiltin_SameValue(Isolate* isolate, V<Object> left,
+                                   V<Object> right) {
+    return CallBuiltin<typename BuiltinCallDescriptor::SameValue>(
+        isolate, {left, right});
+  }
+  V<Boolean> CallBuiltin_SameValueNumbersOnly(Isolate* isolate, V<Object> left,
+                                              V<Object> right) {
+    return CallBuiltin<typename BuiltinCallDescriptor::SameValueNumbersOnly>(
+        isolate, {left, right});
+  }
+  V<String> CallBuiltin_StringAdd_CheckNone(Isolate* isolate,
+                                            V<Context> context, V<String> left,
+                                            V<String> right) {
+    return CallBuiltin<typename BuiltinCallDescriptor::StringAdd_CheckNone>(
+        isolate, context, {left, right});
+  }
   V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
                                      V<String> right, V<WordPtr> length) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
@@ -1898,6 +1931,10 @@ class AssemblerOpInterface {
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
+  V<Number> CallBuiltin_StringToNumber(Isolate* isolate, V<String> input) {
+    return CallBuiltin<typename BuiltinCallDescriptor::StringToNumber>(isolate,
+                                                                       {input});
+  }
   V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
                                         V<WordPtr> start, V<WordPtr> end) {
     return CallBuiltin<typename BuiltinCallDescriptor::StringSubstring>(
@@ -1959,6 +1996,14 @@ class AssemblerOpInterface {
     }
   }
 
+  void CallRuntime_Abort(Isolate* isolate, V<Context> context, V<Smi> reason) {
+    CallRuntime<typename RuntimeCallDescriptor::Abort>(isolate, context,
+                                                       {reason});
+  }
+  V<Number> CallRuntime_DateCurrentTime(Isolate* isolate, V<Context> context) {
+    return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
+        isolate, context, {});
+  }
   V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
                                          V<String> string, V<Number> index) {
     return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
@@ -2341,33 +2386,39 @@ class AssemblerOpInterface {
   }
 #endif  // V8_INTL_SUPPORT
 
-  V<Word32> StringLength(V<Tagged> string) {
+  V<Word32> StringLength(V<String> string) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringLength(string);
   }
 
-  V<Tagged> StringIndexOf(V<Tagged> string, V<Tagged> search,
-                          V<Tagged> position) {
+  V<Smi> StringIndexOf(V<String> string, V<String> search, V<Smi> position) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringIndexOf(string, search, position);
   }
 
-  V<Tagged> StringFromCodePointAt(V<Tagged> string, V<WordPtr> index) {
+  V<String> StringFromCodePointAt(V<String> string, V<WordPtr> index) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringFromCodePointAt(string, index);
   }
 
-  V<Tagged> StringSubstring(V<Tagged> string, V<Word32> start, V<Word32> end) {
+  V<String> StringSubstring(V<String> string, V<Word32> start, V<Word32> end) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceStringSubstring(string, start, end);
+  }
+
+  V<String> StringConcat(V<String> left, V<String> right) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceStringConcat(left, right);
   }
 
   V<Boolean> StringEqual(V<String> left, V<String> right) {
@@ -2491,6 +2542,43 @@ class AssemblerOpInterface {
     stack().ReduceCheckMaps(heap_object, frame_state, maps, flags, feedback);
   }
 
+  void CheckEqualsInternalizedString(V<Object> expected, V<Object> value,
+                                     OpIndex frame_state) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceCheckEqualsInternalizedString(expected, value, frame_state);
+  }
+
+  V<Object> LoadMessage(V<WordPtr> offset) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadMessage(offset);
+  }
+
+  void StoreMessage(V<WordPtr> offset, V<Object> object) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceStoreMessage(offset, object);
+  }
+
+  V<Boolean> SameValue(V<Object> left, V<Object> right,
+                       SameValueOp::Mode mode) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSameValue(left, right, mode);
+  }
+
+  V<Word32> Float64SameValue(OpIndex left, OpIndex right) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceFloat64SameValue(left, right);
+  }
+
   OpIndex FastApiCall(OpIndex data_argument,
                       base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters) {
@@ -2498,6 +2586,13 @@ class AssemblerOpInterface {
       return OpIndex::Invalid();
     }
     return stack().ReduceFastApiCall(data_argument, arguments, parameters);
+  }
+
+  void RuntimeAbort(AbortReason reason) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceRuntimeAbort(reason);
   }
 
   template <typename Rep>

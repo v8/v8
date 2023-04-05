@@ -276,9 +276,9 @@ class FastApiCallReducer : public Next {
                                  __ HeapConstant(factory_->external_map())),
                   handle_error);
 
-              GOTO(done,
-                   __ template LoadField<WordPtr>(
-                       argument, AccessBuilder::ForJSExternalObjectValue()));
+              GOTO(done, __ template LoadField<WordPtr>(
+                             V<HeapObject>::Cast(argument),
+                             AccessBuilder::ForJSExternalObjectValue()));
 
               BIND(done, result);
               return result;
@@ -296,7 +296,8 @@ class FastApiCallReducer : public Next {
                           handle_error);
 
               V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
-                  argument, AccessBuilder::ForStringLength());
+                  V<HeapObject>::Cast(argument),
+                  AccessBuilder::ForStringLength());
               OpIndex data_ptr = __ WordPtrAdd(
                   __ BitcastTaggedToWord(argument),
                   (SeqOneByteString::kHeaderSize - kHeapObjectTag));

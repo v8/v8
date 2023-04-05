@@ -69,6 +69,26 @@ struct RuntimeCallDescriptor {
   using Boolean = Oddball;
 
  public:
+  struct Abort : public Descriptor<Abort> {
+    static constexpr auto Function = Runtime::kAbort;
+    using arguments_t = std::tuple<V<Smi>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct DateCurrentTime : public Descriptor<DateCurrentTime> {
+    static constexpr auto Function = Runtime::kDateCurrentTime;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Number>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto Function = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;

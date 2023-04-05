@@ -13,7 +13,7 @@ extern macro OrdinaryToPrimitive(implicit context: Context)(
 
 namespace conversion {
 
-builtin StringToNumber(implicit context: Context)(input: String): Number {
+builtin StringToNumber(input: String): Number {
   return ::StringToNumber(input);
 }
 

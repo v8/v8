@@ -778,6 +778,8 @@ OpIndex GraphBuilder::Process(
       return __ ConvertToBoolean(Map(node->InputAt(0)));
     case IrOpcode::kNumberToString:
       return __ ConvertNumberToString(Map(node->InputAt(0)));
+    case IrOpcode::kStringToNumber:
+      return __ ConvertStringToNumber(Map(node->InputAt(0)));
     case IrOpcode::kChangeTaggedToTaggedSigned:
       return __ Convert(Map(node->InputAt(0)),
                         ConvertOp::Kind::kNumberOrOddball,
@@ -1253,6 +1255,16 @@ OpIndex GraphBuilder::Process(
     }
     case IrOpcode::kUnreachable:
     case IrOpcode::kThrow:
+      __ Unreachable();
+      return OpIndex::Invalid();
+
+    case IrOpcode::kDeadValue:
+      // Typically, DeadValue nodes have Unreachable as their input. In this
+      // case, we would not get here because Unreachable already terminated the
+      // block and we stopped generating additional operations.
+      DCHECK_NE(node->InputAt(0)->opcode(), IrOpcode::kUnreachable);
+      // If we find a DeadValue without an Unreachable input, we just generate
+      // one here and stop.
       __ Unreachable();
       return OpIndex::Invalid();
 
@@ -1783,6 +1795,10 @@ OpIndex GraphBuilder::Process(
       return __ StringSubstring(Map(node->InputAt(0)), Map(node->InputAt(1)),
                                 Map(node->InputAt(2)));
 
+    case IrOpcode::kStringConcat:
+      // We don't need node->InputAt(0) here.
+      return __ StringConcat(Map(node->InputAt(1)), Map(node->InputAt(2)));
+
     case IrOpcode::kStringEqual:
       return __ StringEqual(Map(node->InputAt(0)), Map(node->InputAt(1)));
     case IrOpcode::kStringLessThan:
@@ -1871,6 +1887,43 @@ OpIndex GraphBuilder::Process(
       return index;
     }
 
+    case IrOpcode::kCheckIf: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckIfParameters& params = CheckIfParametersOf(node->op());
+      __ DeoptimizeIfNot(Map(node->InputAt(0)), dominating_frame_state,
+                         params.reason(), params.feedback());
+      return OpIndex::Invalid();
+    }
+
+    case IrOpcode::kCheckEqualsSymbol:
+      DCHECK(dominating_frame_state.valid());
+      __ DeoptimizeIfNot(
+          __ TaggedEqual(Map(node->InputAt(0)), Map(node->InputAt(1))),
+          dominating_frame_state, DeoptimizeReason::kWrongName,
+          FeedbackSource{});
+      return OpIndex::Invalid();
+
+    case IrOpcode::kCheckEqualsInternalizedString:
+      DCHECK(dominating_frame_state.valid());
+      __ CheckEqualsInternalizedString(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state);
+      return OpIndex::Invalid();
+
+    case IrOpcode::kLoadMessage:
+      return __ LoadMessage(Map(node->InputAt(0)));
+    case IrOpcode::kStoreMessage:
+      __ StoreMessage(Map(node->InputAt(0)), Map(node->InputAt(1)));
+      return OpIndex::Invalid();
+
+    case IrOpcode::kSameValue:
+      return __ SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                          SameValueOp::Mode::kSameValue);
+    case IrOpcode::kSameValueNumbersOnly:
+      return __ SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                          SameValueOp::Mode::kSameValueNumbersOnly);
+    case IrOpcode::kNumberSameValue:
+      return __ Float64SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)));
+
     case IrOpcode::kFastApiCall: {
       DCHECK(dominating_frame_state.valid());
       FastApiCallNode n(node);
@@ -1939,6 +1992,13 @@ OpIndex GraphBuilder::Process(
       BIND(done, result);
       return result;
     }
+
+    case IrOpcode::kRuntimeAbort:
+      __ RuntimeAbort(AbortReasonOf(node->op()));
+      return OpIndex::Invalid();
+
+    case IrOpcode::kDateNow:
+      return __ CallRuntime_DateCurrentTime(isolate, __ NoContextConstant());
 
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();

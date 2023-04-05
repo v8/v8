@@ -251,6 +251,7 @@ class TypeInferenceAnalysis {
         case Opcode::kStringIndexOf:
         case Opcode::kStringFromCodePointAt:
         case Opcode::kStringSubstring:
+        case Opcode::kStringConcat:
         case Opcode::kStringEqual:
         case Opcode::kStringComparison:
         case Opcode::kArgumentsLength:
@@ -263,7 +264,13 @@ class TypeInferenceAnalysis {
         case Opcode::kStoreSignedSmallElement:
         case Opcode::kCompareMaps:
         case Opcode::kCheckMaps:
+        case Opcode::kCheckEqualsInternalizedString:
+        case Opcode::kLoadMessage:
+        case Opcode::kStoreMessage:
+        case Opcode::kSameValue:
+        case Opcode::kFloat64SameValue:
         case Opcode::kFastApiCall:
+        case Opcode::kRuntimeAbort:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {

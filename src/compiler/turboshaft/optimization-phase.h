@@ -807,6 +807,10 @@ class GraphVisitor {
                                              MapToNewGraph(op.start()),
                                              MapToNewGraph(op.end()));
   }
+  OpIndex AssembleOutputGraphStringConcat(const StringConcatOp& op) {
+    return assembler().ReduceStringConcat(MapToNewGraph(op.left()),
+                                          MapToNewGraph(op.right()));
+  }
   OpIndex AssembleOutputGraphStringEqual(const StringEqualOp& op) {
     return assembler().ReduceStringEqual(MapToNewGraph(op.left()),
                                          MapToNewGraph(op.right()));
@@ -869,11 +873,35 @@ class GraphVisitor {
                                        MapToNewGraph(op.frame_state()), op.maps,
                                        op.flags, op.feedback);
   }
+  OpIndex AssembleOutputGraphCheckEqualsInternalizedString(
+      const CheckEqualsInternalizedStringOp& op) {
+    return assembler().ReduceCheckEqualsInternalizedString(
+        MapToNewGraph(op.expected()), MapToNewGraph(op.value()),
+        MapToNewGraph(op.frame_state()));
+  }
+  OpIndex AssembleOutputGraphLoadMessage(const LoadMessageOp& op) {
+    return assembler().ReduceLoadMessage(MapToNewGraph(op.offset()));
+  }
+  OpIndex AssembleOutputGraphStoreMessage(const StoreMessageOp& op) {
+    return assembler().ReduceStoreMessage(MapToNewGraph(op.offset()),
+                                          MapToNewGraph(op.object()));
+  }
+  OpIndex AssembleOutputGraphSameValue(const SameValueOp& op) {
+    return assembler().ReduceSameValue(MapToNewGraph(op.left()),
+                                       MapToNewGraph(op.right()), op.mode);
+  }
+  OpIndex AssembleOutputGraphFloat64SameValue(const Float64SameValueOp& op) {
+    return assembler().ReduceFloat64SameValue(MapToNewGraph(op.left()),
+                                              MapToNewGraph(op.right()));
+  }
   OpIndex AssembleOutputGraphFastApiCall(const FastApiCallOp& op) {
     auto arguments = MapToNewGraph<8>(op.arguments());
     return assembler().ReduceFastApiCall(MapToNewGraph(op.data_argument()),
                                          base::VectorOf(arguments),
                                          op.parameters);
+  }
+  OpIndex AssembleOutputGraphRuntimeAbort(const RuntimeAbortOp& op) {
+    return assembler().ReduceRuntimeAbort(op.reason);
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

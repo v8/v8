@@ -11,6 +11,7 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/write-barrier-kind.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -111,6 +112,36 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
   };
 
+  struct SameValue : public Descriptor<SameValue> {
+    static constexpr auto Function = Builtin::kSameValue;
+    using arguments_t = std::tuple<V<Object>, V<Object>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
+    static constexpr auto Function = Builtin::kSameValueNumbersOnly;
+    using arguments_t = std::tuple<V<Object>, V<Object>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
+    static constexpr auto Function = Builtin::kStringAdd_CheckNone;
+    using arguments_t = std::tuple<V<String>, V<String>>;
+    using result_t = V<String>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
   struct StringEqual : public Descriptor<StringEqual> {
     static constexpr auto Function = Builtin::kStringEqual;
     using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
@@ -177,6 +208,16 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 #endif  // V8_INTL_SUPPORT
+
+  struct StringToNumber : public Descriptor<StringToNumber> {
+    static constexpr auto Function = Builtin::kStringToNumber;
+    using arguments_t = std::tuple<V<String>>;
+    using result_t = V<Number>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
 
   struct ToBoolean : public Descriptor<ToBoolean> {
     static constexpr auto Function = Builtin::kToBoolean;

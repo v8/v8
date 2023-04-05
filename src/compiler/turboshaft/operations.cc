@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -18,6 +19,12 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
+
+namespace v8::internal {
+std::ostream& operator<<(std::ostream& os, AbortReason reason) {
+  return os << GetAbortReason(reason);
+}
+}  // namespace v8::internal
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -1050,6 +1057,15 @@ std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
       return os << "Arguments";
     case ArgumentsLengthOp::Kind::kRest:
       return os << "Rest";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
+  switch (mode) {
+    case SameValueOp::Mode::kSameValue:
+      return os << "SameValue";
+    case SameValueOp::Mode::kSameValueNumbersOnly:
+      return os << "SameValueNumbersOnly";
   }
 }
 
