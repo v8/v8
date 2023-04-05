@@ -285,6 +285,12 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
+RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
+}
+
 RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, args.length());

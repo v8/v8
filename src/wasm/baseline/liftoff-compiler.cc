@@ -3372,8 +3372,10 @@ class LiftoffCompiler {
                i64_offset);
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
+      ForceCheck force_check =
+          kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
       index = BoundsCheckMem(decoder, type.size(), imm.offset, full_index,
-                             pinned, kDontForceCheck);
+                             pinned, force_check);
 
       pinned.set(index);
       SCOPED_CODE_COMMENT("store to memory");
@@ -3404,8 +3406,10 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     LiftoffRegister full_index = __ PopToRegister(pinned);
+    ForceCheck force_check =
+        kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
-                                    full_index, pinned, kDontForceCheck);
+                                    full_index, pinned, force_check);
 
     DCHECK(_index.type.kind() == kI32 || _index.type.kind() == kI64);
     bool i64_offset = _index.type.kind() == kI64;

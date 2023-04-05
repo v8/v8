@@ -3848,8 +3848,8 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   BoundsCheckResult bounds_check_result;
   std::tie(index, bounds_check_result) =
       BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset, position,
-                     kCanOmitBoundsCheck);
-
+                     wasm::kPartialOOBWritesAreNoops ? kCanOmitBoundsCheck
+                                                     : kNeedsBoundsCheck);
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   MemoryAccessKind load_kind =
@@ -3878,7 +3878,8 @@ void WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
   BoundsCheckResult bounds_check_result;
   std::tie(index, bounds_check_result) =
       BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset, position,
-                     kCanOmitBoundsCheck);
+                     wasm::kPartialOOBWritesAreNoops ? kCanOmitBoundsCheck
+                                                     : kNeedsBoundsCheck);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndiannessStore(val, mem_rep, type);

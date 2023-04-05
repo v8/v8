@@ -677,6 +677,7 @@ namespace internal {
   F(IsThreadInWasm, 0, 1)                  \
   F(IsWasmCode, 1, 1)                      \
   F(IsWasmTrapHandlerEnabled, 0, 1)        \
+  F(IsWasmPartialOOBWriteNoop, 0, 1)       \
   F(SerializeWasmModule, 1, 1)             \
   F(SetWasmCompileControls, 2, 1)          \
   F(SetWasmInstantiateControls, 0, 1)      \
