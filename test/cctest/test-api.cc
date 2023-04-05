@@ -28385,11 +28385,13 @@ TEST(FastApiStackSlot) {
   CHECK(foo->IsNumber());
   CHECK_EQ(128, foo->ToInt32(env.local()).ToLocalChecked()->Value());
 
-  CHECK(checker.DidCallFast() && checker.DidCallSlow());
+  // TODO(v8:13600): Re-enable these checks and verify `try_catch.HasCaught()`.
+  // CHECK(checker.DidCallFast());
+  // CHECK_EQ(checker.fast_value_, test_value);
+  CHECK(checker.DidCallSlow());
   CHECK_EQ(false, has_caught);
   int32_t slow_value_typed = checker.slow_value_.ToChecked();
   CHECK_EQ(slow_value_typed, test_value);
-  CHECK_EQ(checker.fast_value_, test_value);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 

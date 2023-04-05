@@ -3883,7 +3883,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
       broker(), graph()->zone(), function_template_info, argc);
   DCHECK_LE(c_candidate_functions.size(), 2);
 
-  if (!c_candidate_functions.empty()) {
+  // TODO(v8:13600): Support exception handling for FastApiCall nodes.
+  if (!c_candidate_functions.empty() &&
+      !NodeProperties::IsExceptionalCall(node)) {
     FastApiCallReducerAssembler a(this, node, function_template_info,
                                   c_candidate_functions, receiver, holder,
                                   shared, target, argc, effect);

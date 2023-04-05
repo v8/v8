@@ -43,6 +43,32 @@ class FastCApiObject {
   static FastCApiObject& instance();
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType ThrowFallbackFastCallbackPatch(AnyCType receiver,
+                                                 AnyCType options) {
+    AnyCType ret;
+    ThrowFallbackFastCallback(receiver.object_value, *options.options_value);
+    return ret;
+  }
+
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static void ThrowFallbackFastCallback(Local<Object> receiver,
+                                        FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    self->fast_call_count_++;
+    options.fallback = true;
+  }
+
+  static void ThrowFallbackSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    info.GetIsolate()->ThrowError("Exception from fallback.");
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType CopyStringFastCallbackPatch(AnyCType receiver,
                                               AnyCType should_fallback,
                                               AnyCType source, AnyCType out,
@@ -1247,6 +1273,16 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   PerIsolateData::Get(isolate)->SetTestApiObjectCtor(api_obj_ctor);
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
+    CFunction throw_fallback_func = CFunction::Make(
+        FastCApiObject::ThrowFallbackFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::ThrowFallbackFastCallbackPatch));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "throw_fallback",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ThrowFallbackSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &throw_fallback_func));
+
     CFunction copy_str_func = CFunction::Make(
         FastCApiObject::CopyStringFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::CopyStringFastCallbackPatch));
