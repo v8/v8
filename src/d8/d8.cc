@@ -5150,7 +5150,8 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
     Shell::unhandled_promise_rejections_.store(0);
   }
   // In order to finish successfully, success must be != expected_to_throw.
-  if (Shell::options.no_fail) return 0;
+  // Fuzzing enforces a zero exit code to prevent bad builds with --throws.
+  if (Shell::options.no_fail || i::v8_flags.fuzzing) return 0;
   return (success == Shell::options.expected_to_throw ? 1 : 0);
 }
 
