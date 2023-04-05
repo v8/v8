@@ -3854,19 +3854,20 @@ void FinalizeBuiltinCodeObjects(Isolate* isolate) {
   DCHECK_NE(0, isolate->embedded_blob_data_size());
 
   HandleScope scope(isolate);
+  Builtins* builtins = isolate->builtins();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
+
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Handle<Code> old_code = isolate->builtins()->code_handle(builtin);
-    // Note we use `instruction_start` as given by the old code object (instead
-    // of asking EmbeddedData) due to MaybeRemapEmbeddedBuiltinsIntoCodeRange.
-    Address instruction_start = old_code->instruction_start();
-    Handle<Code> new_code = isolate->factory()->NewCodeObjectForEmbeddedBuiltin(
-        old_code, instruction_start);
+    Address instruction_start = d.InstructionStartOf(builtin);
+    Handle<Code> trampoline =
+        isolate->factory()->NewCodeObjectForEmbeddedBuiltin(
+            builtins->code_handle(builtin), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
-    isolate->builtins()->set_code(builtin, *new_code);
+    builtins->set_code(builtin, *trampoline);
   }
 }
 

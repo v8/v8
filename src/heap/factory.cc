@@ -133,6 +133,26 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   Handle<ByteArray> reloc_info =
       NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
+  NewCodeOptions new_code_options = {
+      /*kind=*/kind_,
+      /*builtin=*/builtin_,
+      /*is_turbofanned=*/is_turbofanned_,
+      /*stack_slots=*/stack_slots_,
+      /*allocation=*/AllocationType::kOld,
+      /*instruction_size=*/code_desc_.instruction_size(),
+      /*metadata_size=*/code_desc_.metadata_size(),
+      /*inlined_bytecode_size=*/inlined_bytecode_size_,
+      /*osr_offset=*/osr_offset_,
+      /*handler_table_offset=*/code_desc_.handler_table_offset_relative(),
+      /*constant_pool_offset=*/code_desc_.constant_pool_offset_relative(),
+      /*code_comments_offset=*/code_desc_.code_comments_offset_relative(),
+      /*unwinding_info_offset=*/code_desc_.unwinding_info_offset_relative(),
+      /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
+          ? interpreter_data_
+          : deoptimization_data_,
+      /*bytecode_offsets_or_source_position_table=*/position_table_};
+  Handle<Code> code = NewCode(new_code_options);
+
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
   // appropriate.
@@ -149,7 +169,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
-  Handle<Code> code;
   {
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
     CodePageCollectionMemoryModificationScope code_allocation(isolate_->heap());
@@ -166,41 +185,12 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       if (V8_EXTERNAL_CODE_SPACE_BOOL) {
         raw_istream.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
       }
-      raw_istream.set_body_size(code_desc_.instruction_size() +
-                                code_desc_.metadata_size());
-      raw_istream.initialize_code_to_smi_zero(kReleaseStore);
+      raw_istream.set_body_size(new_code_options.instruction_size +
+                                new_code_options.metadata_size);
+      DCHECK_EQ(raw_istream.body_size(), code->body_size());
+      raw_istream.set_code(*code, kReleaseStore);
       raw_istream.set_relocation_info(*reloc_info);
       raw_istream.clear_padding();
-    }
-
-    NewCodeOptions new_code_options = {
-        kind_,
-        builtin_,
-        is_turbofanned_,
-        stack_slots_,
-        AllocationType::kOld,
-        code_desc_.instruction_size(),
-        code_desc_.metadata_size(),
-        inlined_bytecode_size_,
-        osr_offset_,
-        code_desc_.handler_table_offset_relative(),
-        code_desc_.constant_pool_offset_relative(),
-        code_desc_.code_comments_offset_relative(),
-        code_desc_.unwinding_info_offset_relative(),
-        /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
-            ? interpreter_data_
-            : deoptimization_data_,
-        /*bytecode_offsets_or_source_position_table=*/position_table_,
-        istream,
-        /*instruction_start=*/kNullAddress,
-    };
-    code = NewCode(new_code_options);
-    DCHECK_EQ(istream->body_size(), code->body_size());
-
-    {
-      DisallowGarbageCollection no_gc;
-      InstructionStream raw_istream = *istream;
-      raw_istream.set_code(*code, kReleaseStore);
 
       // Allow self references to created code object by patching the handle to
       // point to the newly allocated InstructionStream object.
@@ -224,6 +214,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
             ->PatchBasicBlockCountersReference(
                 handle(on_heap_profiler_data->counts(), isolate_));
       }
+
+      code->SetInstructionStreamAndInstructionStart(isolate_, raw_istream);
 
       // Migrate generated code.
       // The generated code can contain embedded objects (typically from
@@ -2546,11 +2538,12 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
       code->unwinding_info_offset(),
       handle(code->raw_deoptimization_data_or_interpreter_data(), isolate()),
       /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
-      /*instruction_stream=*/MaybeHandle<InstructionStream>{},
-      off_heap_entry,
   };
 
-  return NewCode(new_code_options);
+  Handle<Code> off_heap_trampoline = NewCode(new_code_options);
+  off_heap_trampoline->set_instruction_start(isolate(),
+                                             code->instruction_start());
+  return off_heap_trampoline;
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {

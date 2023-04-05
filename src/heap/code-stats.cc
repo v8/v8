@@ -207,7 +207,10 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
 
   // Off-heap builtins might contain comments but they are a part of binary so
   // it doesn't make sense to account them in the stats.
-  if (!code.has_instruction_stream()) return;
+  // TODO(jgruber): We can change this to `IsBuiltin` once it's guaranteed that
+  // non-builtin Code objects have an instruction_stream at all times (even
+  // during initialization).
+  if (!obj.has_instruction_stream(cage_base)) return;
 
   CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
   int delta = 0;
