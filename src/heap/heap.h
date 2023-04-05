@@ -165,6 +165,7 @@ enum class GCIdleTimeAction : uint8_t;
 enum class SkipRoot {
   kExternalStringTable,
   kGlobalHandles,
+  kTracedHandles,
   kOldGeneration,
   kStack,
   kMainThreadHandles,

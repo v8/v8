@@ -175,8 +175,8 @@ void StartupSerializer::SerializeStrongReferences(
   // the first page.
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateRoots(
-      this,
-      base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
+      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
+                                    SkipRoot::kTracedHandles});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,

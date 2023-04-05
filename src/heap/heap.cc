@@ -4656,6 +4656,14 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   // above is that non-transient heap state is always visited, transient heap
   // state is visited only when not serializing.
   if (!options.contains(SkipRoot::kUnserializable)) {
+    if (!options.contains(SkipRoot::kTracedHandles)) {
+      if (options.contains(SkipRoot::kOldGeneration)) {
+        isolate_->traced_handles()->IterateYoungRoots(v);
+      } else {
+        isolate_->traced_handles()->Iterate(v);
+      }
+    }
+
     if (!options.contains(SkipRoot::kGlobalHandles)) {
       if (options.contains(SkipRoot::kWeak)) {
         if (options.contains(SkipRoot::kOldGeneration)) {
@@ -4667,15 +4675,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
           isolate_->global_handles()->IterateStrongRoots(v);
         }
       } else {
-        // Do not skip weak handles.
         if (options.contains(SkipRoot::kOldGeneration)) {
-          // Skip handles that are old.
-          isolate_->global_handles()->IterateAllYoungRoots(v);
-          isolate_->traced_handles()->IterateYoung(v);
+          UNREACHABLE();
         } else {
           // Do not skip any handles.
           isolate_->global_handles()->IterateAllRoots(v);
-          isolate_->traced_handles()->Iterate(v);
         }
       }
     }

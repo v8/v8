@@ -1993,7 +1993,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   // etc., and all objects reachable from them.
   heap()->IterateRootsIncludingClients(
       root_visitor,
-      base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack,
+      base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTracedHandles,
+                              SkipRoot::kConservativeStack,
                               SkipRoot::kReadOnlyBuiltins});
 
   MarkWaiterQueueNode(isolate());
@@ -5970,6 +5971,7 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
     heap()->IterateRoots(root_visitor,
                          base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable,
                                                  SkipRoot::kGlobalHandles,
+                                                 SkipRoot::kTracedHandles,
                                                  SkipRoot::kOldGeneration,
                                                  SkipRoot::kReadOnlyBuiltins});
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
