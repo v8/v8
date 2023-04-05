@@ -610,19 +610,29 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
   if (label) __ Jump(label);
 }
 
-void BaselineCompiler::JumpIfRoot(RootIndex root) {
+void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
+  int weight = v8_flags.increase_budget_forward_jump
+                   ? (iterator().GetRelativeJumpTargetOffset() -
+                      iterator().current_bytecode_size_without_prefix())
+                   : 0;
+  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
+}
+
+void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(
+    RootIndex root) {
   Label dont_jump;
   __ JumpIfNotRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
                    Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
-void BaselineCompiler::JumpIfNotRoot(RootIndex root) {
+void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
+    RootIndex root) {
   Label dont_jump;
   __ JumpIfRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
                 Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
@@ -1950,7 +1960,9 @@ void BaselineCompiler::VisitJumpLoop() {
 #endif  // !V8_JITLESS
 }
 
-void BaselineCompiler::VisitJump() { __ Jump(BuildForwardJumpLabel()); }
+void BaselineCompiler::VisitJump() {
+  UpdateInterruptBudgetAndDoInterpreterJump();
+}
 
 void BaselineCompiler::VisitJumpConstant() { VisitJump(); }
 
@@ -1989,35 +2001,40 @@ void BaselineCompiler::VisitJumpIfToBooleanFalseConstant() {
 void BaselineCompiler::VisitJumpIfToBooleanTrue() {
   Label dont_jump;
   JumpIfToBoolean(false, &dont_jump, Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
 void BaselineCompiler::VisitJumpIfToBooleanFalse() {
   Label dont_jump;
   JumpIfToBoolean(true, &dont_jump, Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
-void BaselineCompiler::VisitJumpIfTrue() { JumpIfRoot(RootIndex::kTrueValue); }
-
-void BaselineCompiler::VisitJumpIfFalse() {
-  JumpIfRoot(RootIndex::kFalseValue);
+void BaselineCompiler::VisitJumpIfTrue() {
+  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kTrueValue);
 }
 
-void BaselineCompiler::VisitJumpIfNull() { JumpIfRoot(RootIndex::kNullValue); }
+void BaselineCompiler::VisitJumpIfFalse() {
+  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kFalseValue);
+}
+
+void BaselineCompiler::VisitJumpIfNull() {
+  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kNullValue);
+}
 
 void BaselineCompiler::VisitJumpIfNotNull() {
-  JumpIfNotRoot(RootIndex::kNullValue);
+  UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(RootIndex::kNullValue);
 }
 
 void BaselineCompiler::VisitJumpIfUndefined() {
-  JumpIfRoot(RootIndex::kUndefinedValue);
+  UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex::kUndefinedValue);
 }
 
 void BaselineCompiler::VisitJumpIfNotUndefined() {
-  JumpIfNotRoot(RootIndex::kUndefinedValue);
+  UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
+      RootIndex::kUndefinedValue);
 }
 
 void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
@@ -2027,7 +2044,7 @@ void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
   __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kNullValue,
                    &dont_jump, Label::kNear);
   __ Bind(&do_jump);
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
@@ -2042,7 +2059,7 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
   __ JumpIfObjectTypeFast(kLessThan, kInterpreterAccumulatorRegister,
                           FIRST_JS_RECEIVER_TYPE, &dont_jump);
 #endif
-  __ Jump(BuildForwardJumpLabel());
+  UpdateInterruptBudgetAndDoInterpreterJump();
 
   __ Bind(&is_smi);
   __ Bind(&dont_jump);
@@ -2244,9 +2261,7 @@ void BaselineCompiler::VisitSuspendGenerator() {
         bytecode_offset,
         static_cast<int>(RegisterCount(2)));  // register_count
   }
-  int parameter_count = bytecode_->parameter_count();
-
-  TailCallBuiltin<Builtin::kBaselineLeaveFrame>(parameter_count, 0);
+  VisitReturn();
 }
 
 void BaselineCompiler::VisitResumeGenerator() {

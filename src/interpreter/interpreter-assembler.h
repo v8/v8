@@ -253,9 +253,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
-  // Decrements the bytecode array's interrupt budget by a 32-bit unsigned
-  // |weight| and calls Runtime::kInterrupt if counter reaches zero.
-  void UpdateInterruptBudget(TNode<Int32T> weight);
+  // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
+  // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
+  // the interrupt budget is decremented, otherwise it is incremented.
+  void UpdateInterruptBudget(TNode<Int32T> weight, bool backward);
 
   TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 
@@ -389,8 +390,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // pool element.
   TNode<UintPtrT> BytecodeOperandConstantPoolIdx(int operand_index);
 
-  // Jump to a specific bytecode offset.
-  void JumpToOffset(TNode<IntPtrT> new_bytecode_offset);
+  // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
+  // then jump backward (subtract the offset), otherwise jump forward (add the
+  // offset). Helper function for Jump and JumpBackward.
+  void Jump(TNode<IntPtrT> jump_offset, bool backward);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfTaggedEqual and
@@ -422,7 +425,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
   TNode<IntPtrT> Advance(int delta);
-  TNode<IntPtrT> Advance(TNode<IntPtrT> delta);
+  TNode<IntPtrT> Advance(TNode<IntPtrT> delta, bool backward = false);
 
   // Look ahead for short Star and inline it in a branch, including subsequent
   // dispatch. Anything after this point can assume that the following
