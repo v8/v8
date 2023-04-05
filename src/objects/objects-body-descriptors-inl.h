@@ -988,10 +988,12 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
                     v);
 
     InstructionStream istream = InstructionStream::cast(obj);
-    Code code = istream.unchecked_code(kAcquireLoad);
-    RelocIterator it(code, istream, istream.unchecked_relocation_info(),
-                     kRelocModeMask);
-    v->VisitRelocInfo(&it);
+    Code code;
+    if (istream.TryGetCodeUnchecked(&code, kAcquireLoad)) {
+      RelocIterator it(code, istream, istream.unchecked_relocation_info(),
+                       kRelocModeMask);
+      v->VisitRelocInfo(&it);
+    }
   }
 
   template <typename ObjectVisitor>
