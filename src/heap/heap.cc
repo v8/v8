@@ -3499,8 +3499,8 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
         marking_state()->IsMarked(filler)) {
       Page* page = Page::FromAddress(new_end);
       marking_state()->bitmap(page)->ClearRange<AccessMode::ATOMIC>(
-          page->AddressToMarkbitIndex(new_end),
-          page->AddressToMarkbitIndex(new_end + bytes_to_trim));
+          MarkingBitmap::AddressToIndex(new_end),
+          MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
     }
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the

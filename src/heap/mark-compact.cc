@@ -168,11 +168,13 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
     // The object is either part of a black area of black allocation or a
     // regular black object
     CHECK(bitmap(page)->AllBitsSetInRange(
-              page->AddressToMarkbitIndex(current),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
+              MarkingBitmap::AddressToIndex(current),
+              MarkingBitmap::LimitAddressToIndex(
+                  next_object_must_be_here_or_later)) ||
           bitmap(page)->AllBitsClearInRange(
-              page->AddressToMarkbitIndex(current + kTaggedSize * 2),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
+              MarkingBitmap::AddressToIndex(current) + 1,
+              MarkingBitmap::LimitAddressToIndex(
+                  next_object_must_be_here_or_later)));
     current = next_object_must_be_here_or_later;
   }
 }
@@ -5215,8 +5217,8 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
 
   // Remove mark bits in evacuated area.
   marking_state->bitmap(page)->ClearRange<AccessMode::NON_ATOMIC>(
-      page->AddressToMarkbitIndex(page->area_start()),
-      page->AddressToMarkbitIndex(failed_start));
+      MarkingBitmap::AddressToIndex(page->area_start()),
+      MarkingBitmap::LimitAddressToIndex(failed_start));
 
   // Remove outdated slots.
   RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
@@ -5695,8 +5697,8 @@ void MinorMarkCompactCollector::MakeIterable(
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
       DCHECK(heap_->non_atomic_marking_state()->bitmap(p)->AllBitsClearInRange(
-          p->AddressToMarkbitIndex(free_start),
-          p->AddressToMarkbitIndex(free_end)));
+          MarkingBitmap::AddressToIndex(free_start),
+          MarkingBitmap::LimitAddressToIndex(free_end)));
       if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
         ZapCode(free_start, size);
       }
@@ -5710,8 +5712,8 @@ void MinorMarkCompactCollector::MakeIterable(
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
     DCHECK(heap_->non_atomic_marking_state()->bitmap(p)->AllBitsClearInRange(
-        p->AddressToMarkbitIndex(free_start),
-        p->AddressToMarkbitIndex(p->area_end())));
+        MarkingBitmap::AddressToIndex(free_start),
+        MarkingBitmap::LimitAddressToIndex(p->area_end())));
     if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
       ZapCode(free_start, size);
     }

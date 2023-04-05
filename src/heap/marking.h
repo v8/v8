@@ -109,6 +109,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return (address & kPageAlignmentMask) >> kTaggedSizeLog2;
   }
 
+  V8_INLINE static constexpr MarkBitIndex LimitAddressToIndex(Address address);
+
   V8_INLINE static constexpr CellIndex IndexToCell(MarkBitIndex index) {
     return index >> kBitsPerCellLog2;
   }

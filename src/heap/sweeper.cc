@@ -887,9 +887,8 @@ inline void HandleFreeSpace(Address free_start, Address free_end, Heap* heap) {
   DCHECK(
       heap->non_atomic_marking_state()
           ->bitmap(Page::FromAddress(free_start))
-          ->AllBitsClearInRange(
-              Page::FromAddress(free_start)->AddressToMarkbitIndex(free_start),
-              Page::FromAddress(free_start)->AddressToMarkbitIndex(free_end)));
+          ->AllBitsClearInRange(MarkingBitmap::AddressToIndex(free_start),
+                                MarkingBitmap::LimitAddressToIndex(free_end)));
   AtomicZapBlock(free_start, size);
   heap->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
 }

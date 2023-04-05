@@ -78,7 +78,7 @@ void BasicMemoryChunk::SynchronizedHeapLoad() const {
   CHECK(reinterpret_cast<Heap*>(
             base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
                 &(const_cast<BasicMemoryChunk*>(this)->heap_)))) != nullptr ||
-        InReadOnlySpaceRaw());
+        IsFlagSet(READ_ONLY_HEAP));
 }
 #endif
 

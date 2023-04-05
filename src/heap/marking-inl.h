@@ -159,6 +159,13 @@ MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
 }
 
 // static
+constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
+    Address address) {
+  if (IsAligned(address, BasicMemoryChunk::kAlignment)) return kLength;
+  return AddressToIndex(address);
+}
+
+// static
 MarkBit MarkBit::From(Address address) {
   return MarkingBitmap::MarkBitFromAddress(address);
 }
