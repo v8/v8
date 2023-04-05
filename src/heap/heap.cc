@@ -1759,7 +1759,8 @@ void Heap::CollectGarbage(AllocationSpace space,
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
     {
-      GCTracer::RecordGCPhasesInfo record_gc_phases_info(this, collector);
+      GCTracer::RecordGCPhasesInfo record_gc_phases_info(this, collector,
+                                                         gc_reason);
       base::Optional<TimedHistogramScope> histogram_timer_scope;
       base::Optional<OptionalTimedHistogramScope>
           histogram_timer_priority_scope;
