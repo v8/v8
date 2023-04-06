@@ -506,18 +506,17 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   __ addi(t6, t6, Lo12);  // jump PC + Hi20 + Lo12
 
   int entry_size_log2 = 3;
+  __ BlockTrampolinePoolFor(num_labels * 2 + 5);
   __ CalcScaledAddress(t6, t6, reg, entry_size_log2);
   __ Jump(t6);
   {
-    MacroAssembler::BlockTrampolinePoolScope(masm());
-    __ BlockTrampolinePoolFor(num_labels * kInstrSize * 2);
     __ bind(&table);
     for (int i = 0; i < num_labels; ++i) {
       __ BranchLong(labels[i]);
     }
     DCHECK_EQ(num_labels * 2, __ InstructionsGeneratedSince(&table));
-    __ bind(&fallthrough);
   }
+  __ bind(&fallthrough);
 }
 
 #undef __
