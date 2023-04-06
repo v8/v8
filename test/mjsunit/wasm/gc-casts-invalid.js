@@ -91,15 +91,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.instantiate();
 })();
 
-(function TestBrOnCastNullBranches() {
+(function TestBrOnCastNonNullToNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let nonNullable =
-    builder.addType(makeSig([], [wasmRefType(struct)]));
   builder.addFunction('fct', makeSig([wasmRefType(struct)], []))
   .addBody([
-    kExprBlock, nonNullable,
+    kExprBlock, kAnyRefCode,
       kExprLocalGet, 0,
       ...wasmBrOnCast(0, wasmRefType(struct), wasmRefNullType(struct)),
       kExprDrop,
@@ -112,7 +110,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   // a nullable value on cast, the label target must be nullable as well.
   assertThrows(() => builder.instantiate(),
     WebAssembly.CompileError,
-    /type error in branch\[0\] \(expected \(ref 0\), got \(ref null 0\)\)/);
+    /invalid types for br_on_cast: \(ref null 0\) is not a subtype of \(ref 0\)/);
 })();
 
 (function TestBrOnCastInvalidFlags() {

@@ -1302,17 +1302,19 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
+  // Real upcasts are invalid for br_on_cast. Casting to the same type is
+  // however similar to an upcast.
   const byte kBrOnCastUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_STRUCT_NEW_DEFAULT(subtype_index),
-                    WASM_BR_ON_CAST(0, subtype_index, type_index), WASM_DROP,
+      {WASM_BLOCK_R(refNull(type_index), WASM_STRUCT_NEW_DEFAULT(type_index),
+                    WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(subtype_index),
-                    WASM_BR_ON_CAST(0, subtype_index, type_index), WASM_DROP,
+      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(type_index),
+                    WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
@@ -1345,18 +1347,20 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
+  // Real upcasts are invalid for br_on_cast. Casting to the same type is
+  // however similar to an upcast.
   const byte kBrOnCastFailUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(subtype_index),
                     WASM_STRUCT_NEW_DEFAULT(subtype_index),
-                    WASM_BR_ON_CAST_FAIL(0, subtype_index, type_index),
+                    WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastFailUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(subtype_index), WASM_REF_NULL(subtype_index),
-                    WASM_BR_ON_CAST_FAIL(0, subtype_index, type_index),
+                    WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 

@@ -4330,7 +4330,6 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   byte super_struct = builder.AddStruct({F(kWasmI16, true)});
   byte sub_struct =
       builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}, super_struct);
-  byte fct_type = builder.AddSignature(sigs.i_i(), kNoSuperType);
 
   ValueType supertype = ValueType::RefNull(super_struct);
   ValueType subtype = ValueType::RefNull(sub_struct);
@@ -4389,43 +4388,59 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
                     WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct))},
       kAppendEnd, "type error in branch[0] (expected i32, got (ref 0))");
 
-  // Argument type error.
+  // Wrong argument type.
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, sub_struct),
+       WASM_GC_OP(kExprRefCast), sub_struct},
+      kAppendEnd,
+      "br_on_cast[0] expected type (ref null 0), found local.get of type "
+      "externref");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, super_struct, sub_struct),
+       WASM_GC_OP(kExprRefCast), sub_struct},
+      kAppendEnd,
+      "br_on_cast[0] expected type (ref null 0), found local.get of type "
+      "externref");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct)},
+      kAppendEnd,
+      "br_on_cast[0] expected type (ref null 0), found local.get of type "
+      "externref");
+  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+                {WASM_LOCAL_GET(0),
+                 WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct)},
+                kAppendEnd,
+                "br_on_cast[0] expected type (ref null 0), found local.get of "
+                "type externref");
+
+  // Wrong immediate type.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kExternRefCode, sub_struct),
        WASM_GC_OP(kExprRefCast), sub_struct},
       kAppendEnd,
-      "Invalid types for br_on_cast: local.get of type externref has "
-      "to be in the same reference type hierarchy as (ref 1)");
+      "invalid types for br_on_cast: (ref 1) is not a subtype of externref");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, kExternRefCode, sub_struct),
        WASM_GC_OP(kExprRefCast), sub_struct},
       kAppendEnd,
-      "Invalid types for br_on_cast: local.get of type externref has "
-      "to be in the same reference type hierarchy as (ref 1)");
+      "invalid types for br_on_cast: (ref null 1) is not a subtype of "
+      "externref");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, kExternRefCode, sub_struct)},
       kAppendEnd,
-      "Invalid types for br_on_cast: local.get of type externref has to "
-      "be in the same reference type hierarchy as (ref 1)");
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST_FAIL_NULL(0, kExternRefCode, sub_struct)},
-      kAppendEnd,
-      "Invalid types for br_on_cast: local.get of type "
-      "externref has to be in the same reference type hierarchy as (ref 1)");
-
-  // Cast between types of different type hierarchies is invalid.
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, fct_type),
-       WASM_UNREACHABLE},
-      kAppendEnd,
-      "Invalid types for br_on_cast: local.get of type (ref null 0) has "
-      "to be in the same reference type hierarchy as (ref 2)");
+      "invalid types for br_on_cast: (ref 1) is not a subtype of externref");
+  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+                {WASM_LOCAL_GET(0),
+                 WASM_BR_ON_CAST_FAIL_NULL(0, kExternRefCode, sub_struct)},
+                kAppendEnd,
+                "invalid types for br_on_cast: (ref null 1) is not a subtype "
+                "of externref");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
