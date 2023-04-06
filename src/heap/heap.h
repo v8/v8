@@ -1510,12 +1510,18 @@ class Heap {
   V8_EXPORT_PRIVATE HeapObject PrecedeWithFiller(HeapObject object,
                                                  int filler_size);
 
+  // Creates a filler object and returns a heap object immediately after it.
+  // Unlike `PrecedeWithFiller` this method will not perform slot verification
+  // since this would race on background threads.
+  V8_EXPORT_PRIVATE HeapObject PrecedeWithFillerBackground(HeapObject object,
+                                                           int filler_size);
+
   // Creates a filler object if needed for alignment and returns a heap object
   // immediately after it. If any space is left after the returned object,
   // another filler object is created so the over allocated memory is iterable.
   V8_WARN_UNUSED_RESULT HeapObject
-  AlignWithFiller(HeapObject object, int object_size, int allocation_size,
-                  AllocationAlignment alignment);
+  AlignWithFillerBackground(HeapObject object, int object_size,
+                            int allocation_size, AllocationAlignment alignment);
 
   // Allocate an external backing store with the given allocation callback.
   // If the callback fails (indicated by a nullptr result) then this function

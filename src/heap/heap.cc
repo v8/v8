@@ -3034,19 +3034,25 @@ HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
-HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
-                                 int allocation_size,
-                                 AllocationAlignment alignment) {
+HeapObject Heap::PrecedeWithFillerBackground(HeapObject object,
+                                             int filler_size) {
+  CreateFillerObjectAtBackground(object.address(), filler_size);
+  return HeapObject::FromAddress(object.address() + filler_size);
+}
+
+HeapObject Heap::AlignWithFillerBackground(HeapObject object, int object_size,
+                                           int allocation_size,
+                                           AllocationAlignment alignment) {
   const int filler_size = allocation_size - object_size;
   DCHECK_LT(0, filler_size);
   const int pre_filler = GetFillToAlign(object.address(), alignment);
   if (pre_filler) {
-    object = PrecedeWithFiller(object, pre_filler);
+    object = PrecedeWithFillerBackground(object, pre_filler);
   }
   DCHECK_LE(0, filler_size - pre_filler);
   const int post_filler = filler_size - pre_filler;
   if (post_filler) {
-    CreateFillerObjectAt(object.address() + object_size, post_filler);
+    CreateFillerObjectAtBackground(object.address() + object_size, post_filler);
   }
   return object;
 }
