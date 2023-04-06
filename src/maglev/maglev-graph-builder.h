@@ -1195,7 +1195,10 @@ class MaglevGraphBuilder {
     //   * CheckMapsWithMigration -- this only migrates representations of
     //     values, not the values themselves, so cached values are still valid.
     static constexpr bool should_clear_unstable_node_aspects =
-        !is_simple_field_store &&
+        // TODO(leszeks): Optimizing for simple stores is currently broken,
+        // as there is no alias analysis to ensure that a store can't modify
+        // an aliasing object.
+        /* !is_simple_field_store &&*/
         !std::is_same_v<NodeT, CheckMapsWithMigration>;
 
     // Simple field stores can't possibly change or migrate the map.
