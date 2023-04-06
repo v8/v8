@@ -2099,6 +2099,19 @@ Object Isolate::UnwindAndFindHandler() {
         // out to user code that could throw.
         UNREACHABLE();
       }
+      case StackFrame::WASM_TO_JS:
+        if (v8_flags.experimental_wasm_stack_switching) {
+          // Decrement the Wasm-to-JS counter.
+          Object suspender_obj = root(RootIndex::kActiveSuspender);
+          if (!suspender_obj.IsUndefined()) {
+            WasmSuspenderObject suspender =
+                WasmSuspenderObject::cast(suspender_obj);
+            int wasm_to_js_counter = suspender.wasm_to_js_counter();
+            DCHECK_LT(0, wasm_to_js_counter);
+            suspender.set_wasm_to_js_counter(wasm_to_js_counter - 1);
+          }
+        }
+        break;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
       case StackFrame::MAGLEV:

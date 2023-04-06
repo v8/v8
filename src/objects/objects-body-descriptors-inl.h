@@ -1242,6 +1242,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmStruct);
     case WASM_TYPE_INFO_TYPE:
       return CALL_APPLY(WasmTypeInfo);
+    case WASM_SUSPENDER_OBJECT_TYPE:
+      return CALL_APPLY(WasmSuspenderObject);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
@@ -1333,7 +1335,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
-    case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:

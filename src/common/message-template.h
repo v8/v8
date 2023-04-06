@@ -671,6 +671,7 @@ namespace internal {
   T(WasmTrapBadSuspender, "invalid suspender object for suspend")              \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
+  T(WasmTrapSuspendJSFrames, "trying to suspend JS frames")                    \
   T(WasmExceptionError, "wasm exception")                                      \
   T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \
