@@ -35,6 +35,10 @@ class TieringManager {
 
   // For use when a JSFunction is available.
   static int InterruptBudgetFor(Isolate* isolate, JSFunction function);
+  // For use when no JSFunction is available.
+  static int InitialInterruptBudget();
+  // How much to reduce the interrupt budget by on OSR.
+  static int OsrTierupWeight();
 
   void MarkForTurboFanOptimization(JSFunction function);
 
@@ -54,7 +58,7 @@ class TieringManager {
 
   class V8_NODISCARD OnInterruptTickScope final {
    public:
-    OnInterruptTickScope();
+    explicit OnInterruptTickScope();
 
    private:
     DisallowGarbageCollection no_gc;
