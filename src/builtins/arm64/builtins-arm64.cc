@@ -5078,16 +5078,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
   }
 
-  Label profiler_enabled, done_api_call;
-  __ RecordComment("Check if profiler is enabled");
+  Label profiler_or_side_effects_check_enabled, done_api_call;
+  __ RecordComment("Check if profiler or side effects check is enabled");
   __ Ldrb(w10, __ ExternalReferenceAsOperand(
-                   ExternalReference::is_profiling_address(isolate), x10));
-  __ Cbnz(w10, &profiler_enabled);
+                   ExternalReference::execution_mode_address(isolate), x10));
+  __ Cbnz(w10, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
   __ RecordComment("Check if RCS is enabled");
   __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
   __ Ldrsw(w10, MemOperand(x10));
-  __ Cbnz(w10, &profiler_enabled);
+  __ Cbnz(w10, &profiler_or_side_effects_check_enabled);
 #endif  // V8_RUNTIME_CALL_STATS
 
   __ RecordComment("Call the api function directly.");
@@ -5174,7 +5174,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
-    __ Bind(&profiler_enabled);
+    __ Bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback.
     __ Mov(x3, function_address);
     __ Mov(x10, thunk_ref);

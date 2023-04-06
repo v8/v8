@@ -2771,12 +2771,14 @@ void Debug::UpdateDebugInfosForExecutionMode() {
   // Walk all debug infos and update their execution mode if it is different
   // from the isolate execution mode.
   DebugInfoListNode* current = debug_info_list_;
+  DebugInfo::ExecutionMode current_debug_execution_mode =
+      isolate_->debug_execution_mode();
   while (current != nullptr) {
     Handle<DebugInfo> debug_info = current->debug_info();
     if (debug_info->HasInstrumentedBytecodeArray() &&
-        debug_info->DebugExecutionMode() != isolate_->debug_execution_mode()) {
+        debug_info->DebugExecutionMode() != current_debug_execution_mode) {
       DCHECK(debug_info->shared().HasBytecodeArray());
-      if (isolate_->debug_execution_mode() == DebugInfo::kBreakpoints) {
+      if (current_debug_execution_mode == DebugInfo::kBreakpoints) {
         ClearSideEffectChecks(debug_info);
         ApplyBreakPoints(debug_info);
       } else {
@@ -2798,7 +2800,7 @@ void Debug::SetTerminateOnResume() {
 
 void Debug::StartSideEffectCheckMode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK(isolate_->debug_execution_mode() != DebugInfo::kSideEffects);
+  DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kBreakpoints);
   isolate_->set_debug_execution_mode(DebugInfo::kSideEffects);
   UpdateHookOnFunctionCall();
   side_effect_check_failed_ = false;
@@ -2817,7 +2819,7 @@ void Debug::StartSideEffectCheckMode() {
 
 void Debug::StopSideEffectCheckMode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK(isolate_->debug_execution_mode() == DebugInfo::kSideEffects);
+  DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
     DCHECK_IMPLIES(v8_flags.strict_termination_checks,

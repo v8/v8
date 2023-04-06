@@ -58,13 +58,12 @@ class StatsCounter;
   V(promise_hook_flags_address, "Isolate::promise_hook_flags_address()")       \
   V(promise_hook_address, "Isolate::promise_hook_address()")                   \
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
-  V(debug_execution_mode_address, "Isolate::debug_execution_mode_address()")   \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
     "Debug::hook_on_function_call_address()")                                  \
   V(runtime_function_table_address,                                            \
     "Runtime::runtime_function_table_address()")                               \
-  V(is_profiling_address, "IsolateData::is_profiling")                         \
+  V(execution_mode_address, "IsolateData::execution_mode")                     \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(fast_c_call_caller_fp_address,                                             \

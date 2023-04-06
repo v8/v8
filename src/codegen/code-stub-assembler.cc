@@ -15490,15 +15490,14 @@ TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
+// TODO(v8:13825): remove once CallApiGetter/CallApiAccessor are able to handle
+// side effects checking.
 TNode<BoolT> CodeStubAssembler::IsSideEffectFreeDebuggingActive() {
-  TNode<Uint8T> debug_execution_mode = Load<Uint8T>(ExternalConstant(
-      ExternalReference::debug_execution_mode_address(isolate())));
-
-  TNode<BoolT> is_active =
-      Word32Equal(debug_execution_mode,
-                  Int32Constant(DebugInfo::ExecutionMode::kSideEffects));
-
-  return is_active;
+  TNode<Uint8T> execution_mode = Load<Uint8T>(
+      ExternalConstant(ExternalReference::execution_mode_address(isolate())));
+  int32_t mask =
+      static_cast<int32_t>(IsolateExecutionModeFlag::kCheckSideEffects);
+  return IsSetWord32(execution_mode, mask);
 }
 
 TNode<BoolT> CodeStubAssembler::HasAsyncEventDelegate() {

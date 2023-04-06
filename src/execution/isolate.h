@@ -530,8 +530,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(size_t, num_cpu_profilers, 0)                                             \
   /* true if a trace is being formatted through Error.prepareStackTrace. */   \
   V(bool, formatting_stack_trace, false)                                      \
-  /* Perform side effect checks on function call and API callbacks. */        \
-  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
@@ -1330,15 +1328,34 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Debug* debug() const { return debug_; }
 
   bool is_profiling() const {
-    return isolate_data_.is_profiling_.load(std::memory_order_relaxed);
+    return isolate_data_.execution_mode_ &
+           IsolateExecutionModeFlag::kIsProfiling;
   }
 
   void SetIsProfiling(bool enabled) {
     if (enabled) {
       CollectSourcePositionsForAllBytecodeArrays();
     }
-    isolate_data_.is_profiling_.store(enabled, std::memory_order_relaxed);
+    isolate_data_.execution_mode_.set(IsolateExecutionModeFlag::kIsProfiling,
+                                      enabled);
     UpdateLogObjectRelocation();
+  }
+
+  // Perform side effect checks on function calls and API callbacks.
+  // See Debug::StartSideEffectCheckMode().
+  bool should_check_side_effects() const {
+    return isolate_data_.execution_mode_ &
+           IsolateExecutionModeFlag::kCheckSideEffects;
+  }
+
+  DebugInfo::ExecutionMode debug_execution_mode() const {
+    return should_check_side_effects() ? DebugInfo::kSideEffects
+                                       : DebugInfo::kBreakpoints;
+  }
+  void set_debug_execution_mode(DebugInfo::ExecutionMode debug_execution_mode) {
+    bool check_side_effects = debug_execution_mode == DebugInfo::kSideEffects;
+    isolate_data_.execution_mode_.set(
+        IsolateExecutionModeFlag::kCheckSideEffects, check_side_effects);
   }
 
   Logger* logger() const { return logger_; }
@@ -1561,10 +1578,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool* force_slow_path_address() { return &force_slow_path_; }
 
   bool jitless() const { return jitless_; }
-
-  DebugInfo::ExecutionMode* debug_execution_mode_address() {
-    return &debug_execution_mode_;
-  }
 
   base::RandomNumberGenerator* random_number_generator();
 

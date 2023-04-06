@@ -65,7 +65,7 @@ inline JSReceiver FunctionCallbackArguments::holder() const {
 
 #define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,            \
                                        ACCESSOR_INFO, RECEIVER, ACCESSOR_KIND) \
-  if (ISOLATE->debug_execution_mode() == DebugInfo::kSideEffects &&            \
+  if (ISOLATE->should_check_side_effects() &&                                  \
       !ISOLATE->debug()->PerformSideEffectCheckForAccessor(                    \
           ACCESSOR_INFO, RECEIVER, ACCESSOR_KIND)) {                           \
     return {};                                                                 \
@@ -75,7 +75,7 @@ inline JSReceiver FunctionCallbackArguments::holder() const {
 
 #define PREPARE_CALLBACK_INFO_INTERCEPTOR(ISOLATE, F, API_RETURN_TYPE, \
                                           INTERCEPTOR_INFO)            \
-  if (ISOLATE->debug_execution_mode() == DebugInfo::kSideEffects &&    \
+  if (ISOLATE->should_check_side_effects() &&                          \
       !ISOLATE->debug()->PerformSideEffectCheckForInterceptor(         \
           INTERCEPTOR_INFO)) {                                         \
     return {};                                                         \
@@ -89,7 +89,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   v8::FunctionCallback f =
       reinterpret_cast<v8::FunctionCallback>(handler.callback());
   Handle<Object> receiver_check_unsupported;
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
+  if (isolate->should_check_side_effects() &&
       !isolate->debug()->PerformSideEffectCheckForCallback(
           handle(handler, isolate))) {
     return {};

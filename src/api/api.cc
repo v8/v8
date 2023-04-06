@@ -5486,7 +5486,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   bool should_set_has_no_side_effect =
       side_effect_type == SideEffectType::kHasNoSideEffect &&
-      i_isolate->debug_execution_mode() == i::DebugInfo::kSideEffects;
+      i_isolate->should_check_side_effects();
   if (should_set_has_no_side_effect) {
     CHECK(self->IsJSFunction() &&
           i::JSFunction::cast(*self).shared().IsApiFunction());
@@ -11329,6 +11329,10 @@ void InvokeAccessorGetterCallback(
   // Leaving JavaScript.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kAccessorGetterCallback);
+
+  // TODO(v8:13825): perform side effect checks if necessary once
+  // AccessorInfo/InterceptorInfo is passed here.
+
   Address getter_address = reinterpret_cast<Address>(getter);
   ExternalCallbackScope call_scope(i_isolate, getter_address);
   getter(property, info);
@@ -11338,6 +11342,10 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kFunctionCallback);
+
+  // TODO(v8:13825): perform side effect checks if necessary once
+  // CallHandlerInfo is passed here.
+
   Address callback_address = reinterpret_cast<Address>(callback);
   ExternalCallbackScope call_scope(i_isolate, callback_address);
   callback(info);

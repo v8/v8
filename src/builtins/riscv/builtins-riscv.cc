@@ -3119,7 +3119,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == a1 || function_address == a2);
 
-  Label profiler_enabled, done_api_call;
+  Label profiler_or_side_effects_check_enabled, done_api_call;
   {
     UseScratchRegisterScope temp(masm);
     Register scratch = temp.Acquire();
@@ -3133,16 +3133,18 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
       __ Add32(s2, s2, Operand(1));
       __ Sw(s2, MemOperand(s5, kLevelOffset));
     }
-    __ RecordComment("Check if profiler is enabled");
+    __ RecordComment("Check if profiler or side effects check is enabled");
     __ Lb(scratch,
           __ ExternalReferenceAsOperand(
-              ExternalReference::is_profiling_address(isolate), scratch));
-    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg));
+              ExternalReference::execution_mode_address(isolate), scratch));
+    __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
+              Operand(zero_reg));
 #ifdef V8_RUNTIME_CALL_STATS
     __ RecordComment("Check if RCS is enabled");
     __ li(scratch, ExternalReference::address_of_runtime_stats_flag());
     __ Lw(scratch, MemOperand(scratch, 0));
-    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg));
+    __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
+              Operand(zero_reg));
 #endif  // V8_RUNTIME_CALL_STATS
 
     // Call the api function directly.
@@ -3210,7 +3212,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     UseScratchRegisterScope temp(masm);
     Register scratch = temp.Acquire();
     // Call the api function via thunk wrapper.
-    __ bind(&profiler_enabled);
+    __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback.
     __ li(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);

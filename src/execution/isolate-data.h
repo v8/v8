@@ -30,7 +30,7 @@ class Isolate;
   V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                   \
   V(kIsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)      \
   V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                   \
-  V(kIsProfilingOffset, kUInt8Size, is_profiling)                             \
+  V(kExecutionModeOffset, kUInt8Size, execution_mode)                         \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
   V(kTablesAlignmentPaddingOffset, 2, tables_alignment_padding)               \
   /* Tier 0 tables (small but fast access). */                                \
@@ -190,11 +190,11 @@ class IsolateData final {
   uint8_t is_shared_space_isolate_flag_ = false;
   uint8_t uses_shared_heap_flag_ = false;
 
-  // true if the Isolate is being profiled. Causes collection of extra compile
-  // info.
-  // This flag is checked on every API callback/getter call.
-  // Only valid values are 0 or 1.
-  std::atomic<uint8_t> is_profiling_{false};
+  // Storage for is_profiling and should_check_side_effects booleans.
+  // This value is checked on every API callback/getter call.
+  base::Flags<IsolateExecutionModeFlag, uint8_t, std::atomic<uint8_t>>
+      execution_mode_ = {IsolateExecutionModeFlag::kNoFlags};
+  static_assert(sizeof(execution_mode_) == 1);
 
   //
   // Not super hot flags, which are put here because we have to align the
