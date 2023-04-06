@@ -188,3 +188,40 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     WebAssembly.CompileError,
     /type error in branch\[0\] \(expected \(ref 0\), got anyref\)/);
 })();
+
+// Test that validation and code generation works fine in unreachable paths.
+(function TestBrOnCastUnreachable() {
+  print(arguments.callee.name);
+
+  let casts = [
+    [kGCPrefix, kExprBrOnCastFailNull, 0, kI31RefCode],
+    [kGCPrefix, kExprBrOnCastNull, 0, kI31RefCode],
+    [kGCPrefix, kExprBrOnCastFail, 0, kI31RefCode],
+    [kGCPrefix, kExprBrOnCast, 0, kI31RefCode],
+    wasmBrOnCastFail(
+      0, wasmRefNullType(kWasmAnyRef), wasmRefNullType(kWasmI31Ref)),
+    wasmBrOnCast(0, wasmRefNullType(kWasmAnyRef), wasmRefNullType(kWasmI31Ref)),
+    wasmBrOnCastFail(0, wasmRefNullType(kWasmAnyRef), wasmRefType(kWasmI31Ref)),
+    wasmBrOnCast(0, wasmRefNullType(kWasmAnyRef), wasmRefType(kWasmI31Ref)),
+  ];
+
+  for (let brOnCast of casts) {
+    let builder = new WasmModuleBuilder();
+
+    builder.addFunction(`brOnCastUnreachable`,
+                        makeSig([kWasmExternRef], []))
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprLocalGet, 0,
+        kGCPrefix, kExprExternInternalize,
+        kExprUnreachable,
+        ...brOnCast,
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+    ]).exportFunc();
+
+    let wasm = builder.instantiate().exports;
+    assertTraps(kTrapUnreachable, () => wasm.brOnCastUnreachable());
+  }
+})();

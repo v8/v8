@@ -5967,7 +5967,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       Drop(obj);
       Push(CreateValue(flags.res_is_null ? source_type.AsNonNull()
                                          : source_type));
-      CALL_INTERFACE(Forward, obj, stack_value(1));
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
     } else if (null_succeeds) {
       // TODO(mliedtke): This is only needed for the legacy br_on_cast_fail.
       // Remove it on cleanup.
@@ -5976,7 +5976,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       // guaranteed to be non-null.
       Drop(obj);
       Push(CreateValue(obj.type.AsNonNull()));
-      CALL_INTERFACE(Forward, obj, stack_value(1));
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
     }
     if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
 
