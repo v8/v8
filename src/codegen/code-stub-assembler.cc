@@ -59,7 +59,7 @@ Builtin BigIntComparisonBuiltinOf(Operation const& op) {
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
       TorqueGeneratedExportedMacrosAssembler(state) {
-  if (DEBUG_BOOL && v8_flags.csa_trap_on_node != nullptr) {
+  if (v8_flags.csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }
 }
@@ -1740,8 +1740,12 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
+
+  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
+  // that the graph structure does not depend on the configuration-specific
+  // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+      Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
   // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
   // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
@@ -1769,8 +1773,12 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
+
+  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
+  // that the graph structure does not depend on the configuration-specific
+  // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+      Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
   // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
   // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
