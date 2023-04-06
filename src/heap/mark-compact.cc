@@ -871,6 +871,7 @@ void MarkCompactCollector::VerifyMarking() {
   DCHECK(heap_->incremental_marking()->IsStopped());
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_VERIFY);
     FullMarkingVerifier verifier(heap());
     verifier.Run();
     heap()->old_space()->VerifyLiveBytes();
@@ -5720,6 +5721,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   ClearNonLiveReferences();
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_VERIFY);
     YoungGenerationMarkingVerifier verifier(heap());
     verifier.Run();
   }

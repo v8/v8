@@ -686,6 +686,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
 
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
+  TRACE_EVENT0("v8.gc", "V8.HeapVerification");
   HeapVerification verifier(heap);
   verifier.Verify();
 }
