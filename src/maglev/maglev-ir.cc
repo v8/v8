@@ -1170,6 +1170,56 @@ DEF_OPERATION(Int32GreaterThan)
 DEF_OPERATION(Int32GreaterThanOrEqual)
 #undef DEF_OPERATION
 
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  Register result = ToRegister(this->result());
+  Label is_false, end;
+  __ CompareFloat64(left, right);
+  // Ucomisd sets these flags accordingly:
+  //   UNORDERED(one of the operands is a NaN): ZF,PF,CF := 111;
+  //   GREATER_THAN: ZF,PF,CF := 000;
+  //   LESS_THAN: ZF,PF,CF := 001;
+  //   EQUAL: ZF,PF,CF := 100;
+  // Since ZF can be set by NaN or EQUAL, we check for NaN first.
+  __ JumpIf(ConditionForNaN(), &is_false);
+  __ JumpIf(NegateCondition(ConditionForFloat64(kOperation)), &is_false);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kTrueValue);
+  __ Jump(&end);
+  {
+    __ bind(&is_false);
+    __ LoadRoot(result, RootIndex::kFalseValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
+  }
+DEF_OPERATION(Float64Equal)
+DEF_OPERATION(Float64StrictEqual)
+DEF_OPERATION(Float64LessThan)
+DEF_OPERATION(Float64LessThanOrEqual)
+DEF_OPERATION(Float64GreaterThan)
+DEF_OPERATION(Float64GreaterThanOrEqual)
+#undef DEF_OPERATION
+
 void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
