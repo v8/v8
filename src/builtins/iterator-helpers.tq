@@ -687,4 +687,45 @@ transitioning javascript builtin IteratorPrototypeReduce(
   unreachable;
 }
 
+// --- toArray helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.toarray
+transitioning javascript builtin IteratorPrototypeToArray(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.toArray';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 4. Let items be a new empty List.
+  let items = growable_fixed_array::NewGrowableFixedArray();
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let next: JSReceiver;
+
+  // 5. Repeat,
+  while (true) {
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return CreateArrayFromList(items).
+      return items.ToJSArray();
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    //  d. Append value to items.
+    items.Push(value);
+  }
+  unreachable;
+}
+
 }  // namespace iterator

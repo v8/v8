@@ -608,3 +608,20 @@ function TestHelperPrototypeSurface(helper) {
                  return sum + x;
                })});
 })();
+
+// --- Test ToArray helper
+
+(function TestToArray() {
+  const iter = gen();
+  assertEquals('function', typeof iter.toArray);
+  assertEquals(0, iter.toArray.length);
+  assertEquals('toArray', iter.toArray.name);
+  const toArrayResult = iter.toArray();
+  assertEquals([42, 43], toArrayResult);
+})();
+
+(function TestToArrayEmptyIterator() {
+  const iter = gen();
+  const toArrayResult = iter.take(0).toArray();
+  assertEquals([], toArrayResult);
+})();
