@@ -2148,24 +2148,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Ret();
 }
 
-void BranchIfFloat64Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  DoubleRegister left = ToDoubleRegister(left_input());
-  DoubleRegister right = ToDoubleRegister(right_input());
-  __ Fcmp(left, right);
-  if (jump_mode_if_nan_ == JumpModeIfNaN::kJumpToTrue) {
-    __ JumpIf(vs, if_true()->label());
-  } else {
-    __ JumpIf(vs, if_false()->label());
-  }
-  __ Branch(ConditionFor(operation_), if_true(), if_false(),
-            state.next_block());
-}
-
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

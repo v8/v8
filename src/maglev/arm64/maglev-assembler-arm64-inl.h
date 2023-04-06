@@ -34,6 +34,12 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+constexpr Condition ConditionForFloat64(Operation operation) {
+  return ConditionFor(operation);
+}
+
+constexpr Condition ConditionForNaN() { return vs; }
+
 inline int ShiftFromScale(int n) {
   switch (n) {
     case 1:
@@ -686,6 +692,11 @@ inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   Cmp(src1.W(), src2.W());
+}
+
+inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
+                                            DoubleRegister src2) {
+  Fcmp(src1, src2);
 }
 
 inline void MaglevAssembler::CallSelf() {

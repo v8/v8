@@ -195,6 +195,8 @@ enum class ToNumberHint {
   kAssumeNumberOrOddball
 };
 
+enum class UseReprHintRecording { kRecord, kDoNotRecord };
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(
@@ -891,7 +893,9 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  ValueNode* GetTaggedValue(ValueNode* value);
+  ValueNode* GetTaggedValue(ValueNode* value,
+                            UseReprHintRecording record_use_repr_hint =
+                                UseReprHintRecording::kRecord);
 
   ValueNode* GetTaggedValue(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);

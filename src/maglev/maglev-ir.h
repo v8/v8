@@ -308,6 +308,8 @@ class MergePointInterpreterFrameState;
 #define BRANCH_CONTROL_NODE_LIST(V) \
   V(BranchIfRootConstant)           \
   V(BranchIfToBooleanTrue)          \
+  V(BranchIfInt32ToBooleanTrue)     \
+  V(BranchIfFloat64ToBooleanTrue)   \
   V(BranchIfReferenceCompare)       \
   V(BranchIfInt32Compare)           \
   V(BranchIfFloat64Compare)         \
@@ -456,6 +458,7 @@ enum class TaggedToFloat64ConversionType : uint8_t {
 };
 
 constexpr Condition ConditionFor(Operation cond);
+constexpr Condition ConditionForNaN();
 
 bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
 bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node);
@@ -7345,6 +7348,46 @@ class BranchIfToBooleanTrue
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class BranchIfInt32ToBooleanTrue
+    : public BranchControlNodeT<1, BranchIfInt32ToBooleanTrue> {
+  using Base = BranchControlNodeT<1, BranchIfInt32ToBooleanTrue>;
+
+ public:
+  explicit BranchIfInt32ToBooleanTrue(uint64_t bitfield,
+                                      BasicBlockRef* if_true_refs,
+                                      BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfFloat64ToBooleanTrue
+    : public BranchControlNodeT<1, BranchIfFloat64ToBooleanTrue> {
+  using Base = BranchControlNodeT<1, BranchIfFloat64ToBooleanTrue>;
+
+ public:
+  explicit BranchIfFloat64ToBooleanTrue(uint64_t bitfield,
+                                        BasicBlockRef* if_true_refs,
+                                        BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class BranchIfInt32Compare
     : public BranchControlNodeT<2, BranchIfInt32Compare> {
   using Base = BranchControlNodeT<2, BranchIfInt32Compare>;
@@ -7381,15 +7424,10 @@ class BranchIfFloat64Compare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  enum class JumpModeIfNaN { kJumpToFalse, kJumpToTrue };
-
-  explicit BranchIfFloat64Compare(
-      uint64_t bitfield, Operation operation, BasicBlockRef* if_true_refs,
-      BasicBlockRef* if_false_refs,
-      JumpModeIfNaN jump_mode_if_nan = JumpModeIfNaN::kJumpToFalse)
-      : Base(bitfield, if_true_refs, if_false_refs),
-        operation_(operation),
-        jump_mode_if_nan_(jump_mode_if_nan) {}
+  explicit BranchIfFloat64Compare(uint64_t bitfield, Operation operation,
+                                  BasicBlockRef* if_true_refs,
+                                  BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
@@ -7400,7 +7438,6 @@ class BranchIfFloat64Compare
 
  private:
   Operation operation_;
-  JumpModeIfNaN jump_mode_if_nan_;
 };
 
 class BranchIfReferenceCompare

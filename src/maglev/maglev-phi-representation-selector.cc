@@ -569,6 +569,33 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+// When a BranchIfToBooleanTrue has an untagged Int32/Float64 Phi as input, we
+// convert it to a BranchIfInt32ToBooleanTrue/BranchIfFloat6ToBooleanTrue to
+// avoid retagging the Phi.
+void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    BranchIfToBooleanTrue* node, Phi* phi, int input_index,
+    const ProcessingState& state) {
+  DCHECK_EQ(input_index, 0);
+
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+      return;
+
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return;
+
+    case ValueRepresentation::kTagged:
+      return;
+
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
+}
+
 // {node} was using {phi} without any untagging, which means that it was using
 // {phi} as a tagged value, so, if we've untagged {phi}, we need to re-tag it
 // for {node}.

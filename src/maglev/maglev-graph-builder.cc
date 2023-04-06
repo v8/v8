@@ -631,9 +631,11 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       nullptr);
 }
 
-ValueNode* MaglevGraphBuilder::GetTaggedValue(ValueNode* value) {
-  if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kTagged);
+ValueNode* MaglevGraphBuilder::GetTaggedValue(
+    ValueNode* value, UseReprHintRecording record_use_repr_hint) {
+  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord) &&
+      value->Is<Phi>()) {
+    value->Cast<Phi>()->RecordUseReprHint(UseRepresentation::kTagged);
   }
 
   ValueRepresentation representation =
@@ -6414,16 +6416,21 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     // {node} is zero. The {true_target} and {false_target} are thus swapped
     // when we generate a BranchIfFloat64Compare or a BranchIfInt32Compare
     // below.
-    DCHECK_EQ(repr, cond->value_representation());
     switch (repr) {
       case ValueRepresentation::kFloat64:
-        return FinishBlock<BranchIfFloat64Compare>(
-            {cond, GetFloat64Constant(0)}, Operation::kEqual, false_target,
-            true_target, BranchIfFloat64Compare::JumpModeIfNaN::kJumpToTrue);
+      case ValueRepresentation::kHoleyFloat64:
+        DCHECK(cond->value_representation() == ValueRepresentation::kFloat64 ||
+               cond->value_representation() ==
+                   ValueRepresentation::kHoleyFloat64);
+        // The ToBoolean of both the_hole and NaN is false, so we can use the
+        // same operation for HoleyFloat64 and Float64.
+        return FinishBlock<BranchIfFloat64ToBooleanTrue>({cond}, true_target,
+                                                         false_target);
+
       case ValueRepresentation::kInt32:
-        return FinishBlock<BranchIfInt32Compare>({cond, GetInt32Constant(0)},
-                                                 Operation::kEqual,
-                                                 false_target, true_target);
+        DCHECK_EQ(cond->value_representation(), ValueRepresentation::kInt32);
+        return FinishBlock<BranchIfInt32ToBooleanTrue>({cond}, true_target,
+                                                       false_target);
       default:
         UNREACHABLE();
     }
@@ -6433,7 +6440,9 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
   if (node->value_representation() == ValueRepresentation::kInt32) {
     block =
         make_specialized_branch_if_compare(ValueRepresentation::kInt32, node);
-  } else if (node->value_representation() == ValueRepresentation::kFloat64) {
+  } else if (node->value_representation() == ValueRepresentation::kFloat64 ||
+             node->value_representation() ==
+                 ValueRepresentation::kHoleyFloat64) {
     block =
         make_specialized_branch_if_compare(ValueRepresentation::kFloat64, node);
   } else {
@@ -6446,17 +6455,11 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
                                                  as_float64);
     } else {
       DCHECK(node->value_representation() == ValueRepresentation::kTagged ||
-             node->value_representation() == ValueRepresentation::kUint32 ||
-             node->value_representation() ==
-                 ValueRepresentation::kHoleyFloat64);
+             node->value_representation() == ValueRepresentation::kUint32);
       // Uint32 should be rare enough that tagging them shouldn't be too
       // expensive (we don't have a `BranchIfUint32Compare` node, and adding one
       // doesn't seem worth it at this point).
-      // TODO(leszeks): HoleyFloat64s are probably less rare, but
-      // BranchIfFloat64Compare doesn't trivially work for them since the hole
-      // NaN is equivalent to undefined and should ToBoolean to false, while
-      // normal NaN ToBooleans to true.
-      node = GetTaggedValue(node);
+      node = GetTaggedValue(node, UseReprHintRecording::kDoNotRecord);
       block =
           FinishBlock<BranchIfToBooleanTrue>({node}, true_target, false_target);
     }

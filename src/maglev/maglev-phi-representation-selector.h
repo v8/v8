@@ -121,6 +121,8 @@ class MaglevPhiRepresentationSelector {
                           int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(CheckedStoreFixedArraySmiElement* node, Phi* phi,
                           int input_index, const ProcessingState& state);
+  void UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
+                          int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
                           const ProcessingState& state);
 

@@ -39,6 +39,26 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+constexpr Condition ConditionForFloat64(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return below;
+    case Operation::kLessThanOrEqual:
+      return below_equal;
+    case Operation::kGreaterThan:
+      return above;
+    case Operation::kGreaterThanOrEqual:
+      return above_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
+constexpr Condition ConditionForNaN() { return parity_even; }
+
 inline ScaleFactor ScaleFactorFromInt(int n) {
   switch (n) {
     case 1:
@@ -555,6 +575,11 @@ inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   cmpl(src1, src2);
+}
+
+inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
+                                            DoubleRegister src2) {
+  Ucomisd(src1, src2);
 }
 
 inline void MaglevAssembler::CallSelf() {

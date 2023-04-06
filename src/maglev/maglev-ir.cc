@@ -3952,6 +3952,45 @@ void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                fallthrough_when_true);
 }
 
+void BranchIfInt32ToBooleanTrue::SetValueLocationConstraints() {
+  // TODO(victorgomes): consider using any input instead.
+  UseRegister(condition_input());
+}
+void BranchIfInt32ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  __ CompareInt32(ToRegister(condition_input()), 0);
+  __ Branch(kNotEqual, if_true(), if_false(), state.next_block());
+}
+
+void BranchIfFloat64ToBooleanTrue::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+  set_double_temporaries_needed(1);
+}
+void BranchIfFloat64ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  DoubleRegister double_scratch = temps.AcquireDouble();
+
+  __ Move(double_scratch, 0.0);
+  __ CompareFloat64(ToDoubleRegister(condition_input()), double_scratch);
+  __ JumpIf(ConditionForNaN(), if_false()->label());
+  __ Branch(kEqual, if_false(), if_true(), state.next_block());
+}
+
+void BranchIfFloat64Compare::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ CompareFloat64(left, right);
+  __ JumpIf(ConditionForNaN(), if_false()->label());
+  __ Branch(ConditionForFloat64(operation_), if_true(), if_false(),
+            state.next_block());
+}
+
 void BranchIfReferenceCompare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

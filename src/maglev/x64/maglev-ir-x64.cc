@@ -22,24 +22,6 @@ namespace maglev {
 
 #define __ masm->
 
-constexpr Condition ConditionForFloat64(Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return equal;
-    case Operation::kLessThan:
-      return below;
-    case Operation::kLessThanOrEqual:
-      return below_equal;
-    case Operation::kGreaterThan:
-      return above;
-    case Operation::kGreaterThanOrEqual:
-      return above_equal;
-    default:
-      UNREACHABLE();
-  }
-}
-
 // ---
 // Nodes
 // ---
@@ -2167,24 +2149,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ DropArguments(actual_params_size, r9, MacroAssembler::kCountIsInteger,
                    MacroAssembler::kCountIncludesReceiver);
   __ Ret();
-}
-
-void BranchIfFloat64Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  DoubleRegister left = ToDoubleRegister(left_input());
-  DoubleRegister right = ToDoubleRegister(right_input());
-  __ Ucomisd(left, right);
-  if (jump_mode_if_nan_ == JumpModeIfNaN::kJumpToTrue) {
-    __ j(parity_even, if_true()->label());
-  } else {
-    __ j(parity_even, if_false()->label());
-  }
-  __ Branch(ConditionForFloat64(operation_), if_true(), if_false(),
-            state.next_block());
 }
 
 }  // namespace maglev
