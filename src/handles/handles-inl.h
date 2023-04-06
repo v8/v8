@@ -166,7 +166,7 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
                   "main-thread handle can only be created on the main thread.");
   HandleScopeData* data = isolate->handle_scope_data();
   Address* result = data->next;
-  if (result == data->limit) {
+  if (V8_UNLIKELY(result == data->limit)) {
     result = Extend(isolate);
   }
   // Update the current next field, set the value in the created handle,
