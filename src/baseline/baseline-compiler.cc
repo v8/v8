@@ -601,11 +601,10 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     ASM_CODE_COMMENT(&masm_);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
 
-    if (weight < 0) {
-      SaveAccumulatorScope accumulator_scope(&basm_);
-      CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug,
-                  __ FunctionOperand());
-    }
+    DCHECK_LT(weight, 0);
+    SaveAccumulatorScope accumulator_scope(&basm_);
+    CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug,
+                __ FunctionOperand());
   }
   if (label) __ Jump(label);
 }
@@ -1941,10 +1940,11 @@ void BaselineCompiler::VisitJumpLoop() {
 
     __ Bind(&osr);
     Label do_osr;
-    UpdateInterruptBudgetAndJumpToLabel(-TieringManager::OsrTierupWeight(),
-                                        nullptr, &do_osr);
+    int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr);
     __ Bind(&do_osr);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
   }
 #endif  // !V8_JITLESS

@@ -660,34 +660,25 @@ DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
 // Tiering: Sparkplug / feedback vector allocation.
-DEFINE_INT(interrupt_budget_for_feedback_allocation, 940,
-           "The fixed interrupt budget (in bytecode size) for allocating "
-           "feedback vectors")
-DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
-           "The interrupt budget factor (applied to bytecode size) for "
-           "allocating feedback vectors, used when bytecode size is known")
+DEFINE_INT(invocation_count_for_feedback_allocation, 8,
+           "invocation count required for allocating feedback vectors")
 
 // Tiering: Maglev.
 DEFINE_INT(invocation_count_for_maglev, 100,
-           "interrupt budget which should be used for the profiler counter")
+           "invocation count required for optimizing with Maglev")
 
 // Tiering: Turbofan.
 DEFINE_INT(invocation_count_for_turbofan, 2400,
-           "interrupt budget which should be used for the profiler counter")
-DEFINE_INT(interrupt_budget, 3 * 66 * KB,
-           "interrupt budget which should be used for the profiler counter")
-DEFINE_INT(invocation_count_for_osr, 500,
-           "number of invocations we want to see after requesting previous "
-           "tier up to increase the OSR urgency")
-DEFINE_INT(
-    osr_to_tierup, 4,
-    "number of times we follow the OSR path before we try to tier up again")
+           "invocation count required for optimizing with TurboFan")
+DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
+DEFINE_INT(osr_to_tierup, 200,
+           "number to decrease the invocation budget by when we follow OSR")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 200)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, invocation_count_for_turbofan, 2700)
+
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 400)
 
 // Tiering: JIT fuzzing.
 //
@@ -705,7 +696,6 @@ DEFINE_NEG_IMPLICATION(jit_fuzzing, baseline_batch_compilation)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev, 10)
 // And tier up to Turbofan should happen after a couple dozen or so executions.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_turbofan, 20)
-DEFINE_VALUE_IMPLICATION(jit_fuzzing, interrupt_budget, 10 * KB)
 // Additionally, some other JIT-related thresholds should also be lowered.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
@@ -853,14 +843,14 @@ DEFINE_BOOL(
 DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_recompilation)
 DEFINE_IMPLICATION(stress_concurrent_inlining, turbofan)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
-DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
-                              15 * KB)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining,
+                              invocation_count_for_turbofan, 150)
 DEFINE_BOOL(maglev_overwrite_budget, false,
             "whether maglev resets the interrupt budget")
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
-                              700 * KB)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
+                              invocation_count_for_turbofan, 1800)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,

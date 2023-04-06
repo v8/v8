@@ -185,21 +185,7 @@ int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
   }
 
   DCHECK(!function.has_feedback_vector());
-  return bytecode_length *
-         v8_flags.interrupt_budget_factor_for_feedback_allocation;
-}
-
-// static
-int TieringManager::InitialInterruptBudget() {
-  return V8_LIKELY(v8_flags.lazy_feedback_allocation)
-             ? v8_flags.interrupt_budget_for_feedback_allocation
-             : v8_flags.interrupt_budget;
-}
-
-// static
-int TieringManager::OsrTierupWeight() {
-  return static_cast<int>(static_cast<double>(v8_flags.interrupt_budget) /
-                          v8_flags.osr_to_tierup);
+  return bytecode_length * v8_flags.invocation_count_for_feedback_allocation;
 }
 
 namespace {

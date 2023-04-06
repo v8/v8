@@ -253,9 +253,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
+  // Adjusts the interrupt budget by the provided weight. Returns the new
+  // budget.
+  TNode<Int32T> UpdateInterruptBudget(TNode<Int32T> weight);
   // Decrements the bytecode array's interrupt budget by a 32-bit unsigned
   // |weight| and calls Runtime::kInterrupt if counter reaches zero.
-  void UpdateInterruptBudget(TNode<Int32T> weight);
+  void DecreaseInterruptBudget(TNode<Int32T> weight);
 
   TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 

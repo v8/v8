@@ -29,7 +29,7 @@
   await Protocol.Runtime.evaluate({ expression: 'generateTrash()' });
   const profile1 = await Protocol.HeapProfiler.stopSampling();
   const size1 = nodeSize(profile1.result.profile.head);
-  InspectorTest.log('Retained size is less than 10KB:', size1 < 10000);
+  InspectorTest.log('Retained size is less than 15KB:', size1 < 15000);
 
   await Protocol.HeapProfiler.startSampling({
     samplingInterval: 100,

@@ -1941,7 +1941,7 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
       *no_closures_cell_map()));
   DisallowGarbageCollection no_gc;
   result.set_value(*value);
-  result.SetInitialInterruptBudget();
+  result.clear_interrupt_budget();
   result.clear_padding();
   return handle(result, isolate());
 }
@@ -1952,7 +1952,7 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
       *one_closure_cell_map()));
   DisallowGarbageCollection no_gc;
   result.set_value(*value);
-  result.SetInitialInterruptBudget();
+  result.clear_interrupt_budget();
   result.clear_padding();
   return handle(result, isolate());
 }
@@ -1963,7 +1963,7 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
       *many_closures_cell_map()));
   DisallowGarbageCollection no_gc;
   result.set_value(*value);
-  result.SetInitialInterruptBudget();
+  result.clear_interrupt_budget();
   result.clear_padding();
   return handle(result, isolate());
 }
