@@ -3166,6 +3166,10 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 }
 
 ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
+  if (Phi* phi = object->TryCast<Phi>()) {
+    phi->RecordUseReprHint(UseRepresentation::kInt32);
+  }
+
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();

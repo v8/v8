@@ -443,7 +443,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
           // Convert that int32 value back to float64.
           __ Cvtlsi2sd(converted_back, result_reg);
           // Check that the result of the float64->int32->float64 is equal to
-          // the input (i.e. that the conversion didn't truncate.
+          // the input (i.e. that the conversion didn't truncate).
           __ Ucomisd(number_value, converted_back);
           __ EmitEagerDeoptIf(parity_even, DeoptimizeReason::kNotInt32, node);
           __ j(equal, *done);
