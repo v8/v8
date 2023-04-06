@@ -300,11 +300,12 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register scratch0, Register scratch1,
+                       Register value, Register scratch0, Register scratch1,
                        RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
+        value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
@@ -313,11 +314,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
+    DCHECK(!AreAliased(value, scratch0, scratch1));
   }
 
   void Generate() final {
-    __ CheckPageFlag(object_, scratch0_,
-                     MemoryChunk::kPointersFromHereAreInterestingMask, zero,
+    __ CheckPageFlag(value_, scratch0_,
+                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
     __ lea(scratch1_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -341,6 +343,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Operand const operand_;
+  Register const value_;
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
@@ -962,7 +965,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(not_equal, AbortReason::kOperandIsCleared);
       }
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand,
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       if (arch_opcode == kArchStoreWithWriteBarrier) {
@@ -974,12 +977,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      // Checking the {value}'s page flags first favors old-to-old pointers,
-      // which can skip the OOL code. Checking the {object}'s flags first
-      // would favor new-to-new pointers.
-      __ CheckPageFlag(value, scratch0,
-                       MemoryChunk::kPointersToHereAreInterestingMask, not_zero,
-                       ool->entry());
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
       __ bind(ool->exit());
       break;
     }

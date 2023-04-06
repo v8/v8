@@ -176,11 +176,13 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
-                       RecordWriteMode mode, StubCallMode stub_mode,
+                       Register value, RecordWriteMode mode,
+                       StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
+        value_(value),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
@@ -191,8 +193,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    __ CheckPageFlag(object_, MemoryChunk::kPointersFromHereAreInterestingMask,
-                     eq, exit());
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                     exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -220,6 +222,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Operand const offset_;
+  Register const value_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode stub_mode_;
@@ -963,16 +966,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ dmb(ISH);
       }
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, offset, mode,
-                                                   DetermineStubCallMode(),
-                                                   &unwinding_info_writer_);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, offset, value, mode, DetermineStubCallMode(),
+          &unwinding_info_writer_);
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      // Checking the {value}'s page flags first favors old-to-old pointers,
-      // which can skip the OOL code. Checking the {object}'s flags first
-      // would favor new-to-new pointers.
-      __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;

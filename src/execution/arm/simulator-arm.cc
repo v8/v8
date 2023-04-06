@@ -6290,10 +6290,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  if (argument_count > reg_arg_count) {
-    memcpy(reinterpret_cast<intptr_t*>(entry_stack), arguments + reg_arg_count,
-           (argument_count - reg_arg_count) * sizeof(*arguments));
-  }
+  memcpy(reinterpret_cast<intptr_t*>(entry_stack), arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
