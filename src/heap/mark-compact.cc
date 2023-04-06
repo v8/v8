@@ -1688,9 +1688,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
+      if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
       dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
@@ -1698,18 +1697,16 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
+      if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
       dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       InstructionStream istream = InstructionStream::cast(dst);
       istream.Relocate(dst_addr - src_addr);
-      if (mode != MigrationMode::kFast) {
+      if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
       dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
@@ -1717,9 +1714,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
       base->heap_->CopyBlock(dst_addr, src_addr, size);
-      if (mode != MigrationMode::kFast) {
+      if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      }
     }
     src.set_map_word_forwarded(dst, kRelaxedStore);
   }

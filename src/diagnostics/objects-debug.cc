@@ -1135,10 +1135,8 @@ void Code::CodeVerify(Isolate* isolate) {
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
-  Code code;
-  if (!TryGetCode(&code, kAcquireLoad)) return;
   CHECK(
-      IsAligned(code.instruction_size(),
+      IsAligned(code(kAcquireLoad).instruction_size(),
                 static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
 #if !defined(_MSC_VER) || defined(__clang__)
   // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
@@ -1147,7 +1145,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
-  CHECK_EQ(*this, code.instruction_stream());
+  CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
@@ -1155,7 +1153,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 
   relocation_info().ObjectVerify(isolate);
 
-  for (RelocIterator it(code); !it.done(); it.next()) {
+  for (RelocIterator it(code(kAcquireLoad)); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {

@@ -61,14 +61,9 @@ class InstructionStream : public HeapObject {
   static constexpr int kMetadataAlignment = kIntSize;
 
   // [code]: The associated Code object.
-  //
-  // Set to Smi::zero() during initialization. Heap iterators may see
-  // InstructionStream objects in this state.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, Object)
-  // Use when the InstructionStream may be uninitialized:
-  inline bool TryGetCode(Code* code_out, AcquireLoadTag tag) const;
-  inline bool TryGetCodeUnchecked(Code* code_out, AcquireLoadTag tag) const;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, HeapObject)
+  inline Code unchecked_code(AcquireLoadTag tag) const;
 
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -154,12 +149,6 @@ class InstructionStream : public HeapObject {
   class BodyDescriptor;
 
  private:
-  // During the Code initialization process, InstructionStream::code is briefly
-  // unset (the Code object has not been allocated yet). In this state it is
-  // only visible through heap iteration.
-  inline void initialize_code_to_smi_zero(ReleaseStoreTag);
-  friend class Factory;
-
   OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
 };
 
