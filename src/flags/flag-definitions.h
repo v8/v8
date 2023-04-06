@@ -2157,8 +2157,7 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
-DEFINE_EXPERIMENTAL_FEATURE(minor_mc,
-                            "perform young generation mark compact GCs")
+DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
 
 DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_mc_marking,
