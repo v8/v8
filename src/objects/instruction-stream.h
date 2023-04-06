@@ -64,16 +64,28 @@ class InstructionStream : public HeapObject {
   //
   // Set to Smi::zero() during initialization. Heap iterators may see
   // InstructionStream objects in this state.
-  inline Code code(AcquireLoadTag tag) const;
-  inline void set_code(Code value, ReleaseStoreTag tag);
-  inline Object raw_code(AcquireLoadTag tag) const;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, Object)
   // Use when the InstructionStream may be uninitialized:
   inline bool TryGetCode(Code* code_out, AcquireLoadTag tag) const;
   inline bool TryGetCodeUnchecked(Code* code_out, AcquireLoadTag tag) const;
 
-  // [relocation_info]: InstructionStream relocation information.
-  inline ByteArray relocation_info() const;
-  inline void set_relocation_info(ByteArray value);
+  // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
+  // allocated in a separate pointer compression cage instead of the cage where
+  // all the other objects are allocated. This field contains cage base value
+  // which is used for decompressing the references to non-InstructionStream
+  // objects (map, deoptimization_data, etc.).
+  inline PtrComprCageBase main_cage_base() const;
+  inline PtrComprCageBase main_cage_base(RelaxedLoadTag) const;
+  inline void set_main_cage_base(Address cage_base, RelaxedStoreTag);
+
+  // The size of the entire body section, containing instructions and inlined
+  // metadata.
+  DECL_PRIMITIVE_ACCESSORS(body_size, int)
+  inline Address body_end() const;
+
+  // [relocation_info]: InstructionStream relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
   // Unchecked accessor to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
 
@@ -81,10 +93,21 @@ class InstructionStream : public HeapObject {
   inline byte* relocation_end() const;
   inline int relocation_size() const;
 
-  // The size of the entire body section, containing instructions and inlined
-  // metadata.
-  DECL_PRIMITIVE_ACCESSORS(body_size, int)
-  inline Address body_end() const;
+  // The entire code object including its header is copied verbatim to the
+  // snapshot so that it can be written in one, fast, memcpy during
+  // deserialization. The deserializer will overwrite some pointers, rather
+  // like a runtime linker, but the random allocation addresses used in the
+  // mksnapshot process would still be present in the unlinked snapshot data,
+  // which would make snapshot production non-reproducible. This method wipes
+  // out the to-be-overwritten header data for reproducible snapshots.
+  inline void WipeOutHeader();
+
+  static inline InstructionStream FromTargetAddress(Address address);
+  static inline InstructionStream FromEntryAddress(Address location_of_address);
+
+  // Relocate the code by delta bytes. Called to signal that this code
+  // object has been moved by delta bytes.
+  void Relocate(intptr_t delta);
 
   inline void clear_padding();
 
@@ -96,12 +119,6 @@ class InstructionStream : public HeapObject {
     return kHeaderSize + body_size + TrailingPaddingSizeFor(body_size);
   }
   inline int Size() const;
-
-  static inline InstructionStream FromTargetAddress(Address address);
-  static inline InstructionStream FromEntryAddress(Address location_of_address);
-
-  // Relocate the code by delta bytes.
-  void Relocate(intptr_t delta);
 
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
@@ -115,6 +132,8 @@ class InstructionStream : public HeapObject {
   V(kEndOfStrongFieldsOffset, 0)                                      \
   /* Data or code not directly visited by GC directly starts here. */ \
   V(kDataStart, 0)                                                    \
+  V(kMainCageBaseUpper32BitsOffset,                                   \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                    \
   V(kBodySizeOffset, kIntSize)                                        \
   V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))           \
   V(kHeaderSize, 0)
@@ -140,9 +159,6 @@ class InstructionStream : public HeapObject {
   // only visible through heap iteration.
   inline void initialize_code_to_smi_zero(ReleaseStoreTag);
   friend class Factory;
-
-  // Must be used when loading any of InstructionStream's tagged fields.
-  static inline PtrComprCageBase main_cage_base();
 
   OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
 };
