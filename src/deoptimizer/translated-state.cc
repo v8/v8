@@ -1518,7 +1518,7 @@ int TranslatedState::CreateNextTranslatedValue(
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewDouble(this, value);
+          TranslatedValue::NewHoleyDouble(this, value);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
