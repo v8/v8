@@ -273,6 +273,8 @@ class MergePointInterpreterFrameState;
   V(CheckString)                            \
   V(CheckSymbol)                            \
   V(CheckValue)                             \
+  V(CheckValueEqualsInt32)                  \
+  V(CheckValueEqualsFloat64)                \
   V(CheckValueEqualsString)                 \
   V(CheckInstanceType)                      \
   V(DebugBreak)                             \
@@ -4292,6 +4294,55 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
 
  private:
   const compiler::HeapObjectRef value_;
+};
+
+class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
+  using Base = FixedInputNodeT<1, CheckValueEqualsInt32>;
+
+ public:
+  explicit CheckValueEqualsInt32(uint64_t bitfield, int32_t value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  int32_t value() const { return value_; }
+
+  static constexpr int kTargetIndex = 0;
+  Input& target_input() { return input(kTargetIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int32_t value_;
+};
+
+class CheckValueEqualsFloat64
+    : public FixedInputNodeT<1, CheckValueEqualsFloat64> {
+  using Base = FixedInputNodeT<1, CheckValueEqualsFloat64>;
+
+ public:
+  explicit CheckValueEqualsFloat64(uint64_t bitfield, double value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  double value() const { return value_; }
+
+  static constexpr int kTargetIndex = 0;
+  Input& target_input() { return input(kTargetIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const double value_;
 };
 
 class CheckValueEqualsString

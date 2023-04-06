@@ -172,6 +172,14 @@ struct FastLiteralField {
     }                          \
   } while (false)
 
+#define RETURN_VOID_IF_DONE(result) \
+  do {                              \
+    auto res = result;              \
+    if (res.IsDone()) {             \
+      return;                       \
+    }                               \
+  } while (false)
+
 #define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
   do {                                                      \
     auto res = result;                                      \
@@ -1424,11 +1432,20 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
-  bool TryBuildScriptContextConstantAccess(
+  ReduceResult TryBuildScriptContextStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
-  bool TryBuildScriptContextAccess(
+  ReduceResult TryBuildPropertyCellStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
-  bool TryBuildPropertyCellAccess(
+  ReduceResult TryBuildGlobalStore(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+
+  ReduceResult TryBuildScriptContextConstantLoad(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+  ReduceResult TryBuildScriptContextLoad(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+  ReduceResult TryBuildPropertyCellLoad(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+  ReduceResult TryBuildGlobalLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
@@ -1444,6 +1461,7 @@ class MaglevGraphBuilder {
                       base::Vector<const compiler::MapRef> maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
+  ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
   ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);

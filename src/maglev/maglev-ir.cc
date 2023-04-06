@@ -1752,6 +1752,31 @@ void CheckValue::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
 }
 
+void CheckValueEqualsInt32::SetValueLocationConstraints() {
+  UseRegister(target_input());
+}
+void CheckValueEqualsInt32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register target = ToRegister(target_input());
+  __ CompareInt32(target, value());
+  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
+}
+
+void CheckValueEqualsFloat64::SetValueLocationConstraints() {
+  UseRegister(target_input());
+  set_double_temporaries_needed(1);
+}
+void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  DoubleRegister scratch = temps.AcquireDouble();
+  DoubleRegister target = ToDoubleRegister(target_input());
+  __ Move(scratch, value());
+  __ CompareFloat64(scratch, target);
+  __ EmitEagerDeoptIf(ConditionForNaN(), DeoptimizeReason::kWrongValue, this);
+  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
+}
+
 void CheckValueEqualsString::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kStringEqual>::type;
   UseFixed(target_input(), D::GetRegisterParameter(D::kLeft));
@@ -4223,6 +4248,16 @@ void CheckMaps::PrintParams(std::ostream& os,
 void CheckValue::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *value().object() << ")";
+}
+
+void CheckValueEqualsInt32::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void CheckValueEqualsFloat64::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
 }
 
 void CheckValueEqualsString::PrintParams(

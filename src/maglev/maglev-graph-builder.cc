@@ -1935,50 +1935,139 @@ void MaglevGraphBuilder::VisitTestTypeOf() {
   SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
 }
 
-bool MaglevGraphBuilder::TryBuildScriptContextConstantAccess(
+ReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
-  if (!global_access_feedback.immutable()) return false;
-
-  compiler::OptionalObjectRef maybe_slot_value =
-      global_access_feedback.script_context().get(
-          broker(), global_access_feedback.slot_index());
-  if (!maybe_slot_value) return false;
-
-  SetAccumulator(GetConstant(maybe_slot_value.value()));
-  return true;
-}
-
-bool MaglevGraphBuilder::TryBuildScriptContextAccess(
-    const compiler::GlobalAccessFeedback& global_access_feedback) {
-  if (!global_access_feedback.IsScriptContextSlot()) return false;
-  if (TryBuildScriptContextConstantAccess(global_access_feedback)) return true;
-
+  DCHECK(global_access_feedback.IsScriptContextSlot());
+  if (global_access_feedback.immutable()) {
+    return ReduceResult::Fail();
+  }
   auto script_context = GetConstant(global_access_feedback.script_context());
-  current_interpreter_frame_.set_accumulator(LoadAndCacheContextSlot(
-      script_context,
-      Context::OffsetOfElementAt(global_access_feedback.slot_index()),
-      global_access_feedback.immutable() ? kImmutable : kMutable));
-  return true;
+  int offset = Context::OffsetOfElementAt(global_access_feedback.slot_index());
+  StoreAndCacheContextSlot(script_context, offset, GetAccumulatorTagged());
+  return ReduceResult::Done();
 }
 
-bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
+ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
-  // TODO(leszeks): A bunch of this is copied from
-  // js-native-context-specialization.cc -- I wonder if we can unify it
-  // somehow.
+  DCHECK(global_access_feedback.IsPropertyCell());
 
-  if (!global_access_feedback.IsPropertyCell()) return false;
   compiler::PropertyCellRef property_cell =
       global_access_feedback.property_cell();
-
-  if (!property_cell.Cache(broker())) return false;
+  if (!property_cell.Cache(broker())) return ReduceResult::Fail();
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
   if (property_cell_value.IsTheHole(broker())) {
     // The property cell is no longer valid.
     EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    return true;
+    return ReduceResult::DoneWithAbort();
+  }
+
+  PropertyDetails property_details = property_cell.property_details();
+  DCHECK_EQ(PropertyKind::kData, property_details.kind());
+
+  if (property_details.IsReadOnly()) {
+    // Don't even bother trying to lower stores to read-only data
+    // properties.
+    // TODO(neis): We could generate code that checks if the new value
+    // equals the old one and then does nothing or deopts, respectively.
+    return ReduceResult::Fail();
+  }
+
+  switch (property_details.cell_type()) {
+    case PropertyCellType::kUndefined:
+      return ReduceResult::Fail();
+    case PropertyCellType::kConstant: {
+      // TODO(victorgomes): Support non-internalized string.
+      if (property_cell_value.IsString() &&
+          !property_cell_value.IsInternalizedString()) {
+        return ReduceResult::Fail();
+      }
+      // Record a code dependency on the cell, and just deoptimize if the new
+      // value doesn't match the previous value stored inside the cell.
+      broker()->dependencies()->DependOnGlobalProperty(property_cell);
+      ValueNode* value = GetAccumulatorTagged();
+      return BuildCheckValue(value, property_cell_value);
+    }
+    case PropertyCellType::kConstantType: {
+      // We rely on stability further below.
+      if (property_cell_value.IsHeapObject() &&
+          !property_cell_value.AsHeapObject().map(broker()).is_stable()) {
+        return ReduceResult::Fail();
+      }
+      // Record a code dependency on the cell, and just deoptimize if the new
+      // value's type doesn't match the type of the previous value in the cell.
+      broker()->dependencies()->DependOnGlobalProperty(property_cell);
+      ValueNode* value = GetAccumulatorTagged();
+      if (property_cell_value.IsHeapObject()) {
+        compiler::MapRef property_cell_value_map =
+            property_cell_value.AsHeapObject().map(broker());
+        broker()->dependencies()->DependOnStableMap(property_cell_value_map);
+        BuildCheckHeapObject(value);
+        BuildCheckMaps(value, base::VectorOf({property_cell_value_map}));
+      } else {
+        BuildCheckSmi(value);
+      }
+      ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
+      BuildStoreTaggedField(property_cell_node, value,
+                            PropertyCell::kValueOffset);
+      break;
+    }
+    case PropertyCellType::kMutable: {
+      // Record a code dependency on the cell, and just deoptimize if the
+      // property ever becomes read-only.
+      broker()->dependencies()->DependOnGlobalProperty(property_cell);
+      ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
+      ValueNode* value = GetAccumulatorTagged();
+      BuildStoreTaggedField(property_cell_node, value,
+                            PropertyCell::kValueOffset);
+      break;
+    }
+    case PropertyCellType::kInTransition:
+      UNREACHABLE();
+  }
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildScriptContextConstantLoad(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  DCHECK(global_access_feedback.IsScriptContextSlot());
+  if (!global_access_feedback.immutable()) return ReduceResult::Fail();
+  compiler::OptionalObjectRef maybe_slot_value =
+      global_access_feedback.script_context().get(
+          broker(), global_access_feedback.slot_index());
+  if (!maybe_slot_value) return ReduceResult::Fail();
+  return GetConstant(maybe_slot_value.value());
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildScriptContextLoad(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  DCHECK(global_access_feedback.IsScriptContextSlot());
+  RETURN_IF_DONE(TryBuildScriptContextConstantLoad(global_access_feedback));
+  auto script_context = GetConstant(global_access_feedback.script_context());
+  int offset = Context::OffsetOfElementAt(global_access_feedback.slot_index());
+  return LoadAndCacheContextSlot(
+      script_context, offset,
+      global_access_feedback.immutable() ? kImmutable : kMutable);
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  // TODO(leszeks): A bunch of this is copied from
+  // js-native-context-specialization.cc -- I wonder if we can unify it
+  // somehow.
+  DCHECK(global_access_feedback.IsPropertyCell());
+
+  compiler::PropertyCellRef property_cell =
+      global_access_feedback.property_cell();
+  if (!property_cell.Cache(broker())) return ReduceResult::Fail();
+
+  compiler::ObjectRef property_cell_value = property_cell.value(broker());
+  if (property_cell_value.IsTheHole(broker())) {
+    // The property cell is no longer valid.
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    return ReduceResult::DoneWithAbort();
   }
 
   PropertyDetails property_details = property_cell.property_details();
@@ -1986,8 +2075,7 @@ bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
   DCHECK_EQ(PropertyKind::kData, property_details.kind());
 
   if (!property_details.IsConfigurable() && property_details.IsReadOnly()) {
-    SetAccumulator(GetConstant(property_cell_value));
-    return true;
+    return GetConstant(property_cell_value);
   }
 
   // Record a code dependency on the cell if we can benefit from the
@@ -2001,14 +2089,36 @@ bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
   // Load from constant/undefined global property can be constant-folded.
   if (property_cell_type == PropertyCellType::kConstant ||
       property_cell_type == PropertyCellType::kUndefined) {
-    SetAccumulator(GetConstant(property_cell_value));
-    return true;
+    return GetConstant(property_cell_value);
   }
 
   ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
-  SetAccumulator(AddNewNode<LoadTaggedField>({property_cell_node},
-                                             PropertyCell::kValueOffset));
-  return true;
+  return AddNewNode<LoadTaggedField>({property_cell_node},
+                                     PropertyCell::kValueOffset);
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildGlobalStore(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  if (global_access_feedback.IsScriptContextSlot()) {
+    return TryBuildScriptContextStore(global_access_feedback);
+  } else if (global_access_feedback.IsPropertyCell()) {
+    return TryBuildPropertyCellStore(global_access_feedback);
+  } else {
+    DCHECK(global_access_feedback.IsMegamorphic());
+    return ReduceResult::Fail();
+  }
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildGlobalLoad(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  if (global_access_feedback.IsScriptContextSlot()) {
+    return TryBuildScriptContextLoad(global_access_feedback);
+  } else if (global_access_feedback.IsPropertyCell()) {
+    return TryBuildPropertyCellLoad(global_access_feedback);
+  } else {
+    DCHECK(global_access_feedback.IsMegamorphic());
+    return ReduceResult::Fail();
+  }
 }
 
 void MaglevGraphBuilder::VisitLdaGlobal() {
@@ -2037,13 +2147,20 @@ void MaglevGraphBuilder::VisitLdaGlobalInsideTypeof() {
 
 void MaglevGraphBuilder::VisitStaGlobal() {
   // StaGlobal <name_index> <slot>
-  ValueNode* value = GetAccumulatorTagged();
-  compiler::NameRef name = GetRefOperand<Name>(0);
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  // TODO(v8:7700): Add fast path.
+  const compiler::ProcessedFeedback& access_feedback =
+      broker()->GetFeedbackForGlobalAccess(feedback_source);
 
+  if (!access_feedback.IsInsufficient()) {
+    const compiler::GlobalAccessFeedback& global_access_feedback =
+        access_feedback.AsGlobalAccess();
+    RETURN_VOID_IF_DONE(TryBuildGlobalStore(global_access_feedback));
+  }
+
+  ValueNode* value = GetAccumulatorTagged();
+  compiler::NameRef name = GetRefOperand<Name>(0);
   ValueNode* context = GetContext();
   AddNewNode<StoreGlobal>({context, value}, name, feedback_source);
 }
@@ -3743,9 +3860,8 @@ void MaglevGraphBuilder::BuildLoadGlobal(
   if (!access_feedback.IsInsufficient()) {
     const compiler::GlobalAccessFeedback& global_access_feedback =
         access_feedback.AsGlobalAccess();
-
-    if (TryBuildScriptContextAccess(global_access_feedback)) return;
-    if (TryBuildPropertyCellAccess(global_access_feedback)) return;
+    PROCESS_AND_RETURN_IF_DONE(TryBuildGlobalLoad(global_access_feedback),
+                               SetAccumulator);
   }
 
   ValueNode* context = GetContext();
@@ -3771,12 +3887,9 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess:
-      if (TryBuildNamedAccess(object, object,
-                              processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kStore)
-              .IsDone()) {
-        return;
-      }
+      RETURN_VOID_IF_DONE(TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kStore));
       break;
     default:
       break;
@@ -3806,12 +3919,9 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess:
-      if (TryBuildNamedAccess(object, object,
-                              processed_feedback.AsNamedAccess(),
-                              feedback_source, compiler::AccessMode::kDefine)
-              .IsDone()) {
-        return;
-      }
+      RETURN_VOID_IF_DONE(TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kDefine));
       break;
 
     default:
@@ -3846,12 +3956,9 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
       // the best representation.
       ValueNode* index =
           current_interpreter_frame_.get(iterator_.GetRegisterOperand(1));
-      if (TryBuildElementAccess(object, index,
-                                processed_feedback.AsElementAccess(),
-                                feedback_source)
-              .IsDone()) {
-        return;
-      }
+      RETURN_VOID_IF_DONE(TryBuildElementAccess(
+          object, index, processed_feedback.AsElementAccess(),
+          feedback_source));
     } break;
 
     default:
@@ -4774,20 +4881,56 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
                                                  compiler::HeapObjectRef ref) {
+  DCHECK(!ref.IsSmi());
+  DCHECK(!ref.IsHeapNumber());
+
   if (node->Is<Constant>()) {
     if (node->Cast<Constant>()->object().equals(ref))
       return ReduceResult::Done();
     EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     return ReduceResult::DoneWithAbort();
   }
-  // TODO(v8:7700): Add CheckValue support for numbers (incl. conversion between
-  // Smi and HeapNumber).
-  DCHECK(!ref.IsSmi());
-  DCHECK(!ref.IsHeapNumber());
   if (ref.IsString()) {
+    // TODO(v8:7700): Support non internalized string.
+    DCHECK(ref.IsInternalizedString());
     AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
   } else {
     AddNewNode<CheckValue>({node}, ref);
+  }
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
+                                                 compiler::ObjectRef ref) {
+  if (ref.IsHeapObject() && !ref.IsHeapNumber()) {
+    return BuildCheckValue(node, ref.AsHeapObject());
+  }
+  if (ref.IsSmi()) {
+    int ref_value = ref.AsSmi();
+    if (IsConstantNode(node->opcode())) {
+      if (node->Is<SmiConstant>() &&
+          node->Cast<SmiConstant>()->value().value() == ref_value) {
+        return ReduceResult::Done();
+      }
+      if (node->Is<Int32Constant>() &&
+          node->Cast<Int32Constant>()->value() == ref_value) {
+        return ReduceResult::Done();
+      }
+      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return ReduceResult::DoneWithAbort();
+    }
+    AddNewNode<CheckValueEqualsInt32>({GetInt32(node)}, ref_value);
+  } else {
+    DCHECK(ref.IsHeapNumber());
+    double ref_value = ref.AsHeapNumber().value();
+    if (node->Is<Float64Constant>()) {
+      if (node->Cast<Float64Constant>()->value().get_scalar() == ref_value) {
+        return ReduceResult::Done();
+      }
+      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return ReduceResult::DoneWithAbort();
+    }
+    AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
   }
   return ReduceResult::Done();
 }
