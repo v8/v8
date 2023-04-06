@@ -498,8 +498,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> CopyJSObjectWithAllocationSite(Handle<JSObject> object,
                                                   Handle<AllocationSite> site);
 
-  Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
-                                           Handle<Map> map);
+  Handle<FixedArray> CopyFixedArrayWithMap(
+      Handle<FixedArray> array, Handle<Map> map,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,
@@ -896,7 +897,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return New(map, allocation);
   }
 
-  Handle<JSSharedStruct> NewJSSharedStruct(Handle<JSFunction> constructor);
+  Handle<JSSharedStruct> NewJSSharedStruct(
+      Handle<JSFunction> constructor, Handle<Object> maybe_elements_template);
 
   Handle<JSSharedArray> NewJSSharedArray(Handle<JSFunction> constructor,
                                          int length);
@@ -1123,7 +1125,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   HeapObject New(Handle<Map> map, AllocationType allocation);
 
   template <typename T>
-  Handle<T> CopyArrayWithMap(Handle<T> src, Handle<Map> map);
+  Handle<T> CopyArrayWithMap(
+      Handle<T> src, Handle<Map> map,
+      AllocationType allocation = AllocationType::kYoung);
   template <typename T>
   Handle<T> CopyArrayAndGrow(Handle<T> src, int grow_by,
                              AllocationType allocation);

@@ -6237,9 +6237,9 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
-    Isolate* isolate, Handle<Derived> dictionary) {
+    Isolate* isolate, Handle<Derived> dictionary, AllocationType allocation) {
   return Handle<Derived>::cast(isolate->factory()->CopyFixedArrayWithMap(
-      dictionary, Derived::GetMap(ReadOnlyRoots(isolate))));
+      dictionary, Derived::GetMap(ReadOnlyRoots(isolate)), allocation));
 }
 
 // static

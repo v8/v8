@@ -93,8 +93,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                            Key key, Handle<Object> value,
                            PropertyDetails details);
 
-  static Handle<Derived> ShallowCopy(Isolate* isolate,
-                                     Handle<Derived> dictionary);
+  static Handle<Derived> ShallowCopy(
+      Isolate* isolate, Handle<Derived> dictionary,
+      AllocationType allocation = AllocationType::kYoung);
 
  protected:
   // Generic at put operation.

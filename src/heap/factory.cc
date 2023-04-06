@@ -2217,9 +2217,10 @@ inline void InitEmbedderFields(i::JSObject obj, i::Object initial_value) {
 }  // namespace
 
 template <typename T>
-Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
+Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map,
+                                    AllocationType allocation) {
   int len = src->length();
-  HeapObject new_object = AllocateRawFixedArray(len, AllocationType::kYoung);
+  HeapObject new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
   new_object.set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
   T result = T::cast(new_object);
@@ -2251,8 +2252,9 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
-                                                  Handle<Map> map) {
-  return CopyArrayWithMap(array, map);
+                                                  Handle<Map> map,
+                                                  AllocationType allocation) {
+  return CopyArrayWithMap(array, map, allocation);
 }
 
 Handle<WeakArrayList> Factory::NewUninitializedWeakArrayList(
@@ -4015,7 +4017,7 @@ Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
 }
 
 Handle<JSSharedStruct> Factory::NewJSSharedStruct(
-    Handle<JSFunction> constructor) {
+    Handle<JSFunction> constructor, Handle<Object> maybe_elements_template) {
   SharedObjectSafePublishGuard publish_guard;
 
   Handle<Map> instance_map(constructor->initial_map(), isolate());
@@ -4030,6 +4032,13 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
 
   Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
       NewJSObject(constructor, AllocationType::kSharedOld));
+
+  if (!maybe_elements_template->IsUndefined()) {
+    Handle<NumberDictionary> dictionary = NumberDictionary::ShallowCopy(
+        isolate(), Handle<NumberDictionary>::cast(maybe_elements_template),
+        AllocationType::kSharedOld);
+    instance->set_elements(*dictionary);
+  }
 
   // The struct object has not been fully initialized yet. Disallow allocation
   // from this point on.
