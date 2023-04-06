@@ -298,10 +298,11 @@ class EscapeAnalysisTracker : public ZoneObject {
 
  private:
   friend class EscapeAnalysisResult;
-  static const size_t kMaxTrackedObjects = 100;
+  static constexpr int kTrackingBudget = 600;
 
   VirtualObject* NewVirtualObject(int size) {
-    if (next_object_id_ >= kMaxTrackedObjects) return nullptr;
+    if (number_of_tracked_bytes_ + size >= kTrackingBudget) return nullptr;
+    number_of_tracked_bytes_ += size;
     return zone_->New<VirtualObject>(&variable_states_, next_object_id_++,
                                      size);
   }
@@ -311,6 +312,7 @@ class EscapeAnalysisTracker : public ZoneObject {
   ZoneUnorderedMap<Node*, bool> framestate_might_lazy_deopt_;
   VariableTracker variable_states_;
   VirtualObject::Id next_object_id_ = 0;
+  int number_of_tracked_bytes_ = 0;
   JSGraph* const jsgraph_;
   Zone* const zone_;
 };
