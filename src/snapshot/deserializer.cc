@@ -1220,9 +1220,6 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
 
     InstructionStream istream =
         InstructionStream::cast(*slot_accessor.object());
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      istream.set_main_cage_base(isolate()->cage_base(), kRelaxedStore);
-    }
     Code code = istream.code(kAcquireLoad);
     DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
     for (RelocIterator it(code, istream, istream.relocation_info(),

@@ -1301,9 +1301,6 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
   }
-  // We need to wipe out the header fields *after* wiping out the
-  // relocations, because some of these fields are needed for the latter.
-  off_heap_istream.WipeOutHeader();
 
   // Initially skip serializing the code header. We'll serialize it after the
   // InstructionStream body, so that the various fields the InstructionStream
