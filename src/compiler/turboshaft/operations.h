@@ -135,6 +135,7 @@ struct FrameStateOp;
   V(ConvertObjectToPrimitiveOrDeopt)  \
   V(TruncateObjectToPrimitive)        \
   V(TruncateObjectToPrimitiveOrDeopt) \
+  V(ConvertReceiver)                  \
   V(Tag)                              \
   V(Untag)                            \
   V(NewConsString)                    \
@@ -165,13 +166,17 @@ struct FrameStateOp;
   V(StoreSignedSmallElement)          \
   V(CompareMaps)                      \
   V(CheckMaps)                        \
+  V(CheckedClosure)                   \
   V(CheckEqualsInternalizedString)    \
   V(LoadMessage)                      \
   V(StoreMessage)                     \
   V(SameValue)                        \
   V(Float64SameValue)                 \
   V(FastApiCall)                      \
-  V(RuntimeAbort)
+  V(RuntimeAbort)                     \
+  V(EnsureWritableFastElements)       \
+  V(MaybeGrowFastElements)            \
+  V(TransitionElementsKind)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2947,6 +2952,30 @@ enum class TagKind {
 };
 std::ostream& operator<<(std::ostream& os, TagKind kind);
 
+struct ConvertReceiverOp : FixedArityOperationT<2, ConvertReceiverOp> {
+  ConvertReceiverMode mode;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex value() const { return Base::input(0); }
+  OpIndex global_proxy() const { return Base::input(1); }
+
+  ConvertReceiverOp(OpIndex value, OpIndex global_proxy,
+                    ConvertReceiverMode mode)
+      : Base(value, global_proxy), mode(mode) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, value(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, global_proxy(),
+                           RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{mode}; }
+};
+
 struct TagOp : FixedArityOperationT<1, TagOp> {
   TagKind kind;
 
@@ -3713,6 +3742,36 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   auto options() const { return std::tuple{maps, flags, feedback}; }
 };
 
+struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
+  Handle<FeedbackCell> feedback_cell;
+
+  static constexpr OpProperties properties = OpProperties::ReadingAndCanAbort();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  CheckedClosureOp(OpIndex input, OpIndex frame_state,
+                   Handle<FeedbackCell> feedback_cell)
+      : Base(input, frame_state), feedback_cell(feedback_cell) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  bool operator==(const CheckedClosureOp& other) const {
+    return feedback_cell.address() == other.feedback_cell.address();
+  }
+  size_t hash_value() const {
+    return base::hash_value(feedback_cell.address());
+  }
+
+  auto options() const { return std::tuple{feedback_cell}; }
+};
+
 struct CheckEqualsInternalizedStringOp
     : FixedArityOperationT<3, CheckEqualsInternalizedStringOp> {
   static constexpr OpProperties properties = OpProperties::CanAbort();
@@ -3947,6 +4006,83 @@ struct RuntimeAbortOp : FixedArityOperationT<0, RuntimeAbortOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{reason}; }
+};
+
+struct EnsureWritableFastElementsOp
+    : FixedArityOperationT<2, EnsureWritableFastElementsOp> {
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex object() const { return Base::input(0); }
+  OpIndex elements() const { return Base::input(1); }
+
+  EnsureWritableFastElementsOp(OpIndex object, OpIndex elements)
+      : Base(object, elements) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+    DCHECK(
+        ValidOpInputRep(graph, elements(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct MaybeGrowFastElementsOp
+    : FixedArityOperationT<5, MaybeGrowFastElementsOp> {
+  GrowFastElementsMode mode;
+  FeedbackSource feedback;
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex object() const { return Base::input(0); }
+  OpIndex elements() const { return Base::input(1); }
+  OpIndex index() const { return Base::input(2); }
+  OpIndex elements_length() const { return Base::input(3); }
+  OpIndex frame_state() const { return Base::input(4); }
+
+  MaybeGrowFastElementsOp(OpIndex object, OpIndex elements, OpIndex index,
+                          OpIndex elements_length, OpIndex frame_state,
+                          GrowFastElementsMode mode,
+                          const FeedbackSource& feedback)
+      : Base(object, elements, index, elements_length, frame_state),
+        mode(mode),
+        feedback(feedback) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+    DCHECK(
+        ValidOpInputRep(graph, elements(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(), RegisterRepresentation::Word32()));
+    DCHECK(ValidOpInputRep(graph, elements_length(),
+                           RegisterRepresentation::Word32()));
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  auto options() const { return std::tuple{mode}; }
+};
+
+struct TransitionElementsKindOp
+    : FixedArityOperationT<1, TransitionElementsKindOp> {
+  ElementsTransition transition;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex object() const { return Base::input(0); }
+
+  TransitionElementsKindOp(OpIndex object, const ElementsTransition& transition)
+      : Base(object), transition(transition) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, object(), RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{transition}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

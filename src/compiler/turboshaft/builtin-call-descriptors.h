@@ -73,6 +73,43 @@ struct BuiltinCallDescriptor {
   using Boolean = Oddball;
 
  public:
+  struct CheckTurbofanType : public Descriptor<CheckTurbofanType> {
+    static constexpr auto Function = Builtin::kCheckTurbofanType;
+    using arguments_t = std::tuple<V<Object>, V<TurbofanType>, V<Smi>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoThrow | Operator::kNoDeopt;
+  };
+
+  struct CopyFastSmiOrObjectElements
+      : public Descriptor<CopyFastSmiOrObjectElements> {
+    static constexpr auto Function = Builtin::kCopyFastSmiOrObjectElements;
+    using arguments_t = std::tuple<V<Object>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  template <Builtin B>
+  struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
+    static constexpr auto Function = B;
+    using arguments_t = std::tuple<V<Object>, V<Smi>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+  using GrowFastDoubleElements =
+      GrowFastElements<Builtin::kGrowFastDoubleElements>;
+  using GrowFastSmiOrObjectElements =
+      GrowFastElements<Builtin::kGrowFastSmiOrObjectElements>;
+
   template <Builtin B>
   struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
     static constexpr auto Function = B;
@@ -223,6 +260,26 @@ struct BuiltinCallDescriptor {
     static constexpr auto Function = Builtin::kToBoolean;
     using arguments_t = std::tuple<V<Object>>;
     using result_t = V<Boolean>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  struct ToObject : public Descriptor<ToObject> {
+    static constexpr auto Function = Builtin::kToObject;
+    using arguments_t = std::tuple<V<Object>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+
+  struct Typeof : public Descriptor<Typeof> {
+    static constexpr auto Function = Builtin::kTypeof;
+    using arguments_t = std::tuple<V<Object>>;
+    using result_t = V<String>;
 
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;

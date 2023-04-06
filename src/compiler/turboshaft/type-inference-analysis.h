@@ -233,6 +233,7 @@ class TypeInferenceAnalysis {
         case Opcode::kConvertObjectToPrimitiveOrDeopt:
         case Opcode::kTruncateObjectToPrimitive:
         case Opcode::kTruncateObjectToPrimitiveOrDeopt:
+        case Opcode::kConvertReceiver:
         case Opcode::kTag:
         case Opcode::kUntag:
         case Opcode::kNewConsString:
@@ -264,6 +265,7 @@ class TypeInferenceAnalysis {
         case Opcode::kStoreSignedSmallElement:
         case Opcode::kCompareMaps:
         case Opcode::kCheckMaps:
+        case Opcode::kCheckedClosure:
         case Opcode::kCheckEqualsInternalizedString:
         case Opcode::kLoadMessage:
         case Opcode::kStoreMessage:
@@ -271,6 +273,9 @@ class TypeInferenceAnalysis {
         case Opcode::kFloat64SameValue:
         case Opcode::kFastApiCall:
         case Opcode::kRuntimeAbort:
+        case Opcode::kEnsureWritableFastElements:
+        case Opcode::kMaybeGrowFastElements:
+        case Opcode::kTransitionElementsKind:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {

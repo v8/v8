@@ -35,6 +35,7 @@
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/objects/turbofan-types.h"
 
 namespace v8::internal {
 enum class Builtin : int32_t;
@@ -1170,6 +1171,14 @@ class AssemblerOpInterface {
         object, frame_state, kind, input_requirement, feedback);
   }
 
+  V<Object> ConvertReceiver(V<Object> value, V<Object> global_proxy,
+                            ConvertReceiverMode mode) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceConvertReceiver(value, global_proxy, mode);
+  }
+
   V<Word32> Word32Constant(uint32_t value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -1851,6 +1860,34 @@ class AssemblerOpInterface {
     }
   }
 
+  void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,
+                                     V<Object> object,
+                                     V<TurbofanType> allocated_type,
+                                     V<Smi> node_id) {
+    CallBuiltin<typename BuiltinCallDescriptor::CheckTurbofanType>(
+        isolate, context, {object, allocated_type, node_id});
+  }
+  V<Object> CallBuiltin_CopyFastSmiOrObjectElements(Isolate* isolate,
+                                                    V<Context> context,
+                                                    V<Object> object) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(
+        isolate, context, {object});
+  }
+  V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
+                                               V<Context> context,
+                                               V<Object> object, V<Smi> size) {
+    return CallBuiltin<typename BuiltinCallDescriptor::GrowFastDoubleElements>(
+        isolate, context, {object, size});
+  }
+  V<Object> CallBuiltin_GrowFastSmiOrObjectElements(Isolate* isolate,
+                                                    V<Context> context,
+                                                    V<Object> object,
+                                                    V<Smi> size) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::GrowFastSmiOrObjectElements>(
+        isolate, context, {object, size});
+  }
   V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
       Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
       V<Smi> arguments_count) {
@@ -1944,6 +1981,15 @@ class AssemblerOpInterface {
     return CallBuiltin<typename BuiltinCallDescriptor::ToBoolean>(isolate,
                                                                   {object});
   }
+  V<Object> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
+                                 V<Object> object) {
+    return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
+        isolate, context, {object});
+  }
+  V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
+    return CallBuiltin<typename BuiltinCallDescriptor::Typeof>(isolate,
+                                                               {object});
+  }
 
   template <typename Descriptor>
   std::enable_if_t<Descriptor::NeedsFrameState, typename Descriptor::result_t>
@@ -2022,6 +2068,13 @@ class AssemblerOpInterface {
                                            V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
         isolate, frame_state, context, {});
+  }
+  V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
+                                               V<Context> context,
+                                               V<HeapObject> object,
+                                               V<Map> target_map) {
+    return CallRuntime<typename RuntimeCallDescriptor::TransitionElementsKind>(
+        isolate, context, {object, target_map});
   }
   V<Object> CallRuntime_TryMigrateInstance(Isolate* isolate, V<Context> context,
                                            V<HeapObject> heap_object) {
@@ -2542,6 +2595,14 @@ class AssemblerOpInterface {
     stack().ReduceCheckMaps(heap_object, frame_state, maps, flags, feedback);
   }
 
+  V<Object> CheckedClosure(V<Object> input, OpIndex frame_state,
+                           Handle<FeedbackCell> feedback_cell) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceCheckedClosure(input, frame_state, feedback_cell);
+  }
+
   void CheckEqualsInternalizedString(V<Object> expected, V<Object> value,
                                      OpIndex frame_state) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -2593,6 +2654,33 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceRuntimeAbort(reason);
+  }
+
+  V<Object> EnsureWritableFastElements(V<Object> object, V<Object> elements) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceEnsureWritableFastElements(object, elements);
+  }
+
+  V<Object> MaybeGrowFastElements(V<Object> object, V<Object> elements,
+                                  V<Word32> index, V<Word32> elements_length,
+                                  OpIndex frame_state,
+                                  GrowFastElementsMode mode,
+                                  const FeedbackSource& feedback) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceMaybeGrowFastElements(
+        object, elements, index, elements_length, frame_state, mode, feedback);
+  }
+
+  void TransitionElementsKind(V<HeapObject> object,
+                              const ElementsTransition& transition) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceTransitionElementsKind(object, transition);
   }
 
   template <typename Rep>

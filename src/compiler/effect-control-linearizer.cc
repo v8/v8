@@ -947,9 +947,10 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
   // point. We zap the frame state to ensure this invariant is maintained.
   if (region_observability_ == RegionObservability::kObservable &&
       !node->op()->HasProperty(Operator::kNoWrite)) {
-    if (V8_UNLIKELY(node->opcode() == IrOpcode::kCheckMaps)) {
-      // CheckMaps' side effects are not JS-observable so we can keep the
-      // FrameState, when we don't lower CheckMaps here, but in the Turboshaft
+    if (V8_UNLIKELY(node->opcode() == IrOpcode::kCheckMaps ||
+                    node->opcode() == IrOpcode::kTransitionElementsKind)) {
+      // These side effects are not JS-observable so we can keep the
+      // FrameState, when we don't lower those nodes here, but in the Turboshaft
       // pipeline.
       DCHECK(v8_flags.turboshaft);
     } else {
@@ -1104,6 +1105,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerTruncateTaggedToFloat64(node);
       break;
     case IrOpcode::kCheckClosure:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckClosure(node, frame_state);
       break;
     case IrOpcode::kCheckMaps:
@@ -1531,6 +1536,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerToBoolean(node);
       break;
     case IrOpcode::kTypeOf:
+      if (v8_flags.turboshaft) return false;
       result = LowerTypeOf(node);
       break;
     case IrOpcode::kNewDoubleElements:
@@ -1743,9 +1749,17 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerObjectIsSafeInteger(node);
       break;
     case IrOpcode::kCheckFloat64Hole:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckFloat64Hole(node, frame_state);
       break;
     case IrOpcode::kCheckNotTaggedHole:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerCheckNotTaggedHole(node, frame_state);
       break;
     case IrOpcode::kConvertTaggedHoleToUndefined:
@@ -1783,12 +1797,18 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerPlainPrimitiveToFloat64(node);
       break;
     case IrOpcode::kEnsureWritableFastElements:
+      if (v8_flags.turboshaft) return false;
       result = LowerEnsureWritableFastElements(node);
       break;
     case IrOpcode::kMaybeGrowFastElements:
+      if (v8_flags.turboshaft) {
+        gasm()->Checkpoint(FrameState{frame_state});
+        return false;
+      }
       result = LowerMaybeGrowFastElements(node, frame_state);
       break;
     case IrOpcode::kTransitionElementsKind:
+      if (v8_flags.turboshaft) return false;
       LowerTransitionElementsKind(node);
       break;
     case IrOpcode::kLoadMessage:
@@ -1857,9 +1877,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerRuntimeAbort(node);
       break;
     case IrOpcode::kAssertType:
+      if (v8_flags.turboshaft) return false;
       LowerAssertType(node);
       break;
     case IrOpcode::kConvertReceiver:
+      if (v8_flags.turboshaft) return false;
       result = LowerConvertReceiver(node);
       break;
     case IrOpcode::kFloat64RoundUp:
@@ -2324,6 +2346,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
                                                  Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Handle<FeedbackCell> feedback_cell = FeedbackCellOf(node->op());
   Node* value = node->InputAt(0);
 
@@ -4992,6 +5015,7 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* obj = node->InputAt(0);
   Callable const callable = Builtins::CallableFor(isolate(), Builtin::kTypeof);
   Operator::Properties const properties = Operator::kEliminatable;
@@ -4999,8 +5023,7 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj);
 }
 
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
@@ -6055,6 +6078,7 @@ Node* EffectControlLinearizer::LowerBigIntNegate(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
                                                      Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   // If we reach this point w/o eliminating the {node} that's marked
   // with allow-return-hole, we cannot do anything, so just deoptimize
   // in case of the hole NaN.
@@ -6085,6 +6109,7 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,
                                                        Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   Node* check = __ TaggedEqual(value, __ TheHoleConstant());
   __ DeoptimizeIf(DeoptimizeReason::kHole, FeedbackSource(), check,
@@ -6395,6 +6420,7 @@ Node* EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* object = node->InputAt(0);
   Node* elements = node->InputAt(1);
 
@@ -6429,6 +6455,7 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
 
 Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
                                                           Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   GrowFastElementsParameters params = GrowFastElementsParametersOf(node->op());
   Node* object = node->InputAt(0);
   Node* elements = node->InputAt(1);
@@ -6470,6 +6497,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
 }
 
 void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ElementsTransition const transition = ElementsTransitionOf(node->op());
   Node* object = node->InputAt(0);
 
@@ -7771,6 +7799,7 @@ Node* EffectControlLinearizer::CallBuiltin(Builtin builtin,
 }
 
 void EffectControlLinearizer::LowerAssertType(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
   Type type = OpParameter<Type>(node->op());
   CHECK(type.CanBeAsserted());
@@ -7832,6 +7861,7 @@ Node* EffectControlLinearizer::LowerDoubleArrayMinMax(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   ConvertReceiverMode const mode = ConvertReceiverModeOf(node->op());
   Node* value = node->InputAt(0);
   Node* global_proxy = node->InputAt(1);

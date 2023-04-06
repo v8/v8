@@ -120,6 +120,16 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties Properties = Operator::kNoDeopt;
   };
 
+  struct TransitionElementsKind : public Descriptor<TransitionElementsKind> {
+    static constexpr auto Function = Runtime::kTransitionElementsKind;
+    using arguments_t = std::tuple<V<HeapObject>, V<Map>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
   struct TryMigrateInstance : public Descriptor<TryMigrateInstance> {
     static constexpr auto Function = Runtime::kTryMigrateInstance;
     using arguments_t = std::tuple<V<HeapObject>>;

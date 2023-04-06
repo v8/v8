@@ -774,6 +774,10 @@ OpIndex GraphBuilder::Process(
           input);
     }
 
+    case IrOpcode::kConvertReceiver:
+      return __ ConvertReceiver(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                ConvertReceiverModeOf(node->op()));
+
     case IrOpcode::kToBoolean:
       return __ ConvertToBoolean(Map(node->InputAt(0)));
     case IrOpcode::kNumberToString:
@@ -1895,6 +1899,11 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
     }
 
+    case IrOpcode::kCheckClosure:
+      DCHECK(dominating_frame_state.valid());
+      return __ CheckedClosure(Map(node->InputAt(0)), dominating_frame_state,
+                               FeedbackCellOf(node->op()));
+
     case IrOpcode::kCheckEqualsSymbol:
       DCHECK(dominating_frame_state.valid());
       __ DeoptimizeIfNot(
@@ -1908,6 +1917,26 @@ OpIndex GraphBuilder::Process(
       __ CheckEqualsInternalizedString(
           Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state);
       return OpIndex::Invalid();
+
+    case IrOpcode::kCheckFloat64Hole: {
+      DCHECK(dominating_frame_state.valid());
+      V<Float64> value = Map(node->InputAt(0));
+      __ DeoptimizeIf(__ FloatIs(value, NumericKind::kFloat64Hole,
+                                 FloatRepresentation::Float64()),
+                      dominating_frame_state, DeoptimizeReason::kHole,
+                      CheckFloat64HoleParametersOf(node->op()).feedback());
+      return value;
+    }
+
+    case IrOpcode::kCheckNotTaggedHole: {
+      DCHECK(dominating_frame_state.valid());
+      V<Object> value = Map(node->InputAt(0));
+      __ DeoptimizeIf(
+          __ TaggedEqual(value,
+                         __ HeapConstant(isolate->factory()->the_hole_value())),
+          dominating_frame_state, DeoptimizeReason::kHole, FeedbackSource{});
+      return value;
+    }
 
     case IrOpcode::kLoadMessage:
       return __ LoadMessage(Map(node->InputAt(0)));
@@ -1923,6 +1952,9 @@ OpIndex GraphBuilder::Process(
                           SameValueOp::Mode::kSameValueNumbersOnly);
     case IrOpcode::kNumberSameValue:
       return __ Float64SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)));
+
+    case IrOpcode::kTypeOf:
+      return __ CallBuiltin_Typeof(isolate, Map(node->InputAt(0)));
 
     case IrOpcode::kFastApiCall: {
       DCHECK(dominating_frame_state.valid());
@@ -1999,6 +2031,44 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kDateNow:
       return __ CallRuntime_DateCurrentTime(isolate, __ NoContextConstant());
+
+    case IrOpcode::kEnsureWritableFastElements:
+      return __ EnsureWritableFastElements(Map(node->InputAt(0)),
+                                           Map(node->InputAt(1)));
+
+    case IrOpcode::kMaybeGrowFastElements: {
+      DCHECK(dominating_frame_state.valid());
+      const GrowFastElementsParameters& params =
+          GrowFastElementsParametersOf(node->op());
+      return __ MaybeGrowFastElements(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          Map(node->InputAt(3)), dominating_frame_state, params.mode(),
+          params.feedback());
+    }
+
+    case IrOpcode::kTransitionElementsKind:
+      __ TransitionElementsKind(Map(node->InputAt(0)),
+                                ElementsTransitionOf(node->op()));
+      return OpIndex::Invalid();
+
+    case IrOpcode::kAssertType: {
+      compiler::Type type = OpParameter<compiler::Type>(node->op());
+      CHECK(type.CanBeAsserted());
+      V<TurbofanType> allocated_type;
+      {
+        DCHECK(isolate->CurrentLocalHeap()->is_main_thread());
+        base::Optional<UnparkedScope> unparked_scope;
+        if (isolate->CurrentLocalHeap()->IsParked()) {
+          unparked_scope.emplace(isolate->main_thread_local_isolate());
+        }
+        allocated_type =
+            __ HeapConstant(type.AllocateOnHeap(isolate->factory()));
+      }
+      __ CallBuiltin_CheckTurbofanType(isolate, __ NoContextConstant(),
+                                       Map(node->InputAt(0)), allocated_type,
+                                       __ SmiTag(node->id()));
+      return OpIndex::Invalid();
+    }
 
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();

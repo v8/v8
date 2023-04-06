@@ -1461,8 +1461,8 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
-                                      Operator::kNoThrow | Operator::kNoDeopt,
-                                      "AssertType", 1, 1, 0, 0, 1, 0, type);
+                                      Operator::kEliminatable, "AssertType", 1,
+                                      1, 0, 0, 1, 0, type);
 }
 
 const Operator* SimplifiedOperatorBuilder::VerifyType() {

@@ -651,6 +651,10 @@ class GraphVisitor {
         MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
         op.input_requirement, op.feedback);
   }
+  OpIndex AssembleOutputGraphConvertReceiver(const ConvertReceiverOp& op) {
+    return assembler().ReduceConvertReceiver(
+        MapToNewGraph(op.value()), MapToNewGraph(op.global_proxy()), op.mode);
+  }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(
         MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
@@ -873,6 +877,11 @@ class GraphVisitor {
                                        MapToNewGraph(op.frame_state()), op.maps,
                                        op.flags, op.feedback);
   }
+  OpIndex AssembleOutputGraphCheckedClosure(const CheckedClosureOp& op) {
+    return assembler().ReduceCheckedClosure(MapToNewGraph(op.input()),
+                                            MapToNewGraph(op.frame_state()),
+                                            op.feedback_cell);
+  }
   OpIndex AssembleOutputGraphCheckEqualsInternalizedString(
       const CheckEqualsInternalizedStringOp& op) {
     return assembler().ReduceCheckEqualsInternalizedString(
@@ -902,6 +911,23 @@ class GraphVisitor {
   }
   OpIndex AssembleOutputGraphRuntimeAbort(const RuntimeAbortOp& op) {
     return assembler().ReduceRuntimeAbort(op.reason);
+  }
+  OpIndex AssembleOutputGraphEnsureWritableFastElements(
+      const EnsureWritableFastElementsOp& op) {
+    return assembler().ReduceEnsureWritableFastElements(
+        MapToNewGraph(op.object()), MapToNewGraph(op.elements()));
+  }
+  OpIndex AssembleOutputGraphMaybeGrowFastElements(
+      const MaybeGrowFastElementsOp& op) {
+    return assembler().ReduceMaybeGrowFastElements(
+        MapToNewGraph(op.object()), MapToNewGraph(op.elements()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.elements_length()),
+        MapToNewGraph(op.frame_state()), op.mode, op.feedback);
+  }
+  OpIndex AssembleOutputGraphTransitionElementsKind(
+      const TransitionElementsKindOp& op) {
+    return assembler().ReduceTransitionElementsKind(MapToNewGraph(op.object()),
+                                                    op.transition);
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

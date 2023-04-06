@@ -369,8 +369,15 @@ class MachineLoweringReducer : public Next {
     DCHECK_EQ(input_rep, FloatRepresentation::Float64());
     switch (kind) {
       case NumericKind::kFloat64Hole: {
-        return __ Word32Equal(__ Float64ExtractHighWord32(value),
-                              kHoleNanUpper32);
+        Label<Word32> done(this);
+        // First check whether {value} is a NaN at all...
+        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        // ...and only if {value} is a NaN, perform the expensive bit
+        // check. See http://crbug.com/v8/8264 for details.
+        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value),
+                                  kHoleNanUpper32));
+        BIND(done, result);
+        return result;
       }
       case NumericKind::kFinite: {
         V<Float64> diff = __ Float64Sub(value, value);
@@ -1281,6 +1288,66 @@ class MachineLoweringReducer : public Next {
 
     BIND(done, result);
     return result;
+  }
+
+  V<Word32> JSAnyIsNotPrimitiveHeapObject(V<Object> value,
+                                          V<Map> value_map = OpIndex{}) {
+    if (!value_map.valid()) {
+      value_map = __ LoadMapField(value);
+    }
+#if V8_STATIC_ROOTS_BOOL
+    // Assumes only primitive objects and JS_RECEIVER's are passed here.
+    // All primitive object's maps are allocated at the start of the read only
+    // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+    // addresses.
+    return __ Uint32LessThan(InstanceTypeChecker::kNonJsReceiverMapLimit,
+                             __ BitcastTaggedToWord(value_map));
+#else
+    static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    V<Word32> value_instance_type = __ LoadInstanceTypeField(value_map);
+    return __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE,
+                                    value_instance_type);
+#endif
+  }
+
+  OpIndex REDUCE(ConvertReceiver)(V<Object> value, V<Object> global_proxy,
+                                  ConvertReceiverMode mode) {
+    switch (mode) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        return global_proxy;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+      case ConvertReceiverMode::kAny: {
+        Label<Object> done(this);
+
+        // Check if {value} is already a JSReceiver (or null/undefined).
+        Label<> convert_to_object(this);
+        GOTO_IF(UNLIKELY(__ ObjectIsSmi(value)), convert_to_object);
+        GOTO_IF_NOT(LIKELY(__ JSAnyIsNotPrimitiveHeapObject(value)),
+                    convert_to_object);
+        GOTO(done, value);
+
+        // Wrap the primitive {value} into a JSPrimitiveWrapper.
+        if (BIND(convert_to_object)) {
+          if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
+            // Replace the {value} with the {global_proxy}.
+            GOTO_IF(UNLIKELY(__ TaggedEqual(
+                        value, __ HeapConstant(factory_->undefined_value()))),
+                    done, global_proxy);
+            GOTO_IF(UNLIKELY(__ TaggedEqual(
+                        value, __ HeapConstant(factory_->null_value()))),
+                    done, global_proxy);
+          }
+          V<NativeContext> native_context =
+              __ template LoadField<NativeContext>(
+                  global_proxy, AccessBuilder::ForJSGlobalProxyNativeContext());
+          GOTO(done, __ CallBuiltin_ToObject(isolate_, native_context, value));
+        }
+
+        BIND(done, result);
+        return result;
+      }
+    }
+    UNREACHABLE();
   }
 
   OpIndex REDUCE(NewConsString)(OpIndex length, OpIndex first, OpIndex second) {
@@ -2278,6 +2345,27 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
+  V<Object> REDUCE(CheckedClosure)(V<Object> input, OpIndex frame_state,
+                                   Handle<FeedbackCell> feedback_cell) {
+    // Check that {input} is actually a JSFunction.
+    V<Map> map = __ LoadMapField(input);
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+    V<Word32> is_function_type = __ Uint32LessThanOrEqual(
+        __ Word32Sub(instance_type, FIRST_JS_FUNCTION_TYPE),
+        (LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
+    __ DeoptimizeIfNot(is_function_type, frame_state,
+                       DeoptimizeReason::kWrongCallTarget, FeedbackSource{});
+
+    // Check that the {input}s feedback vector cell matches the one
+    // we recorded before.
+    V<HeapObject> cell = __ template LoadField<HeapObject>(
+        input, AccessBuilder::ForJSFunctionFeedbackCell());
+    __ DeoptimizeIfNot(__ TaggedEqual(cell, __ HeapConstant(feedback_cell)),
+                       frame_state, DeoptimizeReason::kWrongFeedbackCell,
+                       FeedbackSource{});
+    return input;
+  }
+
   OpIndex REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
                                                 V<Object> value,
                                                 OpIndex frame_state) {
@@ -2383,6 +2471,85 @@ class MachineLoweringReducer : public Next {
   OpIndex REDUCE(RuntimeAbort)(AbortReason reason) {
     __ CallRuntime_Abort(isolate_, __ NoContextConstant(),
                          __ SmiTag(static_cast<int>(reason)));
+    return OpIndex::Invalid();
+  }
+
+  V<Object> REDUCE(EnsureWritableFastElements)(V<Object> object,
+                                               V<Object> elements) {
+    Label<Object> done(this);
+    // Load the current map of {elements}.
+    V<Map> map = __ LoadMapField(elements);
+
+    // Check if {elements} is not a copy-on-write FixedArray.
+    // Nothing to do if the {elements} are not copy-on-write.
+    GOTO_IF(LIKELY(__ TaggedEqual(
+                map, __ HeapConstant(factory_->fixed_array_map()))),
+            done, elements);
+
+    // We need to take a copy of the {elements} and set them up for {object}.
+    V<Object> copy = __ CallBuiltin_CopyFastSmiOrObjectElements(
+        isolate_, __ NoContextConstant(), object);
+    GOTO(done, copy);
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<Object> REDUCE(MaybeGrowFastElements)(V<Object> object, V<Object> elements,
+                                          V<Word32> index,
+                                          V<Word32> elements_length,
+                                          OpIndex frame_state,
+                                          GrowFastElementsMode mode,
+                                          const FeedbackSource& feedback) {
+    Label<Object> done(this);
+    // Check if we need to grow the {elements} backing store.
+    GOTO_IF(LIKELY(__ Uint32LessThan(index, elements_length)), done, elements);
+    // We need to grow the {elements} for {object}.
+    V<Object> new_elements;
+    switch (mode) {
+      case GrowFastElementsMode::kDoubleElements:
+        new_elements = __ CallBuiltin_GrowFastDoubleElements(
+            isolate_, __ NoContextConstant(), object, __ SmiTag(index));
+        break;
+      case GrowFastElementsMode::kSmiOrObjectElements:
+        new_elements = __ CallBuiltin_GrowFastSmiOrObjectElements(
+            isolate_, __ NoContextConstant(), object, __ SmiTag(index));
+        break;
+    }
+
+    // Ensure that we were able to grow the {elements}.
+    __ DeoptimizeIf(__ ObjectIsSmi(new_elements), frame_state,
+                    DeoptimizeReason::kCouldNotGrowElements, feedback);
+    GOTO(done, new_elements);
+
+    BIND(done, result);
+    return result;
+  }
+
+  OpIndex REDUCE(TransitionElementsKind)(V<HeapObject> object,
+                                         const ElementsTransition& transition) {
+    V<Map> source_map = __ HeapConstant(transition.source().object());
+    V<Map> target_map = __ HeapConstant(transition.target().object());
+
+    // Load the current map of {object}.
+    V<Map> map = __ LoadMapField(object);
+
+    // Check if {map} is the same as {source_map}.
+    IF(UNLIKELY(__ TaggedEqual(map, source_map))) {
+      switch (transition.mode()) {
+        case ElementsTransition::kFastTransition:
+          // In-place migration of {object}, just store the {target_map}.
+          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          break;
+        case ElementsTransition::kSlowTransition:
+          // Instance migration, call out to the runtime for {object}.
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), object, target_map);
+          break;
+      }
+    }
+    END_IF
+
     return OpIndex::Invalid();
   }
 
