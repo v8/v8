@@ -116,6 +116,7 @@ V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
   }
 
   allocated_linear_areas_ += limit() - top();
+  last_lab_page_ = Page::FromAllocationAreaAddress(top());
   return true;
 }
 

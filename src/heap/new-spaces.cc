@@ -1086,6 +1086,11 @@ bool PagedSpaceForNewSpace::WaitForSweepingForAllocation(
                                        origin);
 }
 
+bool PagedSpaceForNewSpace::IsPromotionCandidate(
+    const MemoryChunk* page) const {
+  return page != last_lab_page_;
+}
+
 // -----------------------------------------------------------------------------
 // PagedNewSpace implementation
 

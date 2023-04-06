@@ -2126,6 +2126,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       young_object->set(0, **shared_string_);
 
       CcTest::CollectGarbage(NEW_SPACE, i_client);
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
       heap->CompleteSweepingFull();
 
       // Object should get promoted using page promotion, so address should
@@ -2289,6 +2290,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(*shared_string));
       young_object->set(0, *shared_string);
 
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
       CcTest::CollectGarbage(NEW_SPACE, i_client);
 
       // Object should get promoted using page promotion, so address should

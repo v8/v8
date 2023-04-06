@@ -280,8 +280,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   // Grow the capacity of the space.
   virtual void Grow() = 0;
 
-  virtual bool ShouldBePromoted(Address) const = 0;
-
   // Creates a filler object in the linear allocation area.
   virtual void MakeLinearAllocationAreaIterable() = 0;
 
@@ -492,7 +490,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   SemiSpace& to_space() { return to_space_; }
   const SemiSpace& to_space() const { return to_space_; }
 
-  bool ShouldBePromoted(Address address) const final;
+  bool ShouldBePromoted(Address address) const;
 
   void Prologue() final;
 
@@ -578,6 +576,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void GarbageCollectionEpilogue() {
     allocated_linear_areas_ = 0;
     force_allocation_success_ = false;
+    last_lab_page_ = nullptr;
   }
 
   // When inline allocation stepping is active, either because of incremental
@@ -632,6 +631,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
 
+  bool IsPromotionCandidate(const MemoryChunk* page) const;
+
  private:
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
@@ -649,6 +650,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t allocated_linear_areas_ = 0;
 
   bool force_allocation_success_ = false;
+
+  Page* last_lab_page_ = nullptr;
 };
 
 // TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and
@@ -778,14 +781,12 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.GetObjectIterator(heap);
   }
 
-  bool ShouldBePromoted(Address address) const final { return true; }
-
   void GarbageCollectionEpilogue() final {
     paged_space_.GarbageCollectionEpilogue();
   }
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final {
-    return true;
+    return paged_space_.IsPromotionCandidate(page);
   }
 
   bool EnsureCurrentCapacity() final {
