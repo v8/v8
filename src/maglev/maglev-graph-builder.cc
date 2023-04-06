@@ -1548,6 +1548,7 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       iterator_.Advance();
       true_offset = next_offset();
       false_offset = iterator_.GetJumpTargetOffset();
+      UpdateSourceAndBytecodePosition(iterator_.current_offset());
       break;
     case interpreter::Bytecode::kJumpIfTrue:
     case interpreter::Bytecode::kJumpIfTrueConstant:
@@ -1561,6 +1562,7 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       iterator_.Advance();
       true_offset = iterator_.GetJumpTargetOffset();
       false_offset = next_offset();
+      UpdateSourceAndBytecodePosition(iterator_.current_offset());
       break;
     default:
       return false;
