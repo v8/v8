@@ -91,7 +91,8 @@ Code DeoptimizableCodeIterator::Next() {
       }
     }
     InstructionStream istream = InstructionStream::cast(object);
-    Code code = istream.code(kAcquireLoad);
+    Code code;
+    if (!istream.TryGetCode(&code, kAcquireLoad)) continue;
     if (!CodeKindCanDeoptimize(code.kind())) continue;
     return code;
   }

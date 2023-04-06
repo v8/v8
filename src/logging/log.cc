@@ -911,11 +911,17 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
 void JitLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   base::MutexGuard guard(&logger_mutex_);
 
+  Code code;
+  if (!from.TryGetCodeUnchecked(&code, kAcquireLoad)) {
+    // Not yet fully initialized and no CodeCreateEvent has been emitted yet.
+    return;
+  }
+
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type = JitCodeEvent::JIT_CODE;
   event.code_start = reinterpret_cast<void*>(from.instruction_start());
-  event.code_len = from.unchecked_code(kAcquireLoad).instruction_size();
+  event.code_len = code.instruction_size();
   event.new_code_start = reinterpret_cast<void*>(to.instruction_start());
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 

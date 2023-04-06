@@ -85,8 +85,6 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code.initialize_flags(options.kind, options.is_turbofanned,
                         options.stack_slots);
   code.set_builtin_id(options.builtin);
-  code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
-  code.init_instruction_start(isolate_for_sandbox, kNullAddress);
   code.set_instruction_size(options.instruction_size);
   code.set_metadata_size(options.metadata_size);
   code.set_inlined_bytecode_size(options.inlined_bytecode_size);
@@ -106,6 +104,17 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
         FixedArray::cast(*options.bytecode_or_deoptimization_data));
     code.set_source_position_table(
         *options.bytecode_offsets_or_source_position_table);
+  }
+
+  Handle<InstructionStream> istream;
+  if (options.instruction_stream.ToHandle(&istream)) {
+    DCHECK_EQ(options.instruction_start, kNullAddress);
+    code.SetInstructionStreamAndInstructionStart(isolate_for_sandbox, *istream);
+  } else {
+    DCHECK_NE(options.instruction_start, kNullAddress);
+    code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
+    code.SetInstructionStartForOffHeapBuiltin(isolate_for_sandbox,
+                                              options.instruction_start);
   }
 
   code.clear_padding();
