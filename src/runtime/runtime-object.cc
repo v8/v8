@@ -450,11 +450,16 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
         receiver->property_dictionary_swiss(), isolate);
     dictionary = SwissNameDictionary::Add(isolate, dictionary, name, value,
                                           property_details);
+    // TODO(pthier): Add flags to swiss dictionaries and track interesting
+    // symbols.
     receiver->SetProperties(*dictionary);
   } else {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
     dictionary =
         NameDictionary::Add(isolate, dictionary, name, value, property_details);
+    if (name->IsInterestingSymbol()) {
+      dictionary->set_may_have_interesting_symbols(true);
+    }
     receiver->SetProperties(*dictionary);
   }
 
