@@ -40,6 +40,8 @@ from testrunner.outproc import test262
 
 
 # TODO(littledan): move the flag mapping into the status file
+#
+# Multiple flags are allowed, separated by space.
 FEATURE_FLAGS = {
     'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
     'Intl.DurationFormat': '--harmony-intl-duration-format',
@@ -217,16 +219,17 @@ class TestCase(testcase.D8TestCase):
             [self._get_source_path()])
 
   def _get_suite_flags(self):
-    return (
-        ["--ignore-unhandled-promises"] +
-        (["--throws"] if "negative" in self.test_record else []) +
-        (["--allow-natives-syntax"]
-         if "detachArrayBuffer.js" in self.test_record.get("includes", [])
-         else []) +
-        [flag for (feature, flag) in FEATURE_FLAGS.items()
-          if feature in self.test_record.get("features", [])] +
-        ["--no-arguments"]  # disable top-level arguments in d8
-    )
+    feature_flags = []
+    for (feature, flags_string) in FEATURE_FLAGS.items():
+      if feature in self.test_record.get("features", []):
+        for flag in flags_string.split(" "):
+          feature_flags.append(flag)
+    return (["--ignore-unhandled-promises"] +
+            (["--throws"] if "negative" in self.test_record else []) +
+            (["--allow-natives-syntax"] if "detachArrayBuffer.js"
+             in self.test_record.get("includes", []) else []) + feature_flags +
+            ["--no-arguments"]  # disable top-level arguments in d8
+           )
 
   def _get_includes(self):
     return [os.path.join(self._base_path(filename), filename)
