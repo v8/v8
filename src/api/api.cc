@@ -10174,15 +10174,6 @@ CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
 
-void Isolate::SetWasmExceptionsEnabledCallback(
-    WasmExceptionsEnabledCallback callback) {
-  // Exceptions are always enabled
-}
-
-void Isolate::SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback) {
-  // SIMD is always enabled
-}
-
 void Isolate::InstallConditionalFeatures(Local<Context> context) {
   v8::HandleScope handle_scope(this);
   v8::Context::Scope context_scope(context);
