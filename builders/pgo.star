@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "v8_builder")
+load("//lib/lib.star", "RECLIENT", "v8_builder")
 load("//lib/service-accounts.star", "V8_PGO_ACCOUNT")
 
 v8_builder(
@@ -26,7 +26,6 @@ def pgo_compilator(name, os):
             "default_targets": ["d8_pgo"],
             "builder_group": "client.v8",
         },
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         in_list = "pgo",
     )

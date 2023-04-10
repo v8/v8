@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/lib.star", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
 in_category = in_console("official")
 
@@ -16,7 +16,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -27,7 +26,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -38,7 +36,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -49,7 +46,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -60,7 +56,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -71,7 +66,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -82,7 +76,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -93,7 +86,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
@@ -108,7 +100,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -119,7 +110,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -130,7 +120,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -141,7 +130,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
@@ -155,7 +143,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -166,7 +153,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -177,7 +163,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
@@ -188,7 +173,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
