@@ -25,7 +25,11 @@ class SerializerDeserializer : public RootVisitor {
                                            RootVisitor* visitor);
 
  protected:
-  static bool CanBeDeferred(HeapObject o);
+  enum class SlotType {
+    kAnySlot,
+    kMapSlot,
+  };
+  static bool CanBeDeferred(HeapObject o, SlotType slot_type);
 
   void RestoreExternalReferenceRedirector(Isolate* isolate,
                                           AccessorInfo accessor_info);

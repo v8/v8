@@ -149,7 +149,7 @@ void Serializer::SerializeDeferredObjects() {
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
-void Serializer::SerializeObject(Handle<HeapObject> obj) {
+void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   // ThinStrings are just an indirection to an internalized string, so elide the
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
@@ -163,7 +163,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj) {
       obj = handle(code.bytecode_or_interpreter_data(isolate()), isolate());
     }
   }
-  SerializeObjectImpl(obj);
+  SerializeObjectImpl(obj, slot_type);
 }
 
 bool Serializer::MustBeDeferred(HeapObject object) { return false; }
@@ -180,7 +180,7 @@ void Serializer::SerializeRootObject(FullObjectSlot slot) {
   if (o.IsSmi()) {
     PutSmiRoot(slot);
   } else {
-    SerializeObject(Handle<HeapObject>(slot.location()));
+    SerializeObject(Handle<HeapObject>(slot.location()), SlotType::kAnySlot);
   }
 }
 
@@ -384,7 +384,8 @@ void Serializer::RegisterObjectIsPending(HeapObject obj) {
   // deferred objects queue though, since it may be the very object we just
   // popped off that queue, so just check that it can be deferred.
   DCHECK_IMPLIES(find_result.already_exists, *find_result.entry != nullptr);
-  DCHECK_IMPLIES(find_result.already_exists, CanBeDeferred(obj));
+  DCHECK_IMPLIES(find_result.already_exists,
+                 CanBeDeferred(obj, SlotType::kAnySlot));
 }
 
 void Serializer::ResolvePendingObject(HeapObject obj) {
@@ -463,10 +464,10 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
 
     // Serialize map (first word of the object) before anything else, so that
     // the deserializer can access it when allocating. Make sure that the map
-    // isn't a pending object.
-    DCHECK_NULL(serializer_->forward_refs_per_pending_object_.Find(map));
+    // is known to be being serialized for the map slot, so that it is not
+    // deferred.
     DCHECK(map.IsMap());
-    serializer_->SerializeObject(handle(map, isolate()));
+    serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
 
     // Make sure the map serialization didn't accidentally recursively serialize
     // this object.
@@ -725,7 +726,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
-void Serializer::ObjectSerializer::Serialize() {
+void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   RecursionScope recursion(serializer_);
 
   {
@@ -733,9 +734,9 @@ void Serializer::ObjectSerializer::Serialize() {
     HeapObject raw = *object_;
     // Defer objects as "pending" if they cannot be serialized now, or if we
     // exceed a certain recursion depth. Some objects cannot be deferred.
-    if ((recursion.ExceedsMaximum() && CanBeDeferred(raw)) ||
-        serializer_->MustBeDeferred(raw)) {
-      DCHECK(CanBeDeferred(raw));
+    bool should_defer =
+        recursion.ExceedsMaximum() || serializer_->MustBeDeferred(raw);
+    if (should_defer && CanBeDeferred(raw, slot_type)) {
       if (v8_flags.trace_serializer) {
         PrintF(" Deferring heap object: ");
         object_->ShortPrint();
@@ -747,6 +748,13 @@ void Serializer::ObjectSerializer::Serialize() {
           *serializer_->forward_refs_per_pending_object_.Find(raw));
       serializer_->QueueDeferredObject(raw);
       return;
+    } else {
+      if (v8_flags.trace_serializer && recursion.ExceedsMaximum()) {
+        PrintF(" Exceeding max recursion depth by %d for: ",
+               recursion.ExceedsMaximumBy());
+        object_->ShortPrint();
+        PrintF("\n");
+      }
     }
 
     if (v8_flags.trace_serializer) {
@@ -876,7 +884,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   if (v8_flags.trace_serializer) {
     PrintF(" Encoding deferred heap object\n");
   }
-  Serialize();
+  Serialize(SlotType::kAnySlot);
 }
 
 void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
@@ -962,7 +970,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
         ++current;
       }
       // Now write the object itself.
-      serializer_->SerializeObject(obj);
+      serializer_->SerializeObject(obj, SlotType::kAnySlot);
     }
   }
 }
@@ -991,7 +999,7 @@ void Serializer::ObjectSerializer::VisitCodePointer(Code host,
 
   Handle<HeapObject> obj = handle(HeapObject::cast(contents), isolate());
   if (!serializer_->SerializePendingObject(*obj)) {
-    serializer_->SerializeObject(obj);
+    serializer_->SerializeObject(obj, SlotType::kAnySlot);
   }
   bytes_processed_so_far_ += kTaggedSize;
 }
@@ -1061,7 +1069,7 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 
   void VisitEmbeddedPointer(RelocInfo* target) {
     HeapObject object = target->target_object(isolate());
-    serializer_->SerializeObject(handle(object, isolate()));
+    serializer_->SerializeObject(handle(object, isolate()), SlotType::kAnySlot);
     num_serialized_objects_++;
   }
   void VisitCodeTarget(RelocInfo* target) {
@@ -1070,7 +1078,7 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 #endif
     InstructionStream object =
         InstructionStream::FromTargetAddress(target->target_address());
-    serializer_->SerializeObject(handle(object, isolate()));
+    serializer_->SerializeObject(handle(object, isolate()), SlotType::kAnySlot);
     num_serialized_objects_++;
   }
 

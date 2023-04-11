@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
  private:
   void ReconstructReadOnlyObjectCacheForTesting();
 
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool MustBeDeferred(HeapObject object) override;
 
   // If |obj| can be serialized in the read-only snapshot then add it to the

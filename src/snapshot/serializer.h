@@ -213,8 +213,11 @@ class Serializer : public SerializerDeserializer {
       serializer_->recursion_depth_++;
     }
     ~RecursionScope() { serializer_->recursion_depth_--; }
-    bool ExceedsMaximum() {
-      return serializer_->recursion_depth_ >= kMaxRecursionDepth;
+    bool ExceedsMaximum() const {
+      return serializer_->recursion_depth_ > kMaxRecursionDepth;
+    }
+    int ExceedsMaximumBy() const {
+      return serializer_->recursion_depth_ - kMaxRecursionDepth;
     }
 
    private:
@@ -227,8 +230,9 @@ class Serializer : public SerializerDeserializer {
   V8_INLINE bool IsNotMappedSymbol(HeapObject obj) const;
 
   void SerializeDeferredObjects();
-  void SerializeObject(Handle<HeapObject> o);
-  virtual void SerializeObjectImpl(Handle<HeapObject> o) = 0;
+  void SerializeObject(Handle<HeapObject> o, SlotType slot_type);
+  virtual void SerializeObjectImpl(Handle<HeapObject> o,
+                                   SlotType slot_type) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -458,7 +462,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
     serializer_->PopStack();
 #endif  // DEBUG
   }
-  void Serialize();
+  void Serialize(SlotType slot_type);
   void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject host, ObjectSlot start,

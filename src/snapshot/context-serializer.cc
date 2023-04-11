@@ -113,7 +113,8 @@ void ContextSerializer::Serialize(Context* o,
   Pad();
 }
 
-void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
+                                            SlotType slot_type) {
   DCHECK(!ObjectIsBytecodeHandler(*obj));  // Only referenced in dispatch table.
 
   if (!allow_active_isolate_for_testing()) {
@@ -186,7 +187,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_);
-  serializer.Serialize();
+  serializer.Serialize(slot_type);
 }
 
 bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
@@ -269,7 +270,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    smis are serialized regularly.
   {
     AllowGarbageCollection allow_gc;
-    ObjectSerializer(this, obj, &sink_).Serialize();
+    ObjectSerializer(this, obj, &sink_).Serialize(SlotType::kAnySlot);
     // Reload raw pointer.
     js_obj = *obj;
   }

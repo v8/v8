@@ -479,7 +479,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       } else {
         // We dont defer ByteArray because JSTypedArray needs the base_pointer
         // ByteArray immediately if it's on heap.
-        DCHECK(CanBeDeferred(*obj) ||
+        DCHECK(CanBeDeferred(*obj, SlotType::kAnySlot) ||
                InstanceTypeChecker::IsByteArray(instance_type));
       }
     }

@@ -115,7 +115,8 @@ ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
 }
 
-void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj,
+                                             SlotType slot_type) {
   CHECK(ReadOnlyHeap::Contains(*obj));
   CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
   DCHECK(!V8_STATIC_ROOTS_BOOL);
@@ -138,7 +139,7 @@ void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_);
-  object_serializer.Serialize();
+  object_serializer.Serialize(slot_type);
 #ifdef DEBUG
   if (IsNotMappedSymbol(*obj)) {
     CHECK(!did_serialize_not_mapped_symbol_);
@@ -269,6 +270,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
 }
 
 bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
+  if (Serializer::MustBeDeferred(object)) return true;
   if (root_has_been_serialized(RootIndex::kFreeSpaceMap) &&
       root_has_been_serialized(RootIndex::kOnePointerFillerMap) &&
       root_has_been_serialized(RootIndex::kTwoPointerFillerMap)) {
