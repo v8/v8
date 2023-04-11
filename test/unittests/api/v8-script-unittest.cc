@@ -129,40 +129,6 @@ TEST_F(ScriptTest, UnboundScriptPosition) {
   EXPECT_EQ(0, column_number);
 }
 
-TEST_F(ScriptTest, GetSourceMappingUrlFromComment) {
-  const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(isolate(), NewString(url));
-  v8::ScriptCompiler::Source script_source(
-      NewString("var foo;\n//# sourceMappingURL=foo.js.map"), origin);
-
-  Local<Script> script =
-      v8::ScriptCompiler::Compile(v8_context(), &script_source)
-          .ToLocalChecked();
-  EXPECT_EQ(
-      "foo.js.map",
-      from_v8_string(
-          isolate(),
-          script->GetUnboundScript()->GetSourceMappingURL().As<String>()));
-}
-
-TEST_F(ScriptTest, OriginSourceMapOverridesSourceMappingUrlComment) {
-  const char* url = "http://www.foo.com/foo.js";
-  const char* api_source_map = "http://override/foo.js.map";
-  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0, false, -1,
-                          NewString(api_source_map));
-  v8::ScriptCompiler::Source script_source(
-      NewString("var foo;\n//# sourceMappingURL=foo.js.map"), origin);
-
-  Local<Script> script =
-      v8::ScriptCompiler::Compile(v8_context(), &script_source)
-          .ToLocalChecked();
-  EXPECT_EQ(
-      api_source_map,
-      from_v8_string(
-          isolate(),
-          script->GetUnboundScript()->GetSourceMappingURL().As<String>()));
-}
-
 TEST_F(ScriptTest, GetSingleStalledTopLevelAwaitMessage) {
   TestGetStalledTopLevelAwaitMessage("import 'stall.mjs';", {"stall.mjs"});
 }

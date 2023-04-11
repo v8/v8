@@ -1644,9 +1644,12 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
     script.set_column_offset(script_details.column_offset);
   }
   // The API can provide a source map URL, but a source map URL could also have
-  // been inferred by the parser from a magic comment.
+  // been inferred by the parser from a magic comment. The latter takes
+  // preference over the former, so we don't want to override the source mapping
+  // URL if it already exists.
   Handle<Object> source_map_url;
-  if (script_details.source_map_url.ToHandle(&source_map_url)) {
+  if (script_details.source_map_url.ToHandle(&source_map_url) &&
+      script.source_mapping_url(isolate).IsUndefined(isolate)) {
     script.set_source_mapping_url(*source_map_url);
   }
   Handle<Object> host_defined_options;
