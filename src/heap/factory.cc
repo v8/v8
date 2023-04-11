@@ -163,9 +163,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       DisallowGarbageCollection no_gc;
       InstructionStream raw_istream = *istream;
 
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        raw_istream.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
-      }
       raw_istream.set_body_size(code_desc_.instruction_size() +
                                 code_desc_.metadata_size());
       raw_istream.initialize_code_to_smi_zero(kReleaseStore);

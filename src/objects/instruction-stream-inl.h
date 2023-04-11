@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 #define V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 
+#include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
 #include "src/objects/instruction-stream.h"
@@ -26,63 +27,23 @@ Address InstructionStream::body_end() const {
   return instruction_start() + body_size();
 }
 
-// Same as ACCESSORS_CHECKED2 macro but with InstructionStream
-// as a host and using main_cage_base() for computing the base.
-#define INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset,           \
-                                              get_condition, set_condition) \
-  type InstructionStream::name() const {                                    \
-    PtrComprCageBase cage_base = main_cage_base();                          \
-    return InstructionStream::name(cage_base);                              \
-  }                                                                         \
-  type InstructionStream::name(PtrComprCageBase cage_base) const {          \
-    type value = TaggedField<type, offset>::load(cage_base, *this);         \
-    DCHECK(get_condition);                                                  \
-    return value;                                                           \
-  }                                                                         \
-  void InstructionStream::set_##name(type value, WriteBarrierMode mode) {   \
-    DCHECK(set_condition);                                                  \
-    TaggedField<type, offset>::store(*this, value);                         \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
-  }
+Object InstructionStream::raw_code(AcquireLoadTag tag) const {
+  PtrComprCageBase cage_base = main_cage_base();
+  Object value =
+      TaggedField<Object, kCodeOffset>::Acquire_Load(cage_base, *this);
+  DCHECK(!ObjectInYoungGeneration(value));
+  return value;
+}
 
-// Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with InstructionStream
-// as a host and using main_cage_base(kRelaxedLoad) for computing the base.
-#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(              \
-    name, type, offset, get_condition, set_condition)                       \
-  type InstructionStream::name(AcquireLoadTag tag) const {                  \
-    PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);              \
-    return InstructionStream::name(cage_base, tag);                         \
-  }                                                                         \
-  type InstructionStream::name(PtrComprCageBase cage_base, AcquireLoadTag)  \
-      const {                                                               \
-    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
-    DCHECK(get_condition);                                                  \
-    return value;                                                           \
-  }                                                                         \
-  void InstructionStream::set_##name(type value, ReleaseStoreTag,           \
-                                     WriteBarrierMode mode) {               \
-    DCHECK(set_condition);                                                  \
-    TaggedField<type, offset>::Release_Store(*this, value);                 \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
-  }
+Code InstructionStream::code(AcquireLoadTag tag) const {
+  return Code::cast(raw_code(tag));
+}
 
-#define INSTRUCTION_STREAM_ACCESSORS(name, type, offset)                 \
-  INSTRUCTION_STREAM_ACCESSORS_CHECKED2(name, type, offset,              \
-                                        !ObjectInYoungGeneration(value), \
-                                        !ObjectInYoungGeneration(value))
-
-#define RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(name, type, offset) \
-  RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2(                 \
-      name, type, offset, !ObjectInYoungGeneration(value),               \
-      !ObjectInYoungGeneration(value))
-
-RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(code, Code, kCodeOffset)
-RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS(raw_code, Object, kCodeOffset)
-INSTRUCTION_STREAM_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
-#undef INSTRUCTION_STREAM_ACCESSORS
-#undef INSTRUCTION_STREAM_ACCESSORS_CHECKED2
-#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS
-#undef RELEASE_ACQUIRE_INSTRUCTION_STREAM_ACCESSORS_CHECKED2
+void InstructionStream::set_code(Code value, ReleaseStoreTag) {
+  DCHECK(!ObjectInYoungGeneration(value));
+  TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, UPDATE_WRITE_BARRIER);
+}
 
 bool InstructionStream::TryGetCode(Code* code_out, AcquireLoadTag tag) const {
   Object maybe_code = raw_code(tag);
@@ -103,44 +64,19 @@ void InstructionStream::initialize_code_to_smi_zero(ReleaseStoreTag) {
   TaggedField<Object, kCodeOffset>::Release_Store(*this, Smi::zero());
 }
 
-// TODO(v8:13788): load base value from respective scheme class and drop
-// the kMainCageBaseUpper32BitsOffset field.
-
-PtrComprCageBase InstructionStream::main_cage_base() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Address cage_base_hi = ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(cage_base_hi << 32);
-#else
-  return GetPtrComprCageBase(*this);
-#endif
+ByteArray InstructionStream::relocation_info() const {
+  PtrComprCageBase cage_base = main_cage_base();
+  ByteArray value =
+      TaggedField<ByteArray, kRelocationInfoOffset>::load(cage_base, *this);
+  DCHECK(!ObjectInYoungGeneration(value));
+  return value;
 }
 
-// TODO(v8:13788): load base value from respective scheme class and drop
-// the kMainCageBaseUpper32BitsOffset field.
-PtrComprCageBase InstructionStream::main_cage_base(RelaxedLoadTag) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Address cage_base_hi =
-      Relaxed_ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(cage_base_hi << 32);
-#else
-  return GetPtrComprCageBase(*this);
-#endif
-}
-
-void InstructionStream::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Tagged_t cage_base_hi = static_cast<Tagged_t>(cage_base >> 32);
-  Relaxed_WriteField<Tagged_t>(kMainCageBaseUpper32BitsOffset, cage_base_hi);
-#else
-  UNREACHABLE();
-#endif
-}
-
-// TODO(jgruber): Remove this method once main_cage_base is gone.
-void InstructionStream::WipeOutHeader() {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    set_main_cage_base(kNullAddress, kRelaxedStore);
-  }
+void InstructionStream::set_relocation_info(ByteArray value) {
+  DCHECK(!ObjectInYoungGeneration(value));
+  TaggedField<ByteArray, kRelocationInfoOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kRelocationInfoOffset, value,
+                            UPDATE_WRITE_BARRIER);
 }
 
 Address InstructionStream::instruction_start() const {
@@ -148,7 +84,7 @@ Address InstructionStream::instruction_start() const {
 }
 
 ByteArray InstructionStream::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
+  PtrComprCageBase cage_base = main_cage_base();
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
                                                                    *this));
@@ -204,6 +140,15 @@ InstructionStream InstructionStream::FromEntryAddress(
   // Unchecked cast because we can't rely on the map currently not being a
   // forwarding pointer.
   return InstructionStream::unchecked_cast(code);
+}
+
+// static
+PtrComprCageBase InstructionStream::main_cage_base() {
+#ifdef V8_COMPRESS_POINTERS
+  return PtrComprCageBase{V8HeapCompressionScheme::base()};
+#else
+  return PtrComprCageBase{};
+#endif
 }
 
 }  // namespace internal
