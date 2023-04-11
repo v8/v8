@@ -728,4 +728,59 @@ transitioning javascript builtin IteratorPrototypeToArray(
   unreachable;
 }
 
+// --- forEach helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.foreach
+transitioning javascript builtin IteratorPrototypeForEach(
+    js-implicit context: NativeContext, receiver: JSAny)(fn: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.forEach';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(fn) is false, throw a TypeError exception.
+  const fn = Cast<Callable>(fn)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return undefined.
+      return Undefined;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      //  d. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter)
+      //  »)).
+      Call(context, fn, Undefined, value, counter);
+
+      //  f. Set counter to counter + 1.
+      counter = counter + 1;
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+  unreachable;
+}
+
 }  // namespace iterator

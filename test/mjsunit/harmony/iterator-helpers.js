@@ -625,3 +625,18 @@ function TestHelperPrototypeSurface(helper) {
   const toArrayResult = iter.take(0).toArray();
   assertEquals([], toArrayResult);
 })();
+
+// --- Test forEach helper
+
+(function TestForEach() {
+  const iter = gen();
+  assertEquals('function', typeof iter.forEach);
+  assertEquals(1, iter.forEach.length);
+  assertEquals('forEach', iter.forEach.name);
+
+  const log = [];
+  const fn = (value) => log.push(value);
+
+  assertEquals(undefined, iter.forEach(fn));
+  assertEquals([42, 43], log);
+})();
