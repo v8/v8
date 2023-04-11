@@ -229,6 +229,9 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
   // The Scavenger may add already swept pages back.
   if (page->SweepingDone()) return 0;
 
+  base::Optional<CodePageMemoryModificationScope> write_scope;
+  if (page->owner_identity() == CODE_SPACE) write_scope.emplace(page);
+
   int max_freed = 0;
   {
     base::MutexGuard guard(page->mutex());
@@ -246,10 +249,10 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
                                  : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
     max_freed =
         sweeper_->RawSweep(page, free_space_treatment_mode, sweeping_mode);
-    DCHECK(page->SweepingDone());
   }
 
   sweeper_->AddSweptPage(page, identity);
+  DCHECK(page->SweepingDone());
 
   return max_freed;
 }
@@ -659,9 +662,6 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
   // Phase 1: Prepare the page for sweeping.
-  base::Optional<CodePageMemoryModificationScope> write_scope;
-  if (space->identity() == CODE_SPACE) write_scope.emplace(p);
-
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
   // counter. The free operations below will decrease allocated_bytes_ to actual
   // live bytes and keep track of wasted_memory_.
@@ -765,7 +765,6 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   if (code_object_registry) {
     code_object_registry->ReinitializeFrom(std::move(code_objects));
   }
-  p->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
 
   return static_cast<int>(
       p->owner()->free_list()->GuaranteedAllocatable(max_freed_bytes));
@@ -1171,6 +1170,7 @@ bool Sweeper::IsSweepingDoneForSpace(AllocationSpace space) const {
 
 void Sweeper::AddSweptPage(Page* page, AllocationSpace identity) {
   base::MutexGuard guard(&mutex_);
+  page->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
   swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
   has_swept_pages_[GetSweepSpaceIndex(identity)].store(
       true, std::memory_order_release);
