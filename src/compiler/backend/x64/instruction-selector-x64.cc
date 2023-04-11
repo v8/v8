@@ -1713,7 +1713,7 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         break;
       case MachineRepresentation::kWord32:
       case MachineRepresentation::kWord64:
-        // While BitcastElider may remove nodes of
+        // Since BitcastElider may remove nodes of
         // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
         // with kWord64 can also reach this line.
       case MachineRepresentation::kTaggedSigned:
