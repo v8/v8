@@ -4796,6 +4796,9 @@ void Genesis::InitializeGlobal_harmony_struct() {
     shared_struct_type_fun->shared().set_length(1);
     JSObject::AddProperty(isolate(), global, "SharedStructType",
                           shared_struct_type_fun, DONT_ENUM);
+
+    SimpleInstallFunction(isolate(), shared_struct_type_fun, "isSharedStruct",
+                          Builtin::kSharedStructTypeIsSharedStruct, 1, true);
   }
 
   {  // SharedArray
@@ -4825,6 +4828,9 @@ void Genesis::InitializeGlobal_harmony_struct() {
     // Install SharedArray constructor.
     JSObject::AddProperty(isolate(), global, "SharedArray", shared_array_fun,
                           DONT_ENUM);
+
+    SimpleInstallFunction(isolate(), shared_array_fun, "isSharedArray",
+                          Builtin::kSharedArrayIsSharedArray, 1, true);
   }
 
   // TODO(v8:12547): Make a single canonical copy of the Mutex and Condition
@@ -4848,6 +4854,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsMutexLock, 2, true);
     SimpleInstallFunction(isolate(), mutex_fun, "tryLock",
                           Builtin::kAtomicsMutexTryLock, 2, true);
+    SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
+                          Builtin::kAtomicsMutexIsMutex, 1, true);
   }
 
   {  // Atomics.Condition
@@ -4869,6 +4877,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsConditionWait, 2, false);
     SimpleInstallFunction(isolate(), condition_fun, "notify",
                           Builtin::kAtomicsConditionNotify, 2, false);
+    SimpleInstallFunction(isolate(), condition_fun, "isCondition",
+                          Builtin::kAtomicsConditionIsCondition, 1, true);
   }
 }
 

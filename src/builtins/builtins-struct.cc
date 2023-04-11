@@ -241,5 +241,29 @@ BUILTIN(SharedStructConstructor) {
                                                 elements_template);
 }
 
+BUILTIN(SharedArrayIsSharedArray) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      args.atOrUndefined(isolate, 1)->IsJSSharedArray());
+}
+
+BUILTIN(SharedStructTypeIsSharedStruct) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      args.atOrUndefined(isolate, 1)->IsJSSharedStruct());
+}
+
+BUILTIN(AtomicsMutexIsMutex) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      args.atOrUndefined(isolate, 1)->IsJSAtomicsMutex());
+}
+
+BUILTIN(AtomicsConditionIsCondition) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      args.atOrUndefined(isolate, 1)->IsJSAtomicsCondition());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1018,12 +1018,16 @@ namespace internal {
   /* JS Structs and friends */                                                 \
   CPP(SharedSpaceJSObjectHasInstance)                                          \
   CPP(SharedStructTypeConstructor)                                             \
+  CPP(SharedStructTypeIsSharedStruct)                                          \
   CPP(SharedStructConstructor)                                                 \
   CPP(SharedArrayConstructor)                                                  \
+  CPP(SharedArrayIsSharedArray)                                                \
   CPP(AtomicsMutexConstructor)                                                 \
+  CPP(AtomicsMutexIsMutex)                                                     \
   CPP(AtomicsMutexLock)                                                        \
   CPP(AtomicsMutexTryLock)                                                     \
   CPP(AtomicsConditionConstructor)                                             \
+  CPP(AtomicsConditionIsCondition)                                             \
   CPP(AtomicsConditionWait)                                                    \
   CPP(AtomicsConditionNotify)                                                  \
                                                                                \
