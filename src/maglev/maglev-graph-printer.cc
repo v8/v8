@@ -659,6 +659,9 @@ void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
 
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, node);
+  if (node->properties().is_call()) {
+    os_ << "🐢 ";
+  }
   os_ << PrintNode(graph_labeller_, node) << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
