@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 void InstructionStream::Relocate(intptr_t delta) {
-  Code code = unchecked_code(kAcquireLoad);
+  Code code;
+  if (!TryGetCodeUnchecked(&code, kAcquireLoad)) return;
   // This is called during evacuation and code.instruction_stream() will point
   // to the old object. So pass *this directly to the RelocIterator.
   for (RelocIterator it(code, *this, unchecked_relocation_info(),

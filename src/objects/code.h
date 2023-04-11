@@ -70,15 +70,6 @@ class Code : public HeapObject {
 
   // Whether this Code object has an associated InstructionStream (embedded
   // builtins don't).
-  //
-  // Note there's a short amount of time during CodeBuilder::BuildInternal in
-  // which the Code object has been allocated and initialized, but the
-  // InstructionStream doesn't exist yet - in this situation,
-  // has_instruction_stream is `false` but will change to `true` once
-  // InstructionStream has also been initialized.
-  // Unfortunately, it's not easily possible to avoid this. The
-  // InstructionStream can't be allocated first, since relocation requires
-  // access to Code::relocation_info.
   inline bool has_instruction_stream() const;
   inline bool has_instruction_stream(RelaxedLoadTag) const;
 
