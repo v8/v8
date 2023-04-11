@@ -128,6 +128,10 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
+  V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
+    return false;
+  }
+
  protected:
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);

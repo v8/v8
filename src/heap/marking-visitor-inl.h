@@ -264,7 +264,8 @@ template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
     Map map, FixedArray object) {
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  concrete_visitor()->VisitMapPointerIfNeeded(object);
+  concrete_visitor()
+      ->template VisitMapPointerIfNeeded<VisitorId::kVisitFixedArray>(object);
   FixedArray::BodyDescriptor::IterateBody(map, object, size,
                                           concrete_visitor());
   return size;
@@ -494,7 +495,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
       int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
       VisitPointers(array, array.GetFirstPointerSlot(),
                     array.GetDescriptorSlot(0));
-      concrete_visitor()->VisitMapPointerIfNeeded(array);
+      concrete_visitor()
+          ->template VisitMapPointerIfNeeded<VisitorId::kVisitDescriptorArray>(
+              array);
       return size;
     }
   }

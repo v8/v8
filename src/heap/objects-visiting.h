@@ -110,11 +110,17 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE ResultType Visit(Map map, HeapObject object);
 
  protected:
-  // If this predicate return false the default implementations of Visit*
+  // If this predicate returns false the default implementations of Visit*
   // functions bail out from visiting the map pointer.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
+  // If this predicate returns false the default implementations of Visit*
+  // functions bail out from visiting known read-only maps.
+  V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
+    return true;
+  }
 
   // Only visits the Map pointer if `ShouldVisitMapPointer()` returns true.
+  template <VisitorId visitor_id>
   V8_INLINE void VisitMapPointerIfNeeded(HeapObject host);
 
 #define VISIT(TypeName) \
