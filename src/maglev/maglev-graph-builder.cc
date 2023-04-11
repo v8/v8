@@ -1943,7 +1943,7 @@ ReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
   }
   auto script_context = GetConstant(global_access_feedback.script_context());
   int offset = Context::OffsetOfElementAt(global_access_feedback.slot_index());
-  StoreAndCacheContextSlot(script_context, offset, GetAccumulatorTagged());
+  StoreAndCacheContextSlot(script_context, offset, GetRawAccumulator());
   return ReduceResult::Done();
 }
 
