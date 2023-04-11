@@ -6109,8 +6109,7 @@ void MacroAssembler::I32x4TruncSatF64x2SZero(Simd128Register dst,
                                              Simd128Register src,
                                              Simd128Register scratch) {
   // NaN to 0.
-  vlr(scratch, src, Condition(0), Condition(0), Condition(0));
-  vfce(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
+  vfce(scratch, src, src, Condition(0), Condition(0), Condition(3));
   vn(scratch, src, scratch, Condition(0), Condition(0), Condition(0));
   vcgd(scratch, scratch, Condition(5), Condition(0), Condition(3));
   vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
