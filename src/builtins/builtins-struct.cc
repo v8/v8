@@ -151,20 +151,17 @@ BUILTIN(SharedStructTypeConstructor) {
     }
 
     if (!element_names.empty()) {
-      elements_template =
-          NumberDictionary::New(isolate, static_cast<int>(element_names.size()),
-                                AllocationType::kSharedOld);
+      int nof_elements = static_cast<int>(element_names.size());
+      elements_template = NumberDictionary::New(isolate, nof_elements,
+                                                AllocationType::kSharedOld);
       for (uint32_t index : element_names) {
         PropertyDetails details(PropertyKind::kData, SEALED,
                                 PropertyConstness::kMutable, 0);
-        Handle<NumberDictionary> dict = NumberDictionary::Add(
+        NumberDictionary::UncheckedAdd<Isolate, AllocationType::kSharedOld>(
             isolate, elements_template, index,
-            ReadOnlyRoots(isolate).undefined_value_handle(), details, nullptr);
-        // The dictionary should not be reallocated since it was allocated with
-        // the correct size up front. Reallocation would move it into new space.
-        DCHECK_EQ(*dict, *elements_template);
-        USE(dict);
+            ReadOnlyRoots(isolate).undefined_value_handle(), details);
       }
+      elements_template->SetInitialNumberOfElements(nof_elements);
       DCHECK(elements_template->InAnySharedSpace());
     }
   }

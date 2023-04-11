@@ -7028,7 +7028,8 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   base::Flags<RangeWriteBarrierMode> mode;
 
-  if (!source_page->InYoungGeneration()) {
+  if (!source_page->InYoungGeneration() &&
+      !source_page->InWritableSharedSpace()) {
     mode |= kDoGenerationalOrShared;
   }
 
