@@ -84,7 +84,7 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
   if (!offset.is_reg() && is_int20(offset.immediate())) {
     __ lay(r14, MemOperand(entry_address, offset.immediate()));
   } else {
-    CHECK(offset.is_reg());
+    DCHECK(offset.is_reg());
     __ AddS64(r14, entry_address, offset.rm());
   }
 
