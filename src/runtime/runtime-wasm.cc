@@ -943,7 +943,8 @@ void SyncStackLimit(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   auto continuation = WasmContinuationObject::cast(
       isolate->root(RootIndex::kActiveContinuation));
-  auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
+  wasm::StackMemory* stack =
+      Managed<wasm::StackMemory>::cast(continuation.stack()).raw();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch to stack #%d\n", stack->id());
   }
