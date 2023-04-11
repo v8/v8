@@ -1037,7 +1037,8 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
 
 void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     InstructionStream istream) {
-  Code code = istream.code(kAcquireLoad);
+  Code code;
+  if (!istream.TryGetCode(&code, kAcquireLoad)) return;
   RecordSimpleVirtualObjectStats(HeapObject(), istream,
                                  CodeKindToVirtualInstanceType(code.kind()));
   RecordSimpleVirtualObjectStats(istream, istream.relocation_info(),
