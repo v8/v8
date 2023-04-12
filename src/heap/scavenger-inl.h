@@ -393,9 +393,11 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
     case kVisitSeqOneByteString:
     case kVisitSeqTwoByteString:
       DCHECK(String::IsInPlaceInternalizable(map.instance_type()));
+      static_assert(Map::ObjectFieldsFrom(kVisitSeqOneByteString) ==
+                    Map::ObjectFieldsFrom(kVisitSeqTwoByteString));
       return EvacuateInPlaceInternalizableString(
           map, slot, String::unchecked_cast(source), size,
-          ObjectFields::kMaybePointers);
+          Map::ObjectFieldsFrom(kVisitSeqOneByteString));
     case kVisitDataObject:  // External strings have kVisitDataObject.
       if (String::IsInPlaceInternalizableExcludingExternal(
               map.instance_type())) {

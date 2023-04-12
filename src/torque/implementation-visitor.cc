@@ -3872,7 +3872,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_DATA_ONLY_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }
@@ -3880,7 +3881,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_POINTER_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && !type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          !type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }

@@ -840,7 +840,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
-  static ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
+  static constexpr ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
     return (visitor_id < kDataOnlyVisitorIdCount)
                ? ObjectFields::kDataOnly
                : ObjectFields::kMaybePointers;
