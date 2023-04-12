@@ -40,11 +40,18 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   inline Object ValueAt(InternalIndex entry);
   inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry);
+  inline Object ValueAt(InternalIndex entry, SeqCstAccessTag);
+  inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry,
+                        SeqCstAccessTag);
   // Returns {} if we would be reading out of the bounds of the object.
   inline base::Optional<Object> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Object value, SeqCstAccessTag);
+
+  // Swap the value for the entry.
+  inline Object ValueAtSwap(InternalIndex entry, Object value, SeqCstAccessTag);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
