@@ -676,7 +676,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                                        enabled_features, bytes);
   }
 
-  return_value.Set(Boolean::New(isolate, validated));
+  return_value.Set(validated);
 }
 
 namespace {

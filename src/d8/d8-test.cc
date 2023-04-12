@@ -829,7 +829,7 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     if (i::v8_flags.fuzzing) {
-      info.GetReturnValue().Set(Boolean::New(isolate, false));
+      info.GetReturnValue().Set(false);
       return;
     }
     double real_arg = 0;
@@ -848,7 +848,7 @@ class FastCApiObject {
             info[2]->NumberValue(isolate->GetCurrentContext()).FromJust();
       }
       CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      info.GetReturnValue().Set(Boolean::New(isolate, false));
+      info.GetReturnValue().Set(false);
     } else {
       info.GetIsolate()->ThrowError("Argument out of range.");
     }
@@ -1063,7 +1063,7 @@ class FastCApiObject {
       }
     }
 
-    info.GetReturnValue().Set(Boolean::New(isolate, result));
+    info.GetReturnValue().Set(result);
   }
 
   static bool TestWasmMemoryFastCallback(Local<Object> receiver,
