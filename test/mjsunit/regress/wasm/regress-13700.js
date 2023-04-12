@@ -44,8 +44,8 @@ for (let i = 0; i < bases.length; ++i) {
 
   let instance = builder.instantiate();
 
-  let mem = new BigInt64Array(instance.exports.memory.buffer);
-  mem[0] = bases[i];
+  let mem = new DataView(instance.exports.memory.buffer)
+  mem.setBigInt64(0, bases[i], true);
   let result = instance.exports.trunci64();
   assertEquals(result, expects[i]);
 }
