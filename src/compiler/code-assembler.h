@@ -1195,6 +1195,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       target, context, args...));
   }
 
+  template <class... TArgs>
+  void CallStubVoid(Callable const& callable, TNode<Object> context,
+                    TArgs... args) {
+    TNode<Code> target = HeapConstant(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
+  }
+
   template <class T = Object, class... TArgs>
   TNode<T> CallBuiltinPointer(const CallInterfaceDescriptor& descriptor,
                               TNode<BuiltinPtr> target, TNode<Object> context,

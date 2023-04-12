@@ -1088,9 +1088,8 @@ VisitResult ProjectStructField(VisitResult structure,
 
 namespace {
 void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
-  DCHECK_NE(type, TypeOracle::GetNeverType());
   if (type->IsConstexpr()) return;
-  if (type == TypeOracle::GetVoidType()) return;
+  if (type->IsVoidOrNever()) return;
   if (base::Optional<const StructType*> s = type->StructSupertype()) {
     for (const Field& field : (*s)->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);
