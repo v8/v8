@@ -461,6 +461,63 @@ class FastCApiObject {
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType IsNullBufferFastCallbackPatch(AnyCType receiver,
+                                                AnyCType typed_array_arg,
+                                                AnyCType options) {
+    AnyCType ret;
+    ret.bool_value = IsNullBufferFastCallback(receiver.object_value,
+                                              *typed_array_arg.uint8_ta_value,
+                                              *options.options_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  static bool IsNullBufferFastCallback(
+      Local<Object> receiver, const FastApiTypedArray<uint8_t>& typed_array_arg,
+      FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(0);
+    self->fast_call_count_++;
+
+    unsigned char* data;
+    if (typed_array_arg.getStorageIfAligned(&data)) {
+      if (data == nullptr) {
+        return true;
+      }
+    }
+    return false;
+  }
+  static void IsNullBufferSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() != 1) {
+      isolate->ThrowError("This method expects a single TypedArray argument.");
+      return;
+    }
+    if (!info[0]->IsTypedArray()) {
+      isolate->ThrowError(
+          "This method expects a TypedArray as its only argument.");
+      return;
+    }
+
+    Local<TypedArray> typed_array_arg = info[0].As<TypedArray>();
+
+    void* data = typed_array_arg->Buffer()->GetBackingStore()->Data();
+    if (typed_array_arg->IsUint8Array() && data == nullptr) {
+      info.GetReturnValue().Set(true);
+      return;
+    }
+    info.GetReturnValue().Set(false);
+  }
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType Add32BitIntFastCallbackPatch(AnyCType receiver,
                                                AnyCType should_fallback,
                                                AnyCType arg_i32,
@@ -1461,6 +1518,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
             Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_no_options_c_func));
+
+    CFunction is_null_buffer_c_func =
+        CFunction::Make(FastCApiObject::IsNullBufferFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "is_null_buffer",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::IsNullBufferSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &is_null_buffer_c_func));
 
     CFunction add_32bit_int_c_func = CFunction::Make(
         FastCApiObject::Add32BitIntFastCallback V8_IF_USE_SIMULATOR(

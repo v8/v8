@@ -439,17 +439,25 @@ class FastApiCallReducer : public Next {
 
     // Unpack the store and length, and store them to a struct
     // FastApiTypedArray.
-    OpIndex external_pointer =
-        __ LoadField(argument, AccessBuilder::ForJSTypedArrayExternalPointer());
+    V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
+        argument, AccessBuilder::ForJSTypedArrayLength());
 
     // Load the base pointer for the buffer. This will always be Smi
     // zero unless we allow on-heap TypedArrays, which is only the case
     // for Chrome. Node and Electron both set this limit to 0. Setting
     // the base to Smi zero here allows the BuildTypedArrayDataPointer
     // to optimize away the tricky part of the access later.
-    V<WordPtr> data_ptr;
+    Label<WordPtr> data_ptr_computed(this);
+
+    // For empty typed arrays we should return nullptr.
+    GOTO_IF(UNLIKELY(__ WordPtrEqual(length_in_bytes, 0)), data_ptr_computed,
+            0);
+
+    OpIndex external_pointer =
+        __ LoadField(argument, AccessBuilder::ForJSTypedArrayExternalPointer());
+
     if constexpr (JSTypedArray::kMaxSizeInHeap == 0) {
-      data_ptr = external_pointer;
+      GOTO(data_ptr_computed, external_pointer);
     } else {
       V<Object> base_pointer = __ template LoadField<Object>(
           argument, AccessBuilder::ForJSTypedArrayBasePointer());
@@ -462,11 +470,10 @@ class FastApiCallReducer : public Next {
         // details.
         base = __ ChangeUint32ToUintPtr(base);
       }
-      data_ptr = __ WordPtrAdd(base, external_pointer);
+      GOTO(data_ptr_computed, __ WordPtrAdd(base, external_pointer));
     }
 
-    V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
-        argument, AccessBuilder::ForJSTypedArrayLength());
+    BIND(data_ptr_computed, data_ptr);
 
     // We hard-code int32_t here, because all specializations of
     // FastApiTypedArray have the same size.

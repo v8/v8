@@ -6593,6 +6593,13 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
       __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_shared, bailout);
 
+  Node* length_in_bytes =
+      __ LoadField(AccessBuilder::ForJSTypedArrayLength(), node);
+  MachineRepresentation pointer_rep = MachineRepresentation::kTaggedPointer;
+  auto data_ptr_computed = __ MakeLabel(pointer_rep);
+  __ GotoIf(__ WordEqual(length_in_bytes, __ UintPtrConstant(0)),
+            &data_ptr_computed, BranchHint::kFalse, __ UintPtrConstant(0));
+
   // Unpack the store and length, and store them to a struct
   // FastApiTypedArray.
   Node* external_pointer =
@@ -6608,9 +6615,11 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   if (JSTypedArray::kMaxSizeInHeap == 0) {
     base_pointer = jsgraph()->ZeroConstant();
   }
-  Node* data_ptr = BuildTypedArrayDataPointer(base_pointer, external_pointer);
-  Node* length_in_bytes =
-      __ LoadField(AccessBuilder::ForJSTypedArrayLength(), node);
+  __ Goto(&data_ptr_computed,
+          BuildTypedArrayDataPointer(base_pointer, external_pointer));
+
+  __ Bind(&data_ptr_computed);
+  Node* data_ptr = data_ptr_computed.PhiAt(0);
 
   // We hard-code int32_t here, because all specializations of
   // FastApiTypedArray have the same size.
@@ -6628,9 +6637,11 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
       "FastApiTypedArray isn't equal to the sum of its expected members.");
   Node* stack_slot = __ StackSlot(kSize, kAlign);
 
+  // Length
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            stack_slot, 0, length_in_bytes);
+
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            stack_slot, sizeof(size_t), data_ptr);
