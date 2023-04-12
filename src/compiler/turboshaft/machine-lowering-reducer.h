@@ -254,14 +254,19 @@ class MachineLoweringReducer : public Next {
             GOTO_IF_NOT(check, done, 0);
             // Fallthrough into receiver check.
             V8_FALLTHROUGH;
-          case ObjectIsOp::Kind::kReceiver: {
-            static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-            V<Word32> instance_type = __ LoadInstanceTypeField(map);
-            check =
-                __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE, instance_type);
+          case ObjectIsOp::Kind::kReceiver:
+            check = JSAnyIsNotPrimitiveHeapObject(input, map);
             break;
-          }
           case ObjectIsOp::Kind::kReceiverOrNullOrUndefined: {
+#if V8_STATIC_ROOTS_BOOL
+            V<Word32> check0 = JSAnyIsNotPrimitiveHeapObject(input, map);
+            V<Word32> check1 = __ TaggedEqual(
+                input, __ HeapConstant(factory_->undefined_value()));
+            V<Word32> check2 =
+                __ TaggedEqual(input, __ HeapConstant(factory_->null_value()));
+            check =
+                __ Word32BitwiseOr(check0, __ Word32BitwiseOr(check1, check2));
+#else
             static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
             static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             // Rule out all primitives except oddballs (true, false, undefined,
@@ -274,6 +279,7 @@ class MachineLoweringReducer : public Next {
             check = __ Word32Equal(
                 0,
                 __ TaggedEqual(map, __ HeapConstant(factory_->boolean_map())));
+#endif  // V8_STATIC_ROOTS_BOOL
             break;
           }
           case ObjectIsOp::Kind::kUndetectable:
