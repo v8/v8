@@ -226,12 +226,17 @@ struct KnownNodeAspects {
   // Flushed after side-effecting calls.
   ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> unstable_maps;
 
+  // Cached property loads.
+
+  // Maps name->object->value, so that stores to a name can invalidate all loads
+  // of that name (in case the objects are aliasing).
+  using LoadedPropertyMap =
+      ZoneMap<compiler::NameRef, ZoneMap<ValueNode*, ValueNode*>>;
+
   // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
-      loaded_constant_properties;
+  LoadedPropertyMap loaded_constant_properties;
   // Flushed after side-effecting calls.
-  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
-      loaded_properties;
+  LoadedPropertyMap loaded_properties;
 
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;

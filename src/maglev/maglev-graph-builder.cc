@@ -2921,7 +2921,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
       ValueNode* result = BuildLoadField(access_info, lookup_start_object);
-      RecordKnownProperty(lookup_start_object, name, result, access_info);
+      RecordKnownProperty(lookup_start_object, name, result, access_info,
+                          compiler::AccessMode::kLoad);
       return result;
     }
     case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
@@ -2941,7 +2942,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
       ValueNode* result = AddNewNode<StringLength>({receiver});
-      RecordKnownProperty(lookup_start_object, name, result, access_info);
+      RecordKnownProperty(lookup_start_object, name, result, access_info,
+                          compiler::AccessMode::kLoad);
       return result;
     }
   }
@@ -2964,8 +2966,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
     if (TryBuildStoreField(access_info, receiver, access_mode).IsDone()) {
       RecordKnownProperty(receiver, name,
-                          current_interpreter_frame_.accumulator(),
-                          access_info);
+                          current_interpreter_frame_.accumulator(), access_info,
+                          access_mode);
       return ReduceResult::Done();
     }
     return ReduceResult::Fail();
@@ -3560,7 +3562,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
 
 void MaglevGraphBuilder::RecordKnownProperty(
     ValueNode* lookup_start_object, compiler::NameRef name, ValueNode* value,
-    compiler::PropertyAccessInfo const& access_info) {
+    compiler::PropertyAccessInfo const& access_info,
+    compiler::AccessMode access_mode) {
   bool is_const;
   if (access_info.IsFastDataConstant() || access_info.IsStringLength()) {
     is_const = true;
@@ -3579,6 +3582,28 @@ void MaglevGraphBuilder::RecordKnownProperty(
     is_const = false;
   }
 
+  KnownNodeAspects::LoadedPropertyMap& loaded_properties =
+      is_const ? known_node_aspects().loaded_constant_properties
+               : known_node_aspects().loaded_properties;
+  // Try to get loaded_properties[name] if it already exists, otherwise
+  // construct loaded_properties[name] = ZoneMap{zone()}.
+  auto& props_for_name =
+      loaded_properties.try_emplace(name, zone()).first->second;
+
+  if (!is_const && IsAnyStore(access_mode)) {
+    // We don't do any aliasing analysis, so stores clobber all other cached
+    // loads of a property with that name. We only need to do this for
+    // non-constant properties, since constant properties are known not to
+    // change and therefore can't be clobbered.
+    // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
+    // whether there's an intersection of known maps.
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Removing all non-constant cached properties with name "
+                << *name.object() << std::endl;
+    }
+    props_for_name.clear();
+  }
+
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
               << " known property "
@@ -3588,33 +3613,46 @@ void MaglevGraphBuilder::RecordKnownProperty(
               << "] = " << PrintNodeLabel(graph_labeller(), value) << ": "
               << PrintNode(graph_labeller(), value) << std::endl;
   }
-  auto& loaded_properties =
-      is_const ? known_node_aspects().loaded_constant_properties
-               : known_node_aspects().loaded_properties;
-  loaded_properties[std::make_pair(lookup_start_object, name)] = value;
+
+  props_for_name[lookup_start_object] = value;
 }
+
+namespace {
+ReduceResult TryFindLoadedProperty(
+    const KnownNodeAspects::LoadedPropertyMap& loaded_properties,
+    ValueNode* lookup_start_object, compiler::NameRef name) {
+  auto props_for_name = loaded_properties.find(name);
+  if (props_for_name == loaded_properties.end()) return ReduceResult::Fail();
+
+  auto it = props_for_name->second.find(lookup_start_object);
+  if (it == props_for_name->second.end()) return ReduceResult::Fail();
+
+  return it->second;
+}
+}  // namespace
 
 ReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
     ValueNode* lookup_start_object, compiler::NameRef name) {
-  if (auto it = known_node_aspects().loaded_properties.find(
-          {lookup_start_object, name});
-      it != known_node_aspects().loaded_properties.end()) {
-    if (v8_flags.trace_maglev_graph_building) {
+  if (ReduceResult result = TryFindLoadedProperty(
+          known_node_aspects().loaded_properties, lookup_start_object, name);
+      result.IsDone()) {
+    if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
       std::cout << "  * Reusing non-constant loaded property "
-                << PrintNodeLabel(graph_labeller(), it->second) << ": "
-                << PrintNode(graph_labeller(), it->second) << std::endl;
+                << PrintNodeLabel(graph_labeller(), result.value()) << ": "
+                << PrintNode(graph_labeller(), result.value()) << std::endl;
     }
-    return it->second;
+    return result;
   }
-  if (auto it = known_node_aspects().loaded_constant_properties.find(
-          {lookup_start_object, name});
-      it != known_node_aspects().loaded_constant_properties.end()) {
-    if (v8_flags.trace_maglev_graph_building) {
+  if (ReduceResult result =
+          TryFindLoadedProperty(known_node_aspects().loaded_constant_properties,
+                                lookup_start_object, name);
+      result.IsDone()) {
+    if (v8_flags.trace_maglev_graph_building && result.IsDoneWithValue()) {
       std::cout << "  * Reusing constant loaded property "
-                << PrintNodeLabel(graph_labeller(), it->second) << ": "
-                << PrintNode(graph_labeller(), it->second) << std::endl;
+                << PrintNodeLabel(graph_labeller(), result.value()) << ": "
+                << PrintNode(graph_labeller(), result.value()) << std::endl;
     }
-    return it->second;
+    return result;
   }
   return ReduceResult::Fail();
 }

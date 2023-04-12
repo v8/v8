@@ -18,29 +18,33 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                            lhs.MergeWith(rhs);
                            return !lhs.is_empty();
                          });
-  DestructivelyIntersect(stable_maps, other.stable_maps,
-                         [zone](compiler::ZoneRefSet<Map>& lhs,
-                                const compiler::ZoneRefSet<Map>& rhs) {
-                           for (compiler::MapRef map : rhs) {
-                             lhs.insert(map, zone);
-                           }
-                           // We should always add the value even if the set is
-                           // empty.
-                           return true;
-                         });
-  DestructivelyIntersect(unstable_maps, other.unstable_maps,
-                         [zone](compiler::ZoneRefSet<Map>& lhs,
-                                const compiler::ZoneRefSet<Map>& rhs) {
-                           for (compiler::MapRef map : rhs) {
-                             lhs.insert(map, zone);
-                           }
-                           // We should always add the value even if the set is
-                           // empty.
-                           return true;
-                         });
+
+  auto merge_known_maps = [zone](compiler::ZoneRefSet<Map>& lhs,
+                                 const compiler::ZoneRefSet<Map>& rhs) {
+    // Map sets are the set of _possible_ maps, so on
+    // a merge we need to _union_ them together (i.e.
+    // intersect the set of impossible maps).
+    lhs.Union(rhs, zone);
+    // We should always add the value even if the set is
+    // empty.
+    return true;
+  };
+  DestructivelyIntersect(stable_maps, other.stable_maps, merge_known_maps);
+  DestructivelyIntersect(unstable_maps, other.unstable_maps, merge_known_maps);
+
+  auto merge_loaded_properties =
+      [](ZoneMap<ValueNode*, ValueNode*>& lhs,
+         const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        // Loaded properties are maps of maps, so just do the destructive
+        // intersection recursively.
+        DestructivelyIntersect(lhs, rhs);
+        return !lhs.empty();
+      };
   DestructivelyIntersect(loaded_constant_properties,
-                         other.loaded_constant_properties);
-  DestructivelyIntersect(loaded_properties, other.loaded_properties);
+                         other.loaded_constant_properties,
+                         merge_loaded_properties);
+  DestructivelyIntersect(loaded_properties, other.loaded_properties,
+                         merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants,
                          other.loaded_context_constants);
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);

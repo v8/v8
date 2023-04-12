@@ -1194,10 +1194,7 @@ class MaglevGraphBuilder {
     //   * CheckMapsWithMigration -- this only migrates representations of
     //     values, not the values themselves, so cached values are still valid.
     static constexpr bool should_clear_unstable_node_aspects =
-        // TODO(leszeks): Optimizing for simple stores is currently broken,
-        // as there is no alias analysis to ensure that a store can't modify
-        // an aliasing object.
-        /* !is_simple_field_store &&*/
+        !is_simple_field_store &&
         !std::is_same_v<NodeT, CheckMapsWithMigration>;
 
     // Simple field stores can't possibly change or migrate the map.
@@ -1549,7 +1546,8 @@ class MaglevGraphBuilder {
   // subsequent loads.
   void RecordKnownProperty(ValueNode* lookup_start_object,
                            compiler::NameRef name, ValueNode* value,
-                           compiler::PropertyAccessInfo const& access_info);
+                           compiler::PropertyAccessInfo const& access_info,
+                           compiler::AccessMode access_mode);
   ReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                          compiler::NameRef name);
 
