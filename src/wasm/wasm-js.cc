@@ -2337,8 +2337,10 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!EnforceUint32("Argument 0", info[0], context, &thrower, &index)) {
     return;
   }
-  if (!i::WasmTableObject::IsInBounds(i_isolate, receiver, index)) {
-    thrower.RangeError("invalid index %u into function table", index);
+  if (!receiver->is_in_bounds(index)) {
+    thrower.RangeError("invalid index %u into %s table of size %d", index,
+                       receiver->type().name().c_str(),
+                       receiver->current_length());
     return;
   }
 
@@ -2378,8 +2380,10 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!EnforceUint32("Argument 0", info[0], context, &thrower, &index)) {
     return;
   }
-  if (!i::WasmTableObject::IsInBounds(i_isolate, table_object, index)) {
-    thrower.RangeError("invalid index %u into function table", index);
+  if (!table_object->is_in_bounds(index)) {
+    thrower.RangeError("invalid index %u into %s table of size %d", index,
+                       table_object->type().name().c_str(),
+                       table_object->current_length());
     return;
   }
 

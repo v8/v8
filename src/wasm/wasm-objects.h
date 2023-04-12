@@ -188,8 +188,7 @@ class WasmTableObject
       Isolate* isolate, Handle<WasmTableObject> table,
       Handle<WasmInstanceObject> instance, int table_index);
 
-  static bool IsInBounds(Isolate* isolate, Handle<WasmTableObject> table,
-                         uint32_t entry_index);
+  bool is_in_bounds(uint32_t entry_index);
 
   // Thin wrapper around {JsToWasmObject}.
   static MaybeHandle<Object> JSToWasmElement(Isolate* isolate,

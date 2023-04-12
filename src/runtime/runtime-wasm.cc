@@ -522,7 +522,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
                         WasmInstanceObject::cast(table->instance()).module()));
 
-  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+  if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
 
@@ -547,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
                         WasmInstanceObject::cast(table->instance()).module()));
 
-  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+  if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
   WasmTableObject::Set(isolate, table, entry_index, element);

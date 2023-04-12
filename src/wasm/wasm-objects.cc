@@ -256,10 +256,8 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   return old_size;
 }
 
-bool WasmTableObject::IsInBounds(Isolate* isolate,
-                                 Handle<WasmTableObject> table,
-                                 uint32_t entry_index) {
-  return entry_index < static_cast<uint32_t>(table->current_length());
+bool WasmTableObject::is_in_bounds(uint32_t entry_index) {
+  return entry_index < static_cast<uint32_t>(current_length());
 }
 
 MaybeHandle<Object> WasmTableObject::JSToWasmElement(
@@ -311,7 +309,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           uint32_t index, Handle<Object> entry) {
   // Callers need to perform bounds checks, type check, and error handling.
-  DCHECK(IsInBounds(isolate, table, index));
+  DCHECK(table->is_in_bounds(index));
 
   Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
@@ -356,7 +354,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
                                     uint32_t index) {
   Handle<FixedArray> entries(table->entries(), isolate);
   // Callers need to perform bounds checks and error handling.
-  DCHECK(IsInBounds(isolate, table, index));
+  DCHECK(table->is_in_bounds(index));
 
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
