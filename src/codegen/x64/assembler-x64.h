@@ -2677,11 +2677,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // are already bound.
   std::deque<int> internal_reference_positions_;
 
-  // Variables for this instance of assembler
-  int farjmp_num_ = 0;
-  std::deque<int> farjmp_positions_;
-  std::map<Label*, std::vector<int>> label_farjmp_maps_;
-
   ConstPool constpool_;
 
   friend class ConstPool;

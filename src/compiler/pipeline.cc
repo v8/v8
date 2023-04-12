@@ -3972,9 +3972,9 @@ void PipelineImpl::VerifyGeneratedCodeIsIdempotent() {
     hash_code = base::hash_combine(hash_code, code->GetRepresentation(i));
   }
   if (jump_opt->is_collecting()) {
-    jump_opt->set_hash_code(hash_code);
+    jump_opt->hash_code = hash_code;
   } else {
-    CHECK_EQ(hash_code, jump_opt->hash_code());
+    CHECK_EQ(hash_code, jump_opt->hash_code);
   }
 }
 

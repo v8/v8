@@ -1794,11 +1794,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
-
-  // Variables for this instance of assembler
-  int farjmp_num_ = 0;
-  std::deque<int> farjmp_positions_;
-  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 };
 
 // Helper class that ensures that there is enough space for generating
