@@ -2008,7 +2008,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
         BuildCheckHeapObject(value);
         BuildCheckMaps(value, base::VectorOf({property_cell_value_map}));
       } else {
-        BuildCheckSmi(value);
+        BuildCheckSmi(value, /*elidable*/ false);
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       BuildStoreTaggedField(property_cell_node, value,
@@ -2370,8 +2370,8 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
   }
 }
 
-void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
-  if (EnsureType(object, NodeType::kSmi)) return;
+void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object, bool elidable) {
+  if (EnsureType(object, NodeType::kSmi) && elidable) return;
   AddNewNode<CheckSmi>({object});
 }
 
@@ -2853,7 +2853,9 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else {
     value = GetAccumulatorTagged();
-    if (field_representation.IsHeapObject()) {
+    if (field_representation.IsSmi()) {
+      BuildCheckSmi(value, /*elidable*/ false);
+    } else if (field_representation.IsHeapObject()) {
       // Emit a map check for the field type, if needed, otherwise just a
       // HeapObject check.
       if (access_info.field_map().has_value()) {
@@ -2866,8 +2868,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsSmi()) {
-    AddNewNode<CheckedStoreSmiField>({store_target, value},
-                                     field_index.offset());
+    BuildStoreTaggedFieldNoWriteBarrier(store_target, value,
+                                        field_index.offset());
   } else if (value->use_double_register()) {
     DCHECK(field_representation.IsDouble());
     DCHECK(!access_info.HasTransitionMap());
@@ -3440,11 +3442,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
         }
         ValueNode* value = GetAccumulatorTagged();
         if (IsSmiElementsKind(elements_kind)) {
-          AddNewNode<CheckedStoreFixedArraySmiElement>(
-              {elements_array, index, value});
-        } else {
-          BuildStoreFixedArrayElement(elements_array, index, value);
+          BuildCheckSmi(value, /*elidable*/ false);
         }
+        BuildStoreFixedArrayElement(elements_array, index, value);
       }
       return ReduceResult::Done();
     }

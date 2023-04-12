@@ -478,6 +478,29 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 }
 
+void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    CheckSmi* node, Phi* phi, int input_index, const ProcessingState& state) {
+  DCHECK_EQ(input_index, 0);
+
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      return;
+
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<CheckInt32IsSmi>();
+      break;
+
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      node->OverwriteWith<CheckHoleyFloat64IsSmi>();
+      break;
+
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
+}
+
 // If the input of a StoreTaggedFieldNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
@@ -509,25 +532,6 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
-// CheckedStoreSmiField is a bit of a special node, because it expects its input
-// to be a Smi, and not just any Object. The comments in SmiTagPhi explain what
-// this means for untagged Phis.
-void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    CheckedStoreSmiField* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
-  if (input_index == CheckedStoreSmiField::kValueIndex) {
-    node->change_input(input_index, SmiTagPhi(phi, node, state));
-  } else {
-    DCHECK_EQ(input_index, CheckedStoreSmiField::kObjectIndex);
-    // The 1st input of a Store should usually not be untagged. However, it is
-    // possible to write `let x = a ? 4 : 2; x.c = 10`, which will produce a
-    // store whose receiver could be an untagged Phi. So, for such cases, we use
-    // the generic UpdateNodePhiInput method to tag `phi` if needed.
-    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
-    return;
-  }
-}
-
 // If the input of a StoreFixedArrayElementNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
@@ -553,19 +557,6 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     static_assert(StoreFixedArrayElementNoWriteBarrier::kValueIndex ==
                   StoreFixedArrayElementWithWriteBarrier::kValueIndex);
     node->OverwriteWith<StoreFixedArrayElementWithWriteBarrier>();
-  }
-}
-
-// CheckedStoreFixedArraySmiElement is a bit of a special node, because it
-// expects its input to be a Smi, and not just any Object. The comments in
-// SmiTagPhi explain what this means for untagged Phis.
-void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    CheckedStoreFixedArraySmiElement* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
-  if (input_index == CheckedStoreFixedArraySmiElement::kValueIndex) {
-    node->change_input(input_index, SmiTagPhi(phi, node, state));
-  } else {
-    UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
   }
 }
 
@@ -617,105 +608,24 @@ void MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
-template <class ToNodeT, class FromNodeT>
-ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
-    Phi* phi, FromNodeT* user_node, const ProcessingState& state) {
-  // The input graph was something like:
-  //
-  //                            Tagged Phi
-  //                                │
-  //                                │
-  //                                ▼
-  //                            FromNodeT
-  //
-  // If the phi has been untagged, we have to retag it to a Smi, after which we
-  // can omit the "CheckedSmi" part of the FromNodeT, which we do by
-  // replacing the FromNodeT by a ToNodeT:
-  //
-  //                           Untagged Phi
-  //                                │
-  //                                │
-  //                                ▼
-  //            CheckedSmiTagFloat64/CheckedSmiTagInt32
-  //                                │
-  //                                │
-  //                                ▼
-  //                             ToNodeT
-
-  ValueNode* tagged;
-  switch (phi->value_representation()) {
-#define TAG_INPUT(tagging_op)                                  \
-  tagged = NodeBase::New<tagging_op>(builder_->zone(), {phi}); \
-  break;
-    case ValueRepresentation::kFloat64:
-    // CheckedSmiTagFloat64 will gracefully deopt on hole values.
-    case ValueRepresentation::kHoleyFloat64:
-      TAG_INPUT(CheckedSmiTagFloat64)
-    case ValueRepresentation::kInt32:
-      TAG_INPUT(CheckedSmiTagInt32)
-    case ValueRepresentation::kUint32:
-      TAG_INPUT(CheckedSmiTagUint32)
-    case ValueRepresentation::kTagged:
-      return phi;
-    case ValueRepresentation::kWord64:
-      UNREACHABLE();
-#undef TAG_INPUT
-  }
-
-  tagged->CopyEagerDeoptInfoOf(user_node, builder_->zone());
-
-  state.node_it()->InsertBefore(tagged);
-  if (builder_->has_graph_labeller()) {
-    builder_->graph_labeller()->RegisterNode(tagged);
-  }
-#ifdef DEBUG
-  new_nodes_.insert(tagged);
-#endif
-  user_node->template OverwriteWith<ToNodeT>();
-  return tagged;
-}
-
-ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
-    Phi* phi, CheckedStoreSmiField* user_node, const ProcessingState& state) {
-  // Since we're planning on replacing CheckedStoreSmiField by a
-  // StoreTaggedFieldNoWriteBarrier, it's important to ensure that they have the
-  // same layout. OverwriteWith will check the sizes and properties of the
-  // operators, but isn't aware of which inputs are at which index, so we
-  // static_assert that both operators have the same inputs at the same index.
-  static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
-                CheckedStoreSmiField::kObjectIndex);
-  static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
-                CheckedStoreSmiField::kValueIndex);
-  return SmiTagPhi<StoreTaggedFieldNoWriteBarrier>(phi, user_node, state);
-}
-
-ValueNode* MaglevPhiRepresentationSelector::SmiTagPhi(
-    Phi* phi, CheckedStoreFixedArraySmiElement* user_node,
-    const ProcessingState& state) {
-  // Since we're planning on replacing CheckedStoreFixedArraySmiElement by a
-  // StoreFixedArrayElementNoWriteBarrier, it's important to ensure that they
-  // have the same layout. OverwriteWith will check the sizes and properties of
-  // the operators, but isn't aware of which inputs are at which index, so we
-  // static_assert that both operators have the same inputs at the same index.
-  static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
-                CheckedStoreFixedArraySmiElement::kElementsIndex);
-  static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
-                CheckedStoreFixedArraySmiElement::kIndexIndex);
-  static_assert(StoreFixedArrayElementNoWriteBarrier::kValueIndex ==
-                CheckedStoreFixedArraySmiElement::kValueIndex);
-  return SmiTagPhi<StoreFixedArrayElementNoWriteBarrier>(phi, user_node, state);
-}
-
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, NewNodePosition pos) {
   switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64:
-      return AddNode(NodeBase::New<Float64ToTagged>(builder_->zone(), {phi}),
+      // It's important to use kCanonicalizeSmi for Float64ToTagged, as
+      // otherwise, we could end up storing HeapNumbers in Smi fields.
+      return AddNode(NodeBase::New<Float64ToTagged>(
+                         builder_->zone(), {phi},
+                         Float64ToTagged::ConversionMode::kCanonicalizeSmi),
                      block, pos);
     case ValueRepresentation::kHoleyFloat64:
+      // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
+      // otherwise, we could end up storing HeapNumbers in Smi fields.
       return AddNode(
-          NodeBase::New<HoleyFloat64ToTagged>(builder_->zone(), {phi}), block,
-          pos);
+          NodeBase::New<HoleyFloat64ToTagged>(
+              builder_->zone(), {phi},
+              HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi),
+          block, pos);
     case ValueRepresentation::kInt32:
       return AddNode(NodeBase::New<Int32ToNumber>(builder_->zone(), {phi}),
                      block, pos);

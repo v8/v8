@@ -1596,6 +1596,26 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kNotASmi, this);
 }
 
+void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
+  UseRegister(input());
+  set_temporaries_needed(1);
+}
+void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  Label not_a_smi, done;
+  __ TryTruncateDoubleToInt32(scratch, value, &not_a_smi);
+  __ addl(scratch, scratch);
+  __ JumpIf(no_overflow, &done);
+
+  __ bind(&not_a_smi);
+  __ EmitEagerDeopt(this, DeoptimizeReason::kNotASmi);
+
+  __ bind(&done);
+}
+
 void CheckedSmiTagInt32::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineSameAsFirst(this);

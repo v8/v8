@@ -113,13 +113,11 @@ class MaglevPhiRepresentationSelector {
     }
   }
 
+  void UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
+                          const ProcessingState& state);
   void UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node, Phi* phi,
                           int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(CheckedStoreSmiField* node, Phi* phi, int input_index,
-                          const ProcessingState& state);
   void UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(CheckedStoreFixedArraySmiElement* node, Phi* phi,
                           int input_index, const ProcessingState& state);
   void UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
                           int input_index, const ProcessingState& state);
@@ -138,15 +136,6 @@ class MaglevPhiRepresentationSelector {
   // NewNodePosition is used to represent where a new node should be inserted:
   // at the start of a block (kStart), or at the end of a block (kEnd).
   enum class NewNodePosition { kStart, kEnd };
-
-  // Tags {phi} as a Smi.
-  ValueNode* SmiTagPhi(Phi* phi, CheckedStoreSmiField* user_node,
-                       const ProcessingState& state);
-  ValueNode* SmiTagPhi(Phi* phi, CheckedStoreFixedArraySmiElement* user_node,
-                       const ProcessingState& state);
-  template <class ToNodeT, class FromNodeT>
-  ValueNode* SmiTagPhi(Phi*, FromNodeT* user_node,
-                       const ProcessingState& state);
 
   // Returns a tagged node that represents a tagged version of {phi}.
   ValueNode* EnsurePhiTagged(Phi* phi, BasicBlock* block, NewNodePosition pos);

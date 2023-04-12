@@ -259,6 +259,7 @@ class MergePointInterpreterFrameState;
   V(CheckDynamicValue)                      \
   V(CheckInt32IsSmi)                        \
   V(CheckUint32IsSmi)                       \
+  V(CheckHoleyFloat64IsSmi)                 \
   V(CheckHeapObject)                        \
   V(CheckInt32Condition)                    \
   V(CheckFixedArrayNonEmpty)                \
@@ -283,7 +284,6 @@ class MergePointInterpreterFrameState;
   V(TryOnStackReplacement)                  \
   V(StoreMap)                               \
   V(StoreDoubleField)                       \
-  V(CheckedStoreFixedArraySmiElement)       \
   V(StoreFixedArrayElementWithWriteBarrier) \
   V(StoreFixedArrayElementNoWriteBarrier)   \
   V(StoreFixedDoubleArrayElement)           \
@@ -296,7 +296,6 @@ class MergePointInterpreterFrameState;
   V(StoreDoubleDataViewElement)             \
   V(StoreTaggedFieldNoWriteBarrier)         \
   V(StoreTaggedFieldWithWriteBarrier)       \
-  V(CheckedStoreSmiField)                   \
   V(ReduceInterruptBudgetForLoop)           \
   V(ReduceInterruptBudgetForReturn)         \
   V(ThrowReferenceErrorIfHole)              \
@@ -2498,6 +2497,24 @@ class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckHoleyFloat64IsSmi
+    : public FixedInputNodeT<1, CheckHoleyFloat64IsSmi> {
+  using Base = FixedInputNodeT<1, CheckHoleyFloat64IsSmi>;
+
+ public:
+  explicit CheckHoleyFloat64IsSmi(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
   using Base = FixedInputValueNodeT<1, CheckedSmiTagInt32>;
 
@@ -4409,6 +4426,8 @@ class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
 
+  using Node::set_input;
+
   void MarkTaggedInputsAsDecompressing() {
     // Don't need to decompress to check Smi bits.
   }
@@ -5211,49 +5230,6 @@ class StoreFixedArrayElementNoWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-// CheckedStoreFixedArraySmiElement doesn't do any Deferred Calls, but
-// PhiRepresentationSelector could turn this node into a
-// StoreFixedArrayElementNoWriteBarrier, which needs the register snapshot (see
-// the comment before the definition of kProperties in
-// StoreFixedArrayElementNoWriteBarrier).
-// TODO(dmercadier): when CheckedStoreFixedArraySmiElement is transformed into a
-// StoreFixedArrayElementNoWriteBarrier, the later can never be transformed in
-// turn into a StoreFixedArrayElementWithWriteBarrier, so the register snapshot
-// is not actually needed. We should introduce a
-// StoreFixedArrayElementNoWriteBarrier node without register snapshot for such
-// cases, in order to avoid the DeferredCall property in
-// CheckedStoreFixedArraySmiElement.
-class CheckedStoreFixedArraySmiElement
-    : public FixedInputNodeT<3, CheckedStoreFixedArraySmiElement> {
-  using Base = FixedInputNodeT<3, CheckedStoreFixedArraySmiElement>;
-
- public:
-  explicit CheckedStoreFixedArraySmiElement(uint64_t bitfield)
-      : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Writing() |
-                                              OpProperties::EagerDeopt() |
-                                              OpProperties::DeferredCall();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kTagged};
-
-  static constexpr int kElementsIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kValueIndex = 2;
-  Input& elements_input() { return input(kElementsIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-  Input& value_input() { return input(kValueIndex); }
-
-  int MaxCallStackArgs() const {
-    // CheckedStoreFixedArraySmiElement never really does any call.
-    return 0;
-  }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
 class LoadFixedDoubleArrayElement
     : public FixedInputValueNodeT<2, LoadFixedDoubleArrayElement> {
   using Base = FixedInputValueNodeT<2, LoadFixedDoubleArrayElement>;
@@ -5623,49 +5599,6 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const int offset_;
-};
-
-class CheckedStoreSmiField : public FixedInputNodeT<2, CheckedStoreSmiField> {
-  using Base = FixedInputNodeT<2, CheckedStoreSmiField>;
-
- public:
-  explicit CheckedStoreSmiField(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
-
-  // CheckedStoreSmiField doesn't do any Deferred Calls, but
-  // PhiRepresentationSelector could turn this node into a
-  // StoreTaggedFieldNoWriteBarrier, which needs the register snapshot (see the
-  // comment before the definition of kProperties in
-  // StoreTaggedFieldNoWriteBarrier).
-  // TODO(dmercadier): when CheckedStoreSmiField is transformed into a
-  // StoreTaggedFieldNoWriteBarrier, the later can never be transformed in turn
-  // into a StoreTaggedFieldWithWriteBarrier, so the register snapshot is not
-  // actually needed. We should introduce a StoreTaggedField node without
-  // register snapshot for such cases, in order to avoid the DeferredCall
-  // property in CheckedStoreSmiField.
-  static constexpr OpProperties kProperties = OpProperties::Writing() |
-                                              OpProperties::EagerDeopt() |
-                                              OpProperties::DeferredCall();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  int offset() const { return offset_; }
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kValueIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& value_input() { return input(kValueIndex); }
-
-  int MaxCallStackArgs() const {
-    // CheckedStoreSmiField never really does any call.
-    return 0;
-  }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;

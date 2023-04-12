@@ -1183,8 +1183,7 @@ class MaglevGraphBuilder {
     static constexpr bool is_simple_field_store =
         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreDoubleField> ||
-        std::is_same_v<NodeT, CheckedStoreSmiField>;
+        std::is_same_v<NodeT, StoreDoubleField>;
 
     // Don't change known node aspects for:
     //
@@ -1455,7 +1454,7 @@ class MaglevGraphBuilder {
   ValueNode* BuildNumberOrOddballToFloat64(
       ValueNode* node, TaggedToFloat64ConversionType conversion_type);
 
-  void BuildCheckSmi(ValueNode* object);
+  void BuildCheckSmi(ValueNode* object, bool elidable = true);
   void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckString(ValueNode* object);

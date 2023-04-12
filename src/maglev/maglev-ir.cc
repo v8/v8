@@ -2692,21 +2692,6 @@ void StoreFloat64::GenerateCode(MaglevAssembler* masm,
   __ Move(FieldMemOperand(object, offset()), value);
 }
 
-void CheckedStoreSmiField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(value_input());
-}
-void CheckedStoreSmiField::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  Register value = ToRegister(value_input());
-
-  Condition is_smi = __ CheckSmi(value);
-  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
-                      this);
-  __ StoreTaggedField(FieldMemOperand(object, offset()), value);
-}
-
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(value_input());
@@ -3237,22 +3222,6 @@ void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
   Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
   Register value = ToRegister(value_input());
-  __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
-}
-
-void CheckedStoreFixedArraySmiElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
-}
-void CheckedStoreFixedArraySmiElement::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  Register value = ToRegister(value_input());
-  Condition is_smi = __ CheckSmi(value);
-  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
-                      this);
   __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
 }
 
@@ -4349,11 +4318,6 @@ void StoreDoubleField::PrintParams(std::ostream& os,
 void StoreFloat64::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
-}
-
-void CheckedStoreSmiField::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreTaggedFieldNoWriteBarrier::PrintParams(
