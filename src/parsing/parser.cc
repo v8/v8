@@ -3394,7 +3394,10 @@ void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
     script->set_source_url(*source_url);
   }
   Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
-  if (!source_mapping_url.is_null()) {
+  // The API can provide a source map URL and the API should take precedence.
+  // Let's make sure we do not override the API with the magic comment.
+  if (!source_mapping_url.is_null() &&
+      script->source_mapping_url(isolate).IsUndefined(isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }
