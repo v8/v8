@@ -1633,9 +1633,10 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
 
 void V8HeapExplorer::ExtractInstructionStreamReferences(
     HeapEntry* entry, InstructionStream istream) {
-  TagObject(istream.code(kAcquireLoad), "(code)", HeapEntry::kCode);
-  SetInternalReference(entry, "code", istream.code(kAcquireLoad),
-                       InstructionStream::kCodeOffset);
+  Code code;
+  if (!istream.TryGetCode(&code, kAcquireLoad)) return;  // Not yet initialized.
+  TagObject(code, "(code)", HeapEntry::kCode);
+  SetInternalReference(entry, "code", code, InstructionStream::kCodeOffset);
 
   TagObject(istream.relocation_info(), "(code relocation info)",
             HeapEntry::kCode);
