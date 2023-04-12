@@ -244,7 +244,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
           Script::PositionInfo info;
           if (Script::GetPositionInfo(eval_script,
                                       Script::GetEvalPosition(isolate, script),
-                                      &info, Script::NO_OFFSET)) {
+                                      &info, Script::OffsetFlag::kNoOffset)) {
             builder.AppendCharacter(':');
             builder.AppendInt(info.line + 1);
             builder.AppendCharacter(':');

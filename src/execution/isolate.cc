@@ -1307,7 +1307,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   if (maybe_script.IsScript()) {
     Handle<Script> script(Script::cast(maybe_script), this);
     Script::PositionInfo info;
-    Script::GetPositionInfo(script, position, &info, Script::WITH_OFFSET);
+    Script::GetPositionInfo(script, position, &info);
     *line = info.line + 1;
     *column = info.column + 1;
   } else {

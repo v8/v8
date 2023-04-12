@@ -588,7 +588,8 @@ int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
     return ScriptLinePosition(script, line) + offset;
 
   Script::PositionInfo info;
-  if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
+  if (!Script::GetPositionInfo(script, offset, &info,
+                               Script::OffsetFlag::kNoOffset)) {
     return -1;
   }
 
@@ -656,8 +657,8 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
   int line_position = ScriptLinePositionWithOffset(script, line, offset);
   if (line_position < 0 || column < 0) return isolate->factory()->null_value();
 
-  return GetJSPositionInfo(script, line_position + column, Script::NO_OFFSET,
-                           isolate);
+  return GetJSPositionInfo(script, line_position + column,
+                           Script::OffsetFlag::kNoOffset, isolate);
 }
 
 // Slow traversal over all scripts on the heap.

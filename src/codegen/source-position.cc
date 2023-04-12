@@ -102,7 +102,7 @@ void SourcePosition::Print(std::ostream& out,
   if (function.script().IsScript()) {
     Script script = Script::cast(function.script());
     source_name = script.name();
-    script.GetPositionInfo(ScriptOffset(), &pos, Script::WITH_OFFSET);
+    script.GetPositionInfo(ScriptOffset(), &pos);
   }
   out << "<";
   if (source_name.IsString()) {
@@ -156,8 +156,7 @@ SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
                  : handle(Script::cast(f->script()), isolate)) {
   if (!script.is_null()) {
     Script::PositionInfo info;
-    if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,
-                                Script::WITH_OFFSET)) {
+    if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info)) {
       line = info.line;
       column = info.column;
     }

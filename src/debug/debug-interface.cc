@@ -506,7 +506,7 @@ int Script::EndLine() const {
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, i::String::cast(script->source()).length(),
-                             &info, i::Script::WITH_OFFSET);
+                             &info);
   return info.line;
 }
 
@@ -524,7 +524,7 @@ int Script::EndColumn() const {
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, i::String::cast(script->source()).length(),
-                             &info, i::Script::WITH_OFFSET);
+                             &info);
   return info.column;
 }
 
@@ -710,7 +710,7 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
 Location Script::GetSourceLocation(int offset) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Script::PositionInfo info;
-  i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
+  i::Script::GetPositionInfo(script, offset, &info);
   if (script->HasSourceURLComment()) {
     // Line/column number for inline <script>s with sourceURL annotation
     // are supposed to be related to the <script> tag, otherwise they
@@ -1134,8 +1134,7 @@ Location GeneratorObject::SuspendedLocation() {
   i::Script::PositionInfo info;
   i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
       isolate, i::handle(obj->function().shared(), isolate));
-  i::Script::GetPositionInfo(script, obj->source_position(), &info,
-                             i::Script::WITH_OFFSET);
+  i::Script::GetPositionInfo(script, obj->source_position(), &info);
   return Location(info.line, info.column);
 }
 

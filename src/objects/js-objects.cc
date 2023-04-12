@@ -5812,9 +5812,7 @@ int JSMessageObject::GetLineNumber() const {
   Handle<Script> the_script(script(), GetIsolate());
 
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info)) {
     return Message::kNoLineNumberInfo;
   }
 
@@ -5828,9 +5826,7 @@ int JSMessageObject::GetColumnNumber() const {
   Handle<Script> the_script(script(), GetIsolate());
 
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info)) {
     return -1;
   }
 
@@ -5857,10 +5853,8 @@ Handle<String> JSMessageObject::GetSourceLine() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
   DCHECK(DidEnsureSourcePositionsAvailable());
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info)) {
     return isolate->factory()->empty_string();
   }
 

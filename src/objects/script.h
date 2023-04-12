@@ -177,7 +177,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   };
 
   // Specifies whether to add offsets to position infos.
-  enum OffsetFlag { NO_OFFSET = 0, WITH_OFFSET = 1 };
+  enum class OffsetFlag { kNoOffset, kWithOffset };
 
   // Retrieves information about the given position, optionally with an offset.
   // Returns false on failure, and otherwise writes into the given info object
@@ -187,9 +187,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // The non-static version is not allocating and safe for unhandlified
   // callsites.
   static bool GetPositionInfo(Handle<Script> script, int position,
-                              PositionInfo* info, OffsetFlag offset_flag);
-  V8_EXPORT_PRIVATE bool GetPositionInfo(int position, PositionInfo* info,
-                                         OffsetFlag offset_flag) const;
+                              PositionInfo* info,
+                              OffsetFlag offset_flag = OffsetFlag::kWithOffset);
+  V8_EXPORT_PRIVATE bool GetPositionInfo(
+      int position, PositionInfo* info,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
 
   // Tells whether this script should be subject to debugging, e.g. for
   // - scope inspection

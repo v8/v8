@@ -2499,7 +2499,7 @@ Location Module::SourceOffsetToLocation(int offset) const {
   i::Handle<i::Script> script(
       i::Handle<i::SourceTextModule>::cast(self)->GetScript(), i_isolate);
   i::Script::PositionInfo info;
-  i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
+  i::Script::GetPositionInfo(script, offset, &info);
   return v8::Location(info.line, info.column);
 }
 
@@ -3434,9 +3434,8 @@ Location StackFrame::GetLocation() const {
   i::Isolate* i_isolate = self->GetIsolate();
   i::Handle<i::Script> script(self->script(), i_isolate);
   i::Script::PositionInfo info;
-  CHECK(i::Script::GetPositionInfo(script,
-                                   i::StackFrameInfo::GetSourcePosition(self),
-                                   &info, i::Script::WITH_OFFSET));
+  CHECK(i::Script::GetPositionInfo(
+      script, i::StackFrameInfo::GetSourcePosition(self), &info));
   if (script->HasSourceURLComment()) {
     info.line -= script->line_offset();
     if (info.line == 0) {

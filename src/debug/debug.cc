@@ -2406,7 +2406,7 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
 namespace {
 debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
   Script::PositionInfo info;
-  Script::GetPositionInfo(script, source_position, &info, Script::WITH_OFFSET);
+  Script::GetPositionInfo(script, source_position, &info);
   // V8 provides ScriptCompiler::CompileFunction method which takes
   // expression and compile it as anonymous function like (function() ..
   // expression ..). To produce correct locations for stmts inside of this
