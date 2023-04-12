@@ -288,8 +288,10 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
     Script::InitLineEnds(isolate, script);
-    int line_num = script->GetLineNumber(info->StartPosition()) + 1;
-    int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
+    Script::PositionInfo position_info;
+    script->GetPositionInfo(info->StartPosition(), &position_info);
+    int line_num = position_info.line + 1;
+    int column_num = position_info.column + 1;
     PROFILE(isolate,
             CodeCreateEvent(LogEventListener::CodeTag::kFunction, abstract_code,
                             info, name_handle, line_num, column_num));
@@ -368,10 +370,10 @@ void FinalizeDeserialization(Isolate* isolate,
                                                                shared_info);
           }
           DisallowGarbageCollection no_gc;
-          int line_num =
-              script->GetLineNumber(shared_info->StartPosition()) + 1;
-          int column_num =
-              script->GetColumnNumber(shared_info->StartPosition()) + 1;
+          Script::PositionInfo position_info;
+          script->GetPositionInfo(shared_info->StartPosition(), &position_info);
+          int line_num = position_info.line + 1;
+          int column_num = position_info.column + 1;
           PROFILE(isolate,
                   CodeCreateEvent(
                       shared_info->is_toplevel()

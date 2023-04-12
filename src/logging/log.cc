@@ -2461,9 +2461,10 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                              CodeTag tag) {
   if (shared->script().IsScript()) {
     Handle<Script> script(Script::cast(shared->script()), isolate_);
-    int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
-    int column_num =
-        Script::GetColumnNumber(script, shared->StartPosition()) + 1;
+    Script::PositionInfo info;
+    Script::GetPositionInfo(script, shared->StartPosition(), &info);
+    int line_num = info.line + 1;
+    int column_num = info.column + 1;
     if (script->name().IsString()) {
       Handle<String> script_name(String::cast(script->name()), isolate_);
       if (!shared->is_toplevel()) {

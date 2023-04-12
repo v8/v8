@@ -2460,13 +2460,12 @@ bool Debug::ShouldBeSkipped() {
   Handle<Script> script = Handle<Script>::cast(script_obj);
   summary.EnsureSourcePositionsAvailable();
   int source_position = summary.SourcePosition();
-  int line = Script::GetLineNumber(script, source_position);
-  int column = Script::GetColumnNumber(script, source_position);
-
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, source_position, &info);
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
     return debug_delegate_->ShouldBeSkipped(ToApiHandle<debug::Script>(script),
-                                            line, column);
+                                            info.line, info.column);
   }
 }
 
@@ -2687,10 +2686,11 @@ void Debug::PrintBreakLocation() {
     Handle<Script> script = Handle<Script>::cast(script_obj);
     Handle<String> source(String::cast(script->source()), isolate_);
     Script::InitLineEnds(isolate_, script);
-    int line =
-        Script::GetLineNumber(script, source_position) - script->line_offset();
-    int column = Script::GetColumnNumber(script, source_position) -
-                 (line == 0 ? script->column_offset() : 0);
+    Script::PositionInfo info;
+    Script::GetPositionInfo(script, source_position, &info,
+                            Script::OffsetFlag::kNoOffset);
+    int line = info.line;
+    int column = info.column;
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()),
                                  isolate_);
     int line_start = line == 0 ? 0 : Smi::ToInt(line_ends->get(line - 1)) + 1;

@@ -98,11 +98,11 @@ int CallSiteInfo::GetColumnNumber(Handle<CallSiteInfo> info) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
-    int column_number = Script::GetColumnNumber(script, position) + 1;
-    if (script->HasSourceURLComment()) {
-      if (Script::GetLineNumber(script, position) == script->line_offset()) {
-        column_number -= script->column_offset();
-      }
+    Script::PositionInfo info;
+    Script::GetPositionInfo(script, position, &info);
+    int column_number = info.column + 1;
+    if (script->HasSourceURLComment() && info.line == script->line_offset()) {
+      column_number -= script->column_offset();
     }
     return column_number;
   }

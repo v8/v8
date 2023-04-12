@@ -321,8 +321,10 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
     return;
   }
 
-  int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
-  int column_num = Script::GetColumnNumber(script, shared->StartPosition()) + 1;
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, shared->StartPosition(), &info);
+  int line_num = info.line + 1;
+  int column_num = info.column + 1;
   Handle<String> script_name(script->name().IsString()
                                  ? String::cast(script->name())
                                  : ReadOnlyRoots(isolate).empty_string(),
@@ -649,10 +651,10 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-  int line_num =
-      Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
-  int column_num =
-      Script::GetColumnNumber(script, shared_info->StartPosition()) + 1;
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
+  int line_num = info.line + 1;
+  int column_num = info.column + 1;
   Handle<String> script_name =
       handle(script->name().IsString() ? String::cast(script->name())
                                        : ReadOnlyRoots(isolate).empty_string(),

@@ -246,8 +246,10 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }
-      line = 1 + Script::GetLineNumber(script, node->script_position_);
-      column = 1 + Script::GetColumnNumber(script, node->script_position_);
+      Script::PositionInfo pos_info;
+      Script::GetPositionInfo(script, node->script_position_, &pos_info);
+      line = pos_info.line + 1;
+      column = pos_info.column + 1;
     }
   }
   for (auto alloc : node->allocations_) {

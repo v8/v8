@@ -293,8 +293,10 @@ AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
 void AllocationTracker::UnresolvedLocation::Resolve() {
   if (script_.is_null()) return;
   HandleScope scope(script_->GetIsolate());
-  info_->line = Script::GetLineNumber(script_, start_position_);
-  info_->column = Script::GetColumnNumber(script_, start_position_);
+  Script::PositionInfo pos_info;
+  Script::GetPositionInfo(script_, start_position_, &pos_info);
+  info_->line = pos_info.line;
+  info_->column = pos_info.column;
 }
 
 void AllocationTracker::UnresolvedLocation::HandleWeakScript(

@@ -1774,11 +1774,12 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
 #else
       if ((false)) {
 #endif
-        PrintF(", %d:%d - %d:%d\n",
-               Script::GetLineNumber(script, location->start_pos()) + 1,
-               Script::GetColumnNumber(script, location->start_pos()),
-               Script::GetLineNumber(script, location->end_pos()) + 1,
-               Script::GetColumnNumber(script, location->end_pos()));
+        Script::PositionInfo start_pos;
+        Script::PositionInfo end_pos;
+        Script::GetPositionInfo(script, location->start_pos(), &start_pos);
+        Script::GetPositionInfo(script, location->end_pos(), &end_pos);
+        PrintF(", %d:%d - %d:%d\n", start_pos.line + 1, start_pos.column + 1,
+               end_pos.line + 1, end_pos.column + 1);
         // Make sure to update the raw exception pointer in case it moved.
         raw_exception = *exception;
       } else {

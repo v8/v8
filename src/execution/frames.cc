@@ -1862,8 +1862,10 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   Object maybe_script = shared.script(cage_base);
   if (maybe_script.IsScript(cage_base)) {
     Script script = Script::cast(maybe_script);
-    ic_info.line_num = script.GetLineNumber(source_pos) + 1;
-    ic_info.column_num = script.GetColumnNumber(source_pos);
+    Script::PositionInfo info;
+    script.GetPositionInfo(source_pos, &info);
+    ic_info.line_num = info.line + 1;
+    ic_info.column_num = info.column + 1;
     ic_info.script_name = ic_stats->GetOrCacheScriptName(script);
   }
 }

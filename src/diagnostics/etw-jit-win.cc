@@ -189,22 +189,6 @@ SharedFunctionInfo GetSharedFunctionInfo(const JitCodeEvent* event) {
                                  : *Utils::OpenHandle(*event->script);
 }
 
-int GetScriptLineNumber(const JitCodeEvent* event) {
-  auto sfi = GetSharedFunctionInfo(event);
-  return sfi.is_null()
-             ? -1  // invalid sentinel number
-             : Script::cast(sfi.script()).GetLineNumber(sfi.StartPosition()) +
-                   1;
-}
-
-int GetScriptColumnNumber(const JitCodeEvent* event) {
-  auto sfi = GetSharedFunctionInfo(event);
-  return sfi.is_null()
-             ? -1  // invalid sentinel number
-             : Script::cast(sfi.script()).GetColumnNumber(sfi.StartPosition()) +
-                   1;
-}
-
 std::wstring GetScriptMethodNameFromEvent(const JitCodeEvent* event) {
   int name_len = static_cast<int>(event->name.len);
   // Note: event->name.str is not null terminated.
@@ -332,13 +316,23 @@ void EventHandler(const JitCodeEvent* event) {
       Field("MethodAddressRangeID", TlgInUINT16),
       Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
       Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
+
+  uint32_t script_line = -1;
+  uint32_t script_column = -1;
+  auto sfi = GetSharedFunctionInfo(event);
+  if (!sfi.is_null()) {
+    Script::PositionInfo info;
+    Script::cast(sfi.script()).GetPositionInfo(sfi.StartPosition(), &info);
+    script_line = info.line + 1;
+    script_column = info.column + 1;
+  }
+
   LogEventData(g_v8Provider, &method_load_event_meta, &method_load_event_fields,
                script_context, event->code_start, (uint64_t)event->code_len,
                (uint32_t)0,  // MethodId
                (uint16_t)0,  // MethodFlags
                (uint16_t)0,  // MethodAddressRangeId
-               (uint64_t)script_id, (uint32_t)GetScriptLineNumber(event),
-               (uint32_t)GetScriptColumnNumber(event), method_name);
+               (uint64_t)script_id, script_line, script_column, method_name);
 }
 
 }  // namespace ETWJITInterface

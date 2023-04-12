@@ -679,10 +679,10 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
         os << source_position();
         os << " (";
         script_name.PrintUC16(os);
-        int lin = script.GetLineNumber(source_position()) + 1;
-        int col = script.GetColumnNumber(source_position()) + 1;
-        os << ", lin " << lin;
-        os << ", col " << col;
+        Script::PositionInfo info;
+        script.GetPositionInfo(source_position(), &info);
+        os << ", line " << info.line + 1;
+        os << ", column " << info.column + 1;
       } else {
         os << "unavailable";
       }
