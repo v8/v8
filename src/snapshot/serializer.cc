@@ -1067,12 +1067,12 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
   explicit RelocInfoObjectPreSerializer(Serializer* serializer)
       : serializer_(serializer) {}
 
-  void VisitEmbeddedPointer(RelocInfo* target) {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* target) {
     HeapObject object = target->target_object(isolate());
     serializer_->SerializeObject(handle(object, isolate()), SlotType::kAnySlot);
     num_serialized_objects_++;
   }
-  void VisitCodeTarget(RelocInfo* target) {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* target) {
 #ifdef V8_TARGET_ARCH_ARM
     DCHECK(!RelocInfo::IsRelativeCodeTarget(target->rmode()));
 #endif
@@ -1082,9 +1082,9 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
     num_serialized_objects_++;
   }
 
-  void VisitExternalReference(RelocInfo* rinfo) {}
-  void VisitInternalReference(RelocInfo* rinfo) {}
-  void VisitOffHeapTarget(RelocInfo* target) {}
+  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo) {}
+  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo) {}
+  void VisitOffHeapTarget(InstructionStream host, RelocInfo* target) {}
 
   int num_serialized_objects() const { return num_serialized_objects_; }
 
@@ -1095,7 +1095,8 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
   int num_serialized_objects_ = 0;
 };
 
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(InstructionStream host,
+                                                        RelocInfo* rinfo) {
   // Target object should be pre-serialized by RelocInfoObjectPreSerializer, so
   // just track the pointer's existence as kTaggedSize in
   // bytes_processed_so_far_.
@@ -1104,7 +1105,8 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
   bytes_processed_so_far_ += kTaggedSize;
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitExternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
   Address target = rinfo->target_external_reference();
   DCHECK_NE(target,
             kNullAddress);  // InstructionStream does not reference null.
@@ -1115,12 +1117,13 @@ void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
                           kExternalPointerNullTag);
 }
 
-void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
-  Address entry = rinfo->code().instruction_start();
+void Serializer::ObjectSerializer::VisitInternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
+  Address entry = host.instruction_start();
   DCHECK_GE(rinfo->target_internal_reference(), entry);
   uintptr_t target_offset = rinfo->target_internal_reference() - entry;
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  DCHECK_LT(target_offset, rinfo->code().instruction_size());
+  DCHECK_LT(target_offset, host.code(kAcquireLoad).instruction_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
 }
@@ -1164,7 +1167,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   }
 }
 
-void Serializer::ObjectSerializer::VisitOffHeapTarget(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitOffHeapTarget(InstructionStream host,
+                                                      RelocInfo* rinfo) {
   static_assert(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
 
   // Currently we don't serialize code that contains near builtin entries.
@@ -1181,7 +1185,8 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(RelocInfo* rinfo) {
   sink_->PutInt(static_cast<int>(builtin), "builtin index");
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCodeTarget(InstructionStream host,
+                                                   RelocInfo* rinfo) {
   // Target object should be pre-serialized by RelocInfoObjectPreSerializer, so
   // just track the pointer's existence as kTaggedSize in
   // bytes_processed_so_far_.
@@ -1356,7 +1361,7 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
   for (RelocIterator it(*code, *on_heap_istream, relocation_info,
                         InstructionStream::BodyDescriptor::kRelocModeMask);
        !it.done(); it.next()) {
-    it.rinfo()->Visit(&pre_serializer);
+    it.rinfo()->Visit(*on_heap_istream, &pre_serializer);
   }
   // Mark that the pre-serialization finished with a kSynchronize bytecode.
   sink_->Put(kSynchronize, "PreSerializationFinished");
@@ -1367,7 +1372,7 @@ void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
   for (RelocIterator it(*code, *on_heap_istream, relocation_info,
                         InstructionStream::BodyDescriptor::kRelocModeMask);
        !it.done(); it.next()) {
-    it.rinfo()->Visit(this);
+    it.rinfo()->Visit(*on_heap_istream, this);
   }
 
   // We record a kTaggedSize for every object encountered during the

@@ -31,8 +31,8 @@ V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedBarrierSlow(
 V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
     EphemeronHashTable table, Address slot, HeapObject value);
 
-V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(RelocInfo* rinfo,
-                                                           HeapObject object);
+V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(
+    InstructionStream host, RelocInfo* rinfo, HeapObject object);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
     Heap* heap, HeapObject table, Address slot);
@@ -147,7 +147,7 @@ inline void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
   }
 
   DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
-  GenerationalBarrierForCode(rinfo, value);
+  GenerationalBarrierForCode(host, rinfo, value);
   WriteBarrier::Shared(host, rinfo, value);
   WriteBarrier::Marking(host, rinfo, value);
 }
@@ -215,12 +215,13 @@ inline void CombinedEphemeronWriteBarrier(EphemeronHashTable host,
   }
 }
 
-inline void GenerationalBarrierForCode(RelocInfo* rinfo, HeapObject object) {
+inline void GenerationalBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                                       HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->InYoungGeneration()) return;
-  Heap_GenerationalBarrierForCodeSlow(rinfo, object);
+  Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
 inline WriteBarrierMode GetWriteBarrierModeForObject(
@@ -306,7 +307,7 @@ void WriteBarrier::Shared(InstructionStream host, RelocInfo* reloc_info,
       heap_internals::MemoryChunk::FromHeapObject(value);
   if (!value_chunk->InWritableSharedSpace()) return;
 
-  SharedSlow(reloc_info, value);
+  SharedSlow(host, reloc_info, value);
 }
 
 void WriteBarrier::Marking(JSArrayBuffer host,

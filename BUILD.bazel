@@ -1250,6 +1250,7 @@ filegroup(
         "src/codegen/reglist-base.h",
         "src/codegen/reloc-info.cc",
         "src/codegen/reloc-info.h",
+        "src/codegen/reloc-info-inl.h",
         "src/codegen/safepoint-table.cc",
         "src/codegen/safepoint-table.h",
         "src/codegen/safepoint-table-base.h",

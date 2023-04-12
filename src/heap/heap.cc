@@ -158,8 +158,9 @@ void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
   Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
 }
 
-void Heap_GenerationalBarrierForCodeSlow(RelocInfo* rinfo, HeapObject object) {
-  Heap::GenerationalBarrierForCodeSlow(rinfo, object);
+void Heap_GenerationalBarrierForCodeSlow(InstructionStream host,
+                                         RelocInfo* rinfo, HeapObject object) {
+  Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
@@ -6285,12 +6286,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       }
     }
 
-    void VisitCodeTarget(RelocInfo* rinfo) final {
+    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
       InstructionStream target =
           InstructionStream::FromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
-    void VisitEmbeddedPointer(RelocInfo* rinfo) final {
+    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
       MarkHeapObject(rinfo->target_object(cage_base()));
     }
 
@@ -7074,10 +7075,11 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
   }
 }
 
-void Heap::GenerationalBarrierForCodeSlow(RelocInfo* rinfo, HeapObject object) {
+void Heap::GenerationalBarrierForCodeSlow(InstructionStream host,
+                                          RelocInfo* rinfo, HeapObject object) {
   DCHECK(InYoungGeneration(object));
   const MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(rinfo, object);
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
 
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
                                          info.offset);

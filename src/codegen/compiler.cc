@@ -1736,8 +1736,12 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   void VisitCodePointer(Code host, CodeObjectSlot slot) override {
     UNREACHABLE();
   }
-  void VisitCodeTarget(RelocInfo* rinfo) override { UNREACHABLE(); }
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
  private:
   enum ObjectKind {

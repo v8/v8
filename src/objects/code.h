@@ -260,7 +260,7 @@ class Code : public HeapObject {
 
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
-  void RelocateFromDesc(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
+  void RelocateFromDesc(Heap* heap, const CodeDesc& desc);
 
   bool IsIsolateIndependent(Isolate* isolate);
 

@@ -2920,6 +2920,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/register.h",
     "src/codegen/reglist-base.h",
     "src/codegen/reglist.h",
+    "src/codegen/reloc-info-inl.h",
     "src/codegen/reloc-info.h",
     "src/codegen/safepoint-table-base.h",
     "src/codegen/safepoint-table.h",

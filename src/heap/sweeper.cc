@@ -809,8 +809,8 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   // Entries that are skipped for recording.
-  void VisitExternalReference(RelocInfo* rinfo) final {}
-  void VisitInternalReference(RelocInfo* rinfo) final {}
+  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo) final {}
+  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo) final {}
   void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                             ExternalPointerTag tag) final {}
 

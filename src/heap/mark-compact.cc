@@ -266,16 +266,17 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject target_object = rinfo->target_object(cage_base());
-    if (!rinfo->code().IsWeakObject(target_object)) {
+    Code code = Code::unchecked_cast(host.raw_code(kAcquireLoad));
+    if (!code.IsWeakObject(target_object)) {
       VerifyHeapObjectImpl(target_object);
     }
   }
@@ -1139,14 +1140,14 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     UNREACHABLE();
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    MarkObject(rinfo->instruction_stream(), target);
+    MarkObject(host, target);
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
-    MarkObject(rinfo->instruction_stream(), rinfo->target_object(cage_base()));
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    MarkObject(host, rinfo->target_object(cage_base()));
   }
 
  private:
@@ -1200,7 +1201,7 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
     UNREACHABLE();
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
 #if DEBUG
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
@@ -1208,8 +1209,8 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
 #endif
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
-    MarkObject(rinfo->instruction_stream(), rinfo->target_object(cage_base()));
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    MarkObject(host, rinfo->target_object(cage_base()));
   }
 
  private:
@@ -1267,9 +1268,13 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
  private:
   V8_INLINE void CheckForSharedObject(HeapObject host, ObjectSlot slot,
@@ -1414,8 +1419,13 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
     void VisitCodePointer(Code host, CodeObjectSlot slot) override {
       UNREACHABLE();
     }
-    void VisitCodeTarget(RelocInfo* rinfo) override { UNREACHABLE(); }
-    void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
+    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+      UNREACHABLE();
+    }
+    void VisitEmbeddedPointer(InstructionStream host,
+                              RelocInfo* rinfo) override {
+      UNREACHABLE();
+    }
 
    private:
     ExternalPointerTable* table_;
@@ -1533,7 +1543,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
-  inline void VisitCodeTarget(RelocInfo* rinfo) override {
+  inline void VisitCodeTarget(InstructionStream host,
+                              RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
@@ -1541,20 +1552,23 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // the old-to-new remembered set.
     DCHECK(!Heap::InYoungGeneration(target));
     DCHECK(!target.InWritableSharedSpace());
-    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+    heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  inline void VisitEmbeddedPointer(InstructionStream host,
+                                   RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject object = rinfo->target_object(cage_base());
-    GenerationalBarrierForCode(rinfo, object);
-    WriteBarrier::Shared(rinfo->instruction_stream(), rinfo, object);
-    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+    GenerationalBarrierForCode(host, rinfo, object);
+    WriteBarrier::Shared(host, rinfo, object);
+    heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, object);
   }
 
   // Entries that are skipped for recording.
-  inline void VisitExternalReference(RelocInfo* rinfo) final {}
-  inline void VisitInternalReference(RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(InstructionStream host,
+                                     RelocInfo* rinfo) final {}
+  inline void VisitInternalReference(InstructionStream host,
+                                     RelocInfo* rinfo) final {}
   inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                    ExternalPointerTag tag) final {}
 
@@ -3637,10 +3651,10 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
 }
 
 // static
-bool MarkCompactCollector::ShouldRecordRelocSlot(RelocInfo* rinfo,
+bool MarkCompactCollector::ShouldRecordRelocSlot(InstructionStream host,
+                                                 RelocInfo* rinfo,
                                                  HeapObject target) {
-  MemoryChunk* source_chunk =
-      MemoryChunk::FromHeapObject(rinfo->instruction_stream());
+  MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(host);
   BasicMemoryChunk* target_chunk = BasicMemoryChunk::FromHeapObject(target);
   return target_chunk->IsEvacuationCandidate() &&
          !source_chunk->ShouldSkipEvacuationSlotRecording();
@@ -3648,7 +3662,8 @@ bool MarkCompactCollector::ShouldRecordRelocSlot(RelocInfo* rinfo,
 
 // static
 MarkCompactCollector::RecordRelocSlotInfo
-MarkCompactCollector::ProcessRelocInfo(RelocInfo* rinfo, HeapObject target) {
+MarkCompactCollector::ProcessRelocInfo(InstructionStream host, RelocInfo* rinfo,
+                                       HeapObject target) {
   RecordRelocSlotInfo result;
   const RelocInfo::Mode rmode = rinfo->rmode();
   Address addr;
@@ -3678,8 +3693,7 @@ MarkCompactCollector::ProcessRelocInfo(RelocInfo* rinfo, HeapObject target) {
     }
   }
 
-  MemoryChunk* const source_chunk =
-      MemoryChunk::FromHeapObject(rinfo->instruction_stream());
+  MemoryChunk* const source_chunk = MemoryChunk::FromHeapObject(host);
   const uintptr_t offset = addr - source_chunk->address();
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
   result.memory_chunk = source_chunk;
@@ -3690,10 +3704,11 @@ MarkCompactCollector::ProcessRelocInfo(RelocInfo* rinfo, HeapObject target) {
 }
 
 // static
-void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo,
+void MarkCompactCollector::RecordRelocSlot(InstructionStream host,
+                                           RelocInfo* rinfo,
                                            HeapObject target) {
-  if (!ShouldRecordRelocSlot(rinfo, target)) return;
-  RecordRelocSlotInfo info = ProcessRelocInfo(rinfo, target);
+  if (!ShouldRecordRelocSlot(host, rinfo, target)) return;
+  RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
 
   // Access to TypeSlots need to be protected, since LocalHeaps might
   // publish code in the background thread.
@@ -3935,12 +3950,12 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     // This visitor nevers visits code objects.
     UNREACHABLE();
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     // This visitor nevers visits code objects.
     UNREACHABLE();
   }
@@ -5512,12 +5527,12 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     UNREACHABLE();
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {

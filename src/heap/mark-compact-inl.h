@@ -111,9 +111,10 @@ void MainMarkingVisitor<MarkingState>::RecordSlot(HeapObject object, TSlot slot,
 }
 
 template <typename MarkingState>
-void MainMarkingVisitor<MarkingState>::RecordRelocSlot(RelocInfo* rinfo,
+void MainMarkingVisitor<MarkingState>::RecordRelocSlot(InstructionStream host,
+                                                       RelocInfo* rinfo,
                                                        HeapObject target) {
-  MarkCompactCollector::RecordRelocSlot(rinfo, target);
+  MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
 }
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }

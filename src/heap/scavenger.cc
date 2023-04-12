@@ -69,17 +69,17 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     UNREACHABLE();
   }
 
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final {
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final {
     InstructionStream target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    HandleSlot(rinfo->instruction_stream(), FullHeapObjectSlot(&target),
-               target);
+    HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final {
-    PtrComprCageBase cage_base = GetPtrComprCageBase(rinfo->code());
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final {
+    PtrComprCageBase cage_base = GetPtrComprCageBase();
     HeapObject heap_object = rinfo->target_object(cage_base);
-    HandleSlot(rinfo->instruction_stream(), FullHeapObjectSlot(&heap_object),
-               heap_object);
+    HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
   }
 
   inline void VisitEphemeron(HeapObject obj, int entry, ObjectSlot key,

@@ -8,6 +8,7 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -232,6 +233,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = builtins->code(builtin);
+    InstructionStream istream = code.instruction_stream();
     isolate->heap()->UnprotectAndRegisterMemoryChunk(
         code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
@@ -244,7 +246,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
             Builtins::IsIsolateIndependent(target_code.builtin_id()));
         if (!target_code.is_builtin()) continue;
         Code new_target = builtins->code(target_code.builtin_id());
-        rinfo->set_target_address(new_target.instruction_start(),
+        rinfo->set_target_address(istream, new_target.instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
@@ -253,8 +255,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         Code target = Code::cast(object);
         if (!target.is_builtin()) continue;
         Code new_target = builtins->code(target.builtin_id());
-        rinfo->set_target_object(isolate->heap(), new_target,
-                                 UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,
+                                 SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }

@@ -117,35 +117,35 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
-    RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!ShouldMarkObject(object)) return;
 
   if (!concrete_visitor()->marking_state()->IsMarked(object)) {
-    if (rinfo->code().IsWeakObject(object)) {
+    Code code = Code::unchecked_cast(host.raw_code(kAcquireLoad));
+    if (code.IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
-          std::make_pair(object, rinfo->code()));
-      AddWeakReferenceForReferenceSummarizer(rinfo->instruction_stream(),
-                                             object);
+          std::make_pair(object, code));
+      AddWeakReferenceForReferenceSummarizer(host, object);
     } else {
-      MarkObject(rinfo->instruction_stream(), object);
+      MarkObject(host, object);
     }
   }
-  concrete_visitor()->RecordRelocSlot(rinfo, object);
+  concrete_visitor()->RecordRelocSlot(host, rinfo, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
-    RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
-  MarkObject(rinfo->instruction_stream(), target);
-  concrete_visitor()->RecordRelocSlot(rinfo, target);
+  MarkObject(host, target);
+  concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

@@ -101,8 +101,10 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final {
     VisitCodePointerImpl(host, slot);
   }
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final;
   void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     // Weak list pointers should be ignored during marking. The lists are

@@ -200,8 +200,12 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation.
   void VisitCodePointer(Code, CodeObjectSlot) final { UNREACHABLE(); }
-  void VisitCodeTarget(RelocInfo*) final { UNREACHABLE(); }
-  void VisitEmbeddedPointer(RelocInfo*) final { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream host, RelocInfo*) final {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo*) final {
+    UNREACHABLE();
+  }
   void VisitMapPointer(HeapObject) override { UNREACHABLE(); }
 
  protected:

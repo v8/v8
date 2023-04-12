@@ -428,6 +428,7 @@ Address Code::constant_pool() const {
 
 Address Code::constant_pool(InstructionStream instruction_stream) const {
   if (!has_constant_pool()) return kNullAddress;
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   return instruction_stream.instruction_start() + instruction_size() +
          constant_pool_offset();
 }

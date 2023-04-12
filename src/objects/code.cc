@@ -8,7 +8,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
-#include "src/codegen/reloc-info.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-inl.h"
 
@@ -30,11 +30,13 @@ HeapObject Code::raw_deoptimization_data_or_interpreter_data() const {
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
+  DisallowGarbageCollection no_gc;
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
+  InstructionStream istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
+    it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
   }
   set_embedded_objects_cleared(true);
 }
@@ -45,49 +47,80 @@ void Code::FlushICache() const {
 
 void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
                            const CodeDesc& desc) {
-  // Copy code.
+  // Copy from compilation artifacts stored in CodeDesc to the target on-heap
+  // objects.
+  //
+  // Note this is quite convoluted for historical reasons. The CodeDesc buffer
+  // contains instructions, a part of inline metadata, and the relocation info.
+  // Additionally, the unwinding_info is stored in a separate buffer
+  // `desc.unwinding_info`. In this method, we copy all these parts into the
+  // final on-heap representation.
+  //
+  // The off-heap representation:
+  //
+  // CodeDesc.buffer:
+  //
+  // +-------------------
+  // | instructions
+  // +-------------------
+  // | inline metadata
+  // | .. safepoint table
+  // | .. handler table
+  // | .. constant pool
+  // | .. code comments
+  // +-------------------
+  // | reloc info
+  // +-------------------
+  //
+  // CodeDesc.unwinding_info:  .. the unwinding info.
+  //
+  // This is transformed into the on-heap representation, where
+  // InstructionStream contains all instructions and inline metadata, and a
+  // pointer to the relocation info byte array.
+
+  // Copy code and inline metadata.
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   CopyBytes(reinterpret_cast<byte*>(instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
-  // TODO(jgruber,v8:11036): Merge with the above.
   CopyBytes(reinterpret_cast<byte*>(instruction_start() + desc.instr_size),
             desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
+  DCHECK_EQ(desc.body_size(), desc.instr_size + desc.unwinding_info_size);
+  DCHECK_EQ(body_size(), instruction_size() + metadata_size());
 
-  // Copy reloc info.
+  // Copy the relocation info.
   DCHECK_EQ(reloc_info.length(), desc.reloc_size);
-  CopyBytes(reloc_info.GetDataStartAddress(),
-            desc.buffer + desc.buffer_size - desc.reloc_size,
+  CopyBytes(reloc_info.GetDataStartAddress(), desc.buffer + desc.reloc_offset,
             static_cast<size_t>(desc.reloc_size));
 
-  // Unbox handles and relocate.
-  RelocateFromDesc(reloc_info, heap, desc);
+  RelocateFromDesc(heap, desc);
 }
 
-void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
-                            const CodeDesc& desc) {
-  // Unbox handles and relocate.
+void Code::RelocateFromDesc(Heap* heap, const CodeDesc& desc) {
+  DisallowGarbageCollection no_gc;
   Assembler* origin = desc.origin;
+  InstructionStream istream = instruction_stream();
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(*this, reloc_info, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(heap, *p, UPDATE_WRITE_BARRIER,
+      it.rinfo()->set_target_object(istream, *p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(p->IsCode(GetPtrComprCageBaseSlow(*p)));
-      InstructionStream istream = Code::cast(*p).instruction_stream();
-      it.rinfo()->set_target_address(istream.instruction_start(),
+      InstructionStream target_istream = Code::cast(*p).instruction_stream();
+      it.rinfo()->set_target_address(istream,
+                                     target_istream.instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
       Builtin builtin = it.rinfo()->target_builtin_at(origin);
       Address p =
           heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];
-      it.rinfo()->set_target_address(p, UPDATE_WRITE_BARRIER,
+      it.rinfo()->set_target_address(istream, p, UPDATE_WRITE_BARRIER,
                                      SKIP_ICACHE_FLUSH);
       DCHECK_EQ(p, it.rinfo()->target_address());
     } else if (RelocInfo::IsWasmStubCall(mode)) {

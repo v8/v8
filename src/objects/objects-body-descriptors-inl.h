@@ -992,7 +992,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
     if (istream.TryGetCodeUnchecked(&code, kAcquireLoad)) {
       RelocIterator it(code, istream, istream.unchecked_relocation_info(),
                        kRelocModeMask);
-      v->VisitRelocInfo(&it);
+      v->VisitRelocInfo(istream, &it);
     }
   }
 

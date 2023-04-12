@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -731,11 +732,11 @@ class DeserializerRelocInfoVisitor {
     DCHECK_EQ(current_object_, objects_->size());
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo);
-  void VisitEmbeddedPointer(RelocInfo* rinfo);
-  void VisitExternalReference(RelocInfo* rinfo);
-  void VisitInternalReference(RelocInfo* rinfo);
-  void VisitOffHeapTarget(RelocInfo* rinfo);
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo);
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo);
+  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo);
+  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo);
+  void VisitOffHeapTarget(InstructionStream host, RelocInfo* rinfo);
 
  private:
   Isolate* isolate() { return deserializer_->isolate(); }
@@ -746,19 +747,22 @@ class DeserializerRelocInfoVisitor {
   int current_object_;
 };
 
-void DeserializerRelocInfoVisitor::VisitCodeTarget(RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitCodeTarget(InstructionStream host,
+                                                   RelocInfo* rinfo) {
   HeapObject object = *objects_->at(current_object_++);
   rinfo->set_target_address(
-      InstructionStream::cast(object).instruction_start());
+      host, InstructionStream::cast(object).instruction_start());
 }
 
-void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(InstructionStream host,
+                                                        RelocInfo* rinfo) {
   HeapObject object = *objects_->at(current_object_++);
   // Embedded object reference must be a strong one.
-  rinfo->set_target_object(isolate()->heap(), object);
+  rinfo->set_target_object(host, object);
 }
 
-void DeserializerRelocInfoVisitor::VisitExternalReference(RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitExternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kExternalReference);
 
@@ -766,14 +770,15 @@ void DeserializerRelocInfoVisitor::VisitExternalReference(RelocInfo* rinfo) {
 
   if (rinfo->IsCodedSpecially()) {
     Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(location_of_branch_data,
-                                                     rinfo->code(), address);
+    Assembler::deserialization_set_special_target_at(
+        location_of_branch_data, host.code(kAcquireLoad), address);
   } else {
     WriteUnalignedValue(rinfo->target_address_address(), address);
   }
 }
 
-void DeserializerRelocInfoVisitor::VisitInternalReference(RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitInternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kInternalReference);
 
@@ -781,13 +786,14 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(RelocInfo* rinfo) {
   int target_offset = source().GetInt();
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(rinfo->code().instruction_size()));
-  Address target = rinfo->code().instruction_start() + target_offset;
+            static_cast<unsigned>(host.code(kAcquireLoad).instruction_size()));
+  Address target = host.instruction_start() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
       rinfo->pc(), target, rinfo->rmode());
 }
 
-void DeserializerRelocInfoVisitor::VisitOffHeapTarget(RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitOffHeapTarget(InstructionStream host,
+                                                      RelocInfo* rinfo) {
   // Currently we don't serialize code that contains near builtin entries.
   DCHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
 
@@ -804,8 +810,8 @@ void DeserializerRelocInfoVisitor::VisitOffHeapTarget(RelocInfo* rinfo) {
   // TODO(ishell): implement RelocInfo::set_target_off_heap_target()
   if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
     Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(location_of_branch_data,
-                                                     rinfo->code(), address);
+    Assembler::deserialization_set_special_target_at(
+        location_of_branch_data, host.code(kAcquireLoad), address);
   } else {
     WriteUnalignedValue(rinfo->target_address_address(), address);
   }
@@ -1225,7 +1231,7 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
     for (RelocIterator it(code, istream, istream.relocation_info(),
                           InstructionStream::BodyDescriptor::kRelocModeMask);
          !it.done(); it.next()) {
-      it.rinfo()->Visit(&visitor);
+      it.rinfo()->Visit(istream, &visitor);
     }
   }
 

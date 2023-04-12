@@ -213,6 +213,10 @@ GetPtrComprCageBaseFromOnHeapAddress(Address address) {
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address));
 }
 
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() {
+  return PtrComprCageBase(V8HeapCompressionScheme::base());
+}
+
 #else
 
 //
@@ -261,6 +265,8 @@ V8_INLINE constexpr PtrComprCageBase GetPtrComprCageBaseFromOnHeapAddress(
     Address address) {
   return PtrComprCageBase();
 }
+
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() { return PtrComprCageBase(); }
 
 #endif  // V8_COMPRESS_POINTERS
 

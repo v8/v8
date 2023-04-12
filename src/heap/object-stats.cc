@@ -101,12 +101,12 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     *tagged_fields_count_ += 1;
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     // InstructionStream target is most likely encoded as a relative 32-bit
     // offset and not as a full tagged value, so there's nothing to count.
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     *tagged_fields_count_ += 1;
   }
 
