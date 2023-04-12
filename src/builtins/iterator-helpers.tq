@@ -112,7 +112,7 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
   }
 }
 
-// --- Map helper
+// --- map helper
 
 macro NewJSIteratorMapHelper(implicit context: Context)(
     underlying: IteratorRecord, mapper: Callable): JSIteratorMapHelper {
@@ -198,7 +198,7 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
   }
 }
 
-// --- Filter helper
+// --- filter helper
 
 macro NewJSIteratorFilterHelper(implicit context: Context)(
     underlying: IteratorRecord, predicate: Callable): JSIteratorFilterHelper {
@@ -291,7 +291,7 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
   unreachable;
 }
 
-// --- Take helper
+// --- take helper
 
 macro NewJSIteratorTakeHelper(implicit context: Context)(
     underlying: IteratorRecord, limit: Number): JSIteratorTakeHelper {
@@ -385,7 +385,7 @@ transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
   // (Done in IteratorHelperPrototypeReturn.)
 }
 
-// --- Drop helper
+// --- drop helper
 
 macro NewJSIteratorDropHelper(implicit context: Context)(
     underlying: IteratorRecord, limit: Number): JSIteratorDropHelper {
@@ -479,7 +479,7 @@ transitioning builtin IteratorDropHelperNext(implicit context: Context)(
   // (Done in IteratorHelperPrototypeReturn.)
 }
 
-// --- FlatMap helper
+// --- flatMap helper
 
 const kFlatMapMethodName: constexpr string = 'Iterator.prototype.flatMap';
 
@@ -609,7 +609,7 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
   unreachable;
 }
 
-// --- Reduce helper
+// --- reduce helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
 transitioning javascript builtin IteratorPrototypeReduce(
@@ -779,6 +779,70 @@ transitioning javascript builtin IteratorPrototypeForEach(
       IteratorCloseOnException(iterated);
       ReThrowWithMessage(context, e, message);
     }
+  }
+  unreachable;
+}
+
+// --- some helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.some
+transitioning javascript builtin IteratorPrototypeSome(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(predicate: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.some';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+  const predicate = Cast<Callable>(predicate)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return false.
+      return False;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    let result: JSAny;
+    try {
+      //  d. Let result be Completion(Call(predicate, undefined, « value,
+      //  𝔽(counter) »)).
+      result = Call(context, predicate, Undefined, value, counter);
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    //  f. If ToBoolean(result) is true, return ? IteratorClose(iterated,
+    //  NormalCompletion(true)).
+    if (ToBoolean(result) == true) {
+      IteratorClose(iterated);
+      return True;
+    }
+
+    //  g. Set counter to counter + 1.
+    counter = counter + 1;
   }
   unreachable;
 }

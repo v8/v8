@@ -626,7 +626,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals([], toArrayResult);
 })();
 
-// --- Test forEach helper
+// --- Test ForEach helper
 
 (function TestForEach() {
   const iter = gen();
@@ -639,4 +639,51 @@ function TestHelperPrototypeSurface(helper) {
 
   assertEquals(undefined, iter.forEach(fn));
   assertEquals([42, 43], log);
+})();
+
+// --- Test Some helper
+
+(function TestSome() {
+  const iter = gen();
+  assertEquals('function', typeof iter.some);
+  assertEquals(1, iter.some.length);
+  assertEquals('some', iter.some.name);
+
+  assertEquals(true, iter.some(v => v == 42));
+})();
+
+(function TestSomeOnConsumedIterator() {
+  const iter = gen();
+
+  assertEquals(true, iter.some(v => v == 42));
+  assertEquals(false, iter.some(v => v == 43));
+})();
+
+(function TestSomeOnNotConsumedIterator() {
+  const iter = gen();
+  const secondIter = gen();
+
+  assertEquals(true, iter.some(v => v == 43));
+  assertEquals(true, secondIter.some(v => v == 42));
+})();
+
+(function TestSomeOnIteratorWithThrowAsReturn() {
+  const iter = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(
+      iter,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertThrows(() => {iter.some(v => v == 1)});
 })();
