@@ -636,6 +636,7 @@ class AssemblerOpInterface {
   DECL_MULTI_REP_BINOP(WordMul, WordBinop, WordRepresentation, Mul)
   DECL_SINGLE_REP_BINOP_V(Word32Mul, WordBinop, Mul, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Mul, WordBinop, Mul, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrMul, WordBinop, Mul, WordPtr)
 
   DECL_MULTI_REP_BINOP(WordBitwiseAnd, WordBinop, WordRepresentation,
                        BitwiseAnd)
@@ -1874,6 +1875,18 @@ class AssemblerOpInterface {
         typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(
         isolate, context, {object});
   }
+  V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
+                                             V<Context> context,
+                                             V<Object> table, V<Smi> key) {
+    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashMapEntry>(
+        isolate, context, {table, key});
+  }
+  V<Smi> CallBuiltin_FindOrderedHashSetEntry(Isolate* isolate,
+                                             V<Context> context, V<Object> set,
+                                             V<Smi> key) {
+    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashSetEntry>(
+        isolate, context, {set, key});
+  }
   V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
                                                V<Context> context,
                                                V<Object> object, V<Smi> size) {
@@ -2570,12 +2583,22 @@ class AssemblerOpInterface {
                                        is_little_endian, element_type);
   }
 
-  void StoreSignedSmallElement(V<Object> array, V<WordPtr> index,
-                               V<Word32> value) {
+  void TransitionAndStoreArrayElement(
+      V<Object> array, V<WordPtr> index, OpIndex value,
+      TransitionAndStoreArrayElementOp::Kind kind, Handle<Map> fast_map,
+      Handle<Map> double_map) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
-    stack().ReduceStoreSignedSmallElement(array, index, value);
+    stack().ReduceTransitionAndStoreArrayElement(array, index, value, kind,
+                                                 fast_map, double_map);
+  }
+
+  void StoreSignedSmallElement(V<Object> array, V<WordPtr> index,
+                               V<Word32> value) {
+    TransitionAndStoreArrayElement(
+        array, index, value,
+        TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement, {}, {});
   }
 
   V<Word32> CompareMaps(V<HeapObject> heap_object,
@@ -2683,6 +2706,28 @@ class AssemblerOpInterface {
     stack().ReduceTransitionElementsKind(object, transition);
   }
 
+  OpIndex FindOrderedHashEntry(V<Object> data_structure, OpIndex key,
+                               FindOrderedHashEntryOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceFindOrderedHashEntry(data_structure, key, kind);
+  }
+  V<Smi> FindOrderedHashMapEntry(V<Object> table, V<Smi> key) {
+    return FindOrderedHashEntry(
+        table, key, FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry);
+  }
+  V<Smi> FindOrderedHashSetEntry(V<Object> table, V<Smi> key) {
+    return FindOrderedHashEntry(
+        table, key, FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry);
+  }
+  V<WordPtr> FindOrderedHashMapEntryForInt32Key(V<Object> table,
+                                                V<Word32> key) {
+    return FindOrderedHashEntry(
+        table, key,
+        FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
+  }
+
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {
     return v;
@@ -2769,7 +2814,8 @@ class AssemblerOpInterface {
     if (!stack().Bind(else_block)) return false;
     Block* then_block = stack().NewBlock();
     info.else_block = stack().NewBlock();
-    stack().Branch(condition_builder(), then_block, info.else_block);
+    stack().Branch(ConditionWithHint{condition_builder()}, then_block,
+                   info.else_block);
     return stack().Bind(then_block);
   }
 

@@ -59,6 +59,8 @@ def decode(arg, encoding="utf-8"):
 #   https://google.github.io/styleguide/cppguide.html#Inputs_and_Outputs.
 # whitespace/braces: Doesn't handle {}-initialization for custom types
 #   well; also should be subsumed by clang-format.
+# whitespace/parens: Conflicts with clang-format rule to treat Turboshaft's
+#   IF, IF_NOT, ... as IfMacros and insert a whitespace before the parenthesis.
 
 LINT_RULES = """
 -build/header_guard
@@ -68,6 +70,7 @@ LINT_RULES = """
 -runtime/references
 -whitespace/braces
 -whitespace/comments
+-whitespace/parens
 """.split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')

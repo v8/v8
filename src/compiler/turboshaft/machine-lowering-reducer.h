@@ -2028,50 +2028,244 @@ class MachineLoweringReducer : public Next {
     return {};
   }
 
-  OpIndex REDUCE(StoreSignedSmallElement)(V<JSArray> array, V<WordPtr> index,
-                                          V<Word32> value) {
-    // Store a signed small in an output array.
-    //
-    //   kind = ElementsKind(array)
-    //
-    //   -- STORE PHASE ----------------------
-    //   if kind == HOLEY_DOUBLE_ELEMENTS {
-    //     float_value = convert int32 to float
-    //     Store array[index] = float_value
-    //   } else {
-    //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
-    //     smi_value = convert int32 to smi
-    //     Store array[index] = smi_value
-    //   }
-    //
+  OpIndex REDUCE(TransitionAndStoreArrayElement)(
+      V<JSArray> array, V<WordPtr> index, OpIndex value,
+      TransitionAndStoreArrayElementOp::Kind kind, Handle<Map> fast_map,
+      Handle<Map> double_map) {
     V<Map> map = __ LoadMapField(array);
     V<Word32> bitfield2 =
         __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
-    V<Word32> kind = __ Word32ShiftRightLogical(
+    V<Word32> elements_kind = __ Word32ShiftRightLogical(
         __ Word32BitwiseAnd(bitfield2, Map::Bits2::ElementsKindBits::kMask),
         Map::Bits2::ElementsKindBits::kShift);
 
-    V<Object> elements = __ template LoadField<Object>(
-        array, AccessBuilder::ForJSObjectElements());
-    IF(__ Int32LessThan(HOLEY_ELEMENTS, kind)) {
-      // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
-      V<Float64> f64 = __ ChangeInt32ToFloat64(value);
-      __ StoreElement(elements, AccessBuilder::ForFixedDoubleArrayElement(),
-                      index, f64);
-    }
-    ELSE {
-      // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
-      // In this case, we know our value is a signed small, and we can optimize
-      // the ElementAccess information.
-      ElementAccess access = AccessBuilder::ForFixedArrayElement();
-      access.type = compiler::Type::SignedSmall();
-      access.machine_type = MachineType::TaggedSigned();
-      access.write_barrier_kind = kNoWriteBarrier;
-      __ StoreElement(elements, access, index, __ SmiTag(value));
-    }
-    END_IF
+    switch (kind) {
+      case TransitionAndStoreArrayElementOp::Kind::kElement: {
+        // Possibly transition array based on input and store.
+        //
+        //   -- TRANSITION PHASE -----------------
+        //   kind = ElementsKind(array)
+        //   if value is not smi {
+        //     if kind == HOLEY_SMI_ELEMENTS {
+        //       if value is heap number {
+        //         Transition array to HOLEY_DOUBLE_ELEMENTS
+        //         kind = HOLEY_DOUBLE_ELEMENTS
+        //       } else {
+        //         Transition array to HOLEY_ELEMENTS
+        //         kind = HOLEY_ELEMENTS
+        //       }
+        //     } else if kind == HOLEY_DOUBLE_ELEMENTS {
+        //       if value is not heap number {
+        //         Transition array to HOLEY_ELEMENTS
+        //         kind = HOLEY_ELEMENTS
+        //       }
+        //     }
+        //   }
+        //
+        //   -- STORE PHASE ----------------------
+        //   [make sure {kind} is up-to-date]
+        //   if kind == HOLEY_DOUBLE_ELEMENTS {
+        //     if value is smi {
+        //       float_value = convert smi to float
+        //       Store array[index] = float_value
+        //     } else {
+        //       float_value = value
+        //       Store array[index] = float_value
+        //     }
+        //   } else {
+        //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
+        //     Store array[index] = value
+        //   }
+        //
+        Label<Word32> do_store(this);
+        // We can store a smi anywhere.
+        GOTO_IF(__ ObjectIsSmi(value), do_store, elements_kind);
 
-    return {};
+        // {value} is a HeapObject.
+        IF_NOT (LIKELY(__ Int32LessThan(HOLEY_SMI_ELEMENTS, elements_kind))) {
+          // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_DOUBLE_ELEMENTS
+          // or to HOLEY_ELEMENTS.
+          V<Map> value_map = __ LoadMapField(value);
+          IF (__ TaggedEqual(value_map,
+                             __ HeapConstant(factory_->heap_number_map()))) {
+            // {value} is a HeapNumber.
+            TransitionElementsTo(array, HOLEY_SMI_ELEMENTS,
+                                 HOLEY_DOUBLE_ELEMENTS, double_map);
+            GOTO(do_store, HOLEY_DOUBLE_ELEMENTS);
+          }
+          ELSE {
+            TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
+                                 fast_map);
+            GOTO(do_store, HOLEY_ELEMENTS);
+          }
+          END_IF
+        }
+        END_IF
+
+        GOTO_IF_NOT(LIKELY(__ Int32LessThan(HOLEY_ELEMENTS, elements_kind)),
+                    do_store, elements_kind);
+
+        // We have double elements kind. Only a HeapNumber can be stored
+        // without effecting a transition.
+        V<Map> value_map = __ LoadMapField(value);
+        IF_NOT (UNLIKELY(__ TaggedEqual(
+                    value_map, __ HeapConstant(factory_->heap_number_map())))) {
+          TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
+                               fast_map);
+          GOTO(do_store, HOLEY_ELEMENTS);
+        }
+        END_IF
+
+        GOTO(do_store, elements_kind);
+
+        BIND(do_store, store_kind);
+        V<Object> elements = __ template LoadField<Object>(
+            array, AccessBuilder::ForJSObjectElements());
+        IF (__ Int32LessThan(HOLEY_ELEMENTS, store_kind)) {
+          // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
+          IF (__ ObjectIsSmi(value)) {
+            V<Float64> float_value =
+                __ ChangeInt32ToFloat64(__ SmiUntag(value));
+            __ StoreElement(elements,
+                            AccessBuilder::ForFixedDoubleArrayElement(), index,
+                            float_value);
+          }
+          ELSE {
+            V<Float64> float_value = __ template LoadField<Float64>(
+                V<HeapObject>::Cast(value),
+                AccessBuilder::ForHeapNumberValue());
+            __ StoreElement(elements,
+                            AccessBuilder::ForFixedDoubleArrayElement(), index,
+                            __ Float64SilenceNaN(float_value));
+          }
+          END_IF
+        }
+        ELSE {
+          // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
+          __ StoreElement(elements,
+                          AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS),
+                          index, value);
+        }
+        END_IF
+        break;
+      }
+      case TransitionAndStoreArrayElementOp::Kind::kNumberElement: {
+        // Possibly transition array based on input and store.
+        //
+        //   -- TRANSITION PHASE -----------------
+        //   kind = ElementsKind(array)
+        //   if kind == HOLEY_SMI_ELEMENTS {
+        //     Transition array to HOLEY_DOUBLE_ELEMENTS
+        //   } else if kind != HOLEY_DOUBLE_ELEMENTS {
+        //     This is UNREACHABLE, execute a debug break.
+        //   }
+        //
+        //   -- STORE PHASE ----------------------
+        //   Store array[index] = value (it's a float)
+        //
+        // {value} is a float64.
+        IF_NOT (LIKELY(__ Int32LessThan(HOLEY_SMI_ELEMENTS, elements_kind))) {
+          // Transition {array} from HOLEY_SMI_ELEMENTS to
+          // HOLEY_DOUBLE_ELEMENTS.
+          TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
+                               double_map);
+        }
+        ELSE {
+          // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
+          // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. Force a debug break
+          // if this assumption is broken. It also would be the case that
+          // loop peeling can break this assumption.
+          IF_NOT (LIKELY(
+                      __ Word32Equal(elements_kind, HOLEY_DOUBLE_ELEMENTS))) {
+            __ Unreachable();
+          }
+          END_IF
+        }
+        END_IF
+
+        V<Object> elements = __ template LoadField<Object>(
+            array, AccessBuilder::ForJSObjectElements());
+        __ StoreElement(elements, AccessBuilder::ForFixedDoubleArrayElement(),
+                        index, __ Float64SilenceNaN(value));
+        break;
+      }
+      case TransitionAndStoreArrayElementOp::Kind::kOddballElement:
+      case TransitionAndStoreArrayElementOp::Kind::kNonNumberElement: {
+        // Possibly transition array based on input and store.
+        //
+        //   -- TRANSITION PHASE -----------------
+        //   kind = ElementsKind(array)
+        //   if kind == HOLEY_SMI_ELEMENTS {
+        //     Transition array to HOLEY_ELEMENTS
+        //   } else if kind == HOLEY_DOUBLE_ELEMENTS {
+        //     Transition array to HOLEY_ELEMENTS
+        //   }
+        //
+        //   -- STORE PHASE ----------------------
+        //   // kind is HOLEY_ELEMENTS
+        //   Store array[index] = value
+        //
+        IF_NOT (LIKELY(__ Int32LessThan(HOLEY_SMI_ELEMENTS, elements_kind))) {
+          // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_ELEMENTS.
+          TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
+                               fast_map);
+        }
+        ELSE_IF (UNLIKELY(__ Int32LessThan(HOLEY_ELEMENTS, elements_kind))) {
+          TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
+                               fast_map);
+        }
+        END_IF
+
+        V<Object> elements = __ template LoadField<Object>(
+            array, AccessBuilder::ForJSObjectElements());
+        ElementAccess access =
+            AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS);
+        if (kind == TransitionAndStoreArrayElementOp::Kind::kOddballElement) {
+          access.type = compiler::Type::BooleanOrNullOrUndefined();
+          access.write_barrier_kind = kNoWriteBarrier;
+        }
+        __ StoreElement(elements, access, index, value);
+        break;
+      }
+      case TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement: {
+        // Store a signed small in an output array.
+        //
+        //   kind = ElementsKind(array)
+        //
+        //   -- STORE PHASE ----------------------
+        //   if kind == HOLEY_DOUBLE_ELEMENTS {
+        //     float_value = convert int32 to float
+        //     Store array[index] = float_value
+        //   } else {
+        //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
+        //     smi_value = convert int32 to smi
+        //     Store array[index] = smi_value
+        //   }
+        //
+        V<Object> elements = __ template LoadField<Object>(
+            array, AccessBuilder::ForJSObjectElements());
+        IF (__ Int32LessThan(HOLEY_ELEMENTS, elements_kind)) {
+          // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
+          V<Float64> f64 = __ ChangeInt32ToFloat64(value);
+          __ StoreElement(elements, AccessBuilder::ForFixedDoubleArrayElement(),
+                          index, f64);
+        }
+        ELSE {
+          // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
+          // In this case, we know our value is a signed small, and we can
+          // optimize the ElementAccess information.
+          ElementAccess access = AccessBuilder::ForFixedArrayElement();
+          access.type = compiler::Type::SignedSmall();
+          access.machine_type = MachineType::TaggedSigned();
+          access.write_barrier_kind = kNoWriteBarrier;
+          __ StoreElement(elements, access, index, __ SmiTag(value));
+        }
+        END_IF
+        break;
+      }
+    }
+
+    return OpIndex::Invalid();
   }
 
   V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object,
@@ -2553,24 +2747,78 @@ class MachineLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  // TODO(nicohartmann@): Remove this once ECL has been fully ported.
-  // ECL: ChangeInt64ToSmi(input) ==> MLR: __ SmiTag(input)
-  // ECL: ChangeInt32ToSmi(input) ==> MLR: __ SmiTag(input)
-  // ECL: ChangeUint32ToSmi(input) ==> MLR: __ SmiTag(input)
-  // ECL: ChangeUint64ToSmi(input) ==> MLR: __ SmiTag(input)
-  // ECL: ChangeIntPtrToSmi(input) ==> MLR: __ SmiTag(input)
-  // ECL: ChangeFloat64ToTagged(i, m) ==> MLR: __ ConvertFloat64ToNumber(i, m)
-  // ECL: ChangeSmiToIntPtr(input)
-  //   ==> MLR: __ ChangeInt32ToIntPtr(__ SmiUntag(input))
-  // ECL: ChangeSmiToInt32(input) ==> MLR: __ SmiUntag(input)
-  // ECL: ChangeSmiToInt64(input) ==> MLR: __ ChangeInt32ToInt64(__
-  // SmiUntag(input))
-  // ECL: BuildCheckedHeapNumberOrOddballToFloat64 ==> MLR:
-  // ConvertHeapObjectToFloat64OrDeopt
+  OpIndex REDUCE(FindOrderedHashEntry)(V<Object> data_structure, OpIndex key,
+                                       FindOrderedHashEntryOp::Kind kind) {
+    switch (kind) {
+      case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry:
+        return __ CallBuiltin_FindOrderedHashMapEntry(
+            isolate_, __ NoContextConstant(), data_structure, key);
+      case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key: {
+        // Compute the integer hash code.
+        V<WordPtr> hash = __ ChangeUint32ToUintPtr(ComputeUnseededHash(key));
+
+        V<WordPtr> number_of_buckets =
+            __ ChangeInt32ToIntPtr(__ SmiUntag(__ template LoadField<Smi>(
+                data_structure,
+                AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets())));
+        hash = __ WordPtrBitwiseAnd(hash, __ WordPtrSub(number_of_buckets, 1));
+        V<WordPtr> first_entry = __ ChangeInt32ToIntPtr(__ SmiUntag(__ Load(
+            data_structure,
+            __ WordPtrAdd(__ WordPtrShiftLeft(hash, kTaggedSizeLog2),
+                          OrderedHashMap::HashTableStartOffset()),
+            LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned())));
+
+        Label<WordPtr> done(this);
+        LoopLabel<WordPtr> loop(this);
+        GOTO(loop, first_entry);
+
+        LOOP(loop, entry) {
+          GOTO_IF(__ WordPtrEqual(entry, OrderedHashMap::kNotFound), done,
+                  entry);
+          V<WordPtr> candidate =
+              __ WordPtrAdd(__ WordPtrMul(entry, OrderedHashMap::kEntrySize),
+                            number_of_buckets);
+          V<Object> candidate_key = __ Load(
+              data_structure,
+              __ WordPtrAdd(__ WordPtrShiftLeft(candidate, kTaggedSizeLog2),
+                            OrderedHashMap::HashTableStartOffset()),
+              LoadOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged());
+
+          IF (LIKELY(__ ObjectIsSmi(candidate_key))) {
+            GOTO_IF(__ Word32Equal(__ SmiUntag(candidate_key), key), done,
+                    candidate);
+          }
+          ELSE_IF (__ TaggedEqual(
+                       __ LoadMapField(candidate_key),
+                       __ HeapConstant(factory_->heap_number_map()))) {
+            GOTO_IF(__ Float64Equal(
+                        __ template LoadField<Float64>(
+                            candidate_key, AccessBuilder::ForHeapNumberValue()),
+                        __ ChangeInt32ToFloat64(key)),
+                    done, candidate);
+          }
+          END_IF
+
+          V<WordPtr> next_entry = __ ChangeInt32ToIntPtr(__ SmiUntag(__ Load(
+              data_structure,
+              __ WordPtrAdd(__ WordPtrShiftLeft(entry, kTaggedSizeLog2),
+                            (OrderedHashMap::HashTableStartOffset() +
+                             OrderedHashMap::kChainOffset * kTaggedSize)),
+              LoadOp::Kind::TaggedBase(),
+              MemoryRepresentation::TaggedSigned())));
+          GOTO(loop, next_entry);
+        }
+
+        BIND(done, result);
+        return result;
+      }
+      case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
+        return __ CallBuiltin_FindOrderedHashSetEntry(
+            isolate_, __ NoContextConstant(), data_structure, key);
+    }
+  }
 
  private:
-  // TODO(nicohartmann@): Might move some of those helpers into the assembler
-  // interface.
   // Pass {bitfield} = {digit} = OpIndex::Invalid() to construct the canonical
   // 0n BigInt.
   V<BigInt> AllocateBigInt(V<Word32> bitfield, V<Word64> digit) {
@@ -2816,6 +3064,34 @@ class MachineLoweringReducer : public Next {
       case kExternalBigInt64Array:
       case kExternalBigUint64Array:
         UNREACHABLE();
+    }
+  }
+
+  V<Word32> ComputeUnseededHash(V<Word32> value) {
+    // See v8::internal::ComputeUnseededHash()
+    value = __ Word32Add(__ Word32BitwiseXor(value, 0xFFFFFFFF),
+                         __ Word32ShiftLeft(value, 15));
+    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 12));
+    value = __ Word32Add(value, __ Word32ShiftLeft(value, 2));
+    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 4));
+    value = __ Word32Mul(value, 2057);
+    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 16));
+    value = __ Word32BitwiseAnd(value, 0x3FFFFFFF);
+    return value;
+  }
+
+  void TransitionElementsTo(V<JSArray> array, ElementsKind from,
+                            ElementsKind to, Handle<Map> target_map) {
+    DCHECK(IsMoreGeneralElementsKindTransition(from, to));
+    DCHECK(to == HOLEY_ELEMENTS || to == HOLEY_DOUBLE_ELEMENTS);
+
+    if (IsSimpleMapChangeTransition(from, to)) {
+      __ StoreField(array, AccessBuilder::ForMap(),
+                    __ HeapConstant(target_map));
+    } else {
+      // Instance migration, call out to the runtime for {array}.
+      __ CallRuntime_TransitionElementsKind(isolate_, __ NoContextConstant(),
+                                            array, __ HeapConstant(target_map));
     }
   }
 

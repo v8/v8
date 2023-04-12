@@ -96,6 +96,21 @@ struct BuiltinCallDescriptor {
   };
 
   template <Builtin B>
+  struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
+    static constexpr auto Function = B;
+    using arguments_t = std::tuple<V<Object>, V<Smi>>;
+    using result_t = V<Smi>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties = Operator::kEliminatable;
+  };
+  using FindOrderedHashMapEntry =
+      FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
+  using FindOrderedHashSetEntry =
+      FindOrderedHashEntry<Builtin::kFindOrderedHashSetEntry>;
+
+  template <Builtin B>
   struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
     static constexpr auto Function = B;
     using arguments_t = std::tuple<V<Object>, V<Smi>>;

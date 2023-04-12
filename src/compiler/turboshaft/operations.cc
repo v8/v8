@@ -1060,12 +1060,39 @@ std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         TransitionAndStoreArrayElementOp::Kind kind) {
+  switch (kind) {
+    case TransitionAndStoreArrayElementOp::Kind::kElement:
+      return os << "Element";
+    case TransitionAndStoreArrayElementOp::Kind::kNumberElement:
+      return os << "NumberElement";
+    case TransitionAndStoreArrayElementOp::Kind::kOddballElement:
+      return os << "OddballElement";
+    case TransitionAndStoreArrayElementOp::Kind::kNonNumberElement:
+      return os << "NonNumberElement";
+    case TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement:
+      return os << "SignedSmallElement";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
   switch (mode) {
     case SameValueOp::Mode::kSameValue:
       return os << "SameValue";
     case SameValueOp::Mode::kSameValueNumbersOnly:
       return os << "SameValueNumbersOnly";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
+  switch (kind) {
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry:
+      return os << "FindOrderedHashMapEntry";
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key:
+      return os << "FindOrderedHashMapEntryForInt32Key";
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
+      return os << "FindOrderedHashSetEntry";
   }
 }
 

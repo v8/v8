@@ -1855,21 +1855,27 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       LowerStoreSignedSmallElement(node);
       break;
     case IrOpcode::kFindOrderedHashMapEntry:
+      if (v8_flags.turboshaft) return false;
       result = LowerFindOrderedHashMapEntry(node);
       break;
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
+      if (v8_flags.turboshaft) return false;
       result = LowerFindOrderedHashMapEntryForInt32Key(node);
       break;
     case IrOpcode::kFindOrderedHashSetEntry:
+      if (v8_flags.turboshaft) return false;
       result = LowerFindOrderedHashSetEntry(node);
       break;
     case IrOpcode::kTransitionAndStoreNumberElement:
+      if (v8_flags.turboshaft) return false;
       LowerTransitionAndStoreNumberElement(node);
       break;
     case IrOpcode::kTransitionAndStoreNonNumberElement:
+      if (v8_flags.turboshaft) return false;
       LowerTransitionAndStoreNonNumberElement(node);
       break;
     case IrOpcode::kTransitionAndStoreElement:
+      if (v8_flags.turboshaft) return false;
       LowerTransitionAndStoreElement(node);
       break;
     case IrOpcode::kRuntimeAbort:
@@ -7446,6 +7452,7 @@ Node* EffectControlLinearizer::IsElementsKindGreaterThan(
 }
 
 void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* array = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -7587,6 +7594,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
 }
 
 void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* array = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);  // This is a Float64, not tagged.
@@ -7647,6 +7655,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
 
 void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
     Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* array = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -8272,6 +8281,7 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* table = NodeProperties::GetValueInput(node, 0);
   Node* key = NodeProperties::GetValueInput(node, 1);
 
@@ -8289,6 +8299,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerFindOrderedHashSetEntry(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* table = NodeProperties::GetValueInput(node, 0);
   Node* key = NodeProperties::GetValueInput(node, 1);
 
@@ -8320,6 +8331,7 @@ Node* EffectControlLinearizer::ComputeUnseededHash(Node* value) {
 
 Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   Node* table = NodeProperties::GetValueInput(node, 0);
   Node* key = NodeProperties::GetValueInput(node, 1);
 

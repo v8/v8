@@ -862,11 +862,11 @@ class GraphVisitor {
         MapToNewGraph(op.index()), MapToNewGraph(op.value()),
         MapToNewGraph(op.is_little_endian()), op.element_type);
   }
-  OpIndex AssembleOutputGraphStoreSignedSmallElement(
-      const StoreSignedSmallElementOp& op) {
-    return assembler().ReduceStoreSignedSmallElement(MapToNewGraph(op.array()),
-                                                     MapToNewGraph(op.index()),
-                                                     MapToNewGraph(op.value()));
+  OpIndex AssembleOutputGraphTransitionAndStoreArrayElement(
+      const TransitionAndStoreArrayElementOp& op) {
+    return assembler().ReduceTransitionAndStoreArrayElement(
+        MapToNewGraph(op.array()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.kind, op.fast_map, op.double_map);
   }
   OpIndex AssembleOutputGraphCompareMaps(const CompareMapsOp& op) {
     return assembler().ReduceCompareMaps(MapToNewGraph(op.heap_object()),
@@ -928,6 +928,11 @@ class GraphVisitor {
       const TransitionElementsKindOp& op) {
     return assembler().ReduceTransitionElementsKind(MapToNewGraph(op.object()),
                                                     op.transition);
+  }
+  OpIndex AssembleOutputGraphFindOrderedHashEntry(
+      const FindOrderedHashEntryOp& op) {
+    return assembler().ReduceFindOrderedHashEntry(
+        MapToNewGraph(op.data_structure()), MapToNewGraph(op.key()), op.kind);
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

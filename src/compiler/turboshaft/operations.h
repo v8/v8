@@ -163,7 +163,7 @@ struct FrameStateOp;
   V(LoadStackArgument)                \
   V(StoreTypedElement)                \
   V(StoreDataViewElement)             \
-  V(StoreSignedSmallElement)          \
+  V(TransitionAndStoreArrayElement)   \
   V(CompareMaps)                      \
   V(CheckMaps)                        \
   V(CheckedClosure)                   \
@@ -176,7 +176,8 @@ struct FrameStateOp;
   V(RuntimeAbort)                     \
   V(EnsureWritableFastElements)       \
   V(MaybeGrowFastElements)            \
-  V(TransitionElementsKind)
+  V(TransitionElementsKind)           \
+  V(FindOrderedHashEntry)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -3672,8 +3673,19 @@ struct StoreDataViewElementOp
   auto options() const { return std::tuple{element_type}; }
 };
 
-struct StoreSignedSmallElementOp
-    : FixedArityOperationT<3, StoreSignedSmallElementOp> {
+struct TransitionAndStoreArrayElementOp
+    : FixedArityOperationT<3, TransitionAndStoreArrayElementOp> {
+  enum class Kind : uint8_t {
+    kElement,
+    kNumberElement,
+    kOddballElement,
+    kNonNumberElement,
+    kSignedSmallElement,
+  };
+  Kind kind;
+  Handle<Map> fast_map;
+  Handle<Map> double_map;
+
   static constexpr OpProperties properties = OpProperties::Writing();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -3681,18 +3693,52 @@ struct StoreSignedSmallElementOp
   OpIndex index() const { return Base::input(1); }
   OpIndex value() const { return Base::input(2); }
 
-  StoreSignedSmallElementOp(OpIndex array, OpIndex index, OpIndex value)
-      : Base(array, index, value) {}
+  TransitionAndStoreArrayElementOp(OpIndex array, OpIndex index, OpIndex value,
+                                   Kind kind, Handle<Map> fast_map,
+                                   Handle<Map> double_map)
+      : Base(array, index, value),
+        kind(kind),
+        fast_map(fast_map),
+        double_map(double_map) {}
 
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, array(), RegisterRepresentation::Tagged()));
     DCHECK(ValidOpInputRep(graph, index(),
                            RegisterRepresentation::PointerSized()));
-    DCHECK(ValidOpInputRep(graph, value(), RegisterRepresentation::Word32()));
+    switch (kind) {
+      case Kind::kElement:
+        DCHECK(
+            ValidOpInputRep(graph, value(), RegisterRepresentation::Tagged()));
+        break;
+      case Kind::kNumberElement:
+        DCHECK(
+            ValidOpInputRep(graph, value(), RegisterRepresentation::Float64()));
+        break;
+      case Kind::kOddballElement:
+      case Kind::kNonNumberElement:
+        DCHECK(
+            ValidOpInputRep(graph, value(), RegisterRepresentation::Tagged()));
+        break;
+      case Kind::kSignedSmallElement:
+        DCHECK(
+            ValidOpInputRep(graph, value(), RegisterRepresentation::Word32()));
+        break;
+    }
   }
 
-  auto options() const { return std::tuple{}; }
+  size_t hash_value() const {
+    return fast_hash_combine(kind, fast_map.address(), double_map.address());
+  }
+
+  bool operator==(const TransitionAndStoreArrayElementOp& other) const {
+    return kind == other.kind && fast_map.equals(other.fast_map) &&
+           double_map.equals(other.double_map);
+  }
+
+  auto options() const { return std::tuple{kind, fast_map, double_map}; }
 };
+std::ostream& operator<<(std::ostream& os,
+                         TransitionAndStoreArrayElementOp::Kind kind);
 
 struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
   ZoneRefSet<Map> maps;
@@ -4084,6 +4130,45 @@ struct TransitionElementsKindOp
 
   auto options() const { return std::tuple{transition}; }
 };
+
+struct FindOrderedHashEntryOp
+    : FixedArityOperationT<2, FindOrderedHashEntryOp> {
+  enum class Kind : uint8_t {
+    kFindOrderedHashMapEntry,
+    kFindOrderedHashMapEntryForInt32Key,
+    kFindOrderedHashSetEntry,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kFindOrderedHashMapEntry:
+      case Kind::kFindOrderedHashSetEntry:
+        return RepVector<RegisterRepresentation::Tagged()>();
+      case Kind::kFindOrderedHashMapEntryForInt32Key:
+        return RepVector<RegisterRepresentation::PointerSized()>();
+    }
+  }
+
+  OpIndex data_structure() const { return Base::input(0); }
+  OpIndex key() const { return Base::input(1); }
+
+  FindOrderedHashEntryOp(OpIndex data_structure, OpIndex key, Kind kind)
+      : Base(data_structure, key), kind(kind) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, data_structure(),
+                           RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, key(),
+                           kind == Kind::kFindOrderedHashMapEntryForInt32Key
+                               ? RegisterRepresentation::Word32()
+                               : RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind);
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

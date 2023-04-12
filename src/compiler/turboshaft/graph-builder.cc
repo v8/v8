@@ -1851,6 +1851,30 @@ OpIndex GraphBuilder::Process(
                               Map(node->InputAt(4)),
                               ExternalArrayTypeOf(node->op()));
       return OpIndex::Invalid();
+    case IrOpcode::kTransitionAndStoreElement:
+      __ TransitionAndStoreArrayElement(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          TransitionAndStoreArrayElementOp::Kind::kElement,
+          FastMapParameterOf(node->op()).object(),
+          DoubleMapParameterOf(node->op()).object());
+      return OpIndex::Invalid();
+    case IrOpcode::kTransitionAndStoreNumberElement:
+      __ TransitionAndStoreArrayElement(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          TransitionAndStoreArrayElementOp::Kind::kNumberElement, {},
+          DoubleMapParameterOf(node->op()).object());
+      return OpIndex::Invalid();
+    case IrOpcode::kTransitionAndStoreNonNumberElement: {
+      auto kind =
+          ValueTypeParameterOf(node->op())
+                  .Is(compiler::Type::BooleanOrNullOrUndefined())
+              ? TransitionAndStoreArrayElementOp::Kind::kOddballElement
+              : TransitionAndStoreArrayElementOp::Kind::kNonNumberElement;
+      __ TransitionAndStoreArrayElement(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          kind, FastMapParameterOf(node->op()).object(), {});
+      return OpIndex::Invalid();
+    }
     case IrOpcode::kStoreSignedSmallElement:
       __ StoreSignedSmallElement(Map(node->InputAt(0)), Map(node->InputAt(1)),
                                  Map(node->InputAt(2)));
@@ -2069,6 +2093,16 @@ OpIndex GraphBuilder::Process(
                                        __ SmiTag(node->id()));
       return OpIndex::Invalid();
     }
+
+    case IrOpcode::kFindOrderedHashMapEntry:
+      return __ FindOrderedHashMapEntry(Map(node->InputAt(0)),
+                                        Map(node->InputAt(1)));
+    case IrOpcode::kFindOrderedHashSetEntry:
+      return __ FindOrderedHashSetEntry(Map(node->InputAt(0)),
+                                        Map(node->InputAt(1)));
+    case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
+      return __ FindOrderedHashMapEntryForInt32Key(Map(node->InputAt(0)),
+                                                   Map(node->InputAt(1)));
 
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
