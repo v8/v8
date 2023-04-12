@@ -1532,6 +1532,14 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* index,
       const compiler::ElementAccessInfo& access_info,
       compiler::KeyedAccessMode const& keyed_mode);
+  ReduceResult TryBuildElementLoadOnJSArrayOrJSObject(
+      ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessInfo& access_info,
+      KeyedAccessLoadMode load_mode);
+  ReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
+      ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessInfo& access_info,
+      KeyedAccessStoreMode store_mode);
   ReduceResult TryBuildElementAccessOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index,
       const compiler::ElementAccessInfo& access_info,

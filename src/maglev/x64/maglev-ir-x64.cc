@@ -244,26 +244,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckJSArrayBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  UseRegister(index_input());
-}
-void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-  __ AssertNotSmi(object);
-
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-  }
-  __ SmiUntagField(kScratchRegister,
-                   FieldOperand(object, JSArray::kLengthOffset));
-  __ cmpl(index, kScratchRegister);
-  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
-}
-
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
@@ -321,31 +301,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOutOfBounds, this);
   }
   __ cmpl(index, byte_length);
-  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
-}
-
-void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  UseRegister(index_input());
-}
-void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-  __ AssertNotSmi(object);
-
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
-    __ Assert(greater_equal, AbortReason::kUnexpectedValue);
-  }
-  __ LoadTaggedField(kScratchRegister,
-                     FieldOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(kScratchRegister);
-  }
-  __ SmiUntagField(kScratchRegister,
-                   FieldOperand(kScratchRegister, FixedArray::kLengthOffset));
-  __ cmpl(index, kScratchRegister);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 

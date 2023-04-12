@@ -84,6 +84,10 @@ class MaglevAssembler : public MacroAssembler {
   void LoadSingleCharacterString(Register result, Register char_code,
                                  Register scratch);
 
+  void EnsureWritableFastElements(RegisterSnapshot register_snapshot,
+                                  Register elements, Register object,
+                                  Register scratch);
+
   inline void BindJumpTarget(Label* label);
   inline void BindBlock(BasicBlock* block);
 
@@ -208,6 +212,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void EmitEagerDeoptIfNotEqual(DeoptimizeReason reason, NodeT* node);
 
   inline void MaterialiseValueNode(Register dst, ValueNode* value);
+
+  inline void IncrementInt32(Register reg);
 
   inline MemOperand StackSlotOperand(StackSlot slot);
   inline void Move(StackSlot dst, Register src);

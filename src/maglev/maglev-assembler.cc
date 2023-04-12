@@ -9,6 +9,8 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+#define __ masm->
+
 Register MaglevAssembler::FromAnyToRegister(const Input& input,
                                             Register scratch) {
   if (input.operand().IsConstant()) {
@@ -59,6 +61,32 @@ void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
   }
   AssertNotSmi(load_source);
   DecompressTagged(result, FieldMemOperand(load_source, field_index.offset()));
+}
+
+void MaglevAssembler::EnsureWritableFastElements(
+    RegisterSnapshot register_snapshot, Register elements, Register object,
+    Register scratch) {
+  ZoneLabelRef done(this);
+  CompareMapWithRoot(elements, RootIndex::kFixedArrayMap, scratch);
+  JumpToDeferredIf(
+      kNotEqual,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
+         Register result_reg, RegisterSnapshot snapshot) {
+        {
+          using D = CallInterfaceDescriptorFor<
+              Builtin::kCopyFastSmiOrObjectElements>::type;
+          snapshot.live_registers.clear(result_reg);
+          snapshot.live_tagged_registers.clear(result_reg);
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          __ Move(D::GetRegisterParameter(D::kObject), object);
+          __ CallBuiltin(Builtin::kCopyFastSmiOrObjectElements);
+          save_register_state.DefineSafepoint();
+          __ Move(result_reg, kReturnRegister0);
+        }
+        __ Jump(*done);
+      },
+      done, object, elements, register_snapshot);
+  bind(*done);
 }
 
 }  // namespace maglev

@@ -391,6 +391,8 @@ inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot stack_slot) {
   return MemOperand(rbp, stack_slot.index);
 }
 
+inline void MaglevAssembler::IncrementInt32(Register reg) { incl(reg); }
+
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   movq(StackSlotOperand(dst), src);
 }

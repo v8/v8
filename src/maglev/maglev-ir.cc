@@ -1185,6 +1185,19 @@ void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                       DeoptimizeReason::kHole, this);
 }
 
+void CheckBounds::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  UseRegister(bound_input());
+}
+void CheckBounds::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register bound = ToRegister(bound_input());
+  __ CompareInt32(value, bound);
+  __ EmitEagerDeoptIf(kUnsignedGreaterThanEqual, DeoptimizeReason::kOutOfBounds,
+                      this);
+}
+
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -2365,6 +2378,33 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void UpdateJSArrayLength::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseAndClobberRegister(index_input());
+  UseRegister(length_input());
+}
+void UpdateJSArrayLength::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register length = ToRegister(length_input());
+  Label done;
+  if (v8_flags.debug_code) {
+    __ IsObjectType(object, JS_ARRAY_TYPE);
+    __ Assert(kEqual, AbortReason::kUnexpectedValue);
+    static_assert(Internals::IsValidSmi(FixedArray::kMaxLength),
+                  "MaxLength not a Smi");
+    __ CompareInt32(index, FixedArray::kMaxLength);
+    __ Assert(kUnsignedLessThan, AbortReason::kUnexpectedValue);
+  }
+  __ CompareInt32(index, length);
+  __ JumpIf(kUnsignedLessThan, &done);
+  __ IncrementInt32(index);  // This cannot overflow.
+  __ SmiTag(index);
+  __ StoreTaggedField(FieldMemOperand(object, JSArray::kLengthOffset), index);
+  __ bind(&done);
+}
+
 void EnsureWritableFastElements::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(object_input());
@@ -2375,30 +2415,75 @@ void EnsureWritableFastElements::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register elements = ToRegister(elements_input());
-  Register result_reg = ToRegister(result());
-  DCHECK_EQ(elements, result_reg);
+  DCHECK_EQ(elements, ToRegister(result()));
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ CompareMapWithRoot(elements, RootIndex::kFixedArrayMap, scratch);
+  __ EnsureWritableFastElements(register_snapshot(), elements, object, scratch);
+}
+
+void MaybeGrowAndEnsureWritableFastElements::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(object_input());
+  UseRegister(index_input());
+  UseRegister(elements_length_input());
+  if (IsSmiOrObjectElementsKind(elements_kind())) {
+    set_temporaries_needed(1);
+  }
+  DefineSameAsFirst(this);
+}
+void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register elements_length = ToRegister(elements_length_input());
+  DCHECK_EQ(elements, ToRegister(result()));
+
   ZoneLabelRef done(masm);
+  __ CompareInt32(index, elements_length);
   __ JumpToDeferredIf(
-      kNotEqual,
+      kUnsignedGreaterThanEqual,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
-         Register result_reg, RegisterSnapshot snapshot) {
+         Register index, Register result_reg,
+         MaybeGrowAndEnsureWritableFastElements* node) {
         {
-          using D = CallInterfaceDescriptorFor<
-              Builtin::kCopyFastSmiOrObjectElements>::type;
+          RegisterSnapshot snapshot = node->register_snapshot();
           snapshot.live_registers.clear(result_reg);
           snapshot.live_tagged_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
+          using D = GrowArrayElementsDescriptor;
+          if (index == D::GetRegisterParameter(D::kObject)) {
+            // That implies that the first parameter move will clobber the index
+            // value. So we use the result register as temporary.
+            __ SmiTag(result_reg, index);
+            index = result_reg;
+          } else {
+            __ SmiTag(index);
+          }
           __ Move(D::GetRegisterParameter(D::kObject), object);
-          __ CallBuiltin(Builtin::kCopyFastSmiOrObjectElements);
+          __ Move(D::GetRegisterParameter(D::kKey), index);
+          if (IsDoubleElementsKind(node->elements_kind())) {
+            __ CallBuiltin(Builtin::kGrowFastDoubleElements);
+          } else {
+            __ CallBuiltin(Builtin::kGrowFastSmiOrObjectElements);
+          }
           save_register_state.DefineSafepoint();
           __ Move(result_reg, kReturnRegister0);
         }
+        Condition is_smi = __ CheckSmi(result_reg);
+        __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kCouldNotGrowElements,
+                            node);
         __ Jump(*done);
       },
-      done, object, result_reg, register_snapshot());
+      done, object, index, elements, this);
+
+  if (IsSmiOrObjectElementsKind(elements_kind())) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ EnsureWritableFastElements(register_snapshot(), elements, object,
+                                  scratch);
+  }
+
   __ bind(*done);
 }
 

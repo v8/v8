@@ -36,6 +36,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
@@ -3373,83 +3374,170 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   }
 }
 
+ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
+    ValueNode* object, ValueNode* index_object,
+    const compiler::ElementAccessInfo& access_info,
+    KeyedAccessLoadMode load_mode) {
+  ElementsKind elements_kind = access_info.elements_kind();
+  DCHECK(IsFastElementsKind(elements_kind));
+
+  base::Vector<const compiler::MapRef> maps =
+      base::VectorOf(access_info.lookup_start_object_maps());
+  if (IsHoleyElementsKind(elements_kind) && !CanTreatHoleAsUndefined(maps)) {
+    return ReduceResult::Fail();
+  }
+
+  bool is_jsarray = HasOnlyJSArrayMaps(maps);
+  DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
+
+  // 1. Get the elements array.
+  ValueNode* elements_array =
+      AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+
+  // 2. Check boundaries,
+  ValueNode* index = GetInt32ElementIndex(index_object);
+  ValueNode* length_as_smi =
+      is_jsarray ? AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)
+                 : AddNewNode<LoadTaggedField>({elements_array},
+                                               FixedArray::kLengthOffset);
+  ValueNode* length = AddNewNode<UnsafeSmiUntag>({length_as_smi});
+  AddNewNode<CheckBounds>({index, length});
+
+  // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
+  // values).
+  DCHECK_EQ(load_mode, STANDARD_LOAD);
+
+  // 3. Do the load.
+  ValueNode* result;
+  if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+    result =
+        AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements_array, index});
+  } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
+    result = AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
+  } else {
+    DCHECK(!IsDoubleElementsKind(elements_kind));
+    result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
+    if (IsHoleyElementsKind(elements_kind)) {
+      result = AddNewNode<ConvertHoleToUndefined>({result});
+    }
+  }
+  return result;
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
+    ValueNode* object, ValueNode* index_object,
+    const compiler::ElementAccessInfo& access_info,
+    KeyedAccessStoreMode store_mode) {
+  ElementsKind elements_kind = access_info.elements_kind();
+  DCHECK(IsFastElementsKind(elements_kind));
+
+  base::Vector<const compiler::MapRef> maps =
+      base::VectorOf(access_info.lookup_start_object_maps());
+  const bool is_jsarray = HasOnlyJSArrayMaps(maps);
+  DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
+
+  // Get the elements array.
+  ValueNode* elements_array =
+      AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+
+  // Get value.
+  ValueNode* value;
+  if (IsDoubleElementsKind(elements_kind)) {
+    // Make sure we do not store signalling NaNs into double arrays.
+    // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
+    // rather than a separate node.
+    value = GetSilencedNaN(GetAccumulatorFloat64());
+  } else {
+    value = GetAccumulatorTagged();
+    if (IsSmiElementsKind(elements_kind)) {
+      BuildCheckSmi(value, /*elidable*/ false);
+    }
+  }
+
+  // Check boundaries.
+  ValueNode* index = GetInt32ElementIndex(index_object);
+  ValueNode* elements_array_length = nullptr;
+  ValueNode* length;
+  if (is_jsarray) {
+    length = AddNewNode<UnsafeSmiUntag>(
+        {AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)});
+  } else {
+    length = elements_array_length =
+        AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
+            {elements_array}, FixedArray::kLengthOffset)});
+  }
+  if (store_mode == STORE_AND_GROW_HANDLE_COW) {
+    if (elements_array_length == nullptr) {
+      elements_array_length =
+          AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
+              {elements_array}, FixedArray::kLengthOffset)});
+    }
+
+    // Validate the {index} depending on holeyness:
+    //
+    // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
+    // backing store capacity plus the maximum allowed gap, as otherwise
+    // the (potential) backing store growth would normalize and thus
+    // the elements kind of the {receiver} would change to slow mode.
+    //
+    // For PACKED_*_ELEMENTS the {index} must be within the range
+    // [0,length+1[ to be valid. In case {index} equals {length},
+    // the {receiver} will be extended, but kept packed.
+    ValueNode* limit =
+        IsHoleyElementsKind(elements_kind)
+            ? AddNewNode<Int32AddWithOverflow>(
+                  {elements_array_length, GetInt32Constant(JSObject::kMaxGap)})
+            : AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)});
+    AddNewNode<CheckBounds>({index, limit});
+
+    // Grow backing store if necessary and handle COW.
+    elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
+        {elements_array, object, index, elements_array_length}, elements_kind);
+
+    // Update length if necessary.
+    if (is_jsarray) {
+      AddNewNode<UpdateJSArrayLength>({object, index, length});
+    }
+  } else {
+    AddNewNode<CheckBounds>({index, length});
+
+    // Handle COW if needed.
+    if (IsSmiOrObjectElementsKind(elements_kind)) {
+      if (store_mode == STORE_HANDLE_COW) {
+        elements_array =
+            AddNewNode<EnsureWritableFastElements>({elements_array, object});
+      } else {
+        // Ensure that this is not a COW FixedArray.
+        BuildCheckMaps(elements_array,
+                       base::VectorOf({broker()->fixed_array_map()}));
+      }
+    }
+  }
+
+  // Do the store.
+  if (IsDoubleElementsKind(elements_kind)) {
+    AddNewNode<StoreFixedDoubleArrayElement>({elements_array, index, value});
+  } else {
+    BuildStoreFixedArrayElement(elements_array, index, value);
+  }
+
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object,
     const compiler::ElementAccessInfo& access_info,
     compiler::KeyedAccessMode const& keyed_mode) {
-  ElementsKind elements_kind = access_info.elements_kind();
-  if (!IsFastElementsKind(elements_kind)) {
+  if (!IsFastElementsKind(access_info.elements_kind())) {
     return ReduceResult::Fail();
-  }
-  base::Vector<const compiler::MapRef> maps =
-      base::VectorOf(access_info.lookup_start_object_maps());
-  if ((keyed_mode.access_mode() == compiler::AccessMode::kLoad) &&
-      IsHoleyElementsKind(elements_kind) && !CanTreatHoleAsUndefined(maps)) {
-    return ReduceResult::Fail();
-  }
-  if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
-      keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
-    // TODO(victorgomes): Handle growable elements.
-    return ReduceResult::Fail();
-  }
-  ValueNode* index;
-  if (HasOnlyJSArrayMaps(maps)) {
-    index = GetInt32ElementIndex(index_object);
-    AddNewNode<CheckJSArrayBounds>({object, index});
-  } else {
-    DCHECK(HasOnlyJSObjectMaps(maps));
-    index = GetInt32ElementIndex(index_object);
-    AddNewNode<CheckJSObjectElementsBounds>({object, index});
   }
   switch (keyed_mode.access_mode()) {
-    case compiler::AccessMode::kLoad: {
-      DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
-      ValueNode* elements_array =
-          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-      ValueNode* result;
-      if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-        result = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
-            {elements_array, index});
-      } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-        result =
-            AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
-      } else {
-        DCHECK(!IsDoubleElementsKind(elements_kind));
-        result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
-        if (IsHoleyElementsKind(elements_kind)) {
-          result = AddNewNode<ConvertHoleToUndefined>({result});
-        }
-      }
-      return result;
-    }
-    case compiler::AccessMode::kStore: {
-      ValueNode* elements_array =
-          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-      if (IsDoubleElementsKind(elements_kind)) {
-        ValueNode* value = GetAccumulatorFloat64();
-        // Make sure we do not store signalling NaNs into double arrays.
-        // TODO(leszeks): Consider making this a bit on
-        // StoreFixedDoubleArrayElement rather than a separate node.
-        value = GetSilencedNaN(value);
-        AddNewNode<StoreFixedDoubleArrayElement>(
-            {elements_array, index, value});
-      } else {
-        if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
-          elements_array =
-              AddNewNode<EnsureWritableFastElements>({elements_array, object});
-        } else {
-          // Ensure that this is not a COW FixedArray.
-          BuildCheckMaps(elements_array,
-                         base::VectorOf({broker()->fixed_array_map()}));
-        }
-        ValueNode* value = GetAccumulatorTagged();
-        if (IsSmiElementsKind(elements_kind)) {
-          BuildCheckSmi(value, /*elidable*/ false);
-        }
-        BuildStoreFixedArrayElement(elements_array, index, value);
-      }
-      return ReduceResult::Done();
-    }
+    case compiler::AccessMode::kLoad:
+      return TryBuildElementLoadOnJSArrayOrJSObject(
+          object, index_object, access_info, keyed_mode.load_mode());
+    case compiler::AccessMode::kStore:
+      return TryBuildElementStoreOnJSArrayOrJSObject(
+          object, index_object, access_info, keyed_mode.store_mode());
     default:
       // TODO(victorgomes): Implement more access types.
       return ReduceResult::Fail();

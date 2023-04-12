@@ -75,35 +75,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  set_temporaries_needed(1);
-  UseRegister(index_input());
-}
-void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input()).W();
-
-  __ AssertNotSmi(object);
-
-  if (v8_flags.debug_code) {
-    __ CompareObjectType(object, FIRST_JS_OBJECT_TYPE, scratch);
-    __ Assert(ge, AbortReason::kUnexpectedValue);
-  }
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(scratch);
-  }
-  __ SmiUntagField(scratch,
-                   FieldMemOperand(scratch, FixedArray::kLengthOffset));
-  __ Cmp(index, scratch.W());
-  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
-}
-
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }
@@ -222,29 +193,6 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
   Register input_reg = ToRegister(input()).W();
   __ Tst(input_reg, input_reg);
   __ EmitEagerDeoptIf(mi, DeoptimizeReason::kNotUint32, this);
-}
-
-void CheckJSArrayBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  UseRegister(index_input());
-}
-void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-  __ AssertNotSmi(object);
-
-  if (v8_flags.debug_code) {
-    __ IsObjectType(object, JS_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
-  }
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-
-  __ SmiUntagField(scratch, FieldMemOperand(object, JSArray::kLengthOffset));
-  __ Cmp(index, scratch);
-  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 
 void ChangeInt32ToFloat64::SetValueLocationConstraints() {

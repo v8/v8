@@ -512,6 +512,10 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   }
 }
 
+inline void MaglevAssembler::IncrementInt32(Register reg) {
+  Add(reg.W(), reg.W(), Immediate(1));
+}
+
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   Str(src, StackSlotOperand(dst));
 }

@@ -188,6 +188,7 @@ class MergePointInterpreterFrameState;
   V(LoadGlobal)                              \
   V(LoadNamedGeneric)                        \
   V(LoadNamedFromSuperGeneric)               \
+  V(MaybeGrowAndEnsureWritableFastElements)  \
   V(SetNamedGeneric)                         \
   V(DefineNamedOwnGeneric)                   \
   V(StoreInArrayLiteralGeneric)              \
@@ -263,9 +264,8 @@ class MergePointInterpreterFrameState;
   V(CheckHeapObject)                        \
   V(CheckInt32Condition)                    \
   V(CheckFixedArrayNonEmpty)                \
-  V(CheckJSArrayBounds)                     \
+  V(CheckBounds)                            \
   V(CheckJSDataViewBounds)                  \
-  V(CheckJSObjectElementsBounds)            \
   V(CheckJSTypedArrayBounds)                \
   V(CheckMaps)                              \
   V(CheckMapsWithMigration)                 \
@@ -303,6 +303,7 @@ class MergePointInterpreterFrameState;
   V(ThrowSuperAlreadyCalledIfNotHole)       \
   V(ThrowIfNotSuperConstructor)             \
   V(TransitionElementsKind)                 \
+  V(UpdateJSArrayLength)                    \
   GAP_MOVE_NODE_LIST(V)                     \
   VALUE_NODE_LIST(V)
 
@@ -4601,19 +4602,19 @@ class CheckFixedArrayNonEmpty
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {
-  using Base = FixedInputNodeT<2, CheckJSArrayBounds>;
+class CheckBounds : public FixedInputNodeT<2, CheckBounds> {
+  using Base = FixedInputNodeT<2, CheckBounds>;
 
  public:
-  explicit CheckJSArrayBounds(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
 
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& receiver_input() { return input(kReceiverIndex); }
-  Input& index_input() { return input(kIndexIndex); }
+  static constexpr int kValueIndex = 0;
+  static constexpr int kBoundIndex = 1;
+  Input& value_input() { return input(kValueIndex); }
+  Input& bound_input() { return input(kBoundIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -4696,27 +4697,6 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
  private:
   AssertCondition condition_;
   DeoptimizeReason reason_;
-};
-
-class CheckJSObjectElementsBounds
-    : public FixedInputNodeT<2, CheckJSObjectElementsBounds> {
-  using Base = FixedInputNodeT<2, CheckJSObjectElementsBounds>;
-
- public:
-  explicit CheckJSObjectElementsBounds(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
-
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& receiver_input() { return input(kReceiverIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
@@ -5165,6 +5145,41 @@ class EnsureWritableFastElements
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class MaybeGrowAndEnsureWritableFastElements
+    : public FixedInputValueNodeT<4, MaybeGrowAndEnsureWritableFastElements> {
+  using Base = FixedInputValueNodeT<4, MaybeGrowAndEnsureWritableFastElements>;
+
+ public:
+  explicit MaybeGrowAndEnsureWritableFastElements(uint64_t bitfield,
+                                                  ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  static constexpr int kIndexIndex = 2;
+  static constexpr int kElementsLengthIndex = 3;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& elements_length_input() { return input(kElementsLengthIndex); }
+
+  ElementsKind elements_kind() const { return elements_kind_; }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const ElementsKind elements_kind_;
 };
 
 class StoreFixedArrayElementWithWriteBarrier
@@ -5767,6 +5782,29 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
  private:
   const compiler::NameRef name_;
   const compiler::FeedbackSource feedback_;
+};
+
+class UpdateJSArrayLength : public FixedInputNodeT<3, UpdateJSArrayLength> {
+  using Base = FixedInputNodeT<3, UpdateJSArrayLength>;
+
+ public:
+  explicit UpdateJSArrayLength(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kInt32};
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kLengthIndex = 2;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& length_input() { return input(kLengthIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
