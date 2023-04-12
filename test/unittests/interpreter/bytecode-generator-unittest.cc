@@ -3204,6 +3204,101 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
       LoadGolden("ElideRedundantLoadOperationOfImmutableContext.golden")));
 }
 
+TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
+  i::v8_flags.ignition_elide_redundant_tdz_checks = true;
+
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
+
+  // clang-format off
+  std::string snippets[] = {
+    // No control flow
+    "x; x;\n",
+
+    // 1-armed if
+    "if (x) { y; }\n"
+    "x + y;\n",
+
+    // 2-armed if
+    "if (a) { x; y; } else { x; z; }\n"
+    "x; y; z;\n",
+
+    // while
+    "while (x) { y; }\n"
+    "x; y;\n",
+
+    // do-while
+    "do { x; } while (y);\n"
+    "x; y;\n",
+
+    // C-style for
+    "for (x; y; z) { w; }\n"
+    "x; y; z; w;\n",
+
+    // for-in
+    "for (x in [y]) { z; }\n"
+    "x; y; z;\n",
+
+    // for-of
+    "for (x of [y]) { z; }\n"
+    "x; y; z;\n",
+
+    // try-catch
+    "try { x; } catch (y) { y; z; } finally { w; }\n"
+    "x; y; z; w;\n",
+
+    // destructuring init
+    "let { p = x } = { p: 42 }\n"
+    "x;\n",
+
+    // binary and
+    "let res = x && y && z\n"
+    "x; y; z;\n",
+
+    // binary or
+    "let res = x || y || z\n"
+    "x; y; z;\n",
+
+    // binary nullish
+    "let res = x ?? y ?? z\n"
+    "x; y; z;\n",
+
+    // optional chaining
+    "({p:42})?.[x]?.[x]?.[y];\n"
+    "x; y;\n",
+
+    // conditional and assignment
+    "x &&= y;\n"
+    "x; y;\n",
+
+    // conditional or assignment
+    "x ||= y;\n"
+    "x; y;\n",
+
+    // conditional nullish assignment
+    "x ??= y;\n"
+    "x; y;\n",
+
+    // switch
+    "switch (a) {\n"
+    "  case x: y; break;\n"
+    "  case 42: y; z;\n"
+    "  default: y; w;\n"
+    "}\n"
+    "x; y; z; w;\n"
+  };
+  // clang-format on
+
+  CHECK(CompareTexts(BuildActual(printer(), snippets,
+                                 "{\n"
+                                 "  f = function f(a) {\n",
+                                 "  }\n"
+                                 "  let w, x, y, z;\n"
+                                 "  f();\n"
+                                 "}\n"),
+                     LoadGolden("ElideRedundantHoleChecks.golden")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
