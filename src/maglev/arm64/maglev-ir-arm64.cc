@@ -1104,8 +1104,6 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   // Don't throw the result away if we want to actually use it.
   Register reg = ToRegister(input()).W();
   __ Adds(wzr, reg, reg);
-  DCHECK_REGLIST_EMPTY(RegList{reg} &
-                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kNotASmi, this);
 }
 

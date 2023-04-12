@@ -1591,8 +1591,6 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   Register reg = ToRegister(input());
   __ movl(kScratchRegister, reg);
   __ addl(kScratchRegister, kScratchRegister);
-  DCHECK_REGLIST_EMPTY(RegList{reg} &
-                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kNotASmi, this);
 }
 
