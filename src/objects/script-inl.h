@@ -162,6 +162,19 @@ bool Script::HasValidSource() {
   return true;
 }
 
+bool Script::has_line_ends() const { return line_ends() != Smi::zero(); }
+
+// static
+void Script::InitLineEnds(Isolate* isolate, Handle<Script> script) {
+  if (script->has_line_ends()) return;
+  Script::InitLineEndsInternal(isolate, script);
+}
+// static
+void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
+  if (script->has_line_ends()) return;
+  Script::InitLineEndsInternal(isolate, script);
+}
+
 bool Script::HasSourceURLComment() const {
   return source_url().IsString() && String::cast(source_url()).length() != 0;
 }

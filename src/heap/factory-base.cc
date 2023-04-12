@@ -313,7 +313,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_column_offset(0);
     raw.set_context_data(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw.set_type(Script::TYPE_NORMAL);
-    raw.set_line_ends(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw.set_line_ends(Smi::zero());
     raw.set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
                                                   SKIP_WRITE_BARRIER);
     raw.set_eval_from_position(0);

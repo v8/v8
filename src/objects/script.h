@@ -161,10 +161,12 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
 
-  // Init line_ends array with source code positions of line ends.
-  template <typename IsolateT>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void InitLineEnds(IsolateT* isolate, Handle<Script> script);
+  // Initialize line_ends array with source code positions of line ends if
+  // it doesn't exist yet.
+  static inline void InitLineEnds(Isolate* isolate, Handle<Script> script);
+  static inline void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
+
+  inline bool has_line_ends() const;
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -239,6 +241,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   DEFINE_TORQUE_GENERATED_SCRIPT_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(Script)
+
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void V8_PRESERVE_MOST
+      InitLineEndsInternal(IsolateT* isolate, Handle<Script> script);
 };
 
 }  // namespace internal

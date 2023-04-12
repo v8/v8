@@ -228,7 +228,7 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
   // Encode the location of an already deserialized object in order to write
   // its location into a later object.  We can encode the location as an
   // offset fromthe start of the deserialized objects or as an offset
-  // backwards from thecurrent allocation pointer.
+  // backwards from the current allocation pointer.
   if (reference->is_attached_reference()) {
     if (v8_flags.trace_serializer) {
       PrintF(" Encoding attached reference %d\n",
@@ -780,10 +780,9 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   }
   if (InstanceTypeChecker::IsScript(instance_type)) {
     // Clear cached line ends & compiled lazy function positions.
-    Oddball undefined = ReadOnlyRoots(isolate()).undefined_value();
-    Handle<Script>::cast(object_)->set_line_ends(undefined);
+    Handle<Script>::cast(object_)->set_line_ends(Smi::zero());
     Handle<Script>::cast(object_)->set_compiled_lazy_function_positions(
-        undefined);
+        ReadOnlyRoots(isolate()).undefined_value());
   }
 
 #if V8_ENABLE_WEBASSEMBLY

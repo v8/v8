@@ -244,6 +244,8 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     CodeKind kind = code.kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
+      DCHECK_IMPLIES(shared->script().IsScript(),
+                     Script::cast(shared->script()).has_line_ends());
       LogWriteDebugInfo(code, shared);
     }
   }
