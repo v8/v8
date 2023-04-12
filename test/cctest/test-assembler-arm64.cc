@@ -14771,12 +14771,12 @@ static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2, uint64_t expected,
                                 uint64_t result_mask) {
-  uint64_t data0[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data1[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data2[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data3[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data4[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data5[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);
@@ -14838,12 +14838,12 @@ static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2,
                                 uint64_t expected) {
-  uint64_t data0[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data1[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data2[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data3[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data4[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
-  uint64_t data5[] __attribute__((aligned(kXRegSize * 2))) = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);
