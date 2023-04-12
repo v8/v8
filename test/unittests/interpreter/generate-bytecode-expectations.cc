@@ -49,7 +49,6 @@ class ProgramOptions final {
         module_(false),
         top_level_(false),
         print_callee_(false),
-        async_iteration_(false),
         elide_redundant_tdz_checks_(false),
         verbose_(false) {}
 
@@ -71,7 +70,6 @@ class ProgramOptions final {
   bool module() const { return module_; }
   bool top_level() const { return top_level_; }
   bool print_callee() const { return print_callee_; }
-  bool async_iteration() const { return async_iteration_; }
   bool elide_redundant_tdz_checks() const {
     return elide_redundant_tdz_checks_;
   }
@@ -92,7 +90,6 @@ class ProgramOptions final {
   bool module_;
   bool top_level_;
   bool print_callee_;
-  bool async_iteration_;
   bool elide_redundant_tdz_checks_;
   bool verbose_;
   std::vector<std::string> input_filenames_;
@@ -194,8 +191,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.top_level_ = true;
     } else if (strcmp(argv[i], "--print-callee") == 0) {
       options.print_callee_ = true;
-    } else if (strcmp(argv[i], "--async-iteration") == 0) {
-      options.async_iteration_ = true;
     } else if (strcmp(argv[i], "--elide-redundant-tdz-checks") == 0) {
       options.elide_redundant_tdz_checks_ = true;
     } else if (strcmp(argv[i], "--verbose") == 0) {
@@ -313,8 +308,6 @@ void ProgramOptions::UpdateFromHeader(std::istream* stream) {
       top_level_ = ParseBoolean(line.c_str() + 11);
     } else if (line.compare(0, strlen(kPrintCallee), kPrintCallee) == 0) {
       print_callee_ = ParseBoolean(line.c_str() + strlen(kPrintCallee));
-    } else if (line.compare(0, 17, "async iteration: ") == 0) {
-      async_iteration_ = ParseBoolean(line.c_str() + 17);
     } else if (line.compare(0, 28, "elide redundant tdz checks: ") == 0) {
       elide_redundant_tdz_checks_ = ParseBoolean(line.c_str() + 28);
     } else if (line == "---") {
@@ -338,7 +331,6 @@ void ProgramOptions::PrintHeader(std::ostream* stream) const {
   if (module_) *stream << "\nmodule: yes";
   if (top_level_) *stream << "\ntop level: yes";
   if (print_callee_) *stream << "\nprint callee: yes";
-  if (async_iteration_) *stream << "\nasync iteration: yes";
   if (elide_redundant_tdz_checks_) {
     *stream << "\nelide redundant tdz checks: yes";
   }
