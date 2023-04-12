@@ -4332,7 +4332,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
   StartPrologue();
 
   // Set receiver.
-  ValueNode* receiver = GetConvertReceiver(function(), args);
+  ValueNode* receiver = GetRawConvertReceiver(function(), args);
   SetArgument(0, receiver);
   // Set remaining arguments.
   RootConstant* undefined_constant =
@@ -4890,20 +4890,35 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
     compiler::JSFunctionRef function, const CallArguments& args) {
+  return GetTaggedValue(GetRawConvertReceiver(function, args));
+}
+
+ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
+    compiler::JSFunctionRef function, const CallArguments& args) {
   compiler::SharedFunctionInfoRef shared = function.shared(broker());
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
     } else {
-      return GetTaggedValue(args.receiver());
+      return args.receiver();
     }
   }
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return GetConstant(
         function.native_context(broker()).global_proxy_object(broker()));
   }
-  ValueNode* receiver = GetTaggedValue(args.receiver());
+  ValueNode* receiver = args.receiver();
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
+  if (receiver->properties().value_representation() !=
+      ValueRepresentation::kTagged) {
+    // We might have a conversion node for it that we know it is a JSReceiver.
+    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
+    if (node_info->tagged_alternative != nullptr) {
+      if (CheckType(node_info->tagged_alternative, NodeType::kJSReceiver)) {
+        return receiver;
+      }
+    }
+  }
   if (Constant* constant = receiver->TryCast<Constant>()) {
     const Handle<HeapObject> object = constant->object().object();
     if (object->IsUndefined() || object->IsNull()) {
@@ -4913,7 +4928,7 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
       return constant;
     }
   }
-  return AddNewNode<ConvertReceiver>({receiver}, function,
+  return AddNewNode<ConvertReceiver>({GetTaggedValue(receiver)}, function,
                                      args.receiver_mode());
 }
 

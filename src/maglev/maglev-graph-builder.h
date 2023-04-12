@@ -1328,6 +1328,8 @@ class MaglevGraphBuilder {
     return GetTaggedValue(maybe_value);
   }
 
+  ValueNode* GetRawConvertReceiver(compiler::JSFunctionRef function,
+                                   const CallArguments& args);
   ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
                                 const CallArguments& args);
 
