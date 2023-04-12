@@ -43,10 +43,13 @@ BUILTIN(SharedSpaceJSObjectHasInstance) {
     return *isolate->factory()->false_value();
   }
 
-  Maybe<bool> result = AlwaysSharedSpaceJSObject::HasInstance(
-      isolate, Handle<JSFunction>::cast(constructor),
-      args.atOrUndefined(isolate, 1));
-  return *isolate->factory()->ToBoolean(result.FromJust());
+  bool result;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      AlwaysSharedSpaceJSObject::HasInstance(
+          isolate, Handle<JSFunction>::cast(constructor),
+          args.atOrUndefined(isolate, 1)));
+  return *isolate->factory()->ToBoolean(result);
 }
 
 namespace {

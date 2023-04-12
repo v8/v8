@@ -102,3 +102,11 @@ function BuildPrototypeChain(base_obj) {
   // Returns false when calling with a non-function as receiver.
   assertFalse(S1[Symbol.hasInstance].call({}, s1));
 })();
+
+(function TestRecursivePrototype() {
+  // Test that we throw when reaching __proto__ recursion limit.
+  const v = {}, handler = {};
+  const newPrototype = new Proxy(v, handler);
+  Object.setPrototypeOf(v, newPrototype);
+  assertThrows(()=>{v  instanceof SharedArray});
+})();
