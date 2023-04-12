@@ -36,4 +36,24 @@
     "total_timeout_sec": 120,
     "variant": "default",
   },
+  {
+    "bisect_builder_group": "client.v8.clusterfuzz",
+    "bisect_buildername": "V8 Clusterfuzz Linux64 TSAN - release builder",
+    "bug_url": "https://crbug.com/v8/13433",
+    "extra_args": [
+      "--random-gc-stress",
+    ],
+    "isolated_name": "d8_default",
+    "num_shards": 4,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "pool:chromium.tests",
+      "os:Ubuntu-18.04",
+    ],
+    "test_name": "mjsunit/compiler/array-slice-clone",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "stress_js_bg_compile_wasm_code_gc",
+  },
 ]
