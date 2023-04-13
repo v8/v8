@@ -456,8 +456,7 @@ inline void MaglevAssembler::LoadSignedField(Register result,
     Ldrsh(result, operand);
   } else {
     DCHECK_EQ(size, 4);
-    DCHECK(result.IsW());
-    Ldr(result, operand);
+    Ldr(result.W(), operand);
   }
 }
 
@@ -469,8 +468,7 @@ inline void MaglevAssembler::LoadUnsignedField(Register result,
     Ldrh(result, operand);
   } else {
     DCHECK_EQ(size, 4);
-    DCHECK(result.IsW());
-    Ldr(result, operand);
+    Ldr(result.W(), operand);
   }
 }
 

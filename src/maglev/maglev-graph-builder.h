@@ -306,6 +306,7 @@ class MaglevGraphBuilder {
   class CallSpeculationScope;
   class LazyDeoptContinuationScope;
 
+  NodeType GetType(ValueNode* node);
   bool CheckType(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool ShouldEmitInterruptBudgetChecks() {
