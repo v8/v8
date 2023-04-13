@@ -303,7 +303,7 @@ class ImmediatesPrinter {
     int depth = imm_depth;
     if (owner_->current_opcode_ == kExprDelegate) depth++;
     // Be robust: if the module is invalid, print what we got.
-    if (depth >= static_cast<int>(owner_->label_stack_.size())) {
+    if (depth < 0 || depth >= static_cast<int>(owner_->label_stack_.size())) {
       out_ << imm_depth;
       return;
     }

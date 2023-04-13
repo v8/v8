@@ -6164,9 +6164,7 @@ Node* WasmGraphBuilder::StringMeasureWtf16(Node* string,
   if (null_check == kWithNullCheck) {
     string = AssertNotNull(string, wasm::kWasmStringRef, position);
   }
-  return gasm_->LoadImmutableFromObject(
-      MachineType::Int32(), string,
-      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+  return gasm_->LoadStringLength(string);
 }
 
 Node* WasmGraphBuilder::StringEncodeWtf8(uint32_t memory,
@@ -6338,9 +6336,7 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   Node* charwidth_shift = gasm_->Projection(2, prepare);
 
   // Bounds check.
-  Node* length = gasm_->LoadImmutableFromObject(
-      MachineType::Int32(), string,
-      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+  Node* length = gasm_->LoadStringLength(string);
   TrapIfFalse(wasm::kTrapStringOffsetOutOfBounds,
               gasm_->Uint32LessThan(offset, length), position);
 

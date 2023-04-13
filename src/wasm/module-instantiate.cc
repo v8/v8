@@ -348,13 +348,9 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
   return IsSupportedWasmFastApiFunction(isolate, expected_sig, shared);
 }
 
-namespace {
-
 bool IsStringRef(wasm::ValueType type) {
   return type.is_reference_to(wasm::HeapType::kString);
 }
-
-}  // namespace
 
 // This detects imports of the form: `Function.prototype.call.bind(foo)`, where
 // `foo` is something that has a Builtin id.

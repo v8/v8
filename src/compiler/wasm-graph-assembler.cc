@@ -444,6 +444,12 @@ void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
                            length, effect(), control()));
 }
 
+Node* WasmGraphAssembler::LoadStringLength(Node* string) {
+  return LoadImmutableFromObject(
+      MachineType::Int32(), string,
+      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+}
+
 Node* WasmGraphAssembler::StringAsWtf16(Node* string) {
   return AddNode(graph()->NewNode(simplified_.StringAsWtf16(), string, effect(),
                                   control()));

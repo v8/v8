@@ -274,6 +274,8 @@ class WasmGraphAssembler : public GraphAssembler {
 
   void ArrayInitializeLength(Node* array, Node* length);
 
+  Node* LoadStringLength(Node* string);
+
   Node* StringAsWtf16(Node* string);
 
   Node* StringPrepareForGetCodeunit(Node* string);
