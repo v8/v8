@@ -871,20 +871,27 @@ class ModuleDecoderImpl : public Decoder {
       if (enabled_features_.has_typed_funcref() &&
           read_u8<Decoder::FullValidationTag>(
               pc(), "table-with-initializer byte") == 0x40) {
-        consume_bytes(1, "table-with-initializer byte");
+        consume_bytes(1, "table-with-initializer byte", tracer_);
         has_initializer = true;
+        type_position++;
+        uint8_t reserved = consume_u8("reserved byte", tracer_);
+        if (reserved != 0) {
+          error(type_position, "Reserved byte must be 0x00");
+          break;
+        }
+        type_position++;
       }
 
       ValueType table_type = consume_value_type();
       if (!table_type.is_object_reference()) {
         error(type_position, "Only reference types can be used as table types");
-        continue;
+        break;
       }
       if (!has_initializer && !table_type.is_defaultable()) {
         errorf(type_position,
                "Table of non-defaultable table %s needs initial value",
                table_type.name().c_str());
-        continue;
+        break;
       }
       table->type = table_type;
 
