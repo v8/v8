@@ -816,6 +816,9 @@ class PromotedPageRecordMigratedSlotVisitor final
 
   // Maps can be shared, so we need to visit them to record old to shared slots.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
+  V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
+    return false;
+  }
 
  private:
   template <typename TObject>
