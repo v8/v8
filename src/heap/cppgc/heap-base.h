@@ -240,6 +240,12 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     is_incremental_marking_in_progress_ = value;
   }
 
+  void EnterNoGCScope() { ++no_gc_scope_; }
+  void LeaveNoGCScope() {
+    DCHECK_GT(no_gc_scope_, 0);
+    --no_gc_scope_;
+  }
+
   using HeapHandle::is_incremental_marking_in_progress;
 
  protected:
@@ -319,7 +325,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
-  friend class cppgc::subtle::NoGarbageCollectionScope;
   friend class cppgc::testing::Heap;
   friend class cppgc::testing::OverrideEmbedderStackStateScope;
 };
