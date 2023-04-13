@@ -156,7 +156,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 18
+bytecode array length: 20
 bytecodes: [
   /*   29 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(ThrowReferenceErrorIfHole), U8(0),
@@ -165,6 +165,7 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(6),
   /*   24 E> */ B(JumpLoop), U8(10), I8(0), U8(0),
   /*   45 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
   /*   48 S> */ B(LdaUndefined),
   /*   53 S> */ B(Return),
 ]

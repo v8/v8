@@ -2399,14 +2399,12 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   loop_builder->LoopBody();
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
+  HoleCheckElisionScope elider(this);
   Visit(stmt->body());
   loop_builder->BindContinueTarget();
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  // For hole check elision, do-while loops always execute at least once, and so
-  // don't need its own HoleCheckElisionScope.
-
   LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
                            feedback_spec());
   if (stmt->cond()->ToBooleanIsFalse()) {
@@ -2446,7 +2444,6 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
-  HoleCheckElisionScope elider(this);
   VisitIterationBody(stmt, &loop_builder);
 }
 
@@ -2484,13 +2481,14 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   // INIT dominates TEST dominates REST
   //
   // INIT and TEST are always evaluated and so do not have their own
-  // HoleCheckElisionScope. BODY and NEXT are conditionally evaluated and so
-  // have their own HoleCheckElisionScope.
-  HoleCheckElisionScope elider(this);
+  // HoleCheckElisionScope. BODY, like all iteration bodies, can contain control
+  // flow like breaks or continues, has its own HoleCheckElisionScope. NEXT is
+  // therefore conditionally evaluated and also so has its own
+  // HoleCheckElisionScope.
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     builder()->SetStatementPosition(stmt->next());
-    Visit(stmt->next());
+    VisitInHoleCheckElisionScope(stmt->next());
   }
 }
 
@@ -2545,7 +2543,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
     }
 
-    HoleCheckElisionScope elider(this);
     VisitIterationBody(stmt, &loop_builder);
     builder()->ForInStep(index);
     builder()->StoreAccumulatorInRegister(index);
@@ -2635,7 +2632,6 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
         }
 
-        HoleCheckElisionScope elider(this);
         VisitIterationBody(stmt, &loop_builder);
       },
       // Finally block.
