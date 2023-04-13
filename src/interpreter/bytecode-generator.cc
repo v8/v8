@@ -1620,7 +1620,21 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
   if (stmt->scope() != nullptr) {
     VisitDeclarations(stmt->scope()->declarations());
   }
-  VisitStatements(stmt->statements());
+  if (V8_UNLIKELY(stmt->is_breakable())) {
+    // Loathsome labeled blocks can be the target of break statements, which
+    // causes unconditional blocks to act conditionally, and therefore to
+    // require their own elision scope.
+    //
+    // lbl: {
+    //   if (cond) break lbl;
+    //   x;
+    // }
+    // x;  <-- Cannot elide TDZ check
+    HoleCheckElisionScope elider(this);
+    VisitStatements(stmt->statements());
+  } else {
+    VisitStatements(stmt->statements());
+  }
 }
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
@@ -2272,13 +2286,34 @@ void BytecodeGenerator::BuildTryCatch(
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting 'throw' control commands.
   try_control_builder.BeginTry(context);
+
+  HoleCheckElisionMergeScope merge_elider(this);
+
   {
     ControlScopeForTryCatch scope(this, &try_control_builder);
+    // The try-block itself, even though unconditionally executed, can throw
+    // basically at any point, and so must be treated as conditional from the
+    // perspective of the hole check elision analysis.
+    //
+    // try { x } catch (e) { }
+    // use(x); <-- Still requires a TDZ check
+    //
+    // However, if both the try-block and the catch-block emit a hole check,
+    // subsequent TDZ checks can be elided.
+    //
+    // try { x; } catch (e) { x; }
+    // use(x); <-- TDZ check can be elided
+    HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
     try_body_func();
   }
   try_control_builder.EndTry();
 
-  catch_body_func(context);
+  {
+    HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+    catch_body_func(context);
+  }
+
+  merge_elider.Merge();
 
   try_control_builder.EndCatch();
 }
@@ -2327,6 +2362,10 @@ void BytecodeGenerator::BuildTryFinally(
   try_control_builder.BeginTry(context);
   {
     ControlScopeForTryFinally scope(this, &try_control_builder, &commands);
+    // The try-block itself, even though unconditionally executed, can throw
+    // basically at any point, and so must be treated as conditional from the
+    // perspective of the hole check elision analysis.
+    HoleCheckElisionScope elider(this);
     try_body_func();
   }
   try_control_builder.EndTry();
@@ -2637,7 +2676,6 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
         builder()->LoadAccumulatorWithRegister(context);
 
         // Evaluate the catch-block.
-        HoleCheckElisionScope elider(this);
         if (stmt->scope()) {
           VisitInScope(stmt->catch_block(), stmt->scope());
         } else {

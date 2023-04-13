@@ -290,7 +290,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 143
+bytecode array length: 145
 bytecodes: [
   /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star0),
@@ -360,6 +360,7 @@ bytecodes: [
                 B(Ldar), R(4),
                 B(ReThrow),
   /*   46 S> */ B(LdaCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(5),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   52 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(6),
@@ -394,7 +395,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 74
 bytecodes: [
                 B(Mov), R(context), R(2),
                 B(Mov), R(context), R(3),
@@ -432,6 +433,7 @@ bytecodes: [
                 B(Ldar), R(1),
                 B(ReThrow),
   /*   70 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(0),
   /*   73 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(4),
   /*   76 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
@@ -813,5 +815,214 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["w"],
 ]
 handlers: [
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
+  lbl: {
+    x;
+    if (a) break lbl;
+    y;
+  }
+  x; y;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 24
+bytecodes: [
+  /*   33 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   38 S> */ B(Ldar), R(arg0),
+                B(JumpIfToBooleanFalse), U8(4),
+  /*   45 S> */ B(Jump), U8(6),
+  /*   58 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(1),
+  /*   63 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   66 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(1),
+                B(LdaUndefined),
+  /*   71 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
+  {
+    x;
+    y;
+  }
+  x; y;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 12
+bytecodes: [
+  /*   28 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   33 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(1),
+  /*   38 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+  /*   41 S> */ B(LdaUndefined),
+  /*   46 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
+  try {
+    x;
+  } catch (e) {}
+  x;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 2
+parameter count: 2
+bytecode array length: 28
+bytecodes: [
+                B(Mov), R(context), R(0),
+  /*   32 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+                B(Jump), U8(15),
+                B(Star1),
+                B(CreateCatchContext), R(1), U8(1),
+                B(Star0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
+                B(Ldar), R(0),
+                B(PushContext), R(1),
+                B(PopContext), R(1),
+  /*   50 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+                B(LdaUndefined),
+  /*   55 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  SCOPE_INFO_TYPE,
+]
+handlers: [
+  [3, 7, 9],
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
+  try {
+    x;
+  } catch (e) { x; }
+  x;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 2
+parameter count: 2
+bytecode array length: 30
+bytecodes: [
+                B(Mov), R(context), R(0),
+  /*   32 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+                B(Jump), U8(21),
+                B(Star1),
+                B(CreateCatchContext), R(1), U8(1),
+                B(Star0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
+                B(Ldar), R(0),
+                B(PushContext), R(1),
+  /*   49 S> */ B(LdaImmutableContextSlot), R(1), U8(2), U8(0),
+                B(ThrowReferenceErrorIfHole), U8(0),
+                B(PopContext), R(1),
+  /*   54 S> */ B(LdaUndefined),
+  /*   59 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  SCOPE_INFO_TYPE,
+]
+handlers: [
+  [3, 7, 9],
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
+  try {
+    x;
+  } finally { y; }
+  x; y;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 3
+parameter count: 2
+bytecode array length: 40
+bytecodes: [
+                B(Mov), R(context), R(2),
+  /*   32 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+                B(LdaSmi), I8(-1),
+                B(Star1),
+                B(Star0),
+                B(Jump), U8(5),
+                B(Star1),
+                B(LdaZero),
+                B(Star0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
+                B(Star2),
+  /*   47 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(1),
+                B(Ldar), R(2),
+                B(SetPendingMessage),
+                B(LdaZero),
+                B(TestReferenceEqual), R(0),
+                B(JumpIfFalse), U8(5),
+                B(Ldar), R(1),
+                B(ReThrow),
+  /*   52 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   55 S> */ B(LdaUndefined),
+  /*   60 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+]
+handlers: [
+  [3, 7, 13],
 ]
 

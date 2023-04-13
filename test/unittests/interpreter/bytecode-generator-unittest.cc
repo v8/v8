@@ -3285,7 +3285,40 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
     "  case 42: y; z;\n"
     "  default: y; w;\n"
     "}\n"
-    "x; y; z; w;\n"
+    "x; y; z; w;\n",
+
+    // loathsome labeled breakable blocks
+    "lbl: {\n"
+    "  x;\n"
+    "  if (a) break lbl;\n"
+    "  y;\n"
+    "}\n"
+    "x; y;\n",
+
+    // unoffensive unlabeled blocks
+    "{\n"
+    "  x;\n"
+    "  y;\n"
+    "}\n"
+    "x; y;\n",
+
+    // try-catch
+    "try {\n"
+    "  x;\n"
+    "} catch (e) {}\n"
+    "x;\n",
+
+    // try-catch merge
+    "try {\n"
+    "  x;\n"
+    "} catch (e) { x; }\n"
+    "x;\n",
+
+    // try-finally
+    "try {\n"
+    "  x;\n"
+    "} finally { y; }\n"
+    "x; y;\n"
   };
   // clang-format on
 
