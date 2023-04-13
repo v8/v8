@@ -61,27 +61,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // InstructionStream slots never appear in new space because
-    // Code objects, the only object that can contain code pointers, are
-    // always allocated in the old space.
-    UNREACHABLE();
-  }
-
-  V8_INLINE void VisitCodeTarget(InstructionStream host,
-                                 RelocInfo* rinfo) final {
-    InstructionStream target =
-        InstructionStream::FromTargetAddress(rinfo->target_address());
-    HandleSlot(host, FullHeapObjectSlot(&target), target);
-  }
-  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
-                                      RelocInfo* rinfo) final {
-    PtrComprCageBase cage_base = GetPtrComprCageBase();
-    HeapObject heap_object = rinfo->target_object(cage_base);
-    HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
-  }
-
   inline void VisitEphemeron(HeapObject obj, int entry, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(Heap::IsLargeObject(obj) || obj.IsEphemeronHashTable());
@@ -94,6 +73,14 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     } else {
       VisitPointer(obj, key);
     }
+  }
+
+  // Special cases: Unreachable visitors for objects that are never found in the
+  // young generation and thus cannot be found when iterating promoted objects.
+  void VisitCodePointer(Code, CodeObjectSlot) final { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream, RelocInfo*) final { UNREACHABLE(); }
+  void VisitEmbeddedPointer(InstructionStream, RelocInfo*) final {
+    UNREACHABLE();
   }
 
  private:
