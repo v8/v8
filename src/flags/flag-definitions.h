@@ -640,6 +640,9 @@ DEFINE_BOOL(allocation_site_pretenuring, true,
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
+DEFINE_INT(minor_mc_page_promotion_max_lab_threshold, 50,
+           "max percentage of labs out of a page to still be considered for "
+           "page promotion")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,

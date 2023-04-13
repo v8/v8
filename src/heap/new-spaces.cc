@@ -466,7 +466,6 @@ void NewSpace::VerifyTop() const {
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   DCHECK(page->InYoungGeneration());
-  page->ClearWasUsedForAllocation();
   RemovePage(page);
   Page* new_page = Page::ConvertNewToOld(page);
   DCHECK(!new_page->InYoungGeneration());
@@ -957,7 +956,14 @@ void PagedSpaceForNewSpace::FinishShrinking() {
 }
 
 void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
+  Address old_limit = limit();
   PagedSpaceBase::UpdateInlineAllocationLimit();
+  Address new_limit = limit();
+  DCHECK_LE(new_limit, old_limit);
+  if (new_limit != old_limit) {
+    Page::FromAllocationAreaAddress(top())->DecreaseAllocatedLabSize(old_limit -
+                                                                     new_limit);
+  }
 }
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
@@ -997,9 +1003,12 @@ bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
 }
 
 void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
-  size_t remaining_allocation_area_size = limit() - top();
-  DCHECK_GE(allocated_linear_areas_, remaining_allocation_area_size);
-  allocated_linear_areas_ -= remaining_allocation_area_size;
+  if (top() == kNullAddress) {
+    DCHECK_EQ(kNullAddress, limit());
+    return;
+  }
+  Page::FromAllocationAreaAddress(top())->DecreaseAllocatedLabSize(limit() -
+                                                                   top());
   PagedSpaceBase::FreeLinearAllocationArea();
 }
 
@@ -1088,8 +1097,28 @@ bool PagedSpaceForNewSpace::WaitForSweepingForAllocation(
 
 bool PagedSpaceForNewSpace::IsPromotionCandidate(
     const MemoryChunk* page) const {
-  return page != last_lab_page_;
+  DCHECK_EQ(this, page->owner());
+  if (page == last_lab_page_) return false;
+  return page->AllocatedLabSize() <=
+         static_cast<size_t>(
+             Page::kPageSize *
+             v8_flags.minor_mc_page_promotion_max_lab_threshold / 100);
 }
+
+#ifdef VERIFY_HEAP
+void PagedSpaceForNewSpace::Verify(Isolate* isolate,
+                                   SpaceVerificationVisitor* visitor) const {
+  PagedSpaceBase::Verify(isolate, visitor);
+
+  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
+
+  DCHECK_EQ(
+      AllocatedSinceLastGC() + limit() - top(),
+      std::accumulate(begin(), end(), 0, [](size_t sum, const Page* page) {
+        return sum + page->AllocatedLabSize();
+      }));
+}
+#endif  // VERIFY_HEAP
 
 // -----------------------------------------------------------------------------
 // PagedNewSpace implementation

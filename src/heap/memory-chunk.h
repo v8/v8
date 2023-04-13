@@ -217,8 +217,20 @@ class MemoryChunk : public BasicMemoryChunk {
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
   void MarkWasUsedForAllocation() { was_used_for_allocation_ = true; }
-  void ClearWasUsedForAllocation() { was_used_for_allocation_ = false; }
   bool WasUsedForAllocation() const { return was_used_for_allocation_; }
+
+  void IncreaseAllocatedLabSize(size_t bytes) { allocated_lab_size_ += bytes; }
+  void DecreaseAllocatedLabSize(size_t bytes) {
+    DCHECK_GE(allocated_lab_size_, bytes);
+    allocated_lab_size_ -= bytes;
+  }
+  size_t AllocatedLabSize() const { return allocated_lab_size_; }
+
+  void ResetAllocationStatistics() {
+    BasicMemoryChunk::ResetAllocationStatistics();
+    was_used_for_allocation_ = false;
+    allocated_lab_size_ = 0;
+  }
 
   MarkingBitmap* marking_bitmap() {
     DCHECK(!InReadOnlySpace());
@@ -306,6 +318,10 @@ class MemoryChunk : public BasicMemoryChunk {
   // Marks a chunk that was used for allocation since it was last swept. Used
   // only for new space pages.
   size_t was_used_for_allocation_ = false;
+
+  // Counts overall allocated LAB size on the page since the last GC. Used
+  // only for new space pages.
+  size_t allocated_lab_size_ = 0;
 
   MarkingBitmap marking_bitmap_;
 

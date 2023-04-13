@@ -70,6 +70,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
     FIELD(ActiveSystemPages*, ActiveSystemPages),
     FIELD(size_t, WasUsedForAllocation),
+    FIELD(size_t, AllocatedLabSize),
     FIELD(MarkingBitmap, MarkingBitmap),
     kEndOfMarkingBitmap,
     kMemoryChunkHeaderSize =

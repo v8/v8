@@ -399,9 +399,8 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     // New empty pages should remain in new space.
     new_space->Grow();
     CHECK(new_space->EnsureCurrentCapacity());
-  } else {
-    CollectGarbage(i::NEW_SPACE);
   }
+  CollectGarbage(i::NEW_SPACE);
   CHECK(Heap::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.

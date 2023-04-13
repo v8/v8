@@ -106,6 +106,9 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
 V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
     int* out_max_aligned_size) {
+  Address old_top = top();
+  Address old_limit = limit();
+
   if (!PagedSpaceBase::EnsureAllocation(size_in_bytes, alignment, origin,
                                         out_max_aligned_size)) {
     if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
@@ -115,8 +118,21 @@ V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
     }
   }
 
-  allocated_linear_areas_ += limit() - top();
-  last_lab_page_ = Page::FromAllocationAreaAddress(top());
+  Address new_top = top();
+  Address new_limit = limit();
+  if ((new_top != old_top) || (new_limit != old_limit)) {
+    size_t new_lab_size;
+    if (new_top == old_top) {
+      // Current LAB was extended.
+      DCHECK_GT(new_limit, old_limit);
+      new_lab_size = new_limit - old_limit;
+    } else {
+      new_lab_size = new_limit - new_top;
+    }
+    last_lab_page_ = Page::FromAllocationAreaAddress(new_top);
+    last_lab_page_->IncreaseAllocatedLabSize(new_lab_size);
+  }
+
   return true;
 }
 

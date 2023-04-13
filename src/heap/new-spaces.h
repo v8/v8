@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <numeric>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -556,9 +557,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
-    // allocated since last gc is compiuted as allocated linear areas minus
-    // currently remaining linear area.
-    return allocated_linear_areas_ - (limit() - top());
+    return Size() - size_at_last_gc_ - (original_limit_relaxed() - top());
   }
 
   // Return the maximum capacity of the space.
@@ -574,7 +573,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   // Reset the allocation pointer.
   void GarbageCollectionEpilogue() {
-    allocated_linear_areas_ = 0;
+    size_at_last_gc_ = Size();
     force_allocation_success_ = false;
     last_lab_page_ = nullptr;
   }
@@ -613,12 +612,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
-    PagedSpaceBase::Verify(isolate, visitor);
-
-    DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
-  }
-#endif
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+#endif  // VERIFY_HEAP
 
   void MakeIterable() { free_list()->RepairLists(heap()); }
 
@@ -647,11 +642,11 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t target_capacity_ = 0;
   size_t current_capacity_ = 0;
 
-  size_t allocated_linear_areas_ = 0;
+  Page* last_lab_page_ = nullptr;
+
+  size_t size_at_last_gc_ = 0;
 
   bool force_allocation_success_ = false;
-
-  Page* last_lab_page_ = nullptr;
 };
 
 // TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and

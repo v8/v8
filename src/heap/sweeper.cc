@@ -229,17 +229,13 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
   // The Scavenger may add already swept pages back.
   if (page->SweepingDone()) return 0;
 
-  base::Optional<CodePageMemoryModificationScope> write_scope;
-  if (page->owner_identity() == CODE_SPACE) write_scope.emplace(page);
+  base::Optional<CodePageMemoryModificationScope> code_page_scope;
+  if (page->owner_identity() == CODE_SPACE) code_page_scope.emplace(page);
 
   int max_freed = 0;
   {
     base::MutexGuard guard(page->mutex());
     DCHECK(!page->SweepingDone());
-    // If the page is a code page, the CodePageMemoryModificationScope changes
-    // the page protection mode from rx -> rw while sweeping.
-    CodePageMemoryModificationScope code_page_scope(page);
-
     DCHECK_EQ(Page::ConcurrentSweepingState::kPending,
               page->concurrent_sweeping_state());
     page->set_concurrent_sweeping_state(
@@ -662,10 +658,6 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
   // Phase 1: Prepare the page for sweeping.
-  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
-  // counter. The free operations below will decrease allocated_bytes_ to actual
-  // live bytes and keep track of wasted_memory_.
-  p->ResetAllocationStatistics();
 
   CodeObjectRegistry* code_object_registry = p->GetCodeObjectRegistry();
   std::vector<Address> code_objects;
@@ -1034,7 +1026,6 @@ void Sweeper::AddNewSpacePage(Page* page, AccessMode mutex_mode) {
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
-  page->ClearWasUsedForAllocation();
   AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR, mutex_mode);
 }
 
@@ -1112,6 +1103,11 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
     paged_space = heap_->paged_space(space);
   }
   paged_space->IncreaseAllocatedBytes(marking_state_->live_bytes(page), page);
+
+  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
+  // counter. The free operations during sweeping will decrease allocated_bytes_
+  // to actual live bytes and keep track of wasted_memory_.
+  page->ResetAllocationStatistics();
 }
 
 Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
@@ -1214,7 +1210,6 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
     }
   }
 
-  page->ClearWasUsedForAllocation();
   page->ResetAllocationStatistics();
   heap_->CreateFillerObjectAtSweeper(start, static_cast<int>(size));
   paged_space->UnaccountedFree(start, size);
