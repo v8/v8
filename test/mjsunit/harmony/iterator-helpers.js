@@ -687,3 +687,50 @@ function TestHelperPrototypeSurface(helper) {
       Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
   assertThrows(() => {iter.some(v => v == 1)});
 })();
+
+// --- Test Every helper
+
+(function TestEvery() {
+  const iter = gen();
+  assertEquals('function', typeof iter.every);
+  assertEquals(1, iter.every.length);
+  assertEquals('every', iter.every.name);
+
+  assertEquals(true, iter.every(v => v >= 42));
+})();
+
+(function TestEveryOnConsumedIterator() {
+  const iter = gen();
+
+  assertEquals(true, iter.every(v => v >= 42));
+  assertEquals(true, iter.every(v => false));
+})();
+
+(function TestEveryOnNotConsumedIterator() {
+  const iter = gen();
+  const secondIter = gen();
+
+  assertEquals(false, iter.every(v => v >= 43));
+  assertEquals(true, secondIter.every(v => v >= 42));
+})();
+
+(function TestEveryOnIteratorWithThrowAsReturn() {
+  const iter = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(
+      iter,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertThrows(() => {iter.every(v => v == 0)});
+})();
