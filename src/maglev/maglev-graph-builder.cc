@@ -2260,8 +2260,17 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
 
 namespace {
 NodeType StaticTypeForNode(ValueNode* node) {
-  if (!node->is_tagged()) {
-    return NodeType::kNumber;
+  switch (node->properties().value_representation()) {
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kFloat64:
+      return NodeType::kNumber;
+    case ValueRepresentation::kHoleyFloat64:
+      return NodeType::kNumberOrOddball;
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+    case ValueRepresentation::kTagged:
+      break;
   }
   switch (node->opcode()) {
     case Opcode::kCheckedSmiTagInt32:
