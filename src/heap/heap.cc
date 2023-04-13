@@ -3063,7 +3063,8 @@ void* Heap::AllocateExternalBackingStore(
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();
-    if (new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
+    if (new_space_backing_store_bytes >=
+            NumberOfSemiSpaces() * DefaultMaxSemiSpaceSize() &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
       // store bytes and may free enough external bytes for this allocation.
