@@ -721,7 +721,7 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
@@ -788,6 +788,7 @@ class MaglevCodeGeneratingNodeProcessor {
         }
       }
     }
+    return ProcessResult::kContinue;
   }
 
   void EmitBlockEndGapMoves(UnconditionalControlNode* node,
@@ -938,8 +939,9 @@ class SafepointingNodeProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void Process(NodeBase* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     local_isolate_->heap()->Safepoint();
+    return ProcessResult::kContinue;
   }
 
  private:

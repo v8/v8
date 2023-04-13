@@ -600,7 +600,8 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 
 }  // namespace
 
-void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
+                                             const ProcessingState& state) {
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, phi);
   os_ << "φ";
@@ -652,9 +653,11 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
+  return ProcessResult::kContinue;
 }
 
-void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(Node* node,
+                                             const ProcessingState& state) {
   MaybePrintEagerDeopt(os_, targets_, node, graph_labeller_, max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
@@ -669,10 +672,11 @@ void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
 
   MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, node, graph_labeller_,
                                         max_node_id_);
+  return ProcessResult::kContinue;
 }
 
-void MaglevPrintingVisitor::Process(ControlNode* control_node,
-                                    const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
+                                             const ProcessingState& state) {
   MaybePrintEagerDeopt(os_, targets_, control_node, graph_labeller_,
                        max_node_id_);
 
@@ -816,6 +820,8 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
   // so that it overlaps the fallthrough arrow.
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
+
+  return ProcessResult::kContinue;
 }
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,

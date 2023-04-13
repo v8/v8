@@ -7,6 +7,7 @@
 
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
+#include "src/maglev/maglev-graph-processor.h"
 
 namespace v8 {
 namespace internal {
@@ -38,15 +39,16 @@ class MaglevPhiRepresentationSelector {
     current_block_ = block;
   }
 
-  void Process(Phi* node, const ProcessingState&);
+  ProcessResult Process(Phi* node, const ProcessingState&);
 
-  void Process(JumpLoop* node, const ProcessingState&) {
+  ProcessResult Process(JumpLoop* node, const ProcessingState&) {
     FixLoopPhisBackedge(node->target());
+    return ProcessResult::kContinue;
   }
 
   template <class NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
-    UpdateNodeInputs(node, state);
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    return UpdateNodeInputs(node, state);
   }
 
  private:
@@ -60,9 +62,10 @@ class MaglevPhiRepresentationSelector {
   // it. UpdateNodeInputs(n) removes such untagging from {n}'s input (and insert
   // new conversions if needed, from Int32 to Float64 for instance).
   template <class NodeT>
-  void UpdateNodeInputs(NodeT* n, const ProcessingState& state) {
+  ProcessResult UpdateNodeInputs(NodeT* n, const ProcessingState& state) {
     NodeBase* node = static_cast<NodeBase*>(n);
 
+    ProcessResult result = ProcessResult::kContinue;
     if (IsUntagging(n->opcode())) {
       if (node->input(0).node()->Is<Phi>() &&
           node->input(0).node()->value_representation() !=
@@ -73,10 +76,9 @@ class MaglevPhiRepresentationSelector {
         // by another untagged->untagged conversion, or it might need to be
         // removed alltogether (or rather, replaced by an identity node).
         UpdateUntaggingOfPhi(n->template Cast<ValueNode>());
-        return;
       }
     } else {
-      UpdateNonUntaggingNodeInputs(n, state);
+      result = UpdateNonUntaggingNodeInputs(n, state);
     }
 
     // It's important to check the properties of {node} rather than the static
@@ -89,10 +91,13 @@ class MaglevPhiRepresentationSelector {
     if (node->properties().can_lazy_deopt()) {
       BypassIdentities(node->lazy_deopt_info());
     }
+
+    return result;
   }
 
   template <class NodeT>
-  void UpdateNonUntaggingNodeInputs(NodeT* n, const ProcessingState& state) {
+  ProcessResult UpdateNonUntaggingNodeInputs(NodeT* n,
+                                             const ProcessingState& state) {
     NodeBase* node = static_cast<NodeBase*>(n);
 
     // It would be bad to re-tag the input of an untagging node, so this
@@ -108,21 +113,31 @@ class MaglevPhiRepresentationSelector {
         // If the input is a Phi and it was used without any untagging, then
         // we need to retag it (with some additional checks/changes for some
         // nodes, cf the overload of UpdateNodePhiInput).
-        UpdateNodePhiInput(n, phi, i, state);
+        ProcessResult result = UpdateNodePhiInput(n, phi, i, state);
+        if (V8_UNLIKELY(result == ProcessResult::kRemove)) {
+          return ProcessResult::kRemove;
+        }
       }
     }
+
+    return ProcessResult::kContinue;
   }
 
-  void UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
-                          const ProcessingState& state);
-  void UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
-                          const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
+                                   Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node,
+                                   Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
 
   void EnsurePhiInputsTagged(Phi* phi);
 

@@ -11,7 +11,6 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
@@ -22,6 +21,7 @@ namespace internal {
 namespace maglev {
 
 class BasicBlock;
+class Graph;
 class MergePointInterpreterFrameState;
 
 // Destructively intersects the right map into the left map, such that the

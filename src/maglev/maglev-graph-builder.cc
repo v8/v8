@@ -5871,7 +5871,26 @@ void MaglevGraphBuilder::VisitToName() {
 }
 
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
-  ValueNode* value = GetAccumulatorTagged();
+  ValueNode* value = GetRawAccumulator();
+  switch (value->value_representation()) {
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kFloat64:
+      return;
+
+    case ValueRepresentation::kHoleyFloat64: {
+      SetAccumulator(AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value}));
+      return;
+    }
+
+    case ValueRepresentation::kTagged:
+      // We'll insert the required checks depending on the feedback.
+      break;
+
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
+
   FeedbackSlot slot = GetSlotOperand(0);
   switch (broker()->GetFeedbackForBinaryOperation(
       compiler::FeedbackSource(feedback(), slot))) {

@@ -56,9 +56,10 @@ class ValueLocationConstraintProcessor {
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
 
-#define DEF_PROCESS_NODE(NAME)                             \
-  void Process(NAME* node, const ProcessingState& state) { \
-    node->SetValueLocationConstraints();                   \
+#define DEF_PROCESS_NODE(NAME)                                      \
+  ProcessResult Process(NAME* node, const ProcessingState& state) { \
+    node->SetValueLocationConstraints();                            \
+    return ProcessResult::kContinue;                                \
   }
   NODE_BASE_LIST(DEF_PROCESS_NODE)
 #undef DEF_PROCESS_NODE
@@ -71,8 +72,9 @@ class DecompressedUseMarkingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     node->MarkTaggedInputsAsDecompressing();
+    return ProcessResult::kContinue;
   }
 };
 
@@ -86,7 +88,7 @@ class MaxCallDepthProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (NodeT::kProperties.is_call() ||
                   NodeT::kProperties.needs_register_snapshot()) {
       int node_stack_args = node->MaxCallStackArgs();
@@ -104,6 +106,7 @@ class MaxCallDepthProcessor {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       UpdateMaxDeoptedStackSize(node->lazy_deopt_info());
     }
+    return ProcessResult::kContinue;
   }
 
  private:
@@ -170,7 +173,7 @@ class UseMarkingProcessor {
   }
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     node->set_id(next_node_id_++);
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     if (loop_used_nodes && node->properties().is_call() &&
@@ -181,6 +184,7 @@ class UseMarkingProcessor {
       loop_used_nodes->last_call = node->id();
     }
     MarkInputUses(node, state);
+    return ProcessResult::kContinue;
   }
 
   template <typename NodeT>
