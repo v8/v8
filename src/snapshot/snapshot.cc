@@ -427,14 +427,26 @@ v8::StartupData Snapshot::Create(
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
   if (v8_flags.serialization_statistics) {
-    // These prints should match the regexp in test/memory/Memory.json
     DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
-    DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
     DCHECK_NE(startup_serializer.TotalAllocationSize(), 0);
+    // The shared heap snapshot can be empty, no problem.
+    // DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
+    int per_isolate_allocation_size = startup_serializer.TotalAllocationSize();
+    int per_process_allocation_size = 0;
+    if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
+      per_process_allocation_size += read_only_serializer.TotalAllocationSize();
+    } else {
+      per_isolate_allocation_size += read_only_serializer.TotalAllocationSize();
+    }
+    // TODO(jgruber): At snapshot-generation time we don't know whether the
+    // shared heap snapshot will actually be shared at runtime, or if it will
+    // be deserialized into each isolate. Conservatively account to per-isolate
+    // memory here.
+    per_isolate_allocation_size += shared_heap_serializer.TotalAllocationSize();
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("Deserialization will allocate:\n");
-    PrintF("%10d bytes per isolate\n",
-           read_only_serializer.TotalAllocationSize() +
-               startup_serializer.TotalAllocationSize());
+    PrintF("%10d bytes per process\n", per_process_allocation_size);
+    PrintF("%10d bytes per isolate\n", per_isolate_allocation_size);
     for (int i = 0; i < num_contexts; i++) {
       DCHECK_NE(context_allocation_sizes[i], 0);
       PrintF("%10d bytes per context #%d\n", context_allocation_sizes[i], i);
@@ -542,8 +554,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
   if (v8_flags.serialization_statistics) {
-    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
-           payload_length);
+    // These prints must match the regexp in test/memory/Memory.json
+    PrintF("Snapshot blob consists of:\n");
+    PrintF("%10d bytes for startup\n", payload_length);
   }
   payload_offset += payload_length;
 
@@ -556,6 +569,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
   if (v8_flags.serialization_statistics) {
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
@@ -569,6 +583,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       reinterpret_cast<const char*>(shared_heap_snapshot->RawData().begin()),
       payload_length);
   if (v8_flags.serialization_statistics) {
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("%10d bytes for shared heap\n", payload_length);
   }
   payload_offset += payload_length;
@@ -584,6 +599,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
     if (v8_flags.serialization_statistics) {
+      // These prints must match the regexp in test/memory/Memory.json
       PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
