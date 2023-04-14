@@ -45,23 +45,6 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   }
 }
 
-void MinorMarkCompactCollector::MarkRootObject(HeapObject heap_object) {
-  if (Heap::InYoungGeneration(heap_object) &&
-      non_atomic_marking_state()->TryMark(heap_object)) {
-    // Maps won't change in the atomic pause, so the map can be read without
-    // atomics.
-    Map map = Map::cast(*heap_object.map_slot());
-    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
-      const int size = heap_object.SizeFromMap(map);
-      marking_state()->IncrementLiveBytes(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(size));
-    } else {
-      local_marking_worklists_->Push(heap_object);
-    }
-  }
-}
-
 // static
 void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
                                       HeapObject target) {
@@ -124,9 +107,51 @@ void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
                                                           TSlot start,
                                                           TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject target = *slot;
-    VisitObjectImpl(target);
+    VisitObjectViaSlot<ObjectVisitationMode::kPushToWorklist>(slot);
   }
+}
+
+template <
+    YoungGenerationMainMarkingVisitor::ObjectVisitationMode visitation_mode,
+    typename TSlot>
+V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
+    TSlot slot) {
+  typename TSlot::TObject target = *slot;
+  HeapObject heap_object;
+  // Treat weak references as strong.
+  if (!target.GetHeapObject(&heap_object) ||
+      !Heap::InYoungGeneration(heap_object)) {
+    return false;
+  }
+
+  if (!concrete_visitor()->marking_state()->TryMark(heap_object)) return true;
+
+  // Maps won't change in the atomic pause, so the map can be read without
+  // atomics.
+  Map map = Map::cast(*heap_object.map_slot());
+  const VisitorId visitor_id = map.visitor_id();
+  // Data-only objects don't require any body descriptor visitation at all and
+  // are always visited directly.
+  if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
+    const int visited_size = heap_object.SizeFromMap(map);
+    concrete_visitor()->marking_state()->IncrementLiveBytes(
+        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+        ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    return true;
+  }
+  if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
+    const int visited_size = Visit(map, heap_object);
+    if (visited_size) {
+      concrete_visitor()->marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    }
+    return true;
+  }
+  // Default case: Visit via worklist.
+  worklists_local()->Push(heap_object);
+
+  return true;
 }
 
 V8_INLINE void YoungGenerationMarkingState::IncrementLiveBytes(

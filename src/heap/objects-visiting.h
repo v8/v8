@@ -123,6 +123,14 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   template <VisitorId visitor_id>
   V8_INLINE void VisitMapPointerIfNeeded(HeapObject host);
 
+  ConcreteVisitor* concrete_visitor() {
+    return static_cast<ConcreteVisitor*>(this);
+  }
+
+  const ConcreteVisitor* concrete_visitor() const {
+    return static_cast<const ConcreteVisitor*>(this);
+  }
+
 #define VISIT(TypeName) \
   V8_INLINE ResultType Visit##TypeName(Map map, TypeName object);
   TYPED_VISITOR_ID_LIST(VISIT)

@@ -93,11 +93,34 @@ class YoungGenerationConcurrentMarkingVisitor final
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject target =
           slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+      // Don't pass along the slot as we cannot change it because the visitor is
+      // running concurrently with the mutator.
       VisitObjectImpl(target);
     }
   }
 
  private:
+  template <typename TObject>
+  void VisitObjectImpl(TObject object) {
+    HeapObject heap_object;
+    // Treat weak references as strong.
+    if (!object.GetHeapObject(&heap_object) ||
+        !Heap::InYoungGeneration(heap_object) ||
+        !concrete_visitor()->marking_state()->TryMark(heap_object)) {
+      return;
+    }
+
+    Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
+    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+      const int visited_size = heap_object.SizeFromMap(map);
+      concrete_visitor()->marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    } else {
+      worklists_local()->Push(heap_object);
+    }
+  }
+
   ConcurrentMarkingState marking_state_;
 };
 

@@ -5627,21 +5627,26 @@ void MinorMarkCompactCollector::PerformWrapperTracing() {
   cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
-class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
+class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
-  explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
-      : collector_(collector) {}
+  explicit RootMarkingVisitor(
+      YoungGenerationMainMarkingVisitor* main_marking_visitor)
+      : main_marking_visitor_(main_marking_visitor) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
-    MarkObjectByPointer(p);
+    main_marking_visitor_
+        ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
+                                 ObjectVisitationMode::kPushToWorklist>(p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK(!MapWord::IsPacked((*p).ptr()));
-      MarkObjectByPointer(p);
+      main_marking_visitor_
+          ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
+                                   ObjectVisitationMode::kPushToWorklist>(p);
     }
   }
 
@@ -5650,11 +5655,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
   }
 
  private:
-  V8_INLINE void MarkObjectByPointer(FullObjectSlot p) {
-    if (!(*p).IsHeapObject()) return;
-    collector_->MarkRootObject(HeapObject::cast(*p));
-  }
-  MinorMarkCompactCollector* const collector_;
+  YoungGenerationMainMarkingVisitor* const main_marking_visitor_;
 };
 
 void MinorMarkCompactCollector::StartMarking() {
@@ -5714,11 +5715,6 @@ void MinorMarkCompactCollector::Finish() {
   }
 
   heap()->new_space()->GarbageCollectionEpilogue();
-
-  main_marking_visitor_->Finalize();
-
-  local_marking_worklists_.reset();
-  main_marking_visitor_.reset();
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {
@@ -5849,27 +5845,6 @@ YoungGenerationMarkingTask::YoungGenerationMarkingTask(
       visitor_(isolate, heap->marking_state()->cage_base(),
                marking_worklists_local()) {}
 
-void YoungGenerationMarkingTask::MarkYoungObject(HeapObject heap_object) {
-  if (visitor_.marking_state()->TryMark(heap_object)) {
-    // Maps won't change in the atomic pause, so the map can be read without
-    // atomics.
-    Map map = Map::cast(*heap_object.map_slot());
-    int visited_size;
-    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
-      visited_size = heap_object.SizeFromMap(map);
-    } else {
-      visited_size = visitor_.Visit(map, heap_object);
-    }
-    if (visited_size) {
-      visitor_.marking_state()->IncrementLiveBytes(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    }
-    // Objects transition to black when visited.
-    DCHECK(visitor_.marking_state()->IsMarked(heap_object));
-  }
-}
-
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
   while (marking_worklists_local_->Pop(&heap_object) ||
@@ -5943,14 +5918,12 @@ V8_INLINE SlotCallbackResult PageMarkingItem::CheckAndMarkObject(
       std::is_same<TSlot, FullMaybeObjectSlot>::value ||
           std::is_same<TSlot, MaybeObjectSlot>::value,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
-  MaybeObject object = *slot;
-  HeapObject heap_object;
-  if (object.GetHeapObject(&heap_object) &&
-      Heap::InYoungGeneration(heap_object)) {
-    task->MarkYoungObject(heap_object);
-    return KEEP_SLOT;
-  }
-  return REMOVE_SLOT;
+  return task->visitor()
+                 ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
+                                          ObjectVisitationMode::kVisitDirectly>(
+                     slot)
+             ? KEEP_SLOT
+             : REMOVE_SLOT;
 }
 
 void YoungGenerationMarkingJob::Run(JobDelegate* delegate) {
@@ -6147,7 +6120,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   DCHECK_NOT_NULL(local_marking_worklists_);
   DCHECK_NOT_NULL(main_marking_visitor_);
 
-  RootMarkingVisitor root_visitor(this);
+  RootMarkingVisitor root_visitor(main_marking_visitor_.get());
 
   MarkLiveObjectsInParallel(&root_visitor, was_marked_incrementally);
 
@@ -6163,6 +6136,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   if (was_marked_incrementally) {
     MarkingBarrier::DeactivateAll(heap());
   }
+
+  main_marking_visitor_->Finalize();
+  local_marking_worklists_.reset();
+  main_marking_visitor_.reset();
 
   if (v8_flags.minor_mc_trace_fragmentation) {
     TraceFragmentation();

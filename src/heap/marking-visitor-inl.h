@@ -672,28 +672,6 @@ void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
   local_pretenuring_feedback_.clear();
 }
 
-template <typename ConcreteVisitor, typename MarkingState>
-template <typename TObject>
-void YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitObjectImpl(TObject object) {
-  HeapObject heap_object;
-  // Treat weak references as strong.
-  if (object.GetHeapObject(&heap_object)) {
-    if (Heap::InYoungGeneration(heap_object) &&
-        concrete_visitor()->marking_state()->TryMark(heap_object)) {
-      Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
-      if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
-        const int visited_size = heap_object.SizeFromMap(map);
-        concrete_visitor()->marking_state()->IncrementLiveBytes(
-            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-            ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-      } else {
-        worklists_local_->Push(heap_object);
-      }
-    }
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

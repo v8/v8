@@ -135,9 +135,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   }
 
  protected:
-  ConcreteVisitor* concrete_visitor() {
-    return static_cast<ConcreteVisitor*>(this);
-  }
+  using ConcurrentHeapVisitor<int, ConcreteVisitor>::concrete_visitor;
+
   template <typename THeapObjectSlot>
   void ProcessStrongHeapObject(HeapObject host, THeapObjectSlot slot,
                                HeapObject heap_object);
@@ -238,15 +237,12 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE void Finalize();
 
  protected:
-  ConcreteVisitor* concrete_visitor() {
-    return static_cast<ConcreteVisitor*>(this);
-  }
+  using NewSpaceVisitor<ConcreteVisitor>::concrete_visitor;
+
+  MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
 
   template <typename T>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
-
-  template <typename TObject>
-  V8_INLINE void VisitObjectImpl(TObject object);
 
  private:
   MarkingWorklists::Local* worklists_local_;
