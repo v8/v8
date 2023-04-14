@@ -244,23 +244,23 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    LoadContextIntoSsa(ssa_env, decoder);
+    LoadInstanceCacheIntoSsa(ssa_env);
 
     if (v8_flags.trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionEntry(decoder->position());
     }
   }
 
-  // Reload the instance cache entries into the Ssa Environment.
-  void LoadContextIntoSsa(SsaEnv* ssa_env, FullDecoder* decoder) {
-    if (ssa_env != nullptr) {
-      builder_->InitInstanceCache(&ssa_env->instance_cache);
-      TFNode* mem_size = ssa_env->instance_cache.mem_size;
-      if (mem_size != nullptr) {
-        bool is_memory64 =
-            decoder->module_ != nullptr && decoder->module_->is_memory64;
-        builder_->SetType(mem_size, is_memory64 ? kWasmI64 : kWasmI32);
-      }
+  // Load the instance cache entries into the Ssa Environment.
+  void LoadInstanceCacheIntoSsa(SsaEnv* ssa_env) {
+    builder_->InitInstanceCache(&ssa_env->instance_cache);
+  }
+
+  // Reload the instance cache entries into the Ssa Environment, if memory can
+  // actually grow.
+  void ReloadInstanceCacheIntoSsa(SsaEnv* ssa_env, const WasmModule* module) {
+    if (module->initial_pages != module->maximum_pages) {
+      LoadInstanceCacheIntoSsa(ssa_env);
     }
   }
 
@@ -722,7 +722,7 @@ class WasmGraphBuildingInterface {
   void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result) {
     SetAndTypeNode(result, builder_->MemoryGrow(value.node));
     // Always reload the instance cache after growing memory.
-    LoadContextIntoSsa(ssa_env_, decoder);
+    ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
   }
 
   bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
@@ -871,13 +871,9 @@ class WasmGraphBuildingInterface {
     builder_->SetEffectControl(effect, control);
 
     // Each of the {DoCall} helpers above has created a reload of the instance
-    // cache nodes. Rather than merging all of them into a Phi here, just
+    // cache nodes. Rather than merging all of them into a Phi, just
     // let them get DCE'ed and perform a single reload after the merge.
-    if (decoder->module_->initial_pages != decoder->module_->maximum_pages) {
-      // The invoked function could have used grow_memory, so we need to
-      // reload mem_size and mem_start.
-      LoadContextIntoSsa(ssa_env_, decoder);
-    }
+    ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
 
     for (uint32_t i = 0; i < sig->return_count(); i++) {
       std::vector<TFNode*> phi_args;
@@ -2012,9 +2008,10 @@ class WasmGraphBuildingInterface {
 
     // If the exceptional operation could have modified memory size, we need to
     // reload the memory context into the exceptional control path.
-    if (reload_mode == kReloadContext &&
-        decoder->module_->initial_pages != decoder->module_->maximum_pages) {
-      LoadContextIntoSsa(ssa_env_, decoder);
+    if (reload_mode == kReloadContext) {
+      // TODO(clemensb): Can we unconditionally load the instance cache and drop
+      // {reload_mode}?
+      ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
     }
 
     if (emit_loop_exits()) {
@@ -2284,11 +2281,9 @@ class WasmGraphBuildingInterface {
     for (size_t i = 0; i < return_count; ++i) {
       SetAndTypeNode(&returns[i], return_nodes[i]);
     }
-    if (decoder->module_->initial_pages != decoder->module_->maximum_pages) {
-      // The invoked function could have used grow_memory, so we need to
-      // reload mem_size and mem_start.
-      LoadContextIntoSsa(ssa_env_, decoder);
-    }
+    // The invoked function could have used grow_memory, so we need to
+    // reload mem_size and mem_start.
+    ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
   }
 
   void DoReturnCall(FullDecoder* decoder, CallInfo call_info,

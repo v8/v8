@@ -3174,18 +3174,23 @@ void WasmGraphBuilder::InitInstanceCache(
   // Therefore, we use plain Load nodes which are not subject to load
   // elimination.
 
+  // Only cache memory start and size if there is a memory (the nodes would be
+  // dead otherwise, but we can avoid creating them in the first place).
+  if (!env_->module->has_memory) return;
+
   // Load the memory start.
-#ifdef V8_ENABLE_SANDBOX
-  instance_cache->mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-      MemoryStart, MachineType::SandboxedPointer());
-#else
+  constexpr MachineType kMemStartType = V8_ENABLE_SANDBOX_BOOL
+                                            ? MachineType::SandboxedPointer()
+                                            : MachineType::UintPtr();
   instance_cache->mem_start =
-      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, MachineType::UintPtr());
-#endif
+      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, kMemStartType);
 
   // Load the memory size.
   instance_cache->mem_size =
       LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemorySize, MachineType::UintPtr());
+  wasm::ValueType mem_size_type =
+      env_->module->is_memory64 ? wasm::kWasmI64 : wasm::kWasmI32;
+  SetType(instance_cache->mem_size, mem_size_type);
 }
 
 void WasmGraphBuilder::PrepareInstanceCacheForLoop(
@@ -3194,6 +3199,7 @@ void WasmGraphBuilder::PrepareInstanceCacheForLoop(
   instance_cache->field = graph()->NewNode(mcgraph()->common()->Phi(rep, 1), \
                                            instance_cache->field, control);
 
+  if (!env_->module->has_memory) return;
   INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
   INTRODUCE_PHI(mem_size, MachineType::PointerRepresentation());
 #undef INTRODUCE_PHI
@@ -3216,10 +3222,16 @@ void WasmGraphBuilder::NewInstanceCacheMerge(WasmInstanceCacheNodes* to,
 void WasmGraphBuilder::MergeInstanceCacheInto(WasmInstanceCacheNodes* to,
                                               WasmInstanceCacheNodes* from,
                                               Node* merge) {
-  to->mem_size = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
-                                      merge, to->mem_size, from->mem_size);
+  DCHECK_EQ(env_->module->has_memory, from->mem_start != nullptr);
+  DCHECK_EQ(env_->module->has_memory, to->mem_start != nullptr);
+  DCHECK_EQ(env_->module->has_memory, to->mem_size != nullptr);
+  DCHECK_EQ(env_->module->has_memory, from->mem_size != nullptr);
+  if (!env_->module->has_memory) return;
+
   to->mem_start = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
                                        merge, to->mem_start, from->mem_start);
+  to->mem_size = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
+                                      merge, to->mem_size, from->mem_size);
 }
 
 Node* WasmGraphBuilder::CreateOrMergeIntoPhi(MachineRepresentation rep,

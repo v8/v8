@@ -121,8 +121,8 @@ V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(
 // and manipulated in wasm-compiler.{h,cc} instead of inside the Wasm decoder.
 // (Note that currently, the globals base is immutable, so not cached here.)
 struct WasmInstanceCacheNodes {
-  Node* mem_start;
-  Node* mem_size;
+  Node* mem_start = nullptr;
+  Node* mem_size = nullptr;
 };
 
 struct WasmLoopInfo {
