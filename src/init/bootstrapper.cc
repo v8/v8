@@ -4593,6 +4593,8 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
                         Builtin::kIteratorPrototypeSome, 1, true);
   SimpleInstallFunction(isolate(), iterator_prototype, "every",
                         Builtin::kIteratorPrototypeEvery, 1, true);
+  SimpleInstallFunction(isolate(), iterator_prototype, "find",
+                        Builtin::kIteratorPrototypeFind, 1, true);
 
   // --- Helper maps
 #define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \

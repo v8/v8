@@ -29,7 +29,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals('return', proto.return.name);
 }
 
-// --- Test Map helper
+// --- Test map helper
 
 (function TestMap() {
   const iter = gen();
@@ -48,7 +48,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: undefined, done: true }, mapIter.next());
 })();
 
-// --- Test Filter helper
+// --- Test filter helper
 
 (function TestFilter() {
   const iter = gen();
@@ -93,7 +93,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: undefined, done: true }, filterIter.next());
 })();
 
-// --- Test Take helper
+// --- Test take helper
 
 (function TestTake() {
   const iter = gen();
@@ -234,7 +234,7 @@ function TestHelperPrototypeSurface(helper) {
   });
 })();
 
-// --- Test Drop helper
+// --- Test drop helper
 
 (function TestDrop() {
   const iter = longerGen();
@@ -281,7 +281,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: undefined, done: true}, dropIter.next());
 })();
 
-// --- Test FlatMap helper
+// --- Test flatMap helper
 
 (function TestFlatMap() {
   const iter = ['It\'s Sunny in', '', 'California'].values();
@@ -567,7 +567,7 @@ function TestHelperPrototypeSurface(helper) {
   assertThrows(() => {flatMapIter.return()});
 })();
 
-// --- Test Reduce helper
+// --- Test reduce helper
 
 (function TestReduceWithInitialValue() {
   const iter = gen();
@@ -609,7 +609,7 @@ function TestHelperPrototypeSurface(helper) {
                })});
 })();
 
-// --- Test ToArray helper
+// --- Test toArray helper
 
 (function TestToArray() {
   const iter = gen();
@@ -626,7 +626,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals([], toArrayResult);
 })();
 
-// --- Test ForEach helper
+// --- Test forEach helper
 
 (function TestForEach() {
   const iter = gen();
@@ -641,7 +641,7 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals([42, 43], log);
 })();
 
-// --- Test Some helper
+// --- Test some helper
 
 (function TestSome() {
   const iter = gen();
@@ -688,7 +688,7 @@ function TestHelperPrototypeSurface(helper) {
   assertThrows(() => {iter.some(v => v == 1)});
 })();
 
-// --- Test Every helper
+// --- Test every helper
 
 (function TestEvery() {
   const iter = gen();
@@ -733,4 +733,78 @@ function TestHelperPrototypeSurface(helper) {
       iter,
       Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
   assertThrows(() => {iter.every(v => v == 0)});
+})();
+
+// --- Test find helper
+
+(function TestFind() {
+  const iter = gen();
+  assertEquals('function', typeof iter.find);
+  assertEquals(1, iter.find.length);
+  assertEquals('find', iter.find.name);
+
+  assertEquals(42, iter.find(v => v >= 42));
+})();
+
+(function TestFindNoValueFound() {
+  const iter = gen();
+
+  assertEquals(undefined, iter.find(v => v > 44));
+})();
+
+(function TestFindOnConsumedIterator() {
+  const iter = gen();
+
+  assertEquals(42, iter.find(v => v >= 42));
+  assertEquals(undefined, iter.find(v => v == 43));
+})();
+
+(function TestFindOnNotConsumedIterator() {
+  const iter = gen();
+  const secondIter = gen();
+
+  assertEquals(43, iter.find(v => v >= 43));
+  assertEquals(42, secondIter.find(v => v >= 42));
+})();
+
+(function TestFindOnIteratorWithThrowAsReturn() {
+  const iter = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(
+      iter,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertThrows(() => {iter.find(v => v == 1)});
+})();
+
+(function TestFindOnIteratorWithThrowAsReturnNoValueFound() {
+  const iter = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(
+      iter,
+      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  assertEquals(undefined, iter.find(v => v > 4));
 })();
