@@ -7598,19 +7598,16 @@ class LiftoffCompiler {
 
       // Load the signature from {instance->ift_sig_ids[key]}
       if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
-                                       pinned);
+        LOAD_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
+                            kSystemPointerSize, pinned);
       } else {
-        __ LoadTaggedPointer(real_sig_id, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kSigIdsOffset));
+        __ Load(LiftoffRegister(real_sig_id), indirect_function_table, no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kSigIdsOffset),
+                kPointerLoadType);
       }
-      // Here and below, the FixedUint32Array holding the sig ids is really
-      // just a ByteArray interpreted as uint32s, so the offset to the start of
-      // the elements is the ByteArray header size.
-      // TODO(saelo) maybe make the names of these arrays less confusing?
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, buffer_offset,
+      static_assert((1 << 2) == kInt32Size);
+      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, 0,
               LoadType::kI32Load, nullptr, false, false, true);
 
       // Compare against expected signature.
@@ -7693,15 +7690,16 @@ class LiftoffCompiler {
 
       // Load the signature from {instance->ift_sig_ids[key]}
       if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
-                                       pinned);
+        LOAD_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
+                            kSystemPointerSize, pinned);
       } else {
-        __ LoadTaggedPointer(real_sig_id, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kSigIdsOffset));
+        __ Load(LiftoffRegister(real_sig_id), indirect_function_table, no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kSigIdsOffset),
+                kPointerLoadType);
       }
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, buffer_offset,
+      static_assert((1 << 2) == kInt32Size);
+      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, 0,
               LoadType::kI32Load, nullptr, false, false, true);
 
       Label* sig_mismatch_label =
@@ -7735,16 +7733,17 @@ class LiftoffCompiler {
 
       // Load the target from {instance->ift_targets[key]}
       if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_target,
-                                       IndirectFunctionTableTargets, pinned);
+        LOAD_INSTANCE_FIELD(function_target, IndirectFunctionTableTargets,
+                            kSystemPointerSize, pinned);
       } else {
-        __ LoadTaggedPointer(function_target, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kTargetsOffset));
+        __ Load(LiftoffRegister(function_target), indirect_function_table,
+                no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kTargetsOffset),
+                kPointerLoadType);
       }
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(function_target), function_target, index,
-              buffer_offset, kPointerLoadType, nullptr, false, false, true);
+      __ Load(LiftoffRegister(function_target), function_target, index, 0,
+              kPointerLoadType, nullptr, false, false, true);
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);

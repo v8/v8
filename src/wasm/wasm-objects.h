@@ -342,8 +342,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_mutable_globals, ByteArray)
   DECL_ACCESSORS(imported_function_targets, FixedAddressArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
-  DECL_ACCESSORS(indirect_function_table_sig_ids, FixedUInt32Array)
-  DECL_ACCESSORS(indirect_function_table_targets, FixedAddressArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
@@ -359,6 +357,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(isorecursive_canonical_types, const uint32_t*)
   DECL_SANDBOXED_POINTER_ACCESSORS(globals_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
@@ -381,8 +381,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   /* Less than system pointer sized fields come first. */                 \
   V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
-  V(kIndirectFunctionTableSigIdsOffset, kTaggedSize)                      \
-  V(kIndirectFunctionTableTargetsOffset, kTaggedSize)                     \
   V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
   V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
@@ -392,6 +390,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kMemorySizeOffset, kSizetSize)                                        \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
   V(kIsorecursiveCanonicalTypesOffset, kSystemPointerSize)                \
+  V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
+  V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
@@ -443,8 +443,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   static constexpr uint16_t kTaggedFieldOffsets[] = {
       kImportedFunctionRefsOffset,
       kIndirectFunctionTableRefsOffset,
-      kIndirectFunctionTableTargetsOffset,
-      kIndirectFunctionTableSigIdsOffset,
       kModuleObjectOffset,
       kExportsObjectOffset,
       kNativeContextOffset,
@@ -688,11 +686,9 @@ class WasmIndirectFunctionTable
     : public TorqueGeneratedWasmIndirectFunctionTable<WasmIndirectFunctionTable,
                                                       Struct> {
  public:
-  // TODO(saelo): holding raw addresses isn't sandbox-compatible, so we should
-  // probably turn these into indices into some pointer table instead (or make
-  // this entire class a pointer table).
-  DECL_ACCESSORS(sig_ids, FixedUInt32Array)
-  DECL_ACCESSORS(targets, FixedAddressArray)
+  DECL_PRIMITIVE_ACCESSORS(sig_ids, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(targets, Address*)
+  DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
 
   V8_EXPORT_PRIVATE static Handle<WasmIndirectFunctionTable> New(
       Isolate* isolate, uint32_t size);
@@ -704,9 +700,8 @@ class WasmIndirectFunctionTable
 
   DECL_PRINTER(WasmIndirectFunctionTable)
 
-  using BodyDescriptor =
-      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                          kHeaderSize>;
+  static_assert(kStartOfStrongFieldsOffset == kManagedNativeAllocationsOffset);
+  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable)
 };

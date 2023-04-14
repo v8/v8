@@ -626,22 +626,46 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_valid = false;
 }
 
+namespace {
+class IftNativeAllocations {
+ public:
+  IftNativeAllocations(Handle<WasmIndirectFunctionTable> table, uint32_t size)
+      : sig_ids_(size), targets_(size) {
+    table->set_sig_ids(sig_ids_.data());
+    table->set_targets(targets_.data());
+  }
+
+  static size_t SizeInMemory(uint32_t size) {
+    return size * (sizeof(Address) + sizeof(uint32_t));
+  }
+
+  void resize(Handle<WasmIndirectFunctionTable> table, uint32_t new_size) {
+    DCHECK_GE(new_size, sig_ids_.size());
+    DCHECK_EQ(this, Managed<IftNativeAllocations>::cast(
+                        table->managed_native_allocations())
+                        .raw());
+    sig_ids_.resize(new_size);
+    targets_.resize(new_size);
+    table->set_sig_ids(sig_ids_.data());
+    table->set_targets(targets_.data());
+  }
+
+ private:
+  std::vector<uint32_t> sig_ids_;
+  std::vector<Address> targets_;
+};
+}  // namespace
+
 Handle<WasmIndirectFunctionTable> WasmIndirectFunctionTable::New(
     Isolate* isolate, uint32_t size) {
+  auto refs = isolate->factory()->NewFixedArray(static_cast<int>(size));
   auto table = Handle<WasmIndirectFunctionTable>::cast(
       isolate->factory()->NewStruct(WASM_INDIRECT_FUNCTION_TABLE_TYPE));
-
   table->set_size(size);
-
-  auto refs = isolate->factory()->NewFixedArray(static_cast<int>(size));
   table->set_refs(*refs);
-
-  auto sig_ids = FixedUInt32Array::New(isolate, size);
-  table->set_sig_ids(*sig_ids);
-
-  auto targets = FixedAddressArray::New(isolate, size);
-  table->set_targets(*targets);
-
+  auto native_allocations = Managed<IftNativeAllocations>::Allocate(
+      isolate, IftNativeAllocations::SizeInMemory(size), table, size);
+  table->set_managed_native_allocations(*native_allocations);
   for (uint32_t i = 0; i < size; ++i) {
     table->Clear(i);
   }
@@ -649,14 +673,14 @@ Handle<WasmIndirectFunctionTable> WasmIndirectFunctionTable::New(
 }
 void WasmIndirectFunctionTable::Set(uint32_t index, int sig_id,
                                     Address call_target, Object ref) {
-  sig_ids().set(index, sig_id);
-  targets().set(index, call_target);
+  sig_ids()[index] = sig_id;
+  targets()[index] = call_target;
   refs().set(index, ref);
 }
 
 void WasmIndirectFunctionTable::Clear(uint32_t index) {
-  sig_ids().set(index, -1);
-  targets().set(index, 0);
+  sig_ids()[index] = -1;
+  targets()[index] = 0;
   refs().set(
       index,
       ReadOnlyRoots(GetIsolateFromWritableObject(*this)).undefined_value());
@@ -673,9 +697,6 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
   // Grow table exponentially to guarantee amortized constant allocation and gc
   // time.
   Handle<FixedArray> old_refs(table->refs(), isolate);
-  Handle<FixedUInt32Array> old_sig_ids(table->sig_ids(), isolate);
-  Handle<FixedAddressArray> old_targets(table->targets(), isolate);
-
   // Since we might have overallocated, {old_capacity} might be different than
   // {old_size}.
   uint32_t old_capacity = old_refs->length();
@@ -683,22 +704,13 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
   if (new_size <= old_capacity) return;
   uint32_t new_capacity = std::max(2 * old_capacity, new_size);
 
-  Handle<FixedUInt32Array> new_sig_ids =
-      FixedUInt32Array::New(isolate, new_capacity);
-  new_sig_ids->copy_in(0, old_sig_ids->GetDataStartAddress(),
-                       old_capacity * kUInt32Size);
-  table->set_sig_ids(*new_sig_ids);
-
-  Handle<FixedAddressArray> new_targets =
-      FixedAddressArray::New(isolate, new_capacity);
-  new_targets->copy_in(0, old_targets->GetDataStartAddress(),
-                       old_capacity * kSystemPointerSize);
-  table->set_targets(*new_targets);
+  Managed<IftNativeAllocations>::cast(table->managed_native_allocations())
+      .raw()
+      ->resize(table, new_capacity);
 
   Handle<FixedArray> new_refs = isolate->factory()->CopyFixedArrayAndGrow(
       old_refs, static_cast<int>(new_capacity - old_capacity));
   table->set_refs(*new_refs);
-
   for (uint32_t i = old_capacity; i < new_capacity; ++i) {
     table->Clear(i);
   }
@@ -1168,10 +1180,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_refs(
       ReadOnlyRoots(isolate).empty_fixed_array());
-  instance->set_indirect_function_table_sig_ids(
-      FixedUInt32Array::cast(ReadOnlyRoots(isolate).empty_byte_array()));
-  instance->set_indirect_function_table_targets(
-      FixedAddressArray::cast(ReadOnlyRoots(isolate).empty_byte_array()));
+  instance->set_indirect_function_table_sig_ids(nullptr);
+  instance->set_indirect_function_table_targets(nullptr);
   instance->set_native_context(*isolate->native_context());
   instance->set_module_object(*module_object);
   instance->set_jump_table_start(
