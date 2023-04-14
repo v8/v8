@@ -1355,7 +1355,10 @@ void FeedbackNexus::Print(std::ostream& os) {
         }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
-          StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
+          if (!array.Get(i + 1).IsCleared()) {
+            StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(),
+                                       os);
+          }
         }
       }
       break;
