@@ -5045,7 +5045,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         Value array = Peek(3, 0, ValueType::RefNull(array_imm.index));
         Value offset = Peek(2, 1, kWasmI32);
-        Value value = Peek(1, 2, array_imm.array_type->element_type());
+        Value value =
+            Peek(1, 2, array_imm.array_type->element_type().Unpacked());
         Value length = Peek(0, 3, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayFill, array_imm, array, offset,
                                            value, length);

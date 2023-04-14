@@ -700,7 +700,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
   V(ArrayNewData, 0xfb1d, _, "array.new_data")                                 \
   V(ArrayNewElem, 0xfb1f, _, "array.new_elem")                                 \
-  V(ArrayFill, 0xfb0f, _, "array.init")                                        \
+  V(ArrayFill, 0xfb0f, _, "array.fill")                                        \
   V(ArrayInitData, 0xfb54, _, "array.init_data")                               \
   V(ArrayInitElem, 0xfb55, _, "array.init_elem")                               \
   V(I31New, 0xfb20, _, "i31.new")                                              \

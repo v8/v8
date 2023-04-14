@@ -31,6 +31,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
   let array = builder.addArray(wasmRefNullType(struct), true);
+  let array16 = builder.addArray(kWasmI16, true);
 
   builder.addFunction(
       "make_array", makeSig([kWasmI32], [wasmRefType(array)]))
@@ -52,6 +53,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
               kExprLocalGet, 2, kGCPrefix, kExprStructNew, struct,
               kExprLocalGet, 3, kGCPrefix, kExprArrayFill, array])
     .exportFunc();
+
+  builder.addFunction("array_fill_i16", kSig_i_v).exportFunc()
+    .addLocals(wasmRefType(array16), 1)
+    .addBody([
+      kExprI32Const, 4,  // Array length for allocation.
+      kGCPrefix, kExprArrayNewDefault, array16,
+      kExprLocalTee, 0,  // Array (for fill).
+      kExprI32Const, 0,  // Offset (for fill).
+      kExprI32Const, 42,  // Value (for fill).
+      kExprI32Const, 4,  // Length (for fill).
+      kGCPrefix, kExprArrayFill, array16,
+      kExprLocalGet, 0,  // Array (for get).
+      kExprI32Const, 0,  // Index (for get).
+      kGCPrefix, kExprArrayGetS, array16,
+    ]);
 
   let wasm = builder.instantiate().exports;
 
@@ -91,6 +107,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(54, wasm.array_get(array_obj, 5));
   assertTraps(kTrapNullDereference, () => wasm.array_get(array_obj, 6));
   assertTraps(kTrapNullDereference, () => wasm.array_get(array_obj, 7));
+
+  assertEquals(42, wasm.array_fill_i16());
 })();
 
 (function TestArrayNewNonNullable() {
