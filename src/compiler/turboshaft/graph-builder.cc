@@ -58,6 +58,7 @@ struct GraphBuilder {
 
   struct BlockData {
     Block* block;
+    OpIndex final_frame_state;
   };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
@@ -208,6 +209,17 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
               });
 
     OpIndex dominating_frame_state = OpIndex::Invalid();
+    if (predecessors.size() > 0) {
+      dominating_frame_state =
+          block_mapping[predecessors[0]->rpo_number()].final_frame_state;
+      for (size_t i = 1; i < predecessors.size(); ++i) {
+        if (block_mapping[predecessors[i]->rpo_number()].final_frame_state !=
+            dominating_frame_state) {
+          dominating_frame_state = OpIndex::Invalid();
+          break;
+        }
+      }
+    }
     base::Optional<BailoutReason> bailout = base::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -218,8 +230,13 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
       OpIndex i = Process(node, block, predecessor_permutation,
                           dominating_frame_state, &bailout);
       if (V8_UNLIKELY(bailout)) return bailout;
+      if (!__ current_block()) break;
       op_mapping.Set(node, i);
     }
+    // We have terminated this block with `Unreachable`, so we stop generation
+    // here and continue with the next block.
+    if (!__ current_block()) continue;
+
     if (Node* node = block->control_input()) {
       if (V8_UNLIKELY(node->InputCount() >=
                       int{std::numeric_limits<
@@ -254,6 +271,9 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         UNREACHABLE();
     }
     DCHECK_NULL(__ current_block());
+
+    block_mapping[block->rpo_number()].final_frame_state =
+        dominating_frame_state;
   }
 
   if (source_positions->IsEnabled()) {
@@ -388,6 +408,13 @@ OpIndex GraphBuilder::Process(
       } else {
         base::SmallVector<OpIndex, 16> inputs;
         for (int i = 0; i < input_count; ++i) {
+          // If this predecessor end with an unreachable (and doesn't jump to
+          // this merge block), we skip its Phi input.
+          Block* pred = Map(block->PredecessorAt(predecessor_permutation[i]));
+          if (!pred->IsBound() ||
+              pred->LastOperation(__ output_graph()).Is<UnreachableOp>()) {
+            continue;
+          }
           inputs.push_back(Map(node->InputAt(predecessor_permutation[i])));
         }
         return __ Phi(base::VectorOf(inputs), rep);
@@ -2107,6 +2134,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kBeginRegion:
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:
+      return Map(node->InputAt(0));
+
+    case IrOpcode::kTypeGuard:
       return Map(node->InputAt(0));
 
     default:

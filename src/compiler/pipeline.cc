@@ -3009,24 +3009,24 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<EarlyOptimizationPhase>();
   RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
 
-  Run<EffectControlLinearizationPhase>();
-  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
-
-  if (v8_flags.turbo_store_elimination) {
-    Run<StoreStoreEliminationPhase>();
-    RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
-  }
-
-  // Optimize control flow.
-  if (v8_flags.turbo_cf_optimization && !v8_flags.turboshaft) {
-    Run<ControlFlowOptimizationPhase>();
-    RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
-  }
-
-  Run<LateOptimizationPhase>();
-  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
-
   if (!v8_flags.turboshaft) {
+    Run<EffectControlLinearizationPhase>();
+    RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
+
+    if (v8_flags.turbo_store_elimination) {
+      Run<StoreStoreEliminationPhase>();
+      RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
+    }
+
+    // Optimize control flow.
+    if (v8_flags.turbo_cf_optimization) {
+      Run<ControlFlowOptimizationPhase>();
+      RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
+    }
+
+    Run<LateOptimizationPhase>();
+    RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+
     // Optimize memory access and allocation operations.
     Run<MemoryOptimizationPhase>();
     RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
