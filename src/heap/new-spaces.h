@@ -257,10 +257,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   void MaybeFreeUnusedLab(LinearAllocationArea info);
 
-  bool IsAtMaximumCapacity() const {
-    return TotalCapacity() == MaximumCapacity();
-  }
-
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;
     for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {

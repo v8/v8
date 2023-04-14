@@ -353,6 +353,13 @@ class Heap {
 
   static const int kMinPromotedPercentForFastPromotionMode = 90;
 
+  // The minimum new space capacity from which allocation sites can be
+  // pretenured. A too small capacity means frequent GCs. Objects thus don't get
+  // a chance to die before being promoted, which may lead to wrong pretenuring
+  // decisions.
+  static constexpr size_t kDefaultMinSemiSpaceSizeForPretenuring =
+      8192 * KB * kPointerMultiplier;
+
   static_assert(static_cast<int>(RootIndex::kUndefinedValue) ==
                 Internals::kUndefinedValueRootIndex);
   static_assert(static_cast<int>(RootIndex::kTheHoleValue) ==
@@ -1951,9 +1958,8 @@ class Heap {
 
   void UpdateTotalGCTime(double duration);
 
-  bool MaximumSizeMinorGC() const { return maximum_size_minor_gcs_ > 0; }
-  bool IsFirstMaximumSizeMinorGC() const {
-    return maximum_size_minor_gcs_ == 1;
+  bool MinorGCAbovePretenuringThreshold() const {
+    return minor_gc_above_pretenuring_threshold_ > 0;
   }
 
   bool IsIneffectiveMarkCompact(size_t old_generation_size,
@@ -2121,6 +2127,8 @@ class Heap {
   void SetIsMarkingFlag(bool value);
   void SetIsMinorMarkingFlag(bool value);
 
+  bool IsNewSpaceCapacityAbovePretenuringThreshold() const;
+
   ExternalMemoryAccounting external_memory_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
@@ -2134,6 +2142,7 @@ class Heap {
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 0;
   size_t initial_semispace_size_ = 0;
+  size_t min_semi_space_size_for_pretenuring_ = 0;
   // Full garbage collections can be skipped if the old generation size
   // is below this threshold.
   size_t min_old_generation_size_ = 0;
@@ -2274,10 +2283,10 @@ class Heap {
   int nodes_promoted_ = 0;
 
   // This is the pretenuring trigger for allocation sites that are in maybe
-  // tenure state. When we switched to the maximum new space size we deoptimize
-  // the code that belongs to the allocation site and derive the lifetime
-  // of the allocation site.
-  unsigned int maximum_size_minor_gcs_ = 0;
+  // tenure state. When we switched to a large enough new space size we
+  // deoptimize the code that belongs to the allocation site and derive the
+  // lifetime of the allocation site.
+  unsigned int minor_gc_above_pretenuring_threshold_ = 0;
 
   // Total time spent in GC.
   double total_gc_time_ms_ = 0.0;

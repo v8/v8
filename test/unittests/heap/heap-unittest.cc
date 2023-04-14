@@ -392,7 +392,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_mc) {
     NewSpace* new_space = heap->new_space();
-    CHECK(!new_space->IsAtMaximumCapacity());
+    CHECK_NE(new_space->TotalCapacity(), new_space->MaximumCapacity());
     // Fill current pages to force MinorMC to promote them.
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);

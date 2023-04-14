@@ -1115,6 +1115,11 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
+bool Heap::IsNewSpaceCapacityAbovePretenuringThreshold() const {
+  return new_space_ &&
+         new_space_->TotalCapacity() >= min_semi_space_size_for_pretenuring_;
+}
+
 void Heap::GarbageCollectionPrologue(
     GarbageCollectionReason gc_reason,
     const v8::GCCallbackFlags gc_callback_flags) {
@@ -1154,10 +1159,10 @@ void Heap::GarbageCollectionPrologue(
   if (v8_flags.gc_verbose) Print();
 #endif  // DEBUG
 
-  if (new_space_ && new_space_->IsAtMaximumCapacity()) {
-    maximum_size_minor_gcs_++;
+  if (IsNewSpaceCapacityAbovePretenuringThreshold()) {
+    minor_gc_above_pretenuring_threshold_++;
   } else {
-    maximum_size_minor_gcs_ = 0;
+    minor_gc_above_pretenuring_threshold_ = 0;
   }
   memory_allocator()->unmapper()->PrepareForGC();
 }
@@ -4926,6 +4931,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         std::max({max_semi_space_size_, DefaultMinSemiSpaceSize()});
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
+
+  min_semi_space_size_for_pretenuring_ =
+      std::min(max_semi_space_size_, kDefaultMinSemiSpaceSizeForPretenuring);
 
   // Initialize max_old_generation_size_ and max_global_memory_.
   {
