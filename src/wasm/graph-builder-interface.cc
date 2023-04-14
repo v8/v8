@@ -1002,8 +1002,7 @@ class WasmGraphBuildingInterface {
     }
     CheckForException(decoder,
                       builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
-                                      decoder->position()),
-                      kDontReloadContext);
+                                      decoder->position()));
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -1011,8 +1010,7 @@ class WasmGraphBuildingInterface {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     DCHECK_NOT_NULL(exception);
-    CheckForException(decoder, builder_->Rethrow(exception),
-                      kDontReloadContext);
+    CheckForException(decoder, builder_->Rethrow(exception));
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -1975,10 +1973,7 @@ class WasmGraphBuildingInterface {
     builder_->set_instance_cache(&env->instance_cache);
   }
 
-  enum ReloadContextAfterException { kDontReloadContext, kReloadContext };
-
-  TFNode* CheckForException(FullDecoder* decoder, TFNode* node,
-                            ReloadContextAfterException reload_mode) {
+  TFNode* CheckForException(FullDecoder* decoder, TFNode* node) {
     DCHECK_NOT_NULL(node);
 
     // We need to emit IfSuccess/IfException nodes if this node throws and has
@@ -2006,13 +2001,9 @@ class WasmGraphBuildingInterface {
 
     ScopedSsaEnv scoped_env(this, exception_env, success_env);
 
-    // If the exceptional operation could have modified memory size, we need to
+    // The exceptional operation could have modified memory size; we need to
     // reload the memory context into the exceptional control path.
-    if (reload_mode == kReloadContext) {
-      // TODO(clemensb): Can we unconditionally load the instance cache and drop
-      // {reload_mode}?
-      ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
-    }
+    ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
 
     if (emit_loop_exits()) {
       ValueVector values;
@@ -2259,7 +2250,7 @@ class WasmGraphBuildingInterface {
             call_info.table_index(), call_info.sig_index(),
             base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
             decoder->position());
-        CheckForException(decoder, call, kReloadContext);
+        CheckForException(decoder, call);
         break;
       }
       case CallInfo::kCallDirect: {
@@ -2267,14 +2258,14 @@ class WasmGraphBuildingInterface {
             call_info.callee_index(), base::VectorOf(arg_nodes),
             base::VectorOf(return_nodes), decoder->position());
         builder_->StoreCallCount(call, call_info.call_count());
-        CheckForException(decoder, call, kReloadContext);
+        CheckForException(decoder, call);
         break;
       }
       case CallInfo::kCallRef: {
         TFNode* call = builder_->CallRef(
             sig, base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
             call_info.null_check(), decoder->position());
-        CheckForException(decoder, call, kReloadContext);
+        CheckForException(decoder, call);
         break;
       }
     }
