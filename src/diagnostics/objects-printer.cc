@@ -2192,8 +2192,8 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(indirect_function_table_size, +);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, Brief);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, Brief);
   PRINT_WASM_INSTANCE_FIELD(isorecursive_canonical_types,
                             reinterpret_cast<const uint32_t*>);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
@@ -2302,12 +2302,8 @@ void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
     std::ostream& os) {
   PrintHeader(os, "WasmIndirectFunctionTable");
   os << "\n - size: " << size();
-  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
-  os << "\n - targets: " << static_cast<void*>(targets());
-  if (has_managed_native_allocations()) {
-    os << "\n - managed_native_allocations: "
-       << Brief(managed_native_allocations());
-  }
+  os << "\n - sig_ids: " << Brief(sig_ids());
+  os << "\n - targets: " << Brief(targets());
   os << "\n - refs: " << Brief(refs());
   os << "\n";
 }
