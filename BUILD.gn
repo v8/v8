@@ -1399,6 +1399,17 @@ config("toolchain") {
     }
   }
 
+  if (is_clang || !is_win) {
+    cflags += [
+      # On clang and gcc, disable warnings about offsetof being used on
+      # non-standard-layout types. offsetof is only specified for
+      # standard-layout types, but its behaviour on non-standard-layout types is
+      # implementation defined (rather than UB), and our supported compilers
+      # have the expected reasonable behaviour.
+      "-Wno-invalid-offsetof",
+    ]
+  }
+
   if (is_win) {
     cflags += [
       "/wd4245",  # Conversion with signed/unsigned mismatch.

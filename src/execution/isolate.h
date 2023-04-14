@@ -833,9 +833,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &thread_local_top()->c_entry_fp_;
   }
   static uint32_t c_entry_fp_offset() {
-    return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, thread_local_top()->c_entry_fp_) -
-        isolate_root_bias());
+    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
+                                 OFFSET_OF(IsolateData, thread_local_top_) +
+                                 OFFSET_OF(ThreadLocalTop, c_entry_fp_) -
+                                 isolate_root_bias());
   }
   inline Address* handler_address() { return &thread_local_top()->handler_; }
   inline Address* c_function_address() {
@@ -1260,7 +1261,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     // flag in ThreadLocalTop in thread_in_wasm_flag_address_. This function
     // here returns the offset of that member from {isolate_root()}.
     return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, thread_local_top()->thread_in_wasm_flag_address_) -
+        OFFSET_OF(Isolate, isolate_data_) +
+        OFFSET_OF(IsolateData, thread_local_top_) +
+        OFFSET_OF(ThreadLocalTop, thread_in_wasm_flag_address_) -
         isolate_root_bias());
   }
 
