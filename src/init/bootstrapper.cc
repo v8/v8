@@ -3315,7 +3315,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- A t o m i c s
     Handle<JSObject> atomics_object =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
-    native_context()->set_atomics_object(*atomics_object);
+    JSObject::AddProperty(isolate_, global, "Atomics", atomics_object,
+                          DONT_ENUM);
+    InstallToStringTag(isolate_, atomics_object, "Atomics");
 
     SimpleInstallFunction(isolate_, atomics_object, "load",
                           Builtin::kAtomicsLoad, 2, true);
@@ -4780,6 +4782,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
   if (!v8_flags.harmony_struct) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSObject> atomics_object = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
 
   {
     // Install shared objects @@hasInstance in the native context.
@@ -4855,8 +4859,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
         JSParameterCount(0));
     mutex_fun->shared().set_length(0);
     native_context()->set_js_atomics_mutex_map(mutex_fun->initial_map());
-    JSObject::AddProperty(isolate(), isolate()->atomics_object(), mutex_str,
-                          mutex_fun, DONT_ENUM);
+    JSObject::AddProperty(isolate(), atomics_object, mutex_str, mutex_fun,
+                          DONT_ENUM);
 
     SimpleInstallFunction(isolate(), mutex_fun, "lock",
                           Builtin::kAtomicsMutexLock, 2, true);
@@ -4878,7 +4882,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
     condition_fun->shared().set_length(0);
     native_context()->set_js_atomics_condition_map(
         condition_fun->initial_map());
-    JSObject::AddProperty(isolate(), isolate()->atomics_object(), condition_str,
+    JSObject::AddProperty(isolate(), atomics_object, condition_str,
                           condition_fun, DONT_ENUM);
 
     SimpleInstallFunction(isolate(), condition_fun, "wait",
@@ -4922,16 +4926,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
   JSObject::AddProperty(isolate_, global, "SharedArrayBuffer",
                         isolate()->shared_array_buffer_fun(), DONT_ENUM);
-}
-
-void Genesis::InitializeGlobal_harmony_atomics() {
-  if (!v8_flags.harmony_atomics) return;
-
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-
-  JSObject::AddProperty(isolate_, global, "Atomics",
-                        isolate()->atomics_object(), DONT_ENUM);
-  InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
 }
 
 void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
