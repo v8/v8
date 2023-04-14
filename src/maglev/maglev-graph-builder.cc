@@ -2290,6 +2290,10 @@ NodeType StaticTypeForNode(ValueNode* node) {
       }
       return NodeType::kHeapObjectWithKnownMap;
     }
+    case Opcode::kRootConstant:
+      // TODO(dmercadier): consider inspecting the object in order to return a
+      // more precise type.
+      return NodeType::kAnyHeapObject;
     case Opcode::kLoadPolymorphicTaggedField: {
       Representation field_representation =
           node->Cast<LoadPolymorphicTaggedField>()->field_representation();
