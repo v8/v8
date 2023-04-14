@@ -2807,7 +2807,7 @@ class MachineLoweringReducer : public Next {
 
           V<WordPtr> next_entry = __ ChangeInt32ToIntPtr(__ SmiUntag(__ Load(
               data_structure,
-              __ WordPtrAdd(__ WordPtrShiftLeft(entry, kTaggedSizeLog2),
+              __ WordPtrAdd(__ WordPtrShiftLeft(candidate, kTaggedSizeLog2),
                             (OrderedHashMap::HashTableStartOffset() +
                              OrderedHashMap::kChainOffset * kTaggedSize)),
               LoadOp::Kind::TaggedBase(),
