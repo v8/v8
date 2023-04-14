@@ -509,8 +509,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,     \
     DefaultWasmAsyncResolvePromiseCallback)                                   \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
-  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
-  V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
   V(WasmGCEnabledCallback, wasm_gc_enabled_callback, nullptr)                 \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
