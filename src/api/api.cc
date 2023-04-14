@@ -8884,7 +8884,6 @@ static_assert(
   Local<Type##Array> Type##Array::New(                                      \
       Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,     \
       size_t length) {                                                      \
-    CHECK(i::v8_flags.harmony_sharedarraybuffer);                           \
     i::Isolate* i_isolate =                                                 \
         Utils::OpenHandle(*shared_array_buffer)->GetIsolate();              \
     API_RCS_SCOPE(i_isolate, Type##Array, New);                             \
@@ -8921,7 +8920,6 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
 
 Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
                               size_t byte_offset, size_t byte_length) {
-  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*shared_array_buffer);
   i::Isolate* i_isolate = buffer->GetIsolate();
   API_RCS_SCOPE(i_isolate, DataView, New);
@@ -8944,7 +8942,6 @@ size_t v8::SharedArrayBuffer::MaxByteLength() const {
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
                                                     size_t byte_length) {
-  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -8966,7 +8963,6 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     Isolate* v8_isolate, std::shared_ptr<BackingStore> backing_store) {
-  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   CHECK_IMPLIES(backing_store->ByteLength() != 0,
                 backing_store->Data() != nullptr);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

@@ -246,6 +246,7 @@ class Genesis {
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
+  void InitializeGlobal_sharedarraybuffer();
 
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
@@ -4166,6 +4167,7 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
   InitializeGlobal_regexp_linear_flag();
+  InitializeGlobal_sharedarraybuffer();
 }
 
 bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
@@ -4916,9 +4918,8 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
   InstallTrueValuedProperty(isolate_, unscopables, "groupToMap");
 }
 
-void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
-  if (!v8_flags.harmony_sharedarraybuffer ||
-      v8_flags.enable_sharedarraybuffer_per_context) {
+void Genesis::InitializeGlobal_sharedarraybuffer() {
+  if (v8_flags.enable_sharedarraybuffer_per_context) {
     return;
   }
 

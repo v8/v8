@@ -2958,8 +2958,6 @@ void Isolate::InstallConditionalFeatures(Handle<Context> context) {
 }
 
 bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
-  if (!v8_flags.harmony_sharedarraybuffer) return false;
-
   if (!v8_flags.enable_sharedarraybuffer_per_context) return true;
 
   if (sharedarraybuffer_constructor_enabled_callback()) {

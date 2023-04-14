@@ -25139,7 +25139,6 @@ class TerminateExecutionThread : public v8::base::Thread {
 };
 
 TEST(FutexInterruption) {
-  i::v8_flags.harmony_sharedarraybuffer = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -29408,10 +29407,10 @@ THREADED_TEST(SetMicrotaskQueueOfContext) {
 
 namespace {
 
-bool sab_constructor_enabled_value = false;
+bool MockSabConstructorEnabledCallback(v8::Local<v8::Context>) { return true; }
 
-bool MockSabConstructorEnabledCallback(v8::Local<v8::Context>) {
-  return sab_constructor_enabled_value;
+bool MockSabConstructorDisabledCallback(v8::Local<v8::Context>) {
+  return false;
 }
 
 }  // namespace
@@ -29424,34 +29423,31 @@ TEST(TestSetSabConstructorEnabledCallback) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
 
-  // {Isolate::IsSharedArrayBufferConstructorEnabled} calls the callback set by
-  // the embedder if such a callback exists. Otherwise it returns
-  // {v8_flags.harmony_sharedarraybuffer}. First we test that the flag is
-  // returned correctly if no callback is set. Then we test that the flag is
-  // ignored if the callback is set.
-
-  i::v8_flags.harmony_sharedarraybuffer = false;
-  i::v8_flags.enable_sharedarraybuffer_per_context = false;
-  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
-
-  i::v8_flags.harmony_sharedarraybuffer = false;
-  i::v8_flags.enable_sharedarraybuffer_per_context = false;
-  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
-
-  i::v8_flags.harmony_sharedarraybuffer = true;
+  // No callback
   i::v8_flags.enable_sharedarraybuffer_per_context = false;
   CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 
-  i::v8_flags.harmony_sharedarraybuffer = true;
   i::v8_flags.enable_sharedarraybuffer_per_context = true;
   CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 
+  // Callback returns false
   isolate->SetSharedArrayBufferConstructorEnabledCallback(
-      MockSabConstructorEnabledCallback);
-  sab_constructor_enabled_value = false;
+      MockSabConstructorDisabledCallback);
+
+  i::v8_flags.enable_sharedarraybuffer_per_context = false;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::v8_flags.enable_sharedarraybuffer_per_context = true;
   CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 
-  sab_constructor_enabled_value = true;
+  // Callback returns true
+  isolate->SetSharedArrayBufferConstructorEnabledCallback(
+      MockSabConstructorEnabledCallback);
+
+  i::v8_flags.enable_sharedarraybuffer_per_context = false;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::v8_flags.enable_sharedarraybuffer_per_context = true;
   CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 }
 

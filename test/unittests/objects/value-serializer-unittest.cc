@@ -2630,18 +2630,6 @@ class ValueSerializerTestWithSharedArrayBufferClone
     return sab;
   }
 
-  static void SetUpTestSuite() {
-    flag_was_enabled_ = i::v8_flags.harmony_sharedarraybuffer;
-    i::v8_flags.harmony_sharedarraybuffer = true;
-    ValueSerializerTest::SetUpTestSuite();
-  }
-
-  static void TearDownTestSuite() {
-    ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.harmony_sharedarraybuffer = flag_was_enabled_;
-    flag_was_enabled_ = false;
-  }
-
  protected:
 // GMock doesn't use the "override" keyword.
 #if __clang__
@@ -2691,13 +2679,10 @@ class ValueSerializerTestWithSharedArrayBufferClone
   DeserializerDelegate deserializer_delegate_;
 
  private:
-  static bool flag_was_enabled_;
   std::vector<uint8_t> data_;
   Local<SharedArrayBuffer> input_buffer_;
   Local<SharedArrayBuffer> output_buffer_;
 };
-
-bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
