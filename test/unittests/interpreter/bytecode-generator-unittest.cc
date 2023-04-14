@@ -26,6 +26,8 @@ class BytecodeGeneratorTest : public TestWithContext {
     i::v8_flags.always_turbofan = false;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.enable_lazy_source_positions = false;
+    // TODO(v8:13723): Remove once TDZ elision ships.
+    i::v8_flags.ignition_elide_redundant_tdz_checks = false;
     TestWithContext::SetUpTestSuite();
   }
 
