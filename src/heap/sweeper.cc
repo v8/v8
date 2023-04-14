@@ -768,11 +768,9 @@ class PromotedPageRecordMigratedSlotVisitor final
     : public NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor> {
  public:
   PromotedPageRecordMigratedSlotVisitor(Isolate* isolate,
-                                        Sweeper::CachedOldToNewRememberedSets*
-                                            snapshot_old_to_new_remembered_sets)
+                                        MemoryChunk* host_chunk)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(isolate),
-        snapshot_old_to_new_remembered_sets_(
-            snapshot_old_to_new_remembered_sets) {}
+        host_chunk_(host_chunk) {}
 
   // TODO(v8:13883): MakeExternal() right now allows to externalize a string in
   // the young generation (for testing) and on a promoted page that is currently
@@ -782,6 +780,7 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return true; }
 
   V8_INLINE void VisitMapPointer(HeapObject host) final {
+    VerifyHost(host);
     VisitObjectImpl(host, host.map(cage_base()), host.map_slot().address());
   }
 
@@ -812,14 +811,19 @@ class PromotedPageRecordMigratedSlotVisitor final
     return false;
   }
 
+  SlotSet* cached_old_to_new() { return cached_old_to_new_; }
+
  private:
-  template <typename TObject>
-  V8_INLINE void VisitObjectImpl(HeapObject host, TObject object,
-                                 Address slot) {
+  V8_INLINE void VerifyHost(HeapObject host) {
     DCHECK(!host.InWritableSharedSpace());
     DCHECK(!Heap::InYoungGeneration(host));
     DCHECK(!MemoryChunk::FromHeapObject(host)->SweepingDone());
+    DCHECK_EQ(MemoryChunk::FromHeapObject(host), host_chunk_);
+  }
 
+  template <typename TObject>
+  V8_INLINE void VisitObjectImpl(HeapObject host, TObject object,
+                                 Address slot) {
     HeapObject value_heap_object;
     if (!object.GetHeapObject(&value_heap_object)) return;
 
@@ -829,23 +833,20 @@ class PromotedPageRecordMigratedSlotVisitor final
     value_chunk->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
     if (value_chunk->InYoungGeneration()) {
-      MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-      if (snapshot_old_to_new_remembered_sets_->find(host_chunk) ==
-          snapshot_old_to_new_remembered_sets_->end()) {
-        snapshot_old_to_new_remembered_sets_->emplace(
-            host_chunk, SlotSet::Allocate(host_chunk->buckets()));
+      if (!cached_old_to_new_) {
+        cached_old_to_new_ = SlotSet::Allocate(host_chunk_->buckets());
       }
       RememberedSetOperations::Insert<AccessMode::NON_ATOMIC>(
-          (*snapshot_old_to_new_remembered_sets_)[host_chunk], host_chunk,
-          slot);
+          cached_old_to_new_, host_chunk_, slot);
     } else if (value_chunk->InWritableSharedSpace()) {
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-          MemoryChunk::FromHeapObject(host), slot);
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(host_chunk_,
+                                                               slot);
     }
   }
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+    VerifyHost(host);
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject target =
           slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
@@ -853,7 +854,8 @@ class PromotedPageRecordMigratedSlotVisitor final
     }
   }
 
-  Sweeper::CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets_;
+  MemoryChunk* const host_chunk_;
+  SlotSet* cached_old_to_new_ = nullptr;
 };
 
 inline void HandlePromotedObject(
@@ -901,8 +903,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   PtrComprCageBase cage_base(heap_->isolate());
-  PromotedPageRecordMigratedSlotVisitor record_visitor(
-      heap_->isolate(), old_to_new_remembered_sets);
+  PromotedPageRecordMigratedSlotVisitor record_visitor(heap_->isolate(), chunk);
   DCHECK(!heap_->incremental_marking()->IsMarking());
   if (chunk->IsLargePage()) {
     HandlePromotedObject(static_cast<LargePage*>(chunk)->GetObject(),
@@ -917,6 +918,10 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
       free_start = free_end + size;
     }
     HandleFreeSpace(free_start, chunk->area_end(), heap_);
+  }
+  if (record_visitor.cached_old_to_new()) {
+    old_to_new_remembered_sets->emplace(chunk,
+                                        record_visitor.cached_old_to_new());
   }
   marking_state_->ClearLiveness(chunk);
   chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
