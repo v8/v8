@@ -1705,6 +1705,15 @@ DEFINE_NEG_NEG_IMPLICATION(cppheap_incremental_marking,
                            cppheap_concurrent_marking)
 DEFINE_WEAK_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
 
+DEFINE_BOOL(memory_balancer, false,
+            "use membalancer, "
+            "a new heap limit balancing algorithm")
+DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
+             "c value for membalancer. "
+             "A special constant to balance between memory and space tradeoff. "
+             "The smaller the more memory it uses.")
+DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,

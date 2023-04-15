@@ -588,6 +588,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   mutable base::Mutex background_counter_mutex_;
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];
+
+  size_t concurrent_gc_time_ = 0;
 };
 
 }  // namespace internal
