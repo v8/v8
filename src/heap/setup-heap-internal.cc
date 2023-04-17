@@ -1191,7 +1191,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_type(Script::TYPE_NATIVE);
+  script->set_type(Script::Type::kNative);
   // This is used for exceptions thrown with no stack frames. Such exceptions
   // can be shared everywhere.
   script->set_origin_options(ScriptOriginOptions(true, false));

@@ -802,7 +802,7 @@ ScopeInfo FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
 MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
                                                Handle<Script> script) {
   if (!script->has_eval_from_shared()) return kNullMaybeHandle;
-  DCHECK_EQ(script->compilation_type(), Script::COMPILATION_TYPE_EVAL);
+  DCHECK_EQ(script->compilation_type(), Script::CompilationType::kEval);
   ScopeInfo scope_info = script->eval_from_shared().scope_info();
   // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
   while (!scope_info.IsEmpty()) {

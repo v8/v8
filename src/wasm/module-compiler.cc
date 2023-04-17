@@ -2334,7 +2334,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
   const WasmModule* module = module_object_->module();
-  if (script->type() == Script::TYPE_WASM &&
+  if (script->type() == Script::Type::kWasm &&
       module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !module->debug_symbols.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(module_object_->native_module()->wire_bytes());

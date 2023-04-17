@@ -816,7 +816,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
 #if V8_ENABLE_WEBASSEMBLY
-  if (script->type() == Script::TYPE_WASM) {
+  if (script->type() == Script::Type::kWasm) {
     RecordWasmScriptWithBreakpoints(script);
     return WasmScript::SetBreakPoint(script, source_position, break_point);
   }
@@ -969,7 +969,7 @@ void Debug::RemoveBreakpoint(int id) {
 void Debug::SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
                                                       int* id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK_EQ(Script::TYPE_WASM, script->type());
+  DCHECK_EQ(Script::Type::kWasm, script->type());
   *id = kInstrumentationId;
 
   Handle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
@@ -980,7 +980,7 @@ void Debug::SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
 
 void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  if (script->type() == Script::TYPE_WASM) {
+  if (script->type() == Script::Type::kWasm) {
     WasmScript::ClearBreakPointById(script, id);
   }
 }

@@ -186,7 +186,7 @@ void SharedFunctionInfo::SetName(String name) {
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad).is_script_scope() &&
          Script::cast(script()).compilation_type() ==
-             Script::COMPILATION_TYPE_HOST;
+             Script::CompilationType::kHost;
 }
 
 bool SharedFunctionInfo::needs_script_context() const {

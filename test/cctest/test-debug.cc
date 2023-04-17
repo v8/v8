@@ -4702,13 +4702,13 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
 
     std::vector<i::Handle<i::Script>> scripts;
     CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"), false);
-    std::unordered_map<int, int> count_by_type;
+    std::unordered_map<i::Script::Type, int> count_by_type;
     {
       i::DisallowGarbageCollection no_gc;
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
-        if (script.type() == i::Script::TYPE_NATIVE &&
+        if (script.type() == i::Script::Type::kNative &&
             script.name().IsUndefined(i_isolate)) {
           continue;
         }
@@ -4716,21 +4716,21 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
         scripts.emplace_back(script, i_isolate);
       }
     }
-    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
-    CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 1);
-    CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
+    CHECK_EQ(count_by_type[i::Script::Type::kNative], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kExtension], 1);
+    CHECK_EQ(count_by_type[i::Script::Type::kNormal], 1);
 #if V8_ENABLE_WEBASSEMBLY
-    CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kWasm], 0);
 #endif  // V8_ENABLE_WEBASSEMBLY
-    CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kInspector], 0);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();
-    CHECK_EQ(gc_script->type(), i::Script::TYPE_EXTENSION);
+    CHECK_EQ(gc_script->type(), i::Script::Type::kExtension);
 
     i::Handle<i::Script> normal_script =
         FindScript(i_isolate, scripts, "normal.js").ToHandleChecked();
-    CHECK_EQ(normal_script->type(), i::Script::TYPE_NORMAL);
+    CHECK_EQ(normal_script->type(), i::Script::Type::kNormal);
   }
   isolate->Dispose();
 }

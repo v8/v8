@@ -57,7 +57,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script) {
   Handle<Managed<wasm::NativeModule>> managed_native_module;
-  if (script->type() == Script::TYPE_WASM) {
+  if (script->type() == Script::Type::kWasm) {
     managed_native_module = handle(
         Managed<wasm::NativeModule>::cast(script->wasm_managed_native_module()),
         isolate);
@@ -1192,7 +1192,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
-  if (module_object->script().type() == Script::TYPE_WASM) {
+  if (module_object->script().type() == Script::Type::kWasm) {
     Handle<WeakArrayList> weak_instance_list(
         module_object->script().wasm_weak_instance_list(), isolate);
     weak_instance_list = WeakArrayList::Append(

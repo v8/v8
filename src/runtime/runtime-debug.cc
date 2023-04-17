@@ -563,7 +563,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (script->type() == Script::TYPE_WASM) {
+  if (script->type() == Script::Type::kWasm) {
     // Wasm positions are relative to the start of the module.
     return 0;
   }
@@ -606,7 +606,7 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  const bool is_wasm_script = script->type() == Script::TYPE_WASM;
+  const bool is_wasm_script = script->type() == Script::Type::kWasm;
 #else
   const bool is_wasm_script = false;
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -2439,18 +2439,18 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
   os << "\n - context data: " << Brief(context_data());
-  os << "\n - type: " << type();
+  os << "\n - type: " << static_cast<int>(type());
   os << "\n - line ends: " << Brief(line_ends());
   os << "\n - id: " << id();
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
-  os << "\n - compilation type: " << compilation_type();
+  os << "\n - compilation type: " << static_cast<int>(compilation_type());
   os << "\n - compiled lazy function positions: "
      << compiled_lazy_function_positions();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
-  if ((is_wasm = (type() == TYPE_WASM))) {
+  if ((is_wasm = (type() == Type::kWasm))) {
     if (has_wasm_breakpoint_infos()) {
       os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
     }

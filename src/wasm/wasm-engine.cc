@@ -878,10 +878,10 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   {
     DisallowGarbageCollection no_gc;
     auto raw_script = *script;
-    raw_script.set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+    raw_script.set_compilation_state(Script::CompilationState::kCompiled);
     raw_script.set_context_data(isolate->native_context()->debug_context_id());
     raw_script.set_name(*url_str);
-    raw_script.set_type(Script::TYPE_WASM);
+    raw_script.set_type(Script::Type::kWasm);
     raw_script.set_source_mapping_url(*source_map_url);
     raw_script.set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array(),
                              SKIP_WRITE_BARRIER);

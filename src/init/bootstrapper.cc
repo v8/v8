@@ -131,7 +131,7 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
 Bootstrapper::Bootstrapper(Isolate* isolate)
     : isolate_(isolate),
       nesting_(0),
-      extensions_cache_(Script::TYPE_EXTENSION) {}
+      extensions_cache_(Script::Type::kExtension) {}
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
   extensions_cache_.Initialize(isolate_, create_heap_objects);
@@ -731,7 +731,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // --- E m p t y ---
   Handle<String> source = factory()->NewStringFromStaticChars("() {}");
   Handle<Script> script = factory()->NewScript(source);
-  script->set_type(Script::TYPE_NATIVE);
+  script->set_type(Script::Type::kNative);
   Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
   script->set_shared_function_infos(*infos);
   empty_function->shared().set_raw_scope_info(

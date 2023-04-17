@@ -2006,7 +2006,7 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<Script> script(Script::cast(shared->script()), isolate());
   Handle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
-      script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+      script->compilation_type() == Script::CompilationType::kEval) {
     function_name = isolate()->factory()->eval_string();
   }
   int bytecode_offset = code_offset();

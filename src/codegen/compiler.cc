@@ -1433,7 +1433,7 @@ void FinalizeUnoptimizedScriptCompilation(
   FinalizeUnoptimizedCompilation(isolate, script, flags, compile_state,
                                  finalize_unoptimized_compilation_data_list);
 
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+  script->set_compilation_state(Script::CompilationState::kCompiled);
 
   if (isolate->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate, script);

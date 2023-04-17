@@ -237,7 +237,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
           if (shared.script(cage_base).IsScript(cage_base) &&
               Script::cast(shared.script(cage_base)).type() ==
-                  Script::TYPE_EXTENSION) {
+                  Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
           if (shared.CanDiscardCompiled()) {
@@ -272,7 +272,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
     i::SharedFunctionInfo shared = fun.shared();
     if (shared.script(cage_base).IsScript(cage_base) &&
         Script::cast(shared.script(cage_base)).type() ==
-            Script::TYPE_EXTENSION) {
+            Script::Type::kExtension) {
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 

@@ -1954,8 +1954,8 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (type() == Script::TYPE_WASM) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (type() == Script::Type::kWasm) {
     CHECK_EQ(line_ends(), ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     CHECK(CanHaveLineEnds());

@@ -188,7 +188,7 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
   ScriptOriginOptions options(script->origin_options());
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
-  is_wasm = script->type() == i::Script::TYPE_WASM;
+  is_wasm = script->type() == i::Script::Type::kWasm;
 #endif  // V8_ENABLE_WEBASSEMBLY
   v8::ScriptOrigin origin(
       reinterpret_cast<v8::Isolate*>(i_isolate), Utils::ToLocal(scriptName),
@@ -3324,7 +3324,7 @@ int Message::GetWasmFunctionIndex() const {
 
   i::Handle<i::Script> script(self->script(), i_isolate);
 
-  if (script->type() != i::Script::TYPE_WASM) {
+  if (script->type() != i::Script::Type::kWasm) {
     return Message::kNoWasmFunctionIndexInfo;
   }
 
@@ -3494,7 +3494,7 @@ Local<String> StackFrame::GetFunctionName() const {
 
 bool StackFrame::IsEval() const {
   i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  return self->script().compilation_type() == i::Script::COMPILATION_TYPE_EVAL;
+  return self->script().compilation_type() == i::Script::CompilationType::kEval;
 }
 
 bool StackFrame::IsConstructor() const {

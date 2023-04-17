@@ -5847,7 +5847,7 @@ Handle<String> JSMessageObject::GetSourceLine() const {
   Handle<Script> the_script(script(), isolate);
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (the_script->type() == Script::TYPE_WASM) {
+  if (the_script->type() == Script::Type::kWasm) {
     return isolate->factory()->empty_string();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
