@@ -164,6 +164,14 @@ bool Script::HasValidSource() {
 
 bool Script::has_line_ends() const { return line_ends() != Smi::zero(); }
 
+bool Script::CanHaveLineEnds() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return type() != Script::TYPE_WASM;
+#else
+  return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 // static
 void Script::InitLineEnds(Isolate* isolate, Handle<Script> script) {
   if (script->has_line_ends()) return;

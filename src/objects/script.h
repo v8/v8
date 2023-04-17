@@ -168,6 +168,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   inline bool has_line_ends() const;
 
+  bool inline CanHaveLineEnds() const;
+
   // Carries information about a source position.
   struct PositionInfo {
     PositionInfo() : line(-1), column(-1), line_start(-1), line_end(-1) {}
