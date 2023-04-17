@@ -808,3 +808,14 @@ function TestHelperPrototypeSurface(helper) {
       Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
   assertEquals(undefined, iter.find(v => v > 4));
 })();
+
+// --- Test toStringTag
+
+(function TestToStringTag() {
+  const descriptor =
+      Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag);
+  assertEquals('Iterator', descriptor.value);
+  assertTrue(descriptor.writable);
+  assertFalse(descriptor.enumerable);
+  assertTrue(descriptor.configurable);
+})();
