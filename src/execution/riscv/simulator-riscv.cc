@@ -304,21 +304,23 @@ struct type_sew_t<128> {
     vd = src;                                                                 \
   }
 
-#define VF_SLIDE1DOWN_PARAMS(x, offset, ftype)                         \
+#define VF_SLIDE1DOWN_PARAMS(x, offset)                                \
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);       \
   if ((i + offset) == rvv_vlmax()) {                                   \
-    ftype src = (ftype)get_fpu_register_##ftype(rs1_reg());            \
-    vd = base::bit_cast<type_sew_t<x>::type>(src);                     \
+    auto src = base::bit_cast<type_sew_t<x>::type>(                    \
+        get_fpu_register_Float##x(rs1_reg()).get_bits());              \
+    vd = src;                                                          \
   } else {                                                             \
     auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i + offset); \
     vd = src;                                                          \
   }
 
-#define VF_SLIDE1UP_PARAMS(x, offset, ftype)                           \
+#define VF_SLIDE1UP_PARAMS(x, offset)                                  \
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);       \
   if (i == rvv_vstart() && i == 0) {                                   \
-    ftype src = (ftype)get_fpu_register_##ftype(rs1_reg());            \
-    vd = base::bit_cast<type_sew_t<x>::type>(src);                     \
+    auto src = base::bit_cast<type_sew_t<x>::type>(                    \
+        get_fpu_register_Float##x(rs1_reg()).get_bits());              \
+    vd = src;                                                          \
   } else {                                                             \
     auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset); \
     vd = src;                                                          \
@@ -836,31 +838,33 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);             \
   }
 
-#define RVV_VI_VF_MERGE_LOOP(BODY16, BODY32, BODY64)      \
-  RVV_VI_VF_MERGE_LOOP_BASE                               \
-  switch (rvv_vsew()) {                                   \
-    case E16: {                                           \
-      UNIMPLEMENTED();                                    \
-    }                                                     \
-    case E32: {                                           \
-      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);   \
-      float fs1 = get_fpu_register_float(rs1_reg());      \
-      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);        \
-      BODY32;                                             \
-      break;                                              \
-    }                                                     \
-    case E64: {                                           \
-      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
-      double fs1 = get_fpu_register_double(rs1_reg());    \
-      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
-      BODY64;                                             \
-      break;                                              \
-    }                                                     \
-    default:                                              \
-      UNREACHABLE();                                      \
-      break;                                              \
-  }                                                       \
-  RVV_VI_VF_MERGE_LOOP_END                                \
+#define RVV_VI_VF_MERGE_LOOP(BODY16, BODY32, BODY64)        \
+  RVV_VI_VF_MERGE_LOOP_BASE                                 \
+  switch (rvv_vsew()) {                                     \
+    case E16: {                                             \
+      UNIMPLEMENTED();                                      \
+    }                                                       \
+    case E32: {                                             \
+      int32_t& vd = Rvvelt<int32_t>(rvv_vd_reg(), i, true); \
+      int32_t fs1 = base::bit_cast<int32_t>(                \
+          get_fpu_register_Float32(rs1_reg()).get_bits());  \
+      int32_t vs2 = Rvvelt<int32_t>(rvv_vs2_reg(), i);      \
+      BODY32;                                               \
+      break;                                                \
+    }                                                       \
+    case E64: {                                             \
+      int64_t& vd = Rvvelt<int64_t>(rvv_vd_reg(), i, true); \
+      int64_t fs1 = base::bit_cast<int64_t>(                \
+          get_fpu_register_Float64(rs1_reg()).get_bits());  \
+      int64_t vs2 = Rvvelt<int64_t>(rvv_vs2_reg(), i);      \
+      BODY64;                                               \
+      break;                                                \
+    }                                                       \
+    default:                                                \
+      UNREACHABLE();                                        \
+      break;                                                \
+  }                                                         \
+  RVV_VI_VF_MERGE_LOOP_END                                  \
   rvv_trace_vd();
 
 #define RVV_VI_VFP_LOOP_BASE                           \
@@ -2510,7 +2514,7 @@ Float32 Simulator::get_fpu_register_Float32(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   if (!is_boxed_float(FPUregisters_[fpureg])) {
     std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
-    return Float32::FromBits(0x7ffc0000);
+    return Float32::FromBits(0x7fc00000);
   }
   return Float32::FromBits(
       *base::bit_cast<uint32_t*>(const_cast<int64_t*>(&FPUregisters_[fpureg])));
@@ -7354,10 +7358,10 @@ void Simulator::DecodeRvvFVF() {
           UNSUPPORTED();
         }
         case E32: {
-          VF_SLIDE1DOWN_PARAMS(32, 1, float);
+          VF_SLIDE1DOWN_PARAMS(32, 1);
         } break;
         default: {
-          VF_SLIDE1DOWN_PARAMS(64, 1, double);
+          VF_SLIDE1DOWN_PARAMS(64, 1);
         } break;
       }
       RVV_VI_LOOP_END
@@ -7376,10 +7380,10 @@ void Simulator::DecodeRvvFVF() {
           UNSUPPORTED();
         }
         case E32: {
-          VF_SLIDE1UP_PARAMS(32, 1, float);
+          VF_SLIDE1UP_PARAMS(32, 1);
         } break;
         default: {
-          VF_SLIDE1UP_PARAMS(64, 1, double);
+          VF_SLIDE1UP_PARAMS(64, 1);
         } break;
       }
       RVV_VI_LOOP_END
