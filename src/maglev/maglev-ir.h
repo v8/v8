@@ -2508,7 +2508,7 @@ class CheckHoleyFloat64IsSmi
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
 
