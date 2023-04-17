@@ -161,9 +161,6 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
     // Clear literal boilerplates and feedback.
     Handle<FeedbackVector>::cast(obj)->ClearSlots(isolate());
-  } else if (InstanceTypeChecker::IsFeedbackCell(instance_type)) {
-    // Clear InterruptBudget when serializing FeedbackCell.
-    Handle<FeedbackCell>::cast(obj)->SetInitialInterruptBudget();
   } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
     if (SerializeJSObjectWithEmbedderFields(Handle<JSObject>::cast(obj))) {
       return;
@@ -173,6 +170,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       // Unconditionally reset the JSFunction to its SFI's code, since we can't
       // serialize optimized code anyway.
       JSFunction closure = JSFunction::cast(*obj);
+      if (closure.shared().HasBytecodeArray()) {
+        closure.SetInterruptBudget(isolate());
+      }
       closure.ResetIfCodeFlushed();
       if (closure.is_compiled()) {
         if (closure.shared().HasBaselineCode()) {
