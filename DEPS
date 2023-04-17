@@ -68,7 +68,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:12.20230415.2.1',
+  'fuchsia_version': 'version:12.20230416.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -108,9 +108,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a3876affe497782bc38f36aace424620f15d1594',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'df52d5599b4814c4aa9c631717d85acc5a3736d8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4cd00edcd842deaab4d74231293230df3d974311',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd709f875a5039737024a88b0c049f0a6605e1ed1',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'f97059df7f8b205064625cdb5f97b56668a125ef',
   'buildtools/linux64': {
@@ -134,11 +134,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'db673c95b9d1d5af417b7132ae5cfffac661a0c7',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7df372d6fd11d11382866df8f549b352ef2a6520',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e33143c8c06000c3fe12fe3cf88d775f5f3f5b5a',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0123281f7b7aebd09d5309cacf3d61758ac1ecbc',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f2d62ea5af23f5d734725a7b11ea17ad961fa5d7',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8d636e6233d2fe155486728f1080b901a1e84da3',
   'buildtools/win': {
     'packages': [
       {
