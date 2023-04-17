@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/base/build_config.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/index-generator.h"
@@ -19,8 +20,11 @@
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions.h"
+#include "src/roots/roots.h"
+#include "src/roots/static-roots.h"
 
 namespace v8 {
 namespace internal {
@@ -102,6 +106,45 @@ void MainMarkingVisitor<MarkingState>::RecordRelocSlot(InstructionStream host,
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }
 
+V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
+    HeapObjectSlot slot, HeapObject* heap_object) {
+  if (shortcut_strings_) {
+    DCHECK(V8_STATIC_ROOTS_BOOL);
+#if V8_STATIC_ROOTS_BOOL
+    ObjectSlot map_slot = heap_object->map_slot();
+    if (map_slot.contains_map_value(StaticReadOnlyRoot::kThinStringMap)) {
+      DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
+                    .visitor_id(),
+                VisitorId::kVisitThinString);
+      *heap_object = ThinString::cast(*heap_object).actual();
+      // ThinStrings always refer to internalized strings, which are always
+      // in old space.
+      DCHECK(!Heap::InYoungGeneration(*heap_object));
+      slot.StoreHeapObject(*heap_object);
+      return false;
+    } else if (map_slot.contains_map_value(
+                   StaticReadOnlyRoot::kConsStringMap)) {
+      // Not all ConsString are short cut candidates.
+      const VisitorId visitor_id =
+          heap_object->map(ObjectVisitorWithCageBases::cage_base())
+              .visitor_id();
+      if (visitor_id == VisitorId::kVisitShortcutCandidate) {
+        ConsString string = ConsString::cast(*heap_object);
+        if (static_cast<Tagged_t>(string.second().ptr()) ==
+            StaticReadOnlyRoot::kempty_string) {
+          *heap_object = string.first();
+          slot.StoreHeapObject(*heap_object);
+          if (!Heap::InYoungGeneration(*heap_object)) {
+            return false;
+          }
+        }
+      }
+    }
+#endif  // V8_STATIC_ROOTS_BOOL
+  }
+  return true;
+}
+
 template <typename TSlot>
 void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
                                                           TSlot start,
@@ -121,6 +164,10 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
   // Treat weak references as strong.
   if (!target.GetHeapObject(&heap_object) ||
       !Heap::InYoungGeneration(heap_object)) {
+    return false;
+  }
+
+  if (!ShortCutStrings(reinterpret_cast<HeapObjectSlot&>(slot), &heap_object)) {
     return false;
   }
 

@@ -149,7 +149,10 @@ class YoungGenerationMainMarkingVisitor final
   V8_INLINE bool VisitObjectViaSlot(TSlot slot);
 
  private:
+  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
+
   YoungGenerationMarkingState marking_state_;
+  const bool shortcut_strings_;
 
   friend class YoungGenerationMarkingVisitorBase<
       YoungGenerationMainMarkingVisitor, MarkingState>;

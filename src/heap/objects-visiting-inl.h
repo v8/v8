@@ -12,6 +12,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"

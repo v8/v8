@@ -5576,7 +5576,9 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
     MarkingWorklists::Local* worklists_local)
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(isolate, worklists_local),
-      marking_state_(cage_base) {}
+      marking_state_(cage_base),
+      shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
+          GarbageCollector::MINOR_MARK_COMPACTOR)) {}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5882,16 +5884,53 @@ void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
   }
 }
 
+namespace {
+
+template <typename TSlot>
+void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk, TSlot slot) {
+  MaybeObject object = *slot;
+  HeapObject heap_object;
+  if (object.GetHeapObject(&heap_object) &&
+      heap_object.InWritableSharedSpace()) {
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
+                                                             slot.address());
+  }
+}
+
+void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk, SlotType slot_type,
+                                     Address slot_address,
+                                     MaybeObject new_target) {
+  HeapObject heap_object;
+
+  if (new_target.GetHeapObject(&heap_object) &&
+      heap_object.InWritableSharedSpace()) {
+    const uintptr_t offset = slot_address - chunk->address();
+    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+
+    base::MutexGuard guard(chunk->mutex());
+    RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
+                                              static_cast<uint32_t>(offset));
+  }
+}
+
+}  // namespace
+
 void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "PageMarkingItem::MarkUntypedPointers");
+  const bool record_old_to_shared_slots =
+      chunk_->heap()->isolate()->has_shared_space();
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
       chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk_,
-      [this, task, &filter](MaybeObjectSlot slot) {
+      [this, task, &filter, record_old_to_shared_slots](MaybeObjectSlot slot) {
         if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-        return CheckAndMarkObject(task, slot);
+        SlotCallbackResult result = CheckAndMarkObject(task, slot);
+        if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+          CheckOldToNewSlotForSharedUntyped(chunk_, slot);
+        }
+        return result;
       },
       SlotSet::FREE_EMPTY_BUCKETS);
   // The invalidated slots are not needed after old-to-new slots were
@@ -5902,11 +5941,21 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
 void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "PageMarkingItem::MarkTypedPointers");
+  const bool record_old_to_shared_slots =
+      chunk_->heap()->isolate()->has_shared_space();
   RememberedSet<OLD_TO_NEW>::IterateTyped(
-      chunk_, [this, task](SlotType slot_type, Address slot) {
+      chunk_, [this, task, record_old_to_shared_slots](SlotType slot_type,
+                                                       Address slot_address) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
-              return CheckAndMarkObject(task, slot);
+            heap(), slot_type, slot_address,
+            [this, task, record_old_to_shared_slots, slot_address,
+             slot_type](FullMaybeObjectSlot slot) {
+              SlotCallbackResult result = CheckAndMarkObject(task, slot);
+              if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+                CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot_address,
+                                                *slot);
+              }
+              return result;
             });
       });
 }

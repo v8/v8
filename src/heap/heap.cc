@@ -605,6 +605,41 @@ bool Heap::IsGCWithStack() const {
          cppgc::EmbedderStackState::kMayContainHeapPointers;
 }
 
+bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
+  if (!v8_flags.shortcut_strings_with_stack && IsGCWithStack()) return false;
+
+  switch (collector) {
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      DCHECK(!incremental_marking()->IsMajorMarking());
+
+      // Minor MC cannot short cut strings during concurrent marking.
+      if (incremental_marking()->IsMinorMarking()) return false;
+
+      // Minor MC uses static roots to check for strings to shortcut.
+      if (!V8_STATIC_ROOTS_BOOL) return false;
+
+      break;
+    case GarbageCollector::SCAVENGER:
+      // Scavenger cannot short cut strings during incremental marking.
+      if (incremental_marking()->IsMajorMarking()) return false;
+
+      if (isolate()->has_shared_space() &&
+          !isolate()->is_shared_space_isolate() &&
+          isolate()
+              ->shared_space_isolate()
+              ->heap()
+              ->incremental_marking()
+              ->IsMarking())
+        return false;
+
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  return true;
+}
+
 void Heap::PrintShortHeapStatistics() {
   if (!v8_flags.trace_gc_verbose) return;
   PrintIsolate(isolate_,

@@ -710,6 +710,8 @@ class Heap {
   bool IsGCWithStack() const;
   V8_EXPORT_PRIVATE void ForceSharedGCWithEmptyStackForTesting();
 
+  bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
+
   // Performs GC after background allocation failure.
   void CollectGarbageForBackground(LocalHeap* local_heap);
 
