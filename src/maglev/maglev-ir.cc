@@ -3524,6 +3524,16 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     __ PushReverse(receiver(),
                    base::make_iterator_range(args_begin(), args_end()));
   }
+  // From here on, we're going to do a call, so all registers are valid temps,
+  // except for the ones we're going to write. This is needed in case one of the
+  // helper methods below wants to use a temp and one of these is in the temp
+  // list (in particular, this can happen on arm64 where cp is a temp register
+  // by default).
+  temps.SetAvailable(kAllocatableGeneralRegisters -
+                     RegList{kContextRegister, kJavaScriptCallCodeStartRegister,
+                             kJavaScriptCallTargetRegister,
+                             kJavaScriptCallNewTargetRegister,
+                             kJavaScriptCallArgCountRegister});
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   __ Move(kContextRegister, function_.context(broker).object());
   __ Move(kJavaScriptCallTargetRegister, function_.object());
