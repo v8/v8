@@ -4,7 +4,7 @@
 
 load("//lib/service-accounts.star", "V8_TRY_ACCOUNT")
 
-def crossbench_cbb_builder(builder_name, recipe_path, os):
+def crossbench_cbb_builder(builder_name, recipe_path, os, cpu):
     """
     Adds a new crossbench-cbb builder
 
@@ -17,6 +17,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os):
     dims = {
         "pool": "luci.flex.try",
         "os": os,
+        "cpu": cpu,
     }
 
     luci.builder(
@@ -36,7 +37,8 @@ def crossbench_cbb_builder(builder_name, recipe_path, os):
         builder = builder_name,
     )
 
-crossbench_cbb_builder("Crossbench CBB Mac Try", "perf/crossbench", "Mac")
+crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
+crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-20", "x86-64")
 
 luci.cq_group(
     name = "crossbench-main-cq",
@@ -58,7 +60,11 @@ luci.cq_group(
             disable_reuse = True,
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench CBB Mac Try",
+            builder = "Crossbench End2End Mac arm64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench End2End Linux x64 Try",
+            experiment_percentage = 100,
         ),
     ],
 )
