@@ -328,12 +328,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_script_or_modules(roots.empty_array_list());
 #endif
   }
-
-  if (script_id != Script::kTemporaryScriptId) {
-    impl()->AddToScriptList(script);
-  }
-
-  LOG(isolate(), ScriptEvent(script_event_type, script_id));
+  impl()->ProcessNewScript(script, script_event_type);
   return script;
 }
 

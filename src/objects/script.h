@@ -9,6 +9,9 @@
 
 #include "include/v8-script.h"
 #include "src/base/export-template.h"
+#include "src/heap/factory-base.h"
+#include "src/heap/factory.h"
+#include "src/heap/local-factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -165,6 +168,10 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   inline bool has_line_ends() const;
 
+  // Will initialize the line ends if required.
+  static void SetSource(Isolate* isolate, Handle<Script> script,
+                        Handle<String> source);
+
   bool inline CanHaveLineEnds() const;
 
   // Carries information about a source position.
@@ -236,6 +243,13 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
+  friend Factory;
+  friend FactoryBase<Factory>;
+  friend FactoryBase<LocalFactory>;
+
+  // Hide torque-generated accessor, use Script::SetSource instead.
+  using TorqueGeneratedScript::set_source;
+
   // Bit positions in the flags field.
   DEFINE_TORQUE_GENERATED_SCRIPT_FLAGS()
 

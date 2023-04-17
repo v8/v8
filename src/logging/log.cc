@@ -378,7 +378,7 @@ base::LazyRecursiveMutex& LinuxPerfBasicLogger::GetFileMutex() {
 }
 
 // The following static variables are protected by
-// LinuxPerfBasicLogger::GetFileMutext().
+// LinuxPerfBasicLogger::GetFileMutex().
 uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
 FILE* LinuxPerfBasicLogger::perf_output_handle_ = nullptr;
 

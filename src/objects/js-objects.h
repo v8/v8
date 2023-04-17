@@ -1193,8 +1193,8 @@ class JSMessageObject
   // called more than once. If called when stack space is exhausted, then the
   // source positions will be not be set and calling it again when there is more
   // stack space will not have any effect.
-  static void EnsureSourcePositionsAvailable(Isolate* isolate,
-                                             Handle<JSMessageObject> message);
+  static inline void EnsureSourcePositionsAvailable(
+      Isolate* isolate, Handle<JSMessageObject> message);
 
   // Gets the start and end positions for the message.
   // EnsureSourcePositionsAvailable must have been called before calling these.
@@ -1234,10 +1234,12 @@ class JSMessageObject
   friend class Factory;
 
   inline bool DidEnsureSourcePositionsAvailable() const;
+  static void V8_PRESERVE_MOST V8_EXPORT_PRIVATE
+  InitializeSourcePositions(Isolate* isolate, Handle<JSMessageObject> message);
 
   // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
   // source position if not available when the message was generated.
-  DECL_ACCESSORS(shared_info, HeapObject)
+  DECL_ACCESSORS(shared_info, Object)
 
   // [bytecode_offset]: optional offset using along with |shared| to generation
   // source positions.

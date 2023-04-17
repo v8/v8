@@ -217,7 +217,7 @@ uint64_t LinuxPerfJitLogger::GetTimestamp() {
 }
 
 void LinuxPerfJitLogger::LogRecordedBuffer(
-    AbstractCode abstract_code, MaybeHandle<SharedFunctionInfo> maybe_shared,
+    AbstractCode abstract_code, MaybeHandle<SharedFunctionInfo> maybe_sfi,
     const char* name, int length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
@@ -238,15 +238,15 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   Code code = Code::cast(abstract_code);
 
   // Debug info has to be emitted first.
-  Handle<SharedFunctionInfo> shared;
-  if (v8_flags.perf_prof && maybe_shared.ToHandle(&shared)) {
+  Handle<SharedFunctionInfo> sfi;
+  if (v8_flags.perf_prof && maybe_sfi.ToHandle(&sfi)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     CodeKind kind = code.kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
-      DCHECK_IMPLIES(shared->script().IsScript(),
-                     Script::cast(shared->script()).has_line_ends());
-      LogWriteDebugInfo(code, shared);
+      DCHECK_IMPLIES(sfi->script().IsScript(),
+                     Script::cast(sfi->script()).has_line_ends());
+      LogWriteDebugInfo(code, sfi);
     }
   }
 

@@ -3499,8 +3499,8 @@ void Isolate::ClearSerializerData() {
 // cache.
 void Isolate::UpdateLogObjectRelocation() {
   log_object_relocation_ = v8_flags.verify_predictable ||
-                           v8_file_logger()->is_logging() || is_profiling() ||
-                           v8_file_logger()->is_listening_to_code_events() ||
+                           IsLoggingCodeCreation() ||
+                           v8_file_logger()->is_logging() ||
                            (heap_profiler() != nullptr &&
                             heap_profiler()->is_tracking_object_moves()) ||
                            heap()->has_heap_object_allocation_tracker();
@@ -4797,17 +4797,22 @@ void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
-  return NeedsSourcePositionsForProfiling() ||
-         detailed_source_positions_for_profiling();
+  return NeedsSourcePositions() || detailed_source_positions_for_profiling();
 }
 
-bool Isolate::NeedsSourcePositionsForProfiling() const {
+bool Isolate::IsLoggingCodeCreation() const {
+  return v8_file_logger()->is_listening_to_code_events() || is_profiling() ||
+         v8_flags.log_function_events ||
+         logger()->is_listening_to_code_events();
+}
+
+bool Isolate::NeedsSourcePositions() const {
   return
       // Static conditions.
       v8_flags.trace_deopt || v8_flags.trace_turbo ||
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
       v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
-      v8_flags.log_ic ||
+      v8_flags.log_ic || v8_flags.log_function_events ||
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).

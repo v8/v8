@@ -1438,10 +1438,18 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSMessageObject");
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - arguments: " << Brief(argument());
-  os << "\n - start_position: " << start_position();
-  os << "\n - end_position: " << end_position();
   os << "\n - script: " << Brief(script());
   os << "\n - stack_frames: " << Brief(stack_frames());
+  os << "\n - shared_info: " << Brief(shared_info());
+  if (shared_info() == Smi::zero()) {
+    os << " (cleared after calculating line ends)";
+  } else if (shared_info() == Smi::FromInt(-1)) {
+    os << "(no line ends needed)";
+  }
+  os << "\n - bytecode_offset: " << bytecode_offset();
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << "\n - error_level: " << error_level();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2441,6 +2449,7 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - context data: " << Brief(context_data());
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - line ends: " << Brief(line_ends());
+  if (!has_line_ends()) os << " (not set)";
   os << "\n - id: " << id();
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());

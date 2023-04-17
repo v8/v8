@@ -253,10 +253,14 @@ namespace {
 // to create duplicates of InterpreterEntryTrampoline for the deserialized
 // functions, otherwise we'll call the builtin IET for those functions (which
 // is not what a user of this flag wants).
-void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
-                                              Handle<SharedFunctionInfo> sfi,
-                                              bool log_code_creation) {
-  Handle<Script> script(Script::cast(sfi->script()), isolate);
+void CreateInterpreterDataForDeserializedCode(
+    Isolate* isolate, Handle<SharedFunctionInfo> result_sfi,
+    bool log_code_creation) {
+  DCHECK_IMPLIES(isolate->NeedsSourcePositions(), log_code_creation);
+
+  Handle<Script> script(Script::cast(result_sfi->script()), isolate);
+  if (log_code_creation) Script::InitLineEnds(isolate, script);
+
   String name = ReadOnlyRoots(isolate).empty_string();
   if (script->name().IsString()) name = String::cast(script->name());
   Handle<String> name_handle(name, isolate);
@@ -267,7 +271,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     IsCompiledScope is_compiled(shared_info, isolate);
     if (!is_compiled.is_compiled()) continue;
     DCHECK(shared_info.HasBytecodeArray());
-    Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
+    Handle<SharedFunctionInfo> sfi = handle(shared_info, isolate);
 
     Handle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
@@ -276,25 +280,26 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
+    interpreter_data->set_bytecode_array(sfi->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(*code);
-    if (info->HasBaselineCode()) {
-      info->baseline_code(kAcquireLoad)
+    if (sfi->HasBaselineCode()) {
+      sfi->baseline_code(kAcquireLoad)
           .set_bytecode_or_interpreter_data(*interpreter_data);
     } else {
-      info->set_interpreter_data(*interpreter_data);
+      sfi->set_interpreter_data(*interpreter_data);
     }
 
     if (!log_code_creation) continue;
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
+
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-    Script::InitLineEnds(isolate, script);
-    Script::PositionInfo position_info;
-    script->GetPositionInfo(info->StartPosition(), &position_info);
-    int line_num = position_info.line + 1;
-    int column_num = position_info.column + 1;
+    Script::PositionInfo info;
+    Script::GetPositionInfo(script, sfi->StartPosition(), &info);
+    int line_num = info.line_start + 1;
+    int column_num = info.line_end + 1;
     PROFILE(isolate,
             CodeCreateEvent(LogEventListener::CodeTag::kFunction, abstract_code,
-                            info, name_handle, line_num, column_num));
+                            sfi, name_handle, line_num, column_num));
   }
 }
 
@@ -332,63 +337,51 @@ class StressOffThreadDeserializeThread final : public base::Thread {
 void FinalizeDeserialization(Isolate* isolate,
                              Handle<SharedFunctionInfo> result,
                              const base::ElapsedTimer& timer) {
-  const bool log_code_creation =
-      isolate->v8_file_logger()->is_listening_to_code_events() ||
-      isolate->is_profiling() ||
-      isolate->logger()->is_listening_to_code_events();
+  const bool log_code_creation = isolate->IsLoggingCodeCreation();
 
   if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack)) {
     CreateInterpreterDataForDeserializedCode(isolate, result,
                                              log_code_creation);
   }
 
-  bool needs_source_positions = isolate->NeedsSourcePositionsForProfiling();
+  bool needs_source_positions = isolate->NeedsSourcePositions();
+  if (!log_code_creation && !needs_source_positions) return;
 
-  if (log_code_creation || v8_flags.log_function_events) {
-    Handle<Script> script(Script::cast(result->script()), isolate);
-    Handle<String> name(script->name().IsString()
-                            ? String::cast(script->name())
-                            : ReadOnlyRoots(isolate).empty_string(),
-                        isolate);
-
-    if (V8_UNLIKELY(v8_flags.log_function_events)) {
-      LOG(isolate,
-          FunctionEvent("deserialize", script->id(),
-                        timer.Elapsed().InMillisecondsF(),
-                        result->StartPosition(), result->EndPosition(), *name));
-    }
-    if (log_code_creation) {
-      Script::InitLineEnds(isolate, script);
-
-      SharedFunctionInfo::ScriptIterator iter(isolate, *script);
-      for (SharedFunctionInfo info = iter.Next(); !info.is_null();
-           info = iter.Next()) {
-        if (info.is_compiled()) {
-          Handle<SharedFunctionInfo> shared_info(info, isolate);
-          if (needs_source_positions) {
-            SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate,
-                                                               shared_info);
-          }
-          DisallowGarbageCollection no_gc;
-          Script::PositionInfo position_info;
-          script->GetPositionInfo(shared_info->StartPosition(), &position_info);
-          int line_num = position_info.line + 1;
-          int column_num = position_info.column + 1;
-          PROFILE(isolate,
-                  CodeCreateEvent(
-                      shared_info->is_toplevel()
-                          ? LogEventListener::CodeTag::kScript
-                          : LogEventListener::CodeTag::kFunction,
-                      handle(shared_info->abstract_code(isolate), isolate),
-                      shared_info, name, line_num, column_num));
-        }
-      }
-    }
+  Handle<Script> script(Script::cast(result->script()), isolate);
+  if (needs_source_positions) {
+    Script::InitLineEnds(isolate, script);
   }
 
-  if (needs_source_positions) {
-    Handle<Script> script(Script::cast(result->script()), isolate);
-    Script::InitLineEnds(isolate, script);
+  Handle<String> name(script->name().IsString()
+                          ? String::cast(script->name())
+                          : ReadOnlyRoots(isolate).empty_string(),
+                      isolate);
+
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    LOG(isolate,
+        FunctionEvent("deserialize", script->id(),
+                      timer.Elapsed().InMillisecondsF(),
+                      result->StartPosition(), result->EndPosition(), *name));
+  }
+
+  SharedFunctionInfo::ScriptIterator iter(isolate, *script);
+  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+       info = iter.Next()) {
+    if (!info.is_compiled()) continue;
+    Handle<SharedFunctionInfo> shared_info(info, isolate);
+    if (needs_source_positions) {
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+    }
+    Script::PositionInfo pos_info;
+    Script::GetPositionInfo(script, shared_info->StartPosition(), &pos_info);
+    int line_num = pos_info.line + 1;
+    int column_num = pos_info.column + 1;
+    PROFILE(isolate, CodeCreateEvent(
+                         shared_info->is_toplevel()
+                             ? LogEventListener::CodeTag::kScript
+                             : LogEventListener::CodeTag::kFunction,
+                         handle(shared_info->abstract_code(isolate), isolate),
+                         shared_info, name, line_num, column_num));
   }
 }
 
@@ -588,14 +581,14 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK(isolate->factory()->script_list()->Contains(
         MaybeObject::MakeWeak(MaybeObject::FromObject(result->script()))));
   } else {
+    Handle<Script> script(Script::cast(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized
     // script, and the off-thread deserializer should have set its source to
     // the empty string.
     DCHECK_EQ(data.scripts.size(), 1);
-    DCHECK_EQ(result->script(), *data.scripts[0]);
-    DCHECK_EQ(Script::cast(result->script()).source(),
-              ReadOnlyRoots(isolate).empty_string());
-    Script::cast(result->script()).set_source(*source);
+    DCHECK_EQ(*script, *data.scripts[0]);
+    DCHECK_EQ(script->source(), ReadOnlyRoots(isolate).empty_string());
+    Script::SetSource(isolate, script, source);
 
     // Fix up the script list to include the newly deserialized script.
     Handle<WeakArrayList> list = isolate->factory()->script_list();

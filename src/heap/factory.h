@@ -68,6 +68,8 @@ class NativeContext;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
+template <typename>
+class Signature;
 class SourceTextModule;
 class StackFrameInfo;
 class StringSet;
@@ -78,6 +80,7 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
 class ArrayType;
@@ -87,6 +90,8 @@ class WasmValue;
 enum class OnResume : int;
 enum Suspend : bool;
 enum Promise : bool;
+class ValueType;
+using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 #endif
 
@@ -420,7 +425,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Object> call_site_infos_or_formatted_stack,
       Handle<Object> limit_or_stack_frame_infos);
 
-  Handle<Script> CloneScript(Handle<Script> script);
+  Handle<Script> CloneScript(Handle<Script> script, Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
@@ -1096,7 +1101,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   bool EmptyStringRootIsInitialized();
   AllocationType AllocationTypeForInPlaceInternalizableString();
 
-  void AddToScriptList(Handle<Script> shared);
+  void ProcessNewScript(Handle<Script> shared,
+                        ScriptEventType script_event_type);
   // ------
 
   HeapObject AllocateRawWithAllocationSite(
