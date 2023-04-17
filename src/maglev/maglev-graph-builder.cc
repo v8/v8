@@ -2341,12 +2341,6 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
-NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
-  auto it = known_node_aspects().FindInfo(node);
-  if (known_node_aspects().IsValid(it)) return it->second.type;
-  return StaticTypeForNode(node);
-}
-
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
   if (NodeTypeIs(StaticTypeForNode(node), type)) return true;
   auto it = known_node_aspects().FindInfo(node);
@@ -4301,26 +4295,8 @@ void MaglevGraphBuilder::VisitLogicalNot() {
 }
 
 void MaglevGraphBuilder::VisitTypeOf() {
-  ValueNode* value = GetRawAccumulator();
-  ValueNode* type;
-  switch (GetType(value)) {
-    case NodeType::kSmi:
-    case NodeType::kHeapNumber:
-    case NodeType::kNumber:
-      type = GetConstant(broker()->number_string());
-      break;
-    case NodeType::kString:
-    case NodeType::kInternalizedString:
-      type = GetConstant(broker()->string_string());
-      break;
-    case NodeType::kSymbol:
-      type = GetConstant(broker()->symbol_string());
-      break;
-    default:
-      type = AddNewNode<Typeof>({GetTaggedValue(value)});
-      break;
-  }
-  SetAccumulator(type);
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
 }
 
 void MaglevGraphBuilder::VisitDeletePropertyStrict() {

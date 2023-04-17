@@ -245,7 +245,6 @@ class MergePointInterpreterFrameState;
   V(ToNumberOrNumeric)                       \
   V(ToObject)                                \
   V(ToString)                                \
-  V(Typeof)                                  \
   CONSTANT_VALUE_NODE_LIST(V)                \
   INT32_OPERATIONS_NODE_LIST(V)              \
   FLOAT64_OPERATIONS_NODE_LIST(V)            \
@@ -3664,22 +3663,6 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   Input& value_input() { return Node::input(1); }
 
   int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class Typeof : public FixedInputValueNodeT<1, Typeof> {
-  using Base = FixedInputValueNodeT<1, Typeof>;
-
- public:
-  explicit Typeof(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input& value_input() { return Node::input(0); }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
