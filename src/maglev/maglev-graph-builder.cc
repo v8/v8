@@ -6657,11 +6657,39 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
   }
 }
 
+MaglevGraphBuilder::JumpType MaglevGraphBuilder::NegateJumpType(
+    JumpType jump_type) {
+  switch (jump_type) {
+    case JumpType::kJumpIfTrue:
+      return JumpType::kJumpIfFalse;
+    case JumpType::kJumpIfFalse:
+      return JumpType::kJumpIfTrue;
+  }
+}
+
 void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
                                                    JumpType jump_type,
                                                    RootIndex root_index) {
   int fallthrough_offset = next_offset();
   int jump_offset = iterator_.GetJumpTargetOffset();
+
+  BasicBlockRef *true_target, *false_target;
+  if (jump_type == kJumpIfTrue) {
+    true_target = &jump_targets_[jump_offset];
+    false_target = &jump_targets_[fallthrough_offset];
+  } else {
+    true_target = &jump_targets_[fallthrough_offset];
+    false_target = &jump_targets_[jump_offset];
+  }
+
+  while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
+    // Bypassing logical not(s) on the input and swapping true/false
+    // destinations.
+    node = logical_not->value().node();
+    std::swap(true_target, false_target);
+    jump_type = NegateJumpType(jump_type);
+  }
+
   if (RootConstant* c = node->TryCast<RootConstant>()) {
     bool constant_is_match = c->index() == root_index;
     bool is_jump_taken = constant_is_match == (jump_type == kJumpIfTrue);
@@ -6673,15 +6701,6 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
       MergeDeadIntoFrameState(jump_offset);
     }
     return;
-  }
-
-  BasicBlockRef *true_target, *false_target;
-  if (jump_type == kJumpIfTrue) {
-    true_target = &jump_targets_[jump_offset];
-    false_target = &jump_targets_[fallthrough_offset];
-  } else {
-    true_target = &jump_targets_[fallthrough_offset];
-    false_target = &jump_targets_[jump_offset];
   }
 
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
@@ -6702,33 +6721,9 @@ void MaglevGraphBuilder::BuildBranchIfUndefined(ValueNode* node,
                                                 JumpType jump_type) {
   BuildBranchIfRootConstant(node, jump_type, RootIndex::kUndefinedValue);
 }
-void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
-                                                    JumpType jump_type) {
-  int fallthrough_offset = next_offset();
-  int jump_offset = iterator_.GetJumpTargetOffset();
 
-  if (IsConstantNode(node->opcode())) {
-    bool constant_is_true = FromConstantToBool(local_isolate(), node);
-    bool is_jump_taken = constant_is_true == (jump_type == kJumpIfTrue);
-    if (is_jump_taken) {
-      BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
-      MergeDeadIntoFrameState(fallthrough_offset);
-      MergeIntoFrameState(block, jump_offset);
-    } else {
-      MergeDeadIntoFrameState(jump_offset);
-    }
-    return;
-  }
-
-  BasicBlockRef *true_target, *false_target;
-  if (jump_type == kJumpIfTrue) {
-    true_target = &jump_targets_[jump_offset];
-    false_target = &jump_targets_[fallthrough_offset];
-  } else {
-    true_target = &jump_targets_[fallthrough_offset];
-    false_target = &jump_targets_[jump_offset];
-  }
-
+BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
+    ValueNode* node, BasicBlockRef* true_target, BasicBlockRef* false_target) {
   auto make_specialized_branch_if_compare = [&](ValueRepresentation repr,
                                                 ValueNode* cond) {
     // Note that this function (BuildBranchIfToBooleanTrue) generates either a
@@ -6758,33 +6753,95 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     }
   };
 
-  BasicBlock* block;
   if (node->value_representation() == ValueRepresentation::kInt32) {
-    block =
-        make_specialized_branch_if_compare(ValueRepresentation::kInt32, node);
+    return make_specialized_branch_if_compare(ValueRepresentation::kInt32,
+                                              node);
   } else if (node->value_representation() == ValueRepresentation::kFloat64 ||
              node->value_representation() ==
                  ValueRepresentation::kHoleyFloat64) {
-    block =
-        make_specialized_branch_if_compare(ValueRepresentation::kFloat64, node);
+    return make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
+                                              node);
   } else {
     NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(node);
     if (ValueNode* as_int32 = node_info->int32_alternative) {
-      block = make_specialized_branch_if_compare(ValueRepresentation::kInt32,
-                                                 as_int32);
+      return make_specialized_branch_if_compare(ValueRepresentation::kInt32,
+                                                as_int32);
     } else if (ValueNode* as_float64 = node_info->float64_alternative) {
-      block = make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
-                                                 as_float64);
+      return make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
+                                                as_float64);
     } else {
       DCHECK(node->value_representation() == ValueRepresentation::kTagged ||
              node->value_representation() == ValueRepresentation::kUint32);
       // Uint32 should be rare enough that tagging them shouldn't be too
-      // expensive (we don't have a `BranchIfUint32Compare` node, and adding one
-      // doesn't seem worth it at this point).
+      // expensive (we don't have a `BranchIfUint32Compare` node, and adding
+      // one doesn't seem worth it at this point).
+      // We do not record a Tagged use hint here, because Tagged hints prevent
+      // Phi untagging. A BranchIfToBooleanTrue should never prevent Phi
+      // untagging: if we untag a Phi that is used in such a node, then we can
+      // convert the node to BranchIfFloat64ToBooleanTrue or
+      // BranchIfInt32ToBooleanTrue.
       node = GetTaggedValue(node, UseReprHintRecording::kDoNotRecord);
-      block =
-          FinishBlock<BranchIfToBooleanTrue>({node}, true_target, false_target);
+      return FinishBlock<BranchIfToBooleanTrue>({node}, true_target,
+                                                false_target);
     }
+  }
+}
+
+void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
+                                                    JumpType jump_type) {
+  int fallthrough_offset = next_offset();
+  int jump_offset = iterator_.GetJumpTargetOffset();
+
+  BasicBlockRef *true_target, *false_target;
+  if (jump_type == kJumpIfTrue) {
+    true_target = &jump_targets_[jump_offset];
+    false_target = &jump_targets_[fallthrough_offset];
+  } else {
+    true_target = &jump_targets_[fallthrough_offset];
+    false_target = &jump_targets_[jump_offset];
+  }
+
+  while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
+    // Bypassing logical not(s) on the input and swapping true/false
+    // destinations.
+    node = logical_not->value().node();
+    std::swap(true_target, false_target);
+    jump_type = NegateJumpType(jump_type);
+  }
+
+  if (IsConstantNode(node->opcode())) {
+    bool constant_is_true = FromConstantToBool(local_isolate(), node);
+    bool is_jump_taken = constant_is_true == (jump_type == kJumpIfTrue);
+    if (is_jump_taken) {
+      BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
+      MergeDeadIntoFrameState(fallthrough_offset);
+      MergeIntoFrameState(block, jump_offset);
+    } else {
+      MergeDeadIntoFrameState(jump_offset);
+    }
+    return;
+  }
+
+  BasicBlock* block;
+  switch (node->opcode()) {
+    case Opcode::kInt32Equal: {
+      Int32Equal* int32_equal = node->Cast<Int32Equal>();
+      block = FinishBlock<BranchIfInt32Compare>(
+          {int32_equal->left_input().node(), int32_equal->right_input().node()},
+          Operation::kEqual, true_target, false_target);
+      break;
+    }
+    case Opcode::kFloat64Equal: {
+      Float64Equal* float64_equal = node->Cast<Float64Equal>();
+      block = FinishBlock<BranchIfFloat64Compare>(
+          {float64_equal->left_input().node(),
+           float64_equal->right_input().node()},
+          Operation::kEqual, true_target, false_target);
+      break;
+    }
+    default:
+      block =
+          BuildSpecializedBranchIfCompareNode(node, true_target, false_target);
   }
 
   MergeIntoFrameState(block, jump_offset);

@@ -1651,12 +1651,16 @@ class MaglevGraphBuilder {
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
 
   enum JumpType { kJumpIfTrue, kJumpIfFalse };
+  JumpType NegateJumpType(JumpType jump_type);
   void BuildBranchIfRootConstant(ValueNode* node, JumpType jump_type,
                                  RootIndex root_index);
   void BuildBranchIfTrue(ValueNode* node, JumpType jump_type);
   void BuildBranchIfNull(ValueNode* node, JumpType jump_type);
   void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
   void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
+  BasicBlock* BuildSpecializedBranchIfCompareNode(ValueNode* node,
+                                                  BasicBlockRef* true_target,
+                                                  BasicBlockRef* false_target);
 
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
