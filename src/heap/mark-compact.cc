@@ -4425,23 +4425,29 @@ size_t CreateAndExecuteEvacuationTasks(
 
 // NewSpacePages with more live bytes than this threshold qualify for fast
 // evacuation.
-intptr_t NewSpacePageEvacuationThreshold() {
-  return v8_flags.page_promotion_threshold *
+intptr_t NewSpacePageEvacuationThreshold(GarbageCollector collector) {
+  DCHECK_NE(collector, GarbageCollector::SCAVENGER);
+  DCHECK_IMPLIES(collector == GarbageCollector::MINOR_MARK_COMPACTOR,
+                 v8_flags.minor_mc);
+  return (collector == GarbageCollector::MINOR_MARK_COMPACTOR
+              ? v8_flags.minor_mc_page_promotion_threshold
+              : v8_flags.page_promotion_threshold) *
          MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
 }
 
-bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes,
+bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
+                    intptr_t wasted_bytes,
                     MemoryReductionMode memory_reduction_mode,
-                    AlwaysPromoteYoung always_promote_young,
                     PromoteUnusablePages promote_unusable_pages) {
   Heap* heap = p->heap();
   return v8_flags.page_promotion &&
          (memory_reduction_mode == MemoryReductionMode::kNone) &&
          !p->NeverEvacuate() &&
-         ((live_bytes + wasted_bytes > NewSpacePageEvacuationThreshold()) ||
+         ((live_bytes + wasted_bytes >
+           NewSpacePageEvacuationThreshold(collector)) ||
           (promote_unusable_pages == PromoteUnusablePages::kYes &&
            !p->WasUsedForAllocation())) &&
-         (always_promote_young == AlwaysPromoteYoung::kYes ||
+         (collector == GarbageCollector::MARK_COMPACTOR ||
           heap->new_space()->IsPromotionCandidate(p)) &&
          heap->CanExpandOldGeneration(live_bytes);
 }
@@ -4480,8 +4486,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     MemoryReductionMode memory_reduction_mode =
         heap()->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                      : MemoryReductionMode::kNone;
-    if (ShouldMovePage(page, live_bytes_on_page, 0, memory_reduction_mode,
-                       AlwaysPromoteYoung::kYes, PromoteUnusablePages::kNo) ||
+    if (ShouldMovePage(GarbageCollector::MARK_COMPACTOR, page,
+                       live_bytes_on_page, 0, memory_reduction_mode,
+                       PromoteUnusablePages::kNo) ||
         force_page_promotion) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -6296,8 +6303,9 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
       continue;
     }
 
-    if (ShouldMovePage(p, live_bytes_on_page, p->wasted_memory(),
-                       MemoryReductionMode::kNone, AlwaysPromoteYoung::kNo,
+    if (ShouldMovePage(GarbageCollector::MINOR_MARK_COMPACTOR, p,
+                       live_bytes_on_page, p->wasted_memory(),
+                       MemoryReductionMode::kNone,
                        heap()->tracer()->IsCurrentGCDueToAllocationFailure()
                            ? PromoteUnusablePages::kYes
                            : PromoteUnusablePages::kNo)) {

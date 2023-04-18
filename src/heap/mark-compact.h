@@ -56,7 +56,6 @@ class LiveObjectVisitor : AllStatic {
   static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);
 };
 
-enum class AlwaysPromoteYoung { kYes, kNo };
 enum class PromoteUnusablePages { kYes, kNo };
 enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
