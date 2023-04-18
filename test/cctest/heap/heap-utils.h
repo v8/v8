@@ -8,7 +8,37 @@
 #include "src/api/api-inl.h"
 #include "src/heap/heap.h"
 
-namespace v8::internal::heap {
+namespace v8::internal {
+
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+
+class ReadOnlySpaceTesting {
+ public:
+  static ReadOnlySpaceTesting allow_create_pages_above_limit() {
+    return ReadOnlySpaceTesting(true);
+  }
+
+  ~ReadOnlySpaceTesting() {
+    ReadOnlySpace::ForTesting::allow_create_pages_above_limit_ =
+        old_allow_create_pages_above_limit_;
+  }
+
+ private:
+  ReadOnlySpaceTesting() = delete;
+
+  bool old_allow_create_pages_above_limit_;
+
+  explicit ReadOnlySpaceTesting(bool allow_create_pages_above_limit)
+      : old_allow_create_pages_above_limit_(
+            ReadOnlySpace::ForTesting::allow_create_pages_above_limit_) {
+    ReadOnlySpace::ForTesting::allow_create_pages_above_limit_ =
+        allow_create_pages_above_limit;
+  }
+};
+
+#endif  // V8_STATIC_READ_ONLY_HEAP_LIMIT
+
+namespace heap {
 
 void SealCurrentObjects(Heap* heap);
 
@@ -69,6 +99,7 @@ bool InCorrectGeneration(v8::Isolate* isolate,
   return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
-}  // namespace v8::internal::heap
+}  // namespace heap
+}  // namespace v8::internal
 
 #endif  // HEAP_HEAP_UTILS_H_

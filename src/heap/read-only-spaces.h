@@ -236,8 +236,27 @@ class ReadOnlySpace : public BaseSpace {
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
 
-  // Ensure the read only space has at least one allocated page
-  void EnsurePage();
+  // Ensures r/o pages are pre-reserved on build configurations where a read
+  // only heap limit is enforced.
+  void Initialize();
+
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  class V8_EXPORT_PRIVATE ForTesting {
+   private:
+    // With static roots the r/o space is supposed to be a contiguous block from
+    // the start of the cage up to BasicMemoryChunk::kReadOnlyHeapLimit. Setting
+    // the following flags disables checks to enforce this invariant for the
+    // sake of creating different r/o heaps for testing. In particular
+    // allow_create_pages_above_limit_ allows one to create r/o pages above the
+    // limit and allow_create_smaller_space_ allows one to not use up all the
+    // read only pages that are normally required (they will stay reserved
+    // though).
+    static bool allow_create_pages_above_limit_;
+    friend class ReadOnlySpace;
+    friend class MemoryAllocator;
+    friend class ReadOnlySpaceTesting;
+  };
+#endif
 
  protected:
   friend class SingleCopyReadOnlyArtifacts;
@@ -270,6 +289,8 @@ class ReadOnlySpace : public BaseSpace {
   void FinalizeExternallyInitializedPage();
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
+
+  ReadOnlyPage* AllocatePage();
 
   size_t capacity_;
   const size_t area_size_;

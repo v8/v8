@@ -92,7 +92,12 @@ struct MemoryChunk {
   }
 
   V8_INLINE bool InReadOnlySpace() const {
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+    return V8HeapCompressionScheme::CompressAny(reinterpret_cast<Address>(
+               this)) < BasicMemoryChunk::kReadOnlyHeapLimit;
+#else
     return GetFlags() & kReadOnlySpaceBit;
+#endif
   }
 
   V8_INLINE bool InCodeSpace() const { return GetFlags() & kIsExecutableBit; }
@@ -246,9 +251,14 @@ inline bool ObjectInYoungGeneration(Object object) {
 
 inline bool IsReadOnlyHeapObject(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return ReadOnlyHeap::Contains(object);
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  return V8HeapCompressionScheme::CompressObject(object.address()) <
+         BasicMemoryChunk::kReadOnlyHeapLimit;
+#else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->InReadOnlySpace();
+#endif
 }
 
 inline bool IsCodeSpaceObject(HeapObject object) {

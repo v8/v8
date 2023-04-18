@@ -47,9 +47,6 @@ class MemoryChunk : public BasicMemoryChunk {
   static const intptr_t kOldToNewSlotSetOffset =
       MemoryChunkLayout::kSlotSetOffset;
 
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
-
   MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
               Address area_end, VirtualMemory reservation,
               Executability executable, PageSize page_size);

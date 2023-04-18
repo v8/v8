@@ -372,6 +372,21 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
       executable, reinterpret_cast<void*>(hint), &reservation);
   if (base == kNullAddress) return {};
 
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  // Read only pages must be allocated within the
+  // BasicMemoryChunk::kReadOnlyHeapLimit since InReadOnlySpace relies on
+  // this invariant. There is an exception for writing r/o space tests.
+  if (ReadOnlySpace::ForTesting::allow_create_pages_above_limit_) {
+    CHECK_IMPLIES(V8HeapCompressionScheme::CompressAny(base) <
+                      BasicMemoryChunk::kReadOnlyHeapLimit,
+                  space->identity() == RO_SPACE);
+  } else {
+    CHECK_EQ(V8HeapCompressionScheme::CompressAny(base) <
+                 BasicMemoryChunk::kReadOnlyHeapLimit,
+             space->identity() == RO_SPACE);
+  }
+#endif
+
   size_ += reservation.size();
 
   // Update executable memory size.

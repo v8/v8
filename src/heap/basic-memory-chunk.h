@@ -221,13 +221,29 @@ class BasicMemoryChunk {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
+  // Page size in bytes.  This must be a multiple of the OS page size.
+  static const int kPageSize = 1 << kPageSizeBits;
+
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  constexpr static size_t kNumberOfReadOnlyPages = 2;
+  constexpr static size_t kReadOnlyHeapLimit =
+      kNumberOfReadOnlyPages * kPageSize;
+#endif
+
   bool InReadOnlySpace() const {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence
     // emitted after page initialization.
     SynchronizedHeapLoad();
 #endif
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+    // Compression copied from V8HeapCompressionScheme::CompressAny, which
+    // cannot be included here due to circular dependencies.
+    return static_cast<uint32_t>(reinterpret_cast<Address>(this)) <
+           kReadOnlyHeapLimit;
+#else
     return IsFlagSet(READ_ONLY_HEAP);
+#endif
   }
 
   bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }

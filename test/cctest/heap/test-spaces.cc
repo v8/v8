@@ -899,6 +899,10 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  auto pages_above_limit_scope =
+      ReadOnlySpaceTesting::allow_create_pages_above_limit();
+#endif
   ReadOnlySpaceScope scope(heap);
   ReadOnlySpace* faked_space = scope.space();
 
@@ -938,6 +942,10 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  auto pages_above_limit_scope =
+      ReadOnlySpaceTesting::allow_create_pages_above_limit();
+#endif
   ReadOnlySpaceScope scope(heap);
   ReadOnlySpace* faked_space = scope.space();
 
@@ -994,6 +1002,10 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
+#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
+  auto pages_above_limit_scope =
+      ReadOnlySpaceTesting::allow_create_pages_above_limit();
+#endif
   ReadOnlySpaceScope scope(heap);
   ReadOnlySpace* faked_space = scope.space();
 
