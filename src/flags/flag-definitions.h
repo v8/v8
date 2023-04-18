@@ -645,6 +645,7 @@ DEFINE_INT(minor_mc_page_promotion_threshold, 50,
 DEFINE_INT(minor_mc_page_promotion_max_lab_threshold, 30,
            "max percentage of labs out of a page to still be considered for "
            "page promotion")
+DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,

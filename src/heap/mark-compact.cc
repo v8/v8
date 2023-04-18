@@ -4440,16 +4440,29 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
                     MemoryReductionMode memory_reduction_mode,
                     PromoteUnusablePages promote_unusable_pages) {
   Heap* heap = p->heap();
-  return v8_flags.page_promotion &&
-         (memory_reduction_mode == MemoryReductionMode::kNone) &&
-         !p->NeverEvacuate() &&
-         ((live_bytes + wasted_bytes >
-           NewSpacePageEvacuationThreshold(collector)) ||
-          (promote_unusable_pages == PromoteUnusablePages::kYes &&
-           !p->WasUsedForAllocation())) &&
-         (collector == GarbageCollector::MARK_COMPACTOR ||
-          heap->new_space()->IsPromotionCandidate(p)) &&
-         heap->CanExpandOldGeneration(live_bytes);
+  bool should_move_page =
+      v8_flags.page_promotion &&
+      (memory_reduction_mode == MemoryReductionMode::kNone) &&
+      !p->NeverEvacuate() &&
+      ((live_bytes + wasted_bytes >
+        NewSpacePageEvacuationThreshold(collector)) ||
+       (promote_unusable_pages == PromoteUnusablePages::kYes &&
+        !p->WasUsedForAllocation())) &&
+      (collector == GarbageCollector::MARK_COMPACTOR ||
+       heap->new_space()->IsPromotionCandidate(p)) &&
+      heap->CanExpandOldGeneration(live_bytes);
+  if (v8_flags.trace_page_promotions && should_move_page) {
+    PrintIsolate(
+        p->owner()->heap()->isolate(),
+        "[Page Promotion] %p: collector=%s, live bytes = %zu, "
+        "wasted bytes = %zu, promotion threshold = %zu, promote unusable page "
+        "= %s, was page used for allocation = %s\n",
+        p, collector == GarbageCollector::MARK_COMPACTOR ? "mc" : "mmc",
+        live_bytes, wasted_bytes, NewSpacePageEvacuationThreshold(collector),
+        promote_unusable_pages == PromoteUnusablePages::kYes ? "yes" : "no",
+        p->WasUsedForAllocation() ? "yes" : "no");
+  }
+  return should_move_page;
 }
 
 void TraceEvacuation(Isolate* isolate, size_t pages_count,
