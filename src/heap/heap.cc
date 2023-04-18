@@ -655,9 +655,10 @@ void Heap::PrintShortHeapStatistics() {
                read_only_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "New space,              used: %6zu KB"
-               ", available: %6zu KB"
+               ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                NewSpaceSize() / KB, new_space_->Available() / KB,
+               (v8_flags.minor_mc && sweeping_in_progress()) ? "*" : "",
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "New large object space, used: %6zu KB"
@@ -668,15 +669,17 @@ void Heap::PrintShortHeapStatistics() {
                new_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Old space,              used: %6zu KB"
-               ", available: %6zu KB"
+               ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
+               sweeping_in_progress() ? "*" : "",
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Code space,             used: %6zu KB"
-               ", available: %6zu KB"
+               ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
+               sweeping_in_progress() ? "*" : "",
                code_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Large object space,     used: %6zu KB"
@@ -694,10 +697,10 @@ void Heap::PrintShortHeapStatistics() {
   ReadOnlySpace* const ro_space = read_only_space_;
   PrintIsolate(isolate_,
                "All spaces,             used: %6zu KB"
-               ", available: %6zu KB"
+               ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                (this->SizeOfObjects() + ro_space->Size()) / KB,
-               (this->Available()) / KB,
+               (this->Available()) / KB, sweeping_in_progress() ? "*" : "",
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
   PrintIsolate(isolate_,
                "Unmapper buffering %zu chunks of committed: %6zu KB\n",
@@ -711,6 +714,11 @@ void Heap::PrintShortHeapStatistics() {
                external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
                total_gc_time_ms_);
+  if (sweeping_in_progress()) {
+    PrintIsolate(isolate_,
+                 "(*) Sweeping is still in progress, making available sizes "
+                 "inaccurate.\n");
+  }
 }
 
 void Heap::PrintFreeListsStats() {
