@@ -534,18 +534,7 @@ bool Code::has_instruction_stream(RelaxedLoadTag tag) const {
 
 PtrComprCageBase Code::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return code_cage_base(GetIsolateFromWritableObject(*this));
-#else   // V8_EXTERNAL_CODE_SPACE
-  return code_cage_base(nullptr /* parameter unused */);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-PtrComprCageBase Code::code_cage_base(Isolate* isolate) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // Only available if the current Code object is not in RO space (otherwise we
-  // can't grab the current Isolate from it).
-  DCHECK(!InReadOnlySpace());
-  return PtrComprCageBase(isolate->code_cage_base());
+  return PtrComprCageBase(ExternalCodeCompressionScheme::base());
 #else   // V8_EXTERNAL_CODE_SPACE
   // Without external code space: `code_cage_base == main_cage_base`. We can
   // get the main cage base from any heap object, including objects in RO

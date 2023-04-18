@@ -3205,7 +3205,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
           Code::cast(flushing_candidate.function_data(kAcquireLoad));
       // Safe to do a relaxed load here since the Code was acquire-loaded.
       baseline_istream = baseline_code.instruction_stream(
-          baseline_code.code_cage_base(isolate()), kRelaxedLoad);
+          baseline_code.code_cage_base(), kRelaxedLoad);
       baseline_bytecode_or_interpreter_data =
           baseline_code.bytecode_or_interpreter_data();
     }

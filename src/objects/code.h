@@ -53,7 +53,6 @@ class Code : public HeapObject {
   // allocated in a separate pointer compression cage instead of the cage where
   // all the other objects are allocated.
   inline PtrComprCageBase code_cage_base() const;
-  inline PtrComprCageBase code_cage_base(Isolate* isolate) const;
 
   // Back-reference to the InstructionStream object.
   //
@@ -294,8 +293,12 @@ class Code : public HeapObject {
                                      Address current_pc = kNullAddress);
 #endif  // ENABLE_DISASSEMBLER
 
+#ifdef OBJECT_PRINT
+  void CodePrint(std::ostream& os, const char* name = nullptr,
+                 Address current_pc = kNullAddress);
+#endif
+
   DECL_CAST(Code)
-  DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
 // Layout description.

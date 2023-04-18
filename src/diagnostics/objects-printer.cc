@@ -1896,30 +1896,55 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 }
 
 void InstructionStream::InstructionStreamPrint(std::ostream& os) {
-  PrintHeader(os, "InstructionStream");
-  Code the_code = code(kAcquireLoad);
-  os << "\n - code: " << Brief(the_code);
-#ifdef ENABLE_DISASSEMBLER
-  the_code.Disassemble(nullptr, os, GetIsolate());
-#endif
+  code(kAcquireLoad).CodePrint(os);
 }
 
-void Code::CodePrint(std::ostream& os) {
+void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
+  // This prints the entire {Code,InstructionStream} composite object.
+  //
+  // First, Code:
   PrintHeader(os, "Code");
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
-    os << "\n - builtin: " << Builtins::name(builtin_id());
+    os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
-  if (has_instruction_stream()) {
-    os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
-  }
+  os << "\n - deoptimization_data_or_interpreter_data: "
+     << Brief(raw_deoptimization_data_or_interpreter_data());
+  os << "\n - position_table: " << Brief(raw_position_table());
+  os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "
      << reinterpret_cast<void*>(instruction_start());
-  os << "\n - flags: " << flags(kRelaxedLoad);
-  os << "\n";
-  if (has_instruction_stream()) {
-    instruction_stream().Print(os);
+  os << "\n - is_turbofanned: " << is_turbofanned();
+  os << "\n - stack_slots: " << stack_slots();
+  os << "\n - marked_for_deoptimization: " << marked_for_deoptimization();
+  os << "\n - embedded_objects_cleared: " << embedded_objects_cleared();
+  os << "\n - can_have_weak_objects: " << can_have_weak_objects();
+  os << "\n - instruction_size: " << instruction_size();
+  os << "\n - metadata_size: " << metadata_size();
+
+  os << "\n - inlined_bytecode_size: " << inlined_bytecode_size();
+  os << "\n - osr_offset: " << osr_offset();
+  os << "\n - handler_table_offset: " << handler_table_offset();
+  os << "\n - unwinding_info_offset: " << unwinding_info_offset();
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+    os << "\n - constant_pool_offset: " << constant_pool_offset();
   }
+  os << "\n - code_comments_offset: " << code_comments_offset();
+
+  // Then, InstructionStream:
+  if (has_instruction_stream()) {
+    InstructionStream istream = instruction_stream();
+    os << "\n - instruction_stream.relocation_info: "
+       << Brief(istream.relocation_info());
+    os << "\n - instruction_stream.body_size: " << istream.body_size();
+  }
+  os << "\n";
+
+  // Finally, the disassembly:
+#ifdef ENABLE_DISASSEMBLER
+  os << "\n--- Disassembly: ---\n";
+  Disassemble(name, os, Isolate::Current(), current_pc);
+#endif
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
@@ -3141,12 +3166,15 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
     return;
   }
 
-#ifdef ENABLE_DISASSEMBLER
+#if defined(OBJECT_PRINT)
+  i::StdoutStream os;
+  lookup_result->CodePrint(os, nullptr, address);
+#elif defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
   lookup_result->Disassemble(nullptr, os, isolate, address);
-#else   // ENABLE_DISASSEMBLER
+#else
   lookup_result->Print();
-#endif  // ENABLE_DISASSEMBLER
+#endif
 }
 
 V8_DONT_STRIP_SYMBOL
