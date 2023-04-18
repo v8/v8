@@ -624,6 +624,11 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool IsPromotionCandidate(const MemoryChunk* page) const;
 
+  // Return the available bytes without growing.
+  size_t Available() const final {
+    return PagedSpaceBase::Available() + limit() - top();
+  }
+
  private:
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
@@ -698,9 +703,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   // Return the available bytes without growing.
-  size_t Available() const final {
-    return paged_space_.Available() + limit() - top();
-  }
+  size_t Available() const final { return paged_space_.Available(); }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     return paged_space_.ExternalBackingStoreBytes(type);
