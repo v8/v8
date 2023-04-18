@@ -1579,6 +1579,68 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
 }
 
 template <Operation kOperation>
+ValueNode* MaglevGraphBuilder::BuildInt32CompareNode(ValueNode* left,
+                                                     ValueNode* right) {
+  DCHECK(left->value_representation() == ValueRepresentation::kInt32 &&
+         right->value_representation() == ValueRepresentation::kInt32);
+
+  if (left == right) {
+    switch (kOperation) {
+      case Operation::kEqual:
+      case Operation::kStrictEqual:
+      case Operation::kLessThanOrEqual:
+      case Operation::kGreaterThanOrEqual:
+        return GetRootConstant(RootIndex::kTrueValue);
+      case Operation::kLessThan:
+      case Operation::kGreaterThan:
+        return GetRootConstant(RootIndex::kFalseValue);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  auto try_get_constant = [&](ValueNode* node) -> base::Optional<int32_t> {
+    switch (node->opcode()) {
+      case Opcode::kSmiConstant:
+        return node->Cast<SmiConstant>()->value().value();
+      case Opcode::kInt32Constant:
+        return node->Cast<Int32Constant>()->value();
+      default:
+        return base::nullopt;
+    }
+  };
+  base::Optional<int> left_val = try_get_constant(left);
+  base::Optional<int> right_val = try_get_constant(right);
+  if (left_val.has_value() && right_val.has_value()) {
+    bool result_val;
+    switch (kOperation) {
+      case Operation::kEqual:
+      case Operation::kStrictEqual:
+        result_val = *left_val == *right_val;
+        break;
+      case Operation::kLessThanOrEqual:
+        result_val = *left_val <= *right_val;
+        break;
+      case Operation::kGreaterThanOrEqual:
+        result_val = *left_val >= *right_val;
+        break;
+      case Operation::kLessThan:
+        result_val = *left_val < *right_val;
+        break;
+      case Operation::kGreaterThan:
+        result_val = *left_val > *right_val;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    return GetRootConstant(result_val ? RootIndex::kTrueValue
+                                      : RootIndex::kFalseValue);
+  }
+
+  return AddNewNode<Int32NodeFor<kOperation>>({left, right});
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::VisitCompareOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
@@ -1592,7 +1654,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       if (TryBuildBranchFor<BranchIfInt32Compare>({left, right}, kOperation)) {
         return;
       }
-      SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
+      SetAccumulator(BuildInt32CompareNode<kOperation>(left, right));
       return;
     }
     case CompareOperationHint::kNumber: {
