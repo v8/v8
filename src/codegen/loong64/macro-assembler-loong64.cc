@@ -103,6 +103,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   Ld_d(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
+void MacroAssembler::LoadCompressedRoot(Register destination, RootIndex index) {
+  Ld_w(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
+}
 
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
   if (marker_reg.is_valid()) {
@@ -2229,11 +2232,21 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rj,
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rj,
-                            RootIndex index) {
+                            RootIndex index, bool need_sign_extend) {
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  LoadRoot(scratch, index);
-  CompareTaggedAndBranch(L, cond, rj, Operand(scratch));
+  Register right = temps.Acquire();
+  if (COMPRESS_POINTERS_BOOL) {
+    Register left = rj;
+    if (need_sign_extend) {
+      left = temps.hasAvailable() ? temps.Acquire() : t8;
+      slli_w(left, rj, 0);
+    }
+    LoadCompressedRoot(right, index);
+    Branch(L, cond, left, Operand(right));
+  } else {
+    LoadRoot(right, index);
+    Branch(L, cond, rj, Operand(right));
+  }
 }
 
 int32_t MacroAssembler::GetOffset(Label* L, OffsetSize bits) {
