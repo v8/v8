@@ -358,6 +358,8 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
+  'regress/asm/regress-775710': [PASS, SLOW],
+  'regress/regress-crbug-820312': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
