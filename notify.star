@@ -172,3 +172,29 @@ v8_notifier(
     ],
     notified_by = ["ci/V8 Linux - vtunejit"],
 )
+
+v8_notifier(
+    name = "branch monitor",
+    on_occurrence = ["FAILURE"],
+    notify_emails = [
+        "v8-infra-alerts@google.com",
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
+        "vahl@google.com",
+    ],
+    template = luci.notifier_template(
+        name = "rollwatcher_email",
+        body = """Branch monitor found revision lagging behind
+
+The builder {{.Build.Builder.Builder}} has detected an active V8 branch where a
+revision has remained unrolled into the corresponding Chromium branch for an
+extended period.
+
+Please <a href=\"https://bugs.chromium.org/p/chromium/issues/entry?summary=Branch%20monitor%20found%20revision%20lagging%20behind&description=See%20build%20https://ci.chromium.org/b/{{.Build.Id}}&components=Infra%3EClient%3EV8&priority=0\">
+open a bug</a>.
+
+<a href=\"https://ci.chromium.org/b/{{.Build.Id}}\">Build {{.Build.Number}}</a>
+on `{{.Build.EndTime | time}}`
+""",
+    ),
+)
