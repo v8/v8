@@ -299,6 +299,9 @@ class V8_NODISCARD SealHandleScope final {
 };
 
 struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kSystemPointerSize + 2 * kInt32Size;
+
   Address* next;
   Address* limit;
   int level;
@@ -309,6 +312,8 @@ struct HandleScopeData final {
     sealed_level = level = 0;
   }
 };
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 

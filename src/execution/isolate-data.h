@@ -49,6 +49,7 @@ class Isolate;
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)    \
+  V(kHandleScopeDataOffset, HandleScopeData::kSizeInBytes, handle_scope_data) \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
     embedder_data)                                                            \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
@@ -233,6 +234,7 @@ class IsolateData final {
   size_t long_task_stats_counter_ = 0;
 
   ThreadLocalTop thread_local_top_;
+  HandleScopeData handle_scope_data_;
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8-internal.h) constants. The

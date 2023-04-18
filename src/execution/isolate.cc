@@ -3413,7 +3413,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   // before it is entered.
   thread_manager_ = new ThreadManager(this);
 
-  handle_scope_data_.Initialize();
+  handle_scope_data()->Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value) \
   name##_ = (initial_value);
@@ -3473,6 +3473,13 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
+
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.thread_local_top_)),
+      Internals::kIsolateThreadLocalTopOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.handle_scope_data_)),
+      Internals::kIsolateHandleScopeDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
 #ifdef V8_COMPRESS_POINTERS

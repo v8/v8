@@ -5019,50 +5019,32 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
 namespace {
 
-// The number of register that CallApiFunctionAndReturn will need to save on
-// the stack. The space for these registers need to be allocated in the
-// ExitFrame before calling CallApiFunctionAndReturn.
-constexpr int kCallApiFunctionSpillSpace = 4;
-
-int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
-  return static_cast<int>(ref0.address() - ref1.address());
-}
-
 // Calls an API function. Allocates HandleScope, extracts returned value
 // from handle and propagates exceptions.
 // 'stack_space' is the space to be unwound on exit (includes the call JS
 // arguments space and the additional space allocated for the fast call).
-// 'spill_offset' is the offset from the stack pointer where
-// CallApiFunctionAndReturn can spill registers.
 void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
                               ExternalReference thunk_ref, int stack_space,
-                              MemOperand* stack_space_operand, int spill_offset,
+                              MemOperand* stack_space_operand,
                               MemOperand return_value_operand) {
   ASM_CODE_COMMENT(masm);
   ASM_LOCATION("CallApiFunctionAndReturn");
+
+  using ER = ExternalReference;
+
   Isolate* isolate = masm->isolate();
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate);
-  const int kNextOffset = 0;
-  const int kLimitOffset = AddressOffset(
-      ExternalReference::handle_scope_limit_address(isolate), next_address);
-  const int kLevelOffset = AddressOffset(
-      ExternalReference::handle_scope_level_address(isolate), next_address);
+  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_next_address(isolate), no_reg);
+  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_limit_address(isolate), no_reg);
+  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_level_address(isolate), no_reg);
 
   DCHECK(function_address == x1 || function_address == x2);
-
-  // Save the callee-save registers we are going to use.
-  // TODO(all): Is this necessary? ARM doesn't do it.
-  static_assert(kCallApiFunctionSpillSpace == 4);
-  __ Poke(x19, (spill_offset + 0) * kXRegSize);
-  __ Poke(x20, (spill_offset + 1) * kXRegSize);
-  __ Poke(x21, (spill_offset + 2) * kXRegSize);
-  __ Poke(x22, (spill_offset + 3) * kXRegSize);
 
   // Allocate HandleScope in callee-save registers.
   // We will need to restore the HandleScope after the call to the API function,
   // by allocating it in callee-save registers they will be preserved by C code.
-  Register handle_scope_base = x22;
   Register next_address_reg = x19;
   Register limit_reg = x20;
   Register level_reg = w21;
@@ -5070,22 +5052,21 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Allocate HandleScope in callee-save registers.");
-    __ Mov(handle_scope_base, next_address);
-    __ Ldr(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
-    __ Ldr(limit_reg, MemOperand(handle_scope_base, kLimitOffset));
-    __ Ldr(level_reg, MemOperand(handle_scope_base, kLevelOffset));
+    __ Ldr(next_address_reg, next_mem_op);
+    __ Ldr(limit_reg, limit_mem_op);
+    __ Ldr(level_reg, level_mem_op);
     __ Add(level_reg, level_reg, 1);
-    __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
+    __ Str(level_reg, level_mem_op);
   }
 
   Label profiler_or_side_effects_check_enabled, done_api_call;
   __ RecordComment("Check if profiler or side effects check is enabled");
   __ Ldrb(w10, __ ExternalReferenceAsOperand(
-                   ExternalReference::execution_mode_address(isolate), x10));
+                   ER::execution_mode_address(isolate), no_reg));
   __ Cbnz(w10, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
   __ RecordComment("Check if RCS is enabled");
-  __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
+  __ Mov(x10, ER::address_of_runtime_stats_flag());
   __ Ldrsw(w10, MemOperand(x10));
   __ Cbnz(w10, &profiler_or_side_effects_check_enabled);
 #endif  // V8_RUNTIME_CALL_STATS
@@ -5108,26 +5089,21 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
         masm,
         "No more valid handles (the result handle was the last one)."
         "Restore previous handle scope.");
-    __ Str(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
+    __ Str(next_address_reg, next_mem_op);
     if (v8_flags.debug_code) {
-      __ Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
+      __ Ldr(w1, level_mem_op);
       __ Cmp(w1, level_reg);
       __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
     }
     __ Sub(level_reg, level_reg, 1);
-    __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
-    __ Ldr(x1, MemOperand(handle_scope_base, kLimitOffset));
+    __ Str(level_reg, level_mem_op);
+    __ Ldr(x1, limit_mem_op);
     __ Cmp(limit_reg, x1);
     __ B(ne, &delete_allocated_handles);
   }
 
   __ RecordComment("Leave the API exit frame.");
   __ Bind(&leave_exit_frame);
-  // Restore callee-saved registers.
-  __ Peek(x19, (spill_offset + 0) * kXRegSize);
-  __ Peek(x20, (spill_offset + 1) * kXRegSize);
-  __ Peek(x21, (spill_offset + 2) * kXRegSize);
-  __ Peek(x22, (spill_offset + 3) * kXRegSize);
 
   if (stack_space_operand != nullptr) {
     DCHECK_EQ(stack_space, 0);
@@ -5140,7 +5116,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
+    __ Mov(x5, ER::scheduled_exception_address(isolate));
     __ Ldr(x5, MemOperand(x5));
     __ JumpIfNotRoot(x5, RootIndex::kTheHoleValue,
                      &promote_scheduled_exception);
@@ -5190,12 +5166,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     ASM_CODE_COMMENT_STRING(
         masm, "HandleScope limit has changed. Delete allocated extensions.");
     __ Bind(&delete_allocated_handles);
-    __ Str(limit_reg, MemOperand(handle_scope_base, kLimitOffset));
+    __ Str(limit_reg, limit_mem_op);
     // Save the return value in a callee-save register.
     Register saved_result = x19;
     __ Mov(saved_result, x0);
-    __ Mov(x0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
+    __ Mov(x0, ER::isolate_address(isolate));
+    __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
     __ Mov(x0, saved_result);
     __ B(&leave_exit_frame);
   }
@@ -5297,8 +5273,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
-                    StackFrame::EXIT);
+  __ EnterExitFrame(x10, kApiStackSpace, StackFrame::EXIT);
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
@@ -5338,13 +5313,12 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   MemOperand return_value_operand =
       ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
-  static constexpr int kSpillOffset = 1 + kApiStackSpace;
   static constexpr int kUseStackSpaceOperand = 0;
 
   AllowExternalCallThatCantCauseGC scope(masm);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kUseStackSpaceOperand, &stack_space_operand,
-                           kSpillOffset, return_value_operand);
+                           return_value_operand);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -5418,8 +5392,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   const int kApiStackSpace = 1;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
-                    StackFrame::EXIT);
+  __ EnterExitFrame(x10, kApiStackSpace, StackFrame::EXIT);
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
   // Iitialize it's args_ field.
@@ -5434,14 +5407,13 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
-  static constexpr int kSpillOffset = 1 + kApiStackSpace;
   MemOperand return_value_operand =
       ExitFrameCallerStackSlotOperand(kPCAStackIndex + PCA::kReturnValueIndex);
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
-                           kSpillOffset, return_value_operand);
+                           return_value_operand);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

@@ -3295,33 +3295,35 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
                               Operand* stack_space_operand,
                               Operand return_value_operand) {
   ASM_CODE_COMMENT(masm);
-  Isolate* isolate = masm->isolate();
 
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate);
-  ExternalReference limit_address =
-      ExternalReference::handle_scope_limit_address(isolate);
-  ExternalReference level_address =
-      ExternalReference::handle_scope_level_address(isolate);
+  using ER = ExternalReference;
+
+  Isolate* isolate = masm->isolate();
+  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_next_address(isolate), no_reg);
+  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_limit_address(isolate), no_reg);
+  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_level_address(isolate), no_reg);
 
   DCHECK(edx == function_address);
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Allocate HandleScope in callee-save registers.");
-    __ add(__ ExternalReferenceAsOperand(level_address, esi), Immediate(1));
-    __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
-    __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
+    __ add(level_mem_op, Immediate(1));
+    __ mov(esi, next_mem_op);
+    __ mov(edi, limit_mem_op);
   }
 
   Label profiler_or_side_effects_check_enabled, done_api_call;
   __ RecordComment("Check if profiler or side effects check is enabled");
-  __ cmpb(__ ExternalReferenceAsOperand(
-              ExternalReference::execution_mode_address(isolate), eax),
+  __ cmpb(__ ExternalReferenceAsOperand(ER::execution_mode_address(isolate),
+                                        no_reg),
           Immediate(0));
   __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
   __ RecordComment("Check if RCS is enabled");
-  __ Move(eax, Immediate(ExternalReference::address_of_runtime_stats_flag()));
+  __ Move(eax, Immediate(ER::address_of_runtime_stats_flag()));
   __ cmp(Operand(eax, 0), Immediate(0));
   __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #endif  // V8_RUNTIME_CALL_STATS
@@ -3343,10 +3345,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
         masm,
         "No more valid handles (the result handle was the last one)."
         "Restore previous handle scope.");
-    __ mov(__ ExternalReferenceAsOperand(next_address, ecx), esi);
-    __ sub(__ ExternalReferenceAsOperand(level_address, ecx), Immediate(1));
+    __ mov(next_mem_op, esi);
+    __ sub(level_mem_op, Immediate(1));
     __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
-    __ cmp(edi, __ ExternalReferenceAsOperand(limit_address, ecx));
+    __ cmp(edi, limit_mem_op);
     __ j(not_equal, &delete_allocated_handles);
   }
 
@@ -3361,10 +3363,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    ExternalReference scheduled_exception_address =
-        ExternalReference::scheduled_exception_address(isolate);
-    __ mov(ecx,
-           __ ExternalReferenceAsOperand(scheduled_exception_address, ecx));
+    __ mov(ecx, __ ExternalReferenceAsOperand(
+                    ER::scheduled_exception_address(isolate), no_reg));
     __ CompareRoot(ecx, RootIndex::kTheHoleValue);
     __ j(not_equal, &promote_scheduled_exception);
   }
@@ -3411,14 +3411,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(
         masm, "HandleScope limit has changed. Delete allocated extensions.");
-    ExternalReference delete_extensions =
-        ExternalReference::delete_handle_scope_extensions();
     __ bind(&delete_allocated_handles);
-    __ mov(__ ExternalReferenceAsOperand(limit_address, ecx), edi);
+    __ mov(limit_mem_op, edi);
     __ mov(edi, eax);
-    __ Move(eax, Immediate(ExternalReference::isolate_address(isolate)));
+    __ Move(eax, Immediate(ER::isolate_address(isolate)));
     __ mov(Operand(esp, 0), eax);
-    __ Move(eax, Immediate(delete_extensions));
+    __ Move(eax, Immediate(ER::delete_handle_scope_extensions()));
     __ call(eax);
     __ mov(eax, edi);
     __ jmp(&leave_exit_frame);
@@ -3529,7 +3527,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
                  (FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
   __ mov(ApiParameterOperand(kApiArgc + 3), scratch);
 
-  __ RecordComment("v8::InvocationCallback's argument.");
+  __ RecordComment("v8::FunctionCallback's argument.");
   __ lea(scratch, ApiParameterOperand(kApiArgc + 0));
   __ mov(ApiParameterOperand(0), scratch);
 

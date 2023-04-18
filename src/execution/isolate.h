@@ -1275,7 +1275,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return descriptor_lookup_cache_;
   }
 
-  V8_INLINE HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
+  V8_INLINE HandleScopeData* handle_scope_data() {
+    return &isolate_data_.handle_scope_data_;
+  }
 
   HandleScopeImplementer* handle_scope_implementer() const {
     DCHECK(handle_scope_implementer_);
@@ -2198,7 +2200,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_ =
       StackTrace::kOverview;
   DescriptorLookupCache* descriptor_lookup_cache_ = nullptr;
-  HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_ = nullptr;
   UnicodeCache* unicode_cache_ = nullptr;
   AccountingAllocator* allocator_ = nullptr;

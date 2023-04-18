@@ -522,6 +522,8 @@ class Internals {
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
   static const int kThreadLocalTopSize = 25 * kApiSystemPointerSize;
+  static const int kHandleScopeDataSize =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable layout guarantees.
   static const int kExternalPointerTableBufferOffset = 0;
@@ -551,8 +553,10 @@ class Internals {
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateThreadLocalTopOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
-  static const int kIsolateEmbedderDataOffset =
+  static const int kIsolateHandleScopeDataOffset =
       kIsolateThreadLocalTopOffset + kThreadLocalTopSize;
+  static const int kIsolateEmbedderDataOffset =
+      kIsolateHandleScopeDataOffset + kHandleScopeDataSize;
 #ifdef V8_COMPRESS_POINTERS
   static const int kIsolateExternalPointerTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;

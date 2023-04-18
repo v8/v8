@@ -4579,13 +4579,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
 namespace {
 
-int Offset(ExternalReference ref0, ExternalReference ref1) {
-  int64_t offset = (ref0.address() - ref1.address());
-  // Check that fits into int.
-  DCHECK(static_cast<int>(offset) == offset);
-  return static_cast<int>(offset);
-}
-
 // Calls an API function.  Allocates HandleScope, extracts returned value
 // from handle and propagates exceptions.  Clobbers r12, r15, rbx and
 // caller-save registers.  Restores context.  On return removes
@@ -4600,37 +4593,36 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
+  using ER = ExternalReference;
+
   Isolate* isolate = masm->isolate();
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate);
-  const int kNextOffset = 0;
-  const int kLimitOffset = Offset(
-      ExternalReference::handle_scope_limit_address(isolate), next_address);
-  const int kLevelOffset = Offset(
-      ExternalReference::handle_scope_level_address(isolate), next_address);
+  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_next_address(isolate), no_reg);
+  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_limit_address(isolate), no_reg);
+  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_level_address(isolate), no_reg);
 
   DCHECK(rdx == function_address || r8 == function_address);
   Register prev_next_address_reg = r12;
-  Register prev_limit_reg = rbx;
-  Register base_reg = r15;
+  Register prev_limit_reg = r15;
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Allocate HandleScope in callee-save registers.");
-    __ Move(base_reg, next_address);
-    __ movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
-    __ movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
-    __ addl(Operand(base_reg, kLevelOffset), Immediate(1));
+    __ movq(prev_next_address_reg, next_mem_op);
+    __ movq(prev_limit_reg, limit_mem_op);
+    __ addl(level_mem_op, Immediate(1));
   }
 
   Label profiler_or_side_effects_check_enabled, done_api_call;
   __ RecordComment("Check if profiler or side effects check is enabled");
-  __ cmpb(__ ExternalReferenceAsOperand(
-              ExternalReference::execution_mode_address(isolate), rax),
+  __ cmpb(__ ExternalReferenceAsOperand(ER::execution_mode_address(isolate),
+                                        no_reg),
           Immediate(0));
   __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
   __ RecordComment("Check if RCS is enabled");
-  __ Move(rax, ExternalReference::address_of_runtime_stats_flag());
+  __ Move(rax, ER::address_of_runtime_stats_flag());
   __ cmpl(Operand(rax, 0), Immediate(0));
   __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #endif  // V8_RUNTIME_CALL_STATS
@@ -4648,9 +4640,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
         masm,
         "No more valid handles (the result handle was the last one)."
         "Restore previous handle scope.");
-    __ subl(Operand(base_reg, kLevelOffset), Immediate(1));
-    __ movq(Operand(base_reg, kNextOffset), prev_next_address_reg);
-    __ cmpq(prev_limit_reg, Operand(base_reg, kLimitOffset));
+    __ subl(level_mem_op, Immediate(1));
+    __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
+    __ movq(next_mem_op, prev_next_address_reg);
+    __ cmpq(prev_limit_reg, limit_mem_op);
     __ j(not_equal, &delete_allocated_handles);
   }
 
@@ -4665,10 +4658,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    ExternalReference scheduled_exception_address =
-        ExternalReference::scheduled_exception_address(isolate);
-    __ Move(rdi, scheduled_exception_address);
-    __ CompareRoot(Operand(rdi, 0), RootIndex::kTheHoleValue);
+    __ CompareRoot(__ ExternalReferenceAsOperand(
+                       ER::scheduled_exception_address(isolate), no_reg),
+                   RootIndex::kTheHoleValue);
     __ j(not_equal, &promote_scheduled_exception);
   }
 
@@ -4717,10 +4709,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     ASM_CODE_COMMENT_STRING(
         masm, "HandleScope limit has changed. Delete allocated extensions.");
     __ bind(&delete_allocated_handles);
-    __ movq(Operand(base_reg, kLimitOffset), prev_limit_reg);
+    __ movq(limit_mem_op, prev_limit_reg);
     __ movq(prev_limit_reg, rax);
-    __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate));
-    __ LoadAddress(rax, ExternalReference::delete_handle_scope_extensions());
+    __ LoadAddress(arg_reg_1, ER::isolate_address(isolate));
+    __ LoadAddress(rax, ER::delete_handle_scope_extensions());
     __ call(rax);
     __ movq(rax, prev_limit_reg);
     __ jmp(&leave_exit_frame);
