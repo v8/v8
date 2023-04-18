@@ -905,9 +905,11 @@ class MaglevGraphBuilder {
                             UseReprHintRecording record_use_repr_hint =
                                 UseReprHintRecording::kRecord);
 
-  ValueNode* GetTaggedValue(interpreter::Register reg) {
+  ValueNode* GetTaggedValue(interpreter::Register reg,
+                            UseReprHintRecording record_use_repr_hint =
+                                UseReprHintRecording::kRecord) {
     ValueNode* value = current_interpreter_frame_.get(reg);
-    return GetTaggedValue(value);
+    return GetTaggedValue(value, record_use_repr_hint);
   }
 
   void SetKnownType(ValueNode* node, NodeType type) {
@@ -992,8 +994,10 @@ class MaglevGraphBuilder {
         interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorTagged() {
-    return GetTaggedValue(interpreter::Register::virtual_accumulator());
+  ValueNode* GetAccumulatorTagged(UseReprHintRecording record_use_repr_hint =
+                                      UseReprHintRecording::kRecord) {
+    return GetTaggedValue(interpreter::Register::virtual_accumulator(),
+                          record_use_repr_hint);
   }
 
   ValueNode* GetAccumulatorInt32() {

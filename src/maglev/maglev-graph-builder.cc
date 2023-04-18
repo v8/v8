@@ -7141,7 +7141,12 @@ void MaglevGraphBuilder::VisitReturn() {
   }
 
   if (!is_inline()) {
-    FinishBlock<Return>({GetAccumulatorTagged()});
+    // We do not record a Tagged use on Return, since they are never on the hot
+    // path, and will lead to a maximum of one additional Tagging operation in
+    // the worst case. This allows loop accumulator to be untagged even if they
+    // are later returned.
+    FinishBlock<Return>(
+        {GetAccumulatorTagged(UseReprHintRecording::kDoNotRecord)});
     return;
   }
 
