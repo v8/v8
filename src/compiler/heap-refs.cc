@@ -656,7 +656,11 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(object());
 
-  CHECK_EQ(*context_->object(), f->context());
+  if (*context_->object() != f->context()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::context");
+    return false;
+  }
+
   CHECK_EQ(*shared_->object(), f->shared());
 
   if (f->has_prototype_slot()) {
