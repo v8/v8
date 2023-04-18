@@ -143,8 +143,14 @@ class YoungGenerationMainMarkingVisitor final
     kPushToWorklist,
   };
 
+  enum class SlotTreatmentMode {
+    kReadOnly,
+    kReadWrite,
+  };
+
   // Returns whether a young generation object was found in slot.
-  template <ObjectVisitationMode visitation_mode, typename TSlot>
+  template <ObjectVisitationMode visitation_mode,
+            SlotTreatmentMode slot_treatment_mode, typename TSlot>
   V8_INLINE bool VisitObjectViaSlot(TSlot slot);
 
  private:

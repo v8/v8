@@ -5644,19 +5644,12 @@ class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
-    main_marking_visitor_
-        ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
-                                 ObjectVisitationMode::kPushToWorklist>(p);
+    VisitPointersImpl(root, p, p + 1);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      DCHECK(!MapWord::IsPacked((*p).ptr()));
-      main_marking_visitor_
-          ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
-                                   ObjectVisitationMode::kPushToWorklist>(p);
-    }
+    VisitPointersImpl(root, start, end);
   }
 
   GarbageCollector collector() const override {
@@ -5664,6 +5657,27 @@ class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   }
 
  private:
+  template <typename TSlot>
+  void VisitPointersImpl(Root root, TSlot start, TSlot end) {
+    if (root == Root::kStackRoots) {
+      for (TSlot slot = start; slot < end; ++slot) {
+        main_marking_visitor_->VisitObjectViaSlot<
+            YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
+                kPushToWorklist,
+            YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadOnly>(
+            slot);
+      }
+    } else {
+      for (TSlot slot = start; slot < end; ++slot) {
+        main_marking_visitor_->VisitObjectViaSlot<
+            YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
+                kPushToWorklist,
+            YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadWrite>(
+            slot);
+      }
+    }
+  }
+
   YoungGenerationMainMarkingVisitor* const main_marking_visitor_;
 };
 
@@ -5974,8 +5988,9 @@ V8_INLINE SlotCallbackResult PageMarkingItem::CheckAndMarkObject(
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   return task->visitor()
                  ->VisitObjectViaSlot<YoungGenerationMainMarkingVisitor::
-                                          ObjectVisitationMode::kVisitDirectly>(
-                     slot)
+                                          ObjectVisitationMode::kVisitDirectly,
+                                      YoungGenerationMainMarkingVisitor::
+                                          SlotTreatmentMode::kReadWrite>(slot)
              ? KEEP_SLOT
              : REMOVE_SLOT;
 }

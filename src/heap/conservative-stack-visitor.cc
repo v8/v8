@@ -174,7 +174,7 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
   if (base_ptr == kNullAddress) return;
   HeapObject obj = HeapObject::FromAddress(base_ptr);
   Object root = obj;
-  delegate_->VisitRootPointer(Root::kHandleScope, nullptr,
+  delegate_->VisitRootPointer(Root::kStackRoots, nullptr,
                               FullObjectSlot(&root));
   // Check that the delegate visitor did not modify the root slot.
   DCHECK_EQ(root, obj);

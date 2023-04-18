@@ -150,12 +150,15 @@ void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
                                                           TSlot start,
                                                           TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    VisitObjectViaSlot<ObjectVisitationMode::kPushToWorklist>(slot);
+    VisitObjectViaSlot<
+        ObjectVisitationMode::kPushToWorklist,
+        YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadWrite>(slot);
   }
 }
 
 template <
     YoungGenerationMainMarkingVisitor::ObjectVisitationMode visitation_mode,
+    YoungGenerationMainMarkingVisitor::SlotTreatmentMode slot_treatment_mode,
     typename TSlot>
 V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
     TSlot slot) {
@@ -167,7 +170,8 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
     return false;
   }
 
-  if (!ShortCutStrings(reinterpret_cast<HeapObjectSlot&>(slot), &heap_object)) {
+  if (slot_treatment_mode == SlotTreatmentMode::kReadWrite &&
+      !ShortCutStrings(reinterpret_cast<HeapObjectSlot&>(slot), &heap_object)) {
     return false;
   }
 
