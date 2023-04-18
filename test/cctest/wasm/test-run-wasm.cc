@@ -16,10 +16,7 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace test_run_wasm {
+namespace v8::internal::wasm {
 
 // for even shorter tests.
 #define B1(a) WASM_BLOCK(a)
@@ -3938,34 +3935,9 @@ WASM_EXEC_TEST(I64RemUOnDifferentRegisters) {
       });
 }
 
-TEST(Regression_1085507) {
-  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-  TestSignatures sigs;
-  uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());
-  r.Build({WASM_I32V_1(0), kExprIf, kVoidCode, WASM_UNREACHABLE,
-           WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd,
-           WASM_I32V_1(0)});
-}
-
-TEST(Regression_1185323_1185492) {
-  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-  r.builder().AddIndirectFunctionTable(nullptr, 1);
-  r.Build({WASM_I32V_1(0),
-           // Use a long leb128 encoding of kExprTableSize instruction.
-           // This exercises a bug in the interpreter which tries to read the
-           // immediate at pc+2 (it should be pc+4).
-           kNumericPrefix, 0x90, 0x80, 0x00, 0x00,  // table.size 0.
-           WASM_UNREACHABLE, kExprTableSet,
-           0x00});  // Hits a DCHECK if reached.
-  r.Call();
-}
-
 #undef B1
 #undef B2
 #undef RET
 #undef RET_I8
 
-}  // namespace test_run_wasm
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

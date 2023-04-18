@@ -16,7 +16,6 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -131,72 +130,6 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   }
   return CallWasmFunctionForTesting(isolate, instance.ToHandleChecked(), "main",
                                     {});
-}
-
-WasmInterpretationResult InterpretWasmModule(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    int32_t function_index, WasmValue* args) {
-  // Don't execute more than 16k steps.
-  constexpr int kMaxNumSteps = 16 * 1024;
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  v8::internal::HandleScope scope(isolate);
-  const WasmFunction* func = &instance->module()->functions[function_index];
-
-  CHECK(func->exported);
-  // This would normally be handled by export wrappers.
-  if (!IsJSCompatibleSignature(func->sig)) {
-    return WasmInterpretationResult::Trapped(false);
-  }
-
-  WasmInterpreter interpreter{
-      isolate, instance->module(),
-      ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
-      instance};
-  interpreter.InitFrame(func, args);
-  WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
-
-  bool stack_overflow = isolate->has_pending_exception();
-  isolate->clear_pending_exception();
-
-  if (stack_overflow) return WasmInterpretationResult::Failed();
-
-  if (interpreter.state() == WasmInterpreter::TRAPPED) {
-    return WasmInterpretationResult::Trapped(
-        interpreter.PossibleNondeterminism());
-  }
-
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    // Get the result as an {int32_t}. Keep this in sync with
-    // {CallWasmFunctionForTesting}, because fuzzers will compare the results.
-    int32_t result = -1;
-    if (func->sig->return_count() > 0) {
-      WasmValue return_value = interpreter.GetReturnValue();
-      switch (func->sig->GetReturn(0).kind()) {
-        case kI32:
-          result = return_value.to<int32_t>();
-          break;
-        case kI64:
-          result = static_cast<int32_t>(return_value.to<int64_t>());
-          break;
-        case kF32:
-          result = static_cast<int32_t>(return_value.to<float>());
-          break;
-        case kF64:
-          result = static_cast<int32_t>(return_value.to<double>());
-          break;
-        default:
-          break;
-      }
-    }
-    return WasmInterpretationResult::Finished(
-        result, interpreter.PossibleNondeterminism());
-  }
-
-  // The interpreter did not finish within the limited number of steps, so it
-  // might execute an infinite loop or infinite recursion. Return "failed"
-  // status in that case.
-  return WasmInterpretationResult::Failed();
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
