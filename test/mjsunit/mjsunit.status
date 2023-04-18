@@ -1251,6 +1251,10 @@
   # module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
 
+  # The test triggers profiling, which can trigger non-deterministic
+  # allocations.
+  'regress/regress-1394663': [SKIP],
+
   # BUG(v8:12605): flaky test.
   'wasm/grow-shared-memory': [SKIP],
 
