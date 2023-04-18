@@ -213,23 +213,10 @@ Counters::Counters(Isolate* isolate)
   } kStatsCounters[] = {
 #define SC(name, caption) {&Counters::name##_, "c:" caption},
 #define BARE_SC(name, caption) SC(name, #caption)
-#define COUNT_AND_SIZE_SC(name)            \
-  SC(count_of_##name, "V8.CountOf_" #name) \
-  SC(size_of_##name, "V8.SizeOf_" #name)
-#define CODE_KIND_SC(name) COUNT_AND_SIZE_SC(CODE_TYPE_##name)
-#define FIXED_ARRAY_INSTANCE_TYPE_SC(name) COUNT_AND_SIZE_SC(FIXED_ARRAY_##name)
-
       // clang-format off
   STATS_COUNTER_LIST(BARE_SC)
   STATS_COUNTER_NATIVE_CODE_LIST(BARE_SC)
-  INSTANCE_TYPE_LIST(COUNT_AND_SIZE_SC)
-  CODE_KIND_LIST(CODE_KIND_SC)
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_INSTANCE_TYPE_SC)
   // clang-format on
-
-#undef FIXED_ARRAY_INSTANCE_TYPE_SC
-#undef CODE_KIND_SC
-#undef COUNT_AND_SIZE_SC
 #undef BARE_SC
 #undef SC
   };
@@ -244,24 +231,6 @@ void Counters::ResetCounterFunction(CounterLookupCallback f) {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
-#undef SC
-
-#define SC(name)              \
-  count_of_##name##_.Reset(); \
-  size_of_##name##_.Reset();
-  INSTANCE_TYPE_LIST(SC)
-#undef SC
-
-#define SC(name)                        \
-  count_of_CODE_TYPE_##name##_.Reset(); \
-  size_of_CODE_TYPE_##name##_.Reset();
-  CODE_KIND_LIST(SC)
-#undef SC
-
-#define SC(name)                          \
-  count_of_FIXED_ARRAY_##name##_.Reset(); \
-  size_of_FIXED_ARRAY_##name##_.Reset();
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 }
 
