@@ -5906,8 +5906,6 @@ void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk, SlotType slot_type,
       heap_object.InWritableSharedSpace()) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-
-    base::MutexGuard guard(chunk->mutex());
     RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
                                               static_cast<uint32_t>(offset));
   }
