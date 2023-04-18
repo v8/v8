@@ -69,7 +69,7 @@ class AsyncHooks {
 
  private:
   std::vector<std::shared_ptr<AsyncHooksWrap>> async_wraps_;
-  Isolate* isolate_;
+  v8::Isolate* v8_isolate_;
   Persistent<ObjectTemplate> async_hooks_templ;
   Persistent<Private> async_id_symbol;
   Persistent<Private> trigger_id_symbol;
@@ -83,6 +83,9 @@ class AsyncHooks {
 
   std::stack<AsyncContext> asyncContexts;
   async_id_t current_async_id;
+  // We might end up in an invalid state after skipping steps due to
+  // terminations.
+  bool skip_after_termination_ = false;
 };
 
 }  // namespace v8
