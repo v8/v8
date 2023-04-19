@@ -3424,6 +3424,9 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       isolate->CountUsage(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
+  if (scanner_.SawMagicCommentCompileHintsAll()) {
+    isolate->CountUsage(v8::Isolate::kCompileHintsMagicAll);
+  }
 }
 
 void Parser::UpdateStatistics(
@@ -3443,6 +3446,10 @@ void Parser::UpdateStatistics(
       use_counts->emplace_back(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
+  if (scanner_.SawMagicCommentCompileHintsAll()) {
+    use_counts->emplace_back(v8::Isolate::kCompileHintsMagicAll);
+  }
+
   *preparse_skipped = total_preparse_skipped_;
 }
 

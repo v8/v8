@@ -539,6 +539,7 @@ class V8_EXPORT Isolate {
     kImportAssertionDeprecatedSyntax = 120,
     kLocaleInfoObsoletedGetters = 121,
     kLocaleInfoFunctions = 122,
+    kCompileHintsMagicAll = 123,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
