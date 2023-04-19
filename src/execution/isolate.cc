@@ -5116,6 +5116,8 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
     MaybeHandle<Object> maybe_import_assertions_argument) {
+  DCHECK(!is_execution_terminating());
+  DCHECK(!is_execution_termination_pending());
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>::cast(native_context()));
   if (host_import_module_dynamically_with_import_assertions_callback_ ==
@@ -5129,6 +5131,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   Handle<String> specifier_str;
   MaybeHandle<String> maybe_specifier = Object::ToString(this, specifier);
   if (!maybe_specifier.ToHandle(&specifier_str)) {
+    if (is_execution_termination_pending()) {
+      return MaybeHandle<JSPromise>();
+    }
     Handle<Object> exception(pending_exception(), this);
     clear_pending_exception();
     return NewRejectedPromise(this, api_context, exception);
@@ -5139,6 +5144,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   Handle<FixedArray> import_assertions_array;
   if (!GetImportAssertionsFromArgument(maybe_import_assertions_argument)
            .ToHandle(&import_assertions_array)) {
+    if (is_execution_termination_pending()) {
+      return MaybeHandle<JSPromise>();
+    }
     Handle<Object> exception(pending_exception(), this);
     clear_pending_exception();
     return NewRejectedPromise(this, api_context, exception);
