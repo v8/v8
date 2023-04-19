@@ -572,7 +572,6 @@ v8_source_set("v8_unittests_sources") {
       "asmjs/asm-types-unittest.cc",
       "compiler/int64-lowering-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
-      "wasm/control-transfer-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
