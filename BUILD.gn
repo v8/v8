@@ -2245,13 +2245,11 @@ template("run_mksnapshot") {
       args += [
         "--turbo-profiling-input",
         rebase_path(v8_builtins_profiling_log_file, root_build_dir),
-      ]
 
-      # Replace this with --warn-about-builtin-profile-data to see the full
-      # list of builtins with incompatible profiles.
-      # TODO(crbug.com/v8/13647): Do not fail for invalid profiles
-      # args += [ "--abort-on-bad-builtin-profile-data" ]
-      args += [ "--warn-about-builtin-profile-data" ]
+        # Replace this with --warn-about-builtin-profile-data to see the full
+        # list of builtins with incompatible profiles.
+        "--abort-on-bad-builtin-profile-data",
+     ]
     }
 
     # This is needed to distinguish between generating code for the simulator
