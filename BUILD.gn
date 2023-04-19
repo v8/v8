@@ -646,8 +646,8 @@ assert(
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
         v8_current_cpu == "arm64" || v8_current_cpu == "riscv64" ||
-        v8_current_cpu == "ppc64",
-    "Sharing a pointer compression cage is only supported on x64,arm64, ppc64 and riscv64")
+        v8_current_cpu == "ppc64" || v8_current_cpu == "loong64",
+    "Sharing a pointer compression cage is only supported on x64, arm64, ppc64, riscv64 and loong64")
 
 assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
