@@ -30,7 +30,6 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-class InterpretedFrame;
 class NativeModule;
 class WasmCode;
 struct WasmFunction;
