@@ -253,10 +253,15 @@ class MaglevGraphBuilder {
                                         ValueNode* closure = nullptr);
   void BuildMergeStates();
   BasicBlock* EndPrologue();
+  void PeelLoop();
 
   void BuildBody() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
       local_isolate_->heap()->Safepoint();
+      if (V8_UNLIKELY(
+              loop_headers_to_peel_.Contains(iterator_.current_offset()))) {
+        PeelLoop();
+      }
       VisitSingleBytecode();
     }
   }
@@ -439,7 +444,9 @@ class MaglevGraphBuilder {
     } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
       // JumpLoop merges into its loop header, which has to be treated
       // specially by the merge.
-      MergeDeadLoopIntoFrameState(iterator_.GetJumpTargetOffset());
+      if (!in_peeled_iteration_) {
+        MergeDeadLoopIntoFrameState(iterator_.GetJumpTargetOffset());
+      }
     } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
       // Switches merge into their targets, and into the fallthrough.
       for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
@@ -1677,11 +1684,41 @@ class MaglevGraphBuilder {
     predecessors_ = zone()->NewArray<uint32_t>(array_length);
     MemsetUint32(predecessors_, 1, array_length);
 
+    // We count jumps from peeled loops to outside of the loop twice.
+    bool do_loop_peeling = v8_flags.maglev_loop_peeling;
+    bool is_loop_peeling_iteration = false;
+    base::Optional<int> peeled_loop_end;
     interpreter::BytecodeArrayIterator iterator(bytecode().object());
     for (; !iterator.done(); iterator.Advance()) {
       interpreter::Bytecode bytecode = iterator.current_bytecode();
+      if (do_loop_peeling &&
+          bytecode_analysis().IsLoopHeader(iterator.current_offset())) {
+        const compiler::LoopInfo& loop_info =
+            bytecode_analysis().GetLoopInfoFor(iterator.current_offset());
+        // Generators use irreducible control flow, which makes loop peeling too
+        // complicated.
+        if (loop_info.innermost() && !loop_info.resumable()) {
+          DCHECK(!is_loop_peeling_iteration);
+          is_loop_peeling_iteration = true;
+          loop_headers_to_peel_.Add(iterator.current_offset());
+          peeled_loop_end = bytecode_analysis().GetLoopEndOffsetForInnermost(
+              iterator.current_offset());
+        }
+      }
       if (interpreter::Bytecodes::IsJump(bytecode)) {
+        if (is_loop_peeling_iteration &&
+            bytecode == interpreter::Bytecode::kJumpLoop) {
+          DCHECK_EQ(iterator.next_offset(), peeled_loop_end);
+          is_loop_peeling_iteration = false;
+          peeled_loop_end = {};
+        }
         predecessors_[iterator.GetJumpTargetOffset()]++;
+        if (is_loop_peeling_iteration &&
+            iterator.GetJumpTargetOffset() >= *peeled_loop_end) {
+          // Jumps from within the peeled loop to outside need to be counted
+          // twice, once for the peeled and once for the regular loop body.
+          predecessors_[iterator.GetJumpTargetOffset()]++;
+        }
         if (!interpreter::Bytecodes::IsConditionalJump(bytecode)) {
           predecessors_[iterator.next_offset()]--;
         }
@@ -1695,6 +1732,9 @@ class MaglevGraphBuilder {
         // Collect inline return jumps in the slot after the last bytecode.
         if (is_inline() && interpreter::Bytecodes::Returns(bytecode)) {
           predecessors_[array_length - 1]++;
+          if (is_loop_peeling_iteration) {
+            predecessors_[array_length - 1]++;
+          }
         }
       }
       // TODO(leszeks): Also consider handler entries (the bytecode analysis)
@@ -1761,6 +1801,15 @@ class MaglevGraphBuilder {
   interpreter::BytecodeArrayIterator iterator_;
   SourcePositionTableIterator source_position_iterator_;
   uint32_t* predecessors_;
+
+  bool in_peeled_iteration_ = false;
+  // When processing the peeled iteration of a loop, we need to reset the
+  // decremented predecessor counts inside of the loop before processing the
+  // body again. For this, we record offsets where we decremented the
+  // predecessor count.
+  ZoneVector<int> decremented_predecessor_offsets_;
+  // The set of loop headers for which we decided to do loop peeling.
+  BitVector loop_headers_to_peel_;
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;

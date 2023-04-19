@@ -277,6 +277,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                          true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
+      decremented_predecessor_offsets_(zone()),
+      loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length() +
@@ -372,6 +374,12 @@ void MaglevGraphBuilder::BuildMergeStates() {
   for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
     int offset = offset_and_info.first;
     const compiler::LoopInfo& loop_info = offset_and_info.second;
+    if (loop_headers_to_peel_.Contains(offset)) {
+      // Peeled loops are treated like normal merges at first. We will construct
+      // the proper loop header merge state when reaching the `JumpLoop` of the
+      // peeled iteration.
+      continue;
+    }
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
     DCHECK_NULL(merge_states_[offset]);
     if (v8_flags.trace_maglev_graph_building) {
@@ -396,8 +404,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
                   << ", context register r" << context_reg.index() << std::endl;
       }
       merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
-          *compilation_unit_, liveness, offset, context_reg, graph_,
-          is_inline());
+          *compilation_unit_, liveness, offset, context_reg, graph_);
     }
   }
 }
@@ -6626,6 +6633,78 @@ void MaglevGraphBuilder::VisitCreateRestParameter() {
   }
 }
 
+void MaglevGraphBuilder::PeelLoop() {
+  DCHECK(!in_peeled_iteration_);
+  int loop_header = iterator_.current_offset();
+  DCHECK(loop_headers_to_peel_.Contains(loop_header));
+  in_peeled_iteration_ = true;
+  while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
+    local_isolate_->heap()->Safepoint();
+    VisitSingleBytecode();
+    iterator_.Advance();
+  }
+  VisitSingleBytecode();
+  in_peeled_iteration_ = false;
+
+  // After processing the peeled iteration and reaching the `JumpLoop`, we
+  // re-process the loop body. For this, we need to reset the graph building
+  // state roughly as if we didn't process it yet.
+
+  // Reset predecessors as if the loop body had not been visited.
+  while (!decremented_predecessor_offsets_.empty()) {
+    DCHECK_GE(decremented_predecessor_offsets_.back(), loop_header);
+    if (decremented_predecessor_offsets_.back() <= iterator_.current_offset()) {
+      predecessors_[decremented_predecessor_offsets_.back()]++;
+    }
+    decremented_predecessor_offsets_.pop_back();
+  }
+
+  // Reset position in exception handler table to before the loop.
+  HandlerTable table(*bytecode().object());
+  while (next_handler_table_index_ > 0) {
+    next_handler_table_index_--;
+    int start = table.GetRangeStart(next_handler_table_index_);
+    if (start < loop_header) break;
+  }
+
+  // Re-create catch handler merge states.
+  for (int offset = loop_header; offset <= iterator_.current_offset();
+       ++offset) {
+    if (auto& merge_state = merge_states_[offset]) {
+      if (merge_state->is_exception_handler()) {
+        merge_state = MergePointInterpreterFrameState::NewForCatchBlock(
+            *compilation_unit_, merge_state->frame_state().liveness(), offset,
+            merge_state->frame_state()
+                .context(*compilation_unit_)
+                ->Cast<Phi>()
+                ->owner(),
+            graph_);
+      } else {
+        // We only peel innermost loops.
+        DCHECK(!merge_state->is_loop());
+        merge_state = nullptr;
+      }
+    }
+    new (&jump_targets_[offset]) BasicBlockRef();
+  }
+
+  if (current_block_) {
+    // After resetting, the new loop header always has exactly 2 predecessors:
+    // the two copies of `JumpLoop`.
+    merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
+        current_interpreter_frame_, *compilation_unit_, loop_header, 2,
+        GetInLivenessFor(loop_header),
+        &bytecode_analysis_.GetLoopInfoFor(loop_header));
+
+    BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[loop_header]);
+    MergeIntoFrameState(block, loop_header);
+  } else {
+    merge_states_[loop_header] = nullptr;
+    predecessors_[loop_header] = 0;
+  }
+  iterator_.SetOffset(loop_header);
+}
+
 void MaglevGraphBuilder::VisitJumpLoop() {
   const uint32_t relative_jump_bytecode_offset =
       iterator_.GetUnsignedImmediateOperand(0);
@@ -6638,6 +6717,14 @@ void MaglevGraphBuilder::VisitJumpLoop() {
       AddNewNode<ReduceInterruptBudgetForLoop>({},
                                                relative_jump_bytecode_offset);
     }
+  }
+
+  if (in_peeled_iteration_) {
+    // We have reached the end of the peeled iteration.
+    return;
+  }
+
+  if (ShouldEmitInterruptBudgetChecks()) {
     AddNewNode<TryOnStackReplacement>(
         {}, loop_offset, feedback_slot,
         BytecodeOffset(iterator_.current_offset()), compilation_unit_);
@@ -6682,12 +6769,19 @@ void MaglevGraphBuilder::VisitJumpIfToBooleanFalseConstant() {
 void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
                                              int target) {
   if (merge_states_[target] == nullptr) {
-    DCHECK(!bytecode_analysis().IsLoopHeader(target));
+    DCHECK(!bytecode_analysis().IsLoopHeader(target) ||
+           loop_headers_to_peel_.Contains(target));
+    bool jumping_to_peeled_iteration = bytecode_analysis().IsLoopHeader(target);
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(target);
+    int num_of_predecessors = NumPredecessors(target);
+    if (jumping_to_peeled_iteration) {
+      // The peeled iteration is missing the backedge.
+      num_of_predecessors--;
+    }
     // If there's no target frame state, allocate a new one.
     merge_states_[target] = MergePointInterpreterFrameState::New(
         *compilation_unit_, current_interpreter_frame_, target,
-        NumPredecessors(target), predecessor, liveness);
+        num_of_predecessors, predecessor, liveness);
   } else {
     // If there already is a frame state, merge.
     merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
@@ -6699,6 +6793,9 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
   // If there is no merge state yet, don't create one, but just reduce the
   // number of possible predecessors to zero.
   predecessors_[target]--;
+  if (V8_UNLIKELY(in_peeled_iteration_)) {
+    decremented_predecessor_offsets_.push_back(target);
+  }
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
     merge_states_[target]->MergeDead(*compilation_unit_);
@@ -6717,6 +6814,9 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
   // If there is no merge state yet, don't create one, but just reduce the
   // number of possible predecessors to zero.
   predecessors_[target]--;
+  if (V8_UNLIKELY(in_peeled_iteration_)) {
+    decremented_predecessor_offsets_.push_back(target);
+  }
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
     merge_states_[target]->MergeDeadLoop(*compilation_unit_);
@@ -7140,7 +7240,11 @@ void MaglevGraphBuilder::VisitForInNext() {
 void MaglevGraphBuilder::VisitForInStep() {
   ValueNode* index = LoadRegisterInt32(0);
   SetAccumulator(AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
-  current_for_in_state = ForInState();
+  if (!in_peeled_iteration_) {
+    // With loop peeling, only the `ForInStep` in the non-peeled loop body marks
+    // the end of for-in.
+    current_for_in_state = ForInState();
+  }
 }
 
 void MaglevGraphBuilder::VisitSetPendingMessage() {
