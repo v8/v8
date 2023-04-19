@@ -2655,6 +2655,13 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
     case RO_V_VFADD_VF:
       Format(instr, "vfadd.vf 'vd, 'vs2, 'fs1'vm");
       break;
+    case RO_V_VFMV_SF:
+      if (instr->Vs2Value() == 0x0) {
+        Format(instr, "vfmv.s.f   'vd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
     case RO_V_VFSLIDE1DOWN_VF:
       Format(instr, "vfslide1down.vf 'vd, 'vs2, 'fs1'vm");
       break;

@@ -7346,8 +7346,33 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, fs1, vs3)}, false)
       break;
+    case RO_V_VFMV_SF: {
+      if (instr_.Vs2Value() == 0x0) {
+        if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
+          switch (rvv_vsew()) {
+            case E8:
+              UNREACHABLE();
+            case E16:
+              UNREACHABLE();
+            case E32:
+              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) =
+                  (uint32_t)(get_fpu_register_Float32(rs1_reg()).get_bits());
+              break;
+            case E64:
+              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) =
+                  (uint64_t)(get_fpu_register_Float64(rs1_reg()).get_bits());
+              break;
+            default:
+              UNREACHABLE();
+          }
+        }
+        set_rvv_vstart(0);
+        rvv_trace_vd();
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+    } break;
     case RO_V_VFSLIDE1DOWN_VF: {
-      // TODO(jingpeiyang): Need to be sure here.
       RVV_VI_CHECK_SLIDE(false);
       RVV_VI_GENERAL_LOOP_BASE
       switch (rvv_vsew()) {
@@ -7368,7 +7393,6 @@ void Simulator::DecodeRvvFVF() {
       rvv_trace_vd();
     } break;
     case RO_V_VFSLIDE1UP_VF: {
-      // TODO(jingpeiyang): Need to be sure here.
       RVV_VI_CHECK_SLIDE(true);
       RVV_VI_GENERAL_LOOP_BASE
       if (i < rvv_vstart()) continue;
