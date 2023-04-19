@@ -7076,8 +7076,6 @@ if (v8_enable_webassembly) {
     sources = [
       "test/common/flag-utils.h",
       "test/common/wasm/flag-utils.h",
-      "test/common/wasm/wasm-interpreter.cc",
-      "test/common/wasm/wasm-interpreter.h",
       "test/common/wasm/wasm-module-runner.cc",
       "test/common/wasm/wasm-module-runner.h",
     ]

@@ -154,7 +154,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--trace_wasm_compiler",
         "--trace_wasm_decoder",
         "--trace_wasm_instances",
-        "--trace_wasm_interpreter",
         "--trace_wasm_lazy_compilation",
         "--trace_wasm_native_heap",
         "--trace_wasm_serialization",

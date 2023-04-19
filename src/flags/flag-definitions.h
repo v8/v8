@@ -1158,8 +1158,6 @@ DEFINE_BOOL(trace_wasm_compilation_times, false,
 DEFINE_INT(wasm_tier_up_filter, -1, "only tier-up function with this index")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
-DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
-                  "trace interpretation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,
                   "trace streaming compilation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_stack_switching, false,
