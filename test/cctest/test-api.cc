@@ -16863,6 +16863,10 @@ THREADED_TEST(GetHeapStatistics) {
 }
 
 TEST(GetHeapSpaceStatistics) {
+  // This test is incompatible with concurrent allocation, which may occur
+  // while collecting the statistics and break the final `CHECK_EQ`s.
+  if (i::v8_flags.stress_concurrent_allocation) return;
+
   LocalContext c1;
   v8::Isolate* isolate = c1->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -16877,7 +16881,7 @@ TEST(GetHeapSpaceStatistics) {
   isolate->GetHeapStatistics(&heap_statistics);
 
   // Ensure that the sum of all the spaces matches the totals from
-  // GetHeapSpaceStatics.
+  // GetHeapSpaceStatistics.
   size_t total_size = 0u;
   size_t total_used_size = 0u;
   size_t total_available_size = 0u;
