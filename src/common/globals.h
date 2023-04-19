@@ -128,12 +128,6 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#if !DEBUG_BOOL && (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
-#define V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL true
-#else
-#define V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL false
-#endif
-
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
 #else

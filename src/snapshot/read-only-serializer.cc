@@ -87,8 +87,8 @@ class ReadOnlyHeapImageSerializer {
         }
       }
 
-      // Memory at the end of the area is unused and uninitialized. We must not
-      // add it to the snapshot.
+      // Pages are shrunk, but memory at the end of the area is still
+      // uninitialized and we do not want to include it in the snapshot.
       size_t page_content_bytes = page->HighWaterMark() - pos;
       writeSegment(page, pos, page_content_bytes);
       sink.Put(Bytecode::kFinalizeReadOnlyPage, "page end");
@@ -189,7 +189,6 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   ReadOnlyHeapImageSerializer::Serialize(
       isolate()->read_only_heap()->read_only_space(), sink_, isolate(),
       unmapped);
-  Pad();
 
   RestoreInstructionStarts(saved_entry_points);
   isolate()->heap()->read_only_space()->Seal(
