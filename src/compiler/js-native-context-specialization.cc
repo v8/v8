@@ -1872,14 +1872,15 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
     // it's uses are rewired.
 
     Node* dead_node = jsgraph()->Dead();
-    if_exception_merge = graph()->NewNode(common()->Merge(4), dead_node,
-                                          dead_node, dead_node, dead_node);
+    if_exception_merge =
+        graph()->NewNode(common()->Merge(5), dead_node, dead_node, dead_node,
+                         dead_node, dead_node);
     if_exception_effect_phi =
-        graph()->NewNode(common()->EffectPhi(4), dead_node, dead_node,
-                         dead_node, dead_node, if_exception_merge);
+        graph()->NewNode(common()->EffectPhi(5), dead_node, dead_node,
+                         dead_node, dead_node, dead_node, if_exception_merge);
     if_exception_phi = graph()->NewNode(
-        common()->Phi(MachineRepresentation::kTagged, 4), dead_node, dead_node,
-        dead_node, dead_node, if_exception_merge);
+        common()->Phi(MachineRepresentation::kTagged, 5), dead_node, dead_node,
+        dead_node, dead_node, dead_node, if_exception_merge);
     // Rewire the original exception node uses.
     ReplaceWithValue(iterator_exception_node, if_exception_phi,
                      if_exception_effect_phi, if_exception_merge);
@@ -1922,6 +1923,38 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
     exception_node_index++;
     control = graph()->NewNode(common()->IfSuccess(), control);
   }
+
+  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), load_property,
+                                 jsgraph()->UndefinedConstant());
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  {
+    Node* if_not_iterator = graph()->NewNode(common()->IfTrue(), branch);
+    Node* effect_not_iterator = effect;
+    Node* control_not_iterator = if_not_iterator;
+    Node* call_runtime = effect_not_iterator = control_not_iterator =
+        graph()->NewNode(
+            javascript()->CallRuntime(Runtime::kThrowIteratorError, 1),
+            receiver, context, frame_state, effect_not_iterator,
+            control_not_iterator);
+    // Merge the exception path for CallRuntime.
+    if (has_exception_node) {
+      Node* if_exception = graph()->NewNode(
+          common()->IfException(), effect_not_iterator, control_not_iterator);
+      if_exception_merge->ReplaceInput(exception_node_index, if_exception);
+      if_exception_phi->ReplaceInput(exception_node_index, if_exception);
+      if_exception_effect_phi->ReplaceInput(exception_node_index, if_exception);
+      exception_node_index++;
+      control_not_iterator =
+          graph()->NewNode(common()->IfSuccess(), control_not_iterator);
+    }
+    Node* throw_node =
+        graph()->NewNode(common()->Throw(), call_runtime, control_not_iterator);
+    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+  }
+
+  control = graph()->NewNode(common()->IfFalse(), branch);
 
   // Eager deopt of call iterator property
   Node* parameters[] = {receiver, load_property, call_slot, call_feedback};
