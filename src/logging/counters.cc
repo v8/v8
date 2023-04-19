@@ -192,11 +192,6 @@ void CountersVisitor::VisitHistograms() {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HR(name, caption, min, max, num_buckets) \
-  Visit(&counters()->name##_, #caption, min, max, num_buckets);
-  HISTOGRAM_RANGE_LIST(HR)
-#undef HR
-
 #define HR(name, caption) Visit(&counters()->name##_, #caption);
   HISTOGRAM_PERCENTAGE_LIST(HR)
 #undef HR
@@ -223,10 +218,6 @@ void CountersVisitor::VisitHistograms() {
 #define AHT(name, caption) Visit(&counters()->name##_, #caption);
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
-
-#define HP(name, caption) Visit(&counters()->name##_, #caption);
-  HISTOGRAM_PERCENTAGE_LIST(HP)
-#undef HP
 }
 
 void CountersVisitor::VisitStatsCounters() {
