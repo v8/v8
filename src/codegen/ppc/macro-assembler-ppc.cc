@@ -4553,10 +4553,9 @@ void MacroAssembler::I8x16BitMask(Register dst, Simd128Register src,
 }
 
 void MacroAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
-                                    Simd128Register src2,
-                                    Simd128Register scratch) {
-  vxor(scratch, scratch, scratch);
-  vmsumshm(dst, src1, src2, scratch);
+                                    Simd128Register src2) {
+  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  vmsumshm(dst, src1, src2, kSimd128RegZero);
 }
 
 void MacroAssembler::I32x4DotI8x16AddS(Simd128Register dst,
@@ -4575,10 +4574,9 @@ void MacroAssembler::I16x8DotI8x16S(Simd128Register dst, Simd128Register src1,
 }
 
 void MacroAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
-                                      Simd128Register src2,
-                                      Simd128Register scratch) {
-  vxor(scratch, scratch, scratch);
-  vmhraddshs(dst, src1, src2, scratch);
+                                      Simd128Register src2) {
+  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  vmhraddshs(dst, src1, src2, kSimd128RegZero);
 }
 
 void MacroAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,

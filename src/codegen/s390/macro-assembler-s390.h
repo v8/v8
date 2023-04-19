@@ -1214,7 +1214,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                Simd128Register scratch);
   void I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                     Simd128Register src2, Register scratch1, Register scratch2,
-                    Simd128Register scratch3, Simd128Register scratch4);
+                    Simd128Register scratch3);
   void S128Const(Simd128Register dst, uint64_t high, uint64_t low,
                  Register scratch1, Register scratch2);
   void I8x16Shuffle(Simd128Register dst, Simd128Register src1,

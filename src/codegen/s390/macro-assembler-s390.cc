@@ -6084,10 +6084,16 @@ void MacroAssembler::I32x4ExtAddPairwiseI16x8S(Simd128Register dst,
 
 void MacroAssembler::I32x4ExtAddPairwiseI16x8U(Simd128Register dst,
                                                Simd128Register src,
-                                               Simd128Register scratch,
-                                               Simd128Register scratch2) {
-  vx(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
-  vsum(dst, src, scratch, Condition(0), Condition(0), Condition(1));
+                                               Simd128Register /* scratch1 */,
+                                               Simd128Register /* scratch2 */) {
+  // Unnamed scratch parameters are still kept to make this function
+  // have the same signature as the other ExtAddPairwise functions.
+  // TF and Liftoff use a uniform Macro for all of them.
+  // TODO(miladfarca): Add a default argument or separate them in TF and
+  // Liftoff.
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(3));
+  vsum(dst, src, kDoubleRegZero, Condition(0), Condition(0), Condition(1));
 }
 
 void MacroAssembler::I16x8ExtAddPairwiseI8x16S(Simd128Register dst,
@@ -6133,22 +6139,21 @@ void MacroAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
 
 void MacroAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, Register scratch1,
-                                  Register scratch2, Simd128Register scratch3,
-                                  Simd128Register scratch4) {
-  DCHECK(!AreAliased(src1, src2, scratch3, scratch4));
+                                  Register scratch2, Simd128Register scratch3) {
+  DCHECK(!AreAliased(src1, src2, scratch3));
   // Saturate the indices to 5 bits. Input indices more than 31 should
   // return 0.
   vrepi(scratch3, Operand(31), Condition(0));
-  vmnl(scratch4, src2, scratch3, Condition(0), Condition(0), Condition(0));
+  vmnl(scratch3, src2, scratch3, Condition(0), Condition(0), Condition(0));
   // Input needs to be reversed.
   vlgv(scratch1, src1, MemOperand(r0, 0), Condition(3));
   vlgv(scratch2, src1, MemOperand(r0, 1), Condition(3));
   lrvgr(scratch1, scratch1);
   lrvgr(scratch2, scratch2);
   vlvgp(dst, scratch2, scratch1);
-  // Clear scratch.
-  vx(scratch3, scratch3, scratch3, Condition(0), Condition(0), Condition(0));
-  vperm(dst, dst, scratch3, scratch4, Condition(0), Condition(0));
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
+  vperm(dst, dst, kDoubleRegZero, scratch3, Condition(0), Condition(0));
 }
 
 void MacroAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
