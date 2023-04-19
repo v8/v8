@@ -101,7 +101,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
 
       // Ensure the first read-only page ends up first in the cage.
-      ro_heap->read_only_space()->Initialize();
+      ro_heap->read_only_space()->EnsurePage();
       artifacts->VerifyChecksum(read_only_snapshot_data, true);
     }
   } else {
@@ -182,11 +182,7 @@ void SoleReadOnlyHeap::InitializeFromIsolateRoots(Isolate* isolate) {
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(roots_init_complete_);
-  // In the case of static r/o heap limit we must keep this memory reserved to
-  // prevent using it for other spaces.
-  if (!V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL) {
-    read_only_space_->ShrinkPages();
-  }
+  read_only_space_->ShrinkPages();
   if (IsReadOnlySpaceShared()) {
     std::shared_ptr<ReadOnlyArtifacts> artifacts(
         *read_only_artifacts_.Pointer());

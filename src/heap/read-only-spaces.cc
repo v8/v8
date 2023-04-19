@@ -27,16 +27,6 @@
 namespace v8 {
 namespace internal {
 
-#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
-namespace {
-// Only used during mksnapshot and tests to ensure r/o pages are allocated
-// up-front and at the start of the cage.
-static std::vector<ReadOnlyPage*>* pre_allocated_pages = nullptr;
-}  // namespace
-
-bool ReadOnlySpace::ForTesting::allow_create_pages_above_limit_ = false;
-#endif
-
 void CopyAndRebaseRoots(Address* src, Address* dst, Address new_base) {
   Address src_base =
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(src[0]);
@@ -309,18 +299,7 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
 
 // Needs to be defined in the cc file to force the vtable to be emitted in
 // component builds.
-ReadOnlySpace::~ReadOnlySpace()
-#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
-{
-  if (pre_allocated_pages) {
-    CHECK(pre_allocated_pages->empty());
-    delete pre_allocated_pages;
-    pre_allocated_pages = nullptr;
-  }
-}
-#else
-    = default;
-#endif
+ReadOnlySpace::~ReadOnlySpace() = default;
 
 void SharedReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
   // SharedReadOnlySpaces do not tear down their own pages since they are either
@@ -335,14 +314,6 @@ void ReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
   for (ReadOnlyPage* chunk : pages_) {
     memory_allocator->FreeReadOnlyPage(chunk);
   }
-#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
-  if (pre_allocated_pages) {
-    CHECK_WITH_MSG(
-        pre_allocated_pages->empty(),
-        "This build created a smaller than normal read only space. If this is "
-        "expected decrease BasicMemoryChunk::kNumberOfReadOnlyPages.");
-  }
-#endif
   pages_.resize(0);
   accounting_stats_.Clear();
 }
@@ -577,27 +548,12 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
   limit_ = kNullAddress;
 }
 
-ReadOnlyPage* ReadOnlySpace::AllocatePage() {
-  return heap()->memory_allocator()->AllocateReadOnlyPage(this);
-}
-
-void ReadOnlySpace::Initialize() {
-#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
-  CHECK(!pre_allocated_pages);
-  pre_allocated_pages = new std::vector<ReadOnlyPage*>;
-  for (size_t i = 0; i < BasicMemoryChunk::kNumberOfReadOnlyPages; ++i) {
-    ReadOnlyPage* page = AllocatePage();
-    CHECK_EQ(page->address(),
-             V8HeapCompressionScheme::base() + i * BasicMemoryChunk::kPageSize);
-    pre_allocated_pages->push_back(page);
-  }
-#endif
-  CHECK(pages_.empty());
-  EnsureSpaceForAllocation(1);
+void ReadOnlySpace::EnsurePage() {
+  if (pages_.empty()) EnsureSpaceForAllocation(1);
   CHECK(!pages_.empty());
   // For all configurations where static roots are supported the read only roots
   // are currently allocated in the first page of the cage.
-  CHECK_IMPLIES(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL,
+  CHECK_IMPLIES(V8_STATIC_ROOTS_BOOL,
                 heap_->isolate()->cage_base() == pages_.back()->address());
 }
 
@@ -610,23 +566,8 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
   FreeLinearAllocationArea();
 
-  BasicMemoryChunk* chunk;
-#if V8_STATIC_READ_ONLY_HEAP_LIMIT_BOOL
-  if (!ForTesting::allow_create_pages_above_limit_) {
-    CHECK_WITH_MSG(
-        pre_allocated_pages && !pre_allocated_pages->empty(),
-        "This build created a bigger than normal read only space. If this is "
-        "expected increase BasicMemoryChunk::kNumberOfReadOnlyPages.");
-  }
-  if (pre_allocated_pages && !pre_allocated_pages->empty()) {
-    chunk = pre_allocated_pages->front();
-    pre_allocated_pages->erase(pre_allocated_pages->begin());
-  } else {
-    chunk = AllocatePage();
-  }
-#else
-  chunk = AllocatePage();
-#endif
+  BasicMemoryChunk* chunk =
+      heap()->memory_allocator()->AllocateReadOnlyPage(this);
   capacity_ += AreaSize();
 
   accounting_stats_.IncreaseCapacity(chunk->area_size());
@@ -749,7 +690,6 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 
 void ReadOnlySpace::ShrinkPages() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
