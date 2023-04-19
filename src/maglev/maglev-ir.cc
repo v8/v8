@@ -4170,6 +4170,51 @@ void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void BranchIfUndetectable::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+  set_temporaries_needed(1);
+}
+void BranchIfUndetectable::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register value = ToRegister(condition_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  auto* next_block = state.next_block();
+  if (next_block == if_true() || next_block != if_false()) {
+    __ JumpIfNotUndetectable(value, scratch, if_false()->label());
+    if (next_block != if_true()) {
+      __ Jump(if_true()->label());
+    }
+  } else {
+    __ JumpIfUndetectable(value, scratch, if_true()->label());
+  }
+}
+
+void TestUndetectable::SetValueLocationConstraints() {
+  UseRegister(value());
+  set_temporaries_needed(1);
+  DefineAsRegister(this);
+}
+void TestUndetectable::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  Label return_false, done;
+  __ JumpIfNotUndetectable(object, scratch, &return_false, Label::kNear);
+
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ Jump(&done, Label::kNear);
+
+  __ bind(&return_false);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+
+  __ bind(&done);
+}
+
 void BranchIfTypeOf::SetValueLocationConstraints() {
   UseRegister(value_input());
   // One temporary for TestTypeOf.

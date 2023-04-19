@@ -316,6 +316,7 @@ class MergePointInterpreterFrameState;
   V(BranchIfInt32Compare)           \
   V(BranchIfFloat64Compare)         \
   V(BranchIfUndefinedOrNull)        \
+  V(BranchIfUndetectable)           \
   V(BranchIfJSReceiver)             \
   V(BranchIfTypeOf)
 
@@ -7327,6 +7328,25 @@ class BranchIfUndefinedOrNull
   void MarkTaggedInputsAsDecompressing() {
     // Don't need to decompress values to reference compare.
   }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfUndetectable
+    : public BranchControlNodeT<1, BranchIfUndetectable> {
+  using Base = BranchControlNodeT<1, BranchIfUndetectable>;
+
+ public:
+  explicit BranchIfUndetectable(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                                BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& condition_input() { return input(0); }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

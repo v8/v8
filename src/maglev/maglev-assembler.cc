@@ -63,6 +63,30 @@ void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
   DecompressTagged(result, FieldMemOperand(load_source, field_index.offset()));
 }
 
+void MaglevAssembler::JumpIfNotUndetectable(Register object, Register scratch,
+                                            Label* target,
+                                            Label::Distance distance) {
+  JumpIfSmi(object, target, distance);
+  // For heap objects, check the map's undetectable bit.
+  LoadMap(scratch, object);
+  LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+  TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsUndetectableBit::kMask,
+                             target, distance);
+}
+
+void MaglevAssembler::JumpIfUndetectable(Register object, Register scratch,
+                                         Label* target,
+                                         Label::Distance distance) {
+  Label detectable;
+  JumpIfSmi(object, &detectable, Label::kNear);
+  // For heap objects, check the map's undetectable bit.
+  LoadMap(scratch, object);
+  LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+  TestInt32AndJumpIfAnySet(scratch, Map::Bits1::IsUndetectableBit::kMask,
+                           target, distance);
+  bind(&detectable);
+}
+
 void MaglevAssembler::EnsureWritableFastElements(
     RegisterSnapshot register_snapshot, Register elements, Register object,
     Register scratch) {

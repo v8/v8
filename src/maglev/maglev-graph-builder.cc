@@ -1960,6 +1960,7 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
 
 void MaglevGraphBuilder::VisitTestUndetectable() {
   ValueNode* value = GetAccumulatorTagged();
+  if (TryBuildBranchFor<BranchIfUndetectable>({value})) return;
   SetAccumulator(AddNewNode<TestUndetectable>({value}));
 }
 

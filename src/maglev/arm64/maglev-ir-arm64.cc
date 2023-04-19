@@ -1934,36 +1934,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void TestUndetectable::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-void TestUndetectable::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  Register object = ToRegister(value());
-  Register return_value = ToRegister(result());
-
-  Label return_false, done;
-  __ JumpIfSmi(object, &return_false);
-  {
-    // For heap objects, check the map's undetectable bit.
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ LoadMap(scratch, object);
-    __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ TestAndBranchIfAllClear(
-        scratch.W(), Map::Bits1::IsUndetectableBit::kMask, &return_false);
-  }
-
-  __ LoadRoot(return_value, RootIndex::kTrueValue);
-  __ B(&done);
-
-  __ Bind(&return_false);
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
-
-  __ Bind(&done);
-}
-
 int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
 void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
   UseRegister(constructor());
