@@ -2933,6 +2933,119 @@ TEST_F(AssemblerX64Test, AssemblerX64ShiftImm256bit) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AssemblerX64BinOp256bit) {
+  {
+    if (!CpuFeatures::IsSupported(AVX)) return;
+    auto buffer = AllocateAssemblerBuffer();
+    Isolate* isolate = i_isolate();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX);
+
+    //  add
+    __ vaddps(ymm0, ymm1, ymm2);
+    __ vaddpd(ymm3, ymm4, ymm5);
+
+    // sub
+    __ vsubps(ymm0, ymm1, ymm2);
+    __ vsubpd(ymm3, ymm4, ymm5);
+
+    // mul
+    __ vmulps(ymm0, ymm1, ymm2);
+    __ vmulpd(ymm3, ymm4, ymm5);
+
+    // div
+    __ vdivps(ymm0, ymm1, ymm2);
+    __ vdivpd(ymm3, ymm4, ymm5);
+
+    CodeDesc desc;
+    masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+    StdoutStream os;
+    code->Print(os);
+#endif
+
+    byte expected[] = {// vaddps ymm0,ymm1,ymm2
+                       0xc5, 0xf4, 0x58, 0xc2,
+                       // vaddpd ymm3,ymm4,ymm5
+                       0xc5, 0xdd, 0x58, 0xdd,
+                       // vsubps ymm0,ymm1,ymm2
+                       0xc5, 0xf4, 0x5c, 0xc2,
+                       // vsubpd ymm3,ymm4,ymm5
+                       0xc5, 0xdd, 0x5c, 0xdd,
+                       // vmulps ymm0,ymm1,ymm2
+                       0xc5, 0xf4, 0x59, 0xc2,
+                       // vmulpd ymm3,ymm4,ymm5
+                       0xc5, 0xdd, 0x59, 0xdd,
+                       // vdivps ymm0,ymm1,ymm2
+                       0xc5, 0xf4, 0x5e, 0xc2,
+                       // vdivpd ymm3,ymm4,ymm5
+                       0xc5, 0xdd, 0x5e, 0xdd
+
+    };
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+
+  {
+    if (!CpuFeatures::IsSupported(AVX2)) return;
+
+    auto buffer = AllocateAssemblerBuffer();
+    Isolate* isolate = i_isolate();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX2);
+
+    //  add
+    __ vpaddb(ymm6, ymm7, ymm8);
+    __ vpaddw(ymm9, ymm10, ymm11);
+    __ vpaddd(ymm12, ymm13, ymm14);
+    __ vpaddq(ymm15, ymm1, ymm2);
+
+    // sub
+
+    __ vpsubb(ymm6, ymm7, ymm8);
+    __ vpsubw(ymm9, ymm10, ymm11);
+    __ vpsubd(ymm12, ymm13, ymm14);
+    __ vpsubq(ymm15, ymm1, ymm2);
+
+    // mul, exclude I64x4
+
+    __ vpmullw(ymm6, ymm7, ymm8);
+    __ vpmulld(ymm15, ymm1, ymm2);
+
+    CodeDesc desc;
+    masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+    StdoutStream os;
+    code->Print(os);
+#endif
+
+    byte expected[] = {// vpaddb ymm6,ymm7,ymm8
+                       0xc4, 0xc1, 0x45, 0xfc, 0xf0,
+                       // vpaddw ymm9,ymm10,ymm11
+                       0xc4, 0x41, 0x2d, 0xfd, 0xcb,
+                       // vpaddd ymm12,ymm13,ymm14
+                       0xc4, 0x41, 0x15, 0xfe, 0xe6,
+                       // vpaddq ymm15,ymm1,ymm2
+                       0xc5, 0x75, 0xd4, 0xfa,
+                       // vpsubb ymm6,ymm7,ymm8
+                       0xc4, 0xc1, 0x45, 0xf8, 0xf0,
+                       // vpsubw ymm9,ymm10,ymm11
+                       0xc4, 0x41, 0x2d, 0xf9, 0xcb,
+                       // vpsubd ymm12,ymm13,ymm14
+                       0xc4, 0x41, 0x15, 0xfa, 0xe6,
+                       // vpsubq ymm15,ymm1,ymm2
+                       0xc5, 0x75, 0xfb, 0xfa,
+                       // vpmullw ymm6,ymm7,ymm8
+                       0xc4, 0xc1, 0x45, 0xd5, 0xf0,
+                       // vpmulld ymm15,ymm1,ymm2
+                       0xc4, 0x62, 0x75, 0x40, 0xfa};
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+}
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

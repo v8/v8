@@ -3097,6 +3097,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             ASSEMBLE_SIMD256_BINOP(addps);
             break;
           }
+          case kL64: {
+            // F64x4Add
+            ASSEMBLE_SIMD256_BINOP(addpd);
+            break;
+          }
           default:
             UNREACHABLE();
         }
@@ -3130,6 +3135,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             ASSEMBLE_SIMD256_BINOP(subps);
             break;
           }
+          case kL64: {
+            // F64x4Sub
+            ASSEMBLE_SIMD256_BINOP(subpd);
+            break;
+          }
           default:
             UNREACHABLE();
         }
@@ -3156,6 +3166,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL64: {
+            // F64x4Mul
+            ASSEMBLE_SIMD256_BINOP(mulpd);
+            break;
+          }
+          case kL32: {
+            // F32x8Mul
+            ASSEMBLE_SIMD256_BINOP(mulps);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+
       } else {
         UNREACHABLE();
       }
@@ -3174,6 +3200,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL64: {
             // F64x2Div
             ASSEMBLE_SIMD_BINOP(divpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Div
+            ASSEMBLE_SIMD256_BINOP(divps);
+            break;
+          }
+          case kL64: {
+            // F64x4Div
+            ASSEMBLE_SIMD256_BINOP(divpd);
             break;
           }
           default:
@@ -3771,6 +3812,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL64: {
+            // I64x4Add
+            ASSEMBLE_SIMD256_BINOP(paddq);
+            break;
+          }
+          case kL32: {
+            // I32x8Add
+            ASSEMBLE_SIMD256_BINOP(paddd);
+            break;
+          }
+          case kL16: {
+            // I16x16Add
+            ASSEMBLE_SIMD256_BINOP(paddw);
+            break;
+          }
+          case kL8: {
+            // I8x32Add
+            ASSEMBLE_SIMD256_BINOP(paddb);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -3804,6 +3870,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL64: {
+            // I64x4Sub
+            ASSEMBLE_SIMD256_BINOP(psubq);
+            break;
+          }
+          case kL32: {
+            // I32x8Sub
+            ASSEMBLE_SIMD256_BINOP(psubd);
+            break;
+          }
+          case kL16: {
+            // I16x16Sub
+            ASSEMBLE_SIMD256_BINOP(psubw);
+            break;
+          }
+          case kL8: {
+            // I8x32Sub
+            ASSEMBLE_SIMD256_BINOP(psubb);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -3829,6 +3920,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
                         i.InputSimd128Register(1), i.TempSimd128Register(0),
                         kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL16: {
+            // I16x16Mul
+            ASSEMBLE_SIMD256_BINOP(pmullw);
+            break;
+          }
+          case kL32: {
+            // I32x8Mul
+            ASSEMBLE_SIMD256_BINOP(pmulld);
+            break;
+          }
+          case kL64: {
+            // I64x4Mul
+            __ I64x4Mul(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                        i.InputSimd256Register(1), i.TempSimd256Register(0),
+                        kScratchSimd256Reg);
             break;
           }
           default:

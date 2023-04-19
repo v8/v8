@@ -217,6 +217,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
     cmp_tagged(src1, src2);
   }
 
+  // BinOp
+  void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister tmp1, YMMRegister tmp2);
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 

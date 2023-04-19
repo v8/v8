@@ -3349,25 +3349,41 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Add, FAdd, kL64, kV128)                           \
+  V(F64x4Add, FAdd, kL64, kV256)                           \
   V(F32x4Add, FAdd, kL32, kV128)                           \
   V(F32x8Add, FAdd, kL32, kV256)                           \
   V(I64x2Add, IAdd, kL64, kV128)                           \
+  V(I64x4Add, IAdd, kL64, kV256)                           \
+  V(I32x8Add, IAdd, kL32, kV256)                           \
+  V(I16x16Add, IAdd, kL16, kV256)                          \
+  V(I8x32Add, IAdd, kL8, kV256)                            \
   V(I32x4Add, IAdd, kL32, kV128)                           \
   V(I16x8Add, IAdd, kL16, kV128)                           \
   V(I8x16Add, IAdd, kL8, kV128)                            \
+  V(F64x4Sub, FSub, kL64, kV256)                           \
   V(F64x2Sub, FSub, kL64, kV128)                           \
   V(F32x4Sub, FSub, kL32, kV128)                           \
   V(F32x8Sub, FSub, kL32, kV256)                           \
   V(I64x2Sub, ISub, kL64, kV128)                           \
+  V(I64x4Sub, ISub, kL64, kV256)                           \
+  V(I32x8Sub, ISub, kL32, kV256)                           \
+  V(I16x16Sub, ISub, kL16, kV256)                          \
+  V(I8x32Sub, ISub, kL8, kV256)                            \
   V(I32x4Sub, ISub, kL32, kV128)                           \
   V(I16x8Sub, ISub, kL16, kV128)                           \
   V(I8x16Sub, ISub, kL8, kV128)                            \
   V(F64x2Mul, FMul, kL64, kV128)                           \
   V(F32x4Mul, FMul, kL32, kV128)                           \
+  V(F64x4Mul, FMul, kL64, kV256)                           \
+  V(F32x8Mul, FMul, kL32, kV256)                           \
+  V(I32x8Mul, IMul, kL32, kV256)                           \
+  V(I16x16Mul, IMul, kL16, kV256)                          \
   V(I32x4Mul, IMul, kL32, kV128)                           \
   V(I16x8Mul, IMul, kL16, kV128)                           \
   V(F64x2Div, FDiv, kL64, kV128)                           \
   V(F32x4Div, FDiv, kL32, kV128)                           \
+  V(F64x4Div, FDiv, kL64, kV256)                           \
+  V(F32x8Div, FDiv, kL32, kV256)                           \
   V(I16x8AddSatS, IAddSatS, kL16, kV128)                   \
   V(I8x16AddSatS, IAddSatS, kL8, kV128)                    \
   V(I16x8SubSatS, ISubSatS, kL16, kV128)                   \
@@ -3821,6 +3837,15 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(
       kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
+      g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI64x4Mul(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd256Register()};
+  Emit(
+      kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
       g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }

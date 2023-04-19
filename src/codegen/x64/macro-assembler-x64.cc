@@ -1454,6 +1454,29 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
+void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister tmp1, YMMRegister tmp2) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(lhs, tmp1, tmp2));
+  DCHECK(!AreAliased(rhs, tmp1, tmp2));
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX2);
+  // 1. Multiply high dword of each qword of left with right.
+  vpsrlq(tmp1, lhs, byte{32});
+  vpmuludq(tmp1, tmp1, rhs);
+  // 2. Multiply high dword of each qword of right with left.
+  vpsrlq(tmp2, rhs, byte{32});
+  vpmuludq(tmp2, tmp2, lhs);
+  // 3. Add 1 and 2, then shift left by 32 (this is the high dword of result).
+  vpaddq(tmp2, tmp2, tmp1);
+  vpsllq(tmp2, tmp2, byte{32});
+  // 4. Multiply low dwords (this is the low dword of result).
+  vpmuludq(dst, lhs, rhs);
+  // 5. Add 3 and 4.
+  vpaddq(dst, dst, tmp2);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
