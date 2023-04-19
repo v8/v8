@@ -3095,6 +3095,19 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 
     if (Constant* n = lookup_start_object->TryCast<Constant>()) {
       compiler::MapRef constant_map = n->object().map(broker());
+      if (n->object().IsJSFunction() &&
+          feedback.name().equals(broker()->prototype_string())) {
+        compiler::JSFunctionRef function = n->object().AsJSFunction();
+        if (!function.map(broker()).has_prototype_slot() ||
+            !function.has_instance_prototype(broker()) ||
+            function.PrototypeRequiresRuntimeLookup(broker()) ||
+            access_mode != compiler::AccessMode::kLoad) {
+          return ReduceResult::Fail();
+        }
+        compiler::ObjectRef prototype =
+            broker()->dependencies()->DependOnPrototypeProperty(function);
+        return GetConstant(prototype);
+      }
       inferred_maps = compiler::ZoneRefSet<Map>(constant_map);
     } else {
       // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
@@ -4793,6 +4806,19 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   ValueNode* context = GetConstant(target.context(broker()));
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
+  if (Constant* constant = receiver->TryCast<Constant>()) {
+    compiler::ObjectRef object = constant->object();
+    if (object.IsJSFunction()) {
+      // Reset speculation feedback source to no feedback.
+      compiler::FeedbackSource source = current_speculation_feedback_;
+      current_speculation_feedback_ = compiler::FeedbackSource();
+      const compiler::ProcessedFeedback& processed_feedback =
+          broker()->GetFeedbackForCall(source);
+      DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
+      const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+      return ReduceCall(object, args, source, call_feedback.speculation_mode());
+    }
+  }
   return BuildGenericCall(receiver, context, Call::TargetType::kAny, args);
 }
 
