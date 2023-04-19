@@ -58,7 +58,6 @@ FEATURE_FLAGS = {
     'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'array-grouping': '--harmony-array-grouping',
     'change-array-by-copy': '--harmony-change-array-by-copy',
-    'symbols-as-weakmap-keys': '--harmony-symbol-as-weakmap-key',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'arraybuffer-transfer': '--harmony-rab-gsab-transfer',
