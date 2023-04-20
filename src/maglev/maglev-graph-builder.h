@@ -1396,14 +1396,12 @@ class MaglevGraphBuilder {
   V(StringPrototypeCodePointAt)    \
   MATH_UNARY_IEEE_BUILTIN(V)
 
-#define DEFINE_BUILTIN_REDUCER(Name)                                   \
-  ReduceResult TryReduce##Name(compiler::JSFunctionRef builtin_target, \
-                               CallArguments& args);
+#define DEFINE_BUILTIN_REDUCER(Name) \
+  ReduceResult TryReduce##Name(CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
-  ReduceResult DoTryReduceMathRound(compiler::JSFunctionRef builtin_target,
-                                    CallArguments& args,
+  ReduceResult DoTryReduceMathRound(CallArguments& args,
                                     Float64Round::Kind kind);
 
   template <typename CallNode, typename... Args>
@@ -1412,13 +1410,18 @@ class MaglevGraphBuilder {
   ValueNode* BuildCallSelf(ValueNode* context, ValueNode* function,
                            compiler::SharedFunctionInfoRef shared,
                            CallArguments& args);
-  ReduceResult TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
+  ReduceResult TryReduceBuiltin(compiler::SharedFunctionInfoRef shared,
                                 CallArguments& args,
                                 const compiler::FeedbackSource& feedback_source,
                                 SpeculationMode speculation_mode);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   ReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
+  ReduceResult TryBuildCallKnownJSFunction(
+      ValueNode* context, ValueNode* function,
+      compiler::SharedFunctionInfoRef shared,
+      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   bool ShouldInlineCall(compiler::SharedFunctionInfoRef shared,
                         compiler::OptionalFeedbackVectorRef feedback_vector,
@@ -1428,8 +1431,7 @@ class MaglevGraphBuilder {
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
-                              Call::TargetType target_type,
+  ValueNode* BuildGenericCall(ValueNode* target, Call::TargetType target_type,
                               const CallArguments& args,
                               const compiler::FeedbackSource& feedback_source =
                                   compiler::FeedbackSource());
@@ -1441,6 +1443,12 @@ class MaglevGraphBuilder {
   ReduceResult ReduceCallForTarget(
       ValueNode* target_node, compiler::JSFunctionRef target,
       CallArguments& args, const compiler::FeedbackSource& feedback_source,
+      SpeculationMode speculation_mode);
+  ReduceResult ReduceCallForNewClosure(
+      ValueNode* target_node, ValueNode* target_context,
+      compiler::SharedFunctionInfoRef shared,
+      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
   ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
       ValueNode* target_node, compiler::JSFunctionRef receiver,
