@@ -4440,10 +4440,10 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
                     MemoryReductionMode memory_reduction_mode,
                     PromoteUnusablePages promote_unusable_pages) {
   Heap* heap = p->heap();
+  DCHECK(!p->NeverEvacuate());
   bool should_move_page =
       v8_flags.page_promotion &&
       (memory_reduction_mode == MemoryReductionMode::kNone) &&
-      !p->NeverEvacuate() &&
       ((live_bytes + wasted_bytes >
         NewSpacePageEvacuationThreshold(collector)) ||
        (promote_unusable_pages == PromoteUnusablePages::kYes &&

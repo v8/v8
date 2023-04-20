@@ -5,6 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
@@ -296,6 +297,7 @@ TEST(ArrayBuffer_LivePromotion) {
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
+  if (v8_flags.minor_mc) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
