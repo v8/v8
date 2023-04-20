@@ -4261,6 +4261,7 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
       return MemOperand(kRootRegister, static_cast<int32_t>(offset));
     } else {
       // Otherwise, do a memory load from the external reference table.
+      DCHECK(scratch.is_valid());
       LoadWord(scratch,
                MemOperand(kRootRegister,
                           RootRegisterOffsetForExternalReferenceTableEntry(
@@ -4268,6 +4269,7 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
       return MemOperand(scratch, 0);
     }
   }
+  DCHECK(scratch.is_valid());
   li(scratch, reference);
   return MemOperand(scratch, 0);
 }
