@@ -1540,17 +1540,6 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
 template <typename BranchControlNodeT, typename... Args>
 bool MaglevGraphBuilder::TryBuildBranchFor(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  while (iterator_.next_bytecode() == interpreter::Bytecode::kMov) {
-    // Don't emit the shortcut branch if the next bytecode is a merge target.
-    if (IsOffsetAMergePoint(next_offset())) return false;
-
-    iterator_.Advance();
-    interpreter::Register src = iterator_.GetRegisterOperand(0);
-    interpreter::Register dst = iterator_.GetRegisterOperand(1);
-    DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
-    current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
-  }
-
   // Don't emit the shortcut branch if the next bytecode is a merge target.
   if (IsOffsetAMergePoint(next_offset())) return false;
 
@@ -5928,9 +5917,6 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
     // TODO(leszeks): Avoid forcing a conversion to tagged here.
-    if (TryBuildBranchFor<BranchIfToBooleanTrue>({call_result})) {
-      return ReduceResult::Done();
-    }
     return AddNewNode<ToBoolean>({GetTaggedValue(call_result)});
   }
 
