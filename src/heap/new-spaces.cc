@@ -1029,7 +1029,6 @@ void PagedSpaceForNewSpace::RefillFreeList() {
   Sweeper::SweptList swept_pages = sweeper->GetAllSweptPagesSafe(this);
   if (swept_pages.empty()) return;
 
-  base::MutexGuard guard(mutex());
   for (Page* p : swept_pages) {
     DCHECK(!p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE));
     RefineAllocatedBytesAfterSweeping(p);
