@@ -567,6 +567,10 @@ class CompilationStateImpl {
   // (tiering decisions).
   void ApplyPgoInfoToInitialProgress(ProfileInformation* pgo_info);
 
+  // Apply PGO information to a fully initialized compilation state. Also
+  // trigger compilation as needed.
+  void ApplyPgoInfoLate(ProfileInformation* pgo_info);
+
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before
   // {CommitCompilationUnits} is invoked which triggers background compilation.
@@ -2328,12 +2332,24 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   if (stream_) {
     stream_->NotifyNativeModuleCreated(native_module_);
   }
+  const WasmModule* module = native_module_->module();
+  auto compilation_state = Impl(native_module_->compilation_state());
+
+  // If experimental PGO via files is enabled, load profile information now that
+  // we have all wire bytes and know that the module is valid.
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+    std::unique_ptr<ProfileInformation> pgo_info =
+        LoadProfileFromFile(module, native_module_->wire_bytes());
+    if (pgo_info) {
+      compilation_state->ApplyPgoInfoLate(pgo_info.get());
+    }
+  }
+
   bool is_after_deserialization = !module_object_.is_null();
   if (!is_after_deserialization) {
     PrepareRuntimeObjects();
   }
 
-  auto compilation_state = Impl(native_module_->compilation_state());
   // Measure duration of baseline compilation or deserialization from cache.
   if (base::TimeTicks::IsHighResolution()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
@@ -2359,11 +2375,10 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
-  const WasmModule* module = module_object_->module();
   if (script->type() == Script::Type::kWasm &&
       module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !module->debug_symbols.external_url.is_empty()) {
-    ModuleWireBytes wire_bytes(module_object_->native_module()->wire_bytes());
+    ModuleWireBytes wire_bytes(native_module_->wire_bytes());
     MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
         wire_bytes.GetNameOrNull(module->debug_symbols.external_url),
         AllocationType::kOld);
@@ -3221,6 +3236,61 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
     // background.
     progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
   }
+}
+
+void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
+  TRACE_EVENT0("v8.wasm", "wasm.ApplyPgoInfo");
+  const WasmModule* module = native_module_->module();
+  CompilationUnitBuilder builder{native_module_};
+
+  base::MutexGuard guard(&callbacks_mutex_);
+  // Functions that were executed in the profiling run are eagerly compiled to
+  // Liftoff (in the background).
+  for (int func_index : pgo_info->executed_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    // If the function is already marked for eager compilation, we are good.
+    if (old_baseline_tier != ExecutionTier::kNone) continue;
+
+    // If we already compiled Liftoff or TurboFan code, we are also good.
+    ExecutionTier reached_tier = ReachedTierField::decode(progress);
+    if (reached_tier >= ExecutionTier::kLiftoff) continue;
+
+    // Set the baseline tier to Liftoff and schedule a compilation unit.
+    progress =
+        RequiredBaselineTierField::update(progress, ExecutionTier::kLiftoff);
+    // Add this as a "top tier unit" since it does not contribute to initial
+    // compilation ("baseline finished" might already be triggered).
+    // TODO(clemensb): Rename "baseline finished" to "initial compile finished".
+    // TODO(clemensb): Avoid scheduling both a Liftoff and a TurboFan unit, or
+    // prioritize Liftoff when executing the units.
+    builder.AddTopTierUnit(func_index, ExecutionTier::kLiftoff);
+  }
+
+  // Functions that were tiered up during PGO generation are eagerly compiled to
+  // TurboFan in the background.
+  for (int func_index : pgo_info->tiered_up_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
+    // If the function is already marked for eager or background compilation to
+    // TurboFan, we are good.
+    if (old_baseline_tier == ExecutionTier::kTurbofan) continue;
+    if (old_top_tier == ExecutionTier::kTurbofan) continue;
+
+    // If we already compiled TurboFan code, we are also good.
+    ExecutionTier reached_tier = ReachedTierField::decode(progress);
+    if (reached_tier == ExecutionTier::kTurbofan) continue;
+
+    // Set top tier to TurboFan and schedule a compilation unit.
+    progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
+    builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan);
+  }
+  builder.Commit();
 }
 
 void CompilationStateImpl::InitializeCompilationProgress(
