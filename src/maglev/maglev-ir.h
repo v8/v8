@@ -7328,9 +7328,9 @@ class BranchIfRootConstant
   using Base = BranchControlNodeT<1, BranchIfRootConstant>;
 
  public:
-  explicit BranchIfRootConstant(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                                BasicBlockRef* if_false_refs,
-                                RootIndex root_index)
+  explicit BranchIfRootConstant(uint64_t bitfield, RootIndex root_index,
+                                BasicBlockRef* if_true_refs,
+                                BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), root_index_(root_index) {}
 
   static constexpr

@@ -1996,6 +1996,9 @@ void MaglevGraphBuilder::VisitTestNull() {
     SetAccumulator(GetBooleanConstant(IsNullValue(value)));
     return;
   }
+  if (TryBuildBranchFor<BranchIfRootConstant>({value}, RootIndex::kNullValue)) {
+    return;
+  }
   ValueNode* null_constant = GetRootConstant(RootIndex::kNullValue);
   SetAccumulator(AddNewNode<TaggedEqual>({value, null_constant}));
 }
@@ -2004,6 +2007,10 @@ void MaglevGraphBuilder::VisitTestUndefined() {
   ValueNode* value = GetAccumulatorTagged();
   if (IsConstantNode(value->opcode())) {
     SetAccumulator(GetBooleanConstant(IsUndefinedValue(value)));
+    return;
+  }
+  if (TryBuildBranchFor<BranchIfRootConstant>({value},
+                                              RootIndex::kUndefinedValue)) {
     return;
   }
   ValueNode* undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
@@ -7039,7 +7046,7 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
   }
 
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
-      {node}, true_target, false_target, root_index);
+      {node}, root_index, true_target, false_target);
 
   MergeIntoFrameState(block, jump_offset);
   StartFallthroughBlock(fallthrough_offset, block);
@@ -7535,9 +7542,9 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   ValueNode* maybe_generator = LoadRegisterTagged(0);
   // Neither the true nor the false path jump over any bytecode
   BasicBlock* block_is_generator_undefined = FinishBlock<BranchIfRootConstant>(
-      {maybe_generator}, &jump_targets_[next_offset()],
-      &jump_targets_[generator_prologue_block_offset],
-      RootIndex::kUndefinedValue);
+      {maybe_generator}, RootIndex::kUndefinedValue,
+      &jump_targets_[next_offset()],
+      &jump_targets_[generator_prologue_block_offset]);
   MergeIntoFrameState(block_is_generator_undefined, next_offset());
 
   // We create the generator prologue block.
