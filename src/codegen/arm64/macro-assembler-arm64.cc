@@ -2442,6 +2442,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
   UseScratchRegisterScope temps(this);
   temps.Exclude(x16, x17);
+  DCHECK(!AreAliased(x16, x17, target));
 
   Label return_location;
   Adr(x17, &return_location);
