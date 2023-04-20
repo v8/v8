@@ -58,6 +58,7 @@ class MaglevCompilationInfo final {
   MaglevCompilationUnit* toplevel_compilation_unit() const {
     return toplevel_compilation_unit_;
   }
+  Handle<JSFunction> toplevel_function() const { return toplevel_function_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -83,7 +84,7 @@ class MaglevCompilationInfo final {
 
   // Must be called from within a MaglevCompilationHandleScope. Transfers owned
   // handles (e.g. shared_, function_) to the new scope.
-  void ReopenHandlesInNewHandleScope(Isolate* isolate);
+  void ReopenAndCanonicalizeHandlesInNewScope(Isolate* isolate);
 
   // Persistent and canonical handles are passed back and forth between the
   // Isolate, this info, and the LocalIsolate.
@@ -109,6 +110,7 @@ class MaglevCompilationInfo final {
   const std::unique_ptr<compiler::JSHeapBroker> broker_;
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
+  Handle<JSFunction> toplevel_function_;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 

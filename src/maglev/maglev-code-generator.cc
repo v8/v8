@@ -1088,8 +1088,8 @@ class MaglevTranslationArrayBuilder {
 
         BuildDeoptFrameValues(
             interpreted_frame.unit(), interpreted_frame.frame_state(),
-            current_input_location, deopt_info->result_location(),
-            deopt_info->result_size());
+            interpreted_frame.closure(), current_input_location,
+            deopt_info->result_location(), deopt_info->result_size());
         break;
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -1164,8 +1164,8 @@ class MaglevTranslationArrayBuilder {
 
         BuildDeoptFrameValues(
             interpreted_frame.unit(), interpreted_frame.frame_state(),
-            current_input_location, interpreter::Register::invalid_value(),
-            return_count);
+            interpreted_frame.closure(), current_input_location,
+            interpreter::Register::invalid_value(), return_count);
         break;
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
@@ -1177,8 +1177,9 @@ class MaglevTranslationArrayBuilder {
             static_cast<uint32_t>(inlined_arguments_frame.arguments().size()));
 
         // Closure
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(inlined_arguments_frame.unit().function()));
+        BuildDeoptFrameSingleValue(inlined_arguments_frame.closure(),
+                                   *current_input_location);
+        current_input_location++;
 
         // Arguments
         // TODO(victorgomes): Technically we don't need all arguments, only the
@@ -1268,7 +1269,7 @@ class MaglevTranslationArrayBuilder {
     }
   }
 
-  void BuildDeoptFrameSingleValue(ValueNode* value,
+  void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation& input_location) {
     if (input_location.operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
@@ -1288,21 +1289,15 @@ class MaglevTranslationArrayBuilder {
   void BuildDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
-      const InputLocation*& input_location,
+      const ValueNode* closure, const InputLocation*& input_location,
       interpreter::Register result_location, int result_size) {
-    // Closure
-    if (compilation_unit.inlining_depth() == 0) {
-      int closure_index = DeoptStackSlotIndexFromFPOffset(
-          StandardFrameConstants::kFunctionOffset);
-      translation_array_builder_->StoreStackSlot(closure_index);
-    } else {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(compilation_unit.function()));
-    }
-
     // TODO(leszeks): The input locations array happens to be in the same order
-    // as parameters+context+locals+accumulator are accessed here. We should
-    // make this clearer and guard against this invariant failing.
+    // as closure+parameters+context+locals+accumulator are accessed here. We
+    // should make this clearer and guard against this invariant failing.
+
+    // Closure
+    BuildDeoptFrameSingleValue(closure, *input_location);
+    input_location++;
 
     // Parameters
     {

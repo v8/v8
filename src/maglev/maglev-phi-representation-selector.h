@@ -169,7 +169,7 @@ class MaglevPhiRepresentationSelector {
 
   // Replaces Identity nodes by their inputs in {deopt_info}
   template <typename DeoptInfoT>
-  void BypassIdentities(const DeoptInfoT* deopt_info);
+  void BypassIdentities(DeoptInfoT* deopt_info);
 
   MaglevGraphLabeller* graph_labeller() const {
     return builder_->graph_labeller();

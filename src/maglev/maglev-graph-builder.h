@@ -241,7 +241,8 @@ class MaglevGraphBuilder {
     BuildBody();
   }
 
-  ReduceResult BuildInlined(const CallArguments& args, BasicBlockRef* start_ref,
+  ReduceResult BuildInlined(ValueNode* context, ValueNode* function,
+                            const CallArguments& args, BasicBlockRef* start_ref,
                             BasicBlockRef* end_ref);
 
   void StartPrologue();
@@ -497,7 +498,8 @@ class MaglevGraphBuilder {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
-        std::cout << "== New block (" << detail << ") at " << function()
+        std::cout << "== New block (" << detail << ") at "
+                  << compilation_unit()->shared_function_info()
                   << "==" << std::endl;
       }
 
@@ -1323,7 +1325,8 @@ class MaglevGraphBuilder {
 
     if (NumPredecessors(next_block_offset) == 1) {
       if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "== New block (single fallthrough) at " << function()
+        std::cout << "== New block (single fallthrough) at "
+                  << compilation_unit_->shared_function_info()
                   << "==" << std::endl;
       }
       StartNewBlock(next_block_offset);
@@ -1339,9 +1342,9 @@ class MaglevGraphBuilder {
     return GetTaggedValue(maybe_value);
   }
 
-  ValueNode* GetRawConvertReceiver(compiler::JSFunctionRef function,
+  ValueNode* GetRawConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                    const CallArguments& args);
-  ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
+  ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
 
   template <typename LoadNode>
@@ -1406,7 +1409,8 @@ class MaglevGraphBuilder {
   template <typename CallNode, typename... Args>
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
-  ValueNode* BuildCallSelf(compiler::JSFunctionRef function,
+  ValueNode* BuildCallSelf(ValueNode* context, ValueNode* function,
+                           compiler::SharedFunctionInfoRef shared,
                            CallArguments& args);
   ReduceResult TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
                                 CallArguments& args,
@@ -1416,9 +1420,13 @@ class MaglevGraphBuilder {
   ReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  bool ShouldInlineCall(compiler::JSFunctionRef function, float call_frequency);
+  bool ShouldInlineCall(compiler::SharedFunctionInfoRef shared,
+                        compiler::OptionalFeedbackVectorRef feedback_vector,
+                        float call_frequency);
   ReduceResult TryBuildInlinedCall(
-      compiler::JSFunctionRef function, CallArguments& args,
+      ValueNode* context, ValueNode* function,
+      compiler::SharedFunctionInfoRef shared,
+      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
                               Call::TargetType target_type,
@@ -1762,9 +1770,6 @@ class MaglevGraphBuilder {
   }
   compiler::BytecodeArrayRef bytecode() const {
     return compilation_unit_->bytecode();
-  }
-  compiler::JSFunctionRef function() const {
-    return compilation_unit_->function();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
     return bytecode_analysis_;

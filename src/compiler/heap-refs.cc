@@ -924,6 +924,8 @@ bool ObjectRef::equals(ObjectRef other) const { return data_ == other.data_; }
 ContextRef ContextRef::previous(JSHeapBroker* broker, size_t* depth) const {
   DCHECK_NOT_NULL(depth);
 
+  if (*depth == 0) return *this;
+
   Context current = *object();
   while (*depth != 0 && current.unchecked_previous().IsContext()) {
     current = Context::cast(current.unchecked_previous());

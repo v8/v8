@@ -194,19 +194,22 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 }
 
 size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
+  static constexpr int kClosureSize = 1;
+  static constexpr int kContextSize = 1;
   size_t size = 0;
   const DeoptFrame* frame = &top_frame;
   do {
     switch (frame->type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
-        size += frame->as_interpreted().frame_state()->size(
-            frame->as_interpreted().unit());
+        size += kClosureSize + frame->as_interpreted().frame_state()->size(
+                                   frame->as_interpreted().unit());
         break;
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += frame->as_inlined_arguments().arguments().size();
+        size += kClosureSize + frame->as_inlined_arguments().arguments().size();
         break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        size += frame->as_builtin_continuation().parameters().size() + 1;
+        size +=
+            frame->as_builtin_continuation().parameters().size() + kContextSize;
         break;
     }
     frame = frame->parent();
@@ -630,7 +633,7 @@ void FoldedAllocation::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
 // Reify constants
 // ---
 
-Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
+Handle<Object> ValueNode::Reify(LocalIsolate* isolate) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
@@ -642,28 +645,28 @@ Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
   }
 }
 
-Handle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) {
+Handle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) const {
   UNREACHABLE();
 }
 
-Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
+Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) const {
   return handle(value_, isolate);
 }
 
-Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
+Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumber<AllocationType::kOld>(value());
 }
 
-Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) {
+Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumber<AllocationType::kOld>(
       value_.get_scalar());
 }
 
-Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
+Handle<Object> Constant::DoReify(LocalIsolate* isolate) const {
   return object_.object();
 }
 
-Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
+Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) const {
   return isolate->root_handle(index());
 }
 
@@ -2044,15 +2047,14 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
                      Label::Distance::kNear);
     __ bind(&convert_global_proxy);
     // Patch receiver to global proxy.
-    __ Move(
-        ToRegister(result()),
-        target_.native_context(broker).global_proxy_object(broker).object());
+    __ Move(ToRegister(result()),
+            native_context_.global_proxy_object(broker).object());
     __ Jump(&done);
   }
 
   __ bind(&convert_to_object);
   // ToObject needs to be ran with the target context installed.
-  __ Move(kContextRegister, target_.context(broker).object());
+  __ Move(kContextRegister, native_context_.object());
   __ CallBuiltin(Builtin::kToObject);
   __ bind(&done);
 }
@@ -3465,6 +3467,8 @@ void CallSelf::SetValueLocationConstraints() {
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
+  UseFixed(closure(), kJavaScriptCallTargetRegister);
+  UseFixed(context(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
 }
@@ -3485,12 +3489,11 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
     __ PushReverse(receiver(),
                    base::make_iterator_range(args_begin(), args_end()));
   }
-  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
-  __ Move(kContextRegister, function_.context(broker).object());
-  __ Move(kJavaScriptCallTargetRegister, function_.object());
+  DCHECK_EQ(kContextRegister, ToRegister(context()));
+  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
   __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
-  DCHECK(!shared_function_info(broker).HasBuiltinId());
+  DCHECK(!shared_function_info().HasBuiltinId());
   __ CallSelf();
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -3504,6 +3507,8 @@ void CallKnownJSFunction::SetValueLocationConstraints() {
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
+  UseFixed(closure(), kJavaScriptCallTargetRegister);
+  UseFixed(context(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
 }
@@ -3534,13 +3539,12 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                              kJavaScriptCallTargetRegister,
                              kJavaScriptCallNewTargetRegister,
                              kJavaScriptCallArgCountRegister});
-  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
-  __ Move(kContextRegister, function_.context(broker).object());
-  __ Move(kJavaScriptCallTargetRegister, function_.object());
+  DCHECK_EQ(kContextRegister, ToRegister(context()));
+  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
   __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
-  if (shared_function_info(broker).HasBuiltinId()) {
-    __ CallBuiltin(shared_function_info(broker).builtin_id());
+  if (shared_function_info().HasBuiltinId()) {
+    __ CallBuiltin(shared_function_info().builtin_id());
   } else {
     __ AssertCallableFunction(kJavaScriptCallTargetRegister);
     __ LoadTaggedField(kJavaScriptCallCodeStartRegister,
@@ -3988,8 +3992,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       __ Move(kContextRegister, masm->native_context().object());
       if (node->unit()->is_inline()) {
-        __ Push(Smi::FromInt(osr_offset.ToInt()),
-                node->unit()->function().object());
+        __ Push(Smi::FromInt(osr_offset.ToInt()), node->closure());
         __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglevInlined, 2);
       } else {
         __ Push(Smi::FromInt(osr_offset.ToInt()));
@@ -4031,12 +4034,11 @@ int TryOnStackReplacement::MaxCallStackArgs() const {
   return 1;
 }
 void TryOnStackReplacement::SetValueLocationConstraints() {
-  if (!v8_flags.use_osr) return;
+  UseAny(closure());
   set_temporaries_needed(2);
 }
 void TryOnStackReplacement::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  if (!v8_flags.use_osr) return;
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch0 = temps.Acquire();
   Register scratch1 = temps.Acquire();
@@ -4601,12 +4603,12 @@ void Call::PrintParams(std::ostream& os,
 
 void CallSelf::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << function_.object() << ")";
+  os << "(" << shared_function_info_.object() << ")";
 }
 
 void CallKnownJSFunction::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << function_.object() << ")";
+  os << "(" << shared_function_info_.object() << ")";
 }
 
 void CallBuiltin::PrintParams(std::ostream& os,

@@ -380,7 +380,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
       MaglevCompilationUnit* top_level_unit =
           compilation_info->toplevel_compilation_unit();
-      std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+      std::cout << "Compiling " << Brief(*compilation_info->toplevel_function())
                 << " with Maglev\n";
       BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
                                  std::cout);

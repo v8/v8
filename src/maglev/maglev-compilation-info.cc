@@ -29,7 +29,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
   MaglevCompilationHandleScope(Isolate* isolate,
                                maglev::MaglevCompilationInfo* info)
       : info_(info), persistent_(isolate), exported_info_(info) {
-    info->ReopenHandlesInNewHandleScope(isolate);
+    info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   }
 
   ~MaglevCompilationHandleScope() {
@@ -48,7 +48,8 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
                                              Handle<JSFunction> function)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(new compiler::JSHeapBroker(
-          isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV))
+          isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV)),
+      toplevel_function_(function)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
@@ -101,7 +102,25 @@ void MaglevCompilationInfo::set_code_generator(
   code_generator_ = std::move(code_generator);
 }
 
-void MaglevCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {}
+namespace {
+template <typename T>
+Handle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles, T object,
+                          Isolate* isolate) {
+  DCHECK_NOT_NULL(canonical_handles);
+  DCHECK(PersistentHandlesScope::IsActive(isolate));
+  auto find_result = canonical_handles->FindOrInsert(object);
+  if (!find_result.already_exists) {
+    *find_result.entry = Handle<T>(object, isolate).location();
+  }
+  return Handle<T>(*find_result.entry);
+}
+}  // namespace
+
+void MaglevCompilationInfo::ReopenAndCanonicalizeHandlesInNewScope(
+    Isolate* isolate) {
+  toplevel_function_ =
+      CanonicalHandle(canonical_handles_.get(), *toplevel_function_, isolate);
+}
 
 void MaglevCompilationInfo::set_persistent_handles(
     std::unique_ptr<PersistentHandles>&& persistent_handles) {

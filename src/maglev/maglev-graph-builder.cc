@@ -107,7 +107,9 @@ class FunctionContextSpecialization final : public AllStatic {
     compiler::OptionalContextRef ref;
     if (InitialValue* n = context->TryCast<InitialValue>()) {
       if (n->source().is_current_context()) {
-        ref = unit->function().context(unit->broker());
+        ref = compiler::MakeRefAssumeMemoryFence(
+            unit->broker(), unit->broker()->CanonicalPersistentHandle(
+                                unit->info()->toplevel_function()->context()));
       }
     } else if (Constant* n = context->TryCast<Constant>()) {
       ref = n->ref().AsContext();
@@ -569,8 +571,8 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
             parent_->current_lazy_deopt_continuation_scope_, true));
     if (inlined_arguments_) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
-          *compilation_unit_, caller_bytecode_offset_, *inlined_arguments_,
-          parent_deopt_frame_);
+          *compilation_unit_, caller_bytecode_offset_, GetClosure(),
+          *inlined_arguments_, parent_deopt_frame_);
     }
   }
   return parent_deopt_frame_;
@@ -584,8 +586,8 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-        BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        GetParentDeoptFrame());
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        current_source_position_, GetParentDeoptFrame());
   }
   return *latest_checkpointed_frame_;
 }
@@ -612,8 +614,8 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
-        BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        GetParentDeoptFrame());
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        current_source_position_, GetParentDeoptFrame());
   }
 
   // Currently only support builtin continuations for bytecodes that write to
@@ -635,8 +637,8 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
           *compilation_unit_, GetInLivenessFor(0), current_interpreter_frame_),
-      BytecodeOffset(kFunctionEntryBytecodeOffset), current_source_position_,
-      nullptr);
+      GetClosure(), BytecodeOffset(kFunctionEntryBytecodeOffset),
+      current_source_position_, nullptr);
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(
@@ -4429,7 +4431,9 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   StoreRegisterPair(result, call_builtin);
 }
 
-ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
+ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
+                                              ValueNode* function,
+                                              const CallArguments& args,
                                               BasicBlockRef* start_ref,
                                               BasicBlockRef* end_ref) {
   DCHECK(is_inline());
@@ -4439,7 +4443,8 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
   StartPrologue();
 
   // Set receiver.
-  ValueNode* receiver = GetRawConvertReceiver(function(), args);
+  ValueNode* receiver =
+      GetRawConvertReceiver(compilation_unit_->shared_function_info(), args);
   SetArgument(0, receiver);
   // Set remaining arguments.
   RootConstant* undefined_constant =
@@ -4462,8 +4467,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
     }
   }
 
-  BuildRegisterFrameInitialization(GetConstant(function().context(broker())),
-                                   GetConstant(function()));
+  BuildRegisterFrameInitialization(context, function);
   BuildMergeStates();
   BasicBlock* inlined_prologue = EndPrologue();
 
@@ -4509,30 +4513,26 @@ ReduceResult MaglevGraphBuilder::BuildInlined(const CallArguments& args,
 #define TRACE_CANNOT_INLINE(...) \
   TRACE_INLINING("  cannot inline " << shared << ": " << __VA_ARGS__)
 
-bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
-                                          float call_frequency) {
-  compiler::OptionalCodeRef code = function.code(broker());
-  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+bool MaglevGraphBuilder::ShouldInlineCall(
+    compiler::SharedFunctionInfoRef shared,
+    compiler::OptionalFeedbackVectorRef feedback_vector, float call_frequency) {
   if (graph()->total_inlined_bytecode_size() >
       v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
     TRACE_CANNOT_INLINE("maximum inlined bytecode size");
     return false;
   }
-  if (!code) {
+  if (!feedback_vector) {
     // TODO(verwaest): Soft deopt instead?
-    TRACE_CANNOT_INLINE("it has not been compiled yet");
+    TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
     return false;
   }
-  if (code->object()->kind() == CodeKind::TURBOFAN) {
+  if (feedback_vector->object()->has_optimized_code() &&
+      feedback_vector->object()->optimized_code().kind() ==
+          CodeKind::TURBOFAN) {
     TRACE_CANNOT_INLINE("already turbofanned");
     return false;
   }
-  if (!function.feedback_vector(broker()).has_value()) {
-    TRACE_CANNOT_INLINE("no feedback vector");
-    return false;
-  }
-  if (compilation_unit_->shared_function_info().equals(
-          function.shared(broker()))) {
+  if (compilation_unit_->shared_function_info().equals(shared)) {
     TRACE_CANNOT_INLINE("direct recursion");
     return false;
   }
@@ -4591,14 +4591,16 @@ bool MaglevGraphBuilder::ShouldInlineCall(compiler::JSFunctionRef function,
   TRACE_INLINING("  inlining " << shared);
   if (v8_flags.trace_maglev_inlining_verbose) {
     BytecodeArray::Disassemble(bytecode.object(), std::cout);
-    function.feedback_vector(broker())->object()->Print(std::cout);
+    feedback_vector->object()->Print(std::cout);
   }
   graph()->add_inlined_bytecode_size(bytecode.length());
   return true;
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
-    compiler::JSFunctionRef function, CallArguments& args,
+    ValueNode* context, ValueNode* function,
+    compiler::SharedFunctionInfoRef shared,
+    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
   float feedback_frequency = 0.0f;
@@ -4609,21 +4611,19 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
         feedback.IsInsufficient() ? 0.0f : feedback.AsCall().frequency();
   }
   float call_frequency = feedback_frequency * call_frequency_;
-  if (!ShouldInlineCall(function, call_frequency)) {
+  if (!ShouldInlineCall(shared, feedback_vector, call_frequency)) {
     return ReduceResult::Fail();
   }
 
-  compiler::BytecodeArrayRef bytecode =
-      function.shared(broker()).GetBytecodeArray(broker());
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
-          function.shared(broker()).object(), bytecode.object(),
-          current_source_position_));
+          shared.object(), bytecode.object(), current_source_position_));
 
   // Create a new compilation unit and graph builder for the inlined
   // function.
-  MaglevCompilationUnit* inner_unit =
-      MaglevCompilationUnit::NewInner(zone(), compilation_unit_, function);
+  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+      zone(), compilation_unit_, shared, feedback_vector.value());
   MaglevGraphBuilder inner_graph_builder(
       local_isolate_, inner_unit, graph_, call_frequency,
       BytecodeOffset(iterator_.current_offset()), this);
@@ -4635,8 +4635,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   BasicBlockRef start_ref, end_ref;
   BasicBlock* block = FinishBlock<JumpToInlined>({}, &start_ref, inner_unit);
 
-  ReduceResult result =
-      inner_graph_builder.BuildInlined(args, &start_ref, &end_ref);
+  ReduceResult result = inner_graph_builder.BuildInlined(
+      context, function, args, &start_ref, &end_ref);
   if (result.IsDoneWithAbort()) {
     MarkBytecodeDead();
     return ReduceResult::DoneWithAbort();
@@ -5009,13 +5009,12 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
 }
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
-    compiler::JSFunctionRef function, const CallArguments& args) {
-  return GetTaggedValue(GetRawConvertReceiver(function, args));
+    compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
+  return GetTaggedValue(GetRawConvertReceiver(shared, args));
 }
 
 ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
-    compiler::JSFunctionRef function, const CallArguments& args) {
-  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+    compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -5025,7 +5024,7 @@ ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
   }
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return GetConstant(
-        function.native_context(broker()).global_proxy_object(broker()));
+        broker()->target_native_context().global_proxy_object(broker()));
   }
   ValueNode* receiver = args.receiver();
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
@@ -5043,12 +5042,13 @@ ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
     const Handle<HeapObject> object = constant->object().object();
     if (object->IsUndefined() || object->IsNull()) {
       return GetConstant(
-          function.native_context(broker()).global_proxy_object(broker()));
+          broker()->target_native_context().global_proxy_object(broker()));
     } else if (object->IsJSReceiver()) {
       return constant;
     }
   }
-  return AddNewNode<ConvertReceiver>({GetTaggedValue(receiver)}, function,
+  return AddNewNode<ConvertReceiver>({GetTaggedValue(receiver)},
+                                     broker()->target_native_context(),
                                      args.receiver_mode());
 }
 
@@ -5091,9 +5091,10 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
   }
 }
 
-ValueNode* MaglevGraphBuilder::BuildCallSelf(compiler::JSFunctionRef function,
-                                             CallArguments& args) {
-  ValueNode* receiver = GetConvertReceiver(function, args);
+ValueNode* MaglevGraphBuilder::BuildCallSelf(
+    ValueNode* context, ValueNode* function,
+    compiler::SharedFunctionInfoRef shared, CallArguments& args) {
+  ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
   graph()->set_has_recursive_calls(true);
   return AddNewNode<CallSelf>(
@@ -5103,16 +5104,17 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(compiler::JSFunctionRef function,
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      broker(), function, receiver);
+      shared, function, context, receiver);
 }
 
 bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
     compiler::JSFunctionRef target) {
   if (compilation_unit_->info()->specialize_to_function_context()) {
-    return target.equals(compilation_unit_->function());
+    return target.object().equals(
+        compilation_unit_->info()->toplevel_function());
   }
-  return compilation_unit_->shared_function_info().equals(
-      target.shared(broker()));
+  return target.object()->shared() ==
+         compilation_unit_->info()->toplevel_function()->shared();
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -5127,14 +5129,18 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (MaglevIsTopTier() && !is_inline() &&
-      TargetIsCurrentCompilingUnit(function)) {
-    return BuildCallSelf(function, args);
+  ValueNode* closure = GetConstant(function);
+  ValueNode* context = GetConstant(function.context(broker()));
+  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+  if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function)) {
+    return BuildCallSelf(closure, context, shared, args);
   }
   if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(function, args, feedback_source));
+    RETURN_IF_DONE(TryBuildInlinedCall(context, closure, shared,
+                                       function.feedback_vector(broker()), args,
+                                       feedback_source));
   }
-  ValueNode* receiver = GetConvertReceiver(function, args);
+  ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   return AddNewNode<CallKnownJSFunction>(
       input_count,
@@ -5143,7 +5149,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      broker(), function, receiver);
+      shared, closure, context, receiver);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
@@ -6739,9 +6745,11 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   }
 
   if (ShouldEmitInterruptBudgetChecks()) {
-    AddNewNode<TryOnStackReplacement>(
-        {}, loop_offset, feedback_slot,
-        BytecodeOffset(iterator_.current_offset()), compilation_unit_);
+    if (v8_flags.use_osr) {
+      AddNewNode<TryOnStackReplacement>(
+          {GetClosure()}, loop_offset, feedback_slot,
+          BytecodeOffset(iterator_.current_offset()), compilation_unit_);
+    }
   }
   BasicBlock* block =
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());

@@ -926,73 +926,66 @@ class DeoptFrame {
   };
 
   FrameType type() const { return type_; }
+  DeoptFrame* parent() { return parent_; }
   const DeoptFrame* parent() const { return parent_; }
 
   inline const InterpretedDeoptFrame& as_interpreted() const;
   inline const InlinedArgumentsDeoptFrame& as_inlined_arguments() const;
   inline const BuiltinContinuationDeoptFrame& as_builtin_continuation() const;
+  inline InterpretedDeoptFrame& as_interpreted();
+  inline InlinedArgumentsDeoptFrame& as_inlined_arguments();
+  inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
 
  protected:
   struct InterpretedFrameData {
     const MaglevCompilationUnit& unit;
     const CompactInterpreterFrameState* frame_state;
-    BytecodeOffset bytecode_position;
-    SourcePosition source_position;
+    ValueNode* closure;
+    const BytecodeOffset bytecode_position;
+    const SourcePosition source_position;
   };
   struct InlinedArgumentsFrameData {
     const MaglevCompilationUnit& unit;
-    BytecodeOffset bytecode_position;
-    base::Vector<ValueNode*> arguments;
+    const BytecodeOffset bytecode_position;
+    ValueNode* closure;
+    const base::Vector<ValueNode*> arguments;
   };
   struct BuiltinContinuationFrameData {
-    Builtin builtin_id;
-    base::Vector<ValueNode*> parameters;
-    // All of the ValueNode inputs in InterpretedFrameData,
-    // InlinedArgumentsFrameData and BuiltinContinuationFrameData are stored in
-    // non-const pointers (`frame_state.live_registers_and_accumulator_`,
-    // `arguments` and `parameters`), which allows DeepForEachInput and
-    // CompactInterpreterFrameState::ForEachValue to iterate over all of the
-    // inputs as ValueNode*&, allowing the callback function to mutate the frame
-    // state inputs. This is in particular useful for PhiRepresentationSelector,
-    // which may need to update some frame state inputs.
-    // However, the following `context` field is the only exception, as it is
-    // stored directly in the frame state. Thus, we made it mutable, so that we
-    // can update it in DeepForEachInput while still keeping as many `const`
-    // methods and fields as we can.
-    mutable ValueNode* context;
+    const Builtin builtin_id;
+    const base::Vector<ValueNode*> parameters;
+    ValueNode* context;
   };
 
-  DeoptFrame(InterpretedFrameData data, const DeoptFrame* parent)
+  DeoptFrame(InterpretedFrameData data, DeoptFrame* parent)
       : interpreted_frame_data_(data),
         type_(FrameType::kInterpretedFrame),
         parent_(parent) {}
-  DeoptFrame(InlinedArgumentsFrameData data, const DeoptFrame* parent)
+  DeoptFrame(InlinedArgumentsFrameData data, DeoptFrame* parent)
       : inlined_arguments_frame_data_(data),
         type_(FrameType::kInlinedArgumentsFrame),
         parent_(parent) {}
-  DeoptFrame(BuiltinContinuationFrameData data, const DeoptFrame* parent)
+  DeoptFrame(BuiltinContinuationFrameData data, DeoptFrame* parent)
       : builtin_continuation_frame_data_(data),
         type_(FrameType::kBuiltinContinuationFrame),
         parent_(parent) {}
 
   union {
-    const InterpretedFrameData interpreted_frame_data_;
-    const InlinedArgumentsFrameData inlined_arguments_frame_data_;
-    const BuiltinContinuationFrameData builtin_continuation_frame_data_;
+    InterpretedFrameData interpreted_frame_data_;
+    InlinedArgumentsFrameData inlined_arguments_frame_data_;
+    BuiltinContinuationFrameData builtin_continuation_frame_data_;
   };
-  FrameType type_;
-  const DeoptFrame* parent_;
+  const FrameType type_;
+  DeoptFrame* const parent_;
 };
 
 class InterpretedDeoptFrame : public DeoptFrame {
  public:
   InterpretedDeoptFrame(const MaglevCompilationUnit& unit,
                         const CompactInterpreterFrameState* frame_state,
-                        BytecodeOffset bytecode_position,
-                        SourcePosition source_position,
-                        const DeoptFrame* parent)
-      : DeoptFrame(InterpretedFrameData{unit, frame_state, bytecode_position,
-                                        source_position},
+                        ValueNode* closure, BytecodeOffset bytecode_position,
+                        SourcePosition source_position, DeoptFrame* parent)
+      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure,
+                                        bytecode_position, source_position},
                    parent) {}
 
   const MaglevCompilationUnit& unit() const {
@@ -1001,6 +994,8 @@ class InterpretedDeoptFrame : public DeoptFrame {
   const CompactInterpreterFrameState* frame_state() const {
     return interpreted_frame_data_.frame_state;
   }
+  ValueNode*& closure() { return inlined_arguments_frame_data_.closure; }
+  ValueNode* closure() const { return inlined_arguments_frame_data_.closure; }
   BytecodeOffset bytecode_position() const {
     return interpreted_frame_data_.bytecode_position;
   }
@@ -1016,16 +1011,21 @@ inline const InterpretedDeoptFrame& DeoptFrame::as_interpreted() const {
   DCHECK_EQ(type(), FrameType::kInterpretedFrame);
   return static_cast<const InterpretedDeoptFrame&>(*this);
 }
+inline InterpretedDeoptFrame& DeoptFrame::as_interpreted() {
+  DCHECK_EQ(type(), FrameType::kInterpretedFrame);
+  return static_cast<InterpretedDeoptFrame&>(*this);
+}
 
 class InlinedArgumentsDeoptFrame : public DeoptFrame {
  public:
   InlinedArgumentsDeoptFrame(const MaglevCompilationUnit& unit,
                              BytecodeOffset bytecode_position,
+                             ValueNode* closure,
                              base::Vector<ValueNode*> arguments,
-                             const DeoptFrame* parent)
-      : DeoptFrame(
-            InlinedArgumentsFrameData{unit, bytecode_position, arguments},
-            parent) {}
+                             DeoptFrame* parent)
+      : DeoptFrame(InlinedArgumentsFrameData{unit, bytecode_position, closure,
+                                             arguments},
+                   parent) {}
 
   const MaglevCompilationUnit& unit() const {
     return interpreted_frame_data_.unit;
@@ -1033,6 +1033,8 @@ class InlinedArgumentsDeoptFrame : public DeoptFrame {
   BytecodeOffset bytecode_position() const {
     return inlined_arguments_frame_data_.bytecode_position;
   }
+  ValueNode*& closure() { return inlined_arguments_frame_data_.closure; }
+  ValueNode* closure() const { return inlined_arguments_frame_data_.closure; }
   base::Vector<ValueNode*> arguments() const {
     return inlined_arguments_frame_data_.arguments;
   }
@@ -1046,12 +1048,16 @@ inline const InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments()
   DCHECK_EQ(type(), FrameType::kInlinedArgumentsFrame);
   return static_cast<const InlinedArgumentsDeoptFrame&>(*this);
 }
+inline InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments() {
+  DCHECK_EQ(type(), FrameType::kInlinedArgumentsFrame);
+  return static_cast<InlinedArgumentsDeoptFrame&>(*this);
+}
 
 class BuiltinContinuationDeoptFrame : public DeoptFrame {
  public:
   BuiltinContinuationDeoptFrame(Builtin builtin_id,
                                 base::Vector<ValueNode*> parameters,
-                                ValueNode* context, const DeoptFrame* parent)
+                                ValueNode* context, DeoptFrame* parent)
       : DeoptFrame(
             BuiltinContinuationFrameData{builtin_id, parameters, context},
             parent) {}
@@ -1062,7 +1068,8 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
   base::Vector<ValueNode*> parameters() const {
     return builtin_continuation_frame_data_.parameters;
   }
-  ValueNode*& context() const {
+  ValueNode*& context() { return builtin_continuation_frame_data_.context; }
+  ValueNode* context() const {
     return builtin_continuation_frame_data_.context;
   }
 };
@@ -1075,6 +1082,10 @@ DeoptFrame::as_builtin_continuation() const {
   DCHECK_EQ(type(), FrameType::kBuiltinContinuationFrame);
   return static_cast<const BuiltinContinuationDeoptFrame&>(*this);
 }
+inline BuiltinContinuationDeoptFrame& DeoptFrame::as_builtin_continuation() {
+  DCHECK_EQ(type(), FrameType::kBuiltinContinuationFrame);
+  return static_cast<BuiltinContinuationDeoptFrame&>(*this);
+}
 
 class DeoptInfo {
  protected:
@@ -1082,6 +1093,7 @@ class DeoptInfo {
             compiler::FeedbackSource feedback_to_update);
 
  public:
+  DeoptFrame& top_frame() { return top_frame_; }
   const DeoptFrame& top_frame() const { return top_frame_; }
   const compiler::FeedbackSource& feedback_to_update() {
     return feedback_to_update_;
@@ -1094,7 +1106,7 @@ class DeoptInfo {
   void set_translation_index(int index) { translation_index_ = index; }
 
  private:
-  const DeoptFrame top_frame_;
+  DeoptFrame top_frame_;
   const compiler::FeedbackSource feedback_to_update_;
   InputLocation* const input_locations_;
   Label deopt_entry_label_;
@@ -1715,7 +1727,7 @@ class ValueNode : public Node {
   void LoadToRegister(MaglevAssembler*, DoubleRegister);
   void DoLoadToRegister(MaglevAssembler*, Register);
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
-  Handle<Object> Reify(LocalIsolate* isolate);
+  Handle<Object> Reify(LocalIsolate* isolate) const;
 
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
@@ -2637,7 +2649,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const int32_t value_;
@@ -2665,7 +2677,7 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const Float64 value_;
@@ -3494,8 +3506,8 @@ class GeneratorStore : public NodeT<GeneratorStore> {
   const int bytecode_offset_;
 };
 
-class TryOnStackReplacement : public FixedInputNodeT<0, TryOnStackReplacement> {
-  using Base = FixedInputNodeT<0, TryOnStackReplacement>;
+class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
+  using Base = FixedInputNodeT<1, TryOnStackReplacement>;
 
  public:
   explicit TryOnStackReplacement(uint64_t bitfield, int32_t loop_depth,
@@ -3510,6 +3522,10 @@ class TryOnStackReplacement : public FixedInputNodeT<0, TryOnStackReplacement> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& closure() { return Node::input(0); }
 
   const MaglevCompilationUnit* unit() const { return unit_; }
 
@@ -3746,7 +3762,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const Smi value_;
@@ -3774,7 +3790,7 @@ class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const ExternalReference reference_;
@@ -3804,7 +3820,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   compiler::HeapObjectRef object() { return object_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
   compiler::HeapObjectRef ref() const { return object_; }
 
@@ -3830,7 +3846,7 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const RootIndex index_;
@@ -6629,9 +6645,10 @@ class CallSelf : public ValueNodeT<CallSelf> {
   using Base = ValueNodeT<CallSelf>;
 
  public:
-  // We assume function and context as fixed inputs.
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kFixedInputCount = 1;
+  static constexpr int kClosureIndex = 0;
+  static constexpr int kContextIndex = 1;
+  static constexpr int kReceiverIndex = 2;
+  static constexpr int kFixedInputCount = 3;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -6639,18 +6656,25 @@ class CallSelf : public ValueNodeT<CallSelf> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallSelf(uint64_t bitfield, compiler::JSHeapBroker* broker,
-           const compiler::JSFunctionRef function, ValueNode* receiver)
+  CallSelf(uint64_t bitfield,
+           compiler::SharedFunctionInfoRef shared_function_info,
+           ValueNode* closure, ValueNode* context, ValueNode* receiver)
       : Base(bitfield),
-        function_(function),
+        shared_function_info_(shared_function_info),
         expected_parameter_count_(
-            function.shared(broker)
+            shared_function_info
                 .internal_formal_parameter_count_with_receiver()) {
+    set_input(kClosureIndex, closure);
+    set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
+  Input& closure() { return input(kClosureIndex); }
+  const Input& closure() const { return input(kClosureIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
   Input& receiver() { return input(kReceiverIndex); }
   const Input& receiver() const { return input(kReceiverIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
@@ -6661,9 +6685,8 @@ class CallSelf : public ValueNodeT<CallSelf> {
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
 
-  compiler::SharedFunctionInfoRef shared_function_info(
-      compiler::JSHeapBroker* broker) const {
-    return function_.shared(broker);
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return shared_function_info_;
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
@@ -6674,7 +6697,7 @@ class CallSelf : public ValueNodeT<CallSelf> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::JSFunctionRef function_;
+  const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
@@ -6684,9 +6707,10 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   using Base = ValueNodeT<CallKnownJSFunction>;
 
  public:
-  // We assume function and context as fixed inputs.
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kFixedInputCount = 1;
+  static constexpr int kClosureIndex = 0;
+  static constexpr int kContextIndex = 1;
+  static constexpr int kReceiverIndex = 2;
+  static constexpr int kFixedInputCount = 3;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -6694,19 +6718,26 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallKnownJSFunction(uint64_t bitfield, compiler::JSHeapBroker* broker,
-                      const compiler::JSFunctionRef function,
+  CallKnownJSFunction(uint64_t bitfield,
+                      compiler::SharedFunctionInfoRef shared_function_info,
+                      ValueNode* closure, ValueNode* context,
                       ValueNode* receiver)
       : Base(bitfield),
-        function_(function),
+        shared_function_info_(shared_function_info),
         expected_parameter_count_(
-            function.shared(broker)
+            shared_function_info
                 .internal_formal_parameter_count_with_receiver()) {
+    set_input(kClosureIndex, closure);
+    set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
+  Input& closure() { return input(kClosureIndex); }
+  const Input& closure() const { return input(kClosureIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
   Input& receiver() { return input(kReceiverIndex); }
   const Input& receiver() const { return input(kReceiverIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
@@ -6717,9 +6748,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
 
-  compiler::SharedFunctionInfoRef shared_function_info(
-      compiler::JSHeapBroker* broker) const {
-    return function_.shared(broker);
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return shared_function_info_;
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
@@ -6730,7 +6760,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::JSFunctionRef function_;
+  const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
@@ -6800,9 +6830,9 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
 
  public:
   explicit ConvertReceiver(uint64_t bitfield,
-                           const compiler::JSFunctionRef target,
+                           compiler::NativeContextRef native_context,
                            ConvertReceiverMode mode)
-      : Base(bitfield), target_(target), mode_(mode) {}
+      : Base(bitfield), native_context_(native_context), mode_(mode) {}
 
   Input& receiver_input() { return input(0); }
 
@@ -6817,7 +6847,7 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const compiler::JSFunctionRef target_;
+  const compiler::NativeContextRef native_context_;
   ConvertReceiverMode mode_;
 };
 
