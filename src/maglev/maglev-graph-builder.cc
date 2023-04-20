@@ -2245,11 +2245,15 @@ void MaglevGraphBuilder::VisitStaGlobal() {
   const compiler::ProcessedFeedback& access_feedback =
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
-  if (!access_feedback.IsInsufficient()) {
-    const compiler::GlobalAccessFeedback& global_access_feedback =
-        access_feedback.AsGlobalAccess();
-    RETURN_VOID_IF_DONE(TryBuildGlobalStore(global_access_feedback));
+  if (access_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess);
+    return;
   }
+
+  const compiler::GlobalAccessFeedback& global_access_feedback =
+      access_feedback.AsGlobalAccess();
+  RETURN_VOID_IF_DONE(TryBuildGlobalStore(global_access_feedback));
 
   ValueNode* value = GetAccumulatorTagged();
   compiler::NameRef name = GetRefOperand<Name>(0);
@@ -4104,12 +4108,16 @@ void MaglevGraphBuilder::BuildLoadGlobal(
   const compiler::ProcessedFeedback& access_feedback =
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
-  if (!access_feedback.IsInsufficient()) {
-    const compiler::GlobalAccessFeedback& global_access_feedback =
-        access_feedback.AsGlobalAccess();
-    PROCESS_AND_RETURN_IF_DONE(TryBuildGlobalLoad(global_access_feedback),
-                               SetAccumulator);
+  if (access_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess);
+    return;
   }
+
+  const compiler::GlobalAccessFeedback& global_access_feedback =
+      access_feedback.AsGlobalAccess();
+  PROCESS_AND_RETURN_IF_DONE(TryBuildGlobalLoad(global_access_feedback),
+                             SetAccumulator);
 
   ValueNode* context = GetContext();
   SetAccumulator(
@@ -6018,9 +6026,11 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
   compiler::ProcessedFeedback const& feedback =
       broker()->GetFeedbackForInstanceOf(feedback_source);
 
-  // TurboFan emits generic code when there's no feedback, rather than
-  // deopting.
-  if (feedback.IsInsufficient()) return ReduceResult::Fail();
+  if (feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForInstanceOf);
+    return ReduceResult::DoneWithAbort();
+  }
 
   // Check if the right hand side is a known receiver, or
   // we have feedback from the InstanceOfIC.
@@ -6180,11 +6190,16 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
 
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
-  if (!processed_feedback.IsInsufficient()) {
-    ReduceResult result =
-        TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
-    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+  if (processed_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral);
+    return;
   }
+
+  ReduceResult result =
+      TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
+  PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
 
   if (interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
@@ -6586,11 +6601,15 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
 
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
-  if (!processed_feedback.IsInsufficient()) {
-    ReduceResult result =
-        TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
-    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+  if (processed_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForObjectLiteral);
+    return;
   }
+
+  ReduceResult result =
+      TryBuildFastCreateObjectOrArrayLiteral(processed_feedback.AsLiteral());
+  PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
 
   if (interpreter::CreateObjectLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
