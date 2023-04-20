@@ -22,6 +22,7 @@ namespace maglev {
 
 class BasicBlock;
 class Graph;
+class MaglevGraphBuilder;
 class MergePointInterpreterFrameState;
 
 // Destructively intersects the right map into the left map, such that the
@@ -506,7 +507,7 @@ class MergePointInterpreterFrameState {
       const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
-      const compiler::LoopInfo* loop_info);
+      const compiler::LoopInfo* loop_info, bool has_been_peeled = false);
 
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
@@ -522,7 +523,7 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void MergeLoop(MaglevCompilationUnit& compilation_unit,
-                 ZoneMap<int, SmiConstant*>& smi_constants,
+                 MaglevGraphBuilder* graph_builder,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
 
@@ -548,7 +549,8 @@ class MergePointInterpreterFrameState {
     DCHECK(is_unmerged_loop());
     MergeDead(compilation_unit);
     // This means that this is no longer a loop.
-    basic_block_type_ = BasicBlockType::kDefault;
+    bitfield_ =
+        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
   }
 
   const CompactInterpreterFrameState& frame_state() const {
@@ -574,11 +576,11 @@ class MergePointInterpreterFrameState {
   }
 
   bool is_loop() const {
-    return basic_block_type_ == BasicBlockType::kLoopHeader;
+    return basic_block_type() == BasicBlockType::kLoopHeader;
   }
 
   bool is_exception_handler() const {
-    return basic_block_type_ == BasicBlockType::kExceptionHandlerStart;
+    return basic_block_type() == BasicBlockType::kExceptionHandlerStart;
   }
 
   bool is_unmerged_loop() const {
@@ -595,11 +597,25 @@ class MergePointInterpreterFrameState {
            predecessors_so_far_ == 0;
   }
 
-  bool is_resumable_loop() const { return is_resumable_loop_; }
+  BasicBlockType basic_block_type() const {
+    return kBasicBlockTypeBits::decode(bitfield_);
+  }
+  bool is_resumable_loop() const {
+    return kIsResumableLoopBit::decode(bitfield_);
+  }
+  bool is_loop_with_peeled_iteration() const {
+    return kIsLoopWithPeeledIterationBit::decode(bitfield_);
+  }
 
   int merge_offset() const { return merge_offset_; }
 
+  DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
+
  private:
+  using kBasicBlockTypeBits = base::BitField<BasicBlockType, 0, 2>;
+  using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
+  using kIsLoopWithPeeledIterationBit = kIsResumableLoopBit::Next<bool, 1>;
+
   // For each non-Phi value in the frame state, store its alternative
   // representations to avoid re-converting on Phi creation.
   class Alternatives {
@@ -667,16 +683,28 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
-  bool is_resumable_loop_ = false;
+
+  uint32_t bitfield_;
+
   BasicBlock** predecessors_;
 
-  BasicBlockType basic_block_type_;
   Phi::List phis_;
 
   CompactInterpreterFrameState frame_state_;
   MergePointRegisterState register_state_;
   KnownNodeAspects* known_node_aspects_ = nullptr;
-  Alternatives::List* per_predecessor_alternatives_;
+
+  union {
+    // {pre_predecessor_alternatives_} is used to keep track of the alternatives
+    // of Phi inputs. Once the block has been merged, it's not used anymore.
+    Alternatives::List* per_predecessor_alternatives_;
+    // {backedge_deopt_frame_} is used to record the deopt frame for the
+    // backedge, in case we want to insert a deopting conversion during phi
+    // untagging. It is set when visiting the JumpLoop (and will only be set for
+    // loop headers), when the header has already been merged and
+    // {per_predecessor_alternatives_} is thus not used anymore.
+    DeoptFrame* backedge_deopt_frame_;
+  };
 };
 
 void InterpreterFrameState::CopyFrom(

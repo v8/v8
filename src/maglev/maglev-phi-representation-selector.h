@@ -155,7 +155,8 @@ class MaglevPhiRepresentationSelector {
   // Returns a tagged node that represents a tagged version of {phi}.
   ValueNode* EnsurePhiTagged(Phi* phi, BasicBlock* block, NewNodePosition pos);
 
-  ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos);
+  ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos,
+                     DeoptFrame* deopt_frame = nullptr);
 
   // Merges the nodes from {new_nodes_current_block_start_} and
   // {new_nodes_current_block_end_} into their destinations.

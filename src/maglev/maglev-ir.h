@@ -1463,6 +1463,14 @@ class NodeBase : public ZoneObject {
                        other->eager_deopt_info()->feedback_to_update());
   }
 
+  void SetEagerDeoptInfo(Zone* zone, DeoptFrame deopt_frame,
+                         compiler::FeedbackSource feedback_to_update =
+                             compiler::FeedbackSource()) {
+    DCHECK(properties().can_eager_deopt());
+    new (eager_deopt_info())
+        EagerDeoptInfo(zone, deopt_frame, feedback_to_update);
+  }
+
   template <typename NodeT>
   void OverwriteWith() {
     OverwriteWith(NodeBase::opcode_of<NodeT>, NodeT::kProperties);

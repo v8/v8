@@ -6860,7 +6860,8 @@ void MaglevGraphBuilder::PeelLoop() {
     merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
         current_interpreter_frame_, *compilation_unit_, loop_header, 2,
         GetInLivenessFor(loop_header),
-        &bytecode_analysis_.GetLoopInfoFor(loop_header));
+        &bytecode_analysis_.GetLoopInfoFor(loop_header),
+        /* has_been_peeled */ true);
 
     BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[loop_header]);
     MergeIntoFrameState(block, loop_header);
@@ -6900,7 +6901,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   BasicBlock* block =
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
-  merge_states_[target]->MergeLoop(*compilation_unit_, graph_->smi(),
+  merge_states_[target]->MergeLoop(*compilation_unit_, this,
                                    current_interpreter_frame_, block);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
 }

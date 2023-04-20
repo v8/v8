@@ -71,8 +71,15 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
         input_reprs.Add(input_phi->value_representation());
       } else {
         // An untagged phi is an input of the current phi.
-        // TODO(dmercadier): for the backedge, consider not setting {input_mask}
-        // to zero, in order to allow speculatively untagging it.
+        if (node->is_backedge_offset(i) &&
+            node->merge_state()->is_loop_with_peeled_iteration()) {
+          // This is the backedge of a loop that has a peeled iteration. We
+          // ignore it and speculatively assume that it will be the same as the
+          // 1st input.
+          DCHECK_EQ(node->input_count(), 2);
+          DCHECK_EQ(i, 1);
+          break;
+        }
         input_reprs.RemoveAll();
         break;
       }
@@ -379,7 +386,44 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       phi->set_input(i, new_input);
     } else if (Phi* input_phi = input->TryCast<Phi>()) {
       ValueRepresentation from_repr = input_phi->value_representation();
-      if (from_repr != repr && from_repr == ValueRepresentation::kInt32) {
+      if (from_repr == ValueRepresentation::kTagged) {
+        // We allow speculative untagging of the backedge for loop phis from
+        // loops that have been peeled.
+        // This can lead to deopt loops (eg, if after the last iteration of a
+        // loop, a loop Phi has a specific representation that it never has in
+        // the loop), but this case should (hopefully) be rare.
+
+        // We know that we are on the backedge input of a peeled loop, because
+        // if it wasn't the case, then Process(Phi*) would not have decided to
+        // untag this Phi, and this function would not have been called (because
+        // except for backedges of peeled loops, tagged inputs prevent phi
+        // untagging).
+        DCHECK(phi->merge_state()->is_loop_with_peeled_iteration());
+        DCHECK(phi->is_backedge_offset(i));
+
+        DeoptFrame* deopt_frame = phi->merge_state()->backedge_deopt_frame();
+        if (repr == ValueRepresentation::kInt32) {
+          phi->set_input(i, AddNode(NodeBase::New<CheckedSmiUntag>(
+                                        builder_->zone(), {input_phi}),
+                                    phi->predecessor_at(i),
+                                    NewNodePosition::kEnd, deopt_frame));
+        } else {
+          DCHECK(repr == ValueRepresentation::kFloat64 ||
+                 repr == ValueRepresentation::kHoleyFloat64);
+          TaggedToFloat64ConversionType convertion_type =
+              repr == ValueRepresentation::kFloat64
+                  ? TaggedToFloat64ConversionType::kOnlyNumber
+                  : TaggedToFloat64ConversionType::kNumberOrOddball;
+          phi->set_input(
+              i, AddNode(NodeBase::New<CheckedNumberOrOddballToFloat64>(
+                             builder_->zone(), {input_phi}, convertion_type),
+                         phi->predecessor_at(i), NewNodePosition::kEnd,
+                         deopt_frame));
+        }
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                        << ": Eagerly untagging Phi on backedge");
+      } else if (from_repr != repr &&
+                 from_repr == ValueRepresentation::kInt32) {
         // We allow widening of Int32 inputs to Float64, which can lead to the
         // current Phi having a Float64 representation but having some Int32
         // inputs, which will require a Int32ToFloat64 conversion.
@@ -716,7 +760,12 @@ template void MaglevPhiRepresentationSelector::BypassIdentities<LazyDeoptInfo>(
 
 ValueNode* MaglevPhiRepresentationSelector::AddNode(ValueNode* node,
                                                     BasicBlock* block,
-                                                    NewNodePosition pos) {
+                                                    NewNodePosition pos,
+                                                    DeoptFrame* deopt_frame) {
+  if (node->properties().can_eager_deopt()) {
+    DCHECK_NOT_NULL(deopt_frame);
+    node->SetEagerDeoptInfo(builder_->zone(), *deopt_frame);
+  }
   if (block == current_block_) {
     // When adding an Node in the current block, we delay until we've finished
     // processing the current block, to avoid mutating the list of nodes while

@@ -308,6 +308,8 @@ class MaglevGraphBuilder {
     return compilation_unit_->graph_labeller();
   }
 
+  DeoptFrame GetLatestCheckpointedFrame();
+
  private:
   class CallSpeculationScope;
   class LazyDeoptContinuationScope;
@@ -648,8 +650,8 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachEagerDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      new (node->eager_deopt_info()) EagerDeoptInfo(
-          zone(), GetLatestCheckpointedFrame(), current_speculation_feedback_);
+      node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame(),
+                              current_speculation_feedback_);
     }
   }
 
@@ -1181,7 +1183,6 @@ class MaglevGraphBuilder {
 #endif
 
   DeoptFrame* GetParentDeoptFrame();
-  DeoptFrame GetLatestCheckpointedFrame();
   DeoptFrame GetDeoptFrameForLazyDeopt();
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
       LazyDeoptContinuationScope* continuation_scope,
