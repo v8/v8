@@ -2586,7 +2586,6 @@ filegroup(
             "src/wasm/wasm-features.h",
             "src/wasm/wasm-import-wrapper-cache.cc",
             "src/wasm/wasm-import-wrapper-cache.h",
-            "src/wasm/wasm-init-expr.cc",
             "src/wasm/wasm-init-expr.h",
             "src/wasm/wasm-js.cc",
             "src/wasm/wasm-js.h",

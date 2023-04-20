@@ -2249,7 +2249,7 @@ template("run_mksnapshot") {
         # Replace this with --warn-about-builtin-profile-data to see the full
         # list of builtins with incompatible profiles.
         "--abort-on-bad-builtin-profile-data",
-     ]
+      ]
     }
 
     # This is needed to distinguish between generating code for the simulator
@@ -5158,7 +5158,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-external-refs.cc",
       "src/wasm/wasm-features.cc",
       "src/wasm/wasm-import-wrapper-cache.cc",
-      "src/wasm/wasm-init-expr.cc",
       "src/wasm/wasm-js.cc",
       "src/wasm/wasm-module-builder.cc",
       "src/wasm/wasm-module-sourcemap.cc",
