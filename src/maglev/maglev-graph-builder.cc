@@ -4939,6 +4939,15 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
   return ReduceResult::Fail();
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
+    CallArguments& args) {
+  if (args.count() == 0) {
+    return GetRootConstant(RootIndex::kempty_string);
+  }
+
+  return BuildToString(args[0]);
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceMathPow(CallArguments& args) {
   if (args.count() < 2) {
     // For < 2 args, we'll be calculating Math.Pow(arg[0], undefined), which is
@@ -6092,6 +6101,12 @@ void MaglevGraphBuilder::VisitToName() {
   }
 }
 
+ValueNode* MaglevGraphBuilder::BuildToString(ValueNode* value) {
+  if (CheckType(value, NodeType::kString)) return value;
+  // TODO(victorgomes): Add fast path for constant primitives.
+  return AddNewNode<ToString>({GetContext(), GetTaggedValue(value)});
+}
+
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
   ValueNode* value = GetRawAccumulator();
   switch (value->value_representation()) {
@@ -6164,9 +6179,7 @@ void MaglevGraphBuilder::VisitToObject() {
 void MaglevGraphBuilder::VisitToString() {
   // ToString
   ValueNode* value = GetAccumulatorTagged();
-  if (CheckType(value, NodeType::kString)) return;
-  // TODO(victorgomes): Add fast path for constant primitives.
-  SetAccumulator(AddNewNode<ToString>({GetContext(), value}));
+  SetAccumulator(BuildToString(value));
 }
 
 void MaglevGraphBuilder::VisitCreateRegExpLiteral() {

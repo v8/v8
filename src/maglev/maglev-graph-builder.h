@@ -747,6 +747,8 @@ class MaglevGraphBuilder {
                        compiler::FeedbackSource& feedback_source,
                        TypeofMode typeof_mode);
 
+  ValueNode* BuildToString(ValueNode* value);
+
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
     return AddNewNode<CallRuntime>(
@@ -1392,6 +1394,7 @@ class MaglevGraphBuilder {
   V(MathFloor)                     \
   V(MathPow)                       \
   V(MathRound)                     \
+  V(StringConstructor)             \
   V(StringFromCharCode)            \
   V(StringPrototypeCharCodeAt)     \
   V(StringPrototypeCodePointAt)    \
