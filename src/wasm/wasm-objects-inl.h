@@ -519,15 +519,17 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Map map) {
   // map so that the GC can read it without relying on any other objects
   // still being around. To solve this problem, we store the instance size
   // in two other fields that are otherwise unused for WasmStructs.
-  static_assert(0xFFFF - kHeaderSize >
-                wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields);
-  map.SetWasmByte1(instance_size & 0xFF);
-  map.SetWasmByte2(instance_size >> 8);
+  static_assert(0xFFFF > ((kHeaderSize + wasm::kMaxValueTypeSize *
+                                             wasm::kV8MaxWasmStructFields) >>
+                          kObjectAlignmentBits));
+  map.SetWasmByte1((instance_size >> kObjectAlignmentBits) & 0xff);
+  map.SetWasmByte2(instance_size >> (8 + kObjectAlignmentBits));
 }
 
 // static
 int WasmStruct::DecodeInstanceSizeFromMap(Map map) {
-  return (map.WasmByte2() << 8) | map.WasmByte1();
+  return (map.WasmByte2() << (8 + kObjectAlignmentBits)) |
+         (map.WasmByte1() << kObjectAlignmentBits);
 }
 
 int WasmStruct::GcSafeSize(Map map) { return DecodeInstanceSizeFromMap(map); }

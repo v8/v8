@@ -929,7 +929,7 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # SIMD not be implemented
+  # SIMD is not implemented
   'regress/wasm/regress-1054466': [SKIP],
   'regress/wasm/regress-1065599': [SKIP],
   'regress/wasm/regress-1070078': [SKIP],
@@ -1346,6 +1346,9 @@
 
   # Makes assumptions about tiering, which don't hold when we TF everything.
   'wasm/enter-and-leave-debug-state': [SKIP],
+
+  # Slow TF compilation.
+  'wasm/large-struct': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1587,6 +1590,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
+  'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/simd-*': [SKIP],

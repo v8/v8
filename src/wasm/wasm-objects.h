@@ -1081,8 +1081,10 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
   // Payload should be a multiple of page size.
   static_assert((kSize - kTaggedSize) % kMinimumOSPageSize == 0);
   // Any wasm struct offset should fit in the object.
-  static_assert(kSize >= WasmStruct::kHeaderSize +
-                             wasm::kV8MaxWasmStructFields * kSimd128Size);
+  static_assert(kSize >=
+                WasmStruct::kHeaderSize +
+                    (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
+                        kSimd128Size);
 
   Address payload() { return ptr() + kHeaderSize - kHeapObjectTag; }
   static constexpr size_t kPayloadSize = kSize - kTaggedSize;

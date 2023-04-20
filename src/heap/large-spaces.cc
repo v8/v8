@@ -402,6 +402,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         object.IsUncompiledDataWithoutPreparseData(cage_base) ||  //
 #if V8_ENABLE_WEBASSEMBLY                                         //
         object.IsWasmArray() ||                                   //
+        object.IsWasmStruct() ||                                  //
 #endif                                                            //
         object.IsWeakArrayList(cage_base) ||                      //
         object.IsWeakFixedArray(cage_base);

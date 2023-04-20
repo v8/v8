@@ -1077,11 +1077,11 @@ bool Heap::CreateReadOnlyObjects() {
   if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
     // Ensure all of the following lands on the same V8 page.
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
+    static_assert(kOffsetAfterMapWord % kObjectAlignment == 0);
     read_only_space_->EnsureSpaceForAllocation(
         kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
-    Address next_page =
-        RoundUp(read_only_space_->top(), kLargestPossibleOSPageSize);
-    CHECK_EQ(kOffsetAfterMapWord % kObjectAlignment, 0);
+    Address next_page = RoundUp(read_only_space_->top() + kOffsetAfterMapWord,
+                                kLargestPossibleOSPageSize);
 
     // Add some filler to end up right before an OS page boundary.
     int filler_size = static_cast<int>(next_page - read_only_space_->top() -
