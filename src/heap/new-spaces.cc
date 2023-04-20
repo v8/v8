@@ -895,10 +895,6 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {
   DCHECK_LE(initial_capacity_, max_capacity_);
-
-  if (!PreallocatePages()) {
-    V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
-  }
 }
 
 Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
@@ -931,7 +927,6 @@ void PagedSpaceForNewSpace::Grow() {
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {
-  DCHECK_GE(current_capacity_, target_capacity_);
   DCHECK(heap()->tracer()->IsInAtomicPause());
   size_t new_target_capacity =
       RoundUp(std::max(initial_capacity_, 2 * Size()), Page::kPageSize);
@@ -986,20 +981,9 @@ void PagedSpaceForNewSpace::ReleasePage(Page* page) {
       page, MemoryAllocator::FreeMode::kConcurrentlyAndPool);
 }
 
-bool PagedSpaceForNewSpace::PreallocatePages() {
-  while (current_capacity_ < target_capacity_) {
-    if (!AllocatePage()) return false;
-  }
-  DCHECK_GE(current_capacity_, target_capacity_);
-  return true;
-}
-
-bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
-  // Verify that the free space map is already initialized. Otherwise, new free
-  // list entries will be invalid.
-  DCHECK_NE(kNullAddress,
-            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
-  return PreallocatePages();
+bool PagedSpaceForNewSpace::AddFreshPage() {
+  if (current_capacity_ >= target_capacity_) return false;
+  return AllocatePage();
 }
 
 void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
@@ -1045,7 +1029,7 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
     return false;
   if (!heap()->CanExpandOldGeneration(Size() + heap()->new_lo_space()->Size() +
                                       Page::kPageSize)) {
-    // Assuming all of new space if alive, doing a full GC and promoting all
+    // Assuming all of new space is alive, doing a full GC and promoting all
     // objects should still succeed. Don't let new space grow if it means it
     // will exceed the available size of old space.
     return false;
@@ -1058,6 +1042,10 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
 }
 
 bool PagedSpaceForNewSpace::AllocatePage() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  DCHECK_NE(kNullAddress,
+            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
   return TryExpandImpl(MemoryAllocator::AllocationMode::kUsePool);
 }
 
