@@ -779,6 +779,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
                                                 std::memory_order_relaxed);
   }
 
+  // Similar to above, scheduling a repeated task to write out PGO data is only
+  // needed once per module, not per instantiation.
+  bool ShouldPgoDataBeWritten() {
+    return should_pgo_data_be_written.exchange(false,
+                                               std::memory_order_relaxed);
+  }
+
   bool HasWireBytes() const {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
     return wire_bytes && !wire_bytes->empty();
@@ -1028,6 +1035,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<int64_t> sum_lazy_compilation_time_in_micro_sec_{0};
   std::atomic<int64_t> max_lazy_compilation_time_in_micro_sec_{0};
   std::atomic<bool> should_metrics_be_reported_{true};
+
+  // Whether the next instantiation should trigger repeated output of PGO data
+  // (if --experimental-wasm-pgo-to-file is enabled).
+  std::atomic<bool> should_pgo_data_be_written{true};
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
