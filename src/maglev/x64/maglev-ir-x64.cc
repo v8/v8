@@ -77,7 +77,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
 
   Label done;
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
@@ -145,7 +145,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
 
   ZoneLabelRef done(masm);
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
@@ -315,7 +315,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   Register map_tmp = temps.Acquire();
   Register object = ToRegister(object_input());
 
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);

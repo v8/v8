@@ -1931,7 +1931,7 @@ void CheckSymbol::SetValueLocationConstraints() {
 void CheckSymbol::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
@@ -1947,7 +1947,7 @@ void CheckInstanceType::SetValueLocationConstraints() {
 void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
@@ -1998,7 +1998,7 @@ void CheckString::SetValueLocationConstraints() {
 void CheckString::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
@@ -4184,12 +4184,12 @@ void BranchIfUndetectable::GenerateCode(MaglevAssembler* masm,
 
   auto* next_block = state.next_block();
   if (next_block == if_true() || next_block != if_false()) {
-    __ JumpIfNotUndetectable(value, scratch, if_false()->label());
+    __ JumpIfNotUndetectable(value, scratch, check_type(), if_false()->label());
     if (next_block != if_true()) {
       __ Jump(if_true()->label());
     }
   } else {
-    __ JumpIfUndetectable(value, scratch, if_true()->label());
+    __ JumpIfUndetectable(value, scratch, check_type(), if_true()->label());
   }
 }
 
@@ -4206,7 +4206,8 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
 
   Label return_false, done;
-  __ JumpIfNotUndetectable(object, scratch, &return_false, Label::kNear);
+  __ JumpIfNotUndetectable(object, scratch, check_type(), &return_false,
+                           Label::kNear);
 
   __ LoadRoot(return_value, RootIndex::kTrueValue);
   __ Jump(&done, Label::kNear);

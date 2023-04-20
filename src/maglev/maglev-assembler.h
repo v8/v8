@@ -201,9 +201,11 @@ class MaglevAssembler : public MacroAssembler {
   template <typename Function, typename... Args>
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
-  void JumpIfUndetectable(Register object, Register scratch, Label* target,
+  void JumpIfUndetectable(Register object, Register scratch,
+                          CheckType check_type, Label* target,
                           Label::Distance distance = Label::kFar);
-  void JumpIfNotUndetectable(Register object, Register scratch, Label* target,
+  void JumpIfNotUndetectable(Register object, Register scratch, CheckType,
+                             Label* target,
                              Label::Distance distance = Label::kFar);
   template <typename NodeT>
   inline Label* GetDeoptLabel(NodeT* node, DeoptimizeReason reason);

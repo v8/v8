@@ -1980,8 +1980,25 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
 
 void MaglevGraphBuilder::VisitTestUndetectable() {
   ValueNode* value = GetAccumulatorTagged();
-  if (TryBuildBranchFor<BranchIfUndetectable>({value})) return;
-  SetAccumulator(AddNewNode<TestUndetectable>({value}));
+  if (Constant* constant = value->TryCast<Constant>()) {
+    if (constant->object().map(broker()).is_undetectable()) {
+      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+    } else {
+      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    }
+    return;
+  }
+
+  if (CheckType(value, NodeType::kSmi)) {
+    SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    return;
+  }
+
+  enum CheckType type = CheckType(value, NodeType::kAnyHeapObject)
+                            ? CheckType::kOmitHeapObjectCheck
+                            : CheckType::kCheckHeapObject;
+  if (TryBuildBranchFor<BranchIfUndetectable>({value}, type)) return;
+  SetAccumulator(AddNewNode<TestUndetectable>({value}, type));
 }
 
 void MaglevGraphBuilder::VisitTestNull() {

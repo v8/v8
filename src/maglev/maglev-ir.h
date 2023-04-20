@@ -3346,20 +3346,27 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   const compiler::FeedbackSource feedback_;
 };
 
+enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
+
 class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
   using Base = FixedInputValueNodeT<1, TestUndetectable>;
 
  public:
-  explicit TestUndetectable(uint64_t bitfield) : Base(bitfield) {}
+  explicit TestUndetectable(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& value() { return Node::input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
@@ -4275,21 +4282,20 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
   AbortReason reason_;
 };
 
-enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
-
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
-      : Base(bitfield), maps_(maps), check_type_(check_type) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
@@ -4299,8 +4305,8 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
-  const CheckType check_type_;
 };
 
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
@@ -4502,7 +4508,7 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
 
  public:
   explicit CheckSymbol(uint64_t bitfield, CheckType check_type)
-      : Base(bitfield), check_type_(check_type) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4510,13 +4516,14 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const CheckType check_type_;
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
@@ -4525,8 +4532,7 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
  public:
   explicit CheckInstanceType(uint64_t bitfield, CheckType check_type,
                              InstanceType instance_type)
-      : Base(bitfield),
-        check_type_(check_type),
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
         instance_type_(instance_type) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -4536,6 +4542,7 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
 
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
   InstanceType instance_type() const { return instance_type_; }
 
   void SetValueLocationConstraints();
@@ -4543,7 +4550,7 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const CheckType check_type_;
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
   const InstanceType instance_type_;
 };
 
@@ -4552,7 +4559,7 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
 
  public:
   explicit CheckString(uint64_t bitfield, CheckType check_type)
-      : Base(bitfield), check_type_(check_type) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4560,13 +4567,14 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const CheckType check_type_;
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class CheckMapsWithMigration
@@ -4577,7 +4585,7 @@ class CheckMapsWithMigration
   explicit CheckMapsWithMigration(uint64_t bitfield,
                                   const compiler::ZoneRefSet<Map>& maps,
                                   CheckType check_type)
-      : Base(bitfield), maps_(maps), check_type_(check_type) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::DeferredCall() |
@@ -4589,6 +4597,7 @@ class CheckMapsWithMigration
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -4596,8 +4605,8 @@ class CheckMapsWithMigration
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
-  const CheckType check_type_;
 };
 
 class CheckFixedArrayNonEmpty
@@ -4749,7 +4758,7 @@ class CheckedInternalizedString
  public:
   explicit CheckedInternalizedString(
       uint64_t bitfield, CheckType check_type = CheckType::kCheckHeapObject)
-      : Base(bitfield), check_type_(check_type) {
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {
     CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
   }
 
@@ -4760,13 +4769,14 @@ class CheckedInternalizedString
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return Node::input(kObjectIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const CheckType check_type_;
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class CheckedObjectToIndex
@@ -7368,18 +7378,24 @@ class BranchIfUndetectable
   using Base = BranchControlNodeT<1, BranchIfUndetectable>;
 
  public:
-  explicit BranchIfUndetectable(uint64_t bitfield, BasicBlockRef* if_true_refs,
+  explicit BranchIfUndetectable(uint64_t bitfield, CheckType check_type,
+                                BasicBlockRef* if_true_refs,
                                 BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type), if_true_refs,
+             if_false_refs) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& condition_input() { return input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
