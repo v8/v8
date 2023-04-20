@@ -4843,9 +4843,30 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   return BuildGenericCall(receiver, Call::TargetType::kAny, args);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
+    CallArguments& args) {
+  // We can't reduce Function#hasInstance when there is no receiver function.
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    return ReduceResult::Fail();
+  }
+  if (args.count() != 1) {
+    return ReduceResult::Fail();
+  }
+  Constant* receiver_constant = args.receiver()->TryCast<Constant>();
+  if (!receiver_constant) {
+    return ReduceResult::Fail();
+  }
+  compiler::HeapObjectRef receiver_object = receiver_constant->object();
+  if (!receiver_object.IsJSObject() ||
+      !receiver_object.map(broker()).is_callable()) {
+    return ReduceResult::Fail();
+  }
+  return BuildOrdinaryHasInstance(GetTaggedValue(args[0]),
+                                  receiver_object.AsJSObject(), nullptr);
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     CallArguments& args) {
-  // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return ReduceResult::Fail();
   }
@@ -5884,8 +5905,9 @@ ReduceResult MaglevGraphBuilder::BuildOrdinaryHasInstance(
       object, callable, callable_node_if_not_constant));
 
   return BuildCallBuiltin<Builtin::kOrdinaryHasInstance>(
-      {object, callable_node_if_not_constant ? callable_node_if_not_constant
-                                             : GetConstant(callable)});
+      {callable_node_if_not_constant ? callable_node_if_not_constant
+                                     : GetConstant(callable),
+       object});
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
@@ -5953,6 +5975,18 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     }
     BuildCheckMaps(callable_node,
                    base::VectorOf(access_info.lookup_start_object_maps()));
+
+    // Special case the common case, where @@hasInstance is
+    // Function.p.hasInstance.
+    if (has_instance_field->IsJSFunction()) {
+      compiler::SharedFunctionInfoRef shared =
+          has_instance_field->AsJSFunction().shared(broker());
+      if (shared.HasBuiltinId() &&
+          shared.builtin_id() == Builtin::kFunctionPrototypeHasInstance) {
+        return BuildOrdinaryHasInstance(object, callable,
+                                        callable_node_if_not_constant);
+      }
+    }
 
     // Call @@hasInstance
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
