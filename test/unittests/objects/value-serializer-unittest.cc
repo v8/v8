@@ -2738,7 +2738,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(
-        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages).ToHandleChecked());
+        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
@@ -2770,8 +2770,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
     i::Handle<i::WasmMemoryObject> wasm_memory =
-        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages)
-            .ToHandleChecked();
+        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages);
     i::Handle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);

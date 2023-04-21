@@ -262,7 +262,7 @@ class WasmMemoryObject
                                             Handle<WasmInstanceObject> object);
   inline bool has_maximum_pages();
 
-  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
+  V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
       WasmMemoryFlag memory_type = WasmMemoryFlag::kWasmMemory32);
 

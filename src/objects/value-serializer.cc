@@ -2327,23 +2327,17 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
   int32_t maximum_pages;
-  if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
 
   Handle<Object> buffer_object;
-  if (!ReadObject().ToHandle(&buffer_object) ||
-      !buffer_object->IsJSArrayBuffer()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadObject().ToHandle(&buffer_object)) return {};
+  if (!buffer_object->IsJSArrayBuffer()) return {};
 
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
-  if (!buffer->is_shared()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages).ToHandleChecked();
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
 
   AddObjectWithID(id, result);
   return result;

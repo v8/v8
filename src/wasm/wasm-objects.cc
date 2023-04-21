@@ -738,9 +738,10 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 }
 }  // namespace
 
-MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
-    Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
-    WasmMemoryFlag memory_type) {
+Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
+                                               Handle<JSArrayBuffer> buffer,
+                                               int maximum,
+                                               WasmMemoryFlag memory_type) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
@@ -806,13 +807,14 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
       has_maximum ? std::min(engine_maximum, maximum) : engine_maximum;
 #endif
 
-  auto backing_store = BackingStore::AllocateWasmMemory(
-      isolate, initial, heuristic_maximum, memory_type, shared);
+  std::unique_ptr<BackingStore> backing_store =
+      BackingStore::AllocateWasmMemory(isolate, initial, heuristic_maximum,
+                                       memory_type, shared);
 
   if (!backing_store) return {};
 
   Handle<JSArrayBuffer> buffer =
-      (shared == SharedFlag::kShared)
+      shared == SharedFlag::kShared
           ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
           : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
 
