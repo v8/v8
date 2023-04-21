@@ -791,13 +791,17 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
 const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     const NormalPagesSet& normal_pages, const LargePagesSet& large_pages,
     Address addr) {
+  // As the address may not correspond to a valid heap object, the chunk we
+  // obtain below is not necessarily a valid chunk.
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
-  if (auto it = normal_pages.find(Page::cast(chunk));
+  // Check if it corresponds to a known normal or large page.
+  if (auto it = normal_pages.find(static_cast<Page*>(chunk));
       it != normal_pages.end()) {
     // The chunk is a normal page.
-    DCHECK_LE(chunk->address(), addr);
-    if (chunk->Contains(addr)) return *it;
-  } else if (auto it = large_pages.upper_bound(LargePage::cast(chunk));
+    auto* normal_page = Page::cast(chunk);
+    DCHECK_LE(normal_page->address(), addr);
+    if (normal_page->Contains(addr)) return normal_page;
+  } else if (auto it = large_pages.upper_bound(static_cast<LargePage*>(chunk));
              it != large_pages.begin()) {
     // The chunk could be inside a large page.
     DCHECK_IMPLIES(it != large_pages.end(), addr < (*it)->address());
