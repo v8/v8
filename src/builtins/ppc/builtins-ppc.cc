@@ -3303,7 +3303,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ LoadU64(prev_next_address_reg, next_mem_op);
     __ LoadU64(prev_limit_reg, limit_mem_op);
     __ lwz(prev_level_reg, level_mem_op);
-    __ addi(scratch, r16, Operand(1));
+    __ addi(scratch, prev_level_reg, Operand(1));
     __ stw(scratch, level_mem_op);
   }
 
