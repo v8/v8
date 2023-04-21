@@ -307,6 +307,11 @@ V8_INLINE bool IsThinString(Map map_object) {
 #endif
 }
 
+V8_INLINE constexpr bool IsReferenceComparable(InstanceType instance_type) {
+  return !IsString(instance_type) && !IsBigInt(instance_type) &&
+         instance_type != HEAP_NUMBER_TYPE;
+}
+
 V8_INLINE constexpr bool IsGcSafeCode(InstanceType instance_type) {
   return IsCode(instance_type);
 }

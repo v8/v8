@@ -289,6 +289,7 @@ namespace InstanceTypeChecker {
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 
 #undef IS_TYPE_FUNCTION_DECL
+V8_INLINE constexpr bool IsReferenceComparable(InstanceType instance_type);
 }  // namespace InstanceTypeChecker
 
 // This list must contain only maps that are shared by all objects of their

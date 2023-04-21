@@ -1739,14 +1739,43 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
       return;
     }
-    case CompareOperationHint::kNumberOrOddball:
-    case CompareOperationHint::kNumberOrBoolean:
-    case CompareOperationHint::kString:
-    case CompareOperationHint::kBigInt:
+    case CompareOperationHint::kAny:
     case CompareOperationHint::kBigInt64:
+    case CompareOperationHint::kBigInt:
+    case CompareOperationHint::kNumberOrBoolean:
+    case CompareOperationHint::kNumberOrOddball:
     case CompareOperationHint::kReceiver:
     case CompareOperationHint::kReceiverOrNullOrUndefined:
-    case CompareOperationHint::kAny:
+    case CompareOperationHint::kString:
+      if (kOperation == Operation::kStrictEqual) {
+        ValueNode* left = LoadRegisterTagged(0);
+        ValueNode* right = GetAccumulatorTagged();
+
+        InstanceType type;
+        if (Constant* constant = left->Is<Constant>()
+                                     ? left->Cast<Constant>()
+                                     : right->TryCast<Constant>()) {
+          type = constant->object().map(broker()).instance_type();
+        } else if (RootConstant* constant =
+                       left->Is<RootConstant>()
+                           ? left->Cast<RootConstant>()
+                           : right->TryCast<RootConstant>()) {
+          compiler::ObjectRef ref = MakeRef(
+              broker(), local_isolate()->root_handle(constant->index()));
+          if (ref.IsSmi()) break;
+          type = ref.AsHeapObject().map(broker()).instance_type();
+        } else {
+          break;
+        }
+        if (InstanceTypeChecker::IsReferenceComparable(type)) {
+          if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
+                                                          kOperation)) {
+            return;
+          }
+          SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+          return;
+        }
+      }
       // Fallback to generic node.
       break;
   }
