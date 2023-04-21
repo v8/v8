@@ -222,8 +222,10 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   }
   size_t max_length = i::wasm::max_module_size();
   if (length > max_length) {
-    thrower->RangeError("buffer source exceeds maximum size of %zu (is %zu)",
-                        max_length, length);
+    // The spec requires a CompileError for implementation-defined limits, see
+    // https://webassembly.github.io/spec/js-api/index.html#limits.
+    thrower->CompileError("buffer source exceeds maximum size of %zu (is %zu)",
+                          max_length, length);
   }
   if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
   return i::wasm::ModuleWireBytes(start, start + length);
