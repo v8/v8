@@ -397,10 +397,8 @@ void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit,
   SetTopAndLimit(top, limit, end);
   if (top != kNullAddress && top != limit) {
     Page* page = Page::FromAllocationAreaAddress(top);
-    if (identity() == NEW_SPACE) {
-      page->MarkWasUsedForAllocation();
-    } else if (heap()->incremental_marking()->black_allocation()) {
-      DCHECK_NE(NEW_SPACE, identity());
+    if ((identity() != NEW_SPACE) &&
+        heap()->incremental_marking()->black_allocation()) {
       page->CreateBlackArea(top, limit);
     }
   }
@@ -713,7 +711,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   PtrComprCageBase cage_base(isolate);
   for (const Page* page : *this) {
     CHECK_EQ(page->owner(), this);
-    CHECK_IMPLIES(identity() != NEW_SPACE, !page->WasUsedForAllocation());
+    CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
 
     for (int i = 0; i < kNumTypes; i++) {

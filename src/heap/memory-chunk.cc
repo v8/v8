@@ -505,9 +505,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
                 chunk->address(),
             MemoryChunkLayout::kActiveSystemPagesOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->was_used_for_allocation_) -
-                chunk->address(),
-            MemoryChunkLayout::kWasUsedForAllocationOffset);
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->allocated_lab_size_) - chunk->address(),
       MemoryChunkLayout::kAllocatedLabSizeOffset);

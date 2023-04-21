@@ -216,9 +216,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
-  void MarkWasUsedForAllocation() { was_used_for_allocation_ = true; }
-  bool WasUsedForAllocation() const { return was_used_for_allocation_; }
-
   void IncreaseAllocatedLabSize(size_t bytes) { allocated_lab_size_ += bytes; }
   void DecreaseAllocatedLabSize(size_t bytes) {
     DCHECK_GE(allocated_lab_size_, bytes);
@@ -228,7 +225,6 @@ class MemoryChunk : public BasicMemoryChunk {
 
   void ResetAllocationStatistics() {
     BasicMemoryChunk::ResetAllocationStatistics();
-    was_used_for_allocation_ = false;
     allocated_lab_size_ = 0;
   }
 
@@ -314,10 +310,6 @@ class MemoryChunk : public BasicMemoryChunk {
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
   ActiveSystemPages* active_system_pages_;
-
-  // Marks a chunk that was used for allocation since it was last swept. Used
-  // only for new space pages.
-  size_t was_used_for_allocation_ = false;
 
   // Counts overall allocated LAB size on the page since the last GC. Used
   // only for new space pages.

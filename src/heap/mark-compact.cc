@@ -4447,7 +4447,7 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
       ((live_bytes + wasted_bytes >
         NewSpacePageEvacuationThreshold(collector)) ||
        (promote_unusable_pages == PromoteUnusablePages::kYes &&
-        !p->WasUsedForAllocation())) &&
+        (p->AllocatedLabSize() == 0))) &&
       (collector == GarbageCollector::MARK_COMPACTOR ||
        heap->new_space()->IsPromotionCandidate(p)) &&
       heap->CanExpandOldGeneration(live_bytes);
@@ -4456,11 +4456,11 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
         p->owner()->heap()->isolate(),
         "[Page Promotion] %p: collector=%s, live bytes = %zu, "
         "wasted bytes = %zu, promotion threshold = %zu, promote unusable page "
-        "= %s, was page used for allocation = %s\n",
+        "= %s, allocated labs size = %zu\n",
         p, collector == GarbageCollector::MARK_COMPACTOR ? "mc" : "mmc",
         live_bytes, wasted_bytes, NewSpacePageEvacuationThreshold(collector),
         promote_unusable_pages == PromoteUnusablePages::kYes ? "yes" : "no",
-        p->WasUsedForAllocation() ? "yes" : "no");
+        p->AllocatedLabSize());
   }
   return should_move_page;
 }
