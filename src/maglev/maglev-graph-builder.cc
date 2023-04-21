@@ -26,6 +26,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
@@ -1540,10 +1541,19 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
 template <typename BranchControlNodeT, typename... Args>
 bool MaglevGraphBuilder::TryBuildBranchFor(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  // Copy the iterator so we can first check whether we can build a branch while
+  // skipping bytecodes.
+  interpreter::BytecodeArrayIterator it(iterator_.bytecode_array(),
+                                        iterator_.current_offset());
+  for (; it.next_bytecode() == interpreter::Bytecode::kMov; it.Advance()) {
+    // Don't emit the shortcut branch if the next bytecode is a merge target.
+    if (IsOffsetAMergePoint(it.next_offset())) return false;
+  }
+
   // Don't emit the shortcut branch if the next bytecode is a merge target.
   if (IsOffsetAMergePoint(next_offset())) return false;
 
-  interpreter::Bytecode next_bytecode = iterator_.next_bytecode();
+  interpreter::Bytecode next_bytecode = it.next_bytecode();
   int true_offset, false_offset;
   switch (next_bytecode) {
     case interpreter::Bytecode::kJumpIfFalse:
@@ -1553,6 +1563,14 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
       if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
+      // Run Movs between test and jump.
+      while (iterator_.next_bytecode() == interpreter::Bytecode::kMov) {
+        interpreter::Register src = iterator_.GetRegisterOperand(0);
+        interpreter::Register dst = iterator_.GetRegisterOperand(1);
+        DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
+        current_interpreter_frame_.set(dst,
+                                       current_interpreter_frame_.get(src));
+      }
       // Advance the iterator past the test to the jump, skipping
       // emitting the test.
       iterator_.Advance();
@@ -1567,6 +1585,14 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
       if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
+      // Run Movs between test and jump.
+      while (iterator_.next_bytecode() == interpreter::Bytecode::kMov) {
+        interpreter::Register src = iterator_.GetRegisterOperand(0);
+        interpreter::Register dst = iterator_.GetRegisterOperand(1);
+        DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
+        current_interpreter_frame_.set(dst,
+                                       current_interpreter_frame_.get(src));
+      }
       // Advance the iterator past the test to the jump, skipping
       // emitting the test.
       iterator_.Advance();
@@ -6030,6 +6056,10 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
     // TODO(leszeks): Avoid forcing a conversion to tagged here.
+    if (TryBuildBranchFor<BranchIfToBooleanTrue>(
+            {GetTaggedValue(call_result)})) {
+      return ReduceResult::Done();
+    }
     return AddNewNode<ToBoolean>({GetTaggedValue(call_result)});
   }
 
