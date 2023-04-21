@@ -3385,13 +3385,21 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F64x4Div, FDiv, kL64, kV256)                           \
   V(F32x8Div, FDiv, kL32, kV256)                           \
   V(I16x8AddSatS, IAddSatS, kL16, kV128)                   \
+  V(I16x16AddSatS, IAddSatS, kL16, kV256)                  \
   V(I8x16AddSatS, IAddSatS, kL8, kV128)                    \
+  V(I8x32AddSatS, IAddSatS, kL8, kV256)                    \
   V(I16x8SubSatS, ISubSatS, kL16, kV128)                   \
+  V(I16x16SubSatS, ISubSatS, kL16, kV256)                  \
   V(I8x16SubSatS, ISubSatS, kL8, kV128)                    \
+  V(I8x32SubSatS, ISubSatS, kL8, kV256)                    \
   V(I16x8AddSatU, IAddSatU, kL16, kV128)                   \
+  V(I16x16AddSatU, IAddSatU, kL16, kV256)                  \
   V(I8x16AddSatU, IAddSatU, kL8, kV128)                    \
+  V(I8x32AddSatU, IAddSatU, kL8, kV256)                    \
   V(I16x8SubSatU, ISubSatU, kL16, kV128)                   \
+  V(I16x16SubSatU, ISubSatU, kL16, kV256)                  \
   V(I8x16SubSatU, ISubSatU, kL8, kV128)                    \
+  V(I8x32SubSatU, ISubSatU, kL8, kV256)                    \
   V(F64x2Eq, FEq, kL64, kV128)                             \
   V(F32x4Eq, FEq, kL32, kV128)                             \
   V(I64x2Eq, IEq, kL64, kV128)                             \

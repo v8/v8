@@ -986,6 +986,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x16Mul();
   const Operator* F64x4Div();
   const Operator* F32x8Div();
+  const Operator* I16x16AddSatS();
+  const Operator* I8x32AddSatS();
+  const Operator* I16x16AddSatU();
+  const Operator* I8x32AddSatU();
+  const Operator* I16x16SubSatS();
+  const Operator* I8x32SubSatS();
+  const Operator* I16x16SubSatU();
+  const Operator* I8x32SubSatU();
   const Operator* F32x8Min();
   const Operator* F32x8Max();
   const Operator* F32x8Pmin();

@@ -1006,9 +1006,9 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                                    \
   } while (false)
 
-#define ASSEMBLE_SIMD256_BINOP(opcode)                                 \
+#define ASSEMBLE_SIMD256_BINOP(opcode, cpu_feature)                    \
   do {                                                                 \
-    CpuFeatureScope avx_scope(masm(), AVX);                            \
+    CpuFeatureScope avx_scope(masm(), cpu_feature);                    \
     __ v##opcode(i.OutputSimd256Register(), i.InputSimd256Register(0), \
                  i.InputSimd256Register(1));                           \
   } while (false)
@@ -3094,12 +3094,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Add
-            ASSEMBLE_SIMD256_BINOP(addps);
+            ASSEMBLE_SIMD256_BINOP(addps, AVX);
             break;
           }
           case kL64: {
             // F64x4Add
-            ASSEMBLE_SIMD256_BINOP(addpd);
+            ASSEMBLE_SIMD256_BINOP(addpd, AVX);
             break;
           }
           default:
@@ -3132,12 +3132,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Sub
-            ASSEMBLE_SIMD256_BINOP(subps);
+            ASSEMBLE_SIMD256_BINOP(subps, AVX);
             break;
           }
           case kL64: {
             // F64x4Sub
-            ASSEMBLE_SIMD256_BINOP(subpd);
+            ASSEMBLE_SIMD256_BINOP(subpd, AVX);
             break;
           }
           default:
@@ -3170,12 +3170,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL64: {
             // F64x4Mul
-            ASSEMBLE_SIMD256_BINOP(mulpd);
+            ASSEMBLE_SIMD256_BINOP(mulpd, AVX);
             break;
           }
           case kL32: {
             // F32x8Mul
-            ASSEMBLE_SIMD256_BINOP(mulps);
+            ASSEMBLE_SIMD256_BINOP(mulps, AVX);
             break;
           }
           default:
@@ -3209,12 +3209,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Div
-            ASSEMBLE_SIMD256_BINOP(divps);
+            ASSEMBLE_SIMD256_BINOP(divps, AVX);
             break;
           }
           case kL64: {
             // F64x4Div
-            ASSEMBLE_SIMD256_BINOP(divpd);
+            ASSEMBLE_SIMD256_BINOP(divpd, AVX);
             break;
           }
           default:
@@ -3816,22 +3816,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL64: {
             // I64x4Add
-            ASSEMBLE_SIMD256_BINOP(paddq);
+            ASSEMBLE_SIMD256_BINOP(paddq, AVX2);
             break;
           }
           case kL32: {
             // I32x8Add
-            ASSEMBLE_SIMD256_BINOP(paddd);
+            ASSEMBLE_SIMD256_BINOP(paddd, AVX2);
             break;
           }
           case kL16: {
             // I16x16Add
-            ASSEMBLE_SIMD256_BINOP(paddw);
+            ASSEMBLE_SIMD256_BINOP(paddw, AVX2);
             break;
           }
           case kL8: {
             // I8x32Add
-            ASSEMBLE_SIMD256_BINOP(paddb);
+            ASSEMBLE_SIMD256_BINOP(paddb, AVX2);
             break;
           }
           default:
@@ -3874,22 +3874,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL64: {
             // I64x4Sub
-            ASSEMBLE_SIMD256_BINOP(psubq);
+            ASSEMBLE_SIMD256_BINOP(psubq, AVX2);
             break;
           }
           case kL32: {
             // I32x8Sub
-            ASSEMBLE_SIMD256_BINOP(psubd);
+            ASSEMBLE_SIMD256_BINOP(psubd, AVX2);
             break;
           }
           case kL16: {
             // I16x16Sub
-            ASSEMBLE_SIMD256_BINOP(psubw);
+            ASSEMBLE_SIMD256_BINOP(psubw, AVX2);
             break;
           }
           case kL8: {
             // I8x32Sub
-            ASSEMBLE_SIMD256_BINOP(psubb);
+            ASSEMBLE_SIMD256_BINOP(psubb, AVX2);
             break;
           }
           default:
@@ -3929,12 +3929,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL16: {
             // I16x16Mul
-            ASSEMBLE_SIMD256_BINOP(pmullw);
+            ASSEMBLE_SIMD256_BINOP(pmullw, AVX2);
             break;
           }
           case kL32: {
             // I32x8Mul
-            ASSEMBLE_SIMD256_BINOP(pmulld);
+            ASSEMBLE_SIMD256_BINOP(pmulld, AVX2);
             break;
           }
           case kL64: {
@@ -4555,6 +4555,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32AddSatS
+            ASSEMBLE_SIMD256_BINOP(paddsb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16AddSatS
+            ASSEMBLE_SIMD256_BINOP(paddsw, AVX2);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -4573,6 +4588,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL16: {
             // I16x8SubSatS
             ASSEMBLE_SIMD_BINOP(psubsw);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32SubSatS
+            ASSEMBLE_SIMD256_BINOP(psubsb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16SubSatS
+            ASSEMBLE_SIMD256_BINOP(psubsw, AVX2);
             break;
           }
           default:
@@ -4614,6 +4644,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32AddSatU
+            ASSEMBLE_SIMD256_BINOP(paddusb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16AddSatU
+            ASSEMBLE_SIMD256_BINOP(paddusw, AVX2);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -4632,6 +4677,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL16: {
             // I16x8SubSatU
             ASSEMBLE_SIMD_BINOP(psubusw);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32SubSatU
+            ASSEMBLE_SIMD256_BINOP(psubusb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16SubSatU
+            ASSEMBLE_SIMD256_BINOP(psubusw, AVX2);
             break;
           }
           default:

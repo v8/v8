@@ -1099,6 +1099,14 @@
   V(I16x16Mul)                     \
   V(F64x4Div)                      \
   V(F32x8Div)                      \
+  V(I16x16AddSatS)                 \
+  V(I8x32AddSatS)                  \
+  V(I16x16AddSatU)                 \
+  V(I8x32AddSatU)                  \
+  V(I16x16SubSatS)                 \
+  V(I8x32SubSatS)                  \
+  V(I16x16SubSatU)                 \
+  V(I8x32SubSatU)                  \
   V(F32x8Pmin)                     \
   V(F32x8Pmax)                     \
   V(F32x8Eq)                       \

@@ -665,6 +665,14 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x16Mul, Operator::kCommutative, 2, 0, 1)                            \
   V(F64x4Div, Operator::kNoProperties, 2, 0, 1)                            \
   V(F32x8Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x16AddSatS, Operator::kCommutative, 2, 0, 1)                        \
+  V(I8x32AddSatS, Operator::kCommutative, 2, 0, 1)                         \
+  V(I16x16AddSatU, Operator::kCommutative, 2, 0, 1)                        \
+  V(I8x32AddSatU, Operator::kCommutative, 2, 0, 1)                         \
+  V(I16x16SubSatS, Operator::kNoProperties, 2, 0, 1)                       \
+  V(I8x32SubSatS, Operator::kNoProperties, 2, 0, 1)                        \
+  V(I16x16SubSatU, Operator::kNoProperties, 2, 0, 1)                       \
+  V(I8x32SubSatU, Operator::kNoProperties, 2, 0, 1)                        \
   V(F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x8Eq, Operator::kCommutative, 2, 0, 1)                              \
