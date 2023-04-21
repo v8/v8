@@ -690,6 +690,60 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
   UNREACHABLE();
 }
 
+ValueNode* MaglevGraphBuilder::GetSmiValue(
+    ValueNode* value, UseReprHintRecording record_use_repr_hint) {
+  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord) &&
+      value->Is<Phi>()) {
+    value->Cast<Phi>()->RecordUseReprHint(UseRepresentation::kTagged);
+  }
+
+  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+
+  ValueRepresentation representation =
+      value->properties().value_representation();
+  if (representation == ValueRepresentation::kTagged) {
+    BuildCheckSmi(value, /* elidable */ false);
+    return value;
+  }
+
+  if (node_info->tagged_alternative != nullptr) {
+    BuildCheckSmi(node_info->tagged_alternative, /* elidable */ false);
+    return node_info->tagged_alternative;
+  }
+
+  switch (representation) {
+    case ValueRepresentation::kInt32: {
+      if (NodeTypeIsSmi(node_info->type)) {
+        return node_info->tagged_alternative =
+                   AddNewNode<UnsafeSmiTag>({value});
+      }
+      return node_info->tagged_alternative =
+                 AddNewNode<CheckedSmiTagInt32>({value});
+    }
+    case ValueRepresentation::kUint32: {
+      if (NodeTypeIsSmi(node_info->type)) {
+        return node_info->tagged_alternative =
+                   AddNewNode<UnsafeSmiTag>({value});
+      }
+      return node_info->tagged_alternative =
+                 AddNewNode<CheckedSmiTagUint32>({value});
+    }
+    case ValueRepresentation::kFloat64: {
+      return node_info->tagged_alternative =
+                 AddNewNode<CheckedSmiTagFloat64>({value});
+    }
+    case ValueRepresentation::kHoleyFloat64: {
+      return node_info->tagged_alternative =
+                 AddNewNode<CheckedSmiTagFloat64>({value});
+    }
+
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
 ValueNode* MaglevGraphBuilder::GetInternalizedString(
     interpreter::Register reg) {
   ValueNode* node = GetTaggedValue(reg);
@@ -2156,15 +2210,16 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       // Record a code dependency on the cell, and just deoptimize if the new
       // value's type doesn't match the type of the previous value in the cell.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
-      ValueNode* value = GetAccumulatorTagged();
+      ValueNode* value;
       if (property_cell_value.IsHeapObject()) {
+        value = GetAccumulatorTagged();
         compiler::MapRef property_cell_value_map =
             property_cell_value.AsHeapObject().map(broker());
         broker()->dependencies()->DependOnStableMap(property_cell_value_map);
         BuildCheckHeapObject(value);
         BuildCheckMaps(value, base::VectorOf({property_cell_value_map}));
       } else {
-        BuildCheckSmi(value, /*elidable*/ false);
+        value = GetAccumulatorSmi();
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       BuildStoreTaggedField(property_cell_node, value,
@@ -2434,6 +2489,8 @@ NodeType StaticTypeForNode(ValueNode* node) {
   switch (node->opcode()) {
     case Opcode::kCheckedSmiTagInt32:
     case Opcode::kCheckedSmiTagUint32:
+    case Opcode::kCheckedSmiTagFloat64:
+    case Opcode::kUnsafeSmiTag:
     case Opcode::kSmiConstant:
       return NodeType::kSmi;
     case Opcode::kConstant: {
@@ -3025,17 +3082,19 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
           {value}, Float64ToTagged::ConversionMode::kForceHeapNumber);
     }
   } else {
-    value = GetAccumulatorTagged();
     if (field_representation.IsSmi()) {
-      BuildCheckSmi(value, /*elidable*/ false);
-    } else if (field_representation.IsHeapObject()) {
-      // Emit a map check for the field type, if needed, otherwise just a
-      // HeapObject check.
-      if (access_info.field_map().has_value()) {
-        BuildCheckMaps(value,
-                       base::VectorOf({access_info.field_map().value()}));
-      } else {
-        BuildCheckHeapObject(value);
+      value = GetAccumulatorSmi();
+    } else {
+      value = GetAccumulatorTagged();
+      if (field_representation.IsHeapObject()) {
+        // Emit a map check for the field type, if needed, otherwise just a
+        // HeapObject check.
+        if (access_info.field_map().has_value()) {
+          BuildCheckMaps(value,
+                         base::VectorOf({access_info.field_map().value()}));
+        } else {
+          BuildCheckHeapObject(value);
+        }
       }
     }
   }
@@ -3633,9 +3692,10 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     // rather than a separate node.
     value = GetSilencedNaN(GetAccumulatorFloat64());
   } else {
-    value = GetAccumulatorTagged();
     if (IsSmiElementsKind(elements_kind)) {
-      BuildCheckSmi(value, /*elidable*/ false);
+      value = GetAccumulatorSmi();
+    } else {
+      value = GetAccumulatorTagged();
     }
   }
 

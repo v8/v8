@@ -917,6 +917,16 @@ class MaglevGraphBuilder {
   ValueNode* GetTaggedValue(ValueNode* value,
                             UseReprHintRecording record_use_repr_hint =
                                 UseReprHintRecording::kRecord);
+  ValueNode* GetSmiValue(ValueNode* value,
+                         UseReprHintRecording record_use_repr_hint =
+                             UseReprHintRecording::kRecord);
+
+  ValueNode* GetSmiValue(interpreter::Register reg,
+                         UseReprHintRecording record_use_repr_hint =
+                             UseReprHintRecording::kRecord) {
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    return GetSmiValue(value, record_use_repr_hint);
+  }
 
   ValueNode* GetTaggedValue(interpreter::Register reg,
                             UseReprHintRecording record_use_repr_hint =
@@ -1011,6 +1021,12 @@ class MaglevGraphBuilder {
                                       UseReprHintRecording::kRecord) {
     return GetTaggedValue(interpreter::Register::virtual_accumulator(),
                           record_use_repr_hint);
+  }
+
+  ValueNode* GetAccumulatorSmi(UseReprHintRecording record_use_repr_hint =
+                                   UseReprHintRecording::kRecord) {
+    return GetSmiValue(interpreter::Register::virtual_accumulator(),
+                       record_use_repr_hint);
   }
 
   ValueNode* GetAccumulatorInt32() {
