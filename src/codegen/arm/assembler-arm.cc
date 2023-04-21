@@ -5480,22 +5480,6 @@ void PatchingAssembler::PadWithNops() {
   }
 }
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : assembler_(assembler),
-      old_available_(*assembler->GetScratchRegisterList()),
-      old_available_vfp_(*assembler->GetScratchVfpRegisterList()) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *assembler_->GetScratchRegisterList() = old_available_;
-  *assembler_->GetScratchVfpRegisterList() = old_available_vfp_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  RegList* available = assembler_->GetScratchRegisterList();
-  DCHECK_NOT_NULL(available);
-  return available->PopFirst();
-}
-
 LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
                                          uint8_t laneidx) {
   if (rep == MachineRepresentation::kWord8) {
