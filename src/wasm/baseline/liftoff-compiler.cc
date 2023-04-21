@@ -4981,6 +4981,7 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
+    ValueKind index_kind;
     {
       LiftoffRegList pinned;
       LiftoffRegister full_index = __ PeekToRegister(2, pinned);
@@ -5012,8 +5013,10 @@ class LiftoffCompiler {
       __ cache_state()->inc_used(LiftoffRegister(index_plus_offset));
       if (index.is_reg()) __ cache_state()->dec_used(index.reg());
 
-      index = LiftoffAssembler::VarState{
-          kIntPtrKind, LiftoffRegister{index_plus_offset}, index.offset()};
+      index_kind = index.kind();
+      // Use the same kind as the original VarState, to make sure that the new
+      // VarState fits into the stack space of the original VarState.
+      index.MakeRegister(LiftoffRegister{index_plus_offset});
     }
     {
       // Convert the top value of the stack (the timeout) from I64 to a BigInt,
@@ -5053,7 +5056,10 @@ class LiftoffCompiler {
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
                                : WasmCode::kWasmI64AtomicWait;
 
-    CallRuntimeStub(target, MakeSig::Params(kIntPtrKind, expected_kind, kRef),
+    // The type of {index} can either by i32 or intptr, depending on whether
+    // memory32 or memory64 is used. This is okay because both values get passed
+    // by register.
+    CallRuntimeStub(target, MakeSig::Params(index_kind, expected_kind, kRef),
                     {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
