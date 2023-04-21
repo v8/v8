@@ -1562,18 +1562,20 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
     case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
-      if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
-      // Run Movs between test and jump.
-      while (iterator_.next_bytecode() == interpreter::Bytecode::kMov) {
+      if (GetOutLivenessFor(it.next_offset())->AccumulatorIsLive()) {
+        return false;
+      }
+      // Advance past the test.
+      iterator_.Advance();
+      // Evaluate Movs between test and jump.
+      for (; iterator_.current_bytecode() == interpreter::Bytecode::kMov;
+           iterator_.Advance()) {
         interpreter::Register src = iterator_.GetRegisterOperand(0);
         interpreter::Register dst = iterator_.GetRegisterOperand(1);
         DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
         current_interpreter_frame_.set(dst,
                                        current_interpreter_frame_.get(src));
       }
-      // Advance the iterator past the test to the jump, skipping
-      // emitting the test.
-      iterator_.Advance();
       true_offset = next_offset();
       false_offset = iterator_.GetJumpTargetOffset();
       UpdateSourceAndBytecodePosition(iterator_.current_offset());
@@ -1584,18 +1586,20 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
     case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
-      if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
-      // Run Movs between test and jump.
-      while (iterator_.next_bytecode() == interpreter::Bytecode::kMov) {
+      if (GetOutLivenessFor(it.next_offset())->AccumulatorIsLive()) {
+        return false;
+      }
+      // Advance past the test.
+      iterator_.Advance();
+      // Evaluate Movs between test and jump.
+      for (; iterator_.current_bytecode() == interpreter::Bytecode::kMov;
+           iterator_.Advance()) {
         interpreter::Register src = iterator_.GetRegisterOperand(0);
         interpreter::Register dst = iterator_.GetRegisterOperand(1);
         DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
         current_interpreter_frame_.set(dst,
                                        current_interpreter_frame_.get(src));
       }
-      // Advance the iterator past the test to the jump, skipping
-      // emitting the test.
-      iterator_.Advance();
       true_offset = iterator_.GetJumpTargetOffset();
       false_offset = next_offset();
       UpdateSourceAndBytecodePosition(iterator_.current_offset());
