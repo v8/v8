@@ -464,6 +464,66 @@ void SnapshotTable<Value, KeyData>::MergePredecessors(
   }
 }
 
+// ChangeTrackingSnapshotTable extends SnapshotTable by automatically invoking
+// OnNewKey and OnValueChange on the subclass whenever the table state changes.
+// This makes it easy to maintain consistent additional tables for faster lookup
+// of the state of the snapshot table, similar to how secondary indices can
+// speed-up lookups in database tables.
+// For example usage, see TEST_F(SnapshotTableTest, ChangeTrackingSnapshotTable)
+// in test/unittests/compiler/turboshaft/snapshot-table-unittest.cc.
+template <class Derived, class Value, class KeyData = NoKeyData>
+class ChangeTrackingSnapshotTable : public SnapshotTable<Value, KeyData> {
+ public:
+  using Super = SnapshotTable<Value, KeyData>;
+  using Super::Super;
+  using typename Super::Key;
+  using typename Super::Snapshot;
+
+  void StartNewSnapshot(base::Vector<const Snapshot> predecessors) {
+    Super::StartNewSnapshot(
+        predecessors,
+        [this](Key key, const Value& old_value, const Value& new_value) {
+          static_cast<Derived*>(this)->OnValueChange(key, old_value, new_value);
+        });
+  }
+  void StartNewSnapshot(std::initializer_list<Snapshot> predecessors = {}) {
+    StartNewSnapshot(base::VectorOf(predecessors));
+  }
+  void StartNewSnapshot(Snapshot parent) { StartNewSnapshot({parent}); }
+  template <class MergeFun,
+            std::enable_if_t<std::is_invocable_v<
+                MergeFun, Key, base::Vector<const Value>>>* = nullptr>
+  void StartNewSnapshot(base::Vector<const Snapshot> predecessors,
+                        const MergeFun& merge_fun) {
+    Super::StartNewSnapshot(
+        predecessors, merge_fun,
+        [this](Key key, const Value& old_value, const Value& new_value) {
+          static_cast<Derived*>(this)->OnValueChange(key, old_value, new_value);
+        });
+  }
+  template <class MergeFun,
+            std::enable_if_t<std::is_invocable_v<
+                MergeFun, Key, base::Vector<const Value>>>* = nullptr>
+  void StartNewSnapshot(std::initializer_list<Snapshot> predecessors,
+                        const MergeFun& merge_fun) {
+    StartNewSnapshot(base::VectorOf(predecessors), merge_fun);
+  }
+
+  void Set(Key key, Value new_value) {
+    static_cast<Derived*>(this)->OnValueChange(key, Super::Get(key), new_value);
+    Super::Set(key, std::move(new_value));
+  }
+
+  Key NewKey(KeyData data, Value initial_value = Value{}) {
+    Key key = Super::NewKey(std::move(data), std::move(initial_value));
+    static_cast<Derived*>(this)->OnNewKey(key, Super::Get(key));
+    return key;
+  }
+  Key NewKey(Value initial_value = Value{}) {
+    return NewKey(KeyData{}, initial_value);
+  }
+};
+
 }  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_SNAPSHOT_TABLE_H_

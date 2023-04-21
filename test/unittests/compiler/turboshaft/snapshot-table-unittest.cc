@@ -262,4 +262,67 @@ TEST_F(SnapshotTableTest, ChangeCallback) {
   EXPECT_EQ(table.Get(k1), 10);
 }
 
+TEST_F(SnapshotTableTest, ChangeTrackingSnapshotTable) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  struct KeyData {
+    int id;
+  };
+
+  struct Table : ChangeTrackingSnapshotTable<Table, bool, KeyData> {
+    using ChangeTrackingSnapshotTable::ChangeTrackingSnapshotTable;
+    std::set<int> active_keys;
+
+    void OnNewKey(Key key, bool value) {
+      if (value) {
+        active_keys.insert(key.data().id);
+      }
+    }
+    void OnValueChange(Key key, bool old_value, bool new_value) {
+      if (old_value && !new_value) {
+        active_keys.erase(key.data().id);
+      } else if (!old_value && new_value) {
+        active_keys.insert(key.data().id);
+      }
+    }
+  } table(&zone);
+
+  using Key = Table::Key;
+  using Snapshot = Table::Snapshot;
+
+  Key k1 = table.NewKey(KeyData{5}, true);
+  Key k2 = table.NewKey(KeyData{7}, false);
+
+  table.StartNewSnapshot();
+  EXPECT_EQ(table.active_keys, std::set<int>({5}));
+  table.Set(k2, true);
+  EXPECT_EQ(table.active_keys, std::set<int>({5, 7}));
+  Snapshot s1 = table.Seal();
+
+  table.StartNewSnapshot();
+  EXPECT_EQ(table.active_keys, std::set<int>({5}));
+  table.Set(k1, false);
+  EXPECT_EQ(table.active_keys, std::set<int>({}));
+  table.Set(k2, true);
+  EXPECT_EQ(table.active_keys, std::set<int>({7}));
+  Snapshot s2 = table.Seal();
+
+  table.StartNewSnapshot({s1, s2},
+                         [&](Key key, base::Vector<const bool> values) {
+                           EXPECT_EQ(values.size(), 2u);
+                           return values[0] ^ values[1];
+                         });
+  EXPECT_EQ(table.active_keys, std::set<int>({5}));
+  table.Seal();
+
+  table.StartNewSnapshot({s1, s2},
+                         [&](Key key, base::Vector<const bool> values) {
+                           EXPECT_EQ(values.size(), 2u);
+                           return values[0] || values[1];
+                         });
+  EXPECT_EQ(table.active_keys, std::set<int>({5, 7}));
+  table.Seal();
+}
+
 }  // namespace v8::internal::compiler::turboshaft
