@@ -245,13 +245,13 @@ void IncrementalMarking::MarkRoots() {
           }
         });
 
-    std::vector<YoungGenerationMarkingTask> tasks;
+    std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
     for (size_t i = 0; i < (v8_flags.parallel_marking
                                 ? MinorMarkCompactCollector::kMaxParallelTasks
                                 : 1);
          ++i) {
-      tasks.emplace_back(isolate(), heap(),
-                         minor_collector_->marking_worklists());
+      tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
+          isolate(), heap(), minor_collector_->marking_worklists()));
     }
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,
@@ -260,8 +260,8 @@ void IncrementalMarking::MarkRoots() {
                         std::move(marking_items),
                         YoungMarkingJobType::kIncremental, tasks))
         ->Join();
-    for (YoungGenerationMarkingTask& task : tasks) {
-      task.Finalize();
+    for (auto& task : tasks) {
+      task->Finalize();
     }
   }
 }

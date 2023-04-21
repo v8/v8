@@ -5592,11 +5592,10 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 }  // namespace
 
 YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
-    Isolate* isolate, PtrComprCageBase cage_base,
-    MarkingWorklists::Local* worklists_local)
+    Isolate* isolate, MarkingWorklists::Local* worklists_local)
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(isolate, worklists_local),
-      marking_state_(cage_base),
+      marking_state_(PtrComprCageBase(isolate)),
       shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_COMPACTOR)) {}
 
@@ -5716,8 +5715,7 @@ void MinorMarkCompactCollector::StartMarking() {
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap()->isolate(), marking_state()->cage_base(),
-      local_marking_worklists());
+      heap()->isolate(), local_marking_worklists());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
@@ -5873,18 +5871,17 @@ class PageMarkingItem;
 
 YoungGenerationMarkingTask::YoungGenerationMarkingTask(
     Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists)
-    : marking_worklists_local_(std::make_unique<MarkingWorklists::Local>(
+    : marking_worklists_local_(
           global_worklists,
           heap->cpp_heap()
               ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
-              : MarkingWorklists::Local::kNoCppMarkingState)),
-      visitor_(isolate, heap->marking_state()->cage_base(),
-               marking_worklists_local()) {}
+              : MarkingWorklists::Local::kNoCppMarkingState),
+      visitor_(isolate, &marking_worklists_local_) {}
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
-  while (marking_worklists_local_->Pop(&heap_object) ||
-         marking_worklists_local_->PopOnHold(&heap_object)) {
+  while (marking_worklists_local_.Pop(&heap_object) ||
+         marking_worklists_local_.PopOnHold(&heap_object)) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
@@ -5899,11 +5896,11 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
     }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
-  marking_worklists_local_->PublishWrapper();
+  marking_worklists_local_.PublishWrapper();
 }
 
 void YoungGenerationMarkingTask::PublishMarkingWorklist() {
-  marking_worklists_local_->Publish();
+  marking_worklists_local_.Publish();
 }
 
 void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
@@ -6050,12 +6047,12 @@ void YoungGenerationMarkingJob::ProcessItems(JobDelegate* delegate) {
     TimedScope scope(&marking_time);
     const int task_id = delegate->GetTaskId();
     DCHECK_LT(task_id, tasks_.size());
-    YoungGenerationMarkingTask& task = tasks_[task_id];
-    ProcessMarkingItems(&task);
+    YoungGenerationMarkingTask* task = tasks_[task_id].get();
+    ProcessMarkingItems(task);
     if (ShouldDrainMarkingWorklist()) {
-      task.DrainMarkingWorklist();
+      task->DrainMarkingWorklist();
     } else {
-      task.PublishMarkingWorklist();
+      task->PublishMarkingWorklist();
     }
   }
   if (v8_flags.trace_minor_mc_parallel_marking) {
@@ -6157,10 +6154,11 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
     // by the job.
     local_marking_worklists_->Publish();
 
-    std::vector<YoungGenerationMarkingTask> tasks;
+    std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
     for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
          ++i) {
-      tasks.emplace_back(isolate(), heap(), marking_worklists());
+      tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
+          isolate(), heap(), marking_worklists()));
     }
     V8::GetCurrentPlatform()
         ->CreateJob(
@@ -6169,8 +6167,8 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
                 isolate(), heap(), marking_worklists(),
                 std::move(marking_items), YoungMarkingJobType::kAtomic, tasks))
         ->Join();
-    for (YoungGenerationMarkingTask& task : tasks) {
-      task.Finalize();
+    for (auto& task : tasks) {
+      task->Finalize();
     }
     // If unified young generation is in progress, the parallel marker may add
     // more entries into local_marking_worklists_.

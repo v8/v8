@@ -130,7 +130,6 @@ class YoungGenerationMainMarkingVisitor final
           YoungGenerationMainMarkingVisitor, MarkingState> {
  public:
   YoungGenerationMainMarkingVisitor(Isolate* isolate,
-                                    PtrComprCageBase cage_base,
                                     MarkingWorklists::Local* worklists_local);
 
   template <typename TSlot>
@@ -673,11 +672,11 @@ enum class YoungMarkingJobType { kAtomic, kIncremental };
 
 class YoungGenerationMarkingJob : public v8::JobTask {
  public:
-  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
-                            MarkingWorklists* global_worklists,
-                            std::vector<PageMarkingItem> marking_items,
-                            YoungMarkingJobType young_marking_job_type,
-                            std::vector<YoungGenerationMarkingTask>& tasks)
+  YoungGenerationMarkingJob(
+      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
+      std::vector<PageMarkingItem> marking_items,
+      YoungMarkingJobType young_marking_job_type,
+      const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks)
       : isolate_(isolate),
         heap_(heap),
         global_worklists_(global_worklists),
@@ -705,7 +704,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
   YoungMarkingJobType young_marking_job_type_;
-  std::vector<YoungGenerationMarkingTask>& tasks_;
+  const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
 };
 
 class YoungGenerationMarkingTask final {
@@ -713,22 +712,20 @@ class YoungGenerationMarkingTask final {
   YoungGenerationMarkingTask(Isolate* isolate, Heap* heap,
                              MarkingWorklists* global_worklists);
 
+  YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
+  YoungGenerationMarkingTask& operator=(const YoungGenerationMarkingTask&) =
+      delete;
+
   void DrainMarkingWorklist();
-
   void PublishMarkingWorklist();
-
-  MarkingWorklists::Local* marking_worklists_local() {
-    return marking_worklists_local_.get();
-  }
 
   void Finalize();
 
   YoungGenerationMainMarkingVisitor* visitor() { return &visitor_; }
 
  private:
-  std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
+  MarkingWorklists::Local marking_worklists_local_;
   YoungGenerationMainMarkingVisitor visitor_;
-  std::unordered_map<MemoryChunk*, size_t, MemoryChunk::Hasher> live_bytes_;
 };
 
 }  // namespace internal

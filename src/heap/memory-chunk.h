@@ -65,7 +65,7 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 
   static MemoryChunk* cast(BasicMemoryChunk* chunk) {
-    SLOW_DCHECK(!chunk->InReadOnlySpace());
+    SLOW_DCHECK(!chunk || !chunk->InReadOnlySpace());
     return static_cast<MemoryChunk*>(chunk);
   }
 

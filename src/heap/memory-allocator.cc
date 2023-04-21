@@ -532,10 +532,11 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
 }
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode, MemoryChunk* chunk) {
-  if (chunk->IsLargePage())
-    RecordLargePageDestroyed(*static_cast<LargePage*>(chunk));
-  else
-    RecordNormalPageDestroyed(*static_cast<Page*>(chunk));
+  if (chunk->IsLargePage()) {
+    RecordLargePageDestroyed(*LargePage::cast(chunk));
+  } else {
+    RecordNormalPageDestroyed(*Page::cast(chunk));
+  }
   switch (mode) {
     case FreeMode::kImmediately:
       PreFreeMemory(chunk);
@@ -791,12 +792,12 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     const NormalPagesSet& normal_pages, const LargePagesSet& large_pages,
     Address addr) {
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
-  if (auto it = normal_pages.find(static_cast<Page*>(chunk));
+  if (auto it = normal_pages.find(Page::cast(chunk));
       it != normal_pages.end()) {
     // The chunk is a normal page.
     DCHECK_LE(chunk->address(), addr);
     if (chunk->Contains(addr)) return *it;
-  } else if (auto it = large_pages.upper_bound(static_cast<LargePage*>(chunk));
+  } else if (auto it = large_pages.upper_bound(LargePage::cast(chunk));
              it != large_pages.begin()) {
     // The chunk could be inside a large page.
     DCHECK_IMPLIES(it != large_pages.end(), addr < (*it)->address());

@@ -653,10 +653,10 @@ void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
   indices.first->second.insert(entry);
 }
 
-void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
-  AllocationSpace space = page->owner_identity();
-  if ((space == OLD_SPACE) && !page->SweepingDone()) {
-    heap()->sweeper()->AddPage(space, reinterpret_cast<Page*>(page),
+void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* chunk) {
+  AllocationSpace space = chunk->owner_identity();
+  if ((space == OLD_SPACE) && !chunk->SweepingDone()) {
+    heap()->sweeper()->AddPage(space, Page::cast(chunk),
                                Sweeper::READD_TEMPORARY_REMOVED_PAGE,
                                AccessMode::ATOMIC);
   }

@@ -143,12 +143,8 @@ class SemiSpace final : public Space {
 
   size_t Available() const final { UNREACHABLE(); }
 
-  Page* first_page() final {
-    return reinterpret_cast<Page*>(memory_chunk_list_.front());
-  }
-  Page* last_page() final {
-    return reinterpret_cast<Page*>(memory_chunk_list_.back());
-  }
+  Page* first_page() final { return Page::cast(memory_chunk_list_.front()); }
+  Page* last_page() final { return Page::cast(memory_chunk_list_.back()); }
 
   const Page* first_page() const final {
     return reinterpret_cast<const Page*>(memory_chunk_list_.front());

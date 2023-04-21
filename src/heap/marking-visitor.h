@@ -209,6 +209,11 @@ class YoungGenerationMarkingVisitorBase
     DCHECK(local_pretenuring_feedback_.empty());
   }
 
+  YoungGenerationMarkingVisitorBase(const YoungGenerationMarkingVisitorBase&) =
+      delete;
+  YoungGenerationMarkingVisitorBase& operator=(
+      const YoungGenerationMarkingVisitorBase&) = delete;
+
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     concrete_visitor()->VisitPointersImpl(host, start, end);
@@ -228,11 +233,11 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
   V8_INLINE int VisitJSDataViewOrRabGsabDataView(
       Map map, JSDataViewOrRabGsabDataView object);
-  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
   V8_INLINE int VisitJSObject(Map map, JSObject object);
   V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   V8_INLINE int VisitJSObjectSubclass(Map map, T object);
+  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
   V8_INLINE void Finalize();
 

@@ -770,7 +770,18 @@ class PromotedPageRecordMigratedSlotVisitor final
   PromotedPageRecordMigratedSlotVisitor(Isolate* isolate,
                                         MemoryChunk* host_chunk)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(isolate),
-        host_chunk_(host_chunk) {}
+        host_chunk_(host_chunk) {
+    DCHECK(host_chunk->owner_identity() == OLD_SPACE ||
+           host_chunk->owner_identity() == LO_SPACE);
+  }
+
+  void Process(HeapObject object) {
+    Map map = object.map(cage_base());
+    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+      return;
+    }
+    Visit(map, object);
+  }
 
   // TODO(v8:13883): MakeExternal() right now allows to externalize a string in
   // the young generation (for testing) and on a promoted page that is currently
@@ -797,6 +808,12 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
+  }
+
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
+    object.YoungMarkExtensionPromoted();
+    return NewSpaceVisitor<
+        PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
   }
 
   // Entries that are skipped for recording.
@@ -858,24 +875,6 @@ class PromotedPageRecordMigratedSlotVisitor final
   SlotSet* cached_old_to_new_ = nullptr;
 };
 
-inline void HandlePromotedObject(
-    HeapObject object, NonAtomicMarkingState* marking_state,
-    PtrComprCageBase cage_base,
-    PromotedPageRecordMigratedSlotVisitor* record_visitor) {
-  DCHECK(marking_state->IsMarked(object));
-  DCHECK(!IsCodeSpaceObject(object));
-  Map map = object.map(cage_base);
-  if (InstanceTypeChecker::IsJSArrayBuffer(map.instance_type())) {
-    JSArrayBuffer::cast(object).YoungMarkExtensionPromoted();
-    DCHECK_EQ(ObjectFields::kMaybePointers,
-              Map::ObjectFieldsFrom(map.visitor_id()));
-  } else if (Map::ObjectFieldsFrom(map.visitor_id()) ==
-             ObjectFields::kDataOnly) {
-    return;
-  }
-  object.IterateFast(map, record_visitor);
-}
-
 inline void HandleFreeSpace(Address free_start, Address free_end, Heap* heap) {
   if (!heap->ShouldZapGarbage()) return;
   if (free_end == free_start) return;
@@ -902,17 +901,14 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
 
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
-  PtrComprCageBase cage_base(heap_->isolate());
   PromotedPageRecordMigratedSlotVisitor record_visitor(heap_->isolate(), chunk);
   DCHECK(!heap_->incremental_marking()->IsMarking());
   if (chunk->IsLargePage()) {
-    HandlePromotedObject(static_cast<LargePage*>(chunk)->GetObject(),
-                         marking_state_, cage_base, &record_visitor);
+    record_visitor.Process(LargePage::cast(chunk)->GetObject());
   } else {
-    PtrComprCageBase cage_base(chunk->heap()->isolate());
     Address free_start = chunk->area_start();
     for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
-      HandlePromotedObject(object, marking_state_, cage_base, &record_visitor);
+      record_visitor.Process(object);
       Address free_end = object.address();
       HandleFreeSpace(free_start, free_end, heap_);
       free_start = free_end + size;
