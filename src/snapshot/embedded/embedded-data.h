@@ -18,6 +18,8 @@ namespace internal {
 class InstructionStream;
 class Isolate;
 
+using ReorderedBuiltinIndex = uint32_t;
+
 // Wraps an off-heap instruction stream.
 // TODO(jgruber,v8:6666): Remove this class.
 class OffHeapInstructionStream final : public AllStatic {
@@ -166,6 +168,8 @@ class EmbeddedData final {
     return *reinterpret_cast<const size_t*>(data_ + IsolateHashOffset());
   }
 
+  Builtin TryLookupCode(Address address) const;
+
   // Blob layout information for a single instruction stream.
   struct LayoutDescription {
     // The offset and (unpadded) length of this builtin's instruction area
@@ -183,20 +187,42 @@ class EmbeddedData final {
   static_assert(offsetof(LayoutDescription, metadata_offset) ==
                 2 * kUInt32Size);
 
+  // The embedded code section stores builtins in the so-called
+  // 'embedded snapshot order' which is usually different from the order
+  // as defined by the Builtins enum ('builtin id order'), and determined
+  // through an algorithm based on collected execution profiles. The
+  // BuiltinLookupEntry struct maps from the 'embedded snapshot order' to
+  // the 'builtin id order' and additionally keeps a copy of instruction_end for
+  // each builtin since it is convenient for binary search.
+  struct BuiltinLookupEntry {
+    // The end offset (including padding) of builtin, the end_offset field
+    // should be in ascending order in the array in snapshot, because we will
+    // use it in TryLookupCode. It should be equal to
+    // LayoutDescription[builtin_id].instruction_offset +
+    // PadAndAlignCode(length)
+    uint32_t end_offset;
+    // The id of builtin.
+    uint32_t builtin_id;
+  };
+  static_assert(offsetof(BuiltinLookupEntry, end_offset) == 0 * kUInt32Size);
+  static_assert(offsetof(BuiltinLookupEntry, builtin_id) == 1 * kUInt32Size);
+
   // The layout of the blob is as follows:
   //
   // data:
   // [0] hash of the data section
   // [1] hash of the code section
   // [2] hash of embedded-blob-relevant heap objects
-  // [3] layout description of instruction stream 0
-  // ... layout descriptions
+  // [3] layout description of builtin 0
+  // ... layout descriptions (builtin id order)
+  // [n] builtin lookup table where entries are sorted by offset_end in
+  //     ascending order. (embedded snapshot order)
   // [x] metadata section of builtin 0
-  // ... metadata sections
+  // ... metadata sections (builtin id order)
   //
   // code:
   // [0] instruction section of builtin 0
-  // ... instruction sections
+  // ... instruction sections (embedded snapshot order)
 
   static constexpr uint32_t kTableSize = Builtins::kBuiltinCount;
   static constexpr uint32_t EmbeddedBlobDataHashOffset() { return 0; }
@@ -215,8 +241,14 @@ class EmbeddedData final {
   static constexpr uint32_t LayoutDescriptionTableSize() {
     return sizeof(struct LayoutDescription) * kTableSize;
   }
-  static constexpr uint32_t FixedDataSize() {
+  static constexpr uint32_t BuiltinLookupEntryTableOffset() {
     return LayoutDescriptionTableOffset() + LayoutDescriptionTableSize();
+  }
+  static constexpr uint32_t BuiltinLookupEntryTableSize() {
+    return sizeof(struct BuiltinLookupEntry) * kTableSize;
+  }
+  static constexpr uint32_t FixedDataSize() {
+    return BuiltinLookupEntryTableOffset() + BuiltinLookupEntryTableSize();
   }
   // The variable-size data section starts here.
   static constexpr uint32_t RawMetadataOffset() { return FixedDataSize(); }
@@ -242,6 +274,15 @@ class EmbeddedData final {
             data_ + LayoutDescriptionTableOffset());
     return descs[static_cast<int>(builtin)];
   }
+
+  const BuiltinLookupEntry* BuiltinLookupEntry(
+      ReorderedBuiltinIndex index) const {
+    const struct BuiltinLookupEntry* entries =
+        reinterpret_cast<const struct BuiltinLookupEntry*>(
+            data_ + BuiltinLookupEntryTableOffset());
+    return entries + index;
+  }
+
   const uint8_t* RawMetadata() const { return data_ + RawMetadataOffset(); }
 
   static constexpr int PadAndAlignCode(int size) {
