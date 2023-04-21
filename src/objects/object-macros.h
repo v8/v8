@@ -638,6 +638,12 @@
   static_cast<int32_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
 
+#if defined(V8_HOST_ARCH_64_BIT)
+#define RELAXED_READ_INT64_FIELD(p, offset) \
+  static_cast<int64_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic64*>(FIELD_ADDR(p, offset))))
+#endif
+
 #define RELEASE_WRITE_INT32_FIELD(p, offset, value)             \
   base::Release_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
