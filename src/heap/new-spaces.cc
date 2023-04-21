@@ -1014,7 +1014,10 @@ void PagedSpaceForNewSpace::RefillFreeList() {
   if (swept_pages.empty()) return;
 
   for (Page* p : swept_pages) {
-    DCHECK(!p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE));
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      p->ForAllFreeListCategories(
+          [this](FreeListCategory* category) { category->Reset(free_list()); });
+    }
     RefineAllocatedBytesAfterSweeping(p);
     RelinkFreeListCategories(p);
   }

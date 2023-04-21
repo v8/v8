@@ -6339,6 +6339,13 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
       has_promoted_pages = true;
       sweeper()->AddPromotedPageForIteration(p);
     } else {
+      if (live_bytes_on_page >
+          Page::kPageSize * v8_flags.minor_mc_page_promotion_threshold / 100) {
+        // Pages that are mostly full are not used for allocation and will be
+        // promoted on the next GC.
+        DCHECK_GT(p->AllocatedLabSize(), 0);
+        p->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+      }
       // Page is not promoted. Sweep it instead.
       sweeper()->AddNewSpacePage(p);
       will_be_swept++;
