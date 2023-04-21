@@ -2,15 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// In GetIteratorDirect and the helpers below, this file implements the changes
-// in [1] and [2], which are highly likely to get consensus at the March 2023
-// TC39.
-//
-// [1] https://github.com/tc39/proposal-iterator-helpers/pull/265
-// [2] https://github.com/tc39/proposal-iterator-helpers/pull/267
-//
-// TODO(v8:13556): Remove this comment once PR is merged.
-
 // --- Utilities
 
 namespace iterator {
