@@ -5170,7 +5170,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   ValueNode* context = GetConstant(function.context(broker()));
   compiler::SharedFunctionInfoRef shared = function.shared(broker());
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function)) {
-    return BuildCallSelf(closure, context, shared, args);
+    return BuildCallSelf(context, closure, shared, args);
   }
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlinedCall(context, closure, shared,
