@@ -678,21 +678,8 @@ MaybeHandle<JSObject> JSLocale::GetTextInfo(Isolate* isolate,
   Handle<JSObject> info = factory->NewJSObject(isolate->object_function());
 
   // Let dir be "ltr".
-  Handle<String> dir = factory->ltr_string();
-
-  // If the default general ordering of characters (characterOrder) within a
-  // line in the locale is right-to-left, then
-  UErrorCode status = U_ZERO_ERROR;
-  ULayoutType orientation = uloc_getCharacterOrientation(
-      (locale->icu_locale().raw())->getName(), &status);
-  if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSObject);
-  }
-  if (orientation == ULOC_LAYOUT_RTL) {
-    // Let dir be "rtl".
-    dir = factory->rtl_string();
-  }
+  Handle<String> dir = locale->icu_locale().raw()->isRightToLeft() ?
+     factory->rtl_string() : factory->ltr_string();
 
   // Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
   CHECK(JSReceiver::CreateDataProperty(
