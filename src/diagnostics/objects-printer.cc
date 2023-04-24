@@ -57,7 +57,7 @@ namespace {
 
 void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
                                      const char* id) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(object);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
@@ -103,12 +103,12 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   if (!IsMap(cage_base)) os << "\n - map: " << Brief(map(cage_base));
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
 
   InstanceType instance_type = map(cage_base).instance_type();
 

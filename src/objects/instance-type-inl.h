@@ -336,21 +336,18 @@ V8_INLINE bool IsFreeSpaceOrFiller(Map map_object) {
 
 }  // namespace InstanceTypeChecker
 
-#define TYPE_CHECKER(type, ...)                                                \
-  bool HeapObject::Is##type() const {                                          \
-    /* In general, parameterless IsBlah() must not be used for objects */      \
-    /* that might be located in external code space. Note that this version */ \
-    /* is still called from Blah::cast() methods but it's fine because in */   \
-    /* production builds these checks are not enabled anyway and debug */      \
-    /* builds are allowed to be a bit slower. */                               \
-    PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);               \
-    return HeapObject::Is##type(cage_base);                                    \
-  }                                                                            \
-  /* The cage_base passed here is must to be the base of the pointer */        \
-  /* compression cage where the Map space is allocated. */                     \
-  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {                \
-    Map map_object = map(cage_base);                                           \
-    return InstanceTypeChecker::Is##type(map_object);                          \
+#define TYPE_CHECKER(type, ...)                                               \
+  bool HeapObject::Is##type() const {                                         \
+    /* IsBlah() predicates needs to load the map and thus they require the */ \
+    /* main cage base. */                                                     \
+    PtrComprCageBase cage_base = GetPtrComprCageBase();                       \
+    return HeapObject::Is##type(cage_base);                                   \
+  }                                                                           \
+  /* The cage_base passed here must be the base of the main pointer */        \
+  /* compression cage, i.e. the one where the Map space is allocated. */      \
+  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
+    Map map_object = map(cage_base);                                          \
+    return InstanceTypeChecker::Is##type(map_object);                         \
   }
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)

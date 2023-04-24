@@ -110,7 +110,7 @@ void Code::RelocateFromDesc(Heap* heap, const CodeDesc& desc) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      DCHECK(p->IsCode(GetPtrComprCageBaseSlow(*p)));
+      DCHECK(p->IsCode());
       InstructionStream target_istream = Code::cast(*p).instruction_stream();
       it.rinfo()->set_target_address(istream,
                                      target_istream.instruction_start(),

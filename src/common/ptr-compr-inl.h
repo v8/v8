@@ -213,6 +213,7 @@ GetPtrComprCageBaseFromOnHeapAddress(Address address) {
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address));
 }
 
+// Load the main pointer compression cage base.
 V8_INLINE PtrComprCageBase GetPtrComprCageBase() {
   return PtrComprCageBase(V8HeapCompressionScheme::base());
 }

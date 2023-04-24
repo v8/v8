@@ -1833,7 +1833,7 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
 void Smi::SmiPrint(std::ostream& os) const { os << value(); }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
   if (IsString(cage_base)) {
