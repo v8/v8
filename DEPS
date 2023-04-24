@@ -63,12 +63,12 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:56489f37e8efab64d8b92670e35c1122634b9cae',
+  'luci_go': 'git_revision:e91834850a06011c64eb9a24f317371194bde3de',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:12.20230422.2.1',
+  'fuchsia_version': 'version:12.20230423.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -108,7 +108,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a0ce758fd69618d678dcd235e3e457d29720688c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '61c4b1021222ae2951ebc26b6d6e27a240f38174',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '539a6f68735c631f57ae33096e9e7fc059e049cf',
   'buildtools/clang_format/script':
@@ -138,7 +138,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '307bd163607c315d46103ebe1d68aab44bf93986',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '7346f9a0dfacdfbcdccb5e41328f1f387ec6e156',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '2795322d57001de8125cfdf18cef804acff69e35',
   'buildtools/win': {
     'packages': [
       {
