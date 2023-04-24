@@ -2152,6 +2152,9 @@ DEFINE_BOOL(target_is_simulator, false,
 DEFINE_STRING(turbo_profiling_input, nullptr,
               "Path of the input file containing basic block counters for "
               "builtins. (mksnapshot only)")
+DEFINE_STRING(turbo_log_builtins_count_input, nullptr,
+              "Path of the input file containing basic block counters for "
+              "builtins for logging in turbolizer. (mksnapshot only)")
 
 // On some platforms, the .text section only has execute permissions.
 DEFINE_BOOL(text_is_readable, true,

@@ -178,6 +178,11 @@ declare_args() {
   # used builtins.
   v8_enable_builtins_profiling_verbose = false
 
+  # This build flag is used to input a builtin pgo file containing raw
+  # execution counts (as opposed to branch hints), which are embedded into
+  # the `--trace-turbo` .json file from `mksnapshot`.
+  v8_log_builtins_block_count_input = ""
+
   # Provides the given V8 log file as an input to mksnapshot, where it can be
   # used for profile-guided optimization of builtins.
   #
@@ -957,8 +962,11 @@ config("features") {
   if (v8_embedder_string != "") {
     defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]
   }
-  if (v8_enable_disassembler) {
+  if (v8_enable_disassembler || v8_log_builtins_block_count_input != "") {
     defines += [ "ENABLE_DISASSEMBLER" ]
+  }
+  if (v8_log_builtins_block_count_input != "") {
+    defines += [ "LOG_BUILTIN_BLOCK_COUNT" ]
   }
   if (v8_promise_internal_field_count != 0) {
     defines +=
@@ -2233,6 +2241,15 @@ template("run_mksnapshot") {
       "--embedded_src",
       rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
     ]
+
+    if (v8_log_builtins_block_count_input != "") {
+      args += [
+        "--trace-turbo",
+
+        "--turbo-log-builtins-count-input",
+        v8_log_builtins_block_count_input,
+      ]
+    }
 
     if (v8_enable_builtins_profiling) {
       args += [ "--turbo-profiling" ]

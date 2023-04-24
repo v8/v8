@@ -3240,6 +3240,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
         PrintF("%s\n", msg.begin());
       }
     }
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+    if (v8_flags.turbo_log_builtins_count_input) {
+      PrintF("The hash came from execution count file for %s was not match!\n",
+             debug_name);
+    }
+#endif
     profile_data = nullptr;
     data.set_profile_data(profile_data);
   }
