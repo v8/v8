@@ -2268,6 +2268,10 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     Heap* heap = i_client->heap();
     ManualGCScope manual_gc_scope(i_client);
 
+    // Cache the thread's task runner.
+    task_runner_ =
+        V8::GetCurrentPlatform()->GetForegroundTaskRunner(client_isolate_);
+
     {
       HandleScope scope(i_client);
 
@@ -2336,11 +2340,17 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     return client_isolate_;
   }
 
+  std::shared_ptr<v8::TaskRunner> task_runner() const {
+    DCHECK_NOT_NULL(task_runner_);
+    return task_runner_;
+  }
+
  private:
   MultiClientIsolateTest* test_;
   std::atomic<bool>* done_;
   Persistent<v8::String>* weak_ref_;
   v8::Isolate* client_isolate_;
+  std::shared_ptr<v8::TaskRunner> task_runner_;
 };
 
 UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
@@ -2405,12 +2415,14 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(dead_weak_ref.IsEmpty());
 
-  // Inform client that shared GC is finished.
+  // Inform client that shared GC is finished. It is possible that the thread
+  // has already finished, after setting done to false and before we post the
+  // task; we use the thread's cached task runner and we construct the wake up
+  // task beforehand, to prevent a crash in that case.
+  auto thread_wakeup_task = std::make_unique<WakeupTask>(
+      reinterpret_cast<Isolate*>(thread.isolate()));
   done = false;
-  V8::GetCurrentPlatform()
-      ->GetForegroundTaskRunner(thread.isolate())
-      ->PostTask(std::make_unique<WakeupTask>(
-          reinterpret_cast<Isolate*>(thread.isolate())));
+  thread.task_runner()->PostTask(std::move(thread_wakeup_task));
 
   while (!done) {
     v8::platform::PumpMessageLoop(
