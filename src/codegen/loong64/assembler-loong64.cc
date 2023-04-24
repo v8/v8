@@ -92,6 +92,7 @@ Register ToRegister(int num) {
 // Implementation of RelocInfo.
 
 const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
@@ -2089,7 +2090,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 
 void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
                                           intptr_t pc_delta) {
-  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode) ||
+         RelocInfo::IsNearBuiltinEntry(rmode));
   Instr instr = instr_at(pc);
   int32_t offset = instr & kImm26Mask;
   offset = (((offset & 0x3ff) << 22 >> 6) | ((offset >> 10) & kImm16Mask)) << 2;

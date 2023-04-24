@@ -35,14 +35,14 @@ void RelocInfo::apply(intptr_t delta) {
     // Absolute code pointer inside code object moves with the code object.
     Assembler::RelocateInternalReference(rmode_, pc_, delta);
   } else {
-    DCHECK(IsRelativeCodeTarget(rmode_));
+    DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
     Assembler::RelocateRelativeReference(rmode_, pc_, delta);
   }
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTargetMode(rmode_) || IsWasmCall(rmode_) ||
-         IsWasmStubCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsNearBuiltinEntry(rmode_) ||
+         IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -101,6 +101,12 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc,
   int index =
       static_cast<int>(target_address_at(pc, constant_pool)) & 0xFFFFFFFF;
   return GetCodeTarget(index);
+}
+
+Builtin Assembler::target_builtin_at(Address pc) {
+  int builtin_id = static_cast<int>(target_address_at(pc) - pc) >> 2;
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return static_cast<Builtin>(builtin_id);
 }
 
 HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
@@ -180,7 +186,10 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
-Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
+Builtin RelocInfo::target_builtin_at(Assembler* origin) {
+  DCHECK(IsNearBuiltinEntry(rmode_));
+  return Assembler::target_builtin_at(pc_);
+}
 
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));

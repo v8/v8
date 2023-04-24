@@ -234,6 +234,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline Handle<Code> code_target_object_handle_at(Address pc,
                                                    Address constant_pool);
 
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
+
   static void set_target_value_at(
       Address pc, uint64_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
