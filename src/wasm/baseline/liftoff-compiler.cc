@@ -4981,6 +4981,7 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
+    ValueKind index_kind;
     {
       LiftoffRegList pinned;
       LiftoffRegister full_index = __ PeekToRegister(2, pinned);
@@ -5009,11 +5010,20 @@ class LiftoffCompiler {
       // We replace the index on the value stack with the `index_plus_offset`
       // calculated above. Thereby the BigInt allocation below does not
       // overwrite the calculated value by accident.
+      // The kind of `index_plus_offset has to be the same or smaller than the
+      // original kind of `index`. The kind of index is kI32 for memory32, and
+      // kI64 for memory64. On 64-bit platforms we can use in both cases the
+      // kind of `index` also for `index_plus_offset`. Note that
+      // `index_plus_offset` fits into a kI32 because we do a bounds check
+      // first.
+      // On 32-bit platforms, we have to use an kI32 also for memory64, because
+      // `index_plus_offset` does not exist in a register pair.
       __ cache_state()->inc_used(LiftoffRegister(index_plus_offset));
       if (index.is_reg()) __ cache_state()->dec_used(index.reg());
+      index_kind = index.kind() == kI32 ? kI32 : kIntPtrKind;
 
       index = LiftoffAssembler::VarState{
-          kIntPtrKind, LiftoffRegister{index_plus_offset}, index.offset()};
+          index_kind, LiftoffRegister{index_plus_offset}, index.offset()};
     }
     {
       // Convert the top value of the stack (the timeout) from I64 to a BigInt,
@@ -5053,7 +5063,10 @@ class LiftoffCompiler {
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
                                : WasmCode::kWasmI64AtomicWait;
 
-    CallRuntimeStub(target, MakeSig::Params(kIntPtrKind, expected_kind, kRef),
+    // The type of {index} can either by i32 or intptr, depending on whether
+    // memory32 or memory64 is used. This is okay because both values get passed
+    // by register.
+    CallRuntimeStub(target, MakeSig::Params(index_kind, expected_kind, kRef),
                     {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
