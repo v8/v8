@@ -618,7 +618,7 @@ v8_source_set("v8_unittests_sources") {
 
   if (v8_enable_conservative_stack_scanning) {
     sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
-    sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
+    sources += [ "heap/inner-pointer-resolution-unittest.cc" ]
   }
 
   if (v8_enable_i18n_support) {
