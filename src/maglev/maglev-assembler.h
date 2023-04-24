@@ -271,6 +271,7 @@ class MaglevAssembler : public MacroAssembler {
                                        InstanceType lower_limit,
                                        InstanceType higher_limit);
 
+  inline void CompareTagged(Register reg, Smi smi);
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
   inline void CompareTagged(Register src1, Register src2);
 

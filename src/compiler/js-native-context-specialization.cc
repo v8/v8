@@ -956,7 +956,8 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
       return NoChange();
     }
 
-    ObjectRef prototype = dependencies()->DependOnPrototypeProperty(function);
+    HeapObjectRef prototype =
+        dependencies()->DependOnPrototypeProperty(function);
     Node* prototype_constant = jsgraph()->Constant(prototype, broker());
 
     // Lower the {node} to JSHasInPrototypeChain.
@@ -1816,7 +1817,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
           function.PrototypeRequiresRuntimeLookup(broker())) {
         return NoChange();
       }
-      ObjectRef prototype = dependencies()->DependOnPrototypeProperty(function);
+      HeapObjectRef prototype =
+          dependencies()->DependOnPrototypeProperty(function);
       Node* value = jsgraph()->Constant(prototype, broker());
       ReplaceWithValue(node, value);
       return Replace(value);

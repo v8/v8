@@ -18,6 +18,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
+#include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -2289,6 +2290,99 @@ void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int HasInPrototypeChain::MaxCallStackArgs() const {
+  DCHECK_EQ(2, Runtime::FunctionForId(Runtime::kHasInPrototypeChain)->nargs);
+  return 2;
+}
+void HasInPrototypeChain::SetValueLocationConstraints() {
+  UseRegister(object());
+  DefineAsRegister(this);
+  set_temporaries_needed(2);
+}
+void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object_reg = ToRegister(object());
+  Register result_reg = ToRegister(result());
+
+  Label return_false, return_true;
+  ZoneLabelRef done(masm);
+
+  __ JumpIfSmi(object_reg, &return_false, Label::kNear);
+
+  // Loop through the prototype chain looking for the {prototype}.
+  Register map = temps.Acquire();
+  __ LoadMap(map, object_reg);
+  Label loop;
+  {
+    __ bind(&loop);
+    Register scratch = temps.Acquire();
+    // Check if we can determine the prototype directly from the {object_map}.
+    ZoneLabelRef if_objectisdirect(masm);
+    Register instance_type = scratch;
+    __ CompareInstanceTypeRange(map, instance_type, FIRST_TYPE,
+                                LAST_SPECIAL_RECEIVER_TYPE);
+    __ JumpToDeferredIf(
+        kLessThan,
+        [](MaglevAssembler* masm, RegisterSnapshot snapshot,
+           Register object_reg, Register map, Register instance_type,
+           Register result_reg, HasInPrototypeChain* node,
+           ZoneLabelRef if_objectisdirect, ZoneLabelRef done) {
+          Label return_runtime;
+          // The {object_map} is a special receiver map or a primitive map,
+          // check if we need to use the if_objectisspecial path in the runtime.
+          __ JumpIfEqual(instance_type, JS_PROXY_TYPE, &return_runtime);
+
+          Register object_bitfield = instance_type;
+          __ LoadByte(object_bitfield,
+                      FieldMemOperand(map, Map::kBitFieldOffset));
+          int mask = Map::Bits1::HasNamedInterceptorBit::kMask |
+                     Map::Bits1::IsAccessCheckNeededBit::kMask;
+          __ TestInt32AndJumpIfAllClear(object_bitfield, mask,
+                                        *if_objectisdirect);
+
+          __ bind(&return_runtime);
+          {
+            snapshot.live_registers.clear(result_reg);
+            SaveRegisterStateForCall save_register_state(masm, snapshot);
+            __ Move(kContextRegister, masm->native_context().object());
+            __ Push(object_reg, node->prototype().object());
+            __ CallRuntime(Runtime::kHasInPrototypeChain, 2);
+            masm->DefineExceptionHandlerPoint(node);
+            save_register_state.DefineSafepointWithLazyDeopt(
+                node->lazy_deopt_info());
+            __ Move(result_reg, kReturnRegister0);
+          }
+          __ Jump(*done);
+        },
+        register_snapshot(), object_reg, map, instance_type, result_reg, this,
+        if_objectisdirect, done);
+    instance_type = Register::no_reg();
+
+    __ bind(*if_objectisdirect);
+    // Check the current {object} prototype.
+    Register object_prototype = scratch;
+    __ LoadTaggedField(object_prototype, map, Map::kPrototypeOffset);
+    __ JumpIfRoot(object_prototype, RootIndex::kNullValue, &return_false,
+                  Label::kNear);
+    __ CompareTagged(object_prototype, prototype().object());
+    __ JumpIf(kEqual, &return_true, Label::kNear);
+
+    // Continue with the prototype.
+    __ AssertNotSmi(object_prototype);
+    __ LoadMap(map, object_prototype);
+    __ Jump(&loop);
+  }
+
+  __ bind(&return_true);
+  __ LoadRoot(result_reg, RootIndex::kTrueValue);
+  __ Jump(*done, Label::kNear);
+
+  __ bind(&return_false);
+  __ LoadRoot(result_reg, RootIndex::kFalseValue);
+  __ bind(*done);
+}
+
 void DebugBreak::SetValueLocationConstraints() {}
 void DebugBreak::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
@@ -4553,6 +4647,11 @@ void SetNamedGeneric::PrintParams(std::ostream& os,
 void DefineNamedOwnGeneric::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << name_ << ")";
+}
+
+void HasInPrototypeChain::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << prototype_ << ")";
 }
 
 void GapMove::PrintParams(std::ostream& os,

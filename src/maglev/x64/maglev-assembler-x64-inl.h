@@ -562,6 +562,10 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
   CmpInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
 }
 
+inline void MaglevAssembler::CompareTagged(Register reg, Smi obj) {
+  Cmp(reg, obj);
+}
+
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
   Cmp(reg, obj);

@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // Return the "prototype" property of the given function and record the
   // assumption that it doesn't change.
-  ObjectRef DependOnPrototypeProperty(JSFunctionRef function);
+  HeapObjectRef DependOnPrototypeProperty(JSFunctionRef function);
 
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(MapRef map);

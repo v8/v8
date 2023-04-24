@@ -580,7 +580,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_initial_map(JSHeapBroker* broker) const;
   bool PrototypeRequiresRuntimeLookup(JSHeapBroker* broker) const;
   bool has_instance_prototype(JSHeapBroker* broker) const;
-  ObjectRef instance_prototype(JSHeapBroker* broker) const;
+  HeapObjectRef instance_prototype(JSHeapBroker* broker) const;
   MapRef initial_map(JSHeapBroker* broker) const;
   int InitialMapInstanceSizeWithMinSlack(JSHeapBroker* broker) const;
   FeedbackCellRef raw_feedback_cell(JSHeapBroker* broker) const;

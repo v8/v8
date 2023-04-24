@@ -167,6 +167,7 @@ class MergePointInterpreterFrameState;
   V(GetIterator)                             \
   V(GetSecondReturnedValue)                  \
   V(GetTemplateObject)                       \
+  V(HasInPrototypeChain)                     \
   V(InitialValue)                            \
   V(LoadPolymorphicDoubleField)              \
   V(LoadPolymorphicTaggedField)              \
@@ -763,17 +764,18 @@ class OpProperties {
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
   }
+  static constexpr OpProperties CanCallUserCode() {
+    return NonMemorySideEffects() | LazyDeopt() | Throw();
+  }
   // Without auditing the call target, we must assume it can cause a lazy deopt
   // and throw. Use this when codegen calls runtime or a builtin, unless
   // certain that the target either doesn't throw or cannot deopt.
   // TODO(jgruber): Go through all nodes marked with this property and decide
   // whether to keep it (or remove either the lazy-deopt or throw flag).
   static constexpr OpProperties GenericRuntimeOrBuiltinCall() {
-    return Call() | NonMemorySideEffects() | LazyDeopt() | Throw();
+    return Call() | CanCallUserCode();
   }
-  static constexpr OpProperties JSCall() {
-    return Call() | NonMemorySideEffects() | LazyDeopt() | Throw();
-  }
+  static constexpr OpProperties JSCall() { return Call() | CanCallUserCode(); }
   static constexpr OpProperties AnySideEffects() {
     return Reading() | Writing() | NonMemorySideEffects();
   }
@@ -4849,6 +4851,35 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
  private:
   compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackSource feedback_;
+};
+
+class HasInPrototypeChain
+    : public FixedInputValueNodeT<1, HasInPrototypeChain> {
+  using Base = FixedInputValueNodeT<1, HasInPrototypeChain>;
+
+ public:
+  explicit HasInPrototypeChain(uint64_t bitfield,
+                               compiler::HeapObjectRef prototype)
+      : Base(bitfield), prototype_(prototype) {}
+
+  // The implementation can enter user code in the deferred call (due to
+  // proxied getPrototypeOf).
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::CanCallUserCode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& object() { return input(0); }
+
+  compiler::HeapObjectRef prototype() { return prototype_; }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  compiler::HeapObjectRef prototype_;
 };
 
 class BuiltinStringFromCharCode

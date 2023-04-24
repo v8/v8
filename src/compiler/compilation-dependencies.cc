@@ -1053,9 +1053,9 @@ MapRef CompilationDependencies::DependOnInitialMap(JSFunctionRef function) {
   return map;
 }
 
-ObjectRef CompilationDependencies::DependOnPrototypeProperty(
+HeapObjectRef CompilationDependencies::DependOnPrototypeProperty(
     JSFunctionRef function) {
-  ObjectRef prototype = function.instance_prototype(broker_);
+  HeapObjectRef prototype = function.instance_prototype(broker_);
   RecordDependency(
       zone_->New<PrototypePropertyDependency>(broker_, function, prototype));
   return prototype;

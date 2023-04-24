@@ -3259,7 +3259,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
             access_mode != compiler::AccessMode::kLoad) {
           return ReduceResult::Fail();
         }
-        compiler::ObjectRef prototype =
+        compiler::HeapObjectRef prototype =
             broker()->dependencies()->DependOnPrototypeProperty(function);
         return GetConstant(prototype);
       }
@@ -5980,21 +5980,17 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastHasInPrototypeChain(
-    ValueNode* object, compiler::ObjectRef prototype) {
-  if (!prototype.IsHeapObject()) return ReduceResult::Fail();
-  auto in_prototype_chain =
-      InferHasInPrototypeChain(object, prototype.AsHeapObject());
+    ValueNode* object, compiler::HeapObjectRef prototype) {
+  auto in_prototype_chain = InferHasInPrototypeChain(object, prototype);
   if (in_prototype_chain == kMayBeInPrototypeChain) return ReduceResult::Fail();
 
   return GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain);
 }
 
 ReduceResult MaglevGraphBuilder::BuildHasInPrototypeChain(
-    ValueNode* object, compiler::ObjectRef prototype) {
+    ValueNode* object, compiler::HeapObjectRef prototype) {
   RETURN_IF_DONE(TryBuildFastHasInPrototypeChain(object, prototype));
-
-  return BuildCallRuntime(Runtime::kHasInPrototypeChain,
-                          {object, GetConstant(prototype)});
+  return AddNewNode<HasInPrototypeChain>({object}, prototype);
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
@@ -6033,7 +6029,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
       return ReduceResult::Fail();
     }
 
-    compiler::ObjectRef prototype =
+    compiler::HeapObjectRef prototype =
         broker()->dependencies()->DependOnPrototypeProperty(function);
     return BuildHasInPrototypeChain(object, prototype);
   }
@@ -6120,7 +6116,9 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
                    base::VectorOf(access_info.lookup_start_object_maps()));
 
     // Special case the common case, where @@hasInstance is
-    // Function.p.hasInstance.
+    // Function.p.hasInstance. In this case we don't need to call ToBoolean (or
+    // use the continuation), since OrdinaryHasInstance is guaranteed to return
+    // a boolean.
     if (has_instance_field->IsJSFunction()) {
       compiler::SharedFunctionInfoRef shared =
           has_instance_field->AsJSFunction().shared(broker());

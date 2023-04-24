@@ -1616,10 +1616,10 @@ class MaglevGraphBuilder {
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
       ValueNode* receiver, compiler::HeapObjectRef prototype);
-  ReduceResult TryBuildFastHasInPrototypeChain(ValueNode* object,
-                                               compiler::ObjectRef prototype);
+  ReduceResult TryBuildFastHasInPrototypeChain(
+      ValueNode* object, compiler::HeapObjectRef prototype);
   ReduceResult BuildHasInPrototypeChain(ValueNode* object,
-                                        compiler::ObjectRef prototype);
+                                        compiler::HeapObjectRef prototype);
   ReduceResult TryBuildFastOrdinaryHasInstance(ValueNode* object,
                                                compiler::JSObjectRef callable,
                                                ValueNode* callable_node);

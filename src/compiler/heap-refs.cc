@@ -2185,7 +2185,7 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
 
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map,
                                      JSFunctionData::kInitialMap)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype,
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(HeapObject, instance_prototype,
                                      JSFunctionData::kInstancePrototype)
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
                                      JSFunctionData::kFeedbackCell)
