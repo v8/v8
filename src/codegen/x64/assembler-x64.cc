@@ -1462,6 +1462,9 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
       emitl(L->pos());
       L->link_to(pc_offset() - sizeof(int32_t));
     } else {
+      // If this fires a near label is reused for a far jump, missing an
+      // optimization opportunity.
+      DCHECK(!L->is_near_linked());
       DCHECK(L->is_unused());
       emit(0x0F);
       emit(0x80 | cc);
@@ -1553,6 +1556,9 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
       L->link_to(pc_offset() - long_size);
     } else {
       // 1110 1001 #32-bit disp.
+      // If this fires a near label is reused for a far jump, missing an
+      // optimization opportunity.
+      DCHECK(!L->is_near_linked());
       DCHECK(L->is_unused());
       emit(0xE9);
       int32_t current = pc_offset();

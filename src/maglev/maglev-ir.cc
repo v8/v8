@@ -3098,6 +3098,13 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
   __ CompareObjectType(value, FIRST_NONSTRING_TYPE);
   __ JumpIf(kUnsignedLessThan, &done, Label::Distance::kNear);
+  if (mode() == kConvertSymbol) {
+    __ CompareObjectType(value, SYMBOL_TYPE);
+    __ JumpIf(kNotEqual, &call_builtin, Label::Distance::kNear);
+    __ Push(value);
+    __ CallRuntime(Runtime::kSymbolDescriptiveString, 1);
+    __ Jump(&done, Label::kNear);
+  }
   __ bind(&call_builtin);
   __ CallBuiltin(Builtin::kToString);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);

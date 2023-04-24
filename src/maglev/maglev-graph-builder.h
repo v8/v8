@@ -749,7 +749,7 @@ class MaglevGraphBuilder {
                        compiler::FeedbackSource& feedback_source,
                        TypeofMode typeof_mode);
 
-  ValueNode* BuildToString(ValueNode* value);
+  ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {

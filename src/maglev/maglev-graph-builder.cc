@@ -5071,7 +5071,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
     return GetRootConstant(RootIndex::kempty_string);
   }
 
-  return BuildToString(args[0]);
+  return BuildToString(args[0], ToString::kConvertSymbol);
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceMathPow(CallArguments& args) {
@@ -6231,10 +6231,11 @@ void MaglevGraphBuilder::VisitToName() {
   }
 }
 
-ValueNode* MaglevGraphBuilder::BuildToString(ValueNode* value) {
+ValueNode* MaglevGraphBuilder::BuildToString(ValueNode* value,
+                                             ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
   // TODO(victorgomes): Add fast path for constant primitives.
-  return AddNewNode<ToString>({GetContext(), GetTaggedValue(value)});
+  return AddNewNode<ToString>({GetContext(), GetTaggedValue(value)}, mode);
 }
 
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
@@ -6309,7 +6310,7 @@ void MaglevGraphBuilder::VisitToObject() {
 void MaglevGraphBuilder::VisitToString() {
   // ToString
   ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(BuildToString(value));
+  SetAccumulator(BuildToString(value, ToString::kThrowOnSymbol));
 }
 
 void MaglevGraphBuilder::VisitCreateRegExpLiteral() {

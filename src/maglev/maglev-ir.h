@@ -3684,7 +3684,9 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   using Base = FixedInputValueNodeT<2, ToString>;
 
  public:
-  explicit ToString(uint64_t bitfield) : Base(bitfield) {}
+  enum ConversionMode { kConvertSymbol, kThrowOnSymbol };
+  explicit ToString(uint64_t bitfield, ConversionMode mode)
+      : Base(ConversionModeBitField::update(bitfield, mode)) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -3693,11 +3695,17 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
 
   Input& context() { return Node::input(0); }
   Input& value_input() { return Node::input(1); }
+  ConversionMode mode() const {
+    return ConversionModeBitField::decode(bitfield());
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
 class GeneratorRestoreRegister
