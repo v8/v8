@@ -397,9 +397,17 @@ class WasmType : public TypeBase {
   const wasm::WasmModule* module() const { return module_; }
 
  private:
+  friend class Type;
   friend Zone;
+
   explicit WasmType(wasm::ValueType value_type, const wasm::WasmModule* module)
       : TypeBase(kWasm), value_type_(value_type), module_(module) {}
+
+  BitsetType::bitset Lub() const {
+    // TODO(manoskouk): Specify more concrete types.
+    return BitsetType::kAny;
+  }
+
   wasm::ValueType value_type_;
   const wasm::WasmModule* module_;
 };
@@ -480,7 +488,9 @@ class V8_EXPORT_PRIVATE Type {
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;
   const TupleType* AsTuple() const;
+#ifdef V8_ENABLE_WEBASSEMBLY
   wasm::TypeInModule AsWasm() const;
+#endif
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  NaN is ignored.

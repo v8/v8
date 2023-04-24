@@ -135,6 +135,9 @@ Type::bitset Type::BitsetLub() const {
   }
   if (IsRange()) return AsRange()->Lub();
   if (IsTuple()) return BitsetType::kOtherInternal;
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasm()) return static_cast<const WasmType*>(ToTypeBase())->Lub();
+#endif
   UNREACHABLE();
 }
 
