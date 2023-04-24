@@ -560,8 +560,29 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       PopStack();
       return pnode;
     }
+    // Add
+    case IrOpcode::kF64x2Add:
     case IrOpcode::kF32x4Add:
-    case IrOpcode::kF32x4Mul: {
+    case IrOpcode::kI64x2Add:
+    case IrOpcode::kI32x4Add:
+    case IrOpcode::kI16x8Add:
+    case IrOpcode::kI8x16Add:
+    // Sub
+    case IrOpcode::kF64x2Sub:
+    case IrOpcode::kF32x4Sub:
+    case IrOpcode::kI64x2Sub:
+    case IrOpcode::kI32x4Sub:
+    case IrOpcode::kI16x8Sub:
+    case IrOpcode::kI8x16Sub:
+    // Mul
+    case IrOpcode::kF64x2Mul:
+    case IrOpcode::kF32x4Mul:
+    case IrOpcode::kI64x2Mul:
+    case IrOpcode::kI32x4Mul:
+    case IrOpcode::kI16x8Mul:
+    // Div
+    case IrOpcode::kF64x2Div:
+    case IrOpcode::kF32x4Div: {
       TRACE("Added a vector of un/bin/ter op.\n");
       PackNode* pnode =
           NewPackNodeAndRecurs(node_group, 0, value_in_count, recursion_depth);
@@ -730,12 +751,34 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[input_count - 1] = NodeProperties::GetControlInput(node0);
       break;
     }
-    case IrOpcode::kF32x4Add:
-      new_op = mcgraph_->machine()->F32x8Add();
-      break;
-    case IrOpcode::kF32x4Mul:
-      new_op = mcgraph_->machine()->F32x8Mul();
-      break;
+#define SIMPLE_CASE(from, to)           \
+  case IrOpcode::k##from:               \
+    new_op = mcgraph_->machine()->to(); \
+    break;
+      // Add
+      SIMPLE_CASE(F64x2Add, F64x4Add);
+      SIMPLE_CASE(F32x4Add, F32x8Add);
+      SIMPLE_CASE(I64x2Add, I64x4Add);
+      SIMPLE_CASE(I32x4Add, I32x8Add);
+      SIMPLE_CASE(I16x8Add, I16x16Add);
+      SIMPLE_CASE(I8x16Add, I8x32Add);
+      // Sub
+      SIMPLE_CASE(F64x2Sub, F64x4Sub);
+      SIMPLE_CASE(F32x4Sub, F32x8Sub);
+      SIMPLE_CASE(I64x2Sub, I64x4Sub);
+      SIMPLE_CASE(I32x4Sub, I32x8Sub);
+      SIMPLE_CASE(I16x8Sub, I16x16Sub);
+      SIMPLE_CASE(I8x16Sub, I8x32Sub);
+      // Mul
+      SIMPLE_CASE(F64x2Mul, F64x4Mul);
+      SIMPLE_CASE(F32x4Mul, F32x8Mul);
+      SIMPLE_CASE(I64x2Mul, I64x4Mul);
+      SIMPLE_CASE(I32x4Mul, I32x8Mul);
+      SIMPLE_CASE(I16x8Mul, I16x16Mul);
+      // Div
+      SIMPLE_CASE(F64x2Div, F64x4Div);
+      SIMPLE_CASE(F32x4Div, F32x8Div);
+#undef SIMPLE_CASE
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
@@ -822,7 +865,8 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
               TRACE("Create ExtractF128(%lu) node from #%d\n", i,
                     new_node->id());
               input_128 = graph()->NewNode(
-                  mcgraph()->machine()->ExtractF128(int32_t(i)), new_node);
+                  mcgraph()->machine()->ExtractF128(static_cast<int32_t>(i)),
+                  new_node);
             }
             edge.UpdateTo(input_128);
           } else if (NodeProperties::IsEffectEdge(edge)) {

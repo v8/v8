@@ -8,6 +8,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/revectorizer.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/wasm-module.h"
@@ -33,6 +34,8 @@ class RevecTest : public TestWithIsolateAndZone {
                  MachineOperatorBuilder::Flag::kAllOptionalOps),
         mcgraph_(&graph_, &common_, &machine_) {}
 
+  void TestBinOp(const Operator* bin_op);
+
   Graph* graph() { return &graph_; }
   CommonOperatorBuilder* common() { return &common_; }
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -45,16 +48,14 @@ class RevecTest : public TestWithIsolateAndZone {
   MachineGraph mcgraph_;
 };
 
-// Create a graph which add two 256 bit vectors(a, b), store the result in c:
-// simd128 *a,*b,*c;
-// *c = *a + *b;
-// *(c+1) = *(a+1) + *(b+1);
+// Create a graph which perform binary operation on two 256 bit vectors(a, b),
+// store the result in c: simd128 *a,*b,*c; *c = *a bin_op *b;
+// *(c+1) = *(a+1) bin_op *(b+1);
 // In Revectorization, two simd 128 nodes can be combined into one 256 node:
 // simd256 *d, *e, *f;
-// *f = *d + *e;
-TEST_F(RevecTest, F32x8Add) {
+// *f = *d bin_op *e;
+void RevecTest::TestBinOp(const Operator* bin_op) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
-
   Node* start = graph()->NewNode(common()->Start(5));
   graph()->SetStart(start);
 
@@ -84,12 +85,12 @@ TEST_F(RevecTest, F32x8Add) {
                                  load2, start);
   Node* load4 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
                                  mem_buffer2, p2, load3, start);
-  Node* add1 = graph()->NewNode(machine()->F32x4Add(), load1, load3);
-  Node* add2 = graph()->NewNode(machine()->F32x4Add(), load2, load4);
-  Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3, add1,
-                                  load4, start);
+  Node* bin_op1 = graph()->NewNode(bin_op, load1, load3);
+  Node* bin_op2 = graph()->NewNode(bin_op, load2, load4);
+  Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3,
+                                  bin_op1, load4, start);
   Node* store2 = graph()->NewNode(machine()->Store(store_rep), mem_store, p3,
-                                  add2, store1, start);
+                                  bin_op2, store1, start);
   Node* ret = graph()->NewNode(common()->Return(0), zero, store2, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
   graph()->SetEnd(end);
@@ -108,71 +109,32 @@ TEST_F(RevecTest, F32x8Add) {
             MachineRepresentation::kSimd256);
 }
 
-// Create a graph which multiplies a F32x8 vector with the first element of
-// vector b and store the result to a F32x8 vector c:
-//   float *a, *b, *c;
-//   c[0123] = a[0123] * b[0000];
-//   c[4567] = a[4567] * b[0000];
-//
-// After the revectorization phase, two consecutive 128-bit loads and multiplies
-// can be coalesced using 256-bit vectors:
-//   c[01234567] = a[01234567] * b[00000000];
-TEST_F(RevecTest, F32x8Mul) {
-  if (!CpuFeatures::IsSupported(AVX2)) return;
-
-  Node* start = graph()->NewNode(common()->Start(4));
-  graph()->SetStart(start);
-
-  Node* zero = graph()->NewNode(common()->Int32Constant(0));
-  Node* sixteen = graph()->NewNode(common()->Int64Constant(16));
-  Node* offset = graph()->NewNode(common()->Int64Constant(23));
-
-  // Wasm array base address
-  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
-  // Load base address a*
-  Node* p1 = graph()->NewNode(common()->Parameter(1), start);
-  // LoadTransfrom base address b*
-  Node* p2 = graph()->NewNode(common()->Parameter(2), start);
-  // Store base address c*
-  Node* p3 = graph()->NewNode(common()->Parameter(3), start);
-
-  LoadRepresentation load_rep(MachineType::Simd128());
-  StoreRepresentation store_rep(MachineRepresentation::kSimd128,
-                                WriteBarrierKind::kNoWriteBarrier);
-  Node* base = graph()->NewNode(machine()->Load(MachineType::Int64()), p0,
-                                offset, start, start);
-  Node* base16 = graph()->NewNode(machine()->Int64Add(), base, sixteen);
-  Node* base16_store = graph()->NewNode(machine()->Int64Add(), base, sixteen);
-  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, p1,
-                                 base, start);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base16, p1,
-                                 load0, start);
-  Node* load2 = graph()->NewNode(
-      machine()->LoadTransform(MemoryAccessKind::kProtected,
-                               LoadTransformation::kS128Load32Splat),
-      base, p2, load1, start);
-  Node* mul0 = graph()->NewNode(machine()->F32x4Mul(), load0, load2);
-  Node* mul1 = graph()->NewNode(machine()->F32x4Mul(), load1, load2);
-  Node* store0 = graph()->NewNode(machine()->Store(store_rep), base, p3, mul0,
-                                  load2, start);
-  Node* store1 = graph()->NewNode(machine()->Store(store_rep), base16_store, p3,
-                                  mul1, store0, start);
-  Node* ret = graph()->NewNode(common()->Return(0), zero, store1, start);
-  Node* end = graph()->NewNode(common()->End(1), ret);
-  graph()->SetEnd(end);
-
-  graph()->RecordSimdStore(store0);
-  graph()->RecordSimdStore(store1);
-  graph()->SetSimd(true);
-
-  Revectorizer revec(zone(), graph(), mcgraph());
-  EXPECT_TRUE(revec.TryRevectorize(nullptr));
-
-  // Test whether the graph has been revectorized
-  Node* store_256 = ret->InputAt(1);
-  EXPECT_EQ(StoreRepresentationOf(store_256->op()).representation(),
-            MachineRepresentation::kSimd256);
-}
+// FAdd
+TEST_F(RevecTest, F64x4Add) { TestBinOp(machine()->F64x2Add()); }
+TEST_F(RevecTest, F32x8Add) { TestBinOp(machine()->F32x4Add()); }
+// IAdd
+TEST_F(RevecTest, I64x4Add) { TestBinOp(machine()->I64x2Add()); }
+TEST_F(RevecTest, I32x8Add) { TestBinOp(machine()->I32x4Add()); }
+TEST_F(RevecTest, I16x16Add) { TestBinOp(machine()->I16x8Add()); }
+TEST_F(RevecTest, I8x32Add) { TestBinOp(machine()->I8x16Add()); }
+// FSub
+TEST_F(RevecTest, F64x4Sub) { TestBinOp(machine()->F64x2Sub()); }
+TEST_F(RevecTest, F32x8Sub) { TestBinOp(machine()->F32x4Sub()); }
+// ISub
+TEST_F(RevecTest, I64x4Sub) { TestBinOp(machine()->I64x2Sub()); }
+TEST_F(RevecTest, I32x8Sub) { TestBinOp(machine()->I32x4Sub()); }
+TEST_F(RevecTest, I16x16Sub) { TestBinOp(machine()->I16x8Sub()); }
+TEST_F(RevecTest, I8x32Sub) { TestBinOp(machine()->I8x16Sub()); }
+// FMul
+TEST_F(RevecTest, F64x4Mul) { TestBinOp(machine()->F64x2Mul()); }
+TEST_F(RevecTest, F32x8Mul) { TestBinOp(machine()->F32x4Mul()); }
+// IMul
+TEST_F(RevecTest, I64x4Mul) { TestBinOp(machine()->I64x2Mul()); }
+TEST_F(RevecTest, I32x8Mul) { TestBinOp(machine()->I32x4Mul()); }
+TEST_F(RevecTest, I16x16Mul) { TestBinOp(machine()->I16x8Mul()); }
+// FDiv
+TEST_F(RevecTest, F64x4Div) { TestBinOp(machine()->F64x2Div()); }
+TEST_F(RevecTest, F32x8Div) { TestBinOp(machine()->F32x4Div()); }
 
 // Create a graph with load chain that can not be packed due to effect
 // dependency:
