@@ -97,6 +97,7 @@ class CollectionBarrier;
 class ConcurrentAllocator;
 class ConcurrentMarking;
 class CppHeap;
+class EphemeronRememberedSet;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
@@ -209,10 +210,6 @@ struct CommentStatistic {
 };
 #endif
 
-using EphemeronRememberedSet =
-    std::unordered_map<EphemeronHashTable, std::unordered_set<int>,
-                       Object::Hasher>;
-
 // An alias for std::unordered_map<HeapObject, T> which also sets proper
 // Hash and KeyEqual functions.
 template <typename T>
@@ -221,11 +218,6 @@ using UnorderedHeapObjectMap =
 
 class Heap {
  public:
-  // Stores ephemeron entries where the EphemeronHashTable is in old-space,
-  // and the key of the entry is in new-space. Such keys do not appear in the
-  // usual OLD_TO_NEW remembered set.
-  EphemeronRememberedSet ephemeron_remembered_set_;
-
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
   enum HeapState {
@@ -509,13 +501,18 @@ class Heap {
 
   V8_EXPORT_PRIVATE static void SharedHeapBarrierSlow(HeapObject object,
                                                       Address slot);
+  V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
+      InstructionStream host, RelocInfo* rinfo, HeapObject value);
+  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
+
   V8_EXPORT_PRIVATE inline void RecordEphemeronKeyWrite(
       EphemeronHashTable table, Address key_slot);
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
-  V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      InstructionStream host, RelocInfo* rinfo, HeapObject value);
-  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
+
+  EphemeronRememberedSet* ephemeron_remembered_set() {
+    return ephemeron_remembered_set_.get();
+  }
 
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
@@ -2316,6 +2313,7 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
+  std::unique_ptr<EphemeronRememberedSet> ephemeron_remembered_set_;
 
   // This object controls virtual space reserved for code on the V8 heap. This
   // is only valid for 64-bit architectures where kRequiresCodeRange.

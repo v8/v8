@@ -12,6 +12,7 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -523,9 +524,10 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
 class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
  public:
-  OldToNewSlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
-                               std::set<std::pair<SlotType, Address>>* typed,
-                               EphemeronRememberedSet* ephemeron_remembered_set)
+  OldToNewSlotVerifyingVisitor(
+      Isolate* isolate, std::set<Address>* untyped,
+      std::set<std::pair<SlotType, Address>>* typed,
+      EphemeronRememberedSet::TableMap* ephemeron_remembered_set)
       : SlotVerifyingVisitor(isolate, untyped, typed),
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
@@ -555,7 +557,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
   }
 
  private:
-  EphemeronRememberedSet* ephemeron_remembered_set_;
+  EphemeronRememberedSet::TableMap* ephemeron_remembered_set_;
 };
 
 class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
@@ -654,7 +656,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
   CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
   OldToNewSlotVerifyingVisitor old_to_new_visitor(
       isolate(), &old_to_new, &typed_old_to_new,
-      &heap()->ephemeron_remembered_set_);
+      heap()->ephemeron_remembered_set()->tables());
   object.IterateBody(cage_base_, &old_to_new_visitor);
 
   std::set<Address> old_to_shared;
