@@ -10,6 +10,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8-version.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -371,7 +372,38 @@ void V8HeapProfilerAgentImpl::requestHeapStatsUpdate() {
 
 // static
 void V8HeapProfilerAgentImpl::onTimer(void* data) {
-  reinterpret_cast<V8HeapProfilerAgentImpl*>(data)->requestHeapStatsUpdate();
+  reinterpret_cast<V8HeapProfilerAgentImpl*>(data)->onTimerImpl();
+}
+
+static constexpr v8::base::TimeDelta kDefaultTimerDelay =
+    v8::base::TimeDelta::FromMilliseconds(50);
+
+void V8HeapProfilerAgentImpl::onTimerImpl() {
+  v8::base::TimeTicks start = v8::base::TimeTicks::Now();
+  requestHeapStatsUpdate();
+  v8::base::TimeDelta elapsed = v8::base::TimeTicks::Now() - start;
+  if (m_hasTimer) {
+    // requestHeapStatsUpdate can take a long time on large heaps. To ensure
+    // that there is still some time for the thread to make progress on running
+    // JavaScript or doing other useful work, we'll adjust the timer delay here.
+    const v8::base::TimeDelta minAcceptableDelay =
+        std::max(elapsed * 2, kDefaultTimerDelay);
+    const v8::base::TimeDelta idealDelay =
+        std::max(elapsed * 3, kDefaultTimerDelay);
+    const v8::base::TimeDelta maxAcceptableDelay =
+        std::max(elapsed * 4, kDefaultTimerDelay);
+    if (m_timerDelayInSeconds < minAcceptableDelay.InSecondsF() ||
+        m_timerDelayInSeconds > maxAcceptableDelay.InSecondsF()) {
+      // The existing timer's speed is not very close to ideal, so cancel it and
+      // start a new timer.
+      m_session->inspector()->client()->cancelTimer(
+          reinterpret_cast<void*>(this));
+      m_timerDelayInSeconds = idealDelay.InSecondsF();
+      m_session->inspector()->client()->startRepeatingTimer(
+          m_timerDelayInSeconds, &V8HeapProfilerAgentImpl::onTimer,
+          reinterpret_cast<void*>(this));
+    }
+  }
 }
 
 void V8HeapProfilerAgentImpl::startTrackingHeapObjectsInternal(
@@ -379,8 +411,10 @@ void V8HeapProfilerAgentImpl::startTrackingHeapObjectsInternal(
   m_isolate->GetHeapProfiler()->StartTrackingHeapObjects(trackAllocations);
   if (!m_hasTimer) {
     m_hasTimer = true;
+    m_timerDelayInSeconds = kDefaultTimerDelay.InSecondsF();
     m_session->inspector()->client()->startRepeatingTimer(
-        0.05, &V8HeapProfilerAgentImpl::onTimer, reinterpret_cast<void*>(this));
+        m_timerDelayInSeconds, &V8HeapProfilerAgentImpl::onTimer,
+        reinterpret_cast<void*>(this));
   }
 }
 

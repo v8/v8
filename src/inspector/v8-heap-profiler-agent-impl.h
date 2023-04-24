@@ -72,12 +72,14 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   void stopTrackingHeapObjectsInternal();
   void requestHeapStatsUpdate();
   static void onTimer(void*);
+  void onTimerImpl();
 
   V8InspectorSessionImpl* m_session;
   v8::Isolate* m_isolate;
   protocol::HeapProfiler::Frontend m_frontend;
   protocol::DictionaryValue* m_state;
   bool m_hasTimer;
+  double m_timerDelayInSeconds;
   std::shared_ptr<AsyncGC> m_async_gc;
 };
 
