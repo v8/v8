@@ -3421,6 +3421,12 @@ void BytecodeGraphBuilder::VisitToString() {
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitToBoolean() {
+  Node* value =
+      NewNode(simplified()->ToBoolean(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitToNumber() {
   PrepareEagerCheckpoint();
   Node* object = environment()->LookupAccumulator();

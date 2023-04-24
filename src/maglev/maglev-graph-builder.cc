@@ -6311,6 +6311,23 @@ void MaglevGraphBuilder::VisitToString() {
   SetAccumulator(BuildToString(value, ToString::kThrowOnSymbol));
 }
 
+void MaglevGraphBuilder::VisitToBoolean() {
+  ValueNode* value = GetAccumulatorTagged();
+  switch (value->opcode()) {
+#define CASE(Name)                                                            \
+  case Opcode::k##Name: {                                                     \
+    SetAccumulator(                                                           \
+        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
+    break;                                                                    \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      SetAccumulator(AddNewNode<ToBoolean>({value}));
+      break;
+  }
+}
+
 void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
   // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
   compiler::StringRef pattern = GetRefOperand<String>(0);
@@ -7302,6 +7319,13 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
           {float64_equal->left_input().node(),
            float64_equal->right_input().node()},
           Operation::kEqual, true_target, false_target);
+      break;
+    }
+    // Known boolean-valued codes, we don't need to call ToBoolean on them.
+    case Opcode::kToBoolean:
+    case Opcode::kToBooleanLogicalNot: {
+      block = FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
+                                                true_target, false_target);
       break;
     }
     default:

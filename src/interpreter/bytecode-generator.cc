@@ -19,6 +19,7 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/heap/parked-scope.h"
+#include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -6208,8 +6209,16 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
     test_result->InvertControlFlow();
     VisitInSameTestExecutionScope(expr->expression());
   } else {
-    TypeHint type_hint = VisitForAccumulatorValue(expr->expression());
-    builder()->LogicalNot(ToBooleanModeFromTypeHint(type_hint));
+    UnaryOperation* unary_op = expr->expression()->AsUnaryOperation();
+    if (unary_op && unary_op->op() == Token::Value::NOT) {
+      // Shortcut repeated nots, to capture the `!!foo` pattern for converting
+      // expressions to booleans.
+      TypeHint type_hint = VisitForAccumulatorValue(unary_op->expression());
+      builder()->ToBoolean(ToBooleanModeFromTypeHint(type_hint));
+    } else {
+      TypeHint type_hint = VisitForAccumulatorValue(expr->expression());
+      builder()->LogicalNot(ToBooleanModeFromTypeHint(type_hint));
+    }
     // Always returns a boolean value.
     execution_result()->SetResultIsBoolean();
   }

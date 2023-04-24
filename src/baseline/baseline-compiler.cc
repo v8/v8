@@ -1733,6 +1733,10 @@ void BaselineCompiler::VisitToString() {
   CallBuiltin<Builtin::kToString>(kInterpreterAccumulatorRegister);
 }
 
+void BaselineCompiler::VisitToBoolean() {
+  CallBuiltin<Builtin::kToBoolean>(kInterpreterAccumulatorRegister);
+}
+
 void BaselineCompiler::VisitCreateRegExpLiteral() {
   CallBuiltin<Builtin::kCreateRegExpLiteral>(
       FeedbackVector(),         // feedback vector
