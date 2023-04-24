@@ -1472,7 +1472,7 @@ UNINITIALIZED_TEST(ExternalizeAndInternalizeMissSharedString) {
   Handle<String> one_byte_intern = factory1->InternalizeString(shared_one_byte);
   CHECK_EQ(*one_byte_intern, *shared_one_byte);
   CHECK(shared_one_byte->IsInternalizedString());
-  // Check that we have both, a forwarding index and an accessable hash.
+  // Check that we have both, a forwarding index and an accessible hash.
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(shared_one_byte->HasHashCode());
   CHECK_EQ(shared_one_byte->hash(), one_byte_hash);
@@ -1648,7 +1648,7 @@ void CheckStringAndResource(
   }
 
   // Check exact alive resources only if the string has transitioned, otherwise
-  // there can still be mulitple resource instances in the forwarding table.
+  // there can still be multiple resource instances in the forwarding table.
   // Only check no resource is alive if the string is dead.
   const bool check_alive = check_transition || !should_be_alive;
   if (check_alive) {
@@ -2071,6 +2071,7 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
 
   MultiClientIsolateTest test;
   {
+    // We need to invoke GC without stack, otherwise some objects may survive.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         test.i_main_isolate()->heap());
 
@@ -2370,6 +2371,7 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   Isolate* shared_isolate = i_isolate->shared_space_isolate();
   Heap* shared_heap = shared_isolate->heap();
 
+  // We need to invoke GC without stack, otherwise some objects may survive.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       shared_heap);
 
@@ -2517,7 +2519,7 @@ UNINITIALIZED_TEST(Regress1424955) {
   if (v8_flags.verify_heap) return;
   v8_flags.shared_string_table = true;
 
-  ManualGCScope maunal_gc_scope;
+  ManualGCScope manual_gc_scope;
 
   MultiClientIsolateTest test;
   std::atomic<bool> done = false;
