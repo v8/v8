@@ -1976,12 +1976,7 @@ struct FrameStateOp : OperationT<FrameStateOp> {
                const FrameStateData* data)
       : Base(inputs), inlined(inlined), data(data) {}
 
-  void Validate(const Graph& graph) const {
-    if (inlined) {
-      DCHECK(Get(graph, parent_frame_state()).Is<FrameStateOp>());
-    }
-    // TODO(tebbi): Check frame state inputs using `FrameStateData`.
-  }
+  void Validate(const Graph& graph) const;
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{inlined, data}; }
 };
