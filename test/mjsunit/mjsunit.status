@@ -496,6 +496,7 @@
   'harmony/regexp-property-*': [PASS,FAIL],
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
+  'regress/regress-crbug-1437346': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
