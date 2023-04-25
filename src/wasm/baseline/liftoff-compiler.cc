@@ -5778,9 +5778,9 @@ class LiftoffCompiler {
     }
 
     LiftoffRegList pinned;
-    LiftoffRegister length = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister length = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister index = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
     ArrayFillImpl(pinned, obj, index, value, length,
