@@ -7,7 +7,6 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/heap/base/worklist.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/memory-chunk.h"
@@ -33,6 +32,10 @@ using ObjectAndSize = std::pair<HeapObject, int>;
 using SurvivingNewLargeObjectsMap =
     std::unordered_map<HeapObject, Map, Object::Hasher>;
 using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject, Map>;
+
+constexpr int kEphemeronTableListSegmentSize = 128;
+using EphemeronTableList =
+    ::heap::base::Worklist<EphemeronHashTable, kEphemeronTableListSegmentSize>;
 
 class ScavengerCollector;
 
@@ -90,8 +93,7 @@ class Scavenger {
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
             EmptyChunksList* empty_chunks, CopiedList* copied_list,
             PromotionList* promotion_list,
-            EphemeronRememberedSet::TableList* ephemeron_table_list,
-            int task_id);
+            EphemeronTableList* ephemeron_table_list, int task_id);
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengeVisitor below.
@@ -199,7 +201,7 @@ class Scavenger {
   EmptyChunksList::Local empty_chunks_local_;
   PromotionList::Local promotion_list_local_;
   CopiedList::Local copied_list_local_;
-  EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
+  EphemeronTableList::Local ephemeron_table_list_local_;
   PretenuringHandler* const pretenuring_handler_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
@@ -208,7 +210,7 @@ class Scavenger {
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
-  EphemeronRememberedSet::TableMap ephemeron_remembered_set_;
+  EphemeronRememberedSet ephemeron_remembered_set_;
   const bool is_logging_;
   const bool is_incremental_marking_;
   const bool is_compacting_;
@@ -280,10 +282,8 @@ class ScavengerCollector {
 
   int NumberOfScavengeTasks();
 
-  void ProcessWeakReferences(
-      EphemeronRememberedSet::TableList* ephemeron_table_list);
-  void ClearYoungEphemerons(
-      EphemeronRememberedSet::TableList* ephemeron_table_list);
+  void ProcessWeakReferences(EphemeronTableList* ephemeron_table_list);
+  void ClearYoungEphemerons(EphemeronTableList* ephemeron_table_list);
   void ClearOldEphemerons();
   void HandleSurvivingNewLargeObjects();
 
