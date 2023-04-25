@@ -2594,6 +2594,7 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
          MaybeGrowAndEnsureWritableFastElements* node) {
         {
           RegisterSnapshot snapshot = node->register_snapshot();
+          AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
           snapshot.live_registers.clear(result_reg);
           snapshot.live_tagged_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
