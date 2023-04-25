@@ -147,14 +147,6 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
-        name = "V8 Linux64 css - debug",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["nikolaos@chromium.org"],
-        notifies = ["blamelist"],
-    ),
-    experiment_builder_pair(
         name = "V8 Linux64 gcc",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},

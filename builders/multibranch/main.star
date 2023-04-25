@@ -78,6 +78,12 @@ in_category(
         name = "V8 Linux64 - debug",
         parent_builder = "V8 Linux64 - debug builder",
     ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 css - debug",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "11.5",
+    ),
     main_multibranch_builder(
         name = "V8 Linux64 - custom snapshot - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
