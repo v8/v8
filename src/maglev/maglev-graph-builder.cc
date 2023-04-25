@@ -7016,7 +7016,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   }
 
   if (ShouldEmitInterruptBudgetChecks()) {
-    if (v8_flags.use_osr) {
+    if (v8_flags.use_osr && v8_flags.osr_from_maglev) {
       AddNewNode<TryOnStackReplacement>(
           {GetClosure()}, loop_offset, feedback_slot,
           BytecodeOffset(iterator_.current_offset()), compilation_unit_);

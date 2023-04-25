@@ -759,6 +759,11 @@ class FastJSWasmCallTester {
         "  }"
         "  return result;"
         "}"
+        "%PrepareFunctionForOptimization(test);"
+        "test(" +
+        js_args +
+        ");"
+        "%OptimizeFunctionOnNextCall(test);"
         "test(" +
         js_args + ");";
 

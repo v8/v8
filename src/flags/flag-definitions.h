@@ -677,8 +677,10 @@ DEFINE_INT(invocation_count_for_feedback_allocation, 8,
            "invocation count required for allocating feedback vectors")
 
 // Tiering: Maglev.
-DEFINE_INT(invocation_count_for_maglev, 100,
+DEFINE_INT(invocation_count_for_maglev, 400,
            "invocation count required for optimizing with Maglev")
+DEFINE_BOOL(osr_from_maglev, false,
+            "whether we try to OSR to Turbofan from Maglev")
 
 // Tiering: Turbofan.
 DEFINE_INT(invocation_count_for_turbofan, 2400,
@@ -690,8 +692,6 @@ DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
-
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 400)
 
 // Tiering: JIT fuzzing.
 //
