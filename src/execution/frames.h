@@ -376,6 +376,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
+  IF_WASM(F, BUILTIN, BuiltinFrameSummary, builtin_summary_, Builtin)      \
   IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
@@ -454,6 +455,26 @@ class V8_EXPORT_PRIVATE FrameSummary {
     wasm::WasmCode* code_;
     int byte_offset_;
     int function_index_;
+  };
+
+  class BuiltinFrameSummary : public FrameSummaryBase {
+   public:
+    BuiltinFrameSummary(Isolate*, Builtin);
+
+    Builtin builtin() const { return builtin_; }
+
+    Handle<Object> receiver() const;
+    int code_offset() const { return 0; }
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return false; }
+    Handle<Object> script() const;
+    int SourcePosition() const { return kNoSourcePosition; }
+    int SourceStatementPosition() const { return 0; }
+    Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+
+   private:
+    Builtin builtin_;
   };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -820,6 +841,8 @@ class StubFrame : public TypedFrame {
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
   // TurboFan stub frames are supported.
   int LookupExceptionHandlerInTable();
+
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);

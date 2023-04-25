@@ -1670,6 +1670,28 @@ int StubFrame::LookupExceptionHandlerInTable() {
   return table.LookupReturn(pc_offset);
 }
 
+void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
+#if V8_ENABLE_WEBASSEMBLY
+  Code code = LookupCode();
+  if (code.kind() != CodeKind::BUILTIN) return;
+  // We skip most stub frames from stack traces, but a few builtins
+  // specifically exist to pretend to be another builtin throwing an
+  // exception.
+  switch (code.builtin_id()) {
+    case Builtin::kThrowToLowerCaseCalledOnNull:
+    case Builtin::kWasmIntToString: {
+      // When adding builtins here, also implement naming support for them.
+      DCHECK_NE(nullptr, Builtins::NameForStackTrace(code.builtin_id()));
+      FrameSummary::BuiltinFrameSummary summary(isolate(), code.builtin_id());
+      frames->push_back(summary);
+      break;
+    }
+    default:
+      break;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void JavaScriptFrame::SetParameterValue(int index, Object value) const {
   Memory<Address>(GetParameterSlot(index)) = value.ptr();
 }
@@ -2067,6 +2089,31 @@ Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);
 }
+
+FrameSummary::BuiltinFrameSummary::BuiltinFrameSummary(Isolate* isolate,
+                                                       Builtin builtin)
+    : FrameSummaryBase(isolate, FrameSummary::BUILTIN), builtin_(builtin) {}
+
+Handle<Object> FrameSummary::BuiltinFrameSummary::receiver() const {
+  return isolate()->factory()->undefined_value();
+}
+
+Handle<Object> FrameSummary::BuiltinFrameSummary::script() const {
+  return isolate()->factory()->undefined_value();
+}
+
+Handle<Context> FrameSummary::BuiltinFrameSummary::native_context() const {
+  return isolate()->native_context();
+}
+
+Handle<StackFrameInfo> FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo()
+    const {
+  Handle<String> name_str = isolate()->factory()->NewStringFromAsciiChecked(
+      Builtins::NameForStackTrace(builtin_));
+  return isolate()->factory()->NewStackFrameInfo(
+      Handle<HeapObject>::cast(script()), SourcePosition(), name_str, false);
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameSummary::~FrameSummary() {
@@ -2116,6 +2163,8 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
         return java_script_summary_.name(); \
       case WASM:                            \
         return wasm_summary_.name();        \
+      case BUILTIN:                         \
+        return builtin_summary_.name();     \
       default:                              \
         UNREACHABLE();                      \
     }                                       \

@@ -35,6 +35,9 @@ bool CallSiteInfo::IsPromiseAny() const {
 }
 
 bool CallSiteInfo::IsNative() const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsBuiltin()) return true;
+#endif
   if (auto script = GetScript()) {
     return script->type() == Script::Type::kNative;
   }
@@ -51,6 +54,7 @@ bool CallSiteInfo::IsEval() const {
 bool CallSiteInfo::IsUserJavaScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) return false;
+  if (IsBuiltin()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return GetSharedFunctionInfo().IsUserJavaScript();
 }
@@ -58,6 +62,7 @@ bool CallSiteInfo::IsUserJavaScript() const {
 bool CallSiteInfo::IsMethodCall() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) return false;
+  if (IsBuiltin()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return !IsToplevel() && !IsConstructor();
 }
@@ -293,8 +298,23 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
     }
     return isolate->factory()->null_value();
   }
+  if (info->IsBuiltin()) {
+    Builtin builtin = Builtins::FromInt(Smi::cast(info->function()).value());
+    return isolate->factory()->NewStringFromAsciiChecked(
+        Builtins::NameForStackTrace(builtin));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+  if (function->shared().HasBuiltinId()) {
+    Builtin builtin = function->shared().builtin_id();
+    const char* maybe_known_name = Builtins::NameForStackTrace(builtin);
+    if (maybe_known_name) {
+      // This is for cases where using the builtin's name allows us to print
+      // e.g. "String.indexOf", instead of just "indexOf" which is what we
+      // would infer below.
+      return isolate->factory()->NewStringFromAsciiChecked(maybe_known_name);
+    }
+  }
   Handle<String> name = JSFunction::GetDebugName(function);
   if (name->length() != 0) return name;
   if (info->IsEval()) return isolate->factory()->eval_string();
@@ -309,6 +329,9 @@ Handle<String> CallSiteInfo::GetFunctionDebugName(Handle<CallSiteInfo> info) {
     return GetWasmFunctionDebugName(isolate,
                                     handle(info->GetWasmInstance(), isolate),
                                     info->GetWasmFunctionIndex());
+  }
+  if (info->IsBuiltin()) {
+    return Handle<String>::cast(GetFunctionName(info));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
@@ -547,6 +570,9 @@ bool CallSiteInfo::ComputeLocation(Handle<CallSiteInfo> info,
     *location = MessageLocation(script, pos, pos + 1);
     return true;
   }
+  if (info->IsBuiltin()) {
+    return false;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
@@ -575,6 +601,9 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
     return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());
   }
+  if (info->IsBuiltin()) {
+    return 0;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
@@ -587,6 +616,9 @@ base::Optional<Script> CallSiteInfo::GetScript() const {
   if (IsWasm()) {
     return GetWasmInstance().module_object().script();
   }
+  if (IsBuiltin()) {
+    return base::nullopt;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Object script = GetSharedFunctionInfo().script();
   if (script.IsScript()) return Script::cast(script);
@@ -596,6 +628,7 @@ base::Optional<Script> CallSiteInfo::GetScript() const {
 SharedFunctionInfo CallSiteInfo::GetSharedFunctionInfo() const {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasm());
+  DCHECK(!IsBuiltin());
 #endif  // V8_ENABLE_WEBASSEMBLY
   return JSFunction::cast(function()).shared();
 }
@@ -800,6 +833,13 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
 
   if (has_name) builder->AppendCharacter(')');
 }
+
+void SerializeBuiltinStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+                                IncrementalStringBuilder* builder) {
+  builder->AppendString(
+      Handle<String>::cast(CallSiteInfo::GetFunctionName(frame)));
+  builder->AppendCStringLiteral(" (<anonymous>)");
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace
@@ -809,6 +849,10 @@ void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
     SerializeWasmStackFrame(isolate, frame, builder);
+    return;
+  }
+  if (frame->IsBuiltin()) {
+    SerializeBuiltinStackFrame(isolate, frame, builder);
     return;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

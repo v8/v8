@@ -2005,8 +2005,8 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
 #if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());
-  CHECK_IMPLIES(IsWasm(), function().IsSmi());
-  CHECK_IMPLIES(!IsWasm(), function().IsJSFunction());
+  CHECK_IMPLIES(IsWasm() || IsBuiltin(), function().IsSmi());
+  CHECK_IMPLIES(!IsWasm() && !IsBuiltin(), function().IsJSFunction());
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY

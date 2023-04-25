@@ -340,7 +340,14 @@ int Map::GetInObjectProperties() const {
 }
 
 int Map::GetConstructorFunctionIndex() const {
+#if V8_ENABLE_WEBASSEMBLY
+  // We allow WasmNull here so builtins can produce error messages when
+  // called from Wasm, without having to special-case WasmNull at every
+  // caller of such a builtin.
+  DCHECK(IsPrimitiveMap() || instance_type() == WASM_NULL_TYPE);
+#else
   DCHECK(IsPrimitiveMap());
+#endif
   return inobject_properties_start_or_constructor_function_index();
 }
 

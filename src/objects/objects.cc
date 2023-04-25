@@ -418,6 +418,13 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
     if (input->IsBigInt()) {
       return BigInt::ToString(isolate, Handle<BigInt>::cast(input));
     }
+#if V8_ENABLE_WEBASSEMBLY
+    // We generally don't let the WasmNull escape into the JavaScript world,
+    // but some builtins may encounter it when called directly from Wasm code.
+    if (input->IsWasmNull()) {
+      return isolate->factory()->null_string();
+    }
+#endif
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),

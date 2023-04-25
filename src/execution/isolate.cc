@@ -729,6 +729,10 @@ class CallSiteBuilder {
       AppendWasmFrame(summary.AsWasm());
       return true;
     }
+    if (summary.IsBuiltin()) {
+      AppendBuiltinFrame(summary.AsBuiltin());
+      return true;
+    }
 #endif  // V8_ENABLE_WEBASSEMBLY
     AppendJavaScriptFrame(summary.AsJavaScript());
     return true;
@@ -812,6 +816,15 @@ class CallSiteBuilder {
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
                 summary.code_offset(), flags,
                 isolate_->factory()->empty_fixed_array());
+  }
+
+  void AppendBuiltinFrame(FrameSummary::BuiltinFrameSummary const& summary) {
+    Builtin builtin = summary.builtin();
+    Handle<Code> code = isolate_->builtins()->code_handle(builtin);
+    Handle<Object> function(Smi::FromInt(static_cast<int>(builtin)), isolate_);
+    int flags = CallSiteInfo::kIsBuiltin;
+    AppendFrame(summary.receiver(), function, code, summary.code_offset(),
+                flags, isolate_->factory()->empty_fixed_array());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1135,6 +1148,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
       case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
 #if V8_ENABLE_WEBASSEMBLY
+      case StackFrame::STUB:
       case StackFrame::WASM:
 #endif  // V8_ENABLE_WEBASSEMBLY
       {

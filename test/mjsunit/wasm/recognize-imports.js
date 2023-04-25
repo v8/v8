@@ -6,6 +6,30 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
+function CheckStackTrace(thrower, reference, topmost_wasm_func) {
+  let reference_exception;
+  let actual_exception;
+  try {
+    thrower();
+    assertUnreachable();
+  } catch (e) {
+    actual_exception = e;
+  }
+  try {
+    reference();
+    assertUnreachable();
+  } catch (e) {
+    reference_exception = e;
+  }
+  assertInstanceof(actual_exception, reference_exception.constructor);
+  let actual_stack = actual_exception.stack.split('\n');
+  let reference_stack = reference_exception.stack.split('\n');
+  assertEquals(reference_stack[0], actual_stack[0]);
+  assertEquals(reference_stack[1], actual_stack[1]);
+  assertTrue(
+      actual_stack[2].startsWith(`    at ${topmost_wasm_func} (wasm://wasm/`));
+}
+
 let builder = new WasmModuleBuilder();
 let sig_w_w = makeSig([kWasmStringRef], [kWasmStringRef]);
 let toLowerCase = builder.addImport("m", "toLowerCase", sig_w_w);
@@ -28,9 +52,9 @@ assertEquals("abc", call_tolower("ABC"));
 
 // Null should be handled correctly (by throwing the same TypeError that
 // JavaScript would throw).
-assertThrows(
-    () => call_tolower(null), TypeError,
-    /String.prototype.toLowerCase called on null or undefined/);
+CheckStackTrace(
+    () => call_tolower(null), () => String.prototype.toLowerCase.call(null),
+    'call_tolower');
 
 // Creating a second instance with identical imports should not cause
 // recompilation.
@@ -66,7 +90,6 @@ assertEquals("abc", instance1.exports.call_tolower("ABC"));
   assertEquals("2a", call_inttostring(42, 16));
   assertEquals("2147483647", call_inttostring(2147483647, 10));
   assertEquals("-2147483648", call_inttostring(-2147483648, 10));
-  assertThrows(
-    () => call_inttostring(1, 99), RangeError,
-    "toString() radix argument must be between 2 and 36");
+  CheckStackTrace(
+      () => call_inttostring(1, 99), () => func(1, 99), 'call_inttostring');
 })();

@@ -246,6 +246,36 @@ const char* Builtins::name(Builtin builtin) {
   return builtin_metadata[index].name;
 }
 
+// static
+const char* Builtins::NameForStackTrace(Builtin builtin) {
+#if V8_ENABLE_WEBASSEMBLY
+  // Most builtins are never shown in stack traces. Those that are exposed
+  // to JavaScript get their name from the object referring to them. Here
+  // we only support a few internal builtins that have special reasons for
+  // being shown on stack traces:
+  // - builtins that are allowlisted in {StubFrame::Summarize}.
+  // - builtins that throw the same error as one of those above, but would
+  //   lose information and e.g. print "indexOf" instead of "String.indexOf".
+  switch (builtin) {
+#if V8_INTL_SUPPORT
+    case Builtin::kStringPrototypeToLowerCaseIntl:
+#endif
+    case Builtin::kThrowToLowerCaseCalledOnNull:
+      return "String.toLowerCase";
+    case Builtin::kWasmIntToString:
+      return "Number.toString";
+    default:
+      // Callers getting this might well crash, which might be desirable
+      // because it's similar to {UNREACHABLE()}, but contrary to that a
+      // careful caller can also check the value and use it as an "is a
+      // name available for this builtin?" check.
+      return nullptr;
+  }
+#else
+  return nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void Builtins::PrintBuiltinCode() {
   DCHECK(v8_flags.print_builtin_code);
 #ifdef ENABLE_DISASSEMBLER
