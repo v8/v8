@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting.h"
@@ -202,8 +203,9 @@ template <typename ConcreteVisitor, typename MarkingState>
 class YoungGenerationMarkingVisitorBase
     : public NewSpaceVisitor<ConcreteVisitor> {
  public:
-  YoungGenerationMarkingVisitorBase(Isolate* isolate,
-                                    MarkingWorklists::Local* worklists_local);
+  YoungGenerationMarkingVisitorBase(
+      Isolate* isolate, MarkingWorklists::Local* worklists_local,
+      EphemeronRememberedSet::TableList::Local* ephemeron_tables_local);
 
   ~YoungGenerationMarkingVisitorBase() override {
     DCHECK(local_pretenuring_feedback_.empty());
@@ -233,6 +235,7 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
   V8_INLINE int VisitJSDataViewOrRabGsabDataView(
       Map map, JSDataViewOrRabGsabDataView object);
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable table);
   V8_INLINE int VisitJSObject(Map map, JSObject object);
   V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
@@ -251,6 +254,7 @@ class YoungGenerationMarkingVisitorBase
 
  private:
   MarkingWorklists::Local* worklists_local_;
+  EphemeronRememberedSet::TableList::Local* ephemeron_tables_local_;
   PretenuringHandler* const pretenuring_handler_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };

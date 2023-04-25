@@ -16,9 +16,11 @@
 #include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -33,6 +35,7 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/map.h"
@@ -770,7 +773,8 @@ class PromotedPageRecordMigratedSlotVisitor final
   PromotedPageRecordMigratedSlotVisitor(Isolate* isolate,
                                         MemoryChunk* host_chunk)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(isolate),
-        host_chunk_(host_chunk) {
+        host_chunk_(host_chunk),
+        ephemeron_remembered_set_(isolate->heap()->ephemeron_remembered_set()) {
     DCHECK(host_chunk->owner_identity() == OLD_SPACE ||
            host_chunk->owner_identity() == LO_SPACE);
   }
@@ -814,6 +818,28 @@ class PromotedPageRecordMigratedSlotVisitor final
     object.YoungMarkExtensionPromoted();
     return NewSpaceVisitor<
         PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
+  }
+
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
+    NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
+        VisitMapPointerIfNeeded<VisitorId::kVisitEphemeronHashTable>(table);
+    EphemeronRememberedSet::IndicesSet indices;
+    for (InternalIndex i : table.IterateEntries()) {
+      ObjectSlot value_slot =
+          table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+      VisitPointer(table, value_slot);
+      ObjectSlot key_slot =
+          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+      Object key = key_slot.Acquire_Load();
+      if (Heap::InYoungGeneration(key)) {
+        indices.insert(i.as_int());
+      }
+    }
+    if (!indices.empty()) {
+      ephemeron_remembered_set_->RecordEphemeronKeyWrites(table,
+                                                          std::move(indices));
+    }
+    return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);
   }
 
   // Entries that are skipped for recording.
@@ -873,6 +899,7 @@ class PromotedPageRecordMigratedSlotVisitor final
 
   MemoryChunk* const host_chunk_;
   SlotSet* cached_old_to_new_ = nullptr;
+  EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
 inline void HandleFreeSpace(Address free_start, Address free_end, Heap* heap) {
