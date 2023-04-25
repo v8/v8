@@ -4331,27 +4331,12 @@ void CppClassGenerator::GenerateClassConstructors() {
 
   hdr_ << " protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
-  hdr_ << "  // Special-purpose constructor for subclasses that have fast "
-          "paths where\n";
-  hdr_ << "  // their ptr() is a Smi.\n";
-  hdr_ << "  inline explicit " << gen_name_
-       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);\n";
 
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "    : P(ptr) {\n";
   inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
        << "_NonInline(*this));\n";
-  inl_ << "}\n";
-
-  inl_ << "template<class D, class P>\n";
-  inl_ << "inline " << gen_name_T_ << "::" << gen_name_
-       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)\n";
-  inl_ << "    : P(ptr, allow_smi) {\n";
-  inl_ << "  SLOW_DCHECK("
-       << "(allow_smi == HeapObject::AllowInlineSmiStorage::kAllowBeingASmi"
-          " && this->IsSmi()) || Is"
-       << typecheck_type->name() << "_NonInline(*this));\n";
   inl_ << "}\n";
 }
 

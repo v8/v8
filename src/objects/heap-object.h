@@ -246,11 +246,6 @@ class HeapObject : public Object {
   inline Address GetFieldAddress(int field_offset) const;
 
  protected:
-  // Special-purpose constructor for subclasses that have fast paths where
-  // their ptr() is a Smi.
-  enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
-  inline HeapObject(Address ptr, AllowInlineSmiStorage allow_smi);
-
   OBJECT_CONSTRUCTORS(HeapObject, Object);
 
  private:

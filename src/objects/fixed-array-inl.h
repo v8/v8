@@ -27,15 +27,10 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-FixedArrayBase::FixedArrayBase(Address ptr,
-                               HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedFixedArrayBase(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-ByteArray::ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedByteArray(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)

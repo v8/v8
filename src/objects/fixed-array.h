@@ -93,8 +93,6 @@ class FixedArrayBase
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
-  inline FixedArrayBase(Address ptr,
-                        HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
@@ -586,7 +584,6 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(ByteArray)
-  inline ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
