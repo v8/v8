@@ -312,7 +312,7 @@ class MaglevGraphBuilder {
 
  private:
   class CallSpeculationScope;
-  class LazyDeoptContinuationScope;
+  class LazyDeoptFrameScope;
 
   bool CheckType(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
@@ -1200,9 +1200,8 @@ class MaglevGraphBuilder {
 
   DeoptFrame* GetParentDeoptFrame();
   DeoptFrame GetDeoptFrameForLazyDeopt();
-  DeoptFrame GetDeoptFrameForLazyDeoptHelper(
-      LazyDeoptContinuationScope* continuation_scope,
-      bool mark_accumulator_dead);
+  DeoptFrame GetDeoptFrameForLazyDeoptHelper(LazyDeoptFrameScope* scope,
+                                             bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
   template <typename NodeT>
@@ -1876,7 +1875,7 @@ class MaglevGraphBuilder {
   base::Optional<base::Vector<ValueNode*>> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
 
-  LazyDeoptContinuationScope* current_lazy_deopt_continuation_scope_ = nullptr;
+  LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
 
   struct HandlerTableEntry {
     int end;

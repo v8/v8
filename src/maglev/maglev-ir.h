@@ -927,7 +927,49 @@ class DeoptFrame {
     kBuiltinContinuationFrame,
   };
 
-  FrameType type() const { return type_; }
+  struct InterpretedFrameData {
+    const MaglevCompilationUnit& unit;
+    const CompactInterpreterFrameState* frame_state;
+    ValueNode* closure;
+    const BytecodeOffset bytecode_position;
+    const SourcePosition source_position;
+  };
+
+  struct InlinedArgumentsFrameData {
+    const MaglevCompilationUnit& unit;
+    const BytecodeOffset bytecode_position;
+    ValueNode* closure;
+    const base::Vector<ValueNode*> arguments;
+  };
+
+  struct BuiltinContinuationFrameData {
+    const Builtin builtin_id;
+    const base::Vector<ValueNode*> parameters;
+    ValueNode* context;
+  };
+
+  struct FrameData {
+    const FrameType type;
+    union {
+      InterpretedFrameData interpreted_frame_data;
+      InlinedArgumentsFrameData inlined_arguments_frame_data;
+      BuiltinContinuationFrameData builtin_continuation_frame_data;
+    };
+
+    explicit FrameData(InterpretedFrameData data)
+        : type(FrameType::kInterpretedFrame), interpreted_frame_data(data) {}
+    explicit FrameData(InlinedArgumentsFrameData data)
+        : type(FrameType::kInlinedArgumentsFrame),
+          inlined_arguments_frame_data(data) {}
+    explicit FrameData(BuiltinContinuationFrameData data)
+        : type(FrameType::kBuiltinContinuationFrame),
+          builtin_continuation_frame_data(data) {}
+  };
+
+  DeoptFrame(FrameData data, DeoptFrame* parent)
+      : data_(data), parent_(parent) {}
+
+  FrameType type() const { return data_.type; }
   DeoptFrame* parent() { return parent_; }
   const DeoptFrame* parent() const { return parent_; }
 
@@ -939,44 +981,14 @@ class DeoptFrame {
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
 
  protected:
-  struct InterpretedFrameData {
-    const MaglevCompilationUnit& unit;
-    const CompactInterpreterFrameState* frame_state;
-    ValueNode* closure;
-    const BytecodeOffset bytecode_position;
-    const SourcePosition source_position;
-  };
-  struct InlinedArgumentsFrameData {
-    const MaglevCompilationUnit& unit;
-    const BytecodeOffset bytecode_position;
-    ValueNode* closure;
-    const base::Vector<ValueNode*> arguments;
-  };
-  struct BuiltinContinuationFrameData {
-    const Builtin builtin_id;
-    const base::Vector<ValueNode*> parameters;
-    ValueNode* context;
-  };
-
   DeoptFrame(InterpretedFrameData data, DeoptFrame* parent)
-      : interpreted_frame_data_(data),
-        type_(FrameType::kInterpretedFrame),
-        parent_(parent) {}
+      : data_(data), parent_(parent) {}
   DeoptFrame(InlinedArgumentsFrameData data, DeoptFrame* parent)
-      : inlined_arguments_frame_data_(data),
-        type_(FrameType::kInlinedArgumentsFrame),
-        parent_(parent) {}
+      : data_(data), parent_(parent) {}
   DeoptFrame(BuiltinContinuationFrameData data, DeoptFrame* parent)
-      : builtin_continuation_frame_data_(data),
-        type_(FrameType::kBuiltinContinuationFrame),
-        parent_(parent) {}
+      : data_(data), parent_(parent) {}
 
-  union {
-    InterpretedFrameData interpreted_frame_data_;
-    InlinedArgumentsFrameData inlined_arguments_frame_data_;
-    BuiltinContinuationFrameData builtin_continuation_frame_data_;
-  };
-  const FrameType type_;
+  FrameData data_;
   DeoptFrame* const parent_;
 };
 
@@ -991,18 +1003,20 @@ class InterpretedDeoptFrame : public DeoptFrame {
                    parent) {}
 
   const MaglevCompilationUnit& unit() const {
-    return interpreted_frame_data_.unit;
+    return data_.interpreted_frame_data.unit;
   }
   const CompactInterpreterFrameState* frame_state() const {
-    return interpreted_frame_data_.frame_state;
+    return data_.interpreted_frame_data.frame_state;
   }
-  ValueNode*& closure() { return inlined_arguments_frame_data_.closure; }
-  ValueNode* closure() const { return inlined_arguments_frame_data_.closure; }
+  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
+  ValueNode* closure() const {
+    return data_.inlined_arguments_frame_data.closure;
+  }
   BytecodeOffset bytecode_position() const {
-    return interpreted_frame_data_.bytecode_position;
+    return data_.interpreted_frame_data.bytecode_position;
   }
   SourcePosition source_position() const {
-    return interpreted_frame_data_.source_position;
+    return data_.interpreted_frame_data.source_position;
   }
 };
 
@@ -1030,15 +1044,17 @@ class InlinedArgumentsDeoptFrame : public DeoptFrame {
                    parent) {}
 
   const MaglevCompilationUnit& unit() const {
-    return interpreted_frame_data_.unit;
+    return data_.interpreted_frame_data.unit;
   }
   BytecodeOffset bytecode_position() const {
-    return inlined_arguments_frame_data_.bytecode_position;
+    return data_.inlined_arguments_frame_data.bytecode_position;
   }
-  ValueNode*& closure() { return inlined_arguments_frame_data_.closure; }
-  ValueNode* closure() const { return inlined_arguments_frame_data_.closure; }
+  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
+  ValueNode* closure() const {
+    return data_.inlined_arguments_frame_data.closure;
+  }
   base::Vector<ValueNode*> arguments() const {
-    return inlined_arguments_frame_data_.arguments;
+    return data_.inlined_arguments_frame_data.arguments;
   }
 };
 
@@ -1065,14 +1081,16 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
             parent) {}
 
   const Builtin& builtin_id() const {
-    return builtin_continuation_frame_data_.builtin_id;
+    return data_.builtin_continuation_frame_data.builtin_id;
   }
   base::Vector<ValueNode*> parameters() const {
-    return builtin_continuation_frame_data_.parameters;
+    return data_.builtin_continuation_frame_data.parameters;
   }
-  ValueNode*& context() { return builtin_continuation_frame_data_.context; }
+  ValueNode*& context() {
+    return data_.builtin_continuation_frame_data.context;
+  }
   ValueNode* context() const {
-    return builtin_continuation_frame_data_.context;
+    return data_.builtin_continuation_frame_data.context;
   }
 };
 

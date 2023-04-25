@@ -46,6 +46,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/type-hints.h"
+#include "src/utils/utils.h"
 
 namespace v8::internal::maglev {
 
@@ -246,25 +247,26 @@ class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
   MaglevGraphBuilder* builder_;
 };
 
-class V8_NODISCARD MaglevGraphBuilder::LazyDeoptContinuationScope {
+class V8_NODISCARD MaglevGraphBuilder::LazyDeoptFrameScope {
  public:
-  LazyDeoptContinuationScope(MaglevGraphBuilder* builder, Builtin continuation)
+  LazyDeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation)
       : builder_(builder),
-        parent_(builder->current_lazy_deopt_continuation_scope_),
-        continuation_(continuation) {
-    builder_->current_lazy_deopt_continuation_scope_ = this;
-  }
-  ~LazyDeoptContinuationScope() {
-    builder_->current_lazy_deopt_continuation_scope_ = parent_;
+        parent_(builder->current_lazy_deopt_scope_),
+        data_(DeoptFrame::BuiltinContinuationFrameData{
+            continuation, {}, builder->GetContext()}) {
+    builder_->current_lazy_deopt_scope_ = this;
   }
 
-  LazyDeoptContinuationScope* parent() const { return parent_; }
-  Builtin continuation() const { return continuation_; }
+  ~LazyDeoptFrameScope() { builder_->current_lazy_deopt_scope_ = parent_; }
+
+  LazyDeoptFrameScope* parent() const { return parent_; }
+
+  DeoptFrame::FrameData data() const { return data_; }
 
  private:
   MaglevGraphBuilder* builder_;
-  LazyDeoptContinuationScope* parent_;
-  Builtin continuation_;
+  LazyDeoptFrameScope* parent_;
+  DeoptFrame::FrameData data_;
 };
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -563,13 +565,13 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
     // TODO(leszeks): This is true for our current set of
     // inlinings/continuations, but there might be cases in the future where it
     // isn't. We may need to store the relevant overwritten register in
-    // LazyDeoptContinuationScope.
+    // LazyDeoptFrameScope.
     DCHECK(interpreter::Bytecodes::WritesAccumulator(
         parent_->iterator_.current_bytecode()));
 
     parent_deopt_frame_ =
         zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
-            parent_->current_lazy_deopt_continuation_scope_, true));
+            parent_->current_lazy_deopt_scope_, true));
     if (inlined_arguments_) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
           *compilation_unit_, caller_bytecode_offset_, GetClosure(),
@@ -582,7 +584,7 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
 DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   if (!latest_checkpointed_frame_) {
     // TODO(leszeks): Figure out a way of handling eager continuations.
-    DCHECK_NULL(current_lazy_deopt_continuation_scope_);
+    DCHECK_NULL(current_lazy_deopt_scope_);
     latest_checkpointed_frame_.emplace(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
@@ -594,14 +596,12 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
-  return GetDeoptFrameForLazyDeoptHelper(current_lazy_deopt_continuation_scope_,
-                                         false);
+  return GetDeoptFrameForLazyDeoptHelper(current_lazy_deopt_scope_, false);
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
-    LazyDeoptContinuationScope* continuation_scope,
-    bool mark_accumulator_dead) {
-  if (continuation_scope == nullptr) {
+    LazyDeoptFrameScope* scope, bool mark_accumulator_dead) {
+  if (scope == nullptr) {
     // Potentially copy the out liveness if we want to explicitly drop the
     // accumulator.
     const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
@@ -623,12 +623,13 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   // the accumulator
   DCHECK(
       interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
-  return BuiltinContinuationDeoptFrame(
-      continuation_scope->continuation(), {}, GetContext(),
-      // Mark the accumulator dead in parent frames since we know that the
-      // continuation will write it.
-      zone()->New<DeoptFrame>(
-          GetDeoptFrameForLazyDeoptHelper(continuation_scope->parent(), true)));
+  // Mark the accumulator dead in parent frames since we know that the
+  // continuation will write it.
+  return DeoptFrame(scope->data(),
+                    zone()->New<DeoptFrame>(GetDeoptFrameForLazyDeoptHelper(
+                        scope->parent(),
+                        scope->data().type ==
+                            DeoptFrame::FrameType::kBuiltinContinuationFrame)));
 }
 
 InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
@@ -5041,7 +5042,7 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
         arg = GetHoleyFloat64ForToNumber(arg,
                                          ToNumberHint::kAssumeNumberOrOddball);
       } else {
-        LazyDeoptContinuationScope continuation_scope(
+        LazyDeoptFrameScope continuation_scope(
             this, Float64Round::continuation(kind));
         ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
             {GetContext(), arg}, Object::Conversion::kToNumber);
@@ -6136,7 +6137,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     {
       // Make sure that a lazy deopt after the @@hasInstance call also performs
       // ToBoolean before returning to the interpreter.
-      LazyDeoptContinuationScope continuation_scope(
+      LazyDeoptFrameScope continuation_scope(
           this, Builtin::kToBooleanLazyDeoptContinuation);
       ReduceResult result = ReduceCall(*has_instance_field, args);
       // TODO(victorgomes): Propagate the case if we need to soft deopt.
