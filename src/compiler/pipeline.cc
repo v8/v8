@@ -3915,7 +3915,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   // This limit is chosen somewhat arbitrarily, by looking at a few bigger
   // WebAssembly programs, and chosing the limit such that functions that take
   // >100ms in register allocation are switched to mid-tier.
-  static int kTopTierVirtualRegistersLimit = 8192;
+  static int kTopTierVirtualRegistersLimit = 16384;
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   std::unique_ptr<const RegisterConfiguration> restricted_config;
