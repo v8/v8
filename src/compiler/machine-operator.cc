@@ -684,6 +684,15 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x8Ne, Operator::kCommutative, 2, 0, 1)                              \
   V(F32x8Lt, Operator::kNoProperties, 2, 0, 1)                             \
   V(F32x8Le, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)                  \
+  V(F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)                  \
+  V(F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)                    \
+  V(I64x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I64x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I16x16SConvertI8x16, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I16x16UConvertI8x16, Operator::kNoProperties, 1, 0, 1)                 \
   V(S256Select, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:

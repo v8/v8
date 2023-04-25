@@ -1114,6 +1114,15 @@
   V(F32x8Ne)                       \
   V(F32x8Lt)                       \
   V(F32x8Le)                       \
+  V(F64x4ConvertI32x4S)            \
+  V(F32x8SConvertI32x8)            \
+  V(F32x4DemoteF64x4)              \
+  V(I64x4SConvertI32x4)            \
+  V(I64x4UConvertI32x4)            \
+  V(I32x8SConvertI16x8)            \
+  V(I32x8UConvertI16x8)            \
+  V(I16x16SConvertI8x16)           \
+  V(I16x16UConvertI8x16)           \
   V(S256Select)                    \
   V(ExtractF128)
 

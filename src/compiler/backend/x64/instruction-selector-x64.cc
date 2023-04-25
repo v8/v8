@@ -3451,20 +3451,29 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2ConvertLowI32x4S)  \
+  V(F64x4ConvertI32x4S)     \
   V(F32x4SConvertI32x4)     \
+  V(F32x8SConvertI32x8)     \
   V(F32x4DemoteF64x2Zero)   \
+  V(F32x4DemoteF64x4)       \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
+  V(I64x4SConvertI32x4)     \
   V(I64x2UConvertI32x4Low)  \
   V(I64x2UConvertI32x4High) \
+  V(I64x4UConvertI32x4)     \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
+  V(I32x8SConvertI16x8)     \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
+  V(I32x8UConvertI16x8)     \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
+  V(I16x16SConvertI8x16)    \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
+  V(I16x16UConvertI8x16)    \
   V(S128Not)
 
 #define SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
