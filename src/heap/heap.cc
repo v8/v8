@@ -50,7 +50,6 @@
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -5515,7 +5514,6 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
 
   scavenger_collector_.reset(new ScavengerCollector(this));
   minor_mark_compact_collector_.reset(new MinorMarkCompactCollector(this));
-  ephemeron_remembered_set_.reset(new EphemeronRememberedSet());
 
   incremental_marking_.reset(
       new IncrementalMarking(this, mark_compact_collector_->weak_objects()));
@@ -5967,7 +5965,6 @@ void Heap::TearDown() {
   gc_idle_time_handler_.reset();
   memory_measurement_.reset();
   allocation_tracker_for_debugging_.reset();
-  ephemeron_remembered_set_.reset();
 
   if (memory_reducer_ != nullptr) {
     memory_reducer_->TearDown();
@@ -6996,7 +6993,20 @@ void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot) {
 }
 
 void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
-  ephemeron_remembered_set_->RecordEphemeronKeyWrite(table, slot);
+  DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
+  if (v8_flags.minor_mc) {
+    // Minor MC lacks support for specialized generational ephemeron barriers.
+    // The regular write barrier works as well but keeps more memory alive.
+    // TODO(v8:12612): Add support to MinorMC.
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(table);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  } else {
+    int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
+    InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+    auto it =
+        ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
+    it.first->second.insert(entry.as_int());
+  }
 }
 
 void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,

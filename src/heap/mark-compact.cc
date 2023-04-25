@@ -28,7 +28,6 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -1475,7 +1474,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
  public:
   explicit RecordMigratedSlotVisitor(
-      Heap* heap, EphemeronRememberedSet::TableMap* ephemeron_remembered_set)
+      Heap* heap, EphemeronRememberedSet* ephemeron_remembered_set)
       : ObjectVisitorWithCageBases(heap->isolate()),
         heap_(heap),
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
@@ -1603,7 +1602,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   }
 
   Heap* const heap_;
-  EphemeronRememberedSet::TableMap* ephemeron_remembered_set_;
+  EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
 class MigrationObserver {
@@ -2017,8 +2016,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   }
 
   inline bool Visit(HeapObject object, int size) override {
-    RecordMigratedSlotVisitor visitor(
-        heap_, heap_->ephemeron_remembered_set()->tables());
+    RecordMigratedSlotVisitor visitor(heap_, &heap_->ephemeron_remembered_set_);
     Map map = object.map(cage_base());
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
@@ -3543,10 +3541,10 @@ void MarkCompactCollector::ClearWeakCollections() {
       }
     }
   }
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
+  for (auto it = heap_->ephemeron_remembered_set_.begin();
+       it != heap_->ephemeron_remembered_set_.end();) {
     if (!non_atomic_marking_state()->IsMarked(it->first)) {
-      it = table_map->erase(it);
+      it = heap_->ephemeron_remembered_set_.erase(it);
     } else {
       ++it;
     }
@@ -4199,7 +4197,7 @@ class Evacuator : public Malloced {
   // Allocator for the shared heap.
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
 
-  EphemeronRememberedSet::TableMap ephemeron_remembered_set_;
+  EphemeronRememberedSet ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
 
   // Visitors for the corresponding spaces.
@@ -4260,10 +4258,10 @@ void Evacuator::Finalize() {
       local_pretenuring_feedback_);
 
   DCHECK_IMPLIES(v8_flags.minor_mc, ephemeron_remembered_set_.empty());
-  auto* table_map = heap()->ephemeron_remembered_set()->tables();
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {
-    auto insert_result = table_map->insert({it->first, it->second});
+    auto insert_result =
+        heap()->ephemeron_remembered_set_.insert({it->first, it->second});
     if (!insert_result.second) {
       // Insertion didn't happen, there was already an item.
       auto set = insert_result.first->second;
@@ -5133,14 +5131,14 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
                  "EphemeronTableUpdatingItem::Process");
     PtrComprCageBase cage_base(heap_->isolate());
 
-    auto* table_map = heap_->ephemeron_remembered_set()->tables();
-    for (auto it = table_map->begin(); it != table_map->end();) {
+    for (auto it = heap_->ephemeron_remembered_set_.begin();
+         it != heap_->ephemeron_remembered_set_.end();) {
       EphemeronHashTable table = it->first;
       auto& indices = it->second;
       if (table.map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
         // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
         // inserts entries for the moved table into ephemeron_remembered_set_.
-        it = table_map->erase(it);
+        it = heap_->ephemeron_remembered_set_.erase(it);
         continue;
       }
       DCHECK(table.map(cage_base).IsMap(cage_base));
@@ -5162,7 +5160,7 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
         }
       }
       if (indices.size() == 0) {
-        it = table_map->erase(it);
+        it = heap_->ephemeron_remembered_set_.erase(it);
       } else {
         ++it;
       }
@@ -5757,7 +5755,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
   DCHECK_NOT_NULL(heap()->new_space());
   // Minor MC does not support processing the ephemeron remembered set.
-  DCHECK(heap()->ephemeron_remembered_set()->tables()->empty());
+  DCHECK(heap()->ephemeron_remembered_set_.empty());
   DCHECK(!heap()->array_buffer_sweeper()->sweeping_in_progress());
   DCHECK(!sweeper()->AreSweeperTasksRunning());
   DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
