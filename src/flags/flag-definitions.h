@@ -261,7 +261,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_array_grouping, "harmony array grouping") \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
-DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
+DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
