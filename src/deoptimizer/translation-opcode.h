@@ -45,7 +45,7 @@ namespace internal {
   V(OPTIMIZED_OUT, 0)                                     \
   V(LITERAL, 1)                                           \
   V(REGISTER, 1)                                          \
-  V(STACK_SLOT, 1)                                        \
+  V(TAGGED_STACK_SLOT, 1)                                 \
   V(UINT32_REGISTER, 1)                                   \
   V(UINT32_STACK_SLOT, 1)                                 \
   V(UPDATE_FEEDBACK, 2)                                   \

@@ -210,7 +210,7 @@ void TranslationArrayPrintSingleFrame(
         break;
       }
 
-      case TranslationOpcode::STACK_SLOT: {
+      case TranslationOpcode::TAGGED_STACK_SLOT: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int input_slot_index = iterator.NextOperand();
         os << "{input=" << input_slot_index << "}";
@@ -1021,7 +1021,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::FLOAT_REGISTER:
     case TranslationOpcode::DOUBLE_REGISTER:
     case TranslationOpcode::HOLEY_DOUBLE_REGISTER:
-    case TranslationOpcode::STACK_SLOT:
+    case TranslationOpcode::TAGGED_STACK_SLOT:
     case TranslationOpcode::INT32_STACK_SLOT:
     case TranslationOpcode::INT64_STACK_SLOT:
     case TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT:
@@ -1375,7 +1375,7 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
-    case TranslationOpcode::STACK_SLOT: {
+    case TranslationOpcode::TAGGED_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));

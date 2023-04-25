@@ -559,7 +559,7 @@ void TranslationArrayBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
 }
 
 void TranslationArrayBuilder::StoreStackSlot(int index) {
-  auto opcode = TranslationOpcode::STACK_SLOT;
+  auto opcode = TranslationOpcode::TAGGED_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
