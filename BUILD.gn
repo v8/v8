@@ -5909,6 +5909,7 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_win.cc",
       "src/base/platform/platform-win32.cc",
+      "src/base/platform/platform-win32.h",
       "src/base/win32-headers.h",
     ]
 

@@ -129,6 +129,10 @@ SamplingEventsProcessor::SamplingEventsProcessor(
       sampler_(new CpuSampler(isolate, this)),
       period_(period),
       use_precise_sampling_(use_precise_sampling) {
+#if V8_OS_WIN
+  precise_sleep_timer_.TryInit();
+#endif  // V8_OS_WIN
+
   sampler_->Start();
 }
 
@@ -290,9 +294,13 @@ void SamplingEventsProcessor::Run() {
 #if V8_OS_WIN
       if (use_precise_sampling_ &&
           nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
-        // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
-        // jitter, which is unacceptable for short profile intervals.
-        while (base::TimeTicks::Now() < nextSampleTime) {
+        if (precise_sleep_timer_.IsInitialized()) {
+          precise_sleep_timer_.Sleep(nextSampleTime - now);
+        } else {
+          // Do not use Sleep on Windows as it is very imprecise, with up to
+          // 16ms jitter, which is unacceptable for short profile intervals.
+          while (base::TimeTicks::Now() < nextSampleTime) {
+          }
         }
       } else  // NOLINT
 #else
