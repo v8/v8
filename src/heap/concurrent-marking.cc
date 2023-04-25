@@ -148,11 +148,6 @@ class ConcurrentMarkingVisitor final
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
 
-  template <typename T>
-  static V8_INLINE T Cast(HeapObject object) {
-    return T::cast(object);
-  }
-
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
@@ -202,13 +197,6 @@ class ConcurrentMarkingVisitor final
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;
 };
-
-// The Deserializer changes the map from StrongDescriptorArray to
-// DescriptorArray
-template <>
-StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return StrongDescriptorArray::unchecked_cast(DescriptorArray::cast(object));
-}
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
  public:
