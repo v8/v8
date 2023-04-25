@@ -40,7 +40,7 @@ class ResultDBIndicator(ProgressIndicator):
     }
 
     if result.output and result.output.duration:
-      rdb_result.update(duration=f'{result.output.duration}ms')
+      rdb_result.update(duration=f'{result.output.duration}s')
 
     if result.has_unexpected_output:
       formated_output = formatted_result_output(result,relative=True)
