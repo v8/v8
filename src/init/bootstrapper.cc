@@ -730,7 +730,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   native_context()->set_empty_function(*empty_function);
 
   // --- E m p t y ---
-  Handle<String> source = factory()->NewStringFromStaticChars("() {}");
+  Handle<String> source = factory()->InternalizeString("() {}");
   Handle<Script> script = factory()->NewScript(source);
   script->set_type(Script::Type::kNative);
   Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);

@@ -297,6 +297,9 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
   if (overflowed_) {
     THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
   }
+  if (isolate()->serializer_enabled()) {
+    return factory()->InternalizeString(accumulator());
+  }
   return accumulator();
 }
 

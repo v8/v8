@@ -15890,8 +15890,8 @@ void CodeStubAssembler::PrintToStream(const char* prefix,
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
-    Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
-        formatted.c_str(), AllocationType::kOld);
+    Handle<String> string =
+        isolate()->factory()->InternalizeString(formatted.c_str());
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
                 HeapConstant(string), SmiConstant(stream));
   }

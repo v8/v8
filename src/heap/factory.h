@@ -217,6 +217,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return InternalizeString(base::Vector<const uint8_t>::cast(str));
   }
 
+  Handle<String> InternalizeString(const char* str,
+                                   bool convert_encoding = false) {
+    return InternalizeString(base::OneByteVector(str));
+  }
+
   template <typename SeqString>
   Handle<String> InternalizeString(Handle<SeqString>, int from, int length,
                                    bool convert_encoding = false);

@@ -484,6 +484,14 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     serializer_->CountAllocation(object_->map(), size, space);
   }
 
+  // The snapshot should only contain internalized strings (since these end up
+  // in RO space). If this DCHECK fails, allocate the object_ String through
+  // Factory::InternalizeString instead.
+  // TODO(jgruber,v8:13789): Try to enable this DCHECK once custom snapshots
+  // can extend RO space. We may have to do a pass over the heap prior to
+  // serialization that in-place converts all strings to internalized strings.
+  // DCHECK_IMPLIES(object_->IsString(), object_->IsInternalizedString());
+
   // Mark this object as already serialized, and add it to the reference map so
   // that it can be accessed by backreference by future objects.
   serializer_->num_back_refs_++;
