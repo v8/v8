@@ -8,7 +8,6 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-allocator.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -315,7 +314,7 @@ void ScavengerCollector::CollectGarbage() {
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   Scavenger::CopiedList copied_list;
   Scavenger::PromotionList promotion_list;
-  EphemeronRememberedSet::TableList ephemeron_table_list;
+  EphemeronTableList ephemeron_table_list;
 
   {
     Sweeper* sweeper = heap_->sweeper();
@@ -605,8 +604,7 @@ ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
                      PromotionList* promotion_list,
-                     EphemeronRememberedSet::TableList* ephemeron_table_list,
-                     int task_id)
+                     EphemeronTableList* ephemeron_table_list, int task_id)
     : collector_(collector),
       heap_(heap),
       empty_chunks_local_(*empty_chunks),
@@ -748,7 +746,7 @@ void Scavenger::Process(JobDelegate* delegate) {
 }
 
 void ScavengerCollector::ProcessWeakReferences(
-    EphemeronRememberedSet::TableList* ephemeron_table_list) {
+    EphemeronTableList* ephemeron_table_list) {
   ClearYoungEphemerons(ephemeron_table_list);
   ClearOldEphemerons();
 }
@@ -756,7 +754,7 @@ void ScavengerCollector::ProcessWeakReferences(
 // Clear ephemeron entries from EphemeronHashTables in new-space whenever the
 // entry has a dead new-space key.
 void ScavengerCollector::ClearYoungEphemerons(
-    EphemeronRememberedSet::TableList* ephemeron_table_list) {
+    EphemeronTableList* ephemeron_table_list) {
   ephemeron_table_list->Iterate([this](EphemeronHashTable table) {
     for (InternalIndex i : table.IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
@@ -777,8 +775,8 @@ void ScavengerCollector::ClearYoungEphemerons(
 // Clear ephemeron entries from EphemeronHashTables in old-space whenever the
 // entry has a dead new-space key.
 void ScavengerCollector::ClearOldEphemerons() {
-  auto* table_map = heap_->ephemeron_remembered_set_->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
+  for (auto it = heap_->ephemeron_remembered_set_.begin();
+       it != heap_->ephemeron_remembered_set_.end();) {
     EphemeronHashTable table = it->first;
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
@@ -801,7 +799,7 @@ void ScavengerCollector::ClearOldEphemerons() {
     }
 
     if (indices.size() == 0) {
-      it = table_map->erase(it);
+      it = heap_->ephemeron_remembered_set_.erase(it);
     } else {
       ++it;
     }
@@ -820,8 +818,11 @@ void Scavenger::Finalize() {
   ephemeron_table_list_local_.Publish();
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {
-    heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
-        it->first, std::move(it->second));
+    auto insert_result = heap()->ephemeron_remembered_set_.insert(
+        {it->first, std::unordered_set<int>()});
+    for (int entry : it->second) {
+      insert_result.first->second.insert(entry);
+    }
   }
 }
 
