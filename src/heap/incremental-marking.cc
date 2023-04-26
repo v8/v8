@@ -251,8 +251,7 @@ void IncrementalMarking::MarkRoots() {
                                 : 1);
          ++i) {
       tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
-          isolate(), heap(), minor_collector_->marking_worklists(),
-          minor_collector_->ephemeron_table_list()));
+          isolate(), heap(), minor_collector_->marking_worklists()));
     }
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,

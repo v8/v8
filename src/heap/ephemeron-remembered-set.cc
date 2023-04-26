@@ -12,16 +12,22 @@ namespace v8::internal {
 void EphemeronRememberedSet::RecordEphemeronKeyWrite(EphemeronHashTable table,
                                                      Address slot) {
   DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
-  int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
-  InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
-  base::MutexGuard guard(&insertion_mutex_);
-  auto it = tables_.insert({table, IndicesSet()});
-  it.first->second.insert(entry.as_int());
+  if (v8_flags.minor_mc) {
+    // Minor MC lacks support for specialized generational ephemeron barriers.
+    // The regular write barrier works as well but keeps more memory alive.
+    // TODO(v8:12612): Add support to MinorMC.
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(table);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  } else {
+    int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
+    InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+    auto it = tables_.insert({table, std::unordered_set<int>()});
+    it.first->second.insert(entry.as_int());
+  }
 }
 
 void EphemeronRememberedSet::RecordEphemeronKeyWrites(EphemeronHashTable table,
                                                       IndicesSet indices) {
-  base::MutexGuard guard(&insertion_mutex_);
   auto it = tables_.find(table);
   if (it != tables_.end()) {
     it->second.merge(std::move(indices));

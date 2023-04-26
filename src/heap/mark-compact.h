@@ -12,7 +12,6 @@
 #include "src/common/globals.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
@@ -130,14 +129,8 @@ class YoungGenerationMainMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
           YoungGenerationMainMarkingVisitor, MarkingState> {
  public:
-  YoungGenerationMainMarkingVisitor(
-      Isolate* isolate, MarkingWorklists::Local* worklists_local,
-      EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local);
-
-  YoungGenerationMainMarkingVisitor(const YoungGenerationMainMarkingVisitor&) =
-      delete;
-  YoungGenerationMainMarkingVisitor& operator=(
-      const YoungGenerationMainMarkingVisitor&) = delete;
+  YoungGenerationMainMarkingVisitor(Isolate* isolate,
+                                    MarkingWorklists::Local* worklists_local);
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
@@ -619,10 +612,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();
 
-  EphemeronRememberedSet::TableList* ephemeron_table_list() const {
-    return ephemeron_table_list_.get();
-  }
-
  private:
   class RootMarkingVisitor;
 
@@ -647,10 +636,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
   bool StartSweepNewSpace();
   bool SweepNewLargeSpace();
 
-  std::unique_ptr<EphemeronRememberedSet::TableList> ephemeron_table_list_;
-  std::unique_ptr<EphemeronRememberedSet::TableList::Local>
-      local_ephemeron_table_list_;
   std::unique_ptr<YoungGenerationMainMarkingVisitor> main_marking_visitor_;
+
   Sweeper* const sweeper_;
 
   friend class YoungGenerationMarkingTask;
@@ -722,10 +709,8 @@ class YoungGenerationMarkingJob : public v8::JobTask {
 
 class YoungGenerationMarkingTask final {
  public:
-  YoungGenerationMarkingTask(
-      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-      EphemeronRememberedSet::TableList* ephemeron_table_list);
-  ~YoungGenerationMarkingTask();
+  YoungGenerationMarkingTask(Isolate* isolate, Heap* heap,
+                             MarkingWorklists* global_worklists);
 
   YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
   YoungGenerationMarkingTask& operator=(const YoungGenerationMarkingTask&) =
@@ -740,7 +725,6 @@ class YoungGenerationMarkingTask final {
 
  private:
   MarkingWorklists::Local marking_worklists_local_;
-  EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
   YoungGenerationMainMarkingVisitor visitor_;
 };
 

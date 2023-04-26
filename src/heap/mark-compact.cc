@@ -5594,11 +5594,9 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 }  // namespace
 
 YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
-    Isolate* isolate, MarkingWorklists::Local* worklists_local,
-    EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local)
+    Isolate* isolate, MarkingWorklists::Local* worklists_local)
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
-                                        MarkingState>(
-          isolate, worklists_local, ephemeron_table_list_local),
+                                        MarkingState>(isolate, worklists_local),
       marking_state_(PtrComprCageBase(isolate)),
       shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_COMPACTOR)) {}
@@ -5714,17 +5712,12 @@ void MinorMarkCompactCollector::StartMarking() {
     // StartMarking.
     cpp_heap->InitializeTracing(CppHeap::CollectionType::kMinor);
   }
-  ephemeron_table_list_ = std::make_unique<EphemeronRememberedSet::TableList>();
-  local_ephemeron_table_list_ =
-      std::make_unique<EphemeronRememberedSet::TableList::Local>(
-          *ephemeron_table_list_.get());
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
       marking_worklists(),
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap()->isolate(), local_marking_worklists(),
-      local_ephemeron_table_list_.get());
+      heap()->isolate(), local_marking_worklists());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
@@ -5763,6 +5756,8 @@ void MinorMarkCompactCollector::Finish() {
 void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
   DCHECK_NOT_NULL(heap()->new_space());
+  // Minor MC does not support processing the ephemeron remembered set.
+  DCHECK(heap()->ephemeron_remembered_set()->tables()->empty());
   DCHECK(!heap()->array_buffer_sweeper()->sweeping_in_progress());
   DCHECK(!sweeper()->AreSweeperTasksRunning());
   DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
@@ -5872,82 +5867,18 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
           nullptr, &IsUnmarkedObjectForYoungGeneration);
     }
   }
-
-  // Clear ephemeron entries from EphemeronHashTables in the young generation
-  // whenever the entry has a dead young generation key.
-  //
-  // Worklist is collected during marking.
-  local_ephemeron_table_list_->Publish();
-  EphemeronHashTable table;
-  while (local_ephemeron_table_list_->Pop(&table)) {
-    for (InternalIndex i : table.IterateEntries()) {
-      // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
-      HeapObject key = key_slot.ToHeapObject();
-      if (Heap::InYoungGeneration(key) &&
-          non_atomic_marking_state()->IsUnmarked(key)) {
-        table.RemoveEntry(i);
-      }
-    }
-  }
-  local_ephemeron_table_list_.reset();
-  ephemeron_table_list_.reset();
-
-  // Clear ephemeron entries from EphemeronHashTables in the old generation
-  // whenever the entry has a dead young generation key.
-  //
-  // Does not need to be iterated as roots but is maintained in the GC to avoid
-  // treating keys as strong. The set is populated from the write barrier and
-  // the sweeper during promoted pages iteration.
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
-    EphemeronHashTable table = it->first;
-    auto& indices = it->second;
-    for (auto iti = indices.begin(); iti != indices.end();) {
-      // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(table.RawFieldOfElementAt(
-          EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-      HeapObject key = key_slot.ToHeapObject();
-      // There may be old generation entries left in the remembered set as
-      // MinorMC only promotes pages after clearing non-live references.
-      if (!Heap::InYoungGeneration(key)) {
-        iti = indices.erase(iti);
-      } else if (non_atomic_marking_state()->IsUnmarked(key)) {
-        table.RemoveEntry(InternalIndex(*iti));
-        iti = indices.erase(iti);
-      } else {
-        ++iti;
-      }
-    }
-
-    if (indices.size() == 0) {
-      it = table_map->erase(it);
-    } else {
-      ++it;
-    }
-  }
 }
 
 class PageMarkingItem;
 
 YoungGenerationMarkingTask::YoungGenerationMarkingTask(
-    Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-    EphemeronRememberedSet::TableList* ephemeron_table_list)
+    Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists)
     : marking_worklists_local_(
           global_worklists,
           heap->cpp_heap()
               ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
               : MarkingWorklists::Local::kNoCppMarkingState),
-      ephemeron_table_list_local_(*ephemeron_table_list),
-      visitor_(isolate, &marking_worklists_local_,
-               &ephemeron_table_list_local_) {}
-
-YoungGenerationMarkingTask::~YoungGenerationMarkingTask() {
-  DCHECK(marking_worklists_local_.IsEmpty());
-  // The list is not empty, as it is not processed in `DrainMarkingWorklist()`.
-  ephemeron_table_list_local_.Publish();
-}
+      visitor_(isolate, &marking_worklists_local_) {}
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
@@ -6229,7 +6160,7 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
     for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
          ++i) {
       tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
-          isolate(), heap(), marking_worklists(), ephemeron_table_list_.get()));
+          isolate(), heap(), marking_worklists()));
     }
     V8::GetCurrentPlatform()
         ->CreateJob(

@@ -10,7 +10,6 @@
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -72,11 +71,10 @@ class YoungGenerationConcurrentMarkingVisitor final
  public:
   YoungGenerationConcurrentMarkingVisitor(
       Heap* heap, MarkingWorklists::Local* worklists_local,
-      MemoryChunkDataMap* memory_chunk_data,
-      EphemeronRememberedSet::TableList::Local* epemeron_table_list_local)
+      MemoryChunkDataMap* memory_chunk_data)
       : YoungGenerationMarkingVisitorBase<
             YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState>(
-            heap->isolate(), worklists_local, epemeron_table_list_local),
+            heap->isolate(), worklists_local),
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
   using YoungGenerationMarkingVisitorBase<
@@ -432,13 +430,10 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   int kObjectsUntilInterruptCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = task_state_[task_id].get();
-  EphemeronRememberedSet::TableList::Local local_ephemeron_table_list(
-      *heap_->minor_mark_compact_collector()->ephemeron_table_list());
   MarkingWorklists::Local local_marking_worklists(
       marking_worklists_, MarkingWorklists::Local::kNoCppMarkingState);
   YoungGenerationConcurrentMarkingVisitor visitor(
-      heap_, &local_marking_worklists, &task_state->memory_chunk_data,
-      &local_ephemeron_table_list);
+      heap_, &local_marking_worklists, &task_state->memory_chunk_data);
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
