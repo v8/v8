@@ -68,7 +68,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:12.20230424.2.1',
+  'fuchsia_version': 'version:12.20230425.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -108,9 +108,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '673165a81d5d03faa04d3fa35d71c92f640dbcdd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5afa0df9123b31e53223d438955e609ae7602b45',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '539a6f68735c631f57ae33096e9e7fc059e049cf',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '01af4b3ae00084655cde82cbba64e0b0202df494',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'f97059df7f8b205064625cdb5f97b56668a125ef',
   'buildtools/linux64': {
@@ -134,7 +134,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'bff81b702ff4b7f74b1c0ed02a4bcf6c2744a90b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0e4617cf8c09a8e2b6704a51a8a0a9560715cf70',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '307bd163607c315d46103ebe1d68aab44bf93986',
   'buildtools/third_party/libunwind/trunk':
@@ -212,7 +212,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2e34623e2b9c3e56f571b0325239673703f1bb30',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8efa1a98a1440d0a749006b216fbc6f68bd0fe1b',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
