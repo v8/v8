@@ -161,7 +161,7 @@ void HeapInternalsBase::SimulateFullSpace(
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
-    DCHECK_EQ(0, space->free_list()->Available());
+    DCHECK_IMPLIES(space->free_list(), space->free_list()->Available() == 0);
   } else {
     do {
       FillCurrentPage(space, out_handles);

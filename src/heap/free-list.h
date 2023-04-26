@@ -132,9 +132,10 @@ class FreeListCategory {
 class FreeList {
  public:
   // Creates a Freelist of the default class.
-  V8_EXPORT_PRIVATE static FreeList* CreateFreeList();
+  V8_EXPORT_PRIVATE static std::unique_ptr<FreeList> CreateFreeList();
   // Creates a Freelist for new space.
-  V8_EXPORT_PRIVATE static FreeList* CreateFreeListForNewSpace();
+  V8_EXPORT_PRIVATE static std::unique_ptr<FreeList>
+  CreateFreeListForNewSpace();
 
   virtual ~FreeList() = default;
 
@@ -278,31 +279,6 @@ class FreeList {
   friend class MemoryChunk;
   friend class ReadOnlyPage;
   friend class MapSpace;
-};
-
-// FreeList used for spaces that don't have freelists
-// (only the LargeObject space for now).
-class NoFreeList final : public FreeList {
- public:
-  size_t GuaranteedAllocatable(size_t maximum_freed) final {
-    FATAL("NoFreeList can't be used as a standard FreeList. ");
-  }
-  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) final {
-    FATAL("NoFreeList can't be used as a standard FreeList.");
-  }
-  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                           size_t* node_size,
-                                           AllocationOrigin origin) final {
-    FATAL("NoFreeList can't be used as a standard FreeList.");
-  }
-  Page* GetPageForSize(size_t size_in_bytes) final {
-    FATAL("NoFreeList can't be used as a standard FreeList.");
-  }
-
- private:
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) final {
-    FATAL("NoFreeList can't be used as a standard FreeList.");
-  }
 };
 
 // Use 24 Freelists: on per 16 bytes between 24 and 256, and then a few ones for

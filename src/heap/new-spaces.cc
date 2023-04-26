@@ -434,9 +434,8 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // NewSpace implementation
 
 NewSpace::NewSpace(Heap* heap, LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(),
-                          allocation_counter_, allocation_info,
-                          linear_area_original_data_) {}
+    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, allocation_counter_,
+                          allocation_info, linear_area_original_data_) {}
 
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
   if (allocation_info_.MergeIfAdjacent(info)) {

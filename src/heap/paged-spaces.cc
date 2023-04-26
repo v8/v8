@@ -120,11 +120,11 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
-    FreeList* free_list, AllocationCounter& allocation_counter,
+    std::unique_ptr<FreeList> free_list, AllocationCounter& allocation_counter,
     LinearAllocationArea& allocation_info_,
     LinearAreaOriginalData& linear_area_original_data,
     CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, free_list, allocation_counter,
+    : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_counter,
                           allocation_info_, linear_area_original_data),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {

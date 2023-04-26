@@ -46,7 +46,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Creates a space with an id.
   PagedSpaceBase(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, AllocationCounter& allocation_counter,
+      std::unique_ptr<FreeList> free_list,
+      AllocationCounter& allocation_counter,
       LinearAllocationArea& allocation_info,
       LinearAreaOriginalData& linear_area_original_data,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
@@ -388,11 +389,12 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
   // Creates a space with an id.
   PagedSpace(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, LinearAllocationArea& allocation_info,
+      std::unique_ptr<FreeList> free_list,
+      LinearAllocationArea& allocation_info,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
-      : PagedSpaceBase(heap, id, executable, free_list, allocation_counter_,
-                       allocation_info, linear_area_original_data_,
-                       compaction_space_kind) {}
+      : PagedSpaceBase(heap, id, executable, std::move(free_list),
+                       allocation_counter_, allocation_info,
+                       linear_area_original_data_, compaction_space_kind) {}
 
   void RefillFreeList() final;
 

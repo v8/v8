@@ -19,6 +19,7 @@
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -43,14 +44,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, new NoFreeList(), allocation_counter_),
-        current_capacity_(0),
-        target_capacity_(0),
-        maximum_capacity_(0),
-        minimum_capacity_(0),
-        age_mark_(kNullAddress),
-        id_(semispace),
-        current_page_(nullptr) {}
+      : Space(heap, NEW_SPACE, nullptr, allocation_counter_), id_(semispace) {}
 
   inline bool Contains(HeapObject o) const;
   inline bool Contains(Object o) const;
@@ -191,27 +185,19 @@ class SemiSpace final : public Space {
   void DecrementCommittedPhysicalMemory(size_t decrement_value);
 
   // The currently committed space capacity.
-  size_t current_capacity_;
-
+  size_t current_capacity_ = 0;
   // The targetted committed space capacity.
-  size_t target_capacity_;
-
+  size_t target_capacity_ = 0;
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
-  size_t maximum_capacity_;
-
+  size_t maximum_capacity_ = 0;
   // The minimum capacity for the space. A space cannot shrink below this size.
-  size_t minimum_capacity_;
-
+  size_t minimum_capacity_ = 0;
   // Used to govern object promotion during mark-compact collection.
-  Address age_mark_;
-
-  size_t committed_physical_memory_{0};
-
+  Address age_mark_ = kNullAddress;
+  size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
-
-  Page* current_page_;
-
+  Page* current_page_ = nullptr;
   AllocationCounter allocation_counter_;
 
   friend class SemiSpaceNewSpace;

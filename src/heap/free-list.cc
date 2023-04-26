@@ -109,10 +109,12 @@ void FreeListCategory::Relink(FreeList* owner) {
 // ------------------------------------------------
 // Generic FreeList methods (alloc/free related)
 
-FreeList* FreeList::CreateFreeList() { return new FreeListManyCachedOrigin(); }
+std::unique_ptr<FreeList> FreeList::CreateFreeList() {
+  return std::make_unique<FreeListManyCachedOrigin>();
+}
 
-FreeList* FreeList::CreateFreeListForNewSpace() {
-  return new FreeListManyCachedFastPathForNewSpace();
+std::unique_ptr<FreeList> FreeList::CreateFreeListForNewSpace() {
+  return std::make_unique<FreeListManyCachedFastPathForNewSpace>();
 }
 
 FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
