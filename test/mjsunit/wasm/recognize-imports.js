@@ -93,3 +93,65 @@ assertEquals("abc", instance1.exports.call_tolower("ABC"));
   CheckStackTrace(
       () => call_inttostring(1, 99), () => func(1, 99), 'call_inttostring');
 })();
+
+(function TestDoubleToString() {
+  console.log("Testing DoubleToString");
+  let builder = new WasmModuleBuilder();
+  let sig_d_w = makeSig([kWasmStringRef], [kWasmF64]);
+  let sig_w_d = makeSig([kWasmF64], [kWasmStringRef]);
+  let doubleToString = builder.addImport("m", "doubleToString", sig_w_d);
+  let stringToDouble = builder.addImport("m", "stringToDouble", sig_d_w);
+  builder.addFunction('call_doubletostring', sig_w_d).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprCallFunction, doubleToString,
+  ]);
+  builder.addFunction('call_stringtodouble', sig_d_w).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprCallFunction, stringToDouble,
+  ]);
+  let wasm = builder.instantiate({
+    m: {
+      doubleToString: Function.prototype.call.bind(Number.prototype.toString),
+      stringToDouble: parseFloat,
+    }
+  }).exports;
+  let d2s = wasm.call_doubletostring;
+  let s2d = wasm.call_stringtodouble;
+  %WasmTierUpFunction(d2s);
+  %WasmTierUpFunction(s2d);
+  assertEquals("42", d2s(42));
+  assertEquals("1234.5", d2s(1234.5));
+  assertEquals("NaN", d2s(NaN));
+  assertEquals(1234.5, s2d("1234.5"));
+  assertEquals(NaN, s2d(null));
+})();
+
+(function TestIndexOf() {
+  console.log("Testing String.indexOf");
+  let builder = new WasmModuleBuilder();
+  let sig_i_wwi =
+      makeSig([kWasmStringRef, kWasmStringRef, kWasmI32], [kWasmI32]);
+  let indexOf = builder.addImport("m", "indexOf", sig_i_wwi);
+  builder.addFunction('call_indexof', sig_i_wwi).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprLocalGet, 2,
+    kExprCallFunction, indexOf,
+  ]);
+  indexOf = builder.instantiate({
+      m: {indexOf: Function.prototype.call.bind(String.prototype.indexOf)}
+  }).exports.call_indexof;
+  %WasmTierUpFunction(indexOf);
+  assertEquals(2, indexOf("xxfooxx", "foo", 0));
+  assertEquals(2, indexOf("xxfooxx", "foo", -2));
+  assertEquals(-1, indexOf("xxfooxx", "foo", 100));
+  // Make sure we don't lose bits when Smi-tagging of the start position.
+  assertEquals(-1, indexOf("xxfooxx", "foo", 0x4000_0000));
+  assertEquals(-1, indexOf("xxfooxx", "foo", 0x2000_0000));
+  assertEquals(2, indexOf("xxfooxx", "foo", 0x8000_0000));  // Negative i32.
+  // When first arg is null, throw; when second arg is null, convert.
+  assertEquals(2, indexOf("xxnullxx", null, 0));
+  CheckStackTrace(
+      () => indexOf(null, 'null', 0),
+      () => String.prototype.indexOf.call(null, 'null', 0), 'call_indexof');
+})();

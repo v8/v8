@@ -587,8 +587,13 @@ class WasmGraphBuilder {
 
   // Support for well-known imports.
   // See {CheckWellKnownImport} for signature and builtin ID definitions.
+  Node* WellKnown_StringIndexOf(Node* string, Node* search, Node* start,
+                                CheckForNull string_null_check,
+                                CheckForNull search_null_check);
   Node* WellKnown_StringToLowerCaseStringref(Node* string,
                                              CheckForNull null_check);
+  Node* WellKnown_ParseFloat(Node* string, CheckForNull null_check);
+  Node* WellKnown_DoubleToString(Node* n);
   Node* WellKnown_IntToString(Node* n, Node* radix);
 
   bool has_simd() const { return has_simd_; }

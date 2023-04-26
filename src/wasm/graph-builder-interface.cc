@@ -738,13 +738,29 @@ class WasmGraphBuildingInterface {
       case WKI::kUninstantiated:
       case WKI::kGeneric:
         return false;
+      case WKI::kDoubleToString:
+        result = builder_->WellKnown_DoubleToString(args[0].node);
+        break;
       case WKI::kIntToString:
         result = builder_->WellKnown_IntToString(args[0].node, args[1].node);
+        break;
+      case WKI::kParseFloat:
+        result = builder_->WellKnown_ParseFloat(args[0].node,
+                                                NullCheckFor(args[0].type));
+        break;
+      case WKI::kStringIndexOf:
+        result = builder_->WellKnown_StringIndexOf(
+            args[0].node, args[1].node, args[2].node,
+            NullCheckFor(args[0].type), NullCheckFor(args[1].type));
         break;
       case WKI::kStringToLowerCaseStringref:
         result = builder_->WellKnown_StringToLowerCaseStringref(
             args[0].node, NullCheckFor(args[0].type));
         break;
+    }
+    if (v8_flags.trace_wasm_inlining) {
+      PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
+             WellKnownImportName(import));
     }
     assumptions_->RecordAssumption(index, import);
     SetAndTypeNode(&returns[0], result);

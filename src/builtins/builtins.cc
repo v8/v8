@@ -257,6 +257,9 @@ const char* Builtins::NameForStackTrace(Builtin builtin) {
   // - builtins that throw the same error as one of those above, but would
   //   lose information and e.g. print "indexOf" instead of "String.indexOf".
   switch (builtin) {
+    case Builtin::kStringPrototypeIndexOf:
+    case Builtin::kThrowIndexOfCalledOnNull:
+      return "String.indexOf";
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif

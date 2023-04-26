@@ -19,9 +19,15 @@
 namespace v8::internal::wasm {
 
 enum class WellKnownImport : uint8_t {
+  // Generic:
   kUninstantiated,
   kGeneric,
+
+  // Functions:
+  kDoubleToString,
   kIntToString,
+  kParseFloat,
+  kStringIndexOf,
   kStringToLowerCaseStringref,
 };
 

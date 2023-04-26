@@ -107,17 +107,6 @@ enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 }  // namespace internal
 }  // namespace v8
 
-// Support for floating point parameters in calls to C.
-// It's currently enabled only for the platforms listed below. We don't plan
-// to add support for IA32, because it has a totally different approach
-// (using FP stack). As support is added to more platforms, please make sure
-// to list them here in order to enable tests of this functionality.
-// Make sure to sync the following with src/d8/d8-test.cc.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
-#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#endif
-
 // The biggest double value that fits within the int64_t/uint64_t value range.
 // This is different from safe integer range in that there are gaps of integers
 // in-between that cannot be represented as a double.

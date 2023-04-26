@@ -675,6 +675,12 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   }
 }
 
+double flat_string_to_f64(Address string_address) {
+  String s = String::cast(Object(string_address));
+  return FlatStringToDouble(s, ALLOW_TRAILING_JUNK,
+                            std::numeric_limits<double>::quiet_NaN());
+}
+
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 
 void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {

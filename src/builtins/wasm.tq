@@ -96,6 +96,8 @@ extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
 extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
     NativeContext;
 
+extern macro WasmBuiltinsAssembler::StringToFloat64(String): float64;
+
 macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstance(LoadInstanceFromFrame());
 }
@@ -1072,6 +1074,13 @@ builtin ThrowToLowerCaseCalledOnNull(): JSAny {
   runtime::WasmThrowTypeError(context, SmiConstant(error), name);
 }
 
+builtin ThrowIndexOfCalledOnNull(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kCalledOnNullOrUndefined;
+  const name = StringConstant('String.prototype.indexOf');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   tail StringAdd_CheckNone(a, b);
@@ -1329,6 +1338,16 @@ builtin WasmIntToString(x: int32, radix: int32): String {
         SmiConstant(MessageTemplate::kToRadixFormatRange));
   }
   return number::IntToString(x, Unsigned(radix));
+}
+
+builtin WasmStringToDouble(s: String): float64 {
+  const hash: NameHash = s.raw_hash_field;
+  if (IsIntegerIndex(hash) &&
+      hash.array_index_length < kMaxCachedArrayIndexLength) {
+    const arrayIndex: int32 = Signed(hash.array_index_value);
+    return Convert<float64>(arrayIndex);
+  }
+  return StringToFloat64(Flatten(s));
 }
 
 builtin WasmStringFromCodePoint(codePoint: uint32): String {

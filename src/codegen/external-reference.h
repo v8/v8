@@ -297,6 +297,7 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
+  IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
@@ -425,6 +426,10 @@ class ExternalReference {
     // Builtin call that returns floating point.
     // double f(double, int).
     BUILTIN_FP_INT_CALL,
+
+    // Builtin call that returns floating point.
+    // double f(Address tagged_ptr).
+    BUILTIN_FP_POINTER_CALL,
 
     // Direct call to API function callback.
     // void f(v8::FunctionCallbackInfo&)

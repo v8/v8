@@ -54,8 +54,19 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 // Tests that the builtins we aim to recognize actually are recognized.
 (function TestRecognizedBuiltins() {
   let builder = new WasmModuleBuilder();
+  let sig_d_w = makeSig([kWasmStringRef], [kWasmF64]);
+  let sig_i_wwi =
+      makeSig([kWasmStringRef, kWasmStringRef, kWasmI32], [kWasmI32]);
+  let sig_w_d = makeSig([kWasmF64], [kWasmStringRef]);
   let sig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
   builder.addImport("m", "intToString", sig_w_ii);
+  builder.addImport("m", "doubleToString", sig_w_d);
+  builder.addImport("m", "parseFloat", sig_d_w);
+  builder.addImport("m", "indexOf", sig_i_wwi);
+  let indexOf = Function.prototype.call.bind(String.prototype.indexOf);
   let intToString = Function.prototype.call.bind(Number.prototype.toString);
-  builder.instantiate({ m: { intToString } });
+  let doubleToString = intToString;
+  builder.instantiate({
+    m: {intToString, doubleToString, parseFloat, indexOf}
+  });
 })();

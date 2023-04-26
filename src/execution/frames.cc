@@ -1678,6 +1678,7 @@ void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // specifically exist to pretend to be another builtin throwing an
   // exception.
   switch (code.builtin_id()) {
+    case Builtin::kThrowIndexOfCalledOnNull:
     case Builtin::kThrowToLowerCaseCalledOnNull:
     case Builtin::kWasmIntToString: {
       // When adding builtins here, also implement naming support for them.
