@@ -207,7 +207,6 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
-  // By default, the GC methods do not scan the stack conservatively.
   void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
     iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
@@ -603,6 +602,13 @@ class ParkingThread : public v8::base::Thread {
  public:
   explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
 
+  void ParkedJoin(LocalIsolate* local_isolate) {
+    ParkedJoin(local_isolate->heap());
+  }
+  void ParkedJoin(LocalHeap* local_heap) {
+    ParkedScope scope(local_heap);
+    ParkedJoin(scope);
+  }
   void ParkedJoin(const ParkedScope& scope) {
     USE(scope);
     Join();
