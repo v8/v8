@@ -1604,24 +1604,6 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
 }
 #endif
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      old_available_(*available_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  DCHECK(!available_->is_empty());
-  int index =
-      static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
-  *available_ &= RegList::FromBits(~(1U << index));
-
-  return Register::from_code(index);
-}
-
 bool UseScratchRegisterScope::hasAvailable() const {
   return !available_->is_empty();
 }
