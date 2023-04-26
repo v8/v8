@@ -169,7 +169,8 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 }  // namespace
 
 // static
-int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
+int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function,
+                                       bool deoptimize) {
   DCHECK(function.shared().is_compiled());
   const int bytecode_length =
       function.shared().GetBytecodeArray(isolate).length();
@@ -180,8 +181,11 @@ int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
       // operation for forward jump.
       return INT_MAX / 2;
     }
-    return ::i::InterruptBudgetFor(function.GetActiveTier(),
-                                   function.tiering_state(), bytecode_length);
+    base::Optional<CodeKind> active_tier =
+        deoptimize ? CodeKind::INTERPRETED_FUNCTION : function.GetActiveTier();
+    TieringState tiering_state =
+        deoptimize ? TieringState::kNone : function.tiering_state();
+    return ::i::InterruptBudgetFor(active_tier, tiering_state, bytecode_length);
   }
 
   DCHECK(!function.has_feedback_vector());

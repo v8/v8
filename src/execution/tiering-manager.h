@@ -34,7 +34,8 @@ class TieringManager {
   void RequestOsrAtNextOpportunity(JSFunction function);
 
   // For use when a JSFunction is available.
-  static int InterruptBudgetFor(Isolate* isolate, JSFunction function);
+  static int InterruptBudgetFor(Isolate* isolate, JSFunction function,
+                                bool deoptimize = false);
 
   void MarkForTurboFanOptimization(JSFunction function);
 

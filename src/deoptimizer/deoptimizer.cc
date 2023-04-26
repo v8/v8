@@ -878,6 +878,11 @@ void Deoptimizer::DoComputeOutputFrames() {
                                             isolate()->cage_base());
 #endif
 
+  if (function_.IsJSFunction()) {
+    function_.SetInterruptBudget(isolate_, true);
+    function_.reset_tiering_state();
+  }
+
   // Print some helpful diagnostic information.
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());

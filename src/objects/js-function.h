@@ -187,7 +187,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
-  void SetInterruptBudget(Isolate* isolate);
+  void SetInterruptBudget(Isolate* isolate, bool deoptimize = false);
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
