@@ -2290,7 +2290,10 @@ class V8_NODISCARD UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
+  V8_EXPORT_PRIVATE ~UseScratchRegisterScope() {
+    available_->set_bits(old_available_);
+    availablefp_->set_bits(old_availablefp_);
+  }
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -2306,8 +2309,15 @@ class V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquire() const { return !available_->IsEmpty(); }
   bool CanAcquireFP() const { return !availablefp_->IsEmpty(); }
 
-  Register AcquireSameSizeAs(const Register& reg);
-  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
+  Register AcquireSameSizeAs(const Register& reg) {
+    int code = AcquireNextAvailable(available_).code();
+    return Register::Create(code, reg.SizeInBits());
+  }
+
+  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg) {
+    int code = AcquireNextAvailable(availablefp_).code();
+    return VRegister::Create(code, reg.SizeInBits());
+  }
 
   void Include(const CPURegList& list) { available_->Combine(list); }
   void IncludeFP(const CPURegList& list) { availablefp_->Combine(list); }
@@ -2349,7 +2359,12 @@ class V8_NODISCARD UseScratchRegisterScope {
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
-      CPURegList* available);
+      CPURegList* available) {
+    CHECK(!available->IsEmpty());
+    CPURegister result = available->PopLowestIndex();
+    DCHECK(!AreAliased(result, xzr, sp));
+    return result;
+  }
 
   // Available scratch registers.
   CPURegList* available_;    // kRegister
