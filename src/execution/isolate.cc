@@ -1526,8 +1526,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
       // Get the native context of current top context.
       // avoid using Isolate::native_context() because it uses Handle.
-      Context native_context =
-          accessing_context->global_object().native_context();
+      Context native_context = accessing_context->native_context();
       if (receiver_context == native_context) return true;
 
       if (Context::cast(receiver_context).security_token() ==

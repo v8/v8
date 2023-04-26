@@ -1216,8 +1216,7 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::ScriptContextTable> table(
-      context->global_object().native_context().script_context_table(),
-      isolate);
+      context->native_context().script_context_table(), isolate);
   for (int i = 0; i < table->used(kAcquireLoad); i++) {
     i::Handle<i::Context> script_context =
         i::ScriptContextTable::GetContext(isolate, table, i);
