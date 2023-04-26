@@ -441,11 +441,9 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
 namespace {
 
 bool IsErrorObject(Isolate* isolate, Handle<Object> object) {
-  if (!object->IsJSReceiver()) return false;
-  Handle<Symbol> symbol = isolate->factory()->error_stack_symbol();
-  return JSReceiver::HasOwnProperty(isolate, Handle<JSReceiver>::cast(object),
-                                    symbol)
-      .FromMaybe(false);
+  if (!object->IsJSObject()) return false;
+  return ErrorUtils::HasErrorStackSymbolOwnProperty(
+      isolate, Handle<JSObject>::cast(object));
 }
 
 Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
@@ -4596,6 +4594,7 @@ Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
                                           AccessorComponent component) {
   Handle<Object> accessor(accessor_pair->get(component), isolate);
   if (accessor->IsFunctionTemplateInfo()) {
+    // TODO(v8:5962): pass the right name here: "get "/"set " + prop.
     auto function = ApiNatives::InstantiateFunction(
                         isolate, native_context,
                         Handle<FunctionTemplateInfo>::cast(accessor))

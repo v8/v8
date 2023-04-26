@@ -6928,6 +6928,9 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
 
   bool DeepFreeze(i::Handle<i::Context> context) {
     bool success = VisitObject(i::HeapObject::cast(*context));
+    if (success) {
+      success = InstantiateAndVisitLazyAccessorPairs();
+    }
     DCHECK_EQ(success, !error_.has_value());
     if (!success) {
       THROW_NEW_ERROR_RETURN_VALUE(
@@ -7015,15 +7018,13 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     if (i::InstanceTypeChecker::IsAccessorPair(obj_type)) {
       // For AccessorPairs we need to ensure that the functions they point to
       // have been instantiated into actual JavaScript objects that can be
-      // frozen. TODO(behamilton): If they haven't then we need to save them to
-      // instantiate (and recurse) before freezing.
+      // frozen. If they haven't then we need to save them to instantiate
+      // (and recurse) before freezing.
       i::AccessorPair accessor_pair = i::AccessorPair::cast(obj);
       if (accessor_pair.getter().IsFunctionTemplateInfo() ||
           accessor_pair.setter().IsFunctionTemplateInfo()) {
-        // TODO(behamilton): Handle this more gracefully.
-        error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeObject,
-                           isolate_->factory()->empty_string()};
-        return false;
+        i::Handle<i::AccessorPair> lazy_accessor_pair(accessor_pair, isolate_);
+        lazy_accessor_pairs_to_freeze_.push_back(lazy_accessor_pair);
       }
     } else if (i::InstanceTypeChecker::IsContext(obj_type)) {
       // For contexts we need to ensure that all accessible locals are const.
@@ -7092,10 +7093,29 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     return !error_.has_value();
   }
 
+  bool InstantiateAndVisitLazyAccessorPairs() {
+    i::Handle<i::NativeContext> native_context = isolate_->native_context();
+
+    std::vector<i::Handle<i::AccessorPair>> lazy_accessor_pairs_to_freeze;
+    std::swap(lazy_accessor_pairs_to_freeze, lazy_accessor_pairs_to_freeze_);
+
+    for (const auto& accessor_pair : lazy_accessor_pairs_to_freeze) {
+      i::AccessorPair::GetComponent(isolate_, native_context, accessor_pair,
+                                    i::ACCESSOR_GETTER);
+      i::AccessorPair::GetComponent(isolate_, native_context, accessor_pair,
+                                    i::ACCESSOR_SETTER);
+      VisitObject(*accessor_pair);
+    }
+    // Ensure no new lazy accessor pairs were discovered.
+    CHECK_EQ(lazy_accessor_pairs_to_freeze_.size(), 0);
+    return true;
+  }
+
   i::Isolate* isolate_;
   Context::DeepFreezeDelegate* delegate_;
   std::unordered_set<i::Object, i::Object::Hasher> done_list_;
   std::vector<i::Handle<i::JSReceiver>> objects_to_freeze_;
+  std::vector<i::Handle<i::AccessorPair>> lazy_accessor_pairs_to_freeze_;
   base::Optional<ErrorInfo> error_;
 };
 

@@ -30167,7 +30167,7 @@ TEST(DeepFreezeInstantiatesAccessors) {
 
   v8::Local<v8::Context> context = env.local();
   v8::Maybe<void> maybe_success = context->DeepFreeze(nullptr);
-  CHECK(maybe_success.IsNothing());
+  CHECK(!maybe_success.IsNothing());
 }
 
 namespace {
@@ -30195,5 +30195,5 @@ TEST(DeepFreezeInstantiatesAccessors2) {
 
   v8::Local<v8::Context> context = env.local();
   v8::Maybe<void> maybe_success = context->DeepFreeze(nullptr);
-  CHECK(maybe_success.IsNothing());
+  CHECK(!maybe_success.IsNothing());
 }

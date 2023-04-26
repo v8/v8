@@ -289,6 +289,10 @@ class Symbol;
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(FunctionTemplateInfo, error_stack_getter_fun_template,                     \
+    ErrorStackGetterSharedFun)                                                 \
+  V(FunctionTemplateInfo, error_stack_setter_fun_template,                     \
+    ErrorStackSetterSharedFun)                                                 \
   V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
     PromiseAllResolveElementSharedFun)                                         \
   V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \

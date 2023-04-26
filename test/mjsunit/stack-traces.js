@@ -391,7 +391,7 @@ assertEquals([], Object.keys(o));
 var desc = Object.getOwnPropertyDescriptor(o, "stack");
 assertFalse(desc.enumerable);
 assertTrue(desc.configurable);
-assertTrue(desc.writable);
+assertEquals(desc.writable, undefined);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }

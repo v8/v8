@@ -1512,12 +1512,22 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   }
 
   Handle<Map> initial_map(error_fun->initial_map(), isolate);
-  Map::EnsureDescriptorSlack(isolate, initial_map, 1);
+  Map::EnsureDescriptorSlack(isolate, initial_map, 2);
+  const int kJSErrorErrorStackSymbolIndex = 0;
 
-  {
-    Handle<AccessorInfo> info = factory->error_stack_accessor();
-    Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
-                                                info, DONT_ENUM);
+  {  // error_stack_symbol
+    Descriptor d = Descriptor::DataField(isolate, factory->error_stack_symbol(),
+                                         kJSErrorErrorStackSymbolIndex,
+                                         DONT_ENUM, Representation::Tagged());
+    initial_map->AppendDescriptor(isolate, &d);
+  }
+  {  // stack
+    Handle<AccessorPair> new_pair = factory->NewAccessorPair();
+    new_pair->set_getter(*factory->error_stack_getter_fun_template());
+    new_pair->set_setter(*factory->error_stack_setter_fun_template());
+
+    Descriptor d = Descriptor::AccessorConstant(factory->stack_string(),
+                                                new_pair, DONT_ENUM);
     initial_map->AppendDescriptor(isolate, &d);
   }
 }

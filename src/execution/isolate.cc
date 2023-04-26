@@ -88,6 +88,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
@@ -1268,34 +1269,34 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
 }
 
 Handle<FixedArray> Isolate::GetDetailedStackTrace(
-    Handle<JSReceiver> error_object) {
-  Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      this, error_object, factory()->error_stack_symbol());
-  if (!error_stack->IsErrorStackData()) {
-    return Handle<FixedArray>();
-  }
+    Handle<JSReceiver> maybe_error_object) {
+  ErrorUtils::StackPropertyLookupResult lookup =
+      ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
+
+  if (!lookup.error_stack->IsErrorStackData()) return {};
   Handle<ErrorStackData> error_stack_data =
-      Handle<ErrorStackData>::cast(error_stack);
+      Handle<ErrorStackData>::cast(lookup.error_stack);
+
   ErrorStackData::EnsureStackFrameInfos(this, error_stack_data);
-  if (!error_stack_data->limit_or_stack_frame_infos().IsFixedArray()) {
-    return Handle<FixedArray>();
-  }
+
+  if (!error_stack_data->limit_or_stack_frame_infos().IsFixedArray()) return {};
   return handle(
       FixedArray::cast(error_stack_data->limit_or_stack_frame_infos()), this);
 }
 
 Handle<FixedArray> Isolate::GetSimpleStackTrace(
-    Handle<JSReceiver> error_object) {
-  Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      this, error_object, factory()->error_stack_symbol());
-  if (error_stack->IsFixedArray()) {
-    return Handle<FixedArray>::cast(error_stack);
+    Handle<JSReceiver> maybe_error_object) {
+  ErrorUtils::StackPropertyLookupResult lookup =
+      ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
+
+  if (lookup.error_stack->IsFixedArray()) {
+    return Handle<FixedArray>::cast(lookup.error_stack);
   }
-  if (!error_stack->IsErrorStackData()) {
+  if (!lookup.error_stack->IsErrorStackData()) {
     return factory()->empty_fixed_array();
   }
   Handle<ErrorStackData> error_stack_data =
-      Handle<ErrorStackData>::cast(error_stack);
+      Handle<ErrorStackData>::cast(lookup.error_stack);
   if (!error_stack_data->HasCallSiteInfos()) {
     return factory()->empty_fixed_array();
   }

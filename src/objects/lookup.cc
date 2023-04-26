@@ -42,23 +42,6 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
   }
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               Handle<Name> name, Handle<Map> transition_map,
-                               PropertyDetails details, bool has_property)
-    : configuration_(DEFAULT),
-      state_(TRANSITION),
-      has_property_(has_property),
-      interceptor_state_(InterceptorState::kUninitialized),
-      property_details_(details),
-      isolate_(isolate),
-      name_(name),
-      transition_(transition_map),
-      receiver_(receiver),
-      lookup_start_object_(receiver),
-      index_(kInvalidIndex) {
-  holder_ = GetRoot(isolate, lookup_start_object_);
-}
-
 template <bool is_element>
 void LookupIterator::Start() {
   // GetRoot might allocate if lookup_start_object_ is a string.

@@ -112,6 +112,22 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
   }
 }
 
+LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
+                               Handle<Object> receiver, Handle<Symbol> name)
+    : configuration_(configuration),
+      isolate_(isolate),
+      name_(name),
+      receiver_(receiver),
+      lookup_start_object_(receiver),
+      index_(kInvalidIndex) {
+  // This is the only lookup configuration allowed by this constructor because
+  // it's special case allowing lookup of the private symbols on the prototype
+  // chain. Usually private symbols are limited to OWN_SKIP_INTERCEPTOR lookups.
+  DCHECK_EQ(*name_, *isolate->factory()->error_stack_symbol());
+  DCHECK_EQ(configuration, PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  Start<false>();
+}
+
 PropertyKey::PropertyKey(Isolate* isolate, double index) {
   DCHECK_EQ(index, static_cast<uint64_t>(index));
 #if V8_TARGET_ARCH_32_BIT

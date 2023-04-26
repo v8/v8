@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api/api-natives.h"
+#include "src/api/api.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/isolate.h"
@@ -1278,6 +1280,21 @@ void Heap::CreateInitialMutableObjects() {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
+  }
+
+  // Error.stack accessor callbacks:
+  {
+    // TODO(v8:5962): create these FunctionTemplateInfos in RO space.
+    Handle<FunctionTemplateInfo> function_template;
+    function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
+        isolate_, Accessors::ErrorStackGetter, 0,
+        SideEffectType::kHasSideEffect);
+    set_error_stack_getter_fun_template(*function_template);
+
+    function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
+        isolate_, Accessors::ErrorStackSetter, 1,
+        SideEffectType::kHasSideEffectToReceiver);
+    set_error_stack_setter_fun_template(*function_template);
   }
 
   // Promises:

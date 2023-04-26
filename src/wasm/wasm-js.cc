@@ -1869,14 +1869,13 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (maybe_trace_stack.ToLocal(&trace_stack_value) &&
         trace_stack_value->BooleanValue(isolate)) {
       auto caller = Utils::OpenHandle(*info.NewTarget());
-      i_isolate->CaptureAndSetErrorStack(runtime_exception, i::SKIP_NONE,
-                                         caller);
-      i::Handle<i::AccessorInfo> error_stack =
-          i_isolate->factory()->error_stack_accessor();
-      i::Handle<i::Name> name(i::Name::cast(error_stack->name()), i_isolate);
-      i::JSObject::SetAccessor(runtime_exception, name, error_stack,
-                               i::DONT_ENUM)
-          .Assert();
+
+      i::Handle<i::Object> capture_result;
+      if (!i::ErrorUtils::CaptureStackTrace(i_isolate, runtime_exception,
+                                            i::SKIP_NONE, caller)
+               .ToHandle(&capture_result)) {
+        return;
+      }
     }
   }
 
