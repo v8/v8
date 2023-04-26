@@ -24,6 +24,7 @@ class StartupData;
 
 namespace internal {
 
+class FrontendChannelImpl;
 class TaskRunner;
 
 enum WithInspector : bool { kWithInspector = true, kNoInspector = false };
@@ -72,8 +73,9 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   // Working with V8Inspector api.
   int ConnectSession(int context_group_id,
                      const v8_inspector::StringView& state,
-                     v8_inspector::V8Inspector::Channel* channel);
-  std::vector<uint8_t> DisconnectSession(int session_id);
+                     std::unique_ptr<FrontendChannelImpl> channel);
+  std::vector<uint8_t> DisconnectSession(int session_id,
+                                         TaskRunner* context_task_runner);
   void SendMessage(int session_id, const v8_inspector::StringView& message);
   void BreakProgram(int context_group_id,
                     const v8_inspector::StringView& reason,
@@ -183,6 +185,25 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   v8::Global<v8::Private> not_inspectable_private_;
   v8::Global<v8::String> resource_name_prefix_;
   v8::Global<v8::String> additional_console_api_;
+};
+
+// Stores all the channels.
+//
+// `InspectorIsolateData` is per isolate and a channel connects
+// the backend Isolate with the frontend Isolate. The backend registers and
+// sets up the isolate, but the frontend needs it to send responses and
+// notifications. This is why we use a separate "class" (just a static wrapper
+// around std::map).
+class ChannelHolder {
+ public:
+  static void AddChannel(int session_id,
+                         std::unique_ptr<FrontendChannelImpl> channel);
+  static FrontendChannelImpl* GetChannel(int session_id);
+  static void RemoveChannel(int session_id);
+  static void ClearAllChannels();
+
+ private:
+  static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
 };
 
 }  // namespace internal

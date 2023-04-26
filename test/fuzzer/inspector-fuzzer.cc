@@ -78,8 +78,6 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     backend_runner_ = runner;
   }
 
-  static void ClearAllSessions() { channels_.clear(); }
-
  private:
   static TaskRunner* backend_runner_;
 
@@ -176,10 +174,12 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
       return;
     }
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-    FrontendChannelImpl* channel = new FrontendChannelImpl(
-        InspectorIsolateData::FromContext(context)->task_runner(),
-        InspectorIsolateData::FromContext(context)->GetContextGroupId(context),
-        info.GetIsolate(), info[2].As<v8::Function>());
+    std::unique_ptr<FrontendChannelImpl> channel =
+        std::make_unique<FrontendChannelImpl>(
+            InspectorIsolateData::FromContext(context)->task_runner(),
+            InspectorIsolateData::FromContext(context)->GetContextGroupId(
+                context),
+            info.GetIsolate(), info[2].As<v8::Function>());
 
     std::vector<uint8_t> state =
         ToBytes(info.GetIsolate(), info[1].As<v8::String>());
@@ -189,11 +189,10 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
                                   &state](InspectorIsolateData* data) {
       session_id = data->ConnectSession(
           context_group_id,
-          v8_inspector::StringView(state.data(), state.size()), channel);
-      channel->set_session_id(session_id);
+          v8_inspector::StringView(state.data(), state.size()),
+          std::move(channel));
     });
 
-    channels_[session_id].reset(channel);
     info.GetReturnValue().Set(v8::Int32::New(info.GetIsolate(), session_id));
   }
 
@@ -204,12 +203,15 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
       return;
     }
     int session_id = info[0].As<v8::Int32>()->Value();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    TaskRunner* context_task_runner =
+        InspectorIsolateData::FromContext(context)->task_runner();
     std::vector<uint8_t> state;
-    RunSyncTask(backend_runner_,
-                [&session_id, &state](InspectorIsolateData* data) {
-                  state = data->DisconnectSession(session_id);
-                });
-    channels_.erase(session_id);
+    RunSyncTask(backend_runner_, [&session_id, &context_task_runner,
+                                  &state](InspectorIsolateData* data) {
+      state = data->DisconnectSession(session_id, context_task_runner);
+    });
+
     info.GetReturnValue().Set(ToV8String(info.GetIsolate(), state));
   }
 
@@ -223,12 +225,9 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
         info[0].As<v8::Int32>()->Value(),
         ToVector(info.GetIsolate(), info[1].As<v8::String>())));
   }
-
-  static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
 };
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
-std::map<int, std::unique_ptr<FrontendChannelImpl>> UtilsExtension::channels_;
 
 bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
                        v8::Local<v8::Object> accessed_object,
@@ -613,7 +612,7 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   ready_semaphore.Signal();
   watchdog.Join();
 
-  UtilsExtension::ClearAllSessions();
+  ChannelHolder::ClearAllChannels();
 
   // TaskRunners go out of scope here, which causes Isolate teardown and all
   // running background tasks to be properly joined.

@@ -10,6 +10,7 @@
 #include "include/v8-template.h"
 #include "src/init/v8.h"
 #include "src/inspector/test-interface.h"
+#include "test/inspector/frontend-channel.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 
@@ -161,12 +162,15 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
 
 int InspectorIsolateData::ConnectSession(
     int context_group_id, const v8_inspector::StringView& state,
-    v8_inspector::V8Inspector::Channel* channel) {
+    std::unique_ptr<FrontendChannelImpl> channel) {
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
+  // It's important that we register the channel before the `connect` as the
+  // inspector will already send notifications.
+  auto* c = channel.get();
+  ChannelHolder::AddChannel(session_id, std::move(channel));
   sessions_[session_id] = inspector_->connect(
-      context_group_id, channel, state,
-      v8_inspector::V8Inspector::kFullyTrusted,
+      context_group_id, c, state, v8_inspector::V8Inspector::kFullyTrusted,
       waiting_for_debugger_
           ? v8_inspector::V8Inspector::kWaitingForDebugger
           : v8_inspector::V8Inspector::kNotWaitingForDebugger);
@@ -174,13 +178,39 @@ int InspectorIsolateData::ConnectSession(
   return session_id;
 }
 
-std::vector<uint8_t> InspectorIsolateData::DisconnectSession(int session_id) {
+namespace {
+
+class RemoveChannelTask : public TaskRunner::Task {
+ public:
+  explicit RemoveChannelTask(int session_id) : session_id_(session_id) {}
+  ~RemoveChannelTask() override = default;
+  bool is_priority_task() final { return false; }
+
+ private:
+  void Run(InspectorIsolateData* data) override {
+    ChannelHolder::RemoveChannel(session_id_);
+  }
+  int session_id_;
+};
+
+}  // namespace
+
+std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
+    int session_id, TaskRunner* context_task_runner) {
   v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   CHECK(it != sessions_.end());
   context_group_by_session_.erase(it->second.get());
   std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
+
+  // The InspectorSession destructor does cleanup work like disabling agents.
+  // This could send some more notifications. We'll delay removing the channel
+  // so notification tasks have time to get sent.
+  // Note: This only works for tasks scheduled immediately by the desctructor.
+  //       Any task scheduled in turn by one of the "cleanup tasks" will run
+  //       AFTER the channel was removed.
+  context_task_runner->Append(std::make_unique<RemoveChannelTask>(session_id));
   return result;
 }
 
@@ -559,6 +589,31 @@ int64_t InspectorIsolateData::generateUniqueId() {
   // Keep it not too random for tests.
   return ++last_unique_id;
 }
+
+// static
+void ChannelHolder::AddChannel(int session_id,
+                               std::unique_ptr<FrontendChannelImpl> channel) {
+  CHECK_NE(channel.get(), nullptr);
+  channel->set_session_id(session_id);
+  channels_[session_id] = std::move(channel);
+}
+
+// static
+FrontendChannelImpl* ChannelHolder::GetChannel(int session_id) {
+  auto it = channels_.find(session_id);
+  return it != channels_.end() ? it->second.get() : nullptr;
+}
+
+// static
+void ChannelHolder::RemoveChannel(int session_id) {
+  channels_.erase(session_id);
+}
+
+// static
+void ChannelHolder::ClearAllChannels() { channels_.clear(); }
+
+// static
+std::map<int, std::unique_ptr<FrontendChannelImpl>> ChannelHolder::channels_;
 
 }  // namespace internal
 }  // namespace v8
