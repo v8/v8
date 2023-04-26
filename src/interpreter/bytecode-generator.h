@@ -440,6 +440,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Convenience visitors that put a HoleCheckElisionScope on stack.
   template <typename T>
   void VisitInHoleCheckElisionScope(T* node);
+  void VisitIterationBodyInHoleCheckElisionScope(IterationStatement* stmt,
+                                                 LoopBuilder* loop_builder);
   TypeHint VisitInHoleCheckElisionScopeForAccumulatorValue(Expression* expr);
 
   void VisitInSameTestExecutionScope(Expression* expr);

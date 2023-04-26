@@ -2400,9 +2400,14 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   loop_builder->LoopBody();
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
-  HoleCheckElisionScope elider(this);
   Visit(stmt->body());
   loop_builder->BindContinueTarget();
+}
+
+void BytecodeGenerator::VisitIterationBodyInHoleCheckElisionScope(
+    IterationStatement* stmt, LoopBuilder* loop_builder) {
+  HoleCheckElisionScope elider(this);
+  VisitIterationBody(stmt, loop_builder);
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
@@ -2413,13 +2418,13 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     // Therefore, we don't create a LoopScope (and thus we don't create a header
     // and a JumpToHeader). However, we still need to iterate once through the
     // body.
-    VisitIterationBody(stmt, &loop_builder);
+    VisitIterationBodyInHoleCheckElisionScope(stmt, &loop_builder);
   } else if (stmt->cond()->ToBooleanIsTrue()) {
     LoopScope loop_scope(this, &loop_builder);
-    VisitIterationBody(stmt, &loop_builder);
+    VisitIterationBodyInHoleCheckElisionScope(stmt, &loop_builder);
   } else {
     LoopScope loop_scope(this, &loop_builder);
-    VisitIterationBody(stmt, &loop_builder);
+    VisitIterationBodyInHoleCheckElisionScope(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_backbranch(zone());
     VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
@@ -2445,7 +2450,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
-  VisitIterationBody(stmt, &loop_builder);
+  VisitIterationBodyInHoleCheckElisionScope(stmt, &loop_builder);
 }
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
@@ -2486,10 +2491,11 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   // flow like breaks or continues, has its own HoleCheckElisionScope. NEXT is
   // therefore conditionally evaluated and also so has its own
   // HoleCheckElisionScope.
+  HoleCheckElisionScope elider(this);
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     builder()->SetStatementPosition(stmt->next());
-    VisitInHoleCheckElisionScope(stmt->next());
+    Visit(stmt->next());
   }
 }
 
@@ -2526,6 +2532,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
     LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
                              feedback_spec());
     LoopScope loop_scope(this, &loop_builder);
+    HoleCheckElisionScope elider(this);
     builder()->SetExpressionAsStatementPosition(stmt->each());
     builder()->ForInContinue(index, cache_length);
     loop_builder.BreakIfFalse(ToBooleanMode::kAlreadyBoolean);
@@ -2598,6 +2605,9 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
         LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
                                  feedback_spec());
         LoopScope loop_scope(this, &loop_builder);
+
+        // This doesn't need a HoleCheckElisionScope because BuildTryFinally
+        // already makes one for try blocks.
 
         builder()->LoadTrue().StoreAccumulatorInRegister(done);
 
