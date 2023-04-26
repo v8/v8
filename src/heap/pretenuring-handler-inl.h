@@ -67,7 +67,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
-  if (!candidate_map_slot.contains_map_value(
+  if (!candidate_map_slot.Relaxed_ContainsMapValue(
           ReadOnlyRoots(heap_).allocation_memento_map().ptr())) {
     return AllocationMemento();
   }
