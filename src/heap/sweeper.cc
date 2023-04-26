@@ -489,19 +489,16 @@ void Sweeper::EnsureCompleted() {
   FinalizeLocalSweepers();
   DCHECK(main_thread_local_sweeper_.IsEmpty());
 
-  concurrent_sweepers_.clear();
-
   current_new_space_collector_.reset();
   should_sweep_non_new_spaces_ = false;
-  {
-    base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
-    DCHECK_EQ(promoted_pages_for_iteration_count_,
-              iterated_promoted_pages_count_);
-    base::AsAtomicPtr(&promoted_pages_for_iteration_count_)
-        ->store(0, std::memory_order_relaxed);
-    iterated_promoted_pages_count_ = 0;
-  }
+
+  DCHECK_EQ(promoted_pages_for_iteration_count_,
+            iterated_promoted_pages_count_);
+  promoted_pages_for_iteration_count_ = 0;
+  iterated_promoted_pages_count_ = 0;
+
   sweeping_in_progress_ = false;
+  concurrent_sweepers_.clear();
 }
 
 void Sweeper::PauseAndEnsureNewSpaceCompleted() {
@@ -525,11 +522,14 @@ void Sweeper::PauseAndEnsureNewSpaceCompleted() {
   DCHECK(main_thread_local_sweeper_.IsEmpty());
 
   current_new_space_collector_.reset();
+
   DCHECK_EQ(promoted_pages_for_iteration_count_,
             iterated_promoted_pages_count_);
-  base::AsAtomicPtr(&promoted_pages_for_iteration_count_)
-      ->store(0, std::memory_order_relaxed);
+  promoted_pages_for_iteration_count_ = 0;
   iterated_promoted_pages_count_ = 0;
+
+  sweeping_in_progress_ = should_sweep_non_new_spaces_;
+  if (!sweeping_in_progress_) concurrent_sweepers_.clear();
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
