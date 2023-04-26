@@ -5863,12 +5863,7 @@ const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
 }
 
 void Heap::SetStackStart(void* stack_start) {
-#if V8_ENABLE_WEBASSEMBLY
-  stack().SetStackStart(stack_start,
-                        v8_flags.experimental_wasm_stack_switching);
-#else
-  stack().SetStackStart(stack_start, false);
-#endif  // V8_ENABLE_WEBASSEMBLY
+  stack().SetStackStart(stack_start);
 }
 
 ::heap::base::Stack& Heap::stack() { return isolate_->stack(); }
