@@ -683,7 +683,7 @@ DEFINE_BOOL(osr_from_maglev, false,
             "whether we try to OSR to Turbofan from Maglev")
 
 // Tiering: Turbofan.
-DEFINE_INT(invocation_count_for_turbofan, 2400,
+DEFINE_INT(invocation_count_for_turbofan, 3000,
            "invocation count required for optimizing with TurboFan")
 DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
 DEFINE_INT(osr_to_tierup, 200,
