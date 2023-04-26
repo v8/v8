@@ -2376,35 +2376,6 @@ void Assembler::set_target_compressed_value_at(
   }
 }
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      availablefp_(assembler->GetScratchFPRegisterList()),
-      old_available_(*available_),
-      old_availablefp_(*availablefp_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-  *availablefp_ = old_availablefp_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  return available_->PopFirst();
-}
-
-DoubleRegister UseScratchRegisterScope::AcquireFp() {
-  DCHECK_NOT_NULL(availablefp_);
-  return availablefp_->PopFirst();
-}
-
-bool UseScratchRegisterScope::hasAvailable() const {
-  return !available_->is_empty();
-}
-
-bool UseScratchRegisterScope::hasAvailableFp() const {
-  return !availablefp_->is_empty();
-}
-
 }  // namespace internal
 }  // namespace v8
 

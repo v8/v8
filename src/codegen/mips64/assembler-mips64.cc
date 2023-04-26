@@ -3958,23 +3958,6 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   }
 }
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      old_available_(*available_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  return available_->PopFirst();
-}
-
-bool UseScratchRegisterScope::hasAvailable() const {
-  return !available_->is_empty();
-}
-
 LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
                                          uint8_t laneidx) {
   switch (rep) {

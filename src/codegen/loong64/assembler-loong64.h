@@ -1106,13 +1106,28 @@ class EnsureSpace {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : available_(assembler->GetScratchRegisterList()),
+        availablefp_(assembler->GetScratchFPRegisterList()),
+        old_available_(*available_),
+        old_availablefp_(*availablefp_) {}
 
-  Register Acquire();
-  DoubleRegister AcquireFp();
-  bool hasAvailable() const;
-  bool hasAvailableFp() const;
+  ~UseScratchRegisterScope() {
+    *available_ = old_available_;
+    *availablefp_ = old_availablefp_;
+  }
+
+  Register Acquire() {
+    return available_->PopFirst();
+  }
+
+  DoubleRegister AcquireFp() {
+    return availablefp_->PopFirst();
+  }
+
+  bool hasAvailable() const { return !available_->is_empty(); }
+
+  bool hasAvailableFp() const { return !availablefp_->is_empty(); }
 
   void Include(const RegList& list) { *available_ |= list; }
   void IncludeFp(const DoubleRegList& list) { *availablefp_ |= list; }
