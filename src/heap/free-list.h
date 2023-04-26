@@ -174,6 +174,10 @@ class FreeList {
   void IncreaseAvailableBytes(size_t bytes) { available_ += bytes; }
   void DecreaseAvailableBytes(size_t bytes) { available_ -= bytes; }
 
+  size_t wasted_bytes() const { return wasted_bytes_; }
+  void increase_wasted_bytes(size_t bytes) { wasted_bytes_ += bytes; }
+  void decrease_wasted_bytes(size_t bytes) { wasted_bytes_ -= bytes; }
+
   bool IsEmpty() {
     bool empty = true;
     ForAllFreeListCategories([&empty](FreeListCategory* category) {
@@ -189,8 +193,6 @@ class FreeList {
 
   int number_of_categories() { return number_of_categories_; }
   FreeListCategoryType last_category() { return last_category_; }
-
-  size_t wasted_bytes() { return wasted_bytes_; }
 
   size_t min_block_size() const { return min_block_size_; }
 
@@ -268,11 +270,13 @@ class FreeList {
   FreeListCategoryType last_category_ = 0;
   size_t min_block_size_ = 0;
 
-  std::atomic<size_t> wasted_bytes_{0};
   FreeListCategory** categories_ = nullptr;
 
-  // |available_|: The number of bytes in this freelist.
+  // The number of bytes in this freelist that are available for allocation.
   size_t available_ = 0;
+  // Number of wasted bytes in this free list that are not available for
+  // allocation.
+  size_t wasted_bytes_ = 0;
 
   friend class FreeListCategory;
   friend class Page;

@@ -597,8 +597,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool ShouldReleaseEmptyPage() const;
 
-  void RefillFreeList() final;
-
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
   bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
 

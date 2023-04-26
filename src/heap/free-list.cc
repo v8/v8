@@ -159,7 +159,6 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   // Blocks have to be a minimum size to hold free list items.
   if (size_in_bytes < min_block_size_) {
     page->add_wasted_memory(size_in_bytes);
-    wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
   }
 
@@ -285,7 +284,6 @@ size_t FreeListManyCached::Free(Address start, size_t size_in_bytes,
   // Blocks have to be a minimum size to hold free list items.
   if (size_in_bytes < min_block_size_) {
     page->add_wasted_memory(size_in_bytes);
-    wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
   }
 
