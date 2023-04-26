@@ -998,7 +998,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   }
 
   if (needs_frame_state) {
-    MarkLazyDeoptSite();
     // If the frame state is present, it starts at argument 1 - after
     // the code address.
     size_t frame_state_offset = 1;
@@ -1335,10 +1334,6 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreLiteral(literal_id);
     }
   }
-}
-
-void CodeGenerator::MarkLazyDeoptSite() {
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(

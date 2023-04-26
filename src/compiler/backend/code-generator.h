@@ -429,7 +429,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                              InstructionOperandIterator* iter);
   void AddTranslationForOperand(Instruction* instr, InstructionOperand* op,
                                 MachineType type);
-  void MarkLazyDeoptSite();
 
   void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
@@ -471,7 +470,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   size_t inlined_function_count_ = 0;
   TranslationArrayBuilder translations_;
   int handler_table_offset_ = 0;
-  int last_lazy_deopt_pc_ = 0;
 
   // Deoptimization exits must be as small as possible, since their count grows
   // with function size. {jump_deoptimization_entry_labels_} is an optimization
