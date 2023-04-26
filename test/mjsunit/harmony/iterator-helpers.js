@@ -48,6 +48,22 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: undefined, done: true }, mapIter.next());
 })();
 
+(function TestIteratorConstructorinMap() {
+  const iter = gen();
+  const mapIter = iter.map((x, i) => {
+    counters.push(i);
+    return x * 2;
+  });
+  TestHelperPrototypeSurface(mapIter);
+
+  assertThrows(() => {
+    for (let i = 0; i < 3; i++) {
+      function func() {}
+      Object.defineProperty(mapIter, 58, {set: func});
+    }
+  });
+})();
+
 // --- Test filter helper
 
 (function TestFilter() {
@@ -91,6 +107,21 @@ function TestHelperPrototypeSurface(helper) {
   });
   TestHelperPrototypeSurface(filterIter);
   assertEquals({value: undefined, done: true }, filterIter.next());
+})();
+
+(function TestIteratorConstructorinFilter() {
+  const iter = gen();
+  const filterIter = iter.filter((x, i) => {
+    return x == 0;
+  });
+  TestHelperPrototypeSurface(filterIter);
+
+  assertThrows(() => {
+    for (let i = 0; i < 3; i++) {
+      function func() {}
+      Object.defineProperty(filterIter, 58, {set: func});
+    }
+  });
 })();
 
 // --- Test take helper
@@ -234,6 +265,19 @@ function TestHelperPrototypeSurface(helper) {
   });
 })();
 
+(function TestIteratorConstructorinTake() {
+  const iter = gen();
+  const takeIter = iter.take(4);
+  TestHelperPrototypeSurface(takeIter);
+
+  assertThrows(() => {
+    for (let i = 0; i < 3; i++) {
+      function func() {}
+      Object.defineProperty(takeIter, 58, {set: func});
+    }
+  });
+})();
+
 // --- Test drop helper
 
 (function TestDrop() {
@@ -279,6 +323,19 @@ function TestHelperPrototypeSurface(helper) {
   const dropIter = iter.drop(Number.POSITIVE_INFINITY);
   TestHelperPrototypeSurface(dropIter);
   assertEquals({value: undefined, done: true}, dropIter.next());
+})();
+
+(function TestIteratorConstructorinDrop() {
+  const iter = gen();
+  const dropIter = iter.drop(1);
+  TestHelperPrototypeSurface(dropIter);
+
+  assertThrows(() => {
+    for (let i = 0; i < 3; i++) {
+      function func() {}
+      Object.defineProperty(dropIter, 58, {set: func});
+    }
+  });
 })();
 
 // --- Test flatMap helper
@@ -565,6 +622,19 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
   assertThrows(() => {flatMapIter.return()});
+})();
+
+(function TestIteratorConstructorinFlatMap() {
+  const iter = ['It\'s Sunny', 'in California'].values();
+  const flatMapIter = iter.flatMap(value => value.split(' ').values());
+  TestHelperPrototypeSurface(flatMapIter);
+
+  assertThrows(() => {
+    for (let i = 0; i < 3; i++) {
+      function func() {}
+      Object.defineProperty(flatMapIter, 58, {set: func});
+    }
+  });
 })();
 
 // --- Test reduce helper

@@ -4575,6 +4575,9 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
       isolate()->object_function(), AllocationType::kOld);
   JSObject::ForceSetPrototype(isolate(), wrap_for_valid_iterator_prototype,
                               iterator_prototype);
+  JSObject::AddProperty(isolate(), iterator_prototype,
+                        factory()->constructor_string(), iterator_function,
+                        DONT_ENUM);
   SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "next",
                         Builtin::kWrapForValidIteratorPrototypeNext, 0, true);
   SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "return",
@@ -4627,6 +4630,7 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
                           JSIterator##Capitalized_name##Helper::kHeaderSize,   \
                           TERMINAL_FAST_ELEMENTS_KIND, 0);                     \
     Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
+    map->SetConstructor(*iterator_function);                                   \
     native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
     SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
                           Builtin::kIteratorPrototype##Capitalized_name, argc, \
