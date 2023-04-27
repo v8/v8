@@ -360,6 +360,14 @@ my_error = {};
 Object.preventExtensions(my_error);
 assertThrows(function() { Error.captureStackTrace(my_error); });
 
+var error = new Error();
+var proxy = new Proxy(error, {});
+Error.captureStackTrace(error);
+assertEquals(undefined, error.__lookupGetter__("stack").call(proxy));
+assertEquals(undefined, error.__lookupSetter__("stack").call(proxy, 153));
+assertEquals(undefined, error.__lookupGetter__("stack").call(42));
+assertEquals(undefined, error.__lookupSetter__("stack").call(42, 153));
+
 var fake_error = {};
 my_error = new Error();
 var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;

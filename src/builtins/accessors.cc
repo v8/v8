@@ -853,13 +853,15 @@ void Accessors::ErrorStackGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> formatted_stack;
-  Handle<JSObject> maybe_error_object =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
-  if (!ErrorUtils::GetFormattedStack(isolate, maybe_error_object)
-           .ToHandle(&formatted_stack)) {
-    isolate->OptionalRescheduleException(false);
-    return;
+  Handle<Object> formatted_stack = isolate->factory()->undefined_value();
+  Handle<JSReceiver> maybe_error_object = Utils::OpenHandle(*info.This());
+  if (maybe_error_object->IsJSObject()) {
+    if (!ErrorUtils::GetFormattedStack(
+             isolate, Handle<JSObject>::cast(maybe_error_object))
+             .ToHandle(&formatted_stack)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
   }
   v8::Local<v8::Value> result = Utils::ToLocal(formatted_stack);
   CHECK(result->IsValue());
@@ -870,11 +872,13 @@ void Accessors::ErrorStackSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> maybe_error_object =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
-  v8::Local<v8::Value> value = info[0];
-  ErrorUtils::SetFormattedStack(isolate, maybe_error_object,
-                                Utils::OpenHandle(*value));
+  Handle<JSReceiver> maybe_error_object = Utils::OpenHandle(*info.This());
+  if (maybe_error_object->IsJSObject()) {
+    v8::Local<v8::Value> value = info[0];
+    ErrorUtils::SetFormattedStack(isolate,
+                                  Handle<JSObject>::cast(maybe_error_object),
+                                  Utils::OpenHandle(*value));
+  }
 }
 
 }  // namespace internal
