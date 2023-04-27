@@ -171,7 +171,9 @@ void Stack::IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
 }
 
 void Stack::IteratePointers(StackVisitor* visitor) const {
-  DCHECK(IsOnCurrentStack(stack_start_));
+  // TODO(v8:13493): Remove the implication as soon as IsOnCurrentStack is
+  // compatible with stack switching.
+  DCHECK_IMPLIES(!wasm_stack_switching_, IsOnCurrentStack(stack_start_));
   PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.

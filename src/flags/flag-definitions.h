@@ -448,6 +448,11 @@ DEFINE_BOOL_READONLY(conservative_stack_scanning,
 DEFINE_IMPLICATION(conservative_stack_scanning, minor_mc)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
+                       experimental_wasm_stack_switching)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #ifdef V8_ENABLE_DIRECT_LOCAL
 #define V8_ENABLE_DIRECT_LOCAL_BOOL true
 #else
