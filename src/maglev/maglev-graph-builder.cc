@@ -14,6 +14,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/bytecode-liveness-map.h"
@@ -1614,75 +1615,171 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
+base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
+  DisallowGarbageCollection no_gc;
+  // Copy the iterator so we can search for the next branch without changing
+  // current iterator state.
+  interpreter::BytecodeArrayIterator it(iterator_.bytecode_array(),
+                                        iterator_.current_offset(), no_gc);
+
+  // Skip the current bytecode.
+  it.Advance();
+
+  for (; !it.done(); it.Advance()) {
+    // Bail out if there is a merge point before the next branch.
+    if (IsOffsetAMergePoint(it.current_offset())) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout
+            << "  ! Bailing out of test->branch fusion because merge point"
+            << std::endl;
+      }
+      return {};
+    }
+    switch (it.current_bytecode()) {
+      case interpreter::Bytecode::kMov:
+      case interpreter::Bytecode::kToBoolean:
+      case interpreter::Bytecode::kLogicalNot:
+      case interpreter::Bytecode::kToBooleanLogicalNot:
+        // No register moves, and only affecting the accumulator in a way that
+        // can be emulated with swapping branch targets.
+        continue;
+
+      case interpreter::Bytecode::kStar: {
+        interpreter::Register store_reg = it.GetRegisterOperand(0);
+        // If the Star stores the accumulator to a live register, the
+        // accumulator boolean value is observable and must be materialized.
+        if (GetOutLivenessFor(it.current_offset())
+                ->RegisterIsLive(store_reg.index())) {
+          return {};
+        }
+        continue;
+      }
+
+#define STAR_CASE(name, ...) case interpreter::Bytecode::k##name:
+        SHORT_STAR_BYTECODE_LIST(STAR_CASE)
+#undef STAR_CASE
+        {
+          interpreter::Register store_reg =
+              interpreter::Register::FromShortStar(it.current_bytecode());
+          if (GetOutLivenessFor(it.current_offset())
+                  ->RegisterIsLive(store_reg.index())) {
+            return {};
+          }
+          continue;
+        }
+
+      case interpreter::Bytecode::kJumpIfFalse:
+      case interpreter::Bytecode::kJumpIfFalseConstant:
+      case interpreter::Bytecode::kJumpIfToBooleanFalse:
+      case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
+      case interpreter::Bytecode::kJumpIfTrue:
+      case interpreter::Bytecode::kJumpIfTrueConstant:
+      case interpreter::Bytecode::kJumpIfToBooleanTrue:
+      case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
+        // This jump must kill the accumulator, otherwise we need to materialize
+        // the actual boolean value.
+        if (GetOutLivenessFor(it.current_offset())->AccumulatorIsLive()) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout
+                << "  ! Bailing out of test->branch fusion because accumulator "
+                   "is live"
+                << std::endl;
+          }
+          return {};
+        }
+        return {it.current_offset()};
+
+      default:
+        return {};
+    }
+  }
+
+  return {};
+}
+
 template <typename BranchControlNodeT, typename... Args>
 bool MaglevGraphBuilder::TryBuildBranchFor(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  // Copy the iterator so we can first check whether we can build a branch while
-  // skipping bytecodes.
-  interpreter::BytecodeArrayIterator it(iterator_.bytecode_array(),
-                                        iterator_.current_offset());
-  for (; it.next_bytecode() == interpreter::Bytecode::kMov; it.Advance()) {
-    // Don't emit the shortcut branch if the next bytecode is a merge target.
-    if (IsOffsetAMergePoint(it.next_offset())) return false;
+  base::Optional<int> maybe_next_branch_offset = TryFindNextBranch();
+
+  // If we didn't find a branch, bail out.
+  if (!maybe_next_branch_offset) {
+    return false;
   }
 
-  // Don't emit the shortcut branch if the next bytecode is a merge target.
-  if (IsOffsetAMergePoint(next_offset())) return false;
+  int next_branch_offset = *maybe_next_branch_offset;
 
-  interpreter::Bytecode next_bytecode = it.next_bytecode();
-  int true_offset, false_offset;
-  switch (next_bytecode) {
-    case interpreter::Bytecode::kJumpIfFalse:
-    case interpreter::Bytecode::kJumpIfFalseConstant:
-    case interpreter::Bytecode::kJumpIfToBooleanFalse:
-    case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
-      // This jump must kill the accumulator, otherwise we need to
-      // materialize the actual boolean value.
-      if (GetOutLivenessFor(it.next_offset())->AccumulatorIsLive()) {
-        return false;
-      }
-      // Advance past the test.
-      iterator_.Advance();
-      // Evaluate Movs between test and jump.
-      for (; iterator_.current_bytecode() == interpreter::Bytecode::kMov;
-           iterator_.Advance()) {
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  * Fusing test @" << iterator_.current_offset()
+              << " and branch @" << next_branch_offset << std::endl;
+  }
+  // Advance past the test.
+  iterator_.Advance();
+
+  // Evaluate Movs and LogicalNots between test and jump.
+  bool flip = false;
+  for (;; iterator_.Advance()) {
+    DCHECK_LE(iterator_.current_offset(), next_branch_offset);
+    switch (iterator_.current_bytecode()) {
+      case interpreter::Bytecode::kMov: {
         interpreter::Register src = iterator_.GetRegisterOperand(0);
         interpreter::Register dst = iterator_.GetRegisterOperand(1);
         DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
         current_interpreter_frame_.set(dst,
                                        current_interpreter_frame_.get(src));
+        continue;
       }
-      true_offset = next_offset();
-      false_offset = iterator_.GetJumpTargetOffset();
-      UpdateSourceAndBytecodePosition(iterator_.current_offset());
+      case interpreter::Bytecode::kToBoolean:
+        continue;
+
+      case interpreter::Bytecode::kLogicalNot:
+      case interpreter::Bytecode::kToBooleanLogicalNot:
+        flip = !flip;
+        continue;
+
+      case interpreter::Bytecode::kStar:
+#define STAR_CASE(name, ...) case interpreter::Bytecode::k##name:
+        SHORT_STAR_BYTECODE_LIST(STAR_CASE)
+#undef STAR_CASE
+        // We don't need to perform the Star, since the target register is
+        // already known to be dead.
+        continue;
+
+      default:
+        // Otherwise, we've reached the jump, so abort the iteration.
+        DCHECK_EQ(iterator_.current_offset(), next_branch_offset);
+        break;
+    }
+    break;
+  }
+
+  JumpType jump_type;
+  switch (iterator_.current_bytecode()) {
+    case interpreter::Bytecode::kJumpIfFalse:
+    case interpreter::Bytecode::kJumpIfFalseConstant:
+    case interpreter::Bytecode::kJumpIfToBooleanFalse:
+    case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
+      jump_type = flip ? JumpType::kJumpIfTrue : JumpType::kJumpIfFalse;
       break;
     case interpreter::Bytecode::kJumpIfTrue:
     case interpreter::Bytecode::kJumpIfTrueConstant:
     case interpreter::Bytecode::kJumpIfToBooleanTrue:
     case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
-      // This jump must kill the accumulator, otherwise we need to
-      // materialize the actual boolean value.
-      if (GetOutLivenessFor(it.next_offset())->AccumulatorIsLive()) {
-        return false;
-      }
-      // Advance past the test.
-      iterator_.Advance();
-      // Evaluate Movs between test and jump.
-      for (; iterator_.current_bytecode() == interpreter::Bytecode::kMov;
-           iterator_.Advance()) {
-        interpreter::Register src = iterator_.GetRegisterOperand(0);
-        interpreter::Register dst = iterator_.GetRegisterOperand(1);
-        DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
-        current_interpreter_frame_.set(dst,
-                                       current_interpreter_frame_.get(src));
-      }
-      true_offset = iterator_.GetJumpTargetOffset();
-      false_offset = next_offset();
-      UpdateSourceAndBytecodePosition(iterator_.current_offset());
+      jump_type = flip ? JumpType::kJumpIfFalse : JumpType::kJumpIfTrue;
       break;
     default:
-      return false;
+      UNREACHABLE();
   }
+
+  int true_offset, false_offset;
+  if (jump_type == kJumpIfFalse) {
+    true_offset = next_offset();
+    false_offset = iterator_.GetJumpTargetOffset();
+  } else {
+    true_offset = iterator_.GetJumpTargetOffset();
+    false_offset = next_offset();
+  }
+  UpdateSourceAndBytecodePosition(iterator_.current_offset());
 
   BasicBlock* block = FinishBlock<BranchControlNodeT>(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
