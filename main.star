@@ -39,6 +39,7 @@ lucicfg.config(
         "luci-logdog.cfg",
         "luci-scheduler.cfg",
         "luci-notify.cfg",
+        "luci-notify/email-templates/*.template",
         "project.cfg",
         "realms.cfg",
     ],
