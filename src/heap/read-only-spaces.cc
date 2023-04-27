@@ -762,7 +762,10 @@ void ReadOnlySpace::FinalizeExternallyInitializedPage() {
   ReadOnlyPage* cur_page = pages_.back();
   cur_page->IncreaseAllocatedBytes(top_ - cur_page->area_start());
   cur_page->high_water_mark_ = top_ - cur_page->address();
-  limit_ = cur_page->area_end();
+  limit_ = top_;
+  heap()->CreateFillerObjectAt(top_,
+                               static_cast<int>(cur_page->area_end() - top_));
+  cur_page->ShrinkToHighWaterMark();
   accounting_stats_.IncreaseCapacity(cur_page->area_size());
   accounting_stats_.IncreaseAllocatedBytes(cur_page->allocated_bytes(),
                                            cur_page);
