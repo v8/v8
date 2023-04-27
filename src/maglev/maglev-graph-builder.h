@@ -195,6 +195,10 @@ struct FastLiteralField {
   if (result.IsDoneWithAbort()) {         \
     return ReduceResult::DoneWithAbort(); \
   }
+#define RETURN_VOID_IF_ABORT(result) \
+  if (result.IsDoneWithAbort()) {    \
+    return;                          \
+  }
 
 enum class ToNumberHint {
   kDisallowToNumber,
@@ -1436,8 +1440,8 @@ class MaglevGraphBuilder {
                                 SpeculationMode speculation_mode);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   ReduceResult TryBuildCallKnownJSFunction(
-      compiler::JSFunctionRef function, CallArguments& args,
-      const compiler::FeedbackSource& feedback_source);
+      compiler::JSFunctionRef function, ValueNode* new_target,
+      CallArguments& args, const compiler::FeedbackSource& feedback_source);
   ReduceResult TryBuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function,
       compiler::SharedFunctionInfoRef shared,
@@ -1479,6 +1483,19 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
+
+  ValueNode* BuildGenericConstruct(
+      ValueNode* target, ValueNode* new_target, ValueNode* context,
+      const CallArguments& args,
+      const compiler::FeedbackSource& feedback_source =
+          compiler::FeedbackSource());
+  ReduceResult ReduceConstruct(compiler::HeapObjectRef feedback_target,
+                               ValueNode* target, ValueNode* new_target,
+                               CallArguments& args,
+                               compiler::FeedbackSource& feedback_source);
+  void BuildConstruct(ValueNode* target, ValueNode* new_target,
+                      CallArguments& args,
+                      compiler::FeedbackSource& feedback_source);
 
   ReduceResult TryBuildScriptContextStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);

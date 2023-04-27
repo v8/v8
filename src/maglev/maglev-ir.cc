@@ -196,6 +196,7 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 
 size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
   static constexpr int kClosureSize = 1;
+  static constexpr int kReceiverSize = 1;
   static constexpr int kContextSize = 1;
   size_t size = 0;
   const DeoptFrame* frame = &top_frame;
@@ -207,6 +208,11 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
         break;
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         size += kClosureSize + frame->as_inlined_arguments().arguments().size();
+        break;
+      case DeoptFrame::FrameType::kConstructStubFrame:
+        size += kClosureSize + kReceiverSize +
+                frame->as_construct_stub().arguments_without_receiver().size() +
+                kContextSize;
         break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         size +=
@@ -2060,6 +2066,52 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+int CheckConstructResult::MaxCallStackArgs() const { return 0; }
+void CheckConstructResult::SetValueLocationConstraints() {
+  UseRegister(construct_result_input());
+  UseRegister(implicit_receiver_input());
+  DefineSameAsFirst(this);
+}
+void CheckConstructResult::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register construct_result = ToRegister(construct_result_input());
+  Register implicit_receiver = ToRegister(implicit_receiver_input());
+  Register result_reg = ToRegister(result());
+  DCHECK_EQ(construct_result, result_reg);
+
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+  Label done, use_receiver;
+
+  // If the result is undefined, we'll use the implicit receiver.
+  __ JumpIfRoot(construct_result, RootIndex::kUndefinedValue, &use_receiver,
+                Label::Distance::kNear);
+
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ JumpIfSmi(construct_result, &use_receiver, Label::Distance::kNear);
+
+  // Check if the type of the result is not an object in the ECMA sense.
+  __ JumpIfJSAnyIsNotPrimitive(construct_result, &done, Label::Distance::kNear);
+
+  // Throw away the result of the constructor invocation and use the
+  // implicit receiver as the result.
+  __ bind(&use_receiver);
+  __ JumpIfRoot(
+      implicit_receiver, RootIndex::kTheHoleValue,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, CheckConstructResult* node) {
+            __ Move(kContextRegister, masm->native_context().object());
+            __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+            masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+            __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+          },
+          this));
+  __ Move(result_reg, implicit_receiver);
+
+  __ bind(&done);
+}
+
 int CreateEmptyArrayLiteral::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kCreateEmptyArrayLiteral>::type;
   return D::GetStackParameterCount();
@@ -3610,6 +3662,7 @@ void CallKnownJSFunction::SetValueLocationConstraints() {
     UseAny(arg(i));
   }
   UseFixed(closure(), kJavaScriptCallTargetRegister);
+  UseFixed(new_target(), kJavaScriptCallNewTargetRegister);
   UseFixed(context(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
@@ -3643,12 +3696,10 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                              kJavaScriptCallArgCountRegister});
   DCHECK_EQ(kContextRegister, ToRegister(context()));
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
-  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   if (shared_function_info().HasBuiltinId()) {
     __ CallBuiltin(shared_function_info().builtin_id());
   } else {
-    __ AssertCallableFunction(kJavaScriptCallTargetRegister);
     __ LoadTaggedField(kJavaScriptCallCodeStartRegister,
                        FieldMemOperand(kJavaScriptCallTargetRegister,
                                        JSFunction::kCodeOffset));

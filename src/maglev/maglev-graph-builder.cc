@@ -167,6 +167,15 @@ class CallArguments {
     return args_[0];
   }
 
+  void set_receiver(ValueNode* receiver) {
+    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
+      args_.insert(args_.data(), receiver);
+      receiver_mode_ = ConvertReceiverMode::kAny;
+    } else {
+      args_[0] = receiver;
+    }
+  }
+
   size_t count() const {
     if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
       return args_.size();
@@ -254,6 +263,18 @@ class V8_NODISCARD MaglevGraphBuilder::LazyDeoptFrameScope {
         parent_(builder->current_lazy_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
             continuation, {}, builder->GetContext()}) {
+    builder_->current_lazy_deopt_scope_ = this;
+  }
+
+  LazyDeoptFrameScope(MaglevGraphBuilder* builder,
+                      BytecodeOffset bytecode_position, ValueNode* closure,
+                      ValueNode* receiver,
+                      const base::Vector<ValueNode*> arguments_without_receiver)
+      : builder_(builder),
+        parent_(builder->current_lazy_deopt_scope_),
+        data_(DeoptFrame::ConstructStubFrameData{
+            *builder->compilation_unit(), bytecode_position, closure, receiver,
+            arguments_without_receiver, builder->GetContext()}) {
     builder_->current_lazy_deopt_scope_ = this;
   }
 
@@ -5280,8 +5301,8 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    compiler::JSFunctionRef function, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source) {
+    compiler::JSFunctionRef function, ValueNode* new_target,
+    CallArguments& args, const compiler::FeedbackSource& feedback_source) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context(broker()) != broker()->target_native_context()) {
     return ReduceResult::Fail();
@@ -5306,7 +5327,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, closure, context, receiver);
+      shared, closure, context, receiver, new_target);
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -5327,7 +5348,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, function, context, receiver);
+      shared, function, context, receiver,
+      GetRootConstant(RootIndex::kUndefinedValue));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
@@ -5411,7 +5433,9 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
     DCHECK(target.object()->IsCallable());
     RETURN_IF_DONE(
         TryReduceBuiltin(shared, args, feedback_source, speculation_mode));
-    RETURN_IF_DONE(TryBuildCallKnownJSFunction(target, args, feedback_source));
+    RETURN_IF_DONE(TryBuildCallKnownJSFunction(
+        target, GetRootConstant(RootIndex::kUndefinedValue), args,
+        feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
@@ -5839,28 +5863,148 @@ void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorYieldWithAwait(
        GetTaggedValue(args[2])}));
 }
 
-void MaglevGraphBuilder::VisitConstruct() {
-  ValueNode* new_target = GetAccumulatorTagged();
-  ValueNode* constructor = LoadRegisterTagged(0);
-  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
-  ValueNode* context = GetContext();
-  FeedbackSlot slot = GetSlotOperand(3);
-  compiler::FeedbackSource feedback_source{feedback(), slot};
-
-  size_t input_count = args.register_count() + 1 + Construct::kFixedInputCount;
-  Construct* construct = AddNewNode<Construct>(
+ValueNode* MaglevGraphBuilder::BuildGenericConstruct(
+    ValueNode* target, ValueNode* new_target, ValueNode* context,
+    const CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  size_t input_count = args.count_with_receiver() + Construct::kFixedInputCount;
+  DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kNullOrUndefined);
+  return AddNewNode<Construct>(
       input_count,
       [&](Construct* construct) {
         int arg_index = 0;
         // Add undefined receiver.
         construct->set_arg(arg_index++,
                            GetRootConstant(RootIndex::kUndefinedValue));
-        for (int i = 0; i < args.register_count(); i++) {
+        for (size_t i = 0; i < args.count(); i++) {
           construct->set_arg(arg_index++, GetTaggedValue(args[i]));
         }
       },
-      feedback_source, constructor, new_target, context);
-  SetAccumulator(construct);
+      feedback_source, target, new_target, context);
+}
+
+ReduceResult MaglevGraphBuilder::ReduceConstruct(
+    compiler::HeapObjectRef feedback_target, ValueNode* target,
+    ValueNode* new_target, CallArguments& args,
+    compiler::FeedbackSource& feedback_source) {
+  if (feedback_target.IsAllocationSite()) {
+    // TODO(victorgomes): Inline array constructors.
+    return ReduceResult::Fail();
+  } else if (feedback_target.map(broker()).is_constructor()) {
+    if (target != new_target) return ReduceResult::Fail();
+    if (feedback_target.IsJSFunction()) {
+      compiler::JSFunctionRef function = feedback_target.AsJSFunction();
+
+      // Do not inline constructors with break points.
+      compiler::SharedFunctionInfoRef sfi = function.shared(broker());
+      if (sfi.HasBreakInfo()) {
+        return ReduceResult::Fail();
+      }
+
+      // Do not inline cross natives context.
+      if (function.native_context(broker()) !=
+          broker()->target_native_context()) {
+        return ReduceResult::Fail();
+      }
+
+      if (args.mode() != CallArguments::kDefault) {
+        // TODO(victorgomes): Maybe inline the spread stub? Or call known
+        // function directly if arguments list is an array.
+        return ReduceResult::Fail();
+      }
+
+      // TODO(victorgomes): specialize for known constants targets, specially
+      // ArrayConstructor.
+
+      if (sfi.construct_as_builtin()) {
+        // TODO(victorgomes): Inline JSBuiltinsConstructStub.
+        return ReduceResult::Fail();
+      } else {
+        RETURN_IF_ABORT(BuildCheckValue(target, function));
+
+        int construct_arg_count = static_cast<int>(args.count());
+        base::Vector<ValueNode*> construct_arguments_without_receiver =
+            zone()->NewVector<ValueNode*>(construct_arg_count);
+        for (int i = 0; i < construct_arg_count; i++) {
+          construct_arguments_without_receiver[i] = args[i];
+        }
+
+        ValueNode* implicit_receiver;
+        if (IsDerivedConstructor(sfi.kind())) {
+          implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+        } else {
+          LazyDeoptFrameScope construct(
+              this, BytecodeOffset::ConstructStubCreate(), target,
+              GetRootConstant(RootIndex::kTheHoleValue),
+              construct_arguments_without_receiver);
+          implicit_receiver =
+              BuildCallBuiltin<Builtin::kFastNewObject>({target, new_target});
+        }
+
+        args.set_receiver(implicit_receiver);
+        ValueNode* call_result;
+        {
+          LazyDeoptFrameScope construct(
+              this, BytecodeOffset::ConstructStubInvoke(), target,
+              implicit_receiver, construct_arguments_without_receiver);
+          call_result = TryBuildCallKnownJSFunction(function, new_target, args,
+                                                    feedback_source)
+                            .value();
+        }
+        return AddNewNode<CheckConstructResult>(
+            {call_result, implicit_receiver});
+      }
+    }
+    // TODO(v8:7700): Add fast paths for other callables.
+    return ReduceResult::Fail();
+  } else {
+    // TODO(victorgomes): Deal the case where target is not a constructor.
+    return ReduceResult::Fail();
+  }
+}
+
+void MaglevGraphBuilder::BuildConstruct(
+    ValueNode* target, ValueNode* new_target, CallArguments& args,
+    compiler::FeedbackSource& feedback_source) {
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker()->GetFeedbackForCall(feedback_source);
+  if (processed_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
+    return;
+  }
+
+  DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
+  compiler::OptionalHeapObjectRef feedback_target =
+      processed_feedback.AsCall().target();
+  if (feedback_target.has_value()) {
+    PROCESS_AND_RETURN_IF_DONE(
+        ReduceConstruct(feedback_target.value(), target, new_target, args,
+                        feedback_source),
+        SetAccumulator);
+  }
+
+  if (Constant* constant = target->TryCast<Constant>()) {
+    PROCESS_AND_RETURN_IF_DONE(
+        ReduceConstruct(constant->object(), target, new_target, args,
+                        feedback_source),
+        SetAccumulator);
+  }
+
+  ValueNode* context = GetContext();
+  SetAccumulator(BuildGenericConstruct(target, new_target, context, args,
+                                       feedback_source));
+}
+
+void MaglevGraphBuilder::VisitConstruct() {
+  ValueNode* new_target = GetAccumulatorTagged();
+  ValueNode* target = LoadRegisterTagged(0);
+  interpreter::RegisterList reg_list = iterator_.GetRegisterListOperand(1);
+  FeedbackSlot slot = GetSlotOperand(3);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+  CallArguments args(ConvertReceiverMode::kNullOrUndefined, reg_list,
+                     current_interpreter_frame_);
+  BuildConstruct(target, new_target, args, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitConstructWithSpread() {

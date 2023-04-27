@@ -145,6 +145,7 @@ class MergePointInterpreterFrameState;
   V(CallKnownJSFunction)                     \
   V(CallSelf)                                \
   V(Construct)                               \
+  V(CheckConstructResult)                    \
   V(ConstructWithSpread)                     \
   V(ConvertReceiver)                         \
   V(ConvertHoleToUndefined)                  \
@@ -918,12 +919,14 @@ class Input : public InputLocation {
 
 class InterpretedDeoptFrame;
 class InlinedArgumentsDeoptFrame;
+class ConstructStubDeoptFrame;
 class BuiltinContinuationDeoptFrame;
 class DeoptFrame {
  public:
   enum class FrameType {
     kInterpretedFrame,
     kInlinedArgumentsFrame,
+    kConstructStubFrame,
     kBuiltinContinuationFrame,
   };
 
@@ -942,6 +945,15 @@ class DeoptFrame {
     const base::Vector<ValueNode*> arguments;
   };
 
+  struct ConstructStubFrameData {
+    const MaglevCompilationUnit& unit;
+    BytecodeOffset bytecode_position;
+    ValueNode* closure;
+    ValueNode* receiver;
+    const base::Vector<ValueNode*> arguments_without_receiver;
+    ValueNode* context;
+  };
+
   struct BuiltinContinuationFrameData {
     const Builtin builtin_id;
     const base::Vector<ValueNode*> parameters;
@@ -953,6 +965,7 @@ class DeoptFrame {
     union {
       InterpretedFrameData interpreted_frame_data;
       InlinedArgumentsFrameData inlined_arguments_frame_data;
+      ConstructStubFrameData construct_stub_frame_data;
       BuiltinContinuationFrameData builtin_continuation_frame_data;
     };
 
@@ -961,6 +974,9 @@ class DeoptFrame {
     explicit FrameData(InlinedArgumentsFrameData data)
         : type(FrameType::kInlinedArgumentsFrame),
           inlined_arguments_frame_data(data) {}
+    explicit FrameData(ConstructStubFrameData data)
+        : type(FrameType::kConstructStubFrame),
+          construct_stub_frame_data(data) {}
     explicit FrameData(BuiltinContinuationFrameData data)
         : type(FrameType::kBuiltinContinuationFrame),
           builtin_continuation_frame_data(data) {}
@@ -975,15 +991,19 @@ class DeoptFrame {
 
   inline const InterpretedDeoptFrame& as_interpreted() const;
   inline const InlinedArgumentsDeoptFrame& as_inlined_arguments() const;
+  inline const ConstructStubDeoptFrame& as_construct_stub() const;
   inline const BuiltinContinuationDeoptFrame& as_builtin_continuation() const;
   inline InterpretedDeoptFrame& as_interpreted();
   inline InlinedArgumentsDeoptFrame& as_inlined_arguments();
+  inline ConstructStubDeoptFrame& as_construct_stub();
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
 
  protected:
   DeoptFrame(InterpretedFrameData data, DeoptFrame* parent)
       : data_(data), parent_(parent) {}
   DeoptFrame(InlinedArgumentsFrameData data, DeoptFrame* parent)
+      : data_(data), parent_(parent) {}
+  DeoptFrame(ConstructStubFrameData data, DeoptFrame* parent)
       : data_(data), parent_(parent) {}
   DeoptFrame(BuiltinContinuationFrameData data, DeoptFrame* parent)
       : data_(data), parent_(parent) {}
@@ -1069,6 +1089,50 @@ inline const InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments()
 inline InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments() {
   DCHECK_EQ(type(), FrameType::kInlinedArgumentsFrame);
   return static_cast<InlinedArgumentsDeoptFrame&>(*this);
+}
+
+class ConstructStubDeoptFrame : public DeoptFrame {
+ public:
+  ConstructStubDeoptFrame(const MaglevCompilationUnit& unit,
+                          BytecodeOffset bytecode_position, ValueNode* closure,
+                          ValueNode* receiver,
+                          base::Vector<ValueNode*> arguments_without_receiver,
+                          ValueNode* context, DeoptFrame* parent)
+      : DeoptFrame(
+            ConstructStubFrameData{unit, bytecode_position, closure, receiver,
+                                   arguments_without_receiver, context},
+            parent) {}
+
+  const MaglevCompilationUnit& unit() const {
+    return data_.construct_stub_frame_data.unit;
+  }
+  BytecodeOffset bytecode_position() const {
+    return data_.construct_stub_frame_data.bytecode_position;
+  }
+  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
+  ValueNode* closure() const { return data_.construct_stub_frame_data.closure; }
+  ValueNode*& receiver() { return data_.construct_stub_frame_data.receiver; }
+  ValueNode* receiver() const {
+    return data_.construct_stub_frame_data.receiver;
+  }
+  base::Vector<ValueNode*> arguments_without_receiver() const {
+    return data_.construct_stub_frame_data.arguments_without_receiver;
+  }
+  ValueNode*& context() { return data_.construct_stub_frame_data.context; }
+  ValueNode* context() const { return data_.construct_stub_frame_data.context; }
+};
+
+// Make sure storing/passing deopt frames by value doesn't truncate them.
+static_assert(sizeof(ConstructStubDeoptFrame) == sizeof(DeoptFrame));
+
+inline const ConstructStubDeoptFrame& DeoptFrame::as_construct_stub() const {
+  DCHECK_EQ(type(), FrameType::kConstructStubFrame);
+  return static_cast<const ConstructStubDeoptFrame&>(*this);
+}
+
+inline ConstructStubDeoptFrame& DeoptFrame::as_construct_stub() {
+  DCHECK_EQ(type(), FrameType::kConstructStubFrame);
+  return static_cast<ConstructStubDeoptFrame&>(*this);
 }
 
 class BuiltinContinuationDeoptFrame : public DeoptFrame {
@@ -6785,7 +6849,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   static constexpr int kClosureIndex = 0;
   static constexpr int kContextIndex = 1;
   static constexpr int kReceiverIndex = 2;
-  static constexpr int kFixedInputCount = 3;
+  static constexpr int kNewTargetIndex = 3;
+  static constexpr int kFixedInputCount = 4;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -6796,7 +6861,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   CallKnownJSFunction(uint64_t bitfield,
                       compiler::SharedFunctionInfoRef shared_function_info,
                       ValueNode* closure, ValueNode* context,
-                      ValueNode* receiver)
+                      ValueNode* receiver, ValueNode* new_target)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         expected_parameter_count_(
@@ -6805,6 +6870,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     set_input(kClosureIndex, closure);
     set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
+    set_input(kNewTargetIndex, new_target);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -6815,6 +6881,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   const Input& context() const { return input(kContextIndex); }
   Input& receiver() { return input(kReceiverIndex); }
   const Input& receiver() const { return input(kReceiverIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
   Input& arg(int i) { return input(i + kFixedInputCount); }
   void set_arg(int i, ValueNode* node) {
@@ -6924,6 +6992,27 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
  private:
   const compiler::NativeContextRef native_context_;
   ConvertReceiverMode mode_;
+};
+
+class CheckConstructResult
+    : public FixedInputValueNodeT<2, CheckConstructResult> {
+  using Base = FixedInputValueNodeT<2, CheckConstructResult>;
+
+ public:
+  explicit CheckConstructResult(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& construct_result_input() { return input(0); }
+  Input& implicit_receiver_input() { return input(1); }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Throw() | OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class ConvertHoleToUndefined

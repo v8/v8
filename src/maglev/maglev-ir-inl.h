@@ -58,6 +58,16 @@ void DeepForEachInputImpl(
       }
       break;
     }
+    case DeoptFrame::FrameType::kConstructStubFrame: {
+      f(frame.as_construct_stub().closure(), &input_locations[index++]);
+      f(frame.as_construct_stub().receiver(), &input_locations[index++]);
+      for (first_argument<Function> node :
+           frame.as_construct_stub().arguments_without_receiver()) {
+        f(node, &input_locations[index++]);
+      }
+      f(frame.as_construct_stub().context(), &input_locations[index++]);
+      break;
+    }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       for (first_argument<Function> node :
            frame.as_builtin_continuation().parameters()) {
@@ -101,6 +111,16 @@ void DeepForEachInput(const_if_function_first_arg_not_reference<
             f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kConstructStubFrame: {
+      f(top_frame.as_construct_stub().closure(), &input_locations[index++]);
+      f(top_frame.as_construct_stub().receiver(), &input_locations[index++]);
+      for (first_argument<Function> node :
+           top_frame.as_construct_stub().arguments_without_receiver()) {
+        f(node, &input_locations[index++]);
+      }
+      f(top_frame.as_construct_stub().context(), &input_locations[index++]);
+      break;
+    }
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
       // The inlined arguments frame can never be the top frame.
       UNREACHABLE();

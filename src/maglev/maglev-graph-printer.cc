@@ -10,11 +10,13 @@
 #include <type_traits>
 #include <vector>
 
+#include "src/base/logging.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -403,6 +405,38 @@ void PrintSingleDeoptFrame(
       os << "}";
       break;
     }
+    case DeoptFrame::FrameType::kConstructStubFrame: {
+      if (frame.as_construct_stub().bytecode_position() ==
+          BytecodeOffset::ConstructStubCreate()) {
+        os << "@ConstructStubCreate";
+      } else {
+        os << "@ConstructStubInvoke";
+      }
+      if (!v8_flags.print_maglev_deopt_verbose) return;
+      os << " : {";
+      auto arguments_without_receiver =
+          frame.as_construct_stub().arguments_without_receiver();
+      os << "<this>:"
+         << PrintNodeLabel(graph_labeller, frame.as_construct_stub().receiver())
+         << ":" << current_input_location->operand();
+      current_input_location++;
+      if (arguments_without_receiver.size() > 0) {
+        os << ", ";
+      }
+      for (size_t i = 0; i < arguments_without_receiver.size(); i++) {
+        os << "a" << i << ":"
+           << PrintNodeLabel(graph_labeller, arguments_without_receiver[i])
+           << ":" << current_input_location->operand();
+        current_input_location++;
+        os << ", ";
+      }
+      os << "<context>:"
+         << PrintNodeLabel(graph_labeller, frame.as_construct_stub().context())
+         << ":" << current_input_location->operand();
+      current_input_location++;
+      os << "}";
+      break;
+    }
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
       os << "@" << frame.as_inlined_arguments().bytecode_position();
       if (!v8_flags.print_maglev_deopt_verbose) return;
@@ -548,19 +582,26 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   auto* liveness = block->state()->frame_state().liveness();
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
 
-  const InterpretedDeoptFrame& lazy_frame =
-      deopt_info->top_frame().type() ==
-              DeoptFrame::FrameType::kBuiltinContinuationFrame
-          ? deopt_info->top_frame().parent()->as_interpreted()
-          : deopt_info->top_frame().as_interpreted();
+  const InterpretedDeoptFrame* lazy_frame;
+  switch (deopt_info->top_frame().type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      lazy_frame = &deopt_info->top_frame().as_interpreted();
+      break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      UNREACHABLE();
+    case DeoptFrame::FrameType::kConstructStubFrame:
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
+      break;
+  }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " : {";
   bool first = true;
-  lazy_frame.as_interpreted().frame_state()->ForEachValue(
-      lazy_frame.as_interpreted().unit(),
+  lazy_frame->as_interpreted().frame_state()->ForEachValue(
+      lazy_frame->as_interpreted().unit(),
       [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
