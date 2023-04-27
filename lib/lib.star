@@ -447,6 +447,9 @@ def bq_exports(rdb_export_disabled, resultdb_bq_table_prefix):
     return [
         resultdb.export_test_results(
             bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_test_results",
+            predicate = resultdb.test_result_predicate(
+                test_id_regexp = "(?!//test262/).*",
+            ),
         ),
         resultdb.export_text_artifacts(
             bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_text_artifacts",
