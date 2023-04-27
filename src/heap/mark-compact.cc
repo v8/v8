@@ -36,8 +36,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/invalidated-slots-inl.h"
-#include "src/heap/invalidated-slots.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-barrier.h"
@@ -2146,12 +2144,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
   for (MemoryChunk* chunk = chunk_iterator.next(); chunk;
        chunk = chunk_iterator.next()) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
-        chunk, InvalidatedSlotsFilter::LivenessCheck::kNo);
     RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
-        [collector = this, cage_base, &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        [collector = this, cage_base](MaybeObjectSlot slot) {
           MaybeObject obj = slot.Relaxed_Load(cage_base);
           HeapObject heap_object;
 
@@ -2164,7 +2159,6 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
           }
         },
         SlotSet::FREE_EMPTY_BUCKETS);
-    chunk->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
 
     RememberedSet<OLD_TO_SHARED>::IterateTyped(
         chunk, [collector = this, heap](SlotType slot_type, Address slot) {
@@ -4070,13 +4064,6 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
     }
-
-    // GCs need to filter invalidated slots.
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
-    if (collector == GarbageCollector::MARK_COMPACTOR) {
-      DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
-    }
   }
 }
 
@@ -4925,7 +4912,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     UpdateUntypedOldToNewPointers();
     UpdateUntypedOldToOldPointers();
     UpdateUntypedOldToCodePointers();
-    UpdateUntypedOldToSharedPointers();
   }
 
   void UpdateUntypedOldToNewPointers() {
@@ -4934,15 +4920,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // Marking bits are cleared already when the page is already swept. This
       // is fine since in that case the sweeper has already removed dead invalid
       // objects as well.
-      InvalidatedSlotsFilter::LivenessCheck liveness_check =
-          !chunk_->SweepingDone() ? InvalidatedSlotsFilter::LivenessCheck::kYes
-                                  : InvalidatedSlotsFilter::LivenessCheck::kNo;
-      InvalidatedSlotsFilter filter =
-          InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this, &filter, cage_base](MaybeObjectSlot slot) {
-            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          [this, cage_base](MaybeObjectSlot slot) {
             CheckAndUpdateOldToNewSlot(slot);
             // A new space string might have been promoted into the shared heap
             // during GC.
@@ -4956,9 +4936,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
     }
 
-    // The invalidated slots are not needed after old-to-new slots were
-    // processed.
-    chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
     // Full GCs will empty new space, so OLD_TO_NEW is empty.
     chunk_->ReleaseSlotSet<OLD_TO_NEW>();
   }
@@ -4966,18 +4943,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedOldToOldPointers() {
     if (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
       const PtrComprCageBase cage_base = heap_->isolate();
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
-          chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [this, &filter, cage_base](MaybeObjectSlot slot) {
-            if (filter.IsValid(slot.address())) {
-              UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
-              // A string might have been promoted into the shared heap during
-              // GC.
-              if (record_old_to_shared_slots_) {
-                CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
-              }
+          [this, cage_base](MaybeObjectSlot slot) {
+            UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            // A string might have been promoted into the shared heap during
+            // GC.
+            if (record_old_to_shared_slots_) {
+              CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
             }
             // Always keep slot since all slots are dropped at once after
             // iteration.
@@ -4986,10 +4959,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_OLD>();
     }
-
-    // The invalidated slots are not needed after old-to-old slots were
-    // processed.
-    chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();
   }
 
   void UpdateUntypedOldToCodePointers() {
@@ -5016,29 +4985,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::FREE_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_CODE>();
     }
-
-    // The invalidated slots are not needed after old-to-code slots were
-    // processed, but since there are no invalidated OLD_TO_CODE slots,
-    // there's nothing to clear.
-    DCHECK_NULL(chunk_->invalidated_slots<OLD_TO_CODE>());
-  }
-
-  void UpdateUntypedOldToSharedPointers() {
-    if (chunk_->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()) {
-      // Client GCs need to remove invalidated OLD_TO_SHARED slots.
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
-          chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
-      RememberedSet<OLD_TO_SHARED>::Iterate(
-          chunk_,
-          [&filter](MaybeObjectSlot slot) {
-            return filter.IsValid(slot.address()) ? KEEP_SLOT : REMOVE_SLOT;
-          },
-          SlotSet::FREE_EMPTY_BUCKETS);
-    }
-
-    // The invalidated slots are not needed after old-to-shared slots were
-    // processed.
-    chunk_->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
   }
 
   void UpdateTypedPointers() {
@@ -5263,7 +5209,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     MemoryChunk* chunk = chunk_iterator.Next();
     CodePageMemoryModificationScope unprotect_code_page(chunk);
 
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
     RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [cage_base](MaybeObjectSlot slot) {
@@ -5327,17 +5272,6 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
                                             SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(page, page->address(),
                                                  failed_start);
-
-  // Remove invalidated slots.
-  if (failed_start > page->area_start()) {
-    InvalidatedSlotsCleanup old_to_new_cleanup =
-        InvalidatedSlotsCleanup::OldToNew(page);
-    old_to_new_cleanup.Free(page->area_start(), failed_start);
-
-    InvalidatedSlotsCleanup old_to_shared_cleanup =
-        InvalidatedSlotsCleanup::OldToShared(page);
-    old_to_shared_cleanup.Free(page->area_start(), failed_start);
-  }
 
   // Recompute live bytes.
   LiveObjectVisitor::RecomputeLiveBytes(page, marking_state);
@@ -6010,12 +5944,9 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
                "PageMarkingItem::MarkUntypedPointers");
   const bool record_old_to_shared_slots =
       chunk_->heap()->isolate()->has_shared_space();
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
-      chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk_,
-      [this, task, &filter, record_old_to_shared_slots](MaybeObjectSlot slot) {
-        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+      [this, task, record_old_to_shared_slots](MaybeObjectSlot slot) {
         SlotCallbackResult result = CheckAndMarkObject(task, slot);
         if (result == REMOVE_SLOT && record_old_to_shared_slots) {
           CheckOldToNewSlotForSharedUntyped(chunk_, slot);
@@ -6023,9 +5954,6 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
         return result;
       },
       SlotSet::FREE_EMPTY_BUCKETS);
-  // The invalidated slots are not needed after old-to-new slots were
-  // processed.
-  chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
 }
 
 void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
@@ -6188,8 +6116,6 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
             if (chunk->slot_set<OLD_TO_NEW>()) {
               marking_items.emplace_back(
                   chunk, PageMarkingItem::SlotsType::kRegularSlots);
-            } else {
-              chunk->ReleaseInvalidatedSlots<OLD_TO_NEW>();
             }
 
             if (chunk->typed_slot_set<OLD_TO_NEW>()) {

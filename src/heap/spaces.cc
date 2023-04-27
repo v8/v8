@@ -17,7 +17,6 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"

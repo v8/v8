@@ -13,7 +13,6 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -669,13 +668,9 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
-        page, InvalidatedSlotsFilter::LivenessCheck::kNo);
     RememberedSet<OLD_TO_NEW>::IterateAndTrackEmptyBuckets(
         page,
-        [this, page, record_old_to_shared_slots,
-         &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        [this, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
@@ -685,12 +680,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
           return result;
         },
         &empty_chunks_local_);
-  }
-
-  if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-    // The invalidated slots are not needed after old-to-new slots were
-    // processed.
-    page->ReleaseInvalidatedSlots<OLD_TO_NEW>();
   }
 
   RememberedSet<OLD_TO_NEW>::IterateTyped(

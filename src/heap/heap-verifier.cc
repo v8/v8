@@ -253,8 +253,6 @@ class HeapVerification final : public SpaceVerificationVisitor {
   // Verifies OLD_TO_NEW and OLD_TO_SHARED remembered sets for this object.
   void VerifyRememberedSetFor(HeapObject object);
 
-  void VerifyInvalidatedObjectSize();
-
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
@@ -332,8 +330,6 @@ void HeapVerification::Verify() {
   VerifySpace(code_lo_space());
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
-
-  VerifyInvalidatedObjectSize();
 
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
@@ -419,28 +415,6 @@ void HeapVerification::VerifyObjectMap(HeapObject object) {
   } else if (current_space_identity() == RO_SPACE) {
     CHECK(!object.IsExternalString());
     CHECK(!object.IsJSArrayBuffer());
-  }
-}
-
-namespace {
-void VerifyInvalidatedSlots(InvalidatedSlots* invalidated_slots) {
-  if (!invalidated_slots) return;
-  for (std::pair<HeapObject, int> object_and_size : *invalidated_slots) {
-    HeapObject object = object_and_size.first;
-    int size = object_and_size.second;
-    CHECK_EQ(object.Size(), size);
-  }
-}
-}  // namespace
-
-void HeapVerification::VerifyInvalidatedObjectSize() {
-  OldGenerationMemoryChunkIterator chunk_iterator(heap());
-  MemoryChunk* chunk;
-
-  while ((chunk = chunk_iterator.next()) != nullptr) {
-    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_NEW>());
-    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_OLD>());
-    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_SHARED>());
   }
 }
 

@@ -195,9 +195,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, String canonical,
-                UpdateInvalidatedObjectSize update_invalidated_object_size =
-                    UpdateInvalidatedObjectSize::kYes);
+  void MakeThin(IsolateT* isolate, String canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(

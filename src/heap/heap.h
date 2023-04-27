@@ -142,8 +142,6 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
-enum class UpdateInvalidatedObjectSize { kYes, kNo };
-
 enum class InvalidateRecordedSlots { kYes, kNo };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
@@ -1115,7 +1113,6 @@ class Heap {
   static int InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot);
 
 #ifdef DEBUG
-  void VerifyClearedSlot(HeapObject object, ObjectSlot slot);
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
 #endif
 
@@ -1176,11 +1173,8 @@ class Heap {
   // The runtime uses this function to inform the GC of object size changes. The
   // GC will fill this area with a filler object and might clear recorded slots
   // in that area.
-  void NotifyObjectSizeChange(
-      HeapObject, int old_size, int new_size,
-      ClearRecordedSlots clear_recorded_slots,
-      UpdateInvalidatedObjectSize update_invalidated_object_size =
-          UpdateInvalidatedObjectSize::kYes);
+  void NotifyObjectSizeChange(HeapObject, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
   // ===========================================================================
   // Deoptimization support API. ===============================================
@@ -1823,9 +1817,6 @@ class Heap {
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
-
-  // Updates invalidated object size in all remembered sets.
-  void UpdateInvalidatedObjectSize(HeapObject object, int new_size);
 
   enum class VerifyNoSlotsRecorded { kYes, kNo };
 

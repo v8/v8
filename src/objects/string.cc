@@ -188,9 +188,7 @@ void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
 }  // namespace
 
 template <typename IsolateT>
-void String::MakeThin(
-    IsolateT* isolate, String internalized,
-    UpdateInvalidatedObjectSize update_invalidated_object_size) {
+void String::MakeThin(IsolateT* isolate, String internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
@@ -214,11 +212,6 @@ void String::MakeThin(
   int old_size = SizeFromMap(initial_map);
   Map target_map = ReadOnlyRoots(isolate).thin_string_map();
   const bool in_shared_heap = InWritableSharedSpace();
-  if (in_shared_heap) {
-    // Objects in the shared heap are always direct, therefore they can't have
-    // any invalidated slots.
-    update_invalidated_object_size = UpdateInvalidatedObjectSize::kNo;
-  }
   if (initial_shape.IsExternal()) {
     // Conservatively assume ExternalStrings may have recorded slots if they
     // don't reside in shared heap, because they could have been transitioned
@@ -261,8 +254,7 @@ void String::MakeThin(
       isolate->heap()->NotifyObjectSizeChange(thin, old_size, ThinString::kSize,
                                               may_contain_recorded_slots
                                                   ? ClearRecordedSlots::kYes
-                                                  : ClearRecordedSlots::kNo,
-                                              update_invalidated_object_size);
+                                                  : ClearRecordedSlots::kNo);
     } else {
       // We don't need special handling for the combination IsLargeObject &&
       // may_contain_recorded_slots, because indirect strings never get that
@@ -273,11 +265,9 @@ void String::MakeThin(
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, String internalized,
-    UpdateInvalidatedObjectSize update_invalidated_object_size);
+    Isolate* isolate, String internalized);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, String internalized,
-    UpdateInvalidatedObjectSize update_invalidated_object_size);
+    LocalIsolate* isolate, String internalized);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
@@ -383,8 +373,7 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
 
   if (!isolate->heap()->IsLargeObject(*this)) {
     isolate->heap()->NotifyObjectSizeChange(*this, size, new_size,
-                                            ClearRecordedSlots::kNo,
-                                            UpdateInvalidatedObjectSize::kNo);
+                                            ClearRecordedSlots::kNo);
   }
 
   // The external pointer slots must be initialized before the new map is
@@ -465,15 +454,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
 
   if (!isolate->heap()->IsLargeObject(*this)) {
-    // Strings in the shared heap are never indirect and thus cannot have any
-    // invalidated slots.
-    const auto update_invalidated_object_size =
-        InWritableSharedSpace() ? UpdateInvalidatedObjectSize::kNo
-                                : UpdateInvalidatedObjectSize::kYes;
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,
-        update_invalidated_object_size);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
     // has_pointers, because indirect strings never get that large.
@@ -555,15 +538,9 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
       isolate->heap()->NotifyObjectLayoutChange(
           *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
     }
-    // Strings in the shared heap are never indirect and thus cannot have any
-    // invalidated slots.
-    const auto update_invalidated_object_size =
-        InWritableSharedSpace() ? UpdateInvalidatedObjectSize::kNo
-                                : UpdateInvalidatedObjectSize::kYes;
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,
-        update_invalidated_object_size);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
     // has_pointers, because indirect strings never get that large.
@@ -1848,8 +1825,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
     // No slot invalidation needed since this method is only used on freshly
     // allocated strings.
     heap->NotifyObjectSizeChange(*string, old_size, new_size,
-                                 ClearRecordedSlots::kNo,
-                                 UpdateInvalidatedObjectSize::kNo);
+                                 ClearRecordedSlots::kNo);
   }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.

@@ -55,7 +55,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     // MemoryChunk fields:
     FIELD(SlotSet* [kNumSets], SlotSet),
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
-    FIELD(void* [kNumSets], InvalidatedSlots),
     FIELD(ProgressBar, ProgressBar),
     FIELD(std::atomic<intptr_t>, LiveByteCount),
     FIELD(base::Mutex*, Mutex),

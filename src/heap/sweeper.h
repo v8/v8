@@ -23,7 +23,6 @@
 namespace v8 {
 namespace internal {
 
-class InvalidatedSlotsCleanup;
 class MemoryChunk;
 class NonAtomicMarkingState;
 class Page;
@@ -213,10 +212,7 @@ class Sweeper {
   // memory which require clearing.
   void CleanupRememberedSetEntriesForFreedMemory(
       Address free_start, Address free_end, Page* page, bool record_free_ranges,
-      TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
-      InvalidatedSlotsCleanup* invalidated_old_to_new_cleanup,
-      InvalidatedSlotsCleanup* invalidated_old_to_old_cleanup,
-      InvalidatedSlotsCleanup* invalidated_old_to_shared_cleanup);
+      TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode);
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.
