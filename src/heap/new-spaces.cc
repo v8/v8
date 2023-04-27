@@ -999,6 +999,29 @@ bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
   return current_capacity_ > target_capacity_;
 }
 
+void PagedSpaceForNewSpace::RefillFreeList() {
+  // New space is not used for concurrent allcations or allocations during
+  // evacuation.
+  DCHECK(heap_->IsMainThread() ||
+         (heap_->IsSharedMainThread() &&
+          !heap_->isolate()->is_shared_space_isolate()));
+  DCHECK(!is_compaction_space());
+
+  Sweeper* sweeper = heap()->sweeper();
+
+  Sweeper::SweptList swept_pages = sweeper->GetAllSweptPagesSafe(this);
+  if (swept_pages.empty()) return;
+
+  for (Page* p : swept_pages) {
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      p->ForAllFreeListCategories(
+          [this](FreeListCategory* category) { category->Reset(free_list()); });
+    }
+    RefineAllocatedBytesAfterSweeping(p);
+    RelinkFreeListCategories(p);
+  }
+}
+
 bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
                                                   AllocationOrigin origin) {
   DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));

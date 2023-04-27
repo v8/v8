@@ -126,7 +126,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     size_t wasted = free_list_->Free(start, size_in_bytes, kLinkCategory);
     Page* page = Page::FromAddress(start);
     accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
-    free_list()->increase_wasted_bytes(wasted);
     DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
@@ -227,7 +226,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  virtual void RefillFreeList();
+  virtual void RefillFreeList() = 0;
 
   base::Mutex* mutex() { return &space_mutex_; }
 
@@ -281,7 +280,28 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   base::Optional<std::pair<Address, size_t>> TryExpandBackground(
       size_t size_in_bytes);
 
-  void RefineAllocatedBytesAfterSweeping(Page* page);
+ private:
+  class ConcurrentAllocationMutex {
+   public:
+    explicit ConcurrentAllocationMutex(const PagedSpaceBase* space) {
+      if (space->SupportsConcurrentAllocation()) {
+        guard_.emplace(&space->space_mutex_);
+      }
+    }
+
+    base::Optional<base::MutexGuard> guard_;
+  };
+
+  bool SupportsConcurrentAllocation() const {
+    return !is_compaction_space() && (identity() != NEW_SPACE);
+  }
+
+  // Set space linear allocation area.
+  void SetTopAndLimit(Address top, Address limit, Address end);
+  void DecreaseLimit(Address new_limit);
+  bool SupportsAllocationObserver() const override {
+    return !is_compaction_space();
+  }
 
  protected:
   // Updates the current lab limit without updating top, original_top or
@@ -289,6 +309,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void SetLimit(Address limit);
 
   bool SupportsExtendingLAB() const { return identity() == NEW_SPACE; }
+
+  void RefineAllocatedBytesAfterSweeping(Page* page);
 
   void UpdateInlineAllocationLimit() override;
 
@@ -355,29 +377,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::atomic<size_t> committed_physical_memory_{0};
 
- private:
-  class ConcurrentAllocationMutex {
-   public:
-    explicit ConcurrentAllocationMutex(const PagedSpaceBase* space) {
-      if (space->SupportsConcurrentAllocation()) {
-        guard_.emplace(&space->space_mutex_);
-      }
-    }
-
-    base::Optional<base::MutexGuard> guard_;
-  };
-
-  bool SupportsConcurrentAllocation() const {
-    return !is_compaction_space() && (identity() != NEW_SPACE);
-  }
-
-  // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit, Address end);
-  void DecreaseLimit(Address new_limit);
-  bool SupportsAllocationObserver() const override {
-    return !is_compaction_space();
-  }
-
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
 
@@ -396,6 +395,8 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
                        allocation_counter_, allocation_info,
                        linear_area_original_data_, compaction_space_kind) {}
+
+  void RefillFreeList() final;
 
  private:
   AllocationCounter allocation_counter_;
@@ -416,11 +417,12 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
 
   const std::vector<Page*>& GetNewPages() { return new_pages_; }
 
-  void RefillFreeList() final;
+ private:
+  LinearAllocationArea allocation_info_;
 
  protected:
   V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
-                                           AllocationOrigin origin) final;
+                                           AllocationOrigin origin) override;
 
   Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode) final;
   // The space is temporary and not included in any snapshots.
@@ -428,9 +430,6 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<Page*> new_pages_;
-
- private:
-  LinearAllocationArea allocation_info_;
 };
 
 // A collection of |CompactionSpace|s used by a single compaction task.
