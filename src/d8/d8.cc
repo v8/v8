@@ -405,6 +405,7 @@ namespace tracing {
 namespace {
 
 static constexpr char kIncludedCategoriesParam[] = "included_categories";
+static constexpr char kTraceConfigParam[] = "trace_config";
 
 class TraceConfigParser {
  public:
@@ -420,6 +421,13 @@ class TraceConfigParser {
         String::NewFromUtf8(isolate, json_str).ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = result.As<v8::Object>();
+    // Try reading 'trace_config' property from a full chrome trace config.
+    // https://chromium.googlesource.com/chromium/src/+/master/docs/memory-infra/memory_infra_startup_tracing.md#the-advanced-way
+    Local<Value> maybe_trace_config_object =
+        GetValue(isolate, context, trace_config_object, kTraceConfigParam);
+    if (maybe_trace_config_object->IsObject()) {
+      trace_config_object = maybe_trace_config_object.As<Object>();
+    }
 
     UpdateIncludedCategoriesList(isolate, context, trace_config_object,
                                  trace_config);
