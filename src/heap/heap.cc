@@ -611,6 +611,8 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
 
   switch (collector) {
     case GarbageCollector::MINOR_MARK_COMPACTOR:
+      if (!v8_flags.minor_mc_shortcut_strings) return false;
+
       DCHECK(!incremental_marking()->IsMajorMarking());
 
       // Minor MC cannot short cut strings during concurrent marking.
