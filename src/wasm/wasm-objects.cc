@@ -1136,7 +1136,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   // sandboxed pointers), but some entries (the indices for reference-type
   // globals) are accessed as 32-bit integers which is more convenient with a
   // raw ByteArray.
-  Handle<ByteArray> imported_mutable_globals =
+  Handle<FixedAddressArray> imported_mutable_globals =
       FixedAddressArray::New(isolate, num_imported_mutable_globals);
   instance->set_imported_mutable_globals(*imported_mutable_globals);
 
@@ -1524,7 +1524,7 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
   if (global.mutability && global.imported) {
     return reinterpret_cast<byte*>(
         instance->imported_mutable_globals().get_sandboxed_pointer(
-            global.index * kSystemPointerSize));
+            global.index));
   } else {
     return instance->globals_start() + global.offset;
   }
@@ -1541,8 +1541,7 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
         FixedArray::cast(
             instance->imported_mutable_globals_buffers().get(global.index)),
         isolate);
-    Address idx = instance->imported_mutable_globals().get_int(
-        global.index * kSystemPointerSize);
+    Address idx = instance->imported_mutable_globals().get(global.index);
     DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
     return {buffer, static_cast<uint32_t>(idx)};
   }

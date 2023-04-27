@@ -616,19 +616,33 @@ void ByteArray::set_int(int offset, int value) {
   WriteField<int>(kHeaderSize + offset, value);
 }
 
-Address ByteArray::get_sandboxed_pointer(int offset) const {
+Address FixedAddressArray::get_sandboxed_pointer(int offset) const {
   DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  return ReadSandboxedPointerField(kHeaderSize + offset, sandbox_base);
+  return ReadSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base);
 }
 
-void ByteArray::set_sandboxed_pointer(int offset, Address value) {
+void FixedAddressArray::set_sandboxed_pointer(int offset, Address value) {
   DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  WriteSandboxedPointerField(kHeaderSize + offset, sandbox_base, value);
+  WriteSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base, value);
 }
+
+// static
+Handle<FixedAddressArray> FixedAddressArray::New(Isolate* isolate, int length,
+                                                 AllocationType allocation) {
+  return Handle<FixedAddressArray>::cast(
+      FixedIntegerArray<Address>::New(isolate, length, allocation));
+}
+
+FixedAddressArray::FixedAddressArray(Address ptr)
+    : FixedIntegerArray<Address>(ptr) {}
+
+CAST_ACCESSOR(FixedAddressArray)
 
 void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
@@ -674,9 +688,7 @@ FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
 }
 
 template <typename T>
-FixedIntegerArray<T> FixedIntegerArray<T>::cast(Object object) {
-  return FixedIntegerArray<T>(object.ptr());
-}
+CAST_ACCESSOR(FixedIntegerArray<T>)
 
 // static
 template <typename T>
@@ -714,9 +726,7 @@ template <class T>
 PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
 
 template <class T>
-PodArray<T> PodArray<T>::cast(Object object) {
-  return PodArray<T>(object.ptr());
-}
+CAST_ACCESSOR(PodArray<T>)
 
 // static
 template <class T>

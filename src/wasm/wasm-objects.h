@@ -338,7 +338,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_tables, FixedArray)
   DECL_ACCESSORS(imported_function_refs, FixedArray)
-  DECL_ACCESSORS(imported_mutable_globals, ByteArray)
+  DECL_ACCESSORS(imported_mutable_globals, FixedAddressArray)
   DECL_ACCESSORS(imported_function_targets, FixedAddressArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_ACCESSORS(indirect_function_table_sig_ids, FixedUInt32Array)

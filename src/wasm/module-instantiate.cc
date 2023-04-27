@@ -1817,8 +1817,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       buffer = handle(global_object->tagged_buffer(), isolate_);
       // For externref globals we use a relative offset, not an absolute
       // address.
-      instance->imported_mutable_globals().set_int(
-          global.index * kSystemPointerSize, global_object->offset());
+      instance->imported_mutable_globals().set(global.index,
+                                               global_object->offset());
     } else {
       buffer = handle(global_object->untagged_buffer(), isolate_);
       // It is safe in this case to store the raw pointer to the buffer
@@ -1826,8 +1826,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       // relocated.
       Address address = reinterpret_cast<Address>(raw_buffer_ptr(
           Handle<JSArrayBuffer>::cast(buffer), global_object->offset()));
-      instance->imported_mutable_globals().set_sandboxed_pointer(
-          global.index * kSystemPointerSize, address);
+      instance->imported_mutable_globals().set_sandboxed_pointer(global.index,
+                                                                 address);
     }
     instance->imported_mutable_globals_buffers().set(global.index, *buffer);
     return true;
@@ -2266,15 +2266,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
-            offset = instance->imported_mutable_globals().get_int(
-                global.index * kSystemPointerSize);
+            offset = static_cast<uint32_t>(
+                instance->imported_mutable_globals().get(global.index));
           } else {
             untagged_buffer =
                 handle(JSArrayBuffer::cast(buffers_array->get(global.index)),
                        isolate_);
             Address global_addr =
                 instance->imported_mutable_globals().get_sandboxed_pointer(
-                    global.index * kSystemPointerSize);
+                    global.index);
 
             size_t buffer_size = untagged_buffer->byte_length();
             Address backing_store =

@@ -197,7 +197,7 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, isorecursive_canonical_types,
                     const uint32_t*, kIsorecursiveCanonicalTypesOffset)
 SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, byte*,
                             kGlobalsStartOffset)
-ACCESSORS(WasmInstanceObject, imported_mutable_globals, ByteArray,
+ACCESSORS(WasmInstanceObject, imported_mutable_globals, FixedAddressArray,
           kImportedMutableGlobalsOffset)
 ACCESSORS(WasmInstanceObject, imported_function_targets, FixedAddressArray,
           kImportedFunctionTargetsOffset)
