@@ -5060,7 +5060,7 @@ Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
 
 void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
                                  Local<Function> setter,
-                                 PropertyAttribute attribute,
+                                 PropertyAttribute attributes,
                                  AccessControl settings) {
   // TODO(verwaest): Remove |settings|.
   DCHECK_EQ(v8::DEFAULT, settings);
@@ -5072,9 +5072,20 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
   i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
   i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
   if (setter_i.is_null()) setter_i = i_isolate->factory()->null_value();
-  i::JSObject::DefineAccessor(i::Handle<i::JSObject>::cast(self),
-                              v8::Utils::OpenHandle(*name), getter_i, setter_i,
-                              static_cast<i::PropertyAttributes>(attribute));
+
+  i::PropertyDescriptor desc;
+  desc.set_enumerable(!(attributes & v8::DontEnum));
+  desc.set_configurable(!(attributes & v8::DontDelete));
+  desc.set_get(getter_i);
+  desc.set_set(setter_i);
+
+  i::Handle<i::Name> name_i = v8::Utils::OpenHandle(*name);
+  // DefineOwnProperty might still throw if the receiver is a JSProxy and it
+  // might fail if the receiver is non-extensible or already has this property
+  // as non-configurable.
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      i_isolate, self, name_i, &desc, Just(i::kDontThrow));
+  USE(success);
 }
 
 Maybe<bool> Object::SetNativeDataProperty(

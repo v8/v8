@@ -156,7 +156,8 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Handle<String> property_name = factory->NewStringFromAsciiChecked(name);
   Handle<JSFunction> getter = CreateFunc(isolate, func, property_name, false);
   Handle<Object> setter = factory->null_value();
-  JSObject::DefineAccessor(object, property_name, getter, setter, FROZEN);
+  JSObject::DefineOwnAccessorIgnoreAttributes(object, property_name, getter,
+                                              setter, FROZEN);
 }
 
 void InstallFunction(Isolate* isolate, Handle<JSObject> holder,

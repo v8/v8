@@ -632,7 +632,9 @@ V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
   Handle<JSFunction> setter =
       SimpleCreateFunction(isolate, setter_name, call_setter, 1, true);
 
-  JSObject::DefineAccessor(base, name, getter, setter, DONT_ENUM).Check();
+  JSObject::DefineOwnAccessorIgnoreAttributes(base, name, getter, setter,
+                                              DONT_ENUM)
+      .Check();
 }
 
 void SimpleInstallGetterSetter(Isolate* isolate, Handle<JSObject> base,
@@ -656,7 +658,8 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Isolate* isolate,
 
   Handle<Object> setter = isolate->factory()->undefined_value();
 
-  JSObject::DefineAccessor(base, property_name, getter, setter, DONT_ENUM)
+  JSObject::DefineOwnAccessorIgnoreAttributes(base, property_name, getter,
+                                              setter, DONT_ENUM)
       .Check();
 
   return getter;
