@@ -92,10 +92,10 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
                             Handle<FunctionTemplateInfo>::cast(setter)),
         Object);
   }
-  RETURN_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, getter, setter, attributes),
-      Object);
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::DefineOwnAccessorIgnoreAttributes(
+                          object, name, getter, setter, attributes),
+                      Object);
   return object;
 }
 
