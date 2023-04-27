@@ -3186,6 +3186,7 @@ void WasmGraphBuilder::InitInstanceCache(
       LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, kMemStartType);
 
   // Load the memory size.
+  // TODO(13957): Clamp the loaded memory size to a safe value.
   instance_cache->mem_size =
       LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemorySize, MachineType::UintPtr());
   wasm::ValueType mem_size_type =
