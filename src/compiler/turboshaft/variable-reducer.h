@@ -57,14 +57,6 @@ class VariableReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit VariableReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        table_(Asm().phase_zone()),
-        block_to_snapshot_mapping_(Asm().input_graph().block_count(),
-                                   base::nullopt, Asm().phase_zone()),
-        predecessors_(Asm().phase_zone()) {}
-
   void Bind(Block* new_block) {
     Next::Bind(new_block);
 
@@ -294,13 +286,15 @@ class VariableReducer : public Next {
                             first_frame->data);
   }
 
-  SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>> table_;
+  SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>> table_{
+      Asm().phase_zone()};
   const Block* current_block_ = nullptr;
-  ZoneVector<base::Optional<Snapshot>> block_to_snapshot_mapping_;
+  ZoneVector<base::Optional<Snapshot>> block_to_snapshot_mapping_{
+      Asm().input_graph().block_count(), base::nullopt, Asm().phase_zone()};
 
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.
-  ZoneVector<Snapshot> predecessors_;
+  ZoneVector<Snapshot> predecessors_{Asm().phase_zone()};
 };
 
 }  // namespace v8::internal::compiler::turboshaft

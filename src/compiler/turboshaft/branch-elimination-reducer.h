@@ -172,13 +172,6 @@ class BranchEliminationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit BranchEliminationReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        dominator_path_(Asm().phase_zone()),
-        known_conditions_(Asm().phase_zone(),
-                          Asm().input_graph().DominatorTreeDepth() * 2) {}
-
   void Bind(Block* new_block) {
     Next::Bind(new_block);
 
@@ -470,8 +463,9 @@ class BranchEliminationReducer : public Next {
   // TODO(dmercadier): use the SnapshotTable to replace {dominator_path_} and
   // {known_conditions_}, and to reuse the existing merging/replay logic of the
   // SnapshotTable.
-  ZoneVector<Block*> dominator_path_;
-  LayeredHashMap<OpIndex, bool> known_conditions_;
+  ZoneVector<Block*> dominator_path_{Asm().phase_zone()};
+  LayeredHashMap<OpIndex, bool> known_conditions_{
+      Asm().phase_zone(), Asm().input_graph().DominatorTreeDepth() * 2};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

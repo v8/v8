@@ -15,18 +15,15 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void OptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker(),
+void OptimizePhase::Run(Zone* temp_zone) {
+  UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::OptimizationPhase<
       turboshaft::StructuralOptimizationReducer,
       turboshaft::LateEscapeAnalysisReducer,
       turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
       turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-      turboshaft::ValueNumberingReducer>::
-      Run(data->isolate(), &data->graph(), temp_zone, data->node_origins(),
-          std::tuple{
-              turboshaft::MemoryOptimizationReducerArgs{data->isolate()}});
+      turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

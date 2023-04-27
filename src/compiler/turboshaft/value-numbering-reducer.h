@@ -73,19 +73,6 @@ class ValueNumberingReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit ValueNumberingReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        dominator_path_(Asm().phase_zone()),
-        depths_heads_(Asm().phase_zone()) {
-    table_ = Asm().phase_zone()->template NewVector<Entry>(
-        base::bits::RoundUpToPowerOfTwo(
-            std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)),
-        Entry());
-    entry_count_ = 0;
-    mask_ = table_.size() - 1;
-  }
-
 #define EMIT_OP(Name)                                                 \
   template <class... Args>                                            \
   OpIndex Reduce##Name(Args... args) {                                \
@@ -260,11 +247,14 @@ class ValueNumberingReducer : public Next {
     return V8_LIKELY(entry > table_.begin()) ? entry - 1 : table_.end() - 1;
   }
 
-  ZoneVector<Block*> dominator_path_;
-  base::Vector<Entry> table_;
-  size_t mask_;
-  size_t entry_count_;
-  ZoneVector<Entry*> depths_heads_;
+  ZoneVector<Block*> dominator_path_{Asm().phase_zone()};
+  base::Vector<Entry> table_ = Asm().phase_zone()->template NewVector<Entry>(
+      base::bits::RoundUpToPowerOfTwo(
+          std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)),
+      Entry());
+  size_t mask_ = table_.size() - 1;
+  size_t entry_count_ = 0;
+  ZoneVector<Entry*> depths_heads_{Asm().phase_zone()};
 };
 
 }  // namespace turboshaft

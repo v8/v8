@@ -375,14 +375,10 @@ class PipelineData {
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
-  turboshaft::PipelineData* InitializeTurboshaftPipeline() {
-    DCHECK_EQ(turboshaft_data_, base::nullopt);
-    turboshaft_data_.emplace(info_, schedule_, graph_zone_, broker_, isolate_,
-                             source_positions_, node_origins_);
-    return &turboshaft_data_.value();
-  }
-  turboshaft::PipelineData* turboshaft_data() {
-    return turboshaft_data_.has_value() ? &turboshaft_data_.value() : nullptr;
+  turboshaft::PipelineData CreateTurboshaftPipeline() {
+    return turboshaft::PipelineData{info_,        schedule_, graph_zone_,
+                                    broker_,      isolate_,  source_positions_,
+                                    node_origins_};
   }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
@@ -513,7 +509,7 @@ class PipelineData {
     jsgraph_ = nullptr;
     mcgraph_ = nullptr;
     schedule_ = nullptr;
-    if (turboshaft_data_) turboshaft_data_->DeleteGraphZone();
+    DCHECK(!turboshaft::PipelineData::HasScope());
     graph_zone_scope_.Destroy();
   }
 
@@ -734,8 +730,6 @@ class PipelineData {
   const ProfileDataFromFile* profile_data_ = nullptr;
 
   bool has_js_wasm_calls_ = false;
-
-  base::Optional<turboshaft::PipelineData> turboshaft_data_ = base::nullopt;
 };
 
 class PipelineImpl final {
@@ -757,7 +751,7 @@ class PipelineImpl final {
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
-  void InitializeTurboshaftPipeline();
+  turboshaft::PipelineData CreateTurboshaftPipeline();
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void Revectorize();
@@ -1368,24 +1362,23 @@ auto PipelineImpl::Run(Args&&... args) {
   if constexpr (Phase::kKind == PhaseKind::kTurbofan) {
     return phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
   } else if constexpr (Phase::kKind == PhaseKind::kTurboshaft) {
-    turboshaft::PipelineData* data = this->data_->turboshaft_data();
     using result_t =
-        decltype(phase.Run(data, scope.zone(), std::forward<Args>(args)...));
+        decltype(phase.Run(scope.zone(), std::forward<Args>(args)...));
     CodeTracer* code_tracer = nullptr;
-    if (data->info()->trace_turbo_graph()) {
+    if (turboshaft::PipelineData::Get().info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
       // because it may not yet be initialized then and doing so from the
       // background thread is not threadsafe.
       code_tracer = this->data_->GetCodeTracer();
     }
     if constexpr (std::is_same_v<result_t, void>) {
-      phase.Run(data, scope.zone(), std::forward<Args>(args)...);
-      turboshaft::PrintTurboshaftGraph(data, scope.zone(), code_tracer,
+      phase.Run(scope.zone(), std::forward<Args>(args)...);
+      turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
                                        Phase::phase_name());
       return;
     } else {
-      auto result = phase.Run(data, scope.zone(), std::forward<Args>(args)...);
-      turboshaft::PrintTurboshaftGraph(data, scope.zone(), code_tracer,
+      auto result = phase.Run(scope.zone(), std::forward<Args>(args)...);
+      turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
                                        Phase::phase_name());
       return result;
     }
@@ -3056,7 +3049,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
 
-    data->InitializeTurboshaftPipeline();
+    turboshaft::PipelineData::Scope turboshaft_pipeline(
+        data->CreateTurboshaftPipeline());
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
     if (base::Optional<BailoutReason> bailout =
@@ -3595,7 +3589,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   Linkage linkage(call_descriptor);
 
   if (v8_flags.turboshaft_wasm) {
-    pipeline.InitializeTurboshaftPipeline();
+    turboshaft::PipelineData::Scope turboshaft_pipeline(
+        pipeline.CreateTurboshaftPipeline());
 
     if (base::Optional<BailoutReason> bailout =
             pipeline.Run<turboshaft::BuildGraphPhase>(&linkage)) {
@@ -3805,8 +3800,8 @@ void PipelineImpl::ComputeScheduledGraph() {
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
 }
 
-void PipelineImpl::InitializeTurboshaftPipeline() {
-  this->data_->InitializeTurboshaftPipeline();
+turboshaft::PipelineData PipelineImpl::CreateTurboshaftPipeline() {
+  return data_->CreateTurboshaftPipeline();
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC

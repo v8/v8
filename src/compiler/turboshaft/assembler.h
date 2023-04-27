@@ -481,10 +481,6 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   using Base = ReducerBaseForwarder<Next>;
-  using ArgT = std::tuple<>;
-
-  template <class... Args>
-  explicit ReducerBase(const std::tuple<Args...>&) {}
 
   void Bind(Block* block) {}
 
@@ -2876,12 +2872,10 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   using Stack = typename reducer_stack_type<Reducers>::type;
 
  public:
-  template <class... ReducerArgs>
   explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
-                     compiler::NodeOriginTable* origins,
-                     const typename Stack::ArgT& reducer_args)
+                     compiler::NodeOriginTable* origins)
       : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone, origins),
-        Stack(reducer_args) {
+        Stack() {
     SupportedOperations::Initialize();
   }
 

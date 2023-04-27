@@ -11,29 +11,16 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-struct FastApiCallReducerArgs {
-  Factory* factory;
-  Isolate* isolate;
-};
-
 template <typename Next>
 class FastApiCallReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  using ArgT =
-      base::append_tuple_type<typename Next::ArgT, FastApiCallReducerArgs>;
-
-  template <typename... Args>
-  explicit FastApiCallReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        factory_(std::get<FastApiCallReducerArgs>(args).factory),
-        isolate_(std::get<FastApiCallReducerArgs>(args).isolate) {}
 
   OpIndex REDUCE(FastApiCall)(OpIndex data_argument,
                               base::Vector<const OpIndex> arguments,
@@ -614,8 +601,8 @@ class FastApiCallReducer : public Next {
     return result;
   }
 
-  Factory* factory_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
+  Factory* factory_ = isolate_->factory();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

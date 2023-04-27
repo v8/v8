@@ -34,6 +34,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
@@ -46,15 +47,19 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct GraphBuilder {
-  Isolate* isolate;
-  JSHeapBroker* broker;
-  Zone* graph_zone;
   Zone* phase_zone;
   Schedule& schedule;
-  Assembler<reducer_list<>> assembler;
   Linkage* linkage;
-  SourcePositionTable* source_positions;
-  NodeOriginTable* origins;
+
+  Isolate* isolate = PipelineData::Get().isolate();
+  JSHeapBroker* broker = PipelineData::Get().broker();
+  Zone* graph_zone = PipelineData::Get().graph_zone();
+  Assembler<reducer_list<>> assembler{PipelineData::Get().graph(),
+                                      PipelineData::Get().graph(), phase_zone,
+                                      nullptr};
+  SourcePositionTable* source_positions =
+      PipelineData::Get().source_positions();
+  NodeOriginTable* origins = PipelineData::Get().node_origins();
 
   struct BlockData {
     Block* block;
@@ -2148,23 +2153,9 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(JSHeapBroker* broker,
-                                         Schedule* schedule, Isolate* isolate,
-                                         Zone* graph_zone, Zone* phase_zone,
-                                         Graph* graph, Linkage* linkage,
-                                         SourcePositionTable* source_positions,
-                                         NodeOriginTable* origins) {
-  GraphBuilder builder{isolate,
-                       broker,
-                       graph_zone,
-                       phase_zone,
-                       *schedule,
-                       Assembler<reducer_list<>>(*graph, *graph, phase_zone,
-                                                 nullptr, std::tuple<>{}),
-                       linkage,
-                       source_positions,
-                       origins};
-  return builder.Run();
+base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* phase_zone,
+                                         Linkage* linkage) {
+  return GraphBuilder{phase_zone, *schedule, linkage}.Run();
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

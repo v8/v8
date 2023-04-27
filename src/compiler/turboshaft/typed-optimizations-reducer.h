@@ -28,10 +28,6 @@ class TypedOptimizationsReducer
 
   using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
 
-  template <typename... Args>
-  explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)
-      : Adapter(args) {}
-
   OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& operation) {
     Type condition_type = GetType(operation.condition());
     if (!condition_type.IsInvalid()) {

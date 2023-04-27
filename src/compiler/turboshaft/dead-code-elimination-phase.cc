@@ -9,11 +9,11 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void DeadCodeEliminationPhase::Run(PipelineData* data, Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
+void DeadCodeEliminationPhase::Run(Zone* temp_zone) {
+  UnparkedScopeIfNeeded scope(PipelineData::Get().broker(), DEBUG_BOOL);
 
   turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer>::Run(
-      data->isolate(), &data->graph(), temp_zone, data->node_origins());
+      temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

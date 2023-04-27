@@ -26,6 +26,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
@@ -35,14 +36,15 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct ScheduleBuilder {
-  const Graph& input_graph;
-  JSHeapBroker* broker;
   CallDescriptor* call_descriptor;
-  Zone* graph_zone;
   Zone* phase_zone;
-  SourcePositionTable* source_positions;
-  NodeOriginTable* origins;
 
+  const Graph& input_graph = PipelineData::Get().graph();
+  JSHeapBroker* broker = PipelineData::Get().broker();
+  Zone* graph_zone = PipelineData::Get().graph_zone();
+  SourcePositionTable* source_positions =
+      PipelineData::Get().source_positions();
+  NodeOriginTable* origins = PipelineData::Get().node_origins();
   const size_t node_count_estimate =
       static_cast<size_t>(1.1 * input_graph.op_id_count());
   Schedule* const schedule =
@@ -1437,15 +1439,9 @@ Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {
 
 }  // namespace
 
-RecreateScheduleResult RecreateSchedule(const Graph& graph,
-                                        JSHeapBroker* broker,
-                                        CallDescriptor* call_descriptor,
-                                        Zone* graph_zone, Zone* phase_zone,
-                                        SourcePositionTable* source_positions,
-                                        NodeOriginTable* origins) {
-  ScheduleBuilder builder{graph,      broker,     call_descriptor,
-                          graph_zone, phase_zone, source_positions,
-                          origins};
+RecreateScheduleResult RecreateSchedule(CallDescriptor* call_descriptor,
+                                        Zone* phase_zone) {
+  ScheduleBuilder builder{call_descriptor, phase_zone};
   return builder.Run();
 }
 

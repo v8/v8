@@ -20,6 +20,7 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -35,26 +36,12 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-struct MachineLoweringReducerArgs {
-  Factory* factory;
-  Isolate* isolate;
-};
-
 // MachineLoweringReducer, formerly known as EffectControlLinearizer, lowers
 // simplified operations to machine operations.
 template <typename Next>
 class MachineLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  using ArgT =
-      base::append_tuple_type<typename Next::ArgT, MachineLoweringReducerArgs>;
-
-  template <typename... Args>
-  explicit MachineLoweringReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        factory_(std::get<MachineLoweringReducerArgs>(args).factory),
-        isolate_(std::get<MachineLoweringReducerArgs>(args).isolate) {}
 
   bool NeedsHeapObjectCheck(ObjectIsOp::InputAssumptions input_assumptions) {
     // TODO(nicohartmann@): Consider type information once we have that.
@@ -3101,8 +3088,8 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  Factory* factory_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
+  Factory* factory_ = isolate_->factory();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

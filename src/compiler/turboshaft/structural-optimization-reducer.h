@@ -81,9 +81,6 @@ template <class Next>
 class StructuralOptimizationReducer : public Next {
  public:
   using Next::Asm;
-  template <class... Args>
-  explicit StructuralOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
 
   OpIndex ReduceInputGraphBranch(OpIndex input_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {

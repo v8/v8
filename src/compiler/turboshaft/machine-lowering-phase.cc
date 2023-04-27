@@ -11,14 +11,9 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
+void MachineLoweringPhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<turboshaft::MachineLoweringReducer,
-                                turboshaft::FastApiCallReducer>::
-      Run(data->isolate(), &data->graph(), temp_zone, data->node_origins(),
-          std::tuple{turboshaft::FastApiCallReducerArgs{
-                         data->isolate()->factory(), data->isolate()},
-                     turboshaft::MachineLoweringReducerArgs{
-                         data->isolate()->factory(), data->isolate()}});
+                                turboshaft::FastApiCallReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

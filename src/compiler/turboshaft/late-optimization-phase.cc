@@ -13,14 +13,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void LateOptimizationPhase::Run(PipelineData* data, Zone* temp_zone) {
+void LateOptimizationPhase::Run(Zone* temp_zone) {
   // TODO(dmercadier,tebbi): add missing CommonOperatorReducer.
   turboshaft::OptimizationPhase<
       turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
       turboshaft::SelectLoweringReducer,
       turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-      turboshaft::ValueNumberingReducer>::Run(data->isolate(), &data->graph(),
-                                              temp_zone, data->node_origins());
+      turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

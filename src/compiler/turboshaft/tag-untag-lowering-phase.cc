@@ -8,9 +8,9 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void TagUntagLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
+void TagUntagLoweringPhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<turboshaft::TagUntagLoweringReducer>::Run(
-      data->isolate(), &data->graph(), temp_zone, data->node_origins());
+      temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

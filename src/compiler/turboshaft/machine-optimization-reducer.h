@@ -58,10 +58,6 @@ class MachineOptimizationReducer : public Next {
  public:
   using Next::Asm;
 
-  template <class... Args>
-  explicit MachineOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
   // TODO(mslekova): Implement ReduceSelect and ReducePhi,
   // by reducing `(f > 0) ? f : -f` to `fabs(f)`.
 

@@ -19,6 +19,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 
@@ -60,12 +61,12 @@ V8_INLINE bool ShouldSkipOperation(const Operation& op) {
 template <template <class> class... Reducers>
 class OptimizationPhaseImpl {
  public:
-  static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
-                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
-                      reducer_args = std::tuple<>{}) {
+  static void Run(Zone* phase_zone) {
+    PipelineData& data = PipelineData::Get();
+    Graph& input_graph = data.graph();
     Assembler<reducer_list<Reducers...>> phase(
-        *input, input->GetOrCreateCompanion(), phase_zone, origins,
-        reducer_args);
+        input_graph, input_graph.GetOrCreateCompanion(), phase_zone,
+        data.node_origins());
     if (v8_flags.turboshaft_trace_reduction) {
       phase.template VisitGraph<true>();
     } else {
@@ -76,14 +77,9 @@ class OptimizationPhaseImpl {
 
 template <template <typename> typename... Reducers>
 class OptimizationPhase {
-  using impl_t = OptimizationPhaseImpl<Reducers...>;
-
  public:
-  static void Run(Isolate* isolate, Graph* input, Zone* phase_zone,
-                  NodeOriginTable* origins,
-                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
-                      reducer_args = std::tuple<>{}) {
-    impl_t::Run(input, phase_zone, origins, reducer_args);
+  static void Run(Zone* phase_zone) {
+    OptimizationPhaseImpl<Reducers...>::Run(phase_zone);
   }
 };
 

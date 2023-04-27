@@ -21,10 +21,6 @@ class TagUntagLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit TagUntagLoweringReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
   V<Object> REDUCE(Tag)(V<Word32> input, TagKind kind) {
     DCHECK_EQ(kind, TagKind::kSmiTag);
     // Do shift on 32bit values if Smis are stored in the lower word.

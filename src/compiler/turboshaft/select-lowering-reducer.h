@@ -37,10 +37,6 @@ class SelectLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit SelectLoweringReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
   OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                          RegisterRepresentation rep, BranchHint hint,
                          SelectOp::Implementation implem) {

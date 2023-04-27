@@ -9,6 +9,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -90,22 +91,10 @@ struct MemoryAnalyzer {
   void MergeCurrentStateIntoSuccessor(const Block* successor);
 };
 
-struct MemoryOptimizationReducerArgs {
-  Isolate* isolate;
-};
-
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  using ArgT = base::append_tuple_type<typename Next::ArgT,
-                                       MemoryOptimizationReducerArgs>;
-
-  template <class... Args>
-  explicit MemoryOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        isolate_(std::get<MemoryOptimizationReducerArgs>(args).isolate) {}
 
   void Analyze() {
     analyzer_.emplace(Asm().phase_zone(), Asm().input_graph());
@@ -255,7 +244,7 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   base::Optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
 
   const TSCallDescriptor* AllocateBuiltinDescriptor() {
