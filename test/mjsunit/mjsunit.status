@@ -1692,14 +1692,6 @@
 }], # single_generation
 
 ################################################################################
-['conservative_stack_scanning', {
-  # TODO(v8:13493): Conservative stack scanning is not currently compatible
-  # with stack switching.
-  'wasm/stack-switching': [SKIP],
-  'wasm/stack-switching-export': [SKIP],
-}], # conservative_stack_scanning
-
-################################################################################
 ['third_party_heap', {
   # Requires --concurrent_inlining / --finalize_streaming_on_background:
   'regress/regress-1220974': [SKIP],
