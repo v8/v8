@@ -878,9 +878,11 @@ void Deoptimizer::DoComputeOutputFrames() {
                                             isolate()->cage_base());
 #endif
 
-  if (function_.IsJSFunction()) {
+  // Don't reset the tiering state for OSR code since we might reuse OSR code
+  // after deopt, and we still want to tier up to non-OSR code even if OSR code
+  // deoptimized.
+  if (function_.IsJSFunction() && compiled_code_.osr_offset().IsNone()) {
     function_.SetInterruptBudget(isolate_, true);
-    function_.reset_tiering_state();
   }
 
   // Print some helpful diagnostic information.
