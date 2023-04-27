@@ -112,19 +112,6 @@ void MemoryChunk::SetDefaultCodePermissions() {
   }
 }
 
-namespace {
-
-PageAllocator::Permission DefaultWritableCodePermissions() {
-  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-  // On MacOS on ARM64 RWX permissions are allowed to be set only when
-  // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
-  return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || v8_flags.jitless
-             ? PageAllocator::kReadWrite
-             : PageAllocator::kReadWriteExecute;
-}
-
-}  // namespace
-
 MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          Address area_start, Address area_end,
                          VirtualMemory reservation, Executability executable,
@@ -141,20 +128,6 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
-    if (heap->write_protect_code_memory()) {
-      write_unprotect_counter_ =
-          heap->code_space_memory_modification_scope_depth();
-    } else if (!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-      size_t page_size = MemoryAllocator::GetCommitPageSize();
-      // On executable chunks, area_start_ points past padding used for code
-      // alignment.
-      Address start_before_padding =
-          address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-      DCHECK(IsAligned(start_before_padding, page_size));
-      size_t area_size = RoundUp(area_end_ - start_before_padding, page_size);
-      CHECK(reservation_.SetPermissions(start_before_padding, area_size,
-                                        DefaultWritableCodePermissions()));
-    }
   }
 
   if (page_size == PageSize::kRegular) {
