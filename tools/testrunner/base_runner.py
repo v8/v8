@@ -602,6 +602,8 @@ class BaseTestRunner(object):
             self.build_config.is_DEBUG_defined,
         "is_full_debug":
             self.build_config.is_full_debug,
+        "is_official_build":
+            self.build_config.is_official_build,
         "interrupt_fuzzer":
             False,
         "jitless_build_mode":

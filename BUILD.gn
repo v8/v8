@@ -2415,6 +2415,7 @@ action("v8_dump_build_config") {
     "is_DEBUG_defined=$is_DEBUG_defined",
     "is_full_debug=$is_full_debug",
     "is_msan=$is_msan",
+    "is_official_build=$is_official_build",
     "is_tsan=$is_tsan",
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
