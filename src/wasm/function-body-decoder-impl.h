@@ -1141,8 +1141,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(ArraySet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, const Value& value)                                    \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
-  F(ArrayCopy, const Value& src, const Value& src_index, const Value& dst,     \
-    const Value& dst_index, const Value& length)                               \
+  F(ArrayCopy, const Value& dst, const Value& dst_index, const Value& src,     \
+    const Value& src_index, const ArrayIndexImmediate& src_imm,                \
+    const Value& length)                                                       \
   F(ArrayFill, const ArrayIndexImmediate& imm, const Value& array,             \
     const Value& index, const Value& value, const Value& length)               \
   F(ArrayInitSegment, const ArrayIndexImmediate& array_imm,                    \
@@ -4803,7 +4804,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value src_index = Peek(1, 3, kWasmI32);
         Value length = Peek(0, 4, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayCopy, dst, dst_index, src,
-                                           src_index, length);
+                                           src_index, src_imm, length);
         Drop(5);
         return opcode_length + dst_imm.length + src_imm.length;
       }

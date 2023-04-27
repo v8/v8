@@ -1276,12 +1276,10 @@ class WasmGraphBuildingInterface {
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
-                 const Value& length) {
-    builder_->ArrayCopy(
-        dst.node, dst_index.node, NullCheckFor(dst.type), src.node,
-        src_index.node, NullCheckFor(src.type), length.node,
-        decoder->module_->types[src.type.ref_index()].array_type,
-        decoder->position());
+                 const ArrayIndexImmediate& src_imm, const Value& length) {
+    builder_->ArrayCopy(dst.node, dst_index.node, NullCheckFor(dst.type),
+                        src.node, src_index.node, NullCheckFor(src.type),
+                        length.node, src_imm.array_type, decoder->position());
   }
 
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
