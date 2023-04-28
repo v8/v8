@@ -7287,7 +7287,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
 #ifdef VERIFY_HEAP
     if (v8_flags.verify_heap) {
-      FullEvacuationVerifier verifier(this);
+      EvacuationVerifier verifier(this);
       verifier.Run();
     }
 #endif
@@ -7314,13 +7314,6 @@ void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
   paged_new_space()->paged_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
-
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
-    YoungGenerationEvacuationVerifier verifier(this);
-    verifier.Run();
-  }
-#endif
 }
 
 void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {

@@ -4713,7 +4713,7 @@ void MarkCompactCollector::Evacuate() {
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && !sweeper()->sweeping_in_progress()) {
-    FullEvacuationVerifier verifier(heap());
+    EvacuationVerifier verifier(heap());
     verifier.Run();
   }
 #endif  // VERIFY_HEAP
@@ -5781,15 +5781,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   Sweep();
   Finish();
-
-#ifdef VERIFY_HEAP
-  // If concurrent sweeping is active, evacuation will be verified once sweeping
-  // is done using the FullEvacuationVerifier.
-  if (v8_flags.verify_heap && !sweeper()->sweeping_in_progress()) {
-    YoungGenerationEvacuationVerifier verifier(heap());
-    verifier.Run();
-  }
-#endif  // VERIFY_HEAP
 
   auto* isolate = heap()->isolate();
   isolate->global_handles()->UpdateListOfYoungNodes();
