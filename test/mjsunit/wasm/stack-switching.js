@@ -342,8 +342,7 @@ function ToPromising(wasm_export) {
   assertPromiseResult(combined_promise, v => assertEquals(0.5, v));
 })();
 
-// Throw an exception before suspending. The export wrapper should return a
-// promise rejected with the exception.
+// Throw an exception after the initial prompt.
 (function TestStackSwitchException1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -352,7 +351,12 @@ function ToPromising(wasm_export) {
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.throw);
-  assertThrowsAsync(wrapper(), WebAssembly.Exception);
+  try {
+    wrapper();
+    assertUnreachable();
+  } catch (e) {
+    assertTrue(e instanceof WebAssembly.Exception);
+  }
 })();
 
 // Throw an exception after the first resume event, which propagates to the
@@ -449,7 +453,11 @@ function TestNestedSuspenders(suspend) {
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = ToPromising(instance.exports.inner);
   let export_outer = ToPromising(instance.exports.outer);
-  assertPromiseResult(export_outer(), v => assertEquals(42, v));
+  if (suspend) {
+    assertPromiseResult(export_outer(), v => assertEquals(42, v));
+  } else {
+    assertEquals(export_outer(), 42);
+  }
 }
 
 (function TestNestedSuspendersSuspend() {
@@ -485,7 +493,7 @@ function TestNestedSuspenders(suspend) {
           ]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.test);
-  assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
+  assertThrows(wrapper, RangeError, /Maximum call stack size exceeded/);
 })();
 
 (function TestBadSuspender() {
@@ -614,6 +622,6 @@ function TestNestedSuspenders(suspend) {
       {parameters: [], results: ['externref']},
       instance.exports.export1,
       {promising: 'first'});
-  assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
+  assertThrows(wrapper, WebAssembly.RuntimeError,
       /trying to suspend JS frames/);
 })();

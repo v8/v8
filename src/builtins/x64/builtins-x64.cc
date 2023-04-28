@@ -3047,8 +3047,9 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
   LoadJumpBuffer(masm, target_jmpbuf, false);
 }
 
-void ReloadParentContinuation(MacroAssembler* masm, Register promise,
-                              Register tmp1, Register tmp2) {
+void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
+                              Register return_reg, Register tmp1,
+                              Register tmp2) {
   Register active_continuation = tmp1;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
 
@@ -3079,10 +3080,12 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 1);
+  __ Push(return_reg);
+  __ Push(wasm_instance);  // Spill.
   __ Move(kContextRegister, Smi::zero());
-  __ Push(promise);
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Pop(promise);
+  __ Pop(wasm_instance);
+  __ Pop(return_reg);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -3794,38 +3797,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Label return_done;
   __ bind(&return_done);
   if (stack_switch) {
-    // The return value of the wasm function becomes the parameter of the
-    // FulfillPromise builtin, and the promise is the return value of this
-    // wrapper.
-    __ movq(rbx, return_reg);
-    Register promise = rax;
-    __ LoadRoot(promise, RootIndex::kActiveSuspender);
-    __ LoadTaggedField(
-        promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
-
-    // If the promise is still pending, fulfill it with the result.
-    Label return_promise;
-    Register flags = rcx;
-    __ SmiUntagField(flags, FieldOperand(promise, JSPromise::kFlagsOffset));
-    __ And(flags, Immediate(JSPromise::StatusBits::kMask));
-    __ Cmp(flags, Promise::PromiseState::kRejected);
-    __ j(equal, &return_promise);
-
-    __ movq(kContextRegister, MemOperand(rbp, kFunctionDataOffset));
-    __ LoadTaggedField(kContextRegister,
-                       FieldOperand(kContextRegister,
-                                    WasmExportedFunctionData::kInstanceOffset));
-    __ LoadTaggedField(kContextRegister,
-                       FieldOperand(kContextRegister,
-                                    WasmInstanceObject::kNativeContextOffset));
-    __ Move(MemOperand(rbp, kGCScanSlotCountOffset), 1);
-    __ Push(promise);
-    __ CallBuiltin(Builtin::kFulfillPromise);
-    __ Pop(promise);
-
-    __ bind(&return_promise);
-
-    ReloadParentContinuation(masm, promise, rbx, rcx);
+    ReloadParentContinuation(masm, wasm_instance, return_reg, rbx, rcx);
     RestoreParentSuspender(masm, rbx, rcx);
   }
   __ bind(&suspend);
@@ -4106,7 +4078,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
   __ EnterFrame(StackFrame::STACK_SWITCH);
 
-  Register suspender = rax;
+  Register promise = rax;
+  Register suspender = rbx;
 
   __ subq(rsp, Immediate(-(BuiltinWasmWrapperConstants::kGCScanSlotCountOffset -
                            TypedFrameConstants::kFixedFrameSizeFromFp)));
@@ -4176,20 +4149,18 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 2);
+  __ Push(promise);
   __ Push(caller);
-  __ Push(suspender);
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Pop(suspender);
   __ Pop(caller);
+  __ Pop(promise);
   jmpbuf = caller;
   __ LoadExternalPointerField(
       jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag, r8);
   caller = no_reg;
-  __ LoadTaggedField(
-      kReturnRegister0,
-      FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
+  __ movq(kReturnRegister0, promise);
   __ Move(GCScanSlotPlace, 0);
   LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
@@ -4312,6 +4283,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 1);
   __ Push(target_continuation);
+  __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
   __ Pop(target_continuation);
 
@@ -4329,9 +4301,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the continuation's stack without restoring the PC.
     LoadJumpBuffer(masm, target_jmpbuf, false);
-    // Pop this frame now. The unwinder expects that the first STACK_SWITCH
-    // frame is the outermost one.
-    __ LeaveFrame(StackFrame::STACK_SWITCH);
     // Forward the onRejected value to kThrow.
     __ pushq(kReturnRegister0);
     __ CallRuntime(Runtime::kThrow);
