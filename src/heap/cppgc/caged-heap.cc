@@ -33,6 +33,8 @@ static_assert(api_constants::kCagedHeapReservationSize ==
               kCagedHeapReservationSize);
 static_assert(api_constants::kCagedHeapReservationAlignment ==
               kCagedHeapReservationAlignment);
+static_assert(api_constants::kPointerCompressionShift ==
+              kPointerCompressionShift);
 
 uintptr_t CagedHeapBase::g_heap_base_ = 0u;
 
@@ -47,16 +49,24 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
   static constexpr size_t kAllocationTries = 4;
   for (size_t i = 0; i < kAllocationTries; ++i) {
 #if defined(CPPGC_POINTER_COMPRESSION)
-    // If pointer compression is enabled, reserve 2x of cage size and leave only
-    // the upper half. This is needed to make sure that compressed pointers have
-    // the most significant bit set to 1, so that on decompression the bit will
-    // be sign-extended. This saves us a branch and 'or' operation during
-    // compression.
+    // We want compressed pointers to have the most significant bit set to 1.
+    // That way, on decompression the bit will be sign-extended. This saves us a
+    // branch and 'or' operation during compression.
+    //
+    // We achieve this by over-reserving the cage and selecting a sub-region
+    // from the upper half of the reservation that has the bit pattern we need.
+    // Examples:
+    // - For a 4GB cage with 1 bit of pointer compression shift, reserve 8GB and
+    // use the upper 4GB.
+    // - For an 8GB cage with 3 bits of pointer compression shift, reserve 32GB
+    // and use the first 8GB of the upper 16 GB.
+    //
     // TODO(chromium:1325007): Provide API in PageAllocator to left trim
-    // allocations and return the half of the reservation back to the OS.
-    static constexpr size_t kTryReserveSize = 2 * kCagedHeapReservationSize;
+    // allocations and return unused portions of the reservation back to the OS.
+    static constexpr size_t kTryReserveSize = kCagedHeapReservationSize
+                                              << kPointerCompressionShift;
     static constexpr size_t kTryReserveAlignment =
-        2 * kCagedHeapReservationAlignment;
+        kCagedHeapReservationAlignment << kPointerCompressionShift;
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
     static constexpr size_t kTryReserveSize = kCagedHeapReservationSize;
     static constexpr size_t kTryReserveAlignment =
@@ -92,7 +102,10 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   using CagedAddress = CagedHeap::AllocatorType::Address;
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-  static constexpr size_t kBaseOffset = kCagedHeapReservationSize;
+  // Pick a base offset according to pointer compression shift. See comment in
+  // ReserveCagedHeap().
+  static constexpr size_t kBaseOffset = kCagedHeapReservationSize
+                                        << (kPointerCompressionShift - 1);
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
   static constexpr size_t kBaseOffset = 0;
 #endif  //! defined(CPPGC_POINTER_COMPRESSION)

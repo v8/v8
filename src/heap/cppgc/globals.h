@@ -81,6 +81,10 @@ constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 
 #if defined(CPPGC_POINTER_COMPRESSION)
+constexpr unsigned kPointerCompressionShift = 1;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+
+#if defined(CPPGC_POINTER_COMPRESSION)
 constexpr size_t kSlotSize = sizeof(uint32_t);
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
 constexpr size_t kSlotSize = sizeof(uintptr_t);
