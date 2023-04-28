@@ -6169,55 +6169,19 @@ Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
   return maybe_value;
 }
 
-namespace {
-class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
- public:
-  DefaultWasmAsyncResolvePromiseTask(v8::Isolate* isolate,
-                                     v8::Local<v8::Context> context,
-                                     v8::Local<v8::Promise::Resolver> resolver,
-                                     v8::Local<v8::Value> result,
-                                     WasmAsyncSuccess success)
-      : isolate_(isolate),
-        context_(isolate, context),
-        resolver_(isolate, resolver),
-        result_(isolate, result),
-        success_(success) {}
-
-  void Run() override {
-    v8::HandleScope scope(isolate_);
-    v8::Local<v8::Context> context = context_.Get(isolate_);
-    MicrotasksScope microtasks_scope(context,
-                                     MicrotasksScope::kDoNotRunMicrotasks);
-    v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
-    v8::Local<v8::Value> result = result_.Get(isolate_);
-
-    Maybe<bool> ret = success_ == WasmAsyncSuccess::kSuccess
-                          ? resolver->Resolve(context, result)
-                          : resolver->Reject(context, result);
-    // It's guaranteed that no exceptions will be thrown by these
-    // operations, but execution might be terminating.
-    CHECK(ret.IsJust() ? ret.FromJust() : isolate_->IsExecutionTerminating());
-  }
-
- private:
-  v8::Isolate* isolate_;
-  v8::Global<v8::Context> context_;
-  v8::Global<v8::Promise::Resolver> resolver_;
-  v8::Global<v8::Value> result_;
-  WasmAsyncSuccess success_;
-};
-}  // namespace
-
 void DefaultWasmAsyncResolvePromiseCallback(
     v8::Isolate* isolate, v8::Local<v8::Context> context,
     v8::Local<v8::Promise::Resolver> resolver, v8::Local<v8::Value> result,
     WasmAsyncSuccess success) {
-  // We have to resolve the promise in a separate task which is not a cancelable
-  // task, to avoid a deadlock when {quit()} is called in the then-handler of
-  // the result promise.
-  V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate)->PostTask(
-      std::make_unique<DefaultWasmAsyncResolvePromiseTask>(
-          isolate, context, resolver, result, success));
+  MicrotasksScope microtasks_scope(context,
+                                   MicrotasksScope::kDoNotRunMicrotasks);
+
+  Maybe<bool> ret = success == WasmAsyncSuccess::kSuccess
+                        ? resolver->Resolve(context, result)
+                        : resolver->Reject(context, result);
+  // It's guaranteed that no exceptions will be thrown by these
+  // operations, but execution might be terminating.
+  CHECK(ret.IsJust() ? ret.FromJust() : isolate->IsExecutionTerminating());
 }
 
 }  // namespace internal
