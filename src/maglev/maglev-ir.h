@@ -235,6 +235,7 @@ class MergePointInterpreterFrameState;
   V(LogicalNot)                              \
   V(SetPendingMessage)                       \
   V(StringAt)                                \
+  V(StringEqual)                             \
   V(StringLength)                            \
   V(ToBoolean)                               \
   V(ToBooleanLogicalNot)                     \
@@ -3366,6 +3367,26 @@ class ToBooleanLogicalNot
 
   Input& value() { return Node::input(0); }
 
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
+  using Base = FixedInputValueNodeT<2, StringEqual>;
+
+ public:
+  explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::LazyDeopt();
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  Input& lhs() { return Node::input(0); }
+  Input& rhs() { return Node::input(1); }
+
+  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

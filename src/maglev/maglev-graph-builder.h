@@ -939,11 +939,6 @@ class MaglevGraphBuilder {
     return GetTaggedValue(value, record_use_repr_hint);
   }
 
-  void SetKnownType(ValueNode* node, NodeType type) {
-    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-    known_info->type = type;
-  }
-
   ValueNode* GetInternalizedString(interpreter::Register reg);
 
   // Get an Int32 representation node whose value is equivalent to the ToInt32
@@ -1673,6 +1668,9 @@ class MaglevGraphBuilder {
   void BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
+  bool TryReduceCompareEqualAgainstConstant();
+
+  template <Operation kOperation>
   ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
   template <Operation kOperation>
   ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, int right);
@@ -1707,8 +1705,6 @@ class MaglevGraphBuilder {
   bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
                          Args&&... args);
 
-  template <Operation kOperation>
-  ValueNode* BuildInt32CompareNode(ValueNode* left, ValueNode* right);
   template <Operation kOperation>
   void VisitCompareOperation();
 
