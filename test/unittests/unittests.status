@@ -21,9 +21,8 @@
   'PlatformTest.StackAlignment': [PASS, ['not is_clang', SKIP]],
 
   # We do not yet shrink weak maps after they have been emptied by the GC
-  'WeakMapsTest.Shrinking': [FAIL],
-
-  'WeakSetsTest.WeakSet_Shrinking': [FAIL],
+  'WeakMapsTest.Shrinking': [SKIP],
+  'WeakSetsTest.WeakSet_Shrinking': [SKIP],
 
   # This tests only that the preparser and parser agree, so there is no point in
   # running several variants. Note that this still takes ages, because there
@@ -354,6 +353,17 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
-}]
+}],
+
+# With the is_official_build flag exceptions are disabled. Therefore torque
+# tests fail that rely on catching them (v8:13945).
+['is_official_build', {
+  'LanguageServerJson.ParserError': [FAIL],
+  'FlagDefinitionsTest.FreezeFlags': [FAIL],
+  'LanguageServerJson.LexerError': [FAIL],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [FAIL],
+  'Torque.ImportNonExistentFile': [FAIL],
+  'Torque.Enums': [FAIL],
+}],  # 'is_official_build'
 
 ]

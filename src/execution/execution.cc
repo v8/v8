@@ -365,7 +365,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Entering JavaScript.
   VMState<JS> state(isolate);
-  CHECK(AllowJavascriptExecution::IsAllowed(isolate));
+  if (!AllowJavascriptExecution::IsAllowed(isolate)) {
+    GRACEFUL_FATAL("Invoke in DisallowJavascriptExecutionScope");
+  }
   if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
     isolate->ThrowIllegalOperation();
     if (params.message_handling == Execution::MessageHandling::kReport) {

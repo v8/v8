@@ -106,7 +106,10 @@
 
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
-  'verify-check-false': [FAIL, NO_VARIANTS],
+  #
+  # With the is_official_build flag CHECK failures can't be distinguished from
+  # CRASH. See cctest.status for details (v8:13945).
+  'verify-check-false': [FAIL, NO_VARIANTS, ['is_official_build', CRASH]],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
 
   ##############################################################################

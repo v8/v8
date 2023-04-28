@@ -604,6 +604,15 @@
       {'name': 'v8testing', 'shards': 5},
     ],
   },
+  'v8_linux64_official_rel': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux64_single_generation_dbg': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1382,6 +1391,15 @@
         'suffix': 'test multi host',
         'test_args': ['--test-run'],
       },
+    ],
+  },
+  'V8 Linux64 - official': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Linux64 - cfi': {

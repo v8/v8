@@ -14178,8 +14178,8 @@ void CheckIsSymbolAt(v8::Isolate* isolate, v8::Local<v8::Array> properties,
   v8::String::Utf8Value symbol_name(
       isolate, Local<Symbol>::Cast(value)->Description(isolate));
   if (strcmp(name, *symbol_name) != 0) {
-    FATAL("properties[%u] was Symbol('%s') instead of Symbol('%s').", index,
-          name, *symbol_name);
+    GRACEFUL_FATAL("properties[%u] was Symbol('%s') instead of Symbol('%s').",
+                   index, name, *symbol_name);
   }
 }
 
@@ -14195,7 +14195,8 @@ void CheckStringArray(v8::Isolate* isolate, v8::Local<v8::Array> properties,
     } else {
       v8::String::Utf8Value elm(isolate, value);
       if (strcmp(names[i], *elm) != 0) {
-        FATAL("properties[%u] was '%s' instead of '%s'.", i, *elm, names[i]);
+        GRACEFUL_FATAL("properties[%u] was '%s' instead of '%s'.", i, *elm,
+                       names[i]);
       }
     }
   }

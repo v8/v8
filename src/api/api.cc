@@ -773,7 +773,9 @@ StartupData SnapshotCreator::CreateBlob(
 
   // Check that values referenced by global/eternal handles are accounted for.
   i::SerializedHandleChecker handle_checker(i_isolate, &contexts);
-  CHECK(handle_checker.CheckGlobalAndEternalHandles());
+  if (!handle_checker.CheckGlobalAndEternalHandles()) {
+    GRACEFUL_FATAL("CheckGlobalAndEternalHandles failed");
+  }
 
   // Create a vector with all embedder fields serializers.
   std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers;

@@ -34,7 +34,14 @@
 
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
-  'test-serialize/TestThatAlwaysFails': [FAIL],
+  #
+  # With the is_official_build flag CHECK failures and UNREACHABLE do not pass
+  # through the normal V8_Fatal and we can't distinguish FAIL from CRASH.
+  # TODO(v8:13945, olivf) We could make FAILs in official builds
+  #                       distinguishable from crashes and improve the test
+  #                       runner. So far, it only affects very few tests.
+  'test-serialize/TestCheckThatAlwaysFails': [FAIL, ['is_official_build', CRASH]],
+  'test-serialize/TestFatal': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
@@ -86,8 +93,8 @@
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
   # Test that misuse of PopAndReturn does not compile.
-  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
-  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
+  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL, ['is_official_build', CRASH]],
+  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['is_official_build', CRASH]],
 
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],

@@ -1586,10 +1586,12 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
 
 TEST(TestThatAlwaysSucceeds) {}
 
-TEST(TestThatAlwaysFails) {
+TEST(TestCheckThatAlwaysFails) {
   bool ArtificialFailure = false;
   CHECK(ArtificialFailure);
 }
+
+TEST(TestFatal) { GRACEFUL_FATAL("fatal"); }
 
 int CountBuiltins() {
   // Check that we have not deserialized any additional builtin.
