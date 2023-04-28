@@ -61,12 +61,12 @@ function test() {
 
   // Test regexp and short substring.
   var re = /(A|B)/;
-  var rere = /(T.{1,2}B)/;
+  var rere = /(T.{1,3}B)/u;
   var ascii = "ABCDEFGHIJKLMNOPQRST";
-  var twobyte = "_ABCDEFGHIJKLMNOPQRST";
-  try {
-    externalizeString(ascii, false);
-    externalizeString(twobyte, true);
+  var twobyte = "_ABCDEFGHIJKLMNOPQRST🤓";
+  try {  // String can only be externalized once
+    externalizeString(ascii);
+    externalizeString(twobyte);
   } catch (ex) { }
   assertTrue(isOneByteString(ascii));
   assertFalse(isOneByteString(twobyte));
@@ -80,7 +80,7 @@ function test() {
     assertEquals(["TAB", "TAB"], rere.exec(ascii_cons));
     assertEquals(["A", "A"], re.exec(twobyte));
     assertEquals(["B", "B"], re.exec(twobyte_slice));
-    assertEquals(["T_AB", "T_AB"], rere.exec(twobyte_cons));
+    assertEquals(["T🤓_AB", "T🤓_AB"], rere.exec(twobyte_cons));
     assertEquals("DEFG", ascii_slice.substr(2, 4));
     assertEquals("DEFG", twobyte_slice.substr(2, 4));
     assertEquals("DEFG", ascii_cons.substr(3, 4));

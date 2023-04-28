@@ -75,23 +75,16 @@ void ExternalizeStringExtension::Externalize(
         "First parameter to externalizeString() must be a string.");
     return;
   }
-  bool force_two_byte = false;
-  if (info.Length() >= 2) {
-    if (info[1]->IsBoolean()) {
-      force_two_byte = info[1]->BooleanValue(info.GetIsolate());
-    } else {
-      info.GetIsolate()->ThrowError(
-          "Second parameter to externalizeString() must be a boolean.");
-      return;
-    }
-  }
   bool result = false;
   Handle<String> string = Utils::OpenHandle(*info[0].As<v8::String>());
-  if (!string->SupportsExternalization()) {
+  const bool externalize_as_one_byte = string->IsOneByteRepresentation();
+  if (!string->SupportsExternalization(
+          externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING
+                                  : v8::String::Encoding::TWO_BYTE_ENCODING)) {
     info.GetIsolate()->ThrowError("string does not support externalization.");
     return;
   }
-  if (string->IsOneByteRepresentation() && !force_two_byte) {
+  if (externalize_as_one_byte) {
     uint8_t* data = new uint8_t[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(

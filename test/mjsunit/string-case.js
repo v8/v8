@@ -71,7 +71,7 @@ function test(length) {
   assertEquals(strLower.substring(1), str.substring(1).toLowerCase());
   assertEquals(strUpper.substring(1), str.substring(1).toUpperCase());
   // External string.
-  externalizeString(str, false);
+  externalizeString(str);
   assertEquals(strLower, str.toLowerCase());
   assertEquals(strUpper, str.toUpperCase());
 }

@@ -2271,8 +2271,8 @@ class SerializerOneByteResource
 
 class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
-  SerializerTwoByteResource(const char* data, size_t length)
-      : data_(AsciiToTwoByteString(data)), length_(length), dispose_count_(0) {}
+  SerializerTwoByteResource(const uint16_t* data, size_t length)
+      : data_(data), length_(length), dispose_count_(0) {}
   ~SerializerTwoByteResource() override { DeleteArray<const uint16_t>(data_); }
 
   const uint16_t* data() const override { return data_; }
@@ -2304,9 +2304,13 @@ TEST(CodeSerializerExternalString) {
   CHECK(one_byte_string->IsInternalizedString());
 
   // Obtain external internalized two-byte string.
-  SerializerTwoByteResource two_byte_resource("two_byte", 8);
+  size_t two_byte_length;
+  uint16_t* two_byte = AsciiToTwoByteString(u"two_byte 🤓", &two_byte_length);
+  SerializerTwoByteResource two_byte_resource(two_byte, two_byte_length);
   Handle<String> two_byte_string =
-      isolate->factory()->NewStringFromAsciiChecked("two_byte");
+      isolate->factory()
+          ->NewStringFromTwoByte(base::VectorOf(two_byte, two_byte_length))
+          .ToHandleChecked();
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
   two_byte_string->MakeExternal(&two_byte_resource);
   CHECK(two_byte_string->IsExternalTwoByteString());
@@ -3015,7 +3019,8 @@ static void AccessorForSerialization(
 }
 
 static SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
-static SerializerTwoByteResource serializable_two_byte_resource("two_byte", 8);
+static SerializerTwoByteResource serializable_two_byte_resource(
+    AsciiToTwoByteString(u"two_byte 🤓"), 11);
 
 intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallback),
@@ -3072,7 +3077,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
 
       ExpectInt32("f()", 42);
       ExpectString("one_byte", "one_byte");
-      ExpectString("two_byte", "two_byte");
+      ExpectString("two_byte", "two_byte 🤓");
       creator.SetDefaultContext(context);
     }
     blob =
@@ -3097,7 +3102,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
       ExpectString("one_byte", "one_byte");
-      ExpectString("two_byte", "two_byte");
+      ExpectString("two_byte", "two_byte 🤓");
       v8::Local<v8::String> one_byte = CompileRun("one_byte").As<v8::String>();
       v8::Local<v8::String> two_byte = CompileRun("two_byte").As<v8::String>();
       CHECK(one_byte->IsExternalOneByte());

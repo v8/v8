@@ -367,6 +367,15 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   return converted;
 }
 
+static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
+                                             size_t* length_out = nullptr) {
+  size_t array_length = std::char_traits<char16_t>::length(source) + 1;
+  uint16_t* converted = i::NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  if (length_out != nullptr) *length_out = array_length - 1;
+  return converted;
+}
+
 template <typename T>
 static inline i::Handle<T> GetGlobal(const char* name) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -573,7 +582,6 @@ static inline void ExpectString(const char* code, const char* expected) {
   v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), result);
   CHECK_EQ(0, strcmp(expected, *utf8));
 }
-
 
 static inline void ExpectInt32(const char* code, int expected) {
   v8::Local<v8::Value> result = CompileRun(code);

@@ -606,7 +606,7 @@ THREADED_TEST(ScriptMakingExternalString) {
       CcTest::heap());
 
   int dispose_count = 0;
-  uint16_t* two_byte_source = AsciiToTwoByteString("1 + 2 * 3");
+  uint16_t* two_byte_source = AsciiToTwoByteString(u"1 + 2 * 3 /* π */");
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
@@ -621,7 +621,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK(!source->IsExternal());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK(!source->GetExternalStringResourceBase(&encoding));
-    CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
+    CHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
     bool success = source->MakeExternal(new TestResource(two_byte_source,
                                                          &dispose_count));
     CHECK(success);
@@ -17001,7 +17001,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
   LocalContext env;
   v8::HandleScope scope(isolate);
   v8::Local<v8::String> cons =
-      CompileRun("'Romeo Montague ' + 'Juliet Capulet'")
+      CompileRun("'Romeo Montague ' + 'Juliet Capulet ❤️'")
           ->ToString(env.local())
           .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
@@ -17009,7 +17009,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
   CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
   TestResource* resource = new TestResource(
-      AsciiToTwoByteString("Romeo Montague Juliet Capulet"));
+      AsciiToTwoByteString(u"Romeo Montague Juliet Capulet ❤️"));
   cons->MakeExternal(resource);
 
   CHECK(cons->IsExternalTwoByte());
@@ -17049,8 +17049,8 @@ TEST(VisitExternalStrings) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::HandleScope scope(isolate);
-  const char string[] = "Some string";
-  uint16_t* two_byte_string = AsciiToTwoByteString(string);
+  const char one_byte_string[] = "Some string";
+  uint16_t* two_byte_string = AsciiToTwoByteString(u"Some string 🤓");
   TestResource* resource[5];
   resource[0] = new TestResource(two_byte_string);
   v8::Local<v8::String> string0 =
@@ -17063,8 +17063,10 @@ TEST(VisitExternalStrings) {
 
   // Externalized symbol.
   resource[2] = new TestResource(two_byte_string, nullptr, false);
-  v8::Local<v8::String> string2 = v8::String::NewFromUtf8Literal(
-      env->GetIsolate(), string, v8::NewStringType::kInternalized);
+  v8::Local<v8::String> string2 =
+      v8::String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
+                                 v8::NewStringType::kInternalized)
+          .ToLocalChecked();
   CHECK(string2->MakeExternal(resource[2]));
 
   // Symbolized External.
@@ -17081,7 +17083,7 @@ TEST(VisitExternalStrings) {
 
   // Externalized one-byte string.
   auto one_byte_resource =
-      new TestOneByteResource(i::StrDup(string), nullptr, 0);
+      new TestOneByteResource(i::StrDup(one_byte_string), nullptr, 0);
   v8::Local<v8::String> string4 =
       String::NewExternalOneByte(env->GetIsolate(), one_byte_resource)
           .ToLocalChecked();
@@ -18086,133 +18088,6 @@ TEST(GCCallbacksWithData) {
   CHECK_EQ(2, epilogue1);
   CHECK_EQ(2, prologue2);
   CHECK_EQ(2, epilogue2);
-}
-
-namespace {
-
-void AssertOneByteConsContainsTwoByteExternal(i::Handle<i::String> maybe_cons,
-                                              i::Handle<i::String> external) {
-  CHECK(maybe_cons->IsOneByteRepresentation());
-  CHECK(maybe_cons->IsConsString());
-  i::ConsString cons = i::ConsString::cast(*maybe_cons);
-  CHECK(cons.IsFlat(GetPtrComprCageBase(cons)));
-  CHECK(cons.first() == *external);
-  CHECK(cons.first().IsTwoByteRepresentation());
-  CHECK(cons.first().IsExternalString());
-}
-
-}  // namespace
-
-THREADED_TEST(TwoByteStringInOneByteCons) {
-  // See Chromium issue 47824.
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  const char* init_code =
-      "var str1 = 'abelspendabel';"
-      "var str2 = str1 + str1 + str1;"
-      "str2;";
-  Local<Value> result = CompileRun(init_code);
-
-  Local<Value> indexof = CompileRun("str2.indexOf('els')");
-  Local<Value> lastindexof = CompileRun("str2.lastIndexOf('dab')");
-  Local<Value> second_char = CompileRun("str2[1]");
-
-  CHECK(result->IsString());
-  i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
-  int length = string->length();
-  CHECK(string->IsConsString());
-  CHECK(string->IsOneByteRepresentation());
-
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  i::Handle<i::String> flat_string = i::String::Flatten(i_isolate, string);
-
-  CHECK(string->IsOneByteRepresentation());
-  CHECK(flat_string->IsOneByteRepresentation());
-
-  // Create external resource.
-  uint16_t* uc16_buffer = new uint16_t[length + 1];
-
-  i::String::WriteToFlat(*flat_string, uc16_buffer, 0, length);
-  uc16_buffer[length] = 0;
-
-  TestResource resource(uc16_buffer);
-
-  flat_string->MakeExternal(&resource);
-
-  CHECK(flat_string->IsTwoByteRepresentation());
-
-  // At this point, we should have a Cons string which is flat and one-byte,
-  // with a first half that is a two-byte string (although it only contains
-  // one-byte characters). This is a valid sequence of steps, and it can
-  // happen in real pages.
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  // Check that some string operations work.
-
-  // Atom RegExp.
-  Local<Value> reresult = CompileRun("str2.match(/abel/g).length;");
-  CHECK_EQ(6, reresult->Int32Value(context.local()).FromJust());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  // Nonatom RegExp.
-  reresult = CompileRun("str2.match(/abe./g).length;");
-  CHECK_EQ(6, reresult->Int32Value(context.local()).FromJust());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  reresult = CompileRun("str2.search(/bel/g);");
-  CHECK_EQ(1, reresult->Int32Value(context.local()).FromJust());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  reresult = CompileRun("str2.search(/be./g);");
-  CHECK_EQ(1, reresult->Int32Value(context.local()).FromJust());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectTrue("/bel/g.test(str2);");
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectTrue("/be./g.test(str2);");
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  reresult = CompileRun("/bel/g.exec(str2);");
-  CHECK(!reresult->IsNull());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  reresult = CompileRun("/be./g.exec(str2);");
-  CHECK(!reresult->IsNull());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectString("str2.substring(2, 10);", "elspenda");
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectString("str2.substring(2, 20);", "elspendabelabelspe");
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectString("str2.charAt(2);", "e");
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectObject("str2.indexOf('els');", indexof);
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  ExpectObject("str2.lastIndexOf('dab');", lastindexof);
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  // crbug.com/1088179. Fill the single character string cache, then run split.
-  i_isolate->factory()->LookupSingleCharacterStringFromCode(0);
-  for (size_t i = 0; i < std::strlen(init_code); i++) {
-    i_isolate->factory()->LookupSingleCharacterStringFromCode(init_code[i]);
-  }
-  ExpectObject("str2.split('')[1]", second_char);
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  reresult = CompileRun("str2.charCodeAt(2);");
-  CHECK_EQ(static_cast<int32_t>('e'),
-           reresult->Int32Value(context.local()).FromJust());
-  AssertOneByteConsContainsTwoByteExternal(string, flat_string);
-
-  // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalTwoByteString>::cast(flat_string)
-      ->SetResource(i_isolate, nullptr);
 }
 
 TEST(ContainsOnlyOneByte) {
