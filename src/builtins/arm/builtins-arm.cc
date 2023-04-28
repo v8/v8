@@ -1671,7 +1671,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ add(sp, sp,
          Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(lr);
-  __ LoadEntryFromBuiltinIndex(builtin);
+  __ LoadEntryFromBuiltinIndex(builtin, builtin);
   __ bx(builtin);
 }
 }  // namespace

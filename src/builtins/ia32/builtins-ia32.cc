@@ -1730,7 +1730,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   // address.
   int offset_to_builtin_index = allocatable_register_count * kSystemPointerSize;
   __ mov(eax, Operand(esp, offset_to_builtin_index));
-  __ LoadEntryFromBuiltinIndex(eax);
+  __ LoadEntryFromBuiltinIndex(eax, eax);
   __ mov(Operand(esp, offset_to_builtin_index), eax);
 
   for (int i = allocatable_register_count - 1; i >= 0; --i) {

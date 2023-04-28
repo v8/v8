@@ -1032,15 +1032,28 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     : g.UseRegister(callee));
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case CallDescriptor::kCallBuiltinPointer:
+    case CallDescriptor::kCallBuiltinPointer: {
       // The common case for builtin pointers is to have the target in a
       // register. If we have a constant, we use a register anyway to simplify
       // related code.
-      buffer->instruction_args.push_back(
-          call_use_fixed_target_reg
-              ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
-              : g.UseRegister(callee));
+      LinkageLocation location = buffer->descriptor->GetInputLocation(0);
+      bool location_is_fixed_register =
+          location.IsRegister() && !location.IsAnyRegister();
+      InstructionOperand op;
+      // We must check {location_is_fixed_register} first, because calls from
+      // Wasm to JS-linkage builtins specify a particular register, *and*
+      // set the {call_use_fixed_target_reg} flag, but don't want their choice
+      // of register to be overridden with {kJavaScriptCallCodeStartRegister}.
+      if (location_is_fixed_register) {
+        op = g.UseLocation(callee, location);
+      } else if (call_use_fixed_target_reg) {
+        op = g.UseFixed(callee, kJavaScriptCallCodeStartRegister);
+      } else {
+        op = g.UseRegister(callee);
+      }
+      buffer->instruction_args.push_back(op);
       break;
+    }
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -3013,6 +3026,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
+  if (flags & CallDescriptor::kFixedTargetRegister) {
+    call_buffer_flags |= kCallFixedTargetRegister;
+  }
   InitializeCallBuffer(node, &buffer, call_buffer_flags);
 
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);

@@ -243,7 +243,8 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   static_assert(kSystemPointerSize == 4);
   static_assert(kSmiShiftSize == 0);
@@ -251,17 +252,16 @@ void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   static_assert(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below.
-  mov(builtin_index,
+  mov(target,
       Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
-  add(builtin_index, builtin_index,
-      Operand(IsolateData::builtin_entry_table_offset()));
-  ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  add(target, target, Operand(IsolateData::builtin_entry_table_offset()));
+  ldr(target, MemOperand(kRootRegister, target));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 
 void MacroAssembler::LoadEntryFromBuiltin(Builtin builtin,

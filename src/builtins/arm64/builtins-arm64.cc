@@ -1897,7 +1897,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ Mov(sp, fp);
   __ Pop<MacroAssembler::kAuthLR>(fp, lr);
 
-  __ LoadEntryFromBuiltinIndex(builtin);
+  __ LoadEntryFromBuiltinIndex(builtin, builtin);
   __ Jump(builtin);
 }
 }  // namespace

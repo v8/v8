@@ -1043,12 +1043,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin);
+  // Load the builtin given by the Smi in |builtin| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
-  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltinByIndex(Register builtin, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 

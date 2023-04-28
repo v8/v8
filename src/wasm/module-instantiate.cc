@@ -401,6 +401,13 @@ WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
   if (!sfi.HasBuiltinId()) return kGeneric;
   switch (sfi.builtin_id()) {
 #if V8_INTL_SUPPORT
+    case Builtin::kStringPrototypeToLocaleLowerCase:
+      if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+          IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetParam(1)) &&
+          IsStringRef(sig->GetReturn(0))) {
+        return WellKnownImport::kStringToLocaleLowerCaseStringref;
+      }
+      break;
     case Builtin::kStringPrototypeToLowerCaseIntl:
       if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
           IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetReturn(0))) {

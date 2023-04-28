@@ -590,6 +590,8 @@ class WasmGraphBuilder {
   Node* WellKnown_StringIndexOf(Node* string, Node* search, Node* start,
                                 CheckForNull string_null_check,
                                 CheckForNull search_null_check);
+  Node* WellKnown_StringToLocaleLowerCaseStringref(
+      Node* string, Node* locale, CheckForNull string_null_check);
   Node* WellKnown_StringToLowerCaseStringref(Node* string,
                                              CheckForNull null_check);
   Node* WellKnown_ParseFloat(Node* string, CheckForNull null_check);
