@@ -19,8 +19,8 @@ class Page;
 
 class MarkBit final {
  public:
-  using CellType = uint32_t;
-  static_assert(sizeof(CellType) == sizeof(base::Atomic32));
+  using CellType = uintptr_t;
+  static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
   V8_ALLOW_UNUSED static inline MarkBit From(Address);
   V8_ALLOW_UNUSED static inline MarkBit From(HeapObject);
@@ -62,7 +62,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomic32::SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::SetBits(cell_, mask_, mask_);
 }
 
 template <>
@@ -72,7 +72,7 @@ inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Get<AccessMode::ATOMIC>() {
-  return (base::AsAtomic32::Acquire_Load(cell_) & mask_) != 0;
+  return (base::AsAtomicWord::Acquire_Load(cell_) & mask_) != 0;
 }
 
 inline bool MarkBit::Clear() {
@@ -88,9 +88,9 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   using CellIndex = uint32_t;
   using MarkBitIndex = uint32_t;
 
-  static constexpr uint32_t kBitsPerCell = 32;
-  static_assert(kBitsPerCell == (sizeof(CellType) * kBitsPerByte));
-  static constexpr uint32_t kBitsPerCellLog2 = 5;
+  static constexpr uint32_t kBitsPerCell = sizeof(CellType) * kBitsPerByte;
+  static constexpr uint32_t kBitsPerCellLog2 =
+      base::bits::CountTrailingZeros(kBitsPerCell);
   static constexpr uint32_t kBitIndexMask = kBitsPerCell - 1;
   static constexpr uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
   static constexpr uint32_t kBytesPerCellLog2 =
@@ -127,8 +127,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return index & kBitIndexMask;
   }
 
-  V8_INLINE static constexpr uint32_t IndexInCellMask(MarkBitIndex index) {
-    return 1u << IndexInCell(index);
+  V8_INLINE static constexpr CellType IndexInCellMask(MarkBitIndex index) {
+    return static_cast<CellType>(1u) << IndexInCell(index);
   }
 
   // Retrieves the cell containing the provided markbit index.
@@ -192,12 +192,12 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.
   template <AccessMode mode>
-  inline void SetBitsInCell(uint32_t cell_index, uint32_t mask);
+  inline void SetBitsInCell(uint32_t cell_index, MarkBit::CellType mask);
 
   // Clears bits in the given cell. The mask specifies bits to clear: if a
   // bit is set in the mask then the corresponding bit is cleared in the cell.
   template <AccessMode mode>
-  inline void ClearBitsInCell(uint32_t cell_index, uint32_t mask);
+  inline void ClearBitsInCell(uint32_t cell_index, MarkBit::CellType mask);
 
   // Set all bits in the cell range [start_cell_index, end_cell_index). If the
   // access is atomic then *still* use a relaxed memory ordering.

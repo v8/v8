@@ -10,9 +10,12 @@
 
 namespace v8::internal {
 
-constexpr uint32_t kMarkedCell = 0xFFFFFFFF;
-constexpr uint32_t kHalfMarkedCell = 0xFFFF0000;
-constexpr uint32_t kWhiteCell = 0x00000000;
+constexpr MarkBit::CellType kMarkedCell =
+    std::numeric_limits<MarkBit::CellType>::max();
+constexpr MarkBit::CellType kLowerHalfMarkedCell =
+    kMarkedCell >> ((sizeof(kMarkedCell) * CHAR_BIT) / 2);
+constexpr MarkBit::CellType kHigherHalfMarkedCell = ~kLowerHalfMarkedCell;
+constexpr MarkBit::CellType kWhiteCell = static_cast<MarkBit::CellType>(0x0);
 constexpr uint8_t kMarkedByte = 0xFF;
 constexpr uint8_t kUnmarkedByte = 0x00;
 
@@ -80,7 +83,7 @@ void ClearRange1Test(uint8_t* raw_bitmap, MarkingBitmap* bm) {
   bm->ClearRange<access_mode>(
       0, MarkingBitmap::kBitsPerCell + MarkingBitmap::kBitsPerCell / 2);
   EXPECT_EQ(bm->cells()[0], kWhiteCell);
-  EXPECT_EQ(bm->cells()[1], kHalfMarkedCell);
+  EXPECT_EQ(bm->cells()[1], kHigherHalfMarkedCell);
   EXPECT_EQ(bm->cells()[2], kMarkedCell);
 }
 
@@ -93,7 +96,7 @@ void ClearRange2Test(uint8_t* raw_bitmap, MarkingBitmap* bm) {
       MarkingBitmap::kBitsPerCell,
       MarkingBitmap::kBitsPerCell + MarkingBitmap::kBitsPerCell / 2);
   EXPECT_EQ(bm->cells()[0], kMarkedCell);
-  EXPECT_EQ(bm->cells()[1], kHalfMarkedCell);
+  EXPECT_EQ(bm->cells()[1], kHigherHalfMarkedCell);
   EXPECT_EQ(bm->cells()[2], kMarkedCell);
 }
 
@@ -101,7 +104,7 @@ template <AccessMode access_mode>
 void SetAndClearRangeTest(uint8_t* raw_bitmap, MarkingBitmap* bm) {
   for (int i = 0; i < 3; i++) {
     bm->SetRange<access_mode>(i, MarkingBitmap::kBitsPerCell + i);
-    CHECK_EQ(bm->cells()[0], 0xFFFFFFFFu << i);
+    CHECK_EQ(bm->cells()[0], std::numeric_limits<uintptr_t>::max() << i);
     CHECK_EQ(bm->cells()[1], (1u << i) - 1);
     bm->ClearRange<access_mode>(i, MarkingBitmap::kBitsPerCell + i);
     CHECK_EQ(bm->cells()[0], 0x0u);
@@ -162,12 +165,12 @@ TEST_F(NonAtomicBitmapTest, ClearMultipleRanges) {
   bm->ClearRange<AccessMode::NON_ATOMIC>(MarkingBitmap::kBitsPerCell * 2 + 24,
                                          MarkingBitmap::kBitsPerCell * 3);
 
-  CHECK_EQ(bm->cells()[0], 0xFFFFu);
+  CHECK_EQ(bm->cells()[0], kLowerHalfMarkedCell);
   CHECK(bm->AllBitsSetInRange(0, MarkingBitmap::kBitsPerCell / 2));
   CHECK(bm->AllBitsClearInRange(MarkingBitmap::kBitsPerCell / 2,
                                 MarkingBitmap::kBitsPerCell));
 
-  CHECK_EQ(bm->cells()[1], 0xFFFF0000u);
+  CHECK_EQ(bm->cells()[1], kHigherHalfMarkedCell);
   CHECK(bm->AllBitsClearInRange(
       MarkingBitmap::kBitsPerCell,
       MarkingBitmap::kBitsPerCell + MarkingBitmap::kBitsPerCell / 2));
@@ -175,20 +178,14 @@ TEST_F(NonAtomicBitmapTest, ClearMultipleRanges) {
       MarkingBitmap::kBitsPerCell + MarkingBitmap::kBitsPerCell / 2,
       MarkingBitmap::kBitsPerCell * 2));
 
-  CHECK_EQ(bm->cells()[2], 0xFF00FFu);
-  CHECK(bm->AllBitsSetInRange(
-      MarkingBitmap::kBitsPerCell * 2,
-      MarkingBitmap::kBitsPerCell * 2 + MarkingBitmap::kBitsPerCell / 4));
-  CHECK(bm->AllBitsClearInRange(
-      MarkingBitmap::kBitsPerCell * 2 + MarkingBitmap::kBitsPerCell / 4,
-      MarkingBitmap::kBitsPerCell * 2 + MarkingBitmap::kBitsPerCell / 2));
-  CHECK(bm->AllBitsSetInRange(
-      MarkingBitmap::kBitsPerCell * 2 + MarkingBitmap::kBitsPerCell / 2,
-      MarkingBitmap::kBitsPerCell * 2 + MarkingBitmap::kBitsPerCell / 2 +
-          MarkingBitmap::kBitsPerCell / 4));
-  CHECK(bm->AllBitsClearInRange(MarkingBitmap::kBitsPerCell * 2 +
-                                    MarkingBitmap::kBitsPerCell / 2 +
-                                    MarkingBitmap::kBitsPerCell / 4,
+  CHECK_EQ(bm->cells()[2], static_cast<MarkBit::CellType>(0x00FF00FFu));
+  CHECK(bm->AllBitsSetInRange(MarkingBitmap::kBitsPerCell * 2,
+                              MarkingBitmap::kBitsPerCell * 2 + 8));
+  CHECK(bm->AllBitsClearInRange(MarkingBitmap::kBitsPerCell * 2 + 8,
+                                MarkingBitmap::kBitsPerCell * 2 + 16));
+  CHECK(bm->AllBitsSetInRange(MarkingBitmap::kBitsPerCell * 2 + 16,
+                              MarkingBitmap::kBitsPerCell * 2 + 24));
+  CHECK(bm->AllBitsClearInRange(MarkingBitmap::kBitsPerCell * 2 + 24,
                                 MarkingBitmap::kBitsPerCell * 3));
 }
 

@@ -17,32 +17,33 @@ namespace v8::internal {
 
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
+    uint32_t cell_index, MarkBit::CellType mask) {
   cells()[cell_index] |= mask;
 }
 
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
-  base::AsAtomic32::SetBits(cells() + cell_index, mask, mask);
+    uint32_t cell_index, MarkBit::CellType mask) {
+  base::AsAtomicWord::SetBits(cells() + cell_index, mask, mask);
 }
 
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
+    uint32_t cell_index, MarkBit::CellType mask) {
   cells()[cell_index] &= ~mask;
 }
 
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
-  base::AsAtomic32::SetBits(cells() + cell_index, 0u, mask);
+    uint32_t cell_index, MarkBit::CellType mask) {
+  base::AsAtomicWord::SetBits(cells() + cell_index,
+                              static_cast<MarkBit::CellType>(0u), mask);
 }
 
 template <>
 inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  base::AtomicWord* cell_base = reinterpret_cast<base::AtomicWord*>(cells());
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
     base::Relaxed_Store(cell_base + i, 0);
   }
@@ -59,9 +60,10 @@ inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  base::AtomicWord* cell_base = reinterpret_cast<base::AtomicWord*>(cells());
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
-    base::Relaxed_Store(cell_base + i, 0xffffffff);
+    base::Relaxed_Store(cell_base + i,
+                        std::numeric_limits<MarkBit::CellType>::max());
   }
 }
 
@@ -69,7 +71,7 @@ template <>
 inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::NON_ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
-    cells()[i] = 0xffffffff;
+    cells()[i] = std::numeric_limits<MarkBit::CellType>::max();
   }
 }
 
