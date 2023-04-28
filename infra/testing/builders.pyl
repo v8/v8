@@ -823,7 +823,7 @@
   'v8_odroid_arm_rel': {
     'swarming_dimensions' : {
       'cores': '8',
-      'cpu': 'armv7l-32-ODROID-XU4',
+      'cpu': 'armv7l-32-ODROID-XU4|armv7l-32-Hardkernel_ODROID-XU4',
       'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
@@ -2005,7 +2005,7 @@
   'V8 Arm': {
     'swarming_dimensions': {
       'cores': '8',
-      'cpu': 'armv7l-32-ODROID-XU4',
+      'cpu': 'armv7l-32-ODROID-XU4|armv7l-32-Hardkernel_ODROID-XU4',
       'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
@@ -2034,7 +2034,7 @@
   'V8 Arm - debug': {
     'swarming_dimensions': {
       'cores': '8',
-      'cpu': 'armv7l-32-ODROID-XU4',
+      'cpu': 'armv7l-32-ODROID-XU4|armv7l-32-Hardkernel_ODROID-XU4',
       'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
@@ -2062,7 +2062,7 @@
   'V8 Arm GC Stress': {
     'swarming_dimensions': {
       'cores': '8',
-      'cpu': 'armv7l-32-ODROID-XU4',
+      'cpu': 'armv7l-32-ODROID-XU4|armv7l-32-Hardkernel_ODROID-XU4',
       'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
