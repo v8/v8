@@ -1841,12 +1841,14 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   Handle<JSObject> resume =
       Factory::JSFunctionBuilder{isolate, resume_sfi, context}.Build();
 
+  Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
   Handle<WasmResumeData> reject_data =
       isolate->factory()->NewWasmResumeData(suspender, wasm::OnResume::kThrow);
   Handle<SharedFunctionInfo> reject_sfi =
       isolate->factory()->NewSharedFunctionInfoForWasmResume(reject_data);
   Handle<JSObject> reject =
       Factory::JSFunctionBuilder{isolate, reject_sfi, context}.Build();
+  suspender->set_promise(*promise);
   suspender->set_resume(*resume);
   suspender->set_reject(*reject);
   suspender->set_wasm_to_js_counter(0);
