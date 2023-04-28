@@ -2278,24 +2278,26 @@ void MacroAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
-                                               Register target) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   ASM_CODE_COMMENT(this);
   // The builtin_index register contains the builtin index as a Smi.
+  // Untagging is folded into the indexing operand below.
   if (SmiValuesAre32Bits()) {
-    Asr(target, builtin_index, kSmiShift - kSystemPointerSizeLog2);
-    Add(target, target, IsolateData::builtin_entry_table_offset());
-    Ldr(target, MemOperand(kRootRegister, target));
+    Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
+    Add(builtin_index, builtin_index,
+        IsolateData::builtin_entry_table_offset());
+    Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
   } else {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
-      Add(target, kRootRegister,
+      Add(builtin_index, kRootRegister,
           Operand(builtin_index.W(), SXTW, kSystemPointerSizeLog2 - kSmiShift));
     } else {
-      Add(target, kRootRegister,
+      Add(builtin_index, kRootRegister,
           Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiShift));
     }
-    Ldr(target, MemOperand(target, IsolateData::builtin_entry_table_offset()));
+    Ldr(builtin_index,
+        MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
   }
 }
 
@@ -2311,11 +2313,10 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
-                                        Register target) {
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
   ASM_CODE_COMMENT(this);
-  LoadEntryFromBuiltinIndex(builtin_index, target);
-  Call(target);
+  LoadEntryFromBuiltinIndex(builtin_index);
+  Call(builtin_index);
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {

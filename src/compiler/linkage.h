@@ -509,8 +509,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int parameter_count,
                                              CallDescriptor::Flags flags);
-  static CallDescriptor* GetJSBuiltinCallDescriptor(
-      Zone* zone, int js_parameter_count, Operator::Properties properties);
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int js_parameter_count,
@@ -599,13 +597,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static const int kOsrAccumulatorRegisterIndex = -1;
 
  private:
-  // Shared implementation of GetJSCallDescriptor and
-  // GetJSBuiltinCallDescriptor.
-  enum class JSDescKind { kFunction, kOSR, kBuiltin };
-  static CallDescriptor* GetCallDescriptorWithJSLinkage(
-      Zone* zone, int js_parameter_count, JSDescKind kind,
-      CallDescriptor::Flags flags, Operator::Properties properties);
-
   CallDescriptor* const incoming_;
 };
 

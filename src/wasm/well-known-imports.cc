@@ -25,8 +25,6 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "ParseFloat";
     case WellKnownImport::kStringIndexOf:
       return "String.indexOf";
-    case WellKnownImport::kStringToLocaleLowerCaseStringref:
-      return "String.toLocaleLowerCase";
     case WellKnownImport::kStringToLowerCaseStringref:
       return "String.toLowerCase";
   }

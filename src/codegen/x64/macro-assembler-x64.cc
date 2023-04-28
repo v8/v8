@@ -2204,9 +2204,8 @@ Operand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 Operand MacroAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
   if (SmiValuesAre32Bits()) {
     // The builtin_index register contains the builtin index as a Smi.
-    Move(kScratchRegister, builtin_index);  // Callee checks for equality.
-    SmiUntagUnsigned(kScratchRegister);
-    return Operand(kRootRegister, kScratchRegister, times_system_pointer_size,
+    SmiUntagUnsigned(builtin_index);
+    return Operand(kRootRegister, builtin_index, times_system_pointer_size,
                    IsolateData::builtin_entry_table_offset());
   } else {
     DCHECK(SmiValuesAre31Bits());

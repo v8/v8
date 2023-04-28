@@ -264,15 +264,6 @@ FrameSummary DebuggableStackFrameIterator::GetTopValidFrame() const {
 // static
 bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
   if (frame->is_java_script()) {
-#if V8_ENABLE_WEBASSEMBLY
-    Object maybe_func(
-        Memory<Address>(frame->fp() + StandardFrameConstants::kFunctionOffset));
-    // Some builtins are called by their ID from optimized code.
-    if (maybe_func.IsSmi()) {
-      DCHECK(Builtins::IsBuiltinId(Smi::cast(maybe_func).value()));
-      return false;
-    }
-#endif
     JSFunction function = static_cast<JavaScriptFrame*>(frame)->function();
     return function.shared().IsSubjectToDebugging();
   }
@@ -1756,16 +1747,6 @@ void CommonFrameWithJSLinkage::Summarize(
   int offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   Handle<AbstractCode> abstract_code(
       AbstractCode::cast(code.UnsafeCastToCode()), isolate());
-#if V8_ENABLE_WEBASSEMBLY
-  Object maybe_func(
-      base::Memory<Address>(fp() + StandardFrameConstants::kFunctionOffset));
-  if (code.kind() == CodeKind::BUILTIN && maybe_func.IsSmi()) {
-    FrameSummary::BuiltinFrameSummary summary(
-        isolate(), static_cast<Builtin>(Smi::cast(maybe_func).value()));
-    functions->push_back(summary);
-    return;
-  }
-#endif
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, offset,

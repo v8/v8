@@ -681,11 +681,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      Register target =
-          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
-              ? kJavaScriptCallCodeStartRegister
-              : builtin_index;
-      __ CallBuiltinByIndex(builtin_index, target);
+      __ CallBuiltinByIndex(builtin_index);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
