@@ -1238,7 +1238,6 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
     }
   }
 
-  page->ClearFlag(Page::NEVER_ALLOCATE_ON_PAGE);
   page->ResetAllocationStatistics();
   heap_->CreateFillerObjectAtSweeper(start, static_cast<int>(size));
   paged_space->UnaccountedFree(start, size);
