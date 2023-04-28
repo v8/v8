@@ -5901,7 +5901,6 @@ void YoungGenerationMarkingTask::PublishMarkingWorklist() {
 void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
-  base::MutexGuard guard(chunk_->mutex());
   CodePageMemoryModificationScope memory_modification_scope(chunk_);
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers(task);
