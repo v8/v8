@@ -48,6 +48,7 @@
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
+#include "src/inspector/v8-serialization-duplicate-tracker.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/inspector/value-mirror.h"
@@ -623,8 +624,29 @@ Response InjectedScript::wrapObjectMirror(
   }
   if (wrapMode == WrapMode::kGenerateWebDriverValue) {
     int maxDepth = 1;
+
+    V8SerializationDuplicateTracker duplicateTracker{context};
+
+    std::unique_ptr<protocol::DictionaryValue> webDriverValueDict =
+        mirror.buildWebDriverValue(context, maxDepth, duplicateTracker);
+
+    String16 type;
+    webDriverValueDict->getString("type", &type);
+
     std::unique_ptr<protocol::Runtime::WebDriverValue> webDriverValue =
-        mirror.buildWebDriverValue(context, maxDepth);
+        protocol::Runtime::WebDriverValue::create().setType(type).build();
+
+    protocol::Value* maybeValue = webDriverValueDict->get("value");
+    if (maybeValue != nullptr) {
+      webDriverValue->setValue(maybeValue->clone());
+    }
+
+    int weakLocalObjectReference;
+    if (webDriverValueDict->getInteger("weakLocalObjectReference",
+                                       &weakLocalObjectReference)) {
+      webDriverValue->setWeakLocalObjectReference(weakLocalObjectReference);
+    }
+
     if (!response.IsSuccess()) return response;
     (*result)->setWebDriverValue(std::move(webDriverValue));
   }

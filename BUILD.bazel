@@ -3405,6 +3405,8 @@ filegroup(
         "src/inspector/v8-inspector-impl.h",
         "src/inspector/v8-inspector-session-impl.cc",
         "src/inspector/v8-inspector-session-impl.h",
+        "src/inspector/v8-serialization-duplicate-tracker.cc",
+        "src/inspector/v8-serialization-duplicate-tracker.h",
         "src/inspector/v8-profiler-agent-impl.cc",
         "src/inspector/v8-profiler-agent-impl.h",
         "src/inspector/v8-regex.cc",

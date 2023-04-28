@@ -1044,6 +1044,10 @@ domain Runtime
         window
       optional any value
       optional string objectId
+      # Set if value reference met more then once during serialization. In such
+      # case, value is provided only to one of the serialized values. Unique
+      # per value in the scope of one CDP call.
+      optional integer weakLocalObjectReference
 
   # Unique object identifier.
   type RemoteObjectId extends string

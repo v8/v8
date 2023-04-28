@@ -86,33 +86,15 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}");
  }]);
 
-async function serializeViaEvaluate(expression) {
-  return await Protocol.Runtime.evaluate({
-    expression: "("+expression+")",
-    generateWebDriverValue: true
-  });
-}
-
-async function serializeViaCallFunctionOn(expression) {
-  const objectId = (await Protocol.Runtime.evaluate({
-    expression: "({})",
-    generateWebDriverValue: true
-  })).result.result.objectId;
-
-  return await Protocol.Runtime.callFunctionOn({
-    functionDeclaration: "()=>{return " + expression + "}",
-    objectId,
-    generateWebDriverValue: true
-  });
-}
-
 async function testExpression(expression) {
+  const wrappedExpression = `(()=>{const a=${expression}; const b=${expression}; return [a,b,a,b,a,b]})()`
   InspectorTest.logMessage("testing expression: "+expression);
 
   InspectorTest.logMessage("Runtime.evaluate");
-  dumpResult(await serializeViaEvaluate(expression));
-  InspectorTest.logMessage("Runtime.callFunctionOn");
-  dumpResult(await serializeViaCallFunctionOn(expression));
+  dumpResult(await Protocol.Runtime.evaluate({
+    expression: wrappedExpression,
+    generateWebDriverValue: true
+  }));
 }
 
 function dumpResult(result) {
