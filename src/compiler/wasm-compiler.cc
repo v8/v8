@@ -67,6 +67,10 @@ namespace compiler {
 
 namespace {
 
+constexpr MachineType kMaybeSandboxedPointer =
+    V8_ENABLE_SANDBOX_BOOL ? MachineType::SandboxedPointer()
+                           : MachineType::Pointer();
+
 #define FATAL_UNSUPPORTED_OPCODE(opcode)        \
   FATAL("Unsupported opcode 0x%x:%s", (opcode), \
         wasm::WasmOpcodes::OpcodeName(opcode));
@@ -3179,11 +3183,8 @@ void WasmGraphBuilder::InitInstanceCache(
   if (!env_->module->has_memory) return;
 
   // Load the memory start.
-  constexpr MachineType kMemStartType = V8_ENABLE_SANDBOX_BOOL
-                                            ? MachineType::SandboxedPointer()
-                                            : MachineType::UintPtr();
   instance_cache->mem_start =
-      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, kMemStartType);
+      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, kMaybeSandboxedPointer);
 
   // Load the memory size.
   // TODO(13957): Clamp the loaded memory size to a safe value.
@@ -3386,11 +3387,8 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
           gasm_->IntPtrConstant(
               wasm::ObjectAccess::ToTagged(FixedArray::kObjectsOffset)));
     } else {
-      MachineType machine_type = V8_ENABLE_SANDBOX_BOOL
-                                     ? MachineType::SandboxedPointer()
-                                     : MachineType::UintPtr();
-      *base = gasm_->LoadFromObject(machine_type, imported_mutable_globals,
-                                    field_offset);
+      *base = gasm_->LoadFromObject(kMaybeSandboxedPointer,
+                                    imported_mutable_globals, field_offset);
       *offset = gasm_->IntPtrConstant(0);
     }
   } else if (global.type.is_reference()) {
@@ -3399,10 +3397,7 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
     *offset = gasm_->IntPtrConstant(
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
   } else {
-    MachineType machine_type = V8_ENABLE_SANDBOX_BOOL
-                                   ? MachineType::SandboxedPointer()
-                                   : MachineType::UintPtr();
-    *base = LOAD_INSTANCE_FIELD(GlobalsStart, machine_type);
+    *base = LOAD_INSTANCE_FIELD(GlobalsStart, kMaybeSandboxedPointer);
     *offset = gasm_->IntPtrConstant(global.offset);
   }
 }
@@ -8021,14 +8016,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         },
         // Initialize wasm-specific callback options fields
         [this](Node* options_stack_slot) {
-#ifdef V8_ENABLE_SANDBOX
           Node* mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-              MemoryStart, MachineType::SandboxedPointer());
-#else
-          Node* mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-              MemoryStart, MachineType::UintPtr());
-#endif
-
+              MemoryStart, kMaybeSandboxedPointer);
           Node* mem_size = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
               MemorySize, MachineType::UintPtr());
 
