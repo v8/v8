@@ -69,10 +69,8 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
 
 class V8_EXPORT_PRIVATE BytecodeArrayIterator {
  public:
-  explicit BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
-                                 int initial_offset = 0);
   BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
-                        int initial_offset, DisallowGarbageCollection& no_gc);
+                        int initial_offset = 0);
   ~BytecodeArrayIterator();
 
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;
@@ -171,13 +169,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   void UpdatePointers();
 
   inline bool done() const { return cursor_ >= end_; }
-
-  bool operator==(const BytecodeArrayIterator& other) const {
-    return cursor_ == other.cursor_;
-  }
-  bool operator!=(const BytecodeArrayIterator& other) const {
-    return cursor_ != other.cursor_;
-  }
 
  private:
   uint32_t GetUnsignedOperand(int operand_index,

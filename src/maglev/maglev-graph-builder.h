@@ -1700,7 +1700,6 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   void VisitBinarySmiOperation();
 
-  base::Optional<int> TryFindNextBranch();
   template <typename BranchControlNodeT, typename... Args>
   bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
                          Args&&... args);
