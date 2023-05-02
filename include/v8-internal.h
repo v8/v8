@@ -430,7 +430,7 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   (HasMarkBit ? kExternalPointerMarkBit : 0))
 enum ExternalPointerTag : uint64_t {
   // Empty tag value. Mostly used as placeholder.
-  kExternalPointerNullTag =            MAKE_TAG(0, 0b00000000),
+  kExternalPointerNullTag =            MAKE_TAG(1, 0b00000000),
   // External pointer tag that will match any external pointer. Use with care!
   kAnyExternalPointerTag =             MAKE_TAG(1, 0b11111111),
   // The free entry tag has all type bits set so every type check with a
