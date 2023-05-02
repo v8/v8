@@ -342,11 +342,6 @@ void PagedSpaceBase::ResetFreeList() {
 }
 
 void PagedSpaceBase::ShrinkImmortalImmovablePages() {
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "ShrinkImmortalImmovablePages writes to the page header.");
-  }
   DCHECK(!heap()->deserialization_complete());
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   FreeLinearAllocationArea();
@@ -414,9 +409,11 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
   DCHECK_LE(top(), new_limit);
   DCHECK_GE(old_limit, new_limit);
   if (new_limit != old_limit) {
-    base::Optional<CodePageHeaderModificationScope> optional_scope;
+    base::Optional<CodePageMemoryModificationScope> optional_scope;
+
     if (identity() == CODE_SPACE) {
-      optional_scope.emplace("DecreaseLimit writes to the page header.");
+      MemoryChunk* chunk = MemoryChunk::FromAddress(new_limit);
+      optional_scope.emplace(chunk);
     }
 
     ConcurrentAllocationMutex guard(this);
@@ -462,6 +459,13 @@ void PagedSpaceBase::MakeLinearAllocationAreaIterable() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != kNullAddress && current_top != current_limit) {
+    base::Optional<CodePageMemoryModificationScope> optional_scope;
+
+    if (identity() == CODE_SPACE) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(current_top);
+      optional_scope.emplace(chunk);
+    }
+
     heap_->CreateFillerObjectAt(current_top,
                                 static_cast<int>(current_limit - current_top));
   }
@@ -471,6 +475,15 @@ size_t PagedSpaceBase::Available() const {
   ConcurrentAllocationMutex guard(this);
   return free_list_->Available();
 }
+
+namespace {
+
+UnprotectMemoryOrigin GetUnprotectMemoryOrigin(bool is_compaction_space) {
+  return is_compaction_space ? UnprotectMemoryOrigin::kMaybeOffMainThread
+                             : UnprotectMemoryOrigin::kMainThread;
+}
+
+}  // namespace
 
 void PagedSpaceBase::FreeLinearAllocationArea() {
   // Mark the old linear allocation area with a free space map so it can be
@@ -486,10 +499,11 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
 
   AdvanceAllocationObservers();
 
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+
   if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "FreeLinearAllocationArea writes to the page header.");
+    MemoryChunk* chunk = MemoryChunk::FromAddress(allocation_info_.top());
+    optional_scope.emplace(chunk);
   }
 
   if (identity() != NEW_SPACE && current_top != current_limit &&
@@ -500,6 +514,14 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
 
   SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
   DCHECK_GE(current_limit, current_top);
+
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  if (identity() == CODE_SPACE) {
+    heap()->UnprotectAndRegisterMemoryChunk(
+        MemoryChunk::FromAddress(current_top),
+        GetUnprotectMemoryOrigin(is_compaction_space()));
+  }
 
   DCHECK_IMPLIES(current_limit - current_top >= 2 * kTaggedSize,
                  heap()->marking_state()->IsUnmarked(
@@ -554,6 +576,14 @@ void PagedSpaceBase::SetReadAndExecutable() {
   }
 }
 
+void PagedSpaceBase::SetCodeModificationPermissions() {
+  DCHECK(identity() == CODE_SPACE);
+  for (Page* page : *this) {
+    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
+    page->SetCodeModificationPermissions();
+  }
+}
+
 std::unique_ptr<ObjectIterator> PagedSpaceBase::GetObjectIterator(Heap* heap) {
   return std::unique_ptr<ObjectIterator>(
       new PagedSpaceObjectIterator(heap, this));
@@ -600,6 +630,10 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
+    if (identity() == CODE_SPACE) {
+      heap()->UnprotectAndRegisterMemoryChunk(
+          page, GetUnprotectMemoryOrigin(is_compaction_space()));
+    }
     if (!SupportsExtendingLAB()) {
       Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
       end = limit;
@@ -647,6 +681,10 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   DCHECK_LE(limit, end);
   DCHECK_LE(min_size_in_bytes, limit - start);
   if (limit != end) {
+    if (identity() == CODE_SPACE) {
+      heap()->UnprotectAndRegisterMemoryChunk(
+          page, UnprotectMemoryOrigin::kMaybeOffMainThread);
+    }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
   AddRangeToActiveSystemPages(page, start, limit);
@@ -876,10 +914,6 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
 
 bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
   DCHECK_NE(NEW_SPACE, identity());
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace("TryExpand writes to the page header.");
-  }
   Page* page = TryExpandImpl(MemoryAllocator::AllocationMode::kRegular);
   if (!page) return false;
   if (!is_compaction_space() && identity() != NEW_SPACE) {

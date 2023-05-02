@@ -6930,6 +6930,7 @@ TEST(CodeObjectRegistry) {
 
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
 
   Handle<InstructionStream> code1;
   HandleScope outer_scope(heap->isolate());
@@ -7073,6 +7074,7 @@ HEAP_TEST(CodeLargeObjectSpace) {
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
   HeapObject obj;
   {
     AllocationResult allocation = heap->AllocateRaw(
@@ -7106,6 +7108,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     HeapObject obj;
     {
       AllocationResult allocation = heap->AllocateRaw(
@@ -7127,6 +7130,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     HeapObject obj;
     {
       AllocationResult allocation = heap->AllocateRaw(
@@ -7219,6 +7223,8 @@ TEST(Regress10900) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   {
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(
+        isolate->heap());
     Handle<Code> code;
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.

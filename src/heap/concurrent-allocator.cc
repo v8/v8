@@ -89,11 +89,13 @@ ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (IsLabValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   if (lab_.top() != lab_.limit() && IsBlackAllocationEnabled()) {
-    base::Optional<CodePageHeaderModificationScope> optional_scope;
-    if (space_->identity() == CODE_SPACE) {
-      optional_scope.emplace("Clears marking bitmap in the page header.");
-    }
     Page::FromAddress(lab_.top())
         ->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
   }
@@ -103,6 +105,12 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
 }
 
 void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (IsLabValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   MakeLabIterable();
 }
 

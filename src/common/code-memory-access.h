@@ -11,29 +11,9 @@
 namespace v8 {
 namespace internal {
 
-// We protect writes to executable memory in some configurations and whenever
-// we write to it, we need to explicitely allow it first.
-//
-// For this purposed, there are a few scope objects with different semantics:
-//
-// - CodePageHeaderModificationScope:
-//     Used when we write to the page header of CodeSpace pages. Only needed on
-//     Apple Silicon where we can't have RW- pages in the RWX space.
-// - CodePageMemoryModificationScope:
-//     Allows access to the allocation area of the CodeSpace pages.
-// - CodePageMemoryModificationScopeForPerf:
-//     A scope to mark places where we switch permissions more broadly for
-//     performance reasons.
-// - wasm::CodeSpaceWriteScope:
-//     Allows access to Wasm code
-//
-// - RwxMemoryWriteScope:
-//     A scope that uses per-thread permissions to allow access. Should not be
-//     used directly, but rather is the implementation of one of the above.
-// - RwxMemoryWriteScopeForTesting:
-//     Same, but for use in testing.
-
+class CodePageCollectionMemoryModificationScope;
 class CodePageMemoryModificationScope;
+class CodeSpaceMemoryModificationScope;
 class RwxMemoryWriteScopeForTesting;
 namespace wasm {
 class CodeSpaceWriteScope;
@@ -99,7 +79,9 @@ class V8_NODISCARD RwxMemoryWriteScope {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
+  friend class CodePageCollectionMemoryModificationScope;
   friend class CodePageMemoryModificationScope;
+  friend class CodeSpaceMemoryModificationScope;
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
 
@@ -143,14 +125,6 @@ class V8_NODISCARD NopRwxMemoryWriteScope final {
     // Define a constructor to avoid unused variable warnings.
   }
 };
-
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-using CodePageMemoryModificationScopeForPerf = RwxMemoryWriteScope;
-#else
-// Without per-thread write permissions, we only use permission switching for
-// debugging and the perf impact of this doesn't matter.
-using CodePageMemoryModificationScopeForPerf = NopRwxMemoryWriteScope;
-#endif
 
 // Sometimes we need to call a function which will / might spawn a new thread,
 // like {JobHandle::NotifyConcurrencyIncrease}, while holding a
