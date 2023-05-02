@@ -180,6 +180,14 @@ class StoreRepresentation final {
   WriteBarrierKind write_barrier_kind_;
 };
 
+struct StorePairRepresentation final
+    : public std::pair<StoreRepresentation, StoreRepresentation> {
+  StorePairRepresentation(StoreRepresentation first, StoreRepresentation second)
+      : std::pair<StoreRepresentation, StoreRepresentation>(first, second) {}
+  friend std::ostream& operator<<(std::ostream& out,
+                                  const StorePairRepresentation rep);
+};
+
 V8_EXPORT_PRIVATE bool operator==(StoreRepresentation, StoreRepresentation);
 bool operator!=(StoreRepresentation, StoreRepresentation);
 
@@ -188,6 +196,9 @@ size_t hash_value(StoreRepresentation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
 V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE StorePairRepresentation const& StorePairRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // A Word(32|64)AtomicStore needs both a StoreRepresentation and a memory order.
@@ -360,6 +371,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kSatConversionIsSafe = 1u << 26,
     kWord32Select = 1u << 27,
     kWord64Select = 1u << 28,
+    kLoadStorePairs = 1u << 29,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -368,7 +380,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kWord64Popcnt | kWord32ReverseBits | kWord64ReverseBits |
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
-        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select
+        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
+        kLoadStorePairs
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -476,6 +489,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // saturating conversion rounding towards 0. Otherwise, we have to manually
   // generate the correct value if a saturating conversion is requested.
   bool SatConversionIsSafe() const { return flags_ & kSatConversionIsSafe; }
+
+  // Return true if the target suppoerts performing a pair of loads/stores in
+  // a single operation.
+  bool SupportsLoadStorePairs() const {
+    return !v8_flags.enable_unconditional_write_barriers &&
+           (flags_ & kLoadStorePairs);
+  }
 
   const Operator* Word64And();
   const Operator* Word64Or();
@@ -1020,6 +1040,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
+  base::Optional<const Operator*> TryStorePair(StoreRepresentation rep1,
+                                               StoreRepresentation rep2);
   const Operator* ProtectedStore(MachineRepresentation rep);
   const Operator* StoreTrapOnNull(StoreRepresentation rep);
 

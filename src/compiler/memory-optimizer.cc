@@ -237,6 +237,9 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitStoreField(node, state);
     case IrOpcode::kStore:
       return VisitStore(node, state);
+    case IrOpcode::kStorePair:
+      // Store pairing should happen after this pass.
+      UNREACHABLE();
     default:
       if (!CanAllocate(node)) {
         // These operations cannot trigger GC.

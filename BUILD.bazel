@@ -2859,6 +2859,8 @@ filegroup(
         "src/compiler/operator-properties.h",
         "src/compiler/osr.cc",
         "src/compiler/osr.h",
+        "src/compiler/pair-load-store-reducer.cc",
+        "src/compiler/pair-load-store-reducer.h",
         "src/compiler/per-isolate-compiler-cache.h",
         "src/compiler/persistent-map.h",
         "src/compiler/phase.h",

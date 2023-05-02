@@ -70,6 +70,7 @@
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/osr.h"
+#include "src/compiler/pair-load-store-reducer.h"
 #include "src/compiler/phase.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/redundancy-elimination.h"
@@ -2093,9 +2094,14 @@ struct MachineOperatorOptimizationPhase {
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                            signalling_nan_propagation);
+    PairLoadStoreReducer pair_load_store_reducer(
+        &graph_reducer, data->jsgraph(), data->isolate());
 
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
+    if (data->machine()->SupportsLoadStorePairs()) {
+      AddReducer(data, &graph_reducer, &pair_load_store_reducer);
+    }
     graph_reducer.ReduceGraph();
   }
 };
@@ -2334,11 +2340,16 @@ struct CsaOptimizationPhase {
         &graph_reducer, data->graph(), data->broker(), data->common(),
         data->machine(), temp_zone, BranchSemantics::kMachine);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+    PairLoadStoreReducer pair_load_store_reducer(
+        &graph_reducer, data->jsgraph(), data->isolate());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
+    if (data->machine()->SupportsLoadStorePairs()) {
+      AddReducer(data, &graph_reducer, &pair_load_store_reducer);
+    }
     graph_reducer.ReduceGraph();
   }
 };

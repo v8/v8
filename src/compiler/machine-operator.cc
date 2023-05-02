@@ -202,6 +202,11 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   return OpParameter<StoreRepresentation>(op);
 }
 
+StorePairRepresentation const& StorePairRepresentationOf(Operator const* op) {
+  DCHECK(IrOpcode::kStorePair == op->opcode());
+  return OpParameter<StorePairRepresentation>(op);
+}
+
 AtomicStoreParameters const& AtomicStoreParametersOf(Operator const* op) {
   DCHECK(IrOpcode::kWord32AtomicStore == op->opcode() ||
          IrOpcode::kWord64AtomicStore == op->opcode());
@@ -759,6 +764,78 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kCompressed)                       \
   V(kSimd256)
 
+#ifdef V8_TARGET_ARCH_64_BIT
+
+#ifdef V8_COMPRESS_POINTERS
+
+#define STORE_PAIR_MACHINE_REPRESENTATION_LIST(V) \
+  V(kWord32, kWord32)                             \
+  V(kWord32, kTagged)                             \
+  V(kWord32, kTaggedSigned)                       \
+  V(kWord32, kTaggedPointer)                      \
+  V(kWord32, kCompressed)                         \
+  V(kWord32, kCompressedPointer)                  \
+  V(kTagged, kWord32)                             \
+  V(kTagged, kTagged)                             \
+  V(kTagged, kTaggedSigned)                       \
+  V(kTagged, kTaggedPointer)                      \
+  V(kTagged, kCompressed)                         \
+  V(kTagged, kCompressedPointer)                  \
+  V(kTaggedSigned, kWord32)                       \
+  V(kTaggedSigned, kTagged)                       \
+  V(kTaggedSigned, kTaggedSigned)                 \
+  V(kTaggedSigned, kTaggedPointer)                \
+  V(kTaggedSigned, kCompressed)                   \
+  V(kTaggedSigned, kCompressedPointer)            \
+  V(kTaggedPointer, kWord32)                      \
+  V(kTaggedPointer, kTagged)                      \
+  V(kTaggedPointer, kTaggedSigned)                \
+  V(kTaggedPointer, kTaggedPointer)               \
+  V(kTaggedPointer, kCompressed)                  \
+  V(kTaggedPointer, kCompressedPointer)           \
+  V(kCompressed, kWord32)                         \
+  V(kCompressed, kTagged)                         \
+  V(kCompressed, kTaggedSigned)                   \
+  V(kCompressed, kTaggedPointer)                  \
+  V(kCompressed, kCompressed)                     \
+  V(kCompressed, kCompressedPointer)              \
+  V(kCompressedPointer, kWord32)                  \
+  V(kCompressedPointer, kTagged)                  \
+  V(kCompressedPointer, kTaggedSigned)            \
+  V(kCompressedPointer, kTaggedPointer)           \
+  V(kCompressedPointer, kCompressed)              \
+  V(kCompressedPointer, kCompressedPointer)       \
+  V(kWord64, kWord64)
+
+#else
+
+#define STORE_PAIR_MACHINE_REPRESENTATION_LIST(V) \
+  V(kWord32, kWord32)                             \
+  V(kWord64, kWord64)                             \
+  V(kWord64, kTagged)                             \
+  V(kWord64, kTaggedSigned)                       \
+  V(kWord64, kTaggedPointer)                      \
+  V(kTagged, kWord64)                             \
+  V(kTagged, kTagged)                             \
+  V(kTagged, kTaggedSigned)                       \
+  V(kTagged, kTaggedPointer)                      \
+  V(kTaggedSigned, kWord64)                       \
+  V(kTaggedSigned, kTagged)                       \
+  V(kTaggedSigned, kTaggedSigned)                 \
+  V(kTaggedSigned, kTaggedPointer)                \
+  V(kTaggedPointer, kWord64)                      \
+  V(kTaggedPointer, kTagged)                      \
+  V(kTaggedPointer, kTaggedSigned)                \
+  V(kTaggedPointer, kTaggedPointer)
+
+#endif  // V8_COMPRESS_POINTERS
+
+#else
+
+#define STORE_PAIR_MACHINE_REPRESENTATION_LIST(V)
+
+#endif  // V8_TARGET_ARCH_64_BIT
+
 #define LOAD_TRANSFORM_LIST(V) \
   V(S128Load8Splat)            \
   V(S128Load16Splat)           \
@@ -1173,6 +1250,41 @@ struct MachineOperatorGlobalCache {
       kStoreTrapOnNull##Type##NoWriteBarrier;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
+
+  friend std::ostream& operator<<(std::ostream& out,
+                                  const StorePairRepresentation rep) {
+    out << rep.first << "," << rep.second;
+    return out;
+  }
+
+#define STORE_PAIR(Type1, Type2)                                           \
+  struct StorePair##Type1##Type2##Operator                                 \
+      : public Operator1<StorePairRepresentation> {                        \
+    explicit StorePair##Type1##Type2##Operator(                            \
+        WriteBarrierKind write_barrier_kind1,                              \
+        WriteBarrierKind write_barrier_kind2)                              \
+        : Operator1<StorePairRepresentation>(                              \
+              IrOpcode::kStorePair,                                        \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "StorePair", 4, 1, 1, 0, 1, 0,                               \
+              {                                                            \
+                  StoreRepresentation(MachineRepresentation::Type1,        \
+                                      write_barrier_kind1),                \
+                  StoreRepresentation(MachineRepresentation::Type2,        \
+                                      write_barrier_kind2),                \
+              }) {}                                                        \
+  };                                                                       \
+  struct StorePair##Type1##Type2##NoWriteBarrier##Operator final           \
+      : public StorePair##Type1##Type2##Operator {                         \
+    StorePair##Type1##Type2##NoWriteBarrier##Operator()                    \
+        : StorePair##Type1##Type2                                          \
+          ##Operator(kNoWriteBarrier, kNoWriteBarrier) {}                  \
+  };                                                                       \
+  StorePair##Type1##Type2##NoWriteBarrier##Operator                        \
+      kStorePair##Type1##Type2##NoWriteBarrier;
+
+  STORE_PAIR_MACHINE_REPRESENTATION_LIST(STORE_PAIR)
+#undef STORE_PAIR
 
 #define ATOMIC_LOAD_WITH_KIND(Type, Kind)                           \
   struct Word32SeqCstLoad##Type##Kind##Operator                     \
@@ -1771,6 +1883,26 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
       break;
   }
   UNREACHABLE();
+}
+
+base::Optional<const Operator*> MachineOperatorBuilder::TryStorePair(
+    StoreRepresentation store_rep1, StoreRepresentation store_rep2) {
+  DCHECK_NE(store_rep1.representation(), MachineRepresentation::kMapWord);
+
+#define STORE(kRep1, kRep2)                                          \
+  static_assert(ElementSizeLog2Of(MachineRepresentation::kRep1) ==   \
+                ElementSizeLog2Of(MachineRepresentation::kRep2));    \
+  if (MachineRepresentation::kRep1 == store_rep1.representation() && \
+      MachineRepresentation::kRep2 == store_rep2.representation()) { \
+    if (store_rep1.write_barrier_kind() != kNoWriteBarrier ||        \
+        store_rep2.write_barrier_kind() != kNoWriteBarrier) {        \
+      return {};                                                     \
+    }                                                                \
+    return &cache_.k##StorePair##kRep1##kRep2##NoWriteBarrier;       \
+  }
+  STORE_PAIR_MACHINE_REPRESENTATION_LIST(STORE);
+#undef STORE
+  return {};
 }
 
 const Operator* MachineOperatorBuilder::ProtectedStore(
