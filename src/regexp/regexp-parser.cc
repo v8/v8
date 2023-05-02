@@ -2532,6 +2532,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassStringDisjunction(
   }
 
   AddClassString(string, string_builder.ToRegExp(), ranges, strings, zone());
+  CharacterRange::Canonicalize(ranges);
 
   // We don't need to handle missing closing '}' here.
   // If the character class is correctly closed, ParseClassSetCharacter will
