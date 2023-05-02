@@ -1449,16 +1449,29 @@ class LinearScanAllocator final : public RegisterAllocator {
     }
   };
 
+  // TODO(dlehmann): Evaluate whether a priority queue (backed by a ZoneVector)
+  // improves performance, as did a sorted vector for `InactiveLiveRangeQueue`.
   using UnhandledLiveRangeQueue =
       ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
-  using InactiveLiveRangeQueue =
-      ZoneMultiset<LiveRange*, InactiveLiveRangeOrdering>;
+  // Sorted by InactiveLiveRangeOrdering.
+  using InactiveLiveRangeQueue = ZoneVector<LiveRange*>;
   UnhandledLiveRangeQueue& unhandled_live_ranges() {
     return unhandled_live_ranges_;
   }
   ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
   InactiveLiveRangeQueue& inactive_live_ranges(int reg) {
     return inactive_live_ranges_[reg];
+  }
+  // At several places in the register allocator we rely on inactive live ranges
+  // being sorted. Previously, this was always true by using a std::multiset.
+  // But to improve performance and in particular reduce memory usage, we
+  // switched to a sorted vector.
+  // Insert this to ensure we don't violate the sorted assumption, and to
+  // document where we actually rely on inactive live ranges being sorted.
+  void SlowDCheckInactiveLiveRangesIsSorted(int reg) {
+    SLOW_DCHECK(std::is_sorted(inactive_live_ranges(reg).begin(),
+                               inactive_live_ranges(reg).end(),
+                               InactiveLiveRangeOrdering()));
   }
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
