@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/inspector/v8-webdriver-serializer.h"
+#include "src/inspector/v8-deep-serializer.h"
 
 #include "include/v8-container.h"
 #include "include/v8-context.h"
@@ -21,7 +21,8 @@ std::unique_ptr<protocol::Value> SerializeRecursively(
     v8::Local<v8::Value> value, v8::Local<v8::Context> context, int maxDepth,
     V8SerializationDuplicateTracker& duplicateTracker) {
   std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
-  return mirror->buildWebDriverValue(context, maxDepth - 1, duplicateTracker);
+  return mirror->buildDeepSerializedValue(context, maxDepth - 1,
+                                          duplicateTracker);
 }
 
 std::unique_ptr<protocol::Value> DescriptionForDate(
@@ -56,7 +57,7 @@ std::unique_ptr<protocol::DictionaryValue> SerializeRegexp(
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
   result->setString("type",
-                    protocol::Runtime::WebDriverValue::TypeEnum::Regexp);
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Regexp);
 
   std::unique_ptr<protocol::DictionaryValue> resultValue =
       protocol::DictionaryValue::create();
@@ -79,7 +80,8 @@ std::unique_ptr<protocol::DictionaryValue> SerializeDate(
     v8::Local<v8::Date> value, v8::Local<v8::Context> context,
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
-  result->setString("type", protocol::Runtime::WebDriverValue::TypeEnum::Date);
+  result->setString("type",
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Date);
   std::unique_ptr<protocol::Value> dateDescription =
       DescriptionForDate(context, value.As<v8::Date>());
 
@@ -111,7 +113,8 @@ std::unique_ptr<protocol::DictionaryValue> SerializeArray(
     v8::Local<v8::Array> value, v8::Local<v8::Context> context, int maxDepth,
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
-  result->setString("type", protocol::Runtime::WebDriverValue::TypeEnum::Array);
+  result->setString("type",
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Array);
 
   if (maxDepth > 0) {
     result->setValue("value", SerializeArrayValue(value, context, maxDepth,
@@ -125,7 +128,8 @@ std::unique_ptr<protocol::DictionaryValue> SerializeMap(
     v8::Local<v8::Map> value, v8::Local<v8::Context> context, int maxDepth,
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
-  result->setString("type", protocol::Runtime::WebDriverValue::TypeEnum::Map);
+  result->setString("type",
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Map);
 
   if (maxDepth > 0) {
     std::unique_ptr<protocol::ListValue> resultValue =
@@ -175,7 +179,8 @@ std::unique_ptr<protocol::DictionaryValue> SerializeSet(
     v8::Local<v8::Set> value, v8::Local<v8::Context> context, int maxDepth,
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
-  result->setString("type", protocol::Runtime::WebDriverValue::TypeEnum::Set);
+  result->setString("type",
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Set);
 
   if (maxDepth > 0) {
     result->setValue("value", SerializeArrayValue(value->AsArray(), context,
@@ -241,7 +246,7 @@ std::unique_ptr<protocol::DictionaryValue> SerializeObject(
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
   result->setString("type",
-                    protocol::Runtime::WebDriverValue::TypeEnum::Object);
+                    protocol::Runtime::DeepSerializedValue::TypeEnum::Object);
 
   if (maxDepth > 0) {
     result->setValue(
@@ -252,8 +257,7 @@ std::unique_ptr<protocol::DictionaryValue> SerializeObject(
 }
 }  // namespace
 
-std::unique_ptr<protocol::DictionaryValue>
-V8WebDriverSerializer::serializeV8Value(
+std::unique_ptr<protocol::DictionaryValue> V8DeepSerializer::serializeV8Value(
     v8::Local<v8::Object> value, v8::Local<v8::Context> context, int maxDepth,
     V8SerializationDuplicateTracker& duplicateTracker,
     std::unique_ptr<protocol::DictionaryValue> result) {
@@ -278,43 +282,43 @@ V8WebDriverSerializer::serializeV8Value(
                         duplicateTracker, std::move(result));
   }
   if (value->IsWeakMap()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Weakmap);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Weakmap);
     return result;
   }
   if (value->IsWeakSet()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Weakset);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Weakset);
     return result;
   }
   if (value->IsNativeError()) {
     result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Error);
+                      protocol::Runtime::DeepSerializedValue::TypeEnum::Error);
     return result;
   }
   if (value->IsProxy()) {
     result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Proxy);
+                      protocol::Runtime::DeepSerializedValue::TypeEnum::Proxy);
     return result;
   }
   if (value->IsPromise()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Promise);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Promise);
     return result;
   }
   if (value->IsTypedArray()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Typedarray);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Typedarray);
     return result;
   }
   if (value->IsArrayBuffer()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Arraybuffer);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Arraybuffer);
     return result;
   }
   if (value->IsFunction()) {
-    result->setString("type",
-                      protocol::Runtime::WebDriverValue::TypeEnum::Function);
+    result->setString(
+        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Function);
     return result;
   }
 

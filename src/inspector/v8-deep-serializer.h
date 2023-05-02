@@ -2,24 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8_WEBDRIVER_SERIALIZER_H_
-#define V8_INSPECTOR_V8_WEBDRIVER_SERIALIZER_H_
+#ifndef V8_INSPECTOR_V8_DEEP_SERIALIZER_H_
+#define V8_INSPECTOR_V8_DEEP_SERIALIZER_H_
 
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-serialization-duplicate-tracker.h"
 
 namespace v8_inspector {
 
-class V8WebDriverSerializer {
+class V8DeepSerializer {
  public:
   static std::unique_ptr<protocol::DictionaryValue> serializeV8Value(
       v8::Local<v8::Object> value, v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue> result);
 
-  V8_EXPORT explicit V8WebDriverSerializer(v8::Isolate* isolate);
+  V8_EXPORT explicit V8DeepSerializer(v8::Isolate* isolate);
 };
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8_WEBDRIVER_SERIALIZER_H_
+#endif  // V8_INSPECTOR_V8_DEEP_SERIALIZER_H_

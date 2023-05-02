@@ -13,8 +13,7 @@
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/string-16.h"
-#include "src/inspector/v8-webdriver-serializer.h"
-
+#include "src/inspector/v8-deep-serializer.h"
 namespace v8_inspector {
 
 class ValueMirror;
@@ -67,7 +66,7 @@ class ValueMirror {
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
   virtual v8::Local<v8::Value> v8Value() const = 0;
-  virtual std::unique_ptr<protocol::DictionaryValue> buildWebDriverValue(
+  virtual std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const = 0;
 

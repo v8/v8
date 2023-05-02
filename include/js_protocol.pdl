@@ -1015,8 +1015,8 @@ domain Runtime
   type ScriptId extends string
 
   # Represents the value serialiazed by the WebDriver BiDi specification
-  # https://w3c.github.io/webdriver-bidi.
-  type WebDriverValue extends object
+  # https://goo.gle/browser-automation-deepserialization.
+  type DeepSerializedValue extends object
     properties
       enum type
         undefined
@@ -1102,7 +1102,7 @@ domain Runtime
       # String representation of the object.
       optional string description
       # WebDriver BiDi representation of the value.
-      experimental optional WebDriverValue webDriverValue
+      experimental optional DeepSerializedValue webDriverValue
       # Unique object identifier (for non-primitive values).
       optional RemoteObjectId objectId
       # Preview containing abbreviated property values. Specified for `object` type values only.
@@ -1416,8 +1416,8 @@ domain Runtime
       # This is mutually exclusive with `executionContextId`.
       experimental optional string uniqueContextId
       # Whether the result should contain `webDriverValue`, serialized according to
-      # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
-      # resulting `objectId` is still provided.
+      # https://goo.gle/browser-automation-deepserialization. This is mutually
+      # exclusive with `returnByValue`, but resulting `objectId` is still provided.
       experimental optional boolean generateWebDriverValue
     returns
       # Call result.
@@ -1504,7 +1504,7 @@ domain Runtime
       # boundaries).
       # This is mutually exclusive with `contextId`.
       experimental optional string uniqueContextId
-      # Whether the result should be serialized according to https://w3c.github.io/webdriver-bidi.
+      # Whether the result should be serialized according to https://goo.gle/browser-automation-deepserialization.
       experimental optional boolean generateWebDriverValue
     returns
       # Evaluation result.

@@ -135,6 +135,8 @@ v8_source_set("inspector") {
     "v8-debugger-script.h",
     "v8-debugger.cc",
     "v8-debugger.h",
+    "v8-deep-serializer.cc",
+    "v8-deep-serializer.h",
     "v8-heap-profiler-agent-impl.cc",
     "v8-heap-profiler-agent-impl.h",
     "v8-inspector-impl.cc",
@@ -155,8 +157,6 @@ v8_source_set("inspector") {
     "v8-stack-trace-impl.h",
     "v8-value-utils.cc",
     "v8-value-utils.h",
-    "v8-webdriver-serializer.cc",
-    "v8-webdriver-serializer.h",
     "value-mirror.cc",
     "value-mirror.h",
   ]
