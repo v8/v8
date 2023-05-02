@@ -1417,6 +1417,7 @@ class MaglevGraphBuilder {
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
   ValueNode* BuildCallSelf(ValueNode* context, ValueNode* function,
+                           ValueNode* new_target,
                            compiler::SharedFunctionInfoRef shared,
                            CallArguments& args);
   ReduceResult TryReduceBuiltin(compiler::SharedFunctionInfoRef shared,

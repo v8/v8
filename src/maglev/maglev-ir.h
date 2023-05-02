@@ -6808,7 +6808,8 @@ class CallSelf : public ValueNodeT<CallSelf> {
   static constexpr int kClosureIndex = 0;
   static constexpr int kContextIndex = 1;
   static constexpr int kReceiverIndex = 2;
-  static constexpr int kFixedInputCount = 3;
+  static constexpr int kNewTargetIndex = 3;
+  static constexpr int kFixedInputCount = 4;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -6818,7 +6819,8 @@ class CallSelf : public ValueNodeT<CallSelf> {
   // Inputs must be initialized manually.
   CallSelf(uint64_t bitfield,
            compiler::SharedFunctionInfoRef shared_function_info,
-           ValueNode* closure, ValueNode* context, ValueNode* receiver)
+           ValueNode* closure, ValueNode* context, ValueNode* receiver,
+           ValueNode* new_target)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         expected_parameter_count_(
@@ -6827,6 +6829,7 @@ class CallSelf : public ValueNodeT<CallSelf> {
     set_input(kClosureIndex, closure);
     set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
+    set_input(kNewTargetIndex, new_target);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -6837,6 +6840,8 @@ class CallSelf : public ValueNodeT<CallSelf> {
   const Input& context() const { return input(kContextIndex); }
   Input& receiver() { return input(kReceiverIndex); }
   const Input& receiver() const { return input(kReceiverIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
   Input& arg(int i) { return input(i + kFixedInputCount); }
   void set_arg(int i, ValueNode* node) {

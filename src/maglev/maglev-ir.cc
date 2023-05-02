@@ -3667,6 +3667,7 @@ void CallSelf::SetValueLocationConstraints() {
     UseAny(arg(i));
   }
   UseFixed(closure(), kJavaScriptCallTargetRegister);
+  UseFixed(new_target(), kJavaScriptCallNewTargetRegister);
   UseFixed(context(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
@@ -3690,7 +3691,6 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
   }
   DCHECK_EQ(kContextRegister, ToRegister(context()));
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
-  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   DCHECK(!shared_function_info().HasBuiltinId());
   __ CallSelf();

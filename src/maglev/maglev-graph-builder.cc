@@ -5328,7 +5328,7 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
 }
 
 ValueNode* MaglevGraphBuilder::BuildCallSelf(
-    ValueNode* context, ValueNode* function,
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
   ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
@@ -5340,7 +5340,7 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, function, context, receiver);
+      shared, function, context, receiver, new_target);
 }
 
 bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
@@ -5364,7 +5364,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   ValueNode* context = GetConstant(function.context(broker()));
   compiler::SharedFunctionInfoRef shared = function.shared(broker());
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function)) {
-    return BuildCallSelf(context, closure, shared, args);
+    return BuildCallSelf(context, closure, new_target, shared, args);
   }
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlinedCall(context, closure, shared,
