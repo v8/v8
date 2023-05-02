@@ -1733,6 +1733,8 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       right->properties().value_representation() !=
           ValueRepresentation::kTagged) {
     SetAccumulator(GetBooleanConstant(false));
+  } else if (left == right) {
+    SetAccumulator(GetBooleanConstant(true));
   } else if (!TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
                                                           kOperation)) {
     SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -1805,6 +1807,10 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       left = GetInternalizedString(iterator_.GetRegisterOperand(0));
       right =
           GetInternalizedString(interpreter::Register::virtual_accumulator());
+      if (left == right) {
+        SetAccumulator(GetBooleanConstant(true));
+        return;
+      }
       if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
                                                       kOperation)) {
         return;
@@ -1821,7 +1827,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       BuildCheckSymbol(left);
       BuildCheckSymbol(right);
       if (left == right) {
-        SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+        SetAccumulator(GetBooleanConstant(true));
         return;
       }
       if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
@@ -1840,6 +1846,14 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       BuildCheckString(right);
 
       ValueNode* result;
+      if (left == right) {
+        SetAccumulator(
+            GetBooleanConstant(kOperation == Operation::kEqual ||
+                               kOperation == Operation::kStrictEqual ||
+                               kOperation == Operation::kLessThanOrEqual ||
+                               kOperation == Operation::kGreaterThanOrEqual));
+        return;
+      }
       switch (kOperation) {
         case Operation::kEqual:
         case Operation::kStrictEqual:
@@ -2532,6 +2546,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kUnsafeSmiTag:
     case Opcode::kSmiConstant:
       return NodeType::kSmi;
+    case Opcode::kAllocateRaw:
+    case Opcode::kFoldedAllocation:
+      return NodeType::kAnyHeapObject;
     case Opcode::kRootConstant:
     case Opcode::kConstant: {
       compiler::HeapObjectRef ref =
@@ -2574,6 +2591,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
+    case Opcode::kCreateEmptyArrayLiteral:
+    case Opcode::kCreateEmptyObjectLiteral:
       return NodeType::kJSReceiver;
     case Opcode::kToName:
       return NodeType::kName;
@@ -5264,24 +5283,12 @@ ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
   }
   ValueNode* receiver = args.receiver();
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
-  if (receiver->properties().value_representation() !=
-      ValueRepresentation::kTagged) {
-    // We might have a conversion node for it that we know it is a JSReceiver.
-    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
-    if (node_info->tagged_alternative != nullptr) {
-      if (CheckType(node_info->tagged_alternative, NodeType::kJSReceiver)) {
-        return receiver;
-      }
-    }
-  }
   if (compiler::OptionalHeapObjectRef maybe_constant =
           TryGetConstant(receiver)) {
     compiler::HeapObjectRef constant = maybe_constant.value();
     if (constant.IsNullOrUndefined(broker())) {
       return GetConstant(
           broker()->target_native_context().global_proxy_object(broker()));
-    } else if (constant.IsJSReceiver()) {
-      return receiver;
     }
   }
   return AddNewNode<ConvertReceiver>({GetTaggedValue(receiver)},
@@ -5419,7 +5426,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     return ReduceResult::DoneWithAbort();
   }
   if (ref.IsString()) {
-    // TODO(v8:7700): Support non internalized string.
     DCHECK(ref.IsInternalizedString());
     AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
   } else {
@@ -5455,6 +5461,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
       if (node->Cast<Float64Constant>()->value().get_scalar() == ref_value) {
         return ReduceResult::Done();
       }
+      // TODO(verwaest): Handle NaN.
       EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
       return ReduceResult::DoneWithAbort();
     }
@@ -5994,6 +6001,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
               construct_arguments_without_receiver);
           implicit_receiver =
               BuildCallBuiltin<Builtin::kFastNewObject>({target, new_target});
+          EnsureType(implicit_receiver, NodeType::kJSReceiver);
         }
 
         args.set_receiver(implicit_receiver);
@@ -6002,10 +6010,12 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
           LazyDeoptFrameScope construct(
               this, BytecodeOffset::ConstructStubInvoke(), target,
               implicit_receiver, construct_arguments_without_receiver);
-          call_result = TryBuildCallKnownJSFunction(function, new_target, args,
-                                                    feedback_source)
-                            .value();
+          ReduceResult result = TryBuildCallKnownJSFunction(
+              function, new_target, args, feedback_source);
+          RETURN_IF_ABORT(result);
+          call_result = result.value();
         }
+        if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
         return AddNewNode<CheckConstructResult>(
             {call_result, implicit_receiver});
       }
@@ -6841,6 +6851,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
     BuildStoreTaggedField(allocation, properties[i],
                           object.map.GetInObjectPropertyOffset(i));
   }
+  EnsureType(allocation, NodeType::kJSReceiver);
   return allocation;
 }
 
@@ -6860,6 +6871,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
       AddNewNode<StoreFloat64>(
           {new_alloc, GetFloat64Constant(value.mutable_double_value)},
           HeapNumber::kValueOffset);
+      EnsureType(new_alloc, NodeType::kNumber);
       return new_alloc;
     }
 
@@ -6894,6 +6906,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastLiteral(
         BuildStoreTaggedField(allocation, elements[i],
                               FixedArray::OffsetOfElementAt(i));
       }
+      EnsureType(allocation, NodeType::kJSReceiver);
       return allocation;
     }
     case FastLiteralFixedArray::kDouble: {
