@@ -138,6 +138,7 @@ struct FastLiteralObject {
         fields(zone->NewArray<FastLiteralField>(map.GetInObjectProperties())),
         elements(elements) {}
 
+  void ClearFields();
   compiler::MapRef map;
   FastLiteralField* fields;
   FastLiteralFixedArray elements;

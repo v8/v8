@@ -150,40 +150,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
 }
 
-int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
-  return AllocateDescriptor::GetStackParameterCount();
-}
-void CreateEmptyObjectLiteral::SetValueLocationConstraints() {
-  DefineAsRegister(this);
-}
-void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  Register object = ToRegister(result());
-  __ Allocate(register_snapshot(), object, map().instance_size());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ Move(scratch, map().object());
-  __ StoreTaggedField(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ LoadTaggedRoot(scratch, RootIndex::kEmptyFixedArray);
-  static_assert(JSObject::kPropertiesOrHashOffset + sizeof(Tagged_t) ==
-                JSObject::kElementsOffset);
-  __ StoreTwoTaggedFields(
-      scratch, FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
-  __ LoadTaggedRoot(scratch, RootIndex::kUndefinedValue);
-  int i = 0;
-  for (; i + 1 < map().GetInObjectProperties(); i += 2) {
-    int offset1 = map().GetInObjectPropertyOffset(i);
-    int offset2 = map().GetInObjectPropertyOffset(i + 1);
-    CHECK(offset1 + sizeof(Tagged_t) == offset2);
-    __ StoreTwoTaggedFields(scratch, FieldMemOperand(object, offset1));
-  }
-  if (i < map().GetInObjectProperties()) {
-    CHECK(i + 1 == map().GetInObjectProperties());
-    int offset = map().GetInObjectPropertyOffset(i);
-    __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
-  }
-}
-
 void CheckedInt32ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

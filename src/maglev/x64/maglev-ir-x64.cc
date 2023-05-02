@@ -37,31 +37,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
           Operand(ToRegister(raw_allocation()), offset()));
 }
 
-int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
-  return AllocateDescriptor::GetStackParameterCount();
-}
-void CreateEmptyObjectLiteral::SetValueLocationConstraints() {
-  DefineAsRegister(this);
-}
-void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  Register object = ToRegister(result());
-  __ Allocate(register_snapshot(), object, map().instance_size());
-  __ Move(kScratchRegister, map().object());
-  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
-                      kScratchRegister);
-  __ LoadRoot(kScratchRegister, RootIndex::kEmptyFixedArray);
-  __ StoreTaggedField(FieldOperand(object, JSObject::kPropertiesOrHashOffset),
-                      kScratchRegister);
-  __ StoreTaggedField(FieldOperand(object, JSObject::kElementsOffset),
-                      kScratchRegister);
-  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-  for (int i = 0; i < map().GetInObjectProperties(); i++) {
-    int offset = map().GetInObjectPropertyOffset(i);
-    __ StoreTaggedField(FieldOperand(object, offset), kScratchRegister);
-  }
-}
-
 void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
