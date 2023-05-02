@@ -316,7 +316,6 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   if (space->heap()->sweeping_in_progress()) {
     space->heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);

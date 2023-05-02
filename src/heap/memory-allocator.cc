@@ -385,7 +385,7 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
       // first.
       ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
       // Now zap object area.
-      ZapBlock(base + MemoryChunkLayout::ObjectStartOffsetInCodePage(),
+      ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
                area_size, kZapValue);
     } else {
       DCHECK_EQ(executable, NOT_EXECUTABLE);
@@ -466,8 +466,6 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
 #ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
 #endif  // DEBUG
-    chunk->heap()->UnregisterUnprotectedMemoryChunk(
-        static_cast<MemoryChunk*>(chunk));
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }

@@ -62,7 +62,13 @@ class SlotAccessorForHeapObject {
   // repeat writes). Returns the number of slots written (which is one).
   int Write(MaybeObject value, int slot_offset = 0) {
     MaybeObjectSlot current_slot = slot() + slot_offset;
-    current_slot.Relaxed_Store(value);
+    {
+      base::Optional<CodePageMemoryModificationScope> memory_modification_scope;
+      if (is_istream_) {
+        memory_modification_scope.emplace(InstructionStream::cast(*object_));
+      }
+      current_slot.Relaxed_Store(value);
+    }
     CombinedWriteBarrier(*object_, current_slot, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
@@ -77,10 +83,13 @@ class SlotAccessorForHeapObject {
 
  private:
   SlotAccessorForHeapObject(Handle<HeapObject> object, int offset)
-      : object_(object), offset_(offset) {}
+      : object_(object),
+        offset_(offset),
+        is_istream_(object->IsInstructionStream()) {}
 
   const Handle<HeapObject> object_;
   const int offset_;
+  bool is_istream_;
 };
 
 // A SlotAccessor for absolute full slot addresses.
@@ -627,9 +636,14 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //       previously allocated object has a valid size (see `Allocate`).
   HeapObject raw_obj =
       Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
-  raw_obj.set_map_after_allocation(*map);
-  MemsetTagged(raw_obj.RawField(kTaggedSize),
-               Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
+  {
+    CodePageMemoryModificationScope memory_modification_scope(
+        BasicMemoryChunk::FromHeapObject(raw_obj));
+    raw_obj.set_map_after_allocation(*map);
+    MemsetTagged(raw_obj.RawField(kTaggedSize),
+                 Smi::uninitialized_deserialization_value(),
+                 size_in_tagged - 1);
+  }
   DCHECK(raw_obj.CheckRequiredAlignment(isolate()));
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
@@ -1193,6 +1207,8 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
     InstructionStream istream =
         InstructionStream::cast(*slot_accessor.object());
 
+    CodePageMemoryModificationScope memory_modification_scope(istream);
+
     // First deserialize the untagged region of the InstructionStream object.
     source_.CopyRaw(reinterpret_cast<void*>(istream.address() +
                                             InstructionStream::kDataStart),
@@ -1224,6 +1240,8 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
         InstructionStream::cast(*slot_accessor.object());
     Code code = istream.code(kAcquireLoad);
     DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
+
+    CodePageMemoryModificationScope memory_modification_scope(istream);
     for (RelocIterator it(code, istream, istream.relocation_info(),
                           InstructionStream::BodyDescriptor::kRelocModeMask);
          !it.done(); it.next()) {

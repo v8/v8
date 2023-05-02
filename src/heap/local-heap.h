@@ -326,9 +326,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHeap* prev_;
   LocalHeap* next_;
 
-  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
-  uintptr_t code_page_collection_memory_modification_scope_depth_{0};
-
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;

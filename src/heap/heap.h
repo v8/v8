@@ -661,29 +661,6 @@ class Heap {
     return write_protect_code_memory_;
   }
 
-  uintptr_t code_space_memory_modification_scope_depth() {
-    return code_space_memory_modification_scope_depth_;
-  }
-
-  void increment_code_space_memory_modification_scope_depth() {
-    code_space_memory_modification_scope_depth_++;
-  }
-
-  void decrement_code_space_memory_modification_scope_depth() {
-    code_space_memory_modification_scope_depth_--;
-  }
-
-  void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
-                                       UnprotectMemoryOrigin origin);
-  V8_EXPORT_PRIVATE void UnprotectAndRegisterMemoryChunk(
-      HeapObject object, UnprotectMemoryOrigin origin);
-  void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
-  V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
-
-  inline void IncrementCodePageCollectionMemoryModificationScopeDepth();
-  inline bool DecrementCodePageCollectionMemoryModificationScopeDepth();
-  inline uintptr_t code_page_collection_memory_modification_scope_depth();
-
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
   }
@@ -2210,9 +2187,6 @@ class Heap {
   // race-free copy of the {v8_flags.write_protect_code_memory} flag.
   bool write_protect_code_memory_ = false;
 
-  // Holds the number of open CodeSpaceMemoryModificationScopes.
-  uintptr_t code_space_memory_modification_scope_depth_ = 0;
-
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 
   // Returns the amount of external memory registered since last global gc.
@@ -2566,45 +2540,6 @@ class V8_NODISCARD AlwaysAllocateScopeForTesting {
   AlwaysAllocateScope scope_;
 };
 
-// The CodeSpaceMemoryModificationScope can only be used by the main thread.
-class V8_NODISCARD CodeSpaceMemoryModificationScope {
- public:
-  explicit inline CodeSpaceMemoryModificationScope(Heap* heap);
-  inline ~CodeSpaceMemoryModificationScope();
-
- private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
-#endif
-  Heap* heap_;
-};
-
-// The CodePageCollectionMemoryModificationScope can be used by any thread. It
-// will not be enabled if a CodeSpaceMemoryModificationScope is already active.
-class V8_NODISCARD CodePageCollectionMemoryModificationScope {
- public:
-  explicit inline CodePageCollectionMemoryModificationScope(Heap* heap);
-  inline ~CodePageCollectionMemoryModificationScope();
-
- private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
-#endif
-  Heap* heap_;
-};
-
-// Same as the CodePageCollectionMemoryModificationScope but without inlining
-// the code. This is a workaround for component build issue (crbug/1316800),
-// when a thread_local value can't be properly exported.
-class V8_EXPORT_PRIVATE V8_NODISCARD
-    CodePageCollectionMemoryModificationScopeForTesting
-    : public CodePageCollectionMemoryModificationScope {
- public:
-  V8_NOINLINE explicit CodePageCollectionMemoryModificationScopeForTesting(
-      Heap* heap);
-  V8_NOINLINE ~CodePageCollectionMemoryModificationScopeForTesting();
-};
-
 // The CodePageHeaderModificationScope enables write access to Code
 // space page headers. On most of the configurations it's a no-op because
 // Code space page headers are configured as writable and
@@ -2638,10 +2573,12 @@ class V8_NODISCARD CodePageMemoryModificationScope {
 
  private:
 #if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
-#endif
+  base::Optional<RwxMemoryWriteScope> rwx_write_scope_;
+#else
   BasicMemoryChunk* chunk_;
   bool scope_active_;
+  base::Optional<base::MutexGuard> guard_;
+#endif
 
   // Disallow any GCs inside this scope, as a relocation of the underlying
   // object would change the {MemoryChunk} that this scope targets.

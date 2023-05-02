@@ -241,6 +241,8 @@ class RememberedSet : public AllStatic {
   static void MergeTyped(MemoryChunk* page, std::unique_ptr<TypedSlots> other) {
     TypedSlotSet* slot_set = page->typed_slot_set<type>();
     if (slot_set == nullptr) {
+      CodePageHeaderModificationScope header_modification_scope(
+          "Allocating a typed slot set requires header write permissions.");
       slot_set = page->AllocateTypedSlotSet<type>();
     }
     slot_set->Merge(other.get());
