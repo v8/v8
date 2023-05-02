@@ -5056,6 +5056,20 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     index = GetInt32ElementIndex(args[0]);
   }
   // Any other argument is ignored.
+
+  // Try to constant-fold if receiver and index are constant
+  if (auto cst = TryGetConstant(receiver)) {
+    if (cst->IsString() && index->Is<Int32Constant>()) {
+      compiler::StringRef str = cst->AsString();
+      int idx = index->Cast<Int32Constant>()->value();
+      if (idx >= 0 && idx < str.length()) {
+        if (base::Optional<uint16_t> value = str.GetChar(broker(), idx)) {
+          return GetSmiConstant(*value);
+        }
+      }
+    }
+  }
+
   // Ensure that {receiver} is actually a String.
   BuildCheckString(receiver);
   // And index is below length.
