@@ -1082,8 +1082,6 @@ class Heap {
   void IterateConservativeStackRoots(
       RootVisitor* v, ScanStackMode stack_mode,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
-  void IterateConservativeStackRootsIncludingClients(RootVisitor* v,
-                                                     ScanStackMode stack_mode);
 
   // ===========================================================================
   // Remembered set API. =======================================================

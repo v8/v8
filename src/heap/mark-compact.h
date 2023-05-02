@@ -216,7 +216,6 @@ class MarkCompactCollector final : public CollectorBase {
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
   class CustomRootBodyMarkingVisitor;
-  class ClientCustomRootBodyMarkingVisitor;
   class SharedHeapObjectVisitor;
   class RootMarkingVisitor;
 
@@ -347,8 +346,6 @@ class MarkCompactCollector final : public CollectorBase {
   ~MarkCompactCollector() final;
 
  private:
-  class ClientRootMarkingVisitor;
-
   Sweeper* sweeper() { return sweeper_; }
 
   void ComputeEvacuationHeuristics(size_t area_size,

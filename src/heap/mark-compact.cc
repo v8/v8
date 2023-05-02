@@ -1051,48 +1051,6 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   MarkCompactCollector* const collector_;
 };
 
-class MarkCompactCollector::ClientRootMarkingVisitor final
-    : public RootVisitor {
- public:
-  explicit ClientRootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector) {}
-
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) final {
-    DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
-    MarkObjectByPointer(root, p);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) final {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      MarkObjectByPointer(root, p);
-    }
-  }
-
-  void VisitRunningCode(FullObjectSlot code_slot,
-                        FullObjectSlot istream_or_smi_zero_slot) final {
-#if DEBUG
-    DCHECK(!HeapObject::cast(*code_slot).InWritableSharedSpace());
-    Object maybe_istream = *istream_or_smi_zero_slot;
-    DCHECK(maybe_istream == Smi::zero() ||
-           !HeapObject::cast(maybe_istream).InWritableSharedSpace());
-#endif
-  }
-
- private:
-  V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    Object object = *p;
-    if (!object.IsHeapObject()) return;
-    HeapObject heap_object = HeapObject::cast(object);
-    // In clients we only care about pointers into the shared spaces.
-    if (!heap_object.InWritableSharedSpace()) return;
-    collector_->MarkRootObject(root, heap_object);
-  }
-
-  MarkCompactCollector* const collector_;
-};
-
 // This visitor is used to visit the body of special objects held alive by
 // other roots.
 //
@@ -1154,69 +1112,6 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!collector_->ShouldMarkObject(heap_object)) return;
-    collector_->MarkObject(host, heap_object);
-  }
-
-  MarkCompactCollector* const collector_;
-};
-
-class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
-    : public ObjectVisitorWithCageBases {
- public:
-  explicit ClientCustomRootBodyMarkingVisitor(MarkCompactCollector* collector)
-      : ObjectVisitorWithCageBases(collector->isolate()),
-        collector_(collector) {}
-
-  void VisitPointer(HeapObject host, ObjectSlot p) final {
-    MarkObject(host, p.load(cage_base()));
-  }
-
-  void VisitMapPointer(HeapObject host) final {
-    MarkObject(host, host.map(cage_base()));
-  }
-
-  void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
-    for (ObjectSlot p = start; p < end; ++p) {
-      // The map slot should be handled in VisitMapPointer.
-      DCHECK_NE(host.map_slot(), p);
-      DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
-      MarkObject(host, p.load(cage_base()));
-    }
-  }
-
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
-#if DEBUG
-    Object istream_object = slot.load(code_cage_base());
-    InstructionStream istream;
-    if (istream_object.GetHeapObject(&istream)) {
-      DCHECK(!istream.InWritableSharedSpace());
-    }
-#endif
-  }
-
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) final {
-    // At the moment, custom roots cannot contain weak pointers.
-    UNREACHABLE();
-  }
-
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
-#if DEBUG
-    InstructionStream target =
-        InstructionStream::FromTargetAddress(rinfo->target_address());
-    DCHECK(!target.InWritableSharedSpace());
-#endif
-  }
-
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
-    MarkObject(host, rinfo->target_object(cage_base()));
-  }
-
- private:
-  V8_INLINE void MarkObject(HeapObject host, Object object) {
-    if (!object.IsHeapObject()) return;
-    HeapObject heap_object = HeapObject::cast(object);
-    if (!heap_object.InWritableSharedSpace()) return;
     collector_->MarkObject(host, heap_object);
   }
 
@@ -2050,23 +1945,40 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate());
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([this](
-                                                             Isolate* client) {
-      ClientRootMarkingVisitor client_root_visitor(this);
-      client->heap()->IterateRoots(
-          &client_root_visitor,
-          base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack,
-                                  SkipRoot::kReadOnlyBuiltins});
-      ClientCustomRootBodyMarkingVisitor client_custom_root_body_visitor(this);
-      ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
-    });
+    ClientRootVisitor<> client_root_visitor(root_visitor);
+    ClientObjectVisitor<> client_custom_root_body_visitor(
+        &custom_root_body_visitor);
+
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [this, &client_root_visitor,
+         &client_custom_root_body_visitor](Isolate* client) {
+          client->heap()->IterateRoots(
+              &client_root_visitor,
+              base::EnumSet<SkipRoot>{SkipRoot::kWeak,
+                                      SkipRoot::kConservativeStack,
+                                      SkipRoot::kReadOnlyBuiltins});
+          ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
+        });
   }
 }
 
 void MarkCompactCollector::MarkRootsFromConservativeStack(
     RootVisitor* root_visitor) {
-  heap()->IterateConservativeStackRootsIncludingClients(
-      root_visitor, Heap::ScanStackMode::kComplete);
+  heap()->IterateConservativeStackRoots(root_visitor,
+                                        Heap::ScanStackMode::kComplete,
+                                        Heap::IterateRootsMode::kMainIsolate);
+
+  if (isolate()->is_shared_space_isolate()) {
+    ClientRootVisitor<> client_root_visitor(root_visitor);
+    // For client isolates, use the stack marker to conservatively scan the
+    // stack.
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [v = &client_root_visitor](Isolate* client) {
+          client->heap()->IterateConservativeStackRoots(
+              v, Heap::ScanStackMode::kFromMarker,
+              Heap::IterateRootsMode::kClientIsolate);
+        });
+  }
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {

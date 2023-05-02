@@ -4733,57 +4733,12 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
   }
 }
 
-class ClientRootVisitor : public RootVisitor {
- public:
-  explicit ClientRootVisitor(RootVisitor* actual_visitor)
-      : actual_visitor_(actual_visitor) {}
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) final {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      MaybeForwardSlot(root, description, p);
-    }
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start, OffHeapObjectSlot end) final {
-    actual_visitor_->VisitRootPointers(root, description, start, end);
-  }
-
-  void VisitRunningCode(FullObjectSlot code_slot,
-                        FullObjectSlot maybe_istream_slot) final {
-#if DEBUG
-    DCHECK(!HeapObject::cast(*code_slot).InWritableSharedSpace());
-    Object maybe_istream = *maybe_istream_slot;
-    DCHECK(maybe_istream == Smi::zero() ||
-           !HeapObject::cast(maybe_istream).InWritableSharedSpace());
-#endif
-  }
-
-  void Synchronize(VisitorSynchronization::SyncTag tag) final {
-    actual_visitor_->Synchronize(tag);
-  }
-
- private:
-  void MaybeForwardSlot(Root root, const char* description,
-                        FullObjectSlot slot) {
-    Object object = *slot;
-    if (!object.IsHeapObject()) return;
-    HeapObject heap_object = HeapObject::cast(object);
-    if (heap_object.InWritableSharedSpace()) {
-      actual_visitor_->VisitRootPointer(root, description, slot);
-    }
-  }
-
-  RootVisitor* const actual_visitor_;
-};
-
 void Heap::IterateRootsIncludingClients(RootVisitor* v,
                                         base::EnumSet<SkipRoot> options) {
   IterateRoots(v, options, IterateRootsMode::kMainIsolate);
 
   if (isolate()->is_shared_space_isolate()) {
-    ClientRootVisitor client_root_visitor(v);
+    ClientRootVisitor<> client_root_visitor(v);
     // For client isolates, use the stack marker to conservatively scan the
     // stack.
     options.Add(SkipRoot::kTopOfStack);
@@ -4791,22 +4746,6 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
         [v = &client_root_visitor, options](Isolate* client) {
           client->heap()->IterateRoots(v, options,
                                        IterateRootsMode::kClientIsolate);
-        });
-  }
-}
-
-void Heap::IterateConservativeStackRootsIncludingClients(
-    RootVisitor* v, ScanStackMode stack_mode) {
-  IterateConservativeStackRoots(v, stack_mode, IterateRootsMode::kMainIsolate);
-
-  if (isolate()->is_shared_space_isolate()) {
-    ClientRootVisitor client_root_visitor(v);
-    // For client isolates, use the stack marker to conservatively scan the
-    // stack.
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [v = &client_root_visitor](Isolate* client) {
-          client->heap()->IterateConservativeStackRoots(
-              v, ScanStackMode::kFromMarker, IterateRootsMode::kClientIsolate);
         });
   }
 }
