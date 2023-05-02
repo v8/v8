@@ -348,12 +348,12 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 
 void FeedbackVector::SetOptimizedCode(Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
-  // We should set optimized code only when there is no valid optimized code.
-  DCHECK(!has_optimized_code() ||
-         optimized_code().marked_for_deoptimization() ||
-         (CodeKindCanTierUp(optimized_code().kind()) &&
-          optimized_code().kind() < code.kind()) ||
-         v8_flags.stress_concurrent_inlining_attach_code);
+  // Skip setting optimized code if it would cause us to tier down.
+  if (has_optimized_code() && !optimized_code().marked_for_deoptimization() &&
+      (!CodeKindCanTierUp(optimized_code().kind()) ||
+       optimized_code().kind() > code.kind())) {
+    if (!v8_flags.stress_concurrent_inlining_attach_code) return;
+  }
   // TODO(mythria): We could see a CompileOptimized state here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
   // re-mark the function for non-concurrent optimization after an OSR. We

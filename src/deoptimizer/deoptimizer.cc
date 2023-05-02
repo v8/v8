@@ -883,6 +883,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // deoptimized.
   if (function_.IsJSFunction() && compiled_code_.osr_offset().IsNone()) {
     function_.SetInterruptBudget(isolate_, true);
+    function_.reset_tiering_state();
   }
 
   // Print some helpful diagnostic information.
