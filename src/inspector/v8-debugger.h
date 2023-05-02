@@ -31,11 +31,10 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode {
-  kForceValue,
-  kNoPreview,
-  kWithPreview,
-  kGenerateWebDriverValue
+enum class WrapMode { kJson, kIdOnly, kPreview, kWebDriver };
+
+struct WrapOptions {
+  WrapMode mode;
 };
 
 using protocol::Response;

@@ -429,7 +429,7 @@ class PrimitiveValueMirror final : public ValueMirror {
 
   v8::Local<v8::Value> v8Value() const override { return m_value; }
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     std::unique_ptr<protocol::Value> protocolValue;
     toProtocolValue(context, m_value, &protocolValue);
@@ -529,7 +529,7 @@ class NumberMirror final : public ValueMirror {
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     bool unserializable = false;
     String16 descriptionValue = description(&unserializable);
@@ -570,6 +570,8 @@ class NumberMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
+    // https://goo.gle/browser-automation-deepserialization
+
     std::unique_ptr<protocol::DictionaryValue> result =
         protocol::DictionaryValue::create();
     result->setString("type",
@@ -608,7 +610,7 @@ class BigIntMirror final : public ValueMirror {
   explicit BigIntMirror(v8::Local<v8::BigInt> value) : m_value(value) {}
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     String16 description = descriptionForBigInt(context, m_value);
     *result = RemoteObject::create()
@@ -650,6 +652,8 @@ class BigIntMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
+    // https://goo.gle/browser-automation-deepserialization
+
     v8::Local<v8::String> stringValue =
         v8::debug::GetBigIntStringValue(context->GetIsolate(), m_value);
 
@@ -673,9 +677,9 @@ class SymbolMirror final : public ValueMirror {
       : m_symbol(value.As<v8::Symbol>()) {}
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
-    if (mode == WrapMode::kForceValue) {
+    if (wrapOptions.mode == WrapMode::kJson) {
       return Response::ServerError("Object couldn't be returned by value");
     }
     *result = RemoteObject::create()
@@ -714,6 +718,7 @@ class SymbolMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
+    // https://goo.gle/browser-automation-deepserialization
     bool isKnown;
     std::unique_ptr<protocol::DictionaryValue> result =
         duplicateTracker.LinkExistingOrCreate(m_symbol, &isKnown);
@@ -752,7 +757,7 @@ class LocationMirror final : public ValueMirror {
   }
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     auto location = protocol::DictionaryValue::create();
     location->setString("scriptId", String16::fromInteger(m_scriptId));
@@ -815,10 +820,10 @@ class FunctionMirror final : public ValueMirror {
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     // TODO(alph): drop this functionality.
-    if (mode == WrapMode::kForceValue) {
+    if (wrapOptions.mode == WrapMode::kJson) {
       std::unique_ptr<protocol::Value> protocolValue;
       Response response = toProtocolValue(context, m_value, &protocolValue);
       if (!response.IsSuccess()) return response;
@@ -1096,9 +1101,9 @@ class ObjectMirror final : public ValueMirror {
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
   Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
+      v8::Local<v8::Context> context, WrapOptions wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
-    if (mode == WrapMode::kForceValue) {
+    if (wrapOptions.mode == WrapMode::kJson) {
       std::unique_ptr<protocol::Value> protocolValue;
       Response response = toProtocolValue(context, m_value, &protocolValue);
       if (!response.IsSuccess()) return response;
@@ -1115,7 +1120,7 @@ class ObjectMirror final : public ValueMirror {
                     .setDescription(m_description)
                     .build();
       if (m_hasSubtype) (*result)->setSubtype(m_subtype);
-      if (mode == WrapMode::kWithPreview) {
+      if (wrapOptions.mode == WrapMode::kPreview) {
         std::unique_ptr<ObjectPreview> previewValue;
         int nameLimit = 5;
         int indexLimit = 100;

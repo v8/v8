@@ -42,6 +42,7 @@
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/remote-object-id.h"
 #include "src/inspector/v8-console-message.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
@@ -96,14 +97,14 @@ template <typename ProtocolCallback>
 bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
                              v8::MaybeLocal<v8::Value> maybeResultValue,
                              const v8::TryCatch& tryCatch,
-                             const String16& objectGroup, WrapMode wrapMode,
-                             bool throwOnSideEffect,
+                             const String16& objectGroup,
+                             WrapOptions wrapOptions, bool throwOnSideEffect,
                              ProtocolCallback* callback) {
   std::unique_ptr<RemoteObject> result;
   Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
 
   Response response = injectedScript->wrapEvaluateResult(
-      maybeResultValue, tryCatch, objectGroup, wrapMode, throwOnSideEffect,
+      maybeResultValue, tryCatch, objectGroup, wrapOptions, throwOnSideEffect,
       &result, &exceptionDetails);
   if (response.IsSuccess()) {
     callback->sendSuccess(std::move(result), std::move(exceptionDetails));
@@ -117,7 +118,7 @@ void innerCallFunctionOn(
     V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
-    bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,
+    bool silent, WrapOptions wrapOptions, bool userGesture, bool awaitPromise,
     const String16& objectGroup, bool throwOnSideEffect,
     std::unique_ptr<V8RuntimeAgentImpl::CallFunctionOnCallback> callback) {
   V8InspectorImpl* inspector = session->inspector();
@@ -166,8 +167,9 @@ void innerCallFunctionOn(
 
   if (scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeFunctionValue,
-                            scope.tryCatch(), objectGroup, WrapMode::kNoPreview,
-                            throwOnSideEffect, callback.get());
+                            scope.tryCatch(), objectGroup,
+                            WrapOptions({WrapMode::kIdOnly}), throwOnSideEffect,
+                            callback.get());
     return;
   }
 
@@ -197,13 +199,13 @@ void innerCallFunctionOn(
 
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup, wrapMode,
+                            scope.tryCatch(), objectGroup, wrapOptions,
                             throwOnSideEffect, callback.get());
     return;
   }
 
   scope.injectedScript()->addPromiseCallback(
-      session, maybeResultValue, objectGroup, wrapMode, false /* replMode */,
+      session, maybeResultValue, objectGroup, wrapOptions, false /* replMode */,
       throwOnSideEffect,
       EvaluateCallbackWrapper<V8RuntimeAgentImpl::CallFunctionOnCallback>::wrap(
           std::move(callback)));
@@ -235,6 +237,17 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
   }
 
   return Response::Success();
+}
+
+WrapOptions getWrapOptions(Maybe<bool> returnByValue,
+                           Maybe<bool> generatePreview,
+                           Maybe<bool> generateWebDriverValue) {
+  if (generateWebDriverValue.fromMaybe(false))
+    return WrapOptions({WrapMode::kWebDriver});
+  if (returnByValue.fromMaybe(false)) return WrapOptions({WrapMode::kJson});
+  if (generatePreview.fromMaybe(false))
+    return WrapOptions({WrapMode::kPreview});
+  return WrapOptions({WrapMode::kIdOnly});
 }
 
 }  // namespace
@@ -324,23 +337,21 @@ void V8RuntimeAgentImpl::evaluate(
     return;
   }
 
-  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                        : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
-  if (generateWebDriverValue.fromMaybe(false))
-    wrap_mode = WrapMode::kGenerateWebDriverValue;
+  WrapOptions wrapOptions =
+      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
+                     std::move(generateWebDriverValue));
 
   // REPL mode always returns a promise that must be awaited.
   const bool await = replMode || maybeAwaitPromise.fromMaybe(false);
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.fromMaybe(""),
-                            wrap_mode, throwOnSideEffect.fromMaybe(false),
+                            wrapOptions, throwOnSideEffect.fromMaybe(false),
                             callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
-      m_session, maybeResultValue, objectGroup.fromMaybe(""), wrap_mode,
+      m_session, maybeResultValue, objectGroup.fromMaybe(""), wrapOptions,
       replMode, throwOnSideEffect.fromMaybe(false),
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
@@ -360,11 +371,11 @@ void V8RuntimeAgentImpl::awaitPromise(
         Response::ServerError("Could not find promise with given id"));
     return;
   }
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+
+  WrapOptions wrapOptions = getWrapOptions(std::move(returnByValue),
+                                           std::move(generatePreview), false);
   scope.injectedScript()->addPromiseCallback(
-      m_session, scope.object(), scope.objectGroupName(), mode,
+      m_session, scope.object(), scope.objectGroupName(), wrapOptions,
       false /* replMode */, false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
@@ -393,11 +404,11 @@ void V8RuntimeAgentImpl::callFunctionOn(
                                 "uniqueContextId must be specified"));
     return;
   }
-  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                        : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
-  if (generateWebDriverValue.fromMaybe(false))
-    wrap_mode = WrapMode::kGenerateWebDriverValue;
+
+  WrapOptions wrapOptions =
+      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
+                     std::move(generateWebDriverValue));
+
   if (objectId.isJust()) {
     InjectedScript::ObjectScope scope(m_session, objectId.fromJust());
     Response response = scope.initialize();
@@ -407,7 +418,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.object(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrapOptions,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.isJust() ? objectGroup.fromMaybe(String16())
                              : scope.objectGroupName(),
@@ -429,7 +440,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.context()->Global(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrapOptions,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.fromMaybe(""), throwOnSideEffect.fromMaybe(false),
         std::move(callback));
@@ -465,9 +476,8 @@ Response V8RuntimeAgentImpl::getProperties(
       object, scope.objectGroupName(), ownProperties.fromMaybe(false),
       accessorPropertiesOnly.fromMaybe(false),
       nonIndexedPropertiesOnly.fromMaybe(false),
-      generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                       : WrapMode::kNoPreview,
-      result, exceptionDetails);
+      getWrapOptions(false, std::move(generatePreview), false), result,
+      exceptionDetails);
   if (!response.IsSuccess()) return response;
   if (exceptionDetails->isJust()) return Response::Success();
   std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>
@@ -643,18 +653,18 @@ void V8RuntimeAgentImpl::runScript(
     return;
   }
 
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapOptions wrapOptions = getWrapOptions(std::move(returnByValue),
+                                           std::move(generatePreview), false);
   if (!awaitPromise.fromMaybe(false) || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-                            false /* throwOnSideEffect */, callback.get());
+                            scope.tryCatch(), objectGroup.fromMaybe(""),
+                            wrapOptions, false /* throwOnSideEffect */,
+                            callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(), objectGroup.fromMaybe(""),
-      mode, false /* replMode */, false /* throwOnSideEffect */,
+      wrapOptions, false /* replMode */, false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
 }
 
@@ -671,7 +681,7 @@ Response V8RuntimeAgentImpl::queryObjects(
       scope.context(), scope.object().As<v8::Object>());
   return scope.injectedScript()->wrapObject(
       resultArray, objectGroup.fromMaybe(scope.objectGroupName()),
-      WrapMode::kNoPreview, objects);
+      WrapOptions({WrapMode::kIdOnly}), objects);
 }
 
 Response V8RuntimeAgentImpl::globalLexicalScopeNames(
