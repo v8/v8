@@ -301,6 +301,9 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  static compiler::OptionalHeapObjectRef TryGetConstant(
+      compiler::JSHeapBroker* broker, LocalIsolate* isolate, ValueNode* node);
+
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
@@ -872,24 +875,7 @@ class MaglevGraphBuilder {
                                  : RootIndex::kFalseValue);
   }
 
-  ValueNode* GetConstant(compiler::ObjectRef ref) {
-    if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
-    compiler::HeapObjectRef constant = ref.AsHeapObject();
-
-    auto root_index = broker()->FindRootIndex(constant);
-    if (root_index.has_value()) {
-      return GetRootConstant(*root_index);
-    }
-
-    auto it = graph_->constants().find(constant);
-    if (it == graph_->constants().end()) {
-      Constant* node = CreateNewConstantNode<Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-      graph_->constants().emplace(constant, node);
-      return node;
-    }
-    return it->second;
-  }
+  ValueNode* GetConstant(compiler::ObjectRef ref);
 
   ValueNode* GetRegisterInput(Register reg) {
     DCHECK(!graph_->register_inputs().has(reg));
@@ -1363,6 +1349,10 @@ class MaglevGraphBuilder {
                                    const CallArguments& args);
   ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
+
+  compiler::OptionalHeapObjectRef TryGetConstant(ValueNode* node) {
+    return TryGetConstant(broker(), local_isolate(), node);
+  }
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,
