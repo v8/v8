@@ -11358,30 +11358,47 @@ void HandleScopeImplementer::BeginDeferredScope() {
 
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorNameGetterCallback getter) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Leaving JavaScript.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kAccessorGetterCallback);
 
-  // TODO(v8:13825): perform side effect checks if necessary once
-  // AccessorInfo/InterceptorInfo is passed here.
+  v8::AccessorNameGetterCallback getter;
+  {
+    Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
+    // Currently we don't call InterceptorInfo callbacks via CallApiGetter.
+    DCHECK(Object(arg).IsAccessorInfo());
+    AccessorInfo accessor_info = AccessorInfo::cast(Object(arg));
+    getter = reinterpret_cast<v8::AccessorNameGetterCallback>(
+        accessor_info.getter());
 
-  Address getter_address = reinterpret_cast<Address>(getter);
-  ExternalCallbackScope call_scope(i_isolate, getter_address);
+    if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
+      i::Handle<Object> receiver_check_unsupported;
+
+      if (!i_isolate->debug()->PerformSideEffectCheckForAccessor(
+              handle(accessor_info, i_isolate), receiver_check_unsupported,
+              ACCESSOR_GETTER)) {
+        return;
+      }
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter));
   getter(property, info);
 }
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback) {
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kFunctionCallback);
 
   // TODO(v8:13825): perform side effect checks if necessary once
   // CallHandlerInfo is passed here.
 
-  Address callback_address = reinterpret_cast<Address>(callback);
-  ExternalCallbackScope call_scope(i_isolate, callback_address);
+  Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
+  if (USE_SIMULATOR_BOOL) {
+    arg = ExternalReference::UnwrapRedirection(arg);
+  }
+  v8::FunctionCallback callback = reinterpret_cast<v8::FunctionCallback>(arg);
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(callback));
   callback(info);
 }
 

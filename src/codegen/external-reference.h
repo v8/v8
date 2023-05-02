@@ -71,6 +71,8 @@ class StatsCounter;
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
   V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \
+  V(api_callback_thunk_argument_address,                                       \
+    "IsolateData::api_callback_thunk_argument_address")                        \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
   V(address_of_regexp_stack_limit_address,                                     \
     "RegExpStack::limit_address_address()")                                    \
@@ -435,18 +437,9 @@ class ExternalReference {
     // void f(v8::FunctionCallbackInfo&)
     DIRECT_API_CALL,
 
-    // Call to function callback via InvokeFunctionCallback.
-    // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-    PROFILING_API_CALL,
-
     // Direct call to accessor getter callback.
     // void f(Local<Name> property, PropertyCallbackInfo& info)
     DIRECT_GETTER_CALL,
-
-    // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info,
-    //     AccessorNameGetterCallback callback)
-    PROFILING_GETTER_CALL,
 
     // C call, either representing a fast API call or used in tests.
     // Can have arbitrary signature from the types supported by the fast API.

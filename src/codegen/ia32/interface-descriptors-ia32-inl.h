@@ -262,9 +262,9 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 
 // static
 constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(edx,   // kApiFunctionAddress
+  return RegisterArray(eax,   // kApiFunctionAddress
                        ecx,   // kArgc
-                       eax,   // kCallData
+                       edx,   // kCallData
                        edi);  // kHolder
 }
 

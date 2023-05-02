@@ -1167,8 +1167,9 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type,
-                                    Register scratch) {
+void MacroAssembler::EnterExitFrame(int extra_slots,
+                                    StackFrame::Type frame_type,
+                                    Register c_function) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -1185,18 +1186,17 @@ void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type,
   push(Immediate(0));  // Saved entry sp, patched below.
 
   // Save the frame pointer and the context in top.
-  DCHECK(!AreAliased(scratch, ebp, esi, edx));
+  DCHECK(!AreAliased(ebp, kContextRegister, c_function));
   using ER = ExternalReference;
   ER r0 = ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(ExternalReferenceAsOperand(r0, scratch), ebp);
-  static_assert(esi == kContextRegister);
+  mov(ExternalReferenceAsOperand(r0, no_reg), ebp);
   ER r1 = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(ExternalReferenceAsOperand(r1, scratch), esi);
+  mov(ExternalReferenceAsOperand(r1, no_reg), kContextRegister);
   static_assert(edx == kRuntimeCallFunctionRegister);
   ER r2 = ER::Create(IsolateAddressId::kCFunctionAddress, isolate());
-  mov(ExternalReferenceAsOperand(r2, scratch), edx);
+  mov(ExternalReferenceAsOperand(r2, no_reg), c_function);
 
-  AllocateStackSpace(argc * kSystemPointerSize);
+  AllocateStackSpace(extra_slots * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();

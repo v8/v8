@@ -468,12 +468,9 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
-                                                     void* arg2);
 
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
@@ -490,21 +487,6 @@ ObjectPair UnsafeGenericFunctionCall(
   return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
                 arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18,
                 arg19);
-}
-void UnsafeDirectApiCall(int64_t function, int64_t arg0) {
-  SimulatorRuntimeDirectApiCall target =
-      reinterpret_cast<SimulatorRuntimeDirectApiCall>(function);
-  target(arg0);
-}
-void UnsafeProfilingApiCall(int64_t function, int64_t arg0, void* arg1) {
-  SimulatorRuntimeProfilingApiCall target =
-      reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
-  target(arg0, arg1);
-}
-void UnsafeDirectGetterCall(int64_t function, int64_t arg0, int64_t arg1) {
-  SimulatorRuntimeDirectGetterCall target =
-      reinterpret_cast<SimulatorRuntimeDirectGetterCall>(function);
-  target(arg0, arg1);
 }
 
 using MixedRuntimeCall_0 = AnyCType (*)();
@@ -789,18 +771,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
     }
 
-    case ExternalReference::DIRECT_API_CALL: {
-      // void f(v8::FunctionCallbackInfo&)
-      TraceSim("Type: DIRECT_API_CALL\n");
-      TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
-      UnsafeDirectApiCall(external, xreg(0));
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
     case ExternalReference::BUILTIN_COMPARE_CALL: {
       // int f(double, double)
       TraceSim("Type: BUILTIN_COMPARE_CALL\n");
@@ -879,42 +849,27 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
     }
 
+    case ExternalReference::DIRECT_API_CALL: {
+      // void f(v8::FunctionCallbackInfo&)
+      TraceSim("Type: DIRECT_API_CALL\n");
+      TraceSim("Arguments: 0x%016" PRIx64 "\n", arg0);
+      SimulatorRuntimeDirectApiCall target =
+          reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+      target(arg0);
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+
     case ExternalReference::DIRECT_GETTER_CALL: {
-      // void f(Local<String> property, PropertyCallbackInfo& info)
+      // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
       TraceSim("Type: DIRECT_GETTER_CALL\n");
-      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", xreg(0),
-               xreg(1));
-      UnsafeDirectGetterCall(external, xreg(0), xreg(1));
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
-    case ExternalReference::PROFILING_API_CALL: {
-      // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-      TraceSim("Type: PROFILING_API_CALL\n");
-      void* arg1 = Redirection::UnwrapRedirection(xreg(1));
-      TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
-      UnsafeProfilingApiCall(external, xreg(0), arg1);
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
-    case ExternalReference::PROFILING_GETTER_CALL: {
-      // void f(Local<String> property, PropertyCallbackInfo& info,
-      //        AccessorNameGetterCallback callback)
-      TraceSim("Type: PROFILING_GETTER_CALL\n");
-      SimulatorRuntimeProfilingGetterCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      void* arg2 = Redirection::UnwrapRedirection(xreg(2));
-      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n", xreg(0),
-               xreg(1), arg2);
-      target(xreg(0), xreg(1), arg2);
+      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", arg0, arg1);
+      SimulatorRuntimeDirectGetterCall target =
+          reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      target(arg0, arg1);
       TraceSim("No return value.");
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();

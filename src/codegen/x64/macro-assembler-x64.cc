@@ -3165,8 +3165,9 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFrame(int reserved_stack_slots,
-                                    StackFrame::Type frame_type) {
+void MacroAssembler::EnterExitFrame(int extra_slots,
+                                    StackFrame::Type frame_type,
+                                    Register c_function) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -3184,10 +3185,12 @@ void MacroAssembler::EnterExitFrame(int reserved_stack_slots,
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched below.
 
+  DCHECK(!AreAliased(rbp, kContextRegister, c_function));
   using ER = ExternalReference;
   Store(ER::Create(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
-  Store(ER::Create(IsolateAddressId::kContextAddress, isolate()), rsi);
-  Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
+  Store(ER::Create(IsolateAddressId::kContextAddress, isolate()),
+        kContextRegister);
+  Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), c_function);
 
 #ifdef V8_TARGET_OS_WIN
   // Note this is only correct under the assumption that the caller hasn't
@@ -3195,9 +3198,9 @@ void MacroAssembler::EnterExitFrame(int reserved_stack_slots,
   // TODO(jgruber): This is a bit hacky since the caller in most cases still
   // needs to know about the home stack slots in order to address reserved
   // slots. Consider moving this fully into caller code.
-  reserved_stack_slots += kWindowsHomeStackSlots;
+  extra_slots += kWindowsHomeStackSlots;
 #endif
-  AllocateStackSpace(reserved_stack_slots * kSystemPointerSize);
+  AllocateStackSpace(extra_slots * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();

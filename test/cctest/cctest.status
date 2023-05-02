@@ -165,9 +165,6 @@
 
   # BUG(v8:3446).
   'test-mark-compact/Promotion': [PASS, FAIL],
-
-  # BUG(v8:3434).
-  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {

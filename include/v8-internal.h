@@ -562,12 +562,14 @@ class Internals {
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
       kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
-  static const int kIsolateRootsOffset =
+  static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
 #else
-  static const int kIsolateRootsOffset =
+  static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif
+  static const int kIsolateRootsOffset =
+      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
 
 #if V8_STATIC_ROOTS_BOOL
 

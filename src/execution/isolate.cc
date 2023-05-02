@@ -3501,6 +3501,10 @@ void Isolate::CheckIsolateLayout() {
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
 #endif
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
+           Internals::kIsolateApiCallbackThunkArgumentOffset);
+
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
 

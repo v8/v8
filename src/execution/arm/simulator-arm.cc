@@ -1618,12 +1618,9 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int32_t arg0, int32_t arg1,
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int32_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int32_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 using SimulatorRuntimeDirectGetterCall = void (*)(int32_t arg0, int32_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int32_t arg0, int32_t arg1,
-                                                     void* arg2);
 
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
@@ -1641,21 +1638,6 @@ int64_t UnsafeGenericFunctionCall(intptr_t function, int32_t arg0, int32_t arg1,
   return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
                 arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18,
                 arg19);
-}
-void UnsafeDirectApiCall(intptr_t function, int32_t arg0) {
-  SimulatorRuntimeDirectApiCall target =
-      reinterpret_cast<SimulatorRuntimeDirectApiCall>(function);
-  target(arg0);
-}
-void UnsafeProfilingApiCall(intptr_t function, int32_t arg0, int32_t arg1) {
-  SimulatorRuntimeProfilingApiCall target =
-      reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
-  target(arg0, Redirection::UnwrapRedirection(arg1));
-}
-void UnsafeDirectGetterCall(intptr_t function, int32_t arg0, int32_t arg1) {
-  SimulatorRuntimeDirectGetterCall target =
-      reinterpret_cast<SimulatorRuntimeDirectGetterCall>(function);
-  target(arg0, arg1);
 }
 
 // Software interrupt instructions are used by the simulator to call into the
@@ -1818,6 +1800,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("Returned %f\n", dresult);
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+        // void f(v8::FunctionCallbackInfo&)
         if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x",
                  reinterpret_cast<void*>(external), arg0);
@@ -1827,25 +1810,14 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        UnsafeDirectApiCall(external, arg0);
-#ifdef DEBUG
-        TrashCallerSaveRegisters();
-#endif
-      } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-        if (v8_flags.trace_sim || !stack_aligned) {
-          PrintF("Call to host function at %p args %08x %08x",
-                 reinterpret_cast<void*>(external), arg0, arg1);
-          if (!stack_aligned) {
-            PrintF(" with unaligned stack %08x\n", get_register(sp));
-          }
-          PrintF("\n");
-        }
-        CHECK(stack_aligned);
-        UnsafeProfilingApiCall(external, arg0, arg1);
+        SimulatorRuntimeDirectApiCall target =
+            reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+        target(arg0);
 #ifdef DEBUG
         TrashCallerSaveRegisters();
 #endif
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+        // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
         if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
                  reinterpret_cast<void*>(external), arg0, arg1);
@@ -1855,24 +1827,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        UnsafeDirectGetterCall(external, arg0, arg1);
-#ifdef DEBUG
-        TrashCallerSaveRegisters();
-#endif
-      } else if (redirection->type() ==
-                 ExternalReference::PROFILING_GETTER_CALL) {
-        if (v8_flags.trace_sim || !stack_aligned) {
-          PrintF("Call to host function at %p args %08x %08x %08x",
-                 reinterpret_cast<void*>(external), arg0, arg1, arg2);
-          if (!stack_aligned) {
-            PrintF(" with unaligned stack %08x\n", get_register(sp));
-          }
-          PrintF("\n");
-        }
-        CHECK(stack_aligned);
-        SimulatorRuntimeProfilingGetterCall target =
-            reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-        target(arg0, arg1, Redirection::UnwrapRedirection(arg2));
+        SimulatorRuntimeDirectGetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+        target(arg0, arg1);
 #ifdef DEBUG
         TrashCallerSaveRegisters();
 #endif

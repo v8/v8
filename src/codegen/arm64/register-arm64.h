@@ -269,6 +269,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // Stack frame alignment and padding.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // Stack frames are aligned to 16 bytes.

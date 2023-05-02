@@ -472,15 +472,23 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
          (!blocks_.empty() && prev_limit != nullptr));
 }
 
-// Interceptor functions called from generated inline caches to notify
-// CPU profiler that external callbacks are invoked.
+// This is a wrapper function called from CallApiGetter builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the getter has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the AccessorInfo object, via
+// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorNameGetterCallback getter);
+    const v8::PropertyCallbackInfo<v8::Value>& info);
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback);
+// This is a wrapper function called from CallApiCallback builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the callback has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the v8::FunctionCallback address, via
+// IsolateData::api_callback_thunk_argument slot.
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
     Handle<Context> context,

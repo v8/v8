@@ -776,14 +776,14 @@ ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
 
 ExternalReference ExternalReference::invoke_function_callback() {
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
 ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_GETTER_CALL;
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_GETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
@@ -1349,6 +1349,12 @@ ExternalReference ExternalReference::fast_api_call_target_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->fast_api_call_target_address());
+}
+
+ExternalReference ExternalReference::api_callback_thunk_argument_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->api_callback_thunk_argument_address());
 }
 
 ExternalReference ExternalReference::stack_is_iterable_address(
