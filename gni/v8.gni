@@ -117,6 +117,9 @@ declare_args() {
   # due to an increased number of OOMs.
   cppgc_enable_2gb_cage = false
 
+  # Enable support for larger cages, up to 16GB.
+  cppgc_enable_larger_cage = false
+
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
   v8_advanced_bigint_algorithms = !is_android

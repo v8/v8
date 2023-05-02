@@ -13,6 +13,7 @@
 #error "Must be compiled with caged heap enabled"
 #endif
 
+#include "include/cppgc/internal/api-constants.h"
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/platform.h"
@@ -33,8 +34,6 @@ static_assert(api_constants::kCagedHeapReservationSize ==
               kCagedHeapReservationSize);
 static_assert(api_constants::kCagedHeapReservationAlignment ==
               kCagedHeapReservationAlignment);
-static_assert(api_constants::kPointerCompressionShift ==
-              kPointerCompressionShift);
 
 uintptr_t CagedHeapBase::g_heap_base_ = 0u;
 
@@ -63,10 +62,11 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
     //
     // TODO(chromium:1325007): Provide API in PageAllocator to left trim
     // allocations and return unused portions of the reservation back to the OS.
-    static constexpr size_t kTryReserveSize = kCagedHeapReservationSize
-                                              << kPointerCompressionShift;
+    static constexpr size_t kTryReserveSize =
+        kCagedHeapReservationSize << api_constants::kPointerCompressionShift;
     static constexpr size_t kTryReserveAlignment =
-        kCagedHeapReservationAlignment << kPointerCompressionShift;
+        kCagedHeapReservationAlignment
+        << api_constants::kPointerCompressionShift;
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
     static constexpr size_t kTryReserveSize = kCagedHeapReservationSize;
     static constexpr size_t kTryReserveAlignment =
@@ -104,8 +104,9 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
 #if defined(CPPGC_POINTER_COMPRESSION)
   // Pick a base offset according to pointer compression shift. See comment in
   // ReserveCagedHeap().
-  static constexpr size_t kBaseOffset = kCagedHeapReservationSize
-                                        << (kPointerCompressionShift - 1);
+  static constexpr size_t kBaseOffset =
+      kCagedHeapReservationSize
+      << (api_constants::kPointerCompressionShift - 1);
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
   static constexpr size_t kBaseOffset = 0;
 #endif  //! defined(CPPGC_POINTER_COMPRESSION)
