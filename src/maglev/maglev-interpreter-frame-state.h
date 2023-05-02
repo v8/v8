@@ -72,15 +72,16 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
   V(Unknown, 0)                                                   \
   V(NumberOrOddball, (1 << 1))                                    \
   V(Number, (1 << 2) | kNumberOrOddball)                          \
-  V(Oddball, (1 << 3) | kNumberOrOddball)                         \
-  V(ObjectWithKnownMap, (1 << 4))                                 \
-  V(Smi, (1 << 5) | kObjectWithKnownMap | kNumber)                \
-  V(AnyHeapObject, (1 << 6))                                      \
-  V(Name, (1 << 7) | kAnyHeapObject)                              \
-  V(String, (1 << 8) | kName)                                     \
-  V(InternalizedString, (1 << 9) | kString)                       \
-  V(Symbol, (1 << 10) | kName)                                    \
-  V(JSReceiver, (1 << 11) | kAnyHeapObject)                       \
+  V(ObjectWithKnownMap, (1 << 3))                                 \
+  V(Smi, (1 << 4) | kObjectWithKnownMap | kNumber)                \
+  V(AnyHeapObject, (1 << 5))                                      \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)        \
+  V(Boolean, (1 << 7) | kOddball)                                 \
+  V(Name, (1 << 8) | kAnyHeapObject)                              \
+  V(String, (1 << 9) | kName)                                     \
+  V(InternalizedString, (1 << 10) | kString)                      \
+  V(Symbol, (1 << 11) | kName)                                    \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                       \
   V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
   V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
   V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)

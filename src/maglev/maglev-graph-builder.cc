@@ -2549,7 +2549,20 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kAllocateRaw:
     case Opcode::kFoldedAllocation:
       return NodeType::kAnyHeapObject;
-    case Opcode::kRootConstant:
+    case Opcode::kRootConstant: {
+      RootConstant* constant = node->Cast<RootConstant>();
+      switch (constant->index()) {
+        case RootIndex::kTrueValue:
+        case RootIndex::kFalseValue:
+          return NodeType::kBoolean;
+        case RootIndex::kUndefinedValue:
+        case RootIndex::kNullValue:
+          return NodeType::kOddball;
+        default:
+          break;
+      }
+      V8_FALLTHROUGH;
+    }
     case Opcode::kConstant: {
       compiler::HeapObjectRef ref =
           MaglevGraphBuilder::TryGetConstant(broker, isolate, node).value();
@@ -2596,6 +2609,34 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kJSReceiver;
     case Opcode::kToName:
       return NodeType::kName;
+    case Opcode::kFloat64Equal:
+    case Opcode::kFloat64GreaterThan:
+    case Opcode::kFloat64GreaterThanOrEqual:
+    case Opcode::kFloat64LessThan:
+    case Opcode::kFloat64LessThanOrEqual:
+    case Opcode::kFloat64StrictEqual:
+    case Opcode::kInt32Equal:
+    case Opcode::kInt32GreaterThan:
+    case Opcode::kInt32GreaterThanOrEqual:
+    case Opcode::kInt32LessThan:
+    case Opcode::kInt32LessThanOrEqual:
+    case Opcode::kInt32StrictEqual:
+    case Opcode::kGenericEqual:
+    case Opcode::kGenericStrictEqual:
+    case Opcode::kGenericLessThan:
+    case Opcode::kGenericLessThanOrEqual:
+    case Opcode::kGenericGreaterThan:
+    case Opcode::kGenericGreaterThanOrEqual:
+    case Opcode::kLogicalNot:
+    case Opcode::kStringEqual:
+    case Opcode::kTaggedEqual:
+    case Opcode::kTaggedNotEqual:
+    case Opcode::kTestInstanceOf:
+    case Opcode::kTestTypeOf:
+    case Opcode::kTestUndetectable:
+    case Opcode::kToBoolean:
+    case Opcode::kToBooleanLogicalNot:
+      return NodeType::kBoolean;
     default:
       return NodeType::kUnknown;
   }
