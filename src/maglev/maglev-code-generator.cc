@@ -989,6 +989,7 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
       DCHECK_NOT_NULL(deopt_frame.parent());
       return GetSourcePosition(*deopt_frame.parent());
     case DeoptFrame::FrameType::kConstructStubFrame:
+      return deopt_frame.as_construct_stub().source_position();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return SourcePosition::Unknown();
   }
