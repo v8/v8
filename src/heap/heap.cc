@@ -4611,7 +4611,8 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 #endif  // V8_COMPRESS_POINTERS
 };
 
-void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
+void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
+                        IterateRootsMode roots_mode) {
   v->VisitRootPointers(Root::kStrongRootList, nullptr,
                        roots_table().strong_roots_begin(),
                        roots_table().strong_roots_end());
@@ -4691,7 +4692,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
         ScanStackMode stack_mode = options.contains(SkipRoot::kTopOfStack)
                                        ? ScanStackMode::kFromMarker
                                        : ScanStackMode::kComplete;
-        IterateConservativeStackRoots(v, stack_mode);
+        IterateConservativeStackRoots(v, stack_mode, roots_mode);
       }
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
@@ -4812,25 +4813,35 @@ class ClientRootVisitor : public RootVisitor {
 
 void Heap::IterateRootsIncludingClients(RootVisitor* v,
                                         base::EnumSet<SkipRoot> options) {
-  IterateRoots(v, options);
+  IterateRoots(v, options, IterateRootsMode::kMainIsolate);
 
   if (isolate()->is_shared_space_isolate()) {
     ClientRootVisitor client_root_visitor(v);
-    // TODO(v8:13257): We cannot run CSS on client isolates now, as the
-    // stack markers will not be correct.
-    options.Add(SkipRoot::kConservativeStack);
+    // For client isolates, use the stack marker to conservatively scan the
+    // stack.
+    options.Add(SkipRoot::kTopOfStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
-          client->heap()->IterateRoots(v, options);
+          client->heap()->IterateRoots(v, options,
+                                       IterateRootsMode::kClientIsolate);
         });
   }
 }
 
 void Heap::IterateConservativeStackRootsIncludingClients(
     RootVisitor* v, ScanStackMode stack_mode) {
-  IterateConservativeStackRoots(v, stack_mode);
+  IterateConservativeStackRoots(v, stack_mode, IterateRootsMode::kMainIsolate);
 
-  // TODO(v8:13257): Iterate over client isolates for CSS once supported.
+  if (isolate()->is_shared_space_isolate()) {
+    ClientRootVisitor client_root_visitor(v);
+    // For client isolates, use the stack marker to conservatively scan the
+    // stack.
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [v = &client_root_visitor](Isolate* client) {
+          client->heap()->IterateConservativeStackRoots(
+              v, ScanStackMode::kFromMarker, IterateRootsMode::kClientIsolate);
+        });
+  }
 }
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
@@ -4859,11 +4870,17 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* v,
-                                         ScanStackMode stack_mode) {
+                                         ScanStackMode stack_mode,
+                                         IterateRootsMode roots_mode) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (!IsGCWithStack()) return;
 
-  ConservativeStackVisitor stack_visitor(isolate_, v);
+  // In case of a shared GC, we're interested in the main isolate for CSS.
+  Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
+                              ? isolate()->shared_space_isolate()
+                              : isolate();
+
+  ConservativeStackVisitor stack_visitor(main_isolate, v);
   if (stack_mode == ScanStackMode::kComplete) {
     stack().IteratePointers(&stack_visitor);
   } else {

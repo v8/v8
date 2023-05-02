@@ -365,6 +365,8 @@ void LocalHeap::SleepInSafepoint() {
 
   TRACE_GC1(heap_->tracer(), scope_id, thread_kind);
 
+  if (is_main_thread()) heap()->stack().SetMarkerToCurrentStackPosition();
+
   // Parking the running thread here is an optimization. We do not need to
   // wake this thread up to reach the next safepoint.
   ThreadState old_state = state_.SetParked();

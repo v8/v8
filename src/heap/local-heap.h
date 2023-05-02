@@ -284,6 +284,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());
+    if (is_main_thread()) heap()->stack().SetMarkerToCurrentStackPosition();
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();

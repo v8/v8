@@ -1075,13 +1075,19 @@ class Heap {
   // Iterators. ================================================================
   // ===========================================================================
 
+  // In the case of shared GC, kMainIsolate is used for the main isolate and
+  // kClientIsolate for the (other) client isolates.
+  enum class IterateRootsMode { kMainIsolate, kClientIsolate };
+
   // None of these methods iterate over the read-only roots. To do this use
   // ReadOnlyRoots::Iterate. Read-only root iteration is not necessary for
   // garbage collection and is usually only performed as part of
   // (de)serialization or heap verification.
 
   // Iterates over the strong roots and the weak roots.
-  void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
+  void IterateRoots(
+      RootVisitor* v, base::EnumSet<SkipRoot> options,
+      IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
   void IterateRootsIncludingClients(RootVisitor* v,
                                     base::EnumSet<SkipRoot> options);
 
@@ -1096,7 +1102,9 @@ class Heap {
   void IterateStackRoots(RootVisitor* v);
 
   enum class ScanStackMode { kFromMarker, kComplete };
-  void IterateConservativeStackRoots(RootVisitor* v, ScanStackMode stack_mode);
+  void IterateConservativeStackRoots(
+      RootVisitor* v, ScanStackMode stack_mode,
+      IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
   void IterateConservativeStackRootsIncludingClients(RootVisitor* v,
                                                      ScanStackMode stack_mode);
 

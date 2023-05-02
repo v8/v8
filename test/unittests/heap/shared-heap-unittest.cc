@@ -629,13 +629,8 @@ TEST_F(SharedHeapTestStateWithRawPointer, ToEachTheirOwnSharedYoung) {
 }
 
 TEST_F(SharedHeapTestStateWithRawPointer, ToEachTheirOwnSharedOld) {
-  // TODO(v8:13257): This test is expected to fail until we correctly scan
-  // the stacks of client isolates conservatively, during a shared garbage
-  // collection.
-#if 0
   ToEachTheirOwnWithRawPointer<SharedHeapTestStateWithRawPointer,
                                AllocationType::kSharedOld, OLD_SPACE>(this);
-#endif
 }
 
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING

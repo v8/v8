@@ -11,6 +11,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/parked-scope.h"
@@ -2046,8 +2047,13 @@ class WorkerIsolateThread : public v8::base::Thread {
       gh_shared_string.SetWeak();
     }
 
-    i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
-                                           GarbageCollectionReason::kTesting);
+    {
+      // We need to invoke GC without stack, otherwise some objects may survive.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_client->heap());
+      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
+                                             GarbageCollectionReason::kTesting);
+    }
 
     CHECK(gh_shared_string.IsEmpty());
     client->Dispose();
@@ -2070,23 +2076,17 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
-  {
-    // We need to invoke GC without stack, otherwise some objects may survive.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        test.i_main_isolate()->heap());
+  std::atomic<bool> done = false;
+  WorkerIsolateThread thread("worker", &test, &done);
+  CHECK(thread.Start());
 
-    std::atomic<bool> done = false;
-    WorkerIsolateThread thread("worker", &test, &done);
-    CHECK(thread.Start());
-
-    while (!done) {
-      v8::platform::PumpMessageLoop(
-          i::V8::GetCurrentPlatform(), test.main_isolate(),
-          v8::platform::MessageLoopBehavior::kWaitForWork);
-    }
-
-    thread.Join();
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
   }
+
+  thread.Join();
 }
 
 class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
