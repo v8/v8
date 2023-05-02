@@ -51,13 +51,24 @@ void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
-  page_protection_change_mutex_->AssertHeld();
-  Address protect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(protect_start, page_size));
-  size_t protect_size = RoundUp(area_size(), page_size);
-  CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
+  // Decrementing the write_unprotect_counter_ and changing the page
+  // protection mode has to be atomic.
+  base::MutexGuard guard(page_protection_change_mutex_);
+  if (write_unprotect_counter_ == 0) {
+    // This is a corner case that may happen when we have a
+    // CodeSpaceMemoryModificationScope open and this page was newly
+    // added.
+    return;
+  }
+  write_unprotect_counter_--;
+  if (write_unprotect_counter_ == 0) {
+    Address protect_start =
+        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
+    size_t page_size = MemoryAllocator::GetCommitPageSize();
+    DCHECK(IsAligned(protect_start, page_size));
+    size_t protect_size = RoundUp(area_size(), page_size);
+    CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
+  }
 }
 
 void MemoryChunk::SetReadable() {
@@ -70,27 +81,27 @@ void MemoryChunk::SetReadAndExecutable() {
       PageAllocator::kReadExecute);
 }
 
-base::MutexGuard MemoryChunk::SetCodeModificationPermissions() {
+void MemoryChunk::SetCodeModificationPermissions() {
   DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
-
-  Address unprotect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(unprotect_start, page_size));
-  size_t unprotect_size = RoundUp(area_size(), page_size);
-  // We may use RWX pages to write code. Some CPUs have optimisations to push
-  // updates to code to the icache through a fast path, and they may filter
-  // updates based on the written memory being executable.
-  CHECK(reservation_.SetPermissions(
-      unprotect_start, unprotect_size,
-      MemoryChunk::GetCodeModificationPermission()));
-
-  return guard;
+  write_unprotect_counter_++;
+  if (write_unprotect_counter_ == 1) {
+    Address unprotect_start =
+        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
+    size_t page_size = MemoryAllocator::GetCommitPageSize();
+    DCHECK(IsAligned(unprotect_start, page_size));
+    size_t unprotect_size = RoundUp(area_size(), page_size);
+    // We may use RWX pages to write code. Some CPUs have optimisations to push
+    // updates to code to the icache through a fast path, and they may filter
+    // updates based on the written memory being executable.
+    CHECK(reservation_.SetPermissions(
+        unprotect_start, unprotect_size,
+        MemoryChunk::GetCodeModificationPermission()));
+  }
 }
 
 void MemoryChunk::SetDefaultCodePermissions() {
@@ -328,6 +339,9 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->page_protection_change_mutex_) -
                 chunk->address(),
             MemoryChunkLayout::kPageProtectionChangeMutexOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->write_unprotect_counter_) -
+                chunk->address(),
+            MemoryChunkLayout::kWriteUnprotectCounterOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->external_backing_store_bytes_) -
                 chunk->address(),
             MemoryChunkLayout::kExternalBackingStoreBytesOffset);

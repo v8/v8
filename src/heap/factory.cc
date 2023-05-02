@@ -133,10 +133,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   Handle<ByteArray> reloc_info =
       NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
-  CodePageMemoryModificationScopeForPerf memory_write_scope(
-      "Temporary performance optimization to prevent frequent permission "
-      "switching.");
-
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
   // appropriate.
@@ -156,6 +152,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   Handle<Code> code;
   {
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
+    CodePageCollectionMemoryModificationScope code_allocation(isolate_->heap());
 
     Handle<InstructionStream> istream;
     if (!NewInstructionStream(retry_allocation_or_fail).ToHandle(&istream)) {
@@ -165,7 +162,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     {
       DisallowGarbageCollection no_gc;
       InstructionStream raw_istream = *istream;
-      CodePageMemoryModificationScope memory_modification_scope(raw_istream);
+
       raw_istream.set_body_size(code_desc_.instruction_size() +
                                 code_desc_.metadata_size());
       raw_istream.initialize_code_to_smi_zero(kReleaseStore);
@@ -224,22 +221,18 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
                 handle(on_heap_profiler_data->counts(), isolate_));
       }
 
-      {
-        CodePageMemoryModificationScope memory_modification_scope(raw_istream);
-        // Migrate generated code.
-        // The generated code can contain embedded objects (typically from
-        // handles) in a pointer-to-tagged-value format (i.e. with indirection
-        // like a handle) that are dereferenced during the copy to point
-        // directly to the actual heap objects. These pointers can include
-        // references to the code object itself, through the self_reference
-        // parameter.
-        code->CopyFromNoFlush(*reloc_info, isolate_->heap(), code_desc_);
+      // Migrate generated code.
+      // The generated code can contain embedded objects (typically from
+      // handles) in a pointer-to-tagged-value format (i.e. with indirection
+      // like a handle) that are dereferenced during the copy to point directly
+      // to the actual heap objects. These pointers can include references to
+      // the code object itself, through the self_reference parameter.
+      code->CopyFromNoFlush(*reloc_info, isolate_->heap(), code_desc_);
 
-        // Now that the InstructionStream's body is fully initialized and
-        // relocated, publish its code pointer, effectively enabling RelocInfo
-        // iteration. See InstructionStream::BodyDescriptor::IterateBody.
-        raw_istream.set_code(*code, kReleaseStore);
-      }
+      // Now that the InstructionStream's body is fully initialized and
+      // relocated, publish its code pointer, effectively enabling RelocInfo
+      // iteration. See InstructionStream::BodyDescriptor::IterateBody.
+      raw_istream.set_code(*code, kReleaseStore);
 
 #ifdef VERIFY_HEAP
       if (v8_flags.verify_heap) {
@@ -295,12 +288,8 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowGarbageCollection no_gc;
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromHeapObject(result));
-    result.set_map_after_allocation(
-        *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
-  }
+  result.set_map_after_allocation(
+      *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> istream =
       handle(InstructionStream::cast(result), isolate_);
   DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
@@ -324,13 +313,8 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowGarbageCollection no_gc;
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromHeapObject(result));
-    result.set_map_after_allocation(
-        *local_isolate_->factory()->instruction_stream_map(),
-        SKIP_WRITE_BARRIER);
-  }
+  result.set_map_after_allocation(
+      *local_isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> istream =
       handle(InstructionStream::cast(result), local_isolate_);
   DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));

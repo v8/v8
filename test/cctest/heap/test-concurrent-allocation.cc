@@ -489,7 +489,6 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     DisallowGarbageCollection no_gc;
     InstructionStream istream = code_.instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    CodePageMemoryModificationScope memory_modification_scope(istream);
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, value_);
@@ -518,6 +517,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   {
     Code code;
     HeapObject value;
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     {
       HandleScope handle_scope(i_isolate);
       i::byte buffer[i::Assembler::kDefaultBufferSize];

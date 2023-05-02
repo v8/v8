@@ -34,12 +34,9 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   InstructionStream istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  {
-    CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
-    }
+  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
   }
   set_embedded_objects_cleared(true);
 }

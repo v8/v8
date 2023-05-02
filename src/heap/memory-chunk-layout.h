@@ -61,6 +61,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(base::SharedMutex*, SharedMutex),
     FIELD(base::Mutex*, PageProtectionChangeMutex),
     FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
+    FIELD(uintptr_t, WriteUnprotectCounter),
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),

@@ -1806,8 +1806,6 @@ TEST(NativeSnapshotObjectIdMoving) {
   if (i::v8_flags.enable_third_party_heap) return;
   // Required to allow moving specific objects.
   i::v8_flags.manual_evacuation_candidates_selection = true;
-  // Concurrent allocation writes page flags in a racy way.
-  i::v8_flags.stress_concurrent_allocation = false;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

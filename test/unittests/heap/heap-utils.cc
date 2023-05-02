@@ -175,6 +175,7 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   Heap* heap = space->heap();
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);

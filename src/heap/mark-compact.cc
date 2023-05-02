@@ -1717,13 +1717,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
-      {
-        CodePageMemoryModificationScope memory_modification_scope(
-            BasicMemoryChunk::FromAddress(dst_addr));
-        base->heap_->CopyBlock(dst_addr, src_addr, size);
-        InstructionStream istream = InstructionStream::cast(dst);
-        istream.Relocate(dst_addr - src_addr);
-      }
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      InstructionStream istream = InstructionStream::cast(dst);
+      istream.Relocate(dst_addr - src_addr);
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
@@ -1737,10 +1733,6 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
-    }
-    base::Optional<CodePageMemoryModificationScope> memory_modification_scope;
-    if (dest == CODE_SPACE) {
-      memory_modification_scope.emplace(InstructionStream::cast(src));
     }
     src.set_map_word_forwarded(dst, kRelaxedStore);
   }
@@ -4300,9 +4292,10 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           marking_state->live_bytes(chunk));
       break;
     case kObjectsOldToOld: {
-      CodePageHeaderModificationScope rwx_write_scope(
+      RwxMemoryWriteScope rwx_write_scope(
           "Evacuation of objects in Code space requires write "
-          "access for the current worker thread.");
+          "access for the "
+          "current worker thread.");
 #if DEBUG
       old_space_visitor_.SetUpAbortEvacuationAtAddress(chunk);
 #endif  // DEBUG
@@ -5908,6 +5901,7 @@ void YoungGenerationMarkingTask::PublishMarkingWorklist() {
 void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
+  CodePageMemoryModificationScope memory_modification_scope(chunk_);
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers(task);
   } else {

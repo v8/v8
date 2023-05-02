@@ -56,8 +56,11 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
         set_top(cur_node.next());
       }
       if (!prev_non_evac_node.is_null()) {
-        CodePageMemoryModificationScope code_modification_scope(
-            BasicMemoryChunk::FromHeapObject(prev_non_evac_node));
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(prev_non_evac_node);
+        if (chunk->owner_identity() == CODE_SPACE) {
+          chunk->heap()->UnprotectAndRegisterMemoryChunk(
+              chunk, UnprotectMemoryOrigin::kMaybeOffMainThread);
+        }
         prev_non_evac_node.set_next(cur_node.next());
       }
       *node_size = size;
@@ -72,11 +75,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
 void FreeListCategory::Free(Address start, size_t size_in_bytes, FreeMode mode,
                             FreeList* owner) {
   FreeSpace free_space = FreeSpace::cast(HeapObject::FromAddress(start));
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromAddress(start));
-    free_space.set_next(top());
-  }
+  free_space.set_next(top());
   set_top(free_space);
   available_ += size_in_bytes;
   if (mode == kLinkCategory) {
