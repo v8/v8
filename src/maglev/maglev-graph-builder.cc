@@ -274,8 +274,7 @@ class V8_NODISCARD MaglevGraphBuilder::LazyDeoptFrameScope {
       : builder_(builder),
         parent_(builder->current_lazy_deopt_scope_),
         data_(DeoptFrame::ConstructStubFrameData{
-            *builder->compilation_unit(), bytecode_position,
-            builder->current_source_position_, closure, receiver,
+            *builder->compilation_unit(), bytecode_position, closure, receiver,
             arguments_without_receiver, builder->GetContext()}) {
     builder_->current_lazy_deopt_scope_ = this;
   }
