@@ -132,6 +132,10 @@ void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                  const ValueNode* node) {
   os << " → " << node->result().operand();
+  if (node->result().operand().IsAllocated() && node->is_spilled() &&
+      node->spill_slot() != node->result().operand()) {
+    os << " (spilled: " << node->spill_slot() << ")";
+  }
   if (node->has_valid_live_range()) {
     os << ", live range: [" << node->live_range().start << "-"
        << node->live_range().end << "]";
