@@ -436,14 +436,14 @@ class RelocInfoWriter {
   RelocInfoWriter(const RelocInfoWriter&) = delete;
   RelocInfoWriter& operator=(const RelocInfoWriter&) = delete;
 
-  byte* pos() const { return pos_; }
-  byte* last_pc() const { return last_pc_; }
+  uint8_t* pos() const { return pos_; }
+  uint8_t* last_pc() const { return last_pc_; }
 
   void Write(const RelocInfo* rinfo);
 
   // Update the state of the stream after reloc info buffer
   // and/or code is moved while the stream is active.
-  void Reposition(byte* pos, byte* pc) {
+  void Reposition(uint8_t* pos, uint8_t* pc) {
     pos_ = pos;
     last_pc_ = pc;
   }
@@ -462,8 +462,8 @@ class RelocInfoWriter {
   inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
   inline void WriteIntData(int data_delta);
 
-  byte* pos_;
-  byte* last_pc_;
+  uint8_t* pos_;
+  uint8_t* last_pc_;
 };
 
 // A RelocIterator iterates over relocation information.
@@ -488,8 +488,8 @@ class V8_EXPORT_PRIVATE RelocIterator {
   explicit RelocIterator(Code code, InstructionStream instruction_stream,
                          ByteArray relocation_info, int mode_mask);
   // For Wasm.
-  explicit RelocIterator(base::Vector<byte> instructions,
-                         base::Vector<const byte> reloc_info,
+  explicit RelocIterator(base::Vector<uint8_t> instructions,
+                         base::Vector<const uint8_t> reloc_info,
                          Address const_pool, int mode_mask = kAllModesMask);
   // For the disassembler.
   explicit RelocIterator(const CodeReference code_reference);
@@ -510,8 +510,8 @@ class V8_EXPORT_PRIVATE RelocIterator {
   }
 
  private:
-  RelocIterator(Address pc, Address constant_pool, const byte* pos,
-                const byte* end, int mode_mask);
+  RelocIterator(Address pc, Address constant_pool, const uint8_t* pos,
+                const uint8_t* end, int mode_mask);
 
   // Used for efficiently skipping unwanted modes.
   bool SetMode(RelocInfo::Mode mode) {
@@ -534,8 +534,8 @@ class V8_EXPORT_PRIVATE RelocIterator {
   void ReadShortTaggedPC() { rinfo_.pc_ += *pos_ >> detail::kTagBits; }
   void ReadShortData();
 
-  const byte* pos_;
-  const byte* const end_;
+  const uint8_t* pos_;
+  const uint8_t* const end_;
   RelocInfo rinfo_;
   bool done_ = false;
   const int mode_mask_;

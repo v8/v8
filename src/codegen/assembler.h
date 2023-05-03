@@ -255,7 +255,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
 class AssemblerBuffer {
  public:
   virtual ~AssemblerBuffer() = default;
-  virtual byte* start() const = 0;
+  virtual uint8_t* start() const = 0;
   virtual int size() const = 0;
   // Return a grown copy of this buffer. The contained data is uninitialized.
   // The data in {this} will still be read afterwards (until {this} is
@@ -336,7 +336,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #endif
   }
 
-  byte* buffer_start() const { return buffer_->start(); }
+  uint8_t* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }
 
@@ -423,11 +423,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
-  byte* buffer_start_;
+  uint8_t* buffer_start_;
   std::forward_list<HeapNumberRequest> heap_number_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.
-  byte* pc_;
+  uint8_t* pc_;
 
   void set_constant_pool_available(bool available) {
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {

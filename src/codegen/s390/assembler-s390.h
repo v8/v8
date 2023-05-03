@@ -1329,7 +1329,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return Instruction::InstructionLength(buffer_start_ + pos);
   }
 
-  static SixByteInstr instr_at(byte* pc) {
+  static SixByteInstr instr_at(uint8_t* pc) {
     return Instruction::InstructionBits(pc);
   }
 
@@ -1357,7 +1357,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_label_addr(Label* label);
 
  public:
-  byte* buffer_pos() const { return buffer_start_; }
+  uint8_t* buffer_pos() const { return buffer_start_; }
 
   // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of

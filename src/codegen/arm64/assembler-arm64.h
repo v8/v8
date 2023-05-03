@@ -2713,7 +2713,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   ptrdiff_t InstructionOffset(Instruction* instr) const {
-    return reinterpret_cast<byte*>(instr) - buffer_start_;
+    return reinterpret_cast<uint8_t*>(instr) - buffer_start_;
   }
 
   // Register encoding.
@@ -3391,7 +3391,7 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(const AssemblerOptions& options, byte* start,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* start,
                     unsigned count)
       : Assembler(options,
                   ExternalAssemblerBuffer(start, count * kInstrSize + kGap)),

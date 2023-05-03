@@ -2217,7 +2217,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           const MemOperand& addr, LoadStorePairOp op);
 
   int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                byte* pc);
+                                uint8_t* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 

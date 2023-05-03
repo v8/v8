@@ -519,8 +519,8 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
       // currently referring to this label.
       label->Unuse();
     } else {
-      label->link_to(
-          static_cast<int>(reinterpret_cast<byte*>(next_link) - buffer_start_));
+      label->link_to(static_cast<int>(reinterpret_cast<uint8_t*>(next_link) -
+                                      buffer_start_));
     }
 
   } else if (branch == next_link) {
@@ -4457,7 +4457,7 @@ void Assembler::GrowBuffer() {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;

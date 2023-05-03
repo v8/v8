@@ -246,11 +246,11 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
 }
 
 void Assembler::emit_near_disp(Label* L) {
-  byte disp = 0x00;
+  uint8_t disp = 0x00;
   if (L->is_near_linked()) {
     int offset = L->near_link_pos() - pc_offset();
     DCHECK(is_int8(offset));
-    disp = static_cast<byte>(offset & 0xFF);
+    disp = static_cast<uint8_t>(offset & 0xFF);
   }
   L->link_to(pc_offset(), Label::kNear);
   *pc_++ = disp;

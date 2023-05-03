@@ -28,7 +28,7 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
   DCHECK_GT(pc_jump, 0);
   base::VLQEncodeUnsigned(
-      [this](byte byte) {
+      [this](uint8_t byte) {
         *--pos_ = byte;
         return pos_;
       },
@@ -44,7 +44,7 @@ void RelocInfoWriter::WriteShortTaggedPC(uint32_t pc_delta, int tag) {
 }
 
 void RelocInfoWriter::WriteShortData(intptr_t data_delta) {
-  *--pos_ = static_cast<byte>(data_delta);
+  *--pos_ = static_cast<uint8_t>(data_delta);
 }
 
 void RelocInfoWriter::WriteMode(RelocInfo::Mode rmode) {
@@ -61,7 +61,7 @@ void RelocInfoWriter::WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode) {
 
 void RelocInfoWriter::WriteIntData(int number) {
   for (int i = 0; i < kIntSize; i++) {
-    *--pos_ = static_cast<byte>(number);
+    *--pos_ = static_cast<uint8_t>(number);
     // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
     number = number >> kBitsPerByte;
   }
@@ -70,7 +70,7 @@ void RelocInfoWriter::WriteIntData(int number) {
 void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   RelocInfo::Mode rmode = rinfo->rmode();
 #ifdef DEBUG
-  byte* begin_pos = pos_;
+  uint8_t* begin_pos = pos_;
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
   DCHECK_GE(rinfo->pc() - reinterpret_cast<Address>(last_pc_), 0);
@@ -98,7 +98,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
-  last_pc_ = reinterpret_cast<byte*>(rinfo->pc());
+  last_pc_ = reinterpret_cast<uint8_t*>(rinfo->pc());
 #ifdef DEBUG
   DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
@@ -202,15 +202,16 @@ RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                     code.constant_pool(), code.relocation_end(),
                     code.relocation_start(), mode_mask) {}
 
-RelocIterator::RelocIterator(base::Vector<byte> instructions,
-                             base::Vector<const byte> reloc_info,
+RelocIterator::RelocIterator(base::Vector<uint8_t> instructions,
+                             base::Vector<const uint8_t> reloc_info,
                              Address const_pool, int mode_mask)
     : RelocIterator(reinterpret_cast<Address>(instructions.begin()), const_pool,
                     reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
                     mode_mask) {}
 
-RelocIterator::RelocIterator(Address pc, Address constant_pool, const byte* pos,
-                             const byte* end, int mode_mask)
+RelocIterator::RelocIterator(Address pc, Address constant_pool,
+                             const uint8_t* pos, const uint8_t* end,
+                             int mode_mask)
     : pos_(pos),
       end_(end),
       rinfo_(pc, RelocInfo::NO_INFO, 0, constant_pool),

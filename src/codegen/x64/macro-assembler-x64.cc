@@ -1463,14 +1463,14 @@ void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   DCHECK(CpuFeatures::IsSupported(AVX2));
   CpuFeatureScope avx_scope(this, AVX2);
   // 1. Multiply high dword of each qword of left with right.
-  vpsrlq(tmp1, lhs, byte{32});
+  vpsrlq(tmp1, lhs, uint8_t{32});
   vpmuludq(tmp1, tmp1, rhs);
   // 2. Multiply high dword of each qword of right with left.
-  vpsrlq(tmp2, rhs, byte{32});
+  vpsrlq(tmp2, rhs, uint8_t{32});
   vpmuludq(tmp2, tmp2, lhs);
   // 3. Add 1 and 2, then shift left by 32 (this is the high dword of result).
   vpaddq(tmp2, tmp2, tmp1);
-  vpsllq(tmp2, tmp2, byte{32});
+  vpsllq(tmp2, tmp2, uint8_t{32});
   // 4. Multiply low dwords (this is the low dword of result).
   vpmuludq(dst, lhs, rhs);
   // 5. Add 3 and 4.
@@ -1848,8 +1848,8 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
     DCHECK_NE(0u, pop);
     if (pop + ntz + nlz == 32) {
       Pcmpeqd(dst, dst);
-      if (ntz) Pslld(dst, static_cast<byte>(ntz + nlz));
-      if (nlz) Psrld(dst, static_cast<byte>(nlz));
+      if (ntz) Pslld(dst, static_cast<uint8_t>(ntz + nlz));
+      if (nlz) Psrld(dst, static_cast<uint8_t>(nlz));
     } else {
       movl(kScratchRegister, Immediate(src));
       Movd(dst, kScratchRegister);
@@ -1867,8 +1867,8 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
     DCHECK_NE(0u, pop);
     if (pop + ntz + nlz == 64) {
       Pcmpeqd(dst, dst);
-      if (ntz) Psllq(dst, static_cast<byte>(ntz + nlz));
-      if (nlz) Psrlq(dst, static_cast<byte>(nlz));
+      if (ntz) Psllq(dst, static_cast<uint8_t>(ntz + nlz));
+      if (nlz) Psrlq(dst, static_cast<uint8_t>(nlz));
     } else {
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
