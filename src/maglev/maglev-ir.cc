@@ -315,6 +315,9 @@ DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
 }
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
+  if (top_frame().type() == DeoptFrame::FrameType::kConstructStubFrame) {
+    return reg == interpreter::Register::virtual_accumulator();
+  }
   if (V8_LIKELY(result_size() == 1)) {
     return reg == result_location_;
   }

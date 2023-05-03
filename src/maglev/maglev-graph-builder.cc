@@ -6169,6 +6169,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
           call_result = result.value();
         }
         if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
+        if (!call_result->properties().is_tagged()) return implicit_receiver;
         return AddNewNode<CheckConstructResult>(
             {call_result, implicit_receiver});
       }
