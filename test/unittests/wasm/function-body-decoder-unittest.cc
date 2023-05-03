@@ -4407,14 +4407,15 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct)},
       kAppendEnd,
-      "br_on_cast[0] expected type (ref null 0), found local.get of type "
+      "br_on_cast_fail[0] expected type (ref null 0), found local.get of type "
       "externref");
-  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
-                {WASM_LOCAL_GET(0),
-                 WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct)},
-                kAppendEnd,
-                "br_on_cast[0] expected type (ref null 0), found local.get of "
-                "type externref");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, sub_struct)},
+      kAppendEnd,
+      "br_on_cast_fail[0] expected type (ref null 0), found local.get of "
+      "type externref");
 
   // Wrong immediate type.
   ExpectFailure(
@@ -4434,13 +4435,15 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, kExternRefCode, sub_struct)},
       kAppendEnd,
-      "invalid types for br_on_cast: (ref 1) is not a subtype of externref");
-  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
-                {WASM_LOCAL_GET(0),
-                 WASM_BR_ON_CAST_FAIL_NULL(0, kExternRefCode, sub_struct)},
-                kAppendEnd,
-                "invalid types for br_on_cast: (ref null 1) is not a subtype "
-                "of externref");
+      "invalid types for br_on_cast_fail: (ref 1) is not a subtype of "
+      "externref");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, kExternRefCode, sub_struct)},
+      kAppendEnd,
+      "invalid types for br_on_cast_fail: (ref null 1) is not a subtype "
+      "of externref");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {

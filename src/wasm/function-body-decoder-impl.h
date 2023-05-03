@@ -463,20 +463,16 @@ struct BrOnCastFlags {
   enum Values {
     SRC_IS_NULL = 1,
     RES_IS_NULL = 1 << 1,
-    BR_ON_FAIL = 1 << 2,
   };
 
   bool src_is_null = false;
   bool res_is_null = false;
-  bool br_on_fail = false;
 
   BrOnCastFlags() = default;
   explicit BrOnCastFlags(uint8_t value)
       : src_is_null((value & BrOnCastFlags::SRC_IS_NULL) != 0),
-        res_is_null((value & BrOnCastFlags::RES_IS_NULL) != 0),
-        br_on_fail((value & BrOnCastFlags::BR_ON_FAIL) != 0) {
-    DCHECK_LE(value, BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL |
-                         BrOnCastFlags::BR_ON_FAIL);
+        res_is_null((value & BrOnCastFlags::RES_IS_NULL) != 0) {
+    DCHECK_LE(value, BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL);
   }
 };
 
@@ -488,8 +484,7 @@ struct BrOnCastImmediate {
   template <typename ValidationTag>
   BrOnCastImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
     raw_value = decoder->read_u8<ValidationTag>(pc, "br_on_cast flags");
-    if (raw_value > (BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL |
-                     BrOnCastFlags::BR_ON_FAIL)) {
+    if (raw_value > (BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL)) {
       if constexpr (ValidationTag::full_validation) {
         decoder->errorf(pc, "invalid br_on_cast flags %u", raw_value);
       } else {
@@ -2304,7 +2299,8 @@ class WasmDecoder : public Decoder {
             (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
-          case kExprBrOnCastGeneric: {
+          case kExprBrOnCastGeneric:
+          case kExprBrOnCastFailGeneric: {
             BrOnCastImmediate flags_imm(decoder, pc + length, validate);
             BranchDepthImmediate branch(decoder, pc + length + flags_imm.length,
                                         validate);
@@ -5178,11 +5174,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         uint32_t pc_offset = opcode_length;
         BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
         pc_offset += flags_imm.length;
-        if (flags_imm.flags.br_on_fail) {
-          return ParseBrOnCastFail(opcode, pc_offset, flags_imm.flags);
-        } else {
-          return ParseBrOnCast(opcode, pc_offset, flags_imm.flags);
-        }
+        return ParseBrOnCast(opcode, pc_offset, flags_imm.flags);
+      }
+      case kExprBrOnCastFailGeneric: {
+        NON_CONST_ONLY
+        uint32_t pc_offset = opcode_length;
+        BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
+        pc_offset += flags_imm.length;
+        return ParseBrOnCastFail(opcode, pc_offset, flags_imm.flags);
       }
       case kExprBrOnCast:
       case kExprBrOnCastNull: {
@@ -5190,7 +5189,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         BrOnCastFlags flags;
         flags.src_is_null = Peek(0).type.is_nullable();
         flags.res_is_null = opcode == kExprBrOnCastNull;
-        flags.br_on_fail = false;
         return ParseBrOnCast(opcode, opcode_length, flags);
       }
       case kExprBrOnCastDeprecated: {
@@ -5274,7 +5272,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         BrOnCastFlags flags(0);
         flags.src_is_null = Peek(0).type.is_nullable();
         flags.res_is_null = opcode == kExprBrOnCastFailNull;
-        flags.br_on_fail = true;
         return ParseBrOnCastFail(opcode, opcode_length, flags);
       }
       case kExprBrOnCastFailDeprecated: {
@@ -5543,7 +5540,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   int ParseBrOnCast(WasmOpcode opcode, uint32_t opcode_length,
                     BrOnCastFlags flags) {
-    DCHECK(!flags.br_on_fail);
     BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                       validate);
     if (!this->Validate(this->pc_ + opcode_length, branch_depth,
@@ -5683,7 +5679,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   int ParseBrOnCastFail(WasmOpcode opcode, uint32_t opcode_length,
                         BrOnCastFlags flags) {
-    DCHECK(flags.br_on_fail);
     BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                       validate);
     if (!this->Validate(this->pc_ + opcode_length, branch_depth,
@@ -5693,7 +5688,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     uint32_t pc_offset = opcode_length + branch_depth.length;
 
     ValueType source_type;
-    if (opcode == kExprBrOnCastGeneric) {
+    if (opcode == kExprBrOnCastFailGeneric) {
       HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
                             validate);
       this->Validate(this->pc_ + pc_offset, imm);
@@ -5724,7 +5719,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Value obj = Peek(0);
 
-    if (opcode == kExprBrOnCastGeneric &&
+    if (opcode == kExprBrOnCastFailGeneric &&
         !IsSubtypeOf(target_type, source_type, this->module_)) {
       this->DecodeError("invalid types for %s: %s is not a subtype of %s",
                         WasmOpcodes::OpcodeName(opcode),
@@ -5751,7 +5746,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
 
-    if (opcode == kExprBrOnCastGeneric) {
+    if (opcode == kExprBrOnCastFailGeneric) {
       // The branch type is set based on the source type immediate (independent
       // of the actual stack value). If the target type is nullable, the branch
       // type is non-nullable.
@@ -5773,7 +5768,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
 
     Value result_on_fallthrough = CreateValue(target_type);
-    if (opcode != kExprBrOnCastGeneric) {
+    if (opcode != kExprBrOnCastFailGeneric) {
       result_on_fallthrough.type = ValueType::RefMaybeNull(
           target_type.heap_type(), (obj.type.is_bottom() || !null_succeeds)
                                        ? kNonNullable

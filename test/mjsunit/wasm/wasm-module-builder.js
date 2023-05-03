@@ -524,7 +524,8 @@ let kExprBrOnCastNull = 0x4a;
 let kExprBrOnCastDeprecated = 0x46;
 let kExprBrOnCastFail = 0x43;
 let kExprBrOnCastFailNull = 0x4b;
-let kExprBrOnCastGeneric = 0x4f;
+let kExprBrOnCastGeneric = 0x4e;
+let kExprBrOnCastFailGeneric = 0x4f;
 let kExprRefCastNop = 0x4c;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;
@@ -2227,9 +2228,9 @@ let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
     let tgtHeap = wasmSignedLeb(targetType.heap_type, kMaxVarInt32Size);
     let srcIsNullable = sourceType.opcode == kWasmRefNull;
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
-    flags = (brOnFail << 2) + (tgtIsNullable << 1) + srcIsNullable;
+    flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, kExprBrOnCastGeneric,
+      kGCPrefix, brOnFail ? kExprBrOnCastFailGeneric : kExprBrOnCastGeneric,
       flags, ...labelIdx, ...srcHeap, ...tgtHeap];
   }
 })();
