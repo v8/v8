@@ -5949,16 +5949,17 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
                "PageMarkingItem::MarkUntypedPointers");
   const bool record_old_to_shared_slots =
       chunk_->heap()->isolate()->has_shared_space();
-  const auto slot_count = RememberedSet<OLD_TO_NEW>::Iterate(
-      chunk_,
-      [this, task, record_old_to_shared_slots](MaybeObjectSlot slot) {
-        SlotCallbackResult result = CheckAndMarkObject(task, slot);
-        if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-          CheckOldToNewSlotForSharedUntyped(chunk_, slot);
-        }
-        return result;
-      },
-      SlotSet::FREE_EMPTY_BUCKETS);
+  const auto slot_count =
+      RememberedSet<OLD_TO_NEW>::Iterate<AccessMode::NON_ATOMIC>(
+          chunk_,
+          [this, task, record_old_to_shared_slots](MaybeObjectSlot slot) {
+            SlotCallbackResult result = CheckAndMarkObject(task, slot);
+            if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+              CheckOldToNewSlotForSharedUntyped(chunk_, slot);
+            }
+            return result;
+          },
+          SlotSet::FREE_EMPTY_BUCKETS);
   if (slot_count == 0) {
     chunk_->ReleaseSlotSet<OLD_TO_NEW>();
   }

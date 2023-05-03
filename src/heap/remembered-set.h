@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-enum RememberedSetIterationMode { SYNCHRONIZED, NON_SYNCHRONIZED };
-
 class RememberedSetOperations {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
@@ -37,13 +35,13 @@ class RememberedSetOperations {
         offset);
   }
 
-  template <typename Callback>
+  template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
   static int Iterate(SlotSet* slot_set, MemoryChunk* chunk, Callback callback,
                      SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
-      slots += slot_set->Iterate(chunk->address(), 0, chunk->buckets(),
-                                 callback, mode);
+      slots += slot_set->Iterate<access_mode>(chunk->address(), 0,
+                                              chunk->buckets(), callback, mode);
     }
     return slots;
   }
@@ -149,18 +147,6 @@ class RememberedSet : public AllStatic {
     RememberedSetOperations::RemoveRange(slot_set, chunk, start, end, mode);
   }
 
-  // Iterates and filters the remembered set with the given callback.
-  // The callback should take (Address slot) and return SlotCallbackResult.
-  template <typename Callback>
-  static void Iterate(Heap* heap, RememberedSetIterationMode mode,
-                      Callback callback) {
-    IterateMemoryChunks(heap, [mode, callback](MemoryChunk* chunk) {
-      if (mode == SYNCHRONIZED) chunk->mutex()->Lock();
-      Iterate(chunk, callback);
-      if (mode == SYNCHRONIZED) chunk->mutex()->Unlock();
-    });
-  }
-
   // Iterates over all memory chunks that contains non-empty slot sets.
   // The callback should take (MemoryChunk* chunk) and return void.
   template <typename Callback>
@@ -182,11 +168,12 @@ class RememberedSet : public AllStatic {
   //
   // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
   // threads concurrently inserting slots.
-  template <typename Callback>
+  template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
   static int Iterate(MemoryChunk* chunk, Callback callback,
                      SlotSet::EmptyBucketMode mode) {
     SlotSet* slot_set = chunk->slot_set<type>();
-    return RememberedSetOperations::Iterate(slot_set, chunk, callback, mode);
+    return RememberedSetOperations::Iterate<access_mode>(slot_set, chunk,
+                                                         callback, mode);
   }
 
   template <typename Callback>
@@ -260,19 +247,6 @@ class RememberedSet : public AllStatic {
           },
           TypedSlotSet::FREE_EMPTY_CHUNKS);
     }
-  }
-
-  // Iterates and filters the remembered set with the given callback.
-  // The callback should take (SlotType slot_type, Address addr) and return
-  // SlotCallbackResult.
-  template <typename Callback>
-  static void IterateTyped(Heap* heap, RememberedSetIterationMode mode,
-                           Callback callback) {
-    IterateMemoryChunks(heap, [mode, callback](MemoryChunk* chunk) {
-      if (mode == SYNCHRONIZED) chunk->mutex()->Lock();
-      IterateTyped(chunk, callback);
-      if (mode == SYNCHRONIZED) chunk->mutex()->Unlock();
-    });
   }
 
   // Iterates and filters typed pointers in the given memory chunk with the

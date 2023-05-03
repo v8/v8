@@ -134,12 +134,24 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
     return static_cast<SlotSet*>(BasicSlotSet::Allocate(buckets));
   }
 
+  template <v8::internal::AccessMode access_mode>
+  static constexpr BasicSlotSet::AccessMode ConvertAccessMode() {
+    switch (access_mode) {
+      case v8::internal::AccessMode::ATOMIC:
+        return BasicSlotSet::AccessMode::ATOMIC;
+      case v8::internal::AccessMode::NON_ATOMIC:
+        return BasicSlotSet::AccessMode::NON_ATOMIC;
+    }
+  }
+
   // Similar to BasicSlotSet::Iterate() but Callback takes the parameter of type
   // MaybeObjectSlot.
-  template <typename Callback>
+  template <
+      v8::internal::AccessMode access_mode = v8::internal::AccessMode::ATOMIC,
+      typename Callback>
   size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
                  Callback callback, EmptyBucketMode mode) {
-    return BasicSlotSet::Iterate(
+    return BasicSlotSet::Iterate<ConvertAccessMode<access_mode>()>(
         chunk_start, start_bucket, end_bucket,
         [&callback](Address slot) { return callback(MaybeObjectSlot(slot)); },
         [this, mode](size_t bucket_index) {
