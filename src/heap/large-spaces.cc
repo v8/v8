@@ -534,6 +534,8 @@ CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
   DCHECK(!v8_flags.enable_third_party_heap);
+  CodePageHeaderModificationScope header_modification_scope(
+      "Code allocation needs header access.");
   return OldLargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
 }
 

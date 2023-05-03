@@ -128,13 +128,6 @@
 namespace v8 {
 namespace internal {
 
-CodePageCollectionMemoryModificationScopeForTesting::
-    CodePageCollectionMemoryModificationScopeForTesting(Heap* heap)
-    : CodePageCollectionMemoryModificationScope(heap) {}
-
-CodePageCollectionMemoryModificationScopeForTesting::
-    ~CodePageCollectionMemoryModificationScopeForTesting() = default;
-
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
   return reinterpret_cast<Isolate*>(
@@ -2569,7 +2562,8 @@ void Heap::MarkCompact() {
   SetGCState(MARK_COMPACT);
 
   PROFILE(isolate_, CodeMovingGCEvent());
-  CodeSpaceMemoryModificationScope code_modification(this);
+  CodePageHeaderModificationScope code_modification(
+      "MarkCompact needs to access the marking bitmap in the page header");
 
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -2673,42 +2667,6 @@ void Heap::Scavenge() {
   scavenger_collector_->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
-}
-
-void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
-                                           UnprotectMemoryOrigin origin) {
-  if (!write_protect_code_memory()) return;
-
-  // No need to register any unprotected chunks during a GC. This also avoids
-  // the use of CurrentLocalHeap() on GC workers, which don't have a LocalHeap.
-  if (code_space_memory_modification_scope_depth_ > 0) return;
-
-  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
-  DCHECK_GT(local_heap->code_page_collection_memory_modification_scope_depth_,
-            0);
-  if (local_heap->unprotected_memory_chunks_.insert(chunk).second) {
-    chunk->SetCodeModificationPermissions();
-  }
-}
-
-void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {
-  safepoint()->IterateLocalHeaps([chunk](LocalHeap* local_heap) {
-    local_heap->unprotected_memory_chunks_.erase(chunk);
-  });
-}
-
-void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object,
-                                           UnprotectMemoryOrigin origin) {
-  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object), origin);
-}
-
-void Heap::ProtectUnprotectedMemoryChunks() {
-  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
-  for (MemoryChunk* chunk : local_heap->unprotected_memory_chunks_) {
-    DCHECK(memory_allocator()->IsMemoryChunkExecutable(chunk));
-    chunk->SetDefaultCodePermissions();
-  }
-  local_heap->unprotected_memory_chunks_.clear();
 }
 
 bool Heap::ExternalStringTable::Contains(String string) {
@@ -3171,6 +3129,10 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
                  IsAligned(addr, kObjectAlignment8GbHeap));
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(size, kObjectAlignment8GbHeap));
+
+  CodePageMemoryModificationScope memory_modification_scope(
+      BasicMemoryChunk::FromAddress(addr));
+
   // TODO(v8:13070): Filler sizes are irrelevant for 8GB+ heaps. Adding them
   // should be avoided in this mode.
   HeapObject filler = HeapObject::FromAddress(addr);
@@ -4484,6 +4446,8 @@ void Heap::VerifyCommittedPhysicalMemory() {
 
 void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #ifdef DEBUG
+  CodePageMemoryModificationScope code_modification_scope(
+      BasicMemoryChunk::FromAddress(start_address));
   DCHECK(IsAligned(start_address, kIntSize));
   for (int i = 0; i < size_in_bytes / kIntSize; i++) {
     Memory<int>(start_address + i * kIntSize) = kCodeZapValue;
@@ -5868,7 +5832,6 @@ void Heap::TearDown() {
   // Assert that there are no background threads left and no executable memory
   // chunks are unprotected.
   safepoint()->AssertMainThreadIsOnlyThread();
-  DCHECK(main_thread_local_heap()->unprotected_memory_chunks_.empty());
 
   DCHECK(concurrent_marking()->IsStopped());
 

@@ -176,7 +176,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   void SetReadable();
   void SetReadAndExecutable();
-  void SetCodeModificationPermissions();
 
   void SetDefaultCodePermissions() {
     if (v8_flags.jitless) {

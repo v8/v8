@@ -4524,8 +4524,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // If we are deserializing, read the state into the now-empty heap.
   {
-    CodePageCollectionMemoryModificationScope modification_scope(heap());
-
     if (create_heap_objects) {
       read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {

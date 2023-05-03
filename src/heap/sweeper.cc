@@ -231,8 +231,9 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
   // The Scavenger may add already swept pages back.
   if (page->SweepingDone()) return 0;
 
-  base::Optional<CodePageMemoryModificationScope> code_page_scope;
-  if (page->owner_identity() == CODE_SPACE) code_page_scope.emplace(page);
+  base::Optional<CodePageHeaderModificationScope> code_page_scope;
+  if (page->owner_identity() == CODE_SPACE)
+    code_page_scope.emplace("SweepPage needs to write page flags.");
 
   int max_freed = 0;
   {
@@ -567,6 +568,7 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   size_t freed_bytes = 0;
   size_t size = static_cast<size_t>(free_end - free_start);
   if (free_space_treatment_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
+    CodePageMemoryModificationScope memory_modification_scope(page);
     AtomicZapBlock(free_start, size);
   }
   page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
