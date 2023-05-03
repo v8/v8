@@ -97,18 +97,18 @@ class V8_NODISCARD ReduceResult {
   base::PointerWithPayload<ValueNode, Kind, 3> payload_;
 };
 
-struct FastLiteralField;
+struct FastField;
 
 // Encoding of a fast allocation site object's element fixed array.
-struct FastLiteralFixedArray {
-  FastLiteralFixedArray() : type(kUninitialized) {}
-  explicit FastLiteralFixedArray(compiler::ObjectRef cow_value)
+struct FastFixedArray {
+  FastFixedArray() : type(kUninitialized) {}
+  explicit FastFixedArray(compiler::ObjectRef cow_value)
       : type(kCoW), cow_value(cow_value) {}
-  explicit FastLiteralFixedArray(int length, Zone* zone)
+  explicit FastFixedArray(int length, Zone* zone)
       : type(kTagged),
         length(length),
-        values(zone->NewArray<FastLiteralField>(length)) {}
-  explicit FastLiteralFixedArray(int length, Zone* zone, double)
+        values(zone->NewArray<FastField>(length)) {}
+  explicit FastFixedArray(int length, Zone* zone, double)
       : type(kDouble),
         length(length),
         double_values(zone->NewArray<Float64>(length)) {}
@@ -123,7 +123,7 @@ struct FastLiteralFixedArray {
     struct {
       int length;
       union {
-        FastLiteralField* values;
+        FastField* values;
         Float64* double_values;
       };
     };
@@ -131,35 +131,40 @@ struct FastLiteralFixedArray {
 };
 
 // Encoding of a fast allocation site boilerplate object.
-struct FastLiteralObject {
-  FastLiteralObject(compiler::MapRef map, Zone* zone,
-                    FastLiteralFixedArray elements)
+struct FastObject {
+  FastObject(compiler::MapRef map, Zone* zone, FastFixedArray elements)
       : map(map),
-        fields(zone->NewArray<FastLiteralField>(map.GetInObjectProperties())),
+        inobject_properties(map.GetInObjectProperties()),
+        instance_size(map.instance_size()),
+        fields(zone->NewArray<FastField>(inobject_properties)),
         elements(elements) {}
+  FastObject(compiler::JSFunctionRef constructor, Zone* zone,
+             compiler::JSHeapBroker* broker);
 
   void ClearFields();
+
   compiler::MapRef map;
-  FastLiteralField* fields;
-  FastLiteralFixedArray elements;
+  int inobject_properties;
+  int instance_size;
+  FastField* fields;
+  FastFixedArray elements;
   compiler::OptionalObjectRef js_array_length;
 };
 
 // Encoding of a fast allocation site literal value.
-struct FastLiteralField {
-  FastLiteralField() : type(kUninitialized) {}
-  explicit FastLiteralField(FastLiteralObject object)
-      : type(kObject), object(object) {}
-  explicit FastLiteralField(Float64 mutable_double_value)
+struct FastField {
+  FastField() : type(kUninitialized) {}
+  explicit FastField(FastObject object) : type(kObject), object(object) {}
+  explicit FastField(Float64 mutable_double_value)
       : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
-  explicit FastLiteralField(compiler::ObjectRef constant_value)
+  explicit FastField(compiler::ObjectRef constant_value)
       : type(kConstant), constant_value(constant_value) {}
 
   enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
 
   union {
     char uninitialized_marker;
-    FastLiteralObject object;
+    FastObject object;
     Float64 mutable_double_value;
     compiler::ObjectRef constant_value;
   };
@@ -1642,15 +1647,15 @@ class MaglevGraphBuilder {
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
-  base::Optional<FastLiteralObject> TryReadBoilerplateForFastLiteral(
+  base::Optional<FastObject> TryReadBoilerplateForFastLiteral(
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
-  ValueNode* BuildAllocateFastLiteral(FastLiteralObject object,
-                                      AllocationType allocation);
-  ValueNode* BuildAllocateFastLiteral(FastLiteralField value,
-                                      AllocationType allocation);
-  ValueNode* BuildAllocateFastLiteral(FastLiteralFixedArray array,
-                                      AllocationType allocation);
+  ValueNode* BuildAllocateFastObject(FastObject object,
+                                     AllocationType allocation);
+  ValueNode* BuildAllocateFastObject(FastField value,
+                                     AllocationType allocation);
+  ValueNode* BuildAllocateFastObject(FastFixedArray array,
+                                     AllocationType allocation);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
