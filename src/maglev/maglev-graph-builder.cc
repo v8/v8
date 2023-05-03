@@ -4736,14 +4736,14 @@ void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
   case Opcode::k##Name: {                                                      \
     SetAccumulator(                                                            \
         GetBooleanConstant(!value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    break;                                                                     \
+    return;                                                                    \
   }
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
     default:
-      SetAccumulator(AddNewNode<ToBooleanLogicalNot>({value}));
       break;
   }
+  SetAccumulator(BuildToBooleanLogicalNot(value));
 }
 
 void MaglevGraphBuilder::VisitLogicalNot() {
@@ -6536,10 +6536,24 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
             {GetTaggedValue(call_result)})) {
       return ReduceResult::Done();
     }
-    return AddNewNode<ToBoolean>({GetTaggedValue(call_result)});
+    return BuildToBoolean(GetTaggedValue(call_result));
   }
 
   return ReduceResult::Fail();
+}
+
+ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
+  if (CheckType(value, NodeType::kBoolean)) {
+    return value;
+  }
+  return AddNewNode<ToBoolean>({value});
+}
+
+ValueNode* MaglevGraphBuilder::BuildToBooleanLogicalNot(ValueNode* value) {
+  if (CheckType(value, NodeType::kBoolean)) {
+    return AddNewNode<LogicalNot>({value});
+  }
+  return AddNewNode<ToBooleanLogicalNot>({value});
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
@@ -6703,14 +6717,14 @@ void MaglevGraphBuilder::VisitToBoolean() {
   case Opcode::k##Name: {                                                     \
     SetAccumulator(                                                           \
         GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    break;                                                                    \
+    return;                                                                   \
   }
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
     default:
-      SetAccumulator(AddNewNode<ToBoolean>({value}));
       break;
   }
+  return SetAccumulator(BuildToBoolean(value));
 }
 
 void FastObject::ClearFields() {
