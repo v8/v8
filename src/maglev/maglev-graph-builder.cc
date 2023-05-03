@@ -1560,6 +1560,15 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       break;
     }
     case BinaryOperationHint::kString:
+      if constexpr (kOperation == Operation::kAdd) {
+        ValueNode* left = LoadRegisterTagged(0);
+        ValueNode* right = GetAccumulatorTagged();
+        BuildCheckString(left);
+        BuildCheckString(right);
+        SetAccumulator(AddNewNode<StringConcat>({left, right}));
+        return;
+      }
+      break;
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
     case BinaryOperationHint::kAny:

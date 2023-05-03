@@ -3018,6 +3018,26 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   __ StringLength(ToRegister(result()), ToRegister(object_input()));
 }
 
+void StringConcat::SetValueLocationConstraints() {
+  using D = StringAdd_CheckNoneDescriptor;
+  UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(rhs(), D::GetRegisterParameter(D::kRight));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void StringConcat::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+#ifdef DEBUG
+  using D = StringAdd_CheckNoneDescriptor;
+  DCHECK_EQ(D::GetRegisterParameter(D::kLeft), ToRegister(lhs()));
+  DCHECK_EQ(D::GetRegisterParameter(D::kRight), ToRegister(rhs()));
+#endif  // DEBUG
+  // TODO(leszeks): Fast path simple string additions.
+  __ Move(kContextRegister, masm->native_context().object());
+  __ CallBuiltin(Builtin::kStringAdd_CheckNone);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  DCHECK_EQ(kReturnRegister0, ToRegister(result()));
+}
+
 void StringEqual::SetValueLocationConstraints() {
   using D = StringEqualDescriptor;
   UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
