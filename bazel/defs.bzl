@@ -604,6 +604,7 @@ def build_config_content(cpu, icu):
         ("is_debug", "false"),
         ("is_full_debug", "false"),
         ("is_msan", "false"),
+        ("is_official_build", "false"),
         ("is_tsan", "false"),
         ("is_ubsan_vptr", "false"),
         ("target_cpu", cpu),
