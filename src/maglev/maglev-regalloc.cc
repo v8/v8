@@ -386,8 +386,12 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       if (!control->Is<JumpLoop>()) {
         printing_visitor_->os() << "\n[holes:";
         while (true) {
-          if (control->Is<Jump>()) {
-            BasicBlock* target = control->Cast<Jump>()->target();
+          if (control->Is<JumpLoop>()) {
+            printing_visitor_->os() << " " << control->id() << "↰";
+            break;
+          } else if (control->Is<UnconditionalControlNode>()) {
+            BasicBlock* target =
+                control->Cast<UnconditionalControlNode>()->target();
             printing_visitor_->os()
                 << " " << control->id() << "-" << target->first_id();
             control = control->next_post_dominating_hole();
@@ -408,9 +412,6 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
             break;
           } else if (control->Is<Deopt>() || control->Is<Abort>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
-            break;
-          } else if (control->Is<JumpLoop>()) {
-            printing_visitor_->os() << " " << control->id() << "↰";
             break;
           }
           UNREACHABLE();
