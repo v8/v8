@@ -651,7 +651,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   return DeoptFrame(scope->data(),
                     zone()->New<DeoptFrame>(GetDeoptFrameForLazyDeoptHelper(
                         scope->parent(),
-                        scope->data().type ==
+                        scope->data().tag() ==
                             DeoptFrame::FrameType::kBuiltinContinuationFrame)));
 }
 

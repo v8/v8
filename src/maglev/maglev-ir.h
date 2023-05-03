@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include "src/base/bit-field.h"
+#include "src/base/discriminated-union.h"
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -961,32 +962,14 @@ class DeoptFrame {
     ValueNode* context;
   };
 
-  struct FrameData {
-    const FrameType type;
-    union {
-      InterpretedFrameData interpreted_frame_data;
-      InlinedArgumentsFrameData inlined_arguments_frame_data;
-      ConstructStubFrameData construct_stub_frame_data;
-      BuiltinContinuationFrameData builtin_continuation_frame_data;
-    };
+  using FrameData = base::DiscriminatedUnion<
+      FrameType, InterpretedFrameData, InlinedArgumentsFrameData,
+      ConstructStubFrameData, BuiltinContinuationFrameData>;
 
-    explicit FrameData(InterpretedFrameData data)
-        : type(FrameType::kInterpretedFrame), interpreted_frame_data(data) {}
-    explicit FrameData(InlinedArgumentsFrameData data)
-        : type(FrameType::kInlinedArgumentsFrame),
-          inlined_arguments_frame_data(data) {}
-    explicit FrameData(ConstructStubFrameData data)
-        : type(FrameType::kConstructStubFrame),
-          construct_stub_frame_data(data) {}
-    explicit FrameData(BuiltinContinuationFrameData data)
-        : type(FrameType::kBuiltinContinuationFrame),
-          builtin_continuation_frame_data(data) {}
-  };
+  DeoptFrame(FrameData&& data, DeoptFrame* parent)
+      : data_(std::move(data)), parent_(parent) {}
 
-  DeoptFrame(FrameData data, DeoptFrame* parent)
-      : data_(data), parent_(parent) {}
-
-  FrameType type() const { return data_.type; }
+  FrameType type() const { return data_.tag(); }
   DeoptFrame* parent() { return parent_; }
   const DeoptFrame* parent() const { return parent_; }
 
@@ -1000,14 +983,14 @@ class DeoptFrame {
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
 
  protected:
-  DeoptFrame(InterpretedFrameData data, DeoptFrame* parent)
-      : data_(data), parent_(parent) {}
-  DeoptFrame(InlinedArgumentsFrameData data, DeoptFrame* parent)
-      : data_(data), parent_(parent) {}
-  DeoptFrame(ConstructStubFrameData data, DeoptFrame* parent)
-      : data_(data), parent_(parent) {}
-  DeoptFrame(BuiltinContinuationFrameData data, DeoptFrame* parent)
-      : data_(data), parent_(parent) {}
+  DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
+      : data_(std::move(data)), parent_(parent) {}
+  DeoptFrame(InlinedArgumentsFrameData&& data, DeoptFrame* parent)
+      : data_(std::move(data)), parent_(parent) {}
+  DeoptFrame(ConstructStubFrameData&& data, DeoptFrame* parent)
+      : data_(std::move(data)), parent_(parent) {}
+  DeoptFrame(BuiltinContinuationFrameData&& data, DeoptFrame* parent)
+      : data_(std::move(data)), parent_(parent) {}
 
   FrameData data_;
   DeoptFrame* const parent_;
@@ -1023,21 +1006,19 @@ class InterpretedDeoptFrame : public DeoptFrame {
                                         bytecode_position, source_position},
                    parent) {}
 
-  const MaglevCompilationUnit& unit() const {
-    return data_.interpreted_frame_data.unit;
-  }
+  const MaglevCompilationUnit& unit() const { return data().unit; }
   const CompactInterpreterFrameState* frame_state() const {
-    return data_.interpreted_frame_data.frame_state;
+    return data().frame_state;
   }
-  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
-  ValueNode* closure() const {
-    return data_.inlined_arguments_frame_data.closure;
-  }
-  BytecodeOffset bytecode_position() const {
-    return data_.interpreted_frame_data.bytecode_position;
-  }
-  SourcePosition source_position() const {
-    return data_.interpreted_frame_data.source_position;
+  ValueNode*& closure() { return data().closure; }
+  ValueNode* closure() const { return data().closure; }
+  BytecodeOffset bytecode_position() const { return data().bytecode_position; }
+  SourcePosition source_position() const { return data().source_position; }
+
+ private:
+  InterpretedFrameData& data() { return data_.get<InterpretedFrameData>(); }
+  const InterpretedFrameData& data() const {
+    return data_.get<InterpretedFrameData>();
   }
 };
 
@@ -1064,18 +1045,18 @@ class InlinedArgumentsDeoptFrame : public DeoptFrame {
                                              arguments},
                    parent) {}
 
-  const MaglevCompilationUnit& unit() const {
-    return data_.interpreted_frame_data.unit;
+  const MaglevCompilationUnit& unit() const { return data().unit; }
+  BytecodeOffset bytecode_position() const { return data().bytecode_position; }
+  ValueNode*& closure() { return data().closure; }
+  ValueNode* closure() const { return data().closure; }
+  base::Vector<ValueNode*> arguments() const { return data().arguments; }
+
+ private:
+  InlinedArgumentsFrameData& data() {
+    return data_.get<InlinedArgumentsFrameData>();
   }
-  BytecodeOffset bytecode_position() const {
-    return data_.inlined_arguments_frame_data.bytecode_position;
-  }
-  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
-  ValueNode* closure() const {
-    return data_.inlined_arguments_frame_data.closure;
-  }
-  base::Vector<ValueNode*> arguments() const {
-    return data_.inlined_arguments_frame_data.arguments;
+  const InlinedArgumentsFrameData& data() const {
+    return data_.get<InlinedArgumentsFrameData>();
   }
 };
 
@@ -1105,25 +1086,23 @@ class ConstructStubDeoptFrame : public DeoptFrame {
                                           arguments_without_receiver, context},
                    parent) {}
 
-  const MaglevCompilationUnit& unit() const {
-    return data_.construct_stub_frame_data.unit;
-  }
-  BytecodeOffset bytecode_position() const {
-    return data_.construct_stub_frame_data.bytecode_position;
-  }
-  ValueNode*& closure() { return data_.construct_stub_frame_data.closure; }
-  ValueNode* closure() const { return data_.construct_stub_frame_data.closure; }
-  ValueNode*& receiver() { return data_.construct_stub_frame_data.receiver; }
-  ValueNode* receiver() const {
-    return data_.construct_stub_frame_data.receiver;
-  }
+  const MaglevCompilationUnit& unit() const { return data().unit; }
+  BytecodeOffset bytecode_position() const { return data().bytecode_position; }
+  ValueNode*& closure() { return data().closure; }
+  ValueNode* closure() const { return data().closure; }
+  ValueNode*& receiver() { return data().receiver; }
+  ValueNode* receiver() const { return data().receiver; }
   base::Vector<ValueNode*> arguments_without_receiver() const {
-    return data_.construct_stub_frame_data.arguments_without_receiver;
+    return data().arguments_without_receiver;
   }
-  ValueNode*& context() { return data_.construct_stub_frame_data.context; }
-  ValueNode* context() const { return data_.construct_stub_frame_data.context; }
-  SourcePosition source_position() const {
-    return data_.construct_stub_frame_data.source_position;
+  ValueNode*& context() { return data().context; }
+  ValueNode* context() const { return data().context; }
+  SourcePosition source_position() const { return data().source_position; }
+
+ private:
+  ConstructStubFrameData& data() { return data_.get<ConstructStubFrameData>(); }
+  const ConstructStubFrameData& data() const {
+    return data_.get<ConstructStubFrameData>();
   }
 };
 
@@ -1149,17 +1128,17 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
             BuiltinContinuationFrameData{builtin_id, parameters, context},
             parent) {}
 
-  const Builtin& builtin_id() const {
-    return data_.builtin_continuation_frame_data.builtin_id;
+  const Builtin& builtin_id() const { return data().builtin_id; }
+  base::Vector<ValueNode*> parameters() const { return data().parameters; }
+  ValueNode*& context() { return data().context; }
+  ValueNode* context() const { return data().context; }
+
+ private:
+  BuiltinContinuationFrameData& data() {
+    return data_.get<BuiltinContinuationFrameData>();
   }
-  base::Vector<ValueNode*> parameters() const {
-    return data_.builtin_continuation_frame_data.parameters;
-  }
-  ValueNode*& context() {
-    return data_.builtin_continuation_frame_data.context;
-  }
-  ValueNode* context() const {
-    return data_.builtin_continuation_frame_data.context;
+  const BuiltinContinuationFrameData& data() const {
+    return data_.get<BuiltinContinuationFrameData>();
   }
 };
 

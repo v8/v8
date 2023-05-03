@@ -616,6 +616,7 @@ filegroup(
         "src/base/cpu.h",
         "src/base/debug/stack_trace.cc",
         "src/base/debug/stack_trace.h",
+        "src/base/discriminated-union.h",
         "src/base/division-by-constant.cc",
         "src/base/division-by-constant.h",
         "src/base/emulated-virtual-address-subspace.cc",
