@@ -881,7 +881,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Don't reset the tiering state for OSR code since we might reuse OSR code
   // after deopt, and we still want to tier up to non-OSR code even if OSR code
   // deoptimized.
-  if (function_.IsJSFunction() && compiled_code_.osr_offset().IsNone()) {
+  if (function_.IsJSFunction() &&
+      (compiled_code_.osr_offset().IsNone() ||
+       DeoptExitIsInsideOsrLoop(isolate(), function_,
+                                bytecode_offset_in_outermost_frame_,
+                                compiled_code_.osr_offset()))) {
     function_.SetInterruptBudget(isolate_, true);
     function_.reset_tiering_state();
   }
@@ -904,6 +908,45 @@ void Deoptimizer::DoComputeOutputFrames() {
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }
 
+// static
+bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
+                                           JSFunction function,
+                                           BytecodeOffset deopt_exit_offset,
+                                           BytecodeOffset osr_offset) {
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(isolate);
+  DCHECK(!deopt_exit_offset.IsNone());
+  DCHECK(!osr_offset.IsNone());
+
+  Handle<BytecodeArray> bytecode_array(
+      function.shared().GetBytecodeArray(isolate), isolate);
+  DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
+      bytecode_array, deopt_exit_offset.ToInt()));
+
+  interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
+  DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+
+  for (; !it.done(); it.Advance()) {
+    const int current_offset = it.current_offset();
+    // If we've reached the deopt exit, it's contained in the current loop
+    // (this is covered by IsInRange below, but this check lets us avoid
+    // useless iteration).
+    if (current_offset == deopt_exit_offset.ToInt()) return true;
+    // We're only interested in loop ranges.
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    // Is the deopt exit contained in the current loop?
+    if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
+                        current_offset)) {
+      return true;
+    }
+    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
+    // top-level loop.
+    const int loop_nesting_level = it.GetImmediateOperand(1);
+    if (loop_nesting_level == 0) return false;
+  }
+
+  UNREACHABLE();
+}
 namespace {
 
 // Get the dispatch builtin for unoptimized frames.

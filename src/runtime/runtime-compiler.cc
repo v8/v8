@@ -205,50 +205,6 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
 
 namespace {
 
-// Whether the deopt exit is contained by the outermost loop containing the
-// osr'd loop. For example:
-//
-//  for (;;) {
-//    for (;;) {
-//    }  // OSR is triggered on this backedge.
-//  }  // This is the outermost loop containing the osr'd loop.
-bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
-                              BytecodeOffset deopt_exit_offset,
-                              BytecodeOffset osr_offset) {
-  DisallowGarbageCollection no_gc;
-  DCHECK(!deopt_exit_offset.IsNone());
-  DCHECK(!osr_offset.IsNone());
-
-  Handle<BytecodeArray> bytecode_array(
-      function.shared().GetBytecodeArray(isolate), isolate);
-  DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
-      bytecode_array, deopt_exit_offset.ToInt()));
-
-  interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
-  DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
-
-  for (; !it.done(); it.Advance()) {
-    const int current_offset = it.current_offset();
-    // If we've reached the deopt exit, it's contained in the current loop
-    // (this is covered by IsInRange below, but this check lets us avoid
-    // useless iteration).
-    if (current_offset == deopt_exit_offset.ToInt()) return true;
-    // We're only interested in loop ranges.
-    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
-    // Is the deopt exit contained in the current loop?
-    if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
-                        current_offset)) {
-      return true;
-    }
-    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
-    // top-level loop.
-    const int loop_nesting_level = it.GetImmediateOperand(1);
-    if (loop_nesting_level == 0) return false;
-  }
-
-  UNREACHABLE();
-}
-
 bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
                             const interpreter::BytecodeArrayIterator& it,
                             Code* code_out) {
@@ -417,8 +373,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   if (osr_offset.IsNone()) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
-  } else if (DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
-                                      osr_offset)) {
+  } else if (Deoptimizer::DeoptExitIsInsideOsrLoop(
+                 isolate, *function, deopt_exit_offset, osr_offset)) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
