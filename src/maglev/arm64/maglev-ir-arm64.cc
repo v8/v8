@@ -992,8 +992,8 @@ void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Label not_a_smi, done;
-  __ TryTruncateDoubleToInt32(scratch, value, &not_a_smi);
-  __ Adds(wzr, scratch, scratch);
+  __ TryTruncateDoubleToInt32(scratch.W(), value, &not_a_smi);
+  __ Adds(wzr, scratch.W(), scratch.W());
   __ JumpIf(vc, &done);
 
   __ bind(&not_a_smi);
