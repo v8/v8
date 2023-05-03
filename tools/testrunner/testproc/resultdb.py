@@ -62,8 +62,15 @@ class ResultDBIndicator(ProgressIndicator):
 
     rdb_result.update(tags=extract_tags(record))
 
-    self.rpc.send(rdb_result)
+    if not self.filter_result(rdb_result):
+      self.rpc.send(rdb_result)
 
+  def filter_result(self, result):
+    """
+    Filter out expected results from test262.
+    TODO(liviurau): refactor class to be easier to test and add unittests.
+    """
+    return result['testId'].startswith('//test262/') and result['expected']
 
 def write_artifact(value):
   with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
