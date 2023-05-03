@@ -1714,6 +1714,7 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
   bool flip = false;
   for (;; iterator_.Advance()) {
     DCHECK_LE(iterator_.current_offset(), next_branch_offset);
+    UpdateSourceAndBytecodePosition(iterator_.current_offset());
     switch (iterator_.current_bytecode()) {
       case interpreter::Bytecode::kMov: {
         interpreter::Register src = iterator_.GetRegisterOperand(0);
@@ -1721,6 +1722,7 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
         DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
         current_interpreter_frame_.set(dst,
                                        current_interpreter_frame_.get(src));
+
         continue;
       }
       case interpreter::Bytecode::kToBoolean:
@@ -1773,7 +1775,6 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
     true_offset = iterator_.GetJumpTargetOffset();
     false_offset = next_offset();
   }
-  UpdateSourceAndBytecodePosition(iterator_.current_offset());
 
   BasicBlock* block = FinishBlock<BranchControlNodeT>(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
