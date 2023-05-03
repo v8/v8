@@ -2961,13 +2961,12 @@ void MaglevGraphBuilder::BuildCheckMaps(
     ValueNode* object, base::Vector<const compiler::MapRef> maps) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
-  if (object->Is<Constant>()) {
+  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
     // For constants with stable maps that match one of the desired maps, we
     // don't need to emit a map check, and can use the dependency -- we
     // can't do this for unstable maps because the constant could migrate
     // during compilation.
-    compiler::MapRef constant_map =
-        object->Cast<Constant>()->object().map(broker());
+    compiler::MapRef constant_map = constant.value().map(broker());
     if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
       if (constant_map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(constant_map);
@@ -6554,10 +6553,10 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
 
   // Check if the right hand side is a known receiver, or
   // we have feedback from the InstanceOfIC.
-  if (callable->Is<Constant>() &&
-      callable->Cast<Constant>()->object().IsJSObject()) {
-    compiler::JSObjectRef callable_ref =
-        callable->Cast<Constant>()->object().AsJSObject();
+  compiler::OptionalHeapObjectRef maybe_constant;
+  if ((maybe_constant = TryGetConstant(callable)) &&
+      maybe_constant.value().IsJSObject()) {
+    compiler::JSObjectRef callable_ref = maybe_constant.value().AsJSObject();
     return TryBuildFastInstanceOf(object, callable_ref, nullptr);
   }
   if (feedback_source.IsValid()) {
