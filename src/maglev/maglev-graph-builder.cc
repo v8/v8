@@ -3246,6 +3246,26 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   return value;
 }
 
+void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
+                                               compiler::MapRef map) {
+  AddNewNode<StoreMap>({receiver}, map);
+  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
+  DCHECK(map.IsJSReceiverMap());
+  node_info->type = NodeType::kJSReceiverWithKnownMap;
+  if (map.is_stable()) {
+    compiler::ZoneRefSet<Map> stable_maps(map);
+    compiler::ZoneRefSet<Map> unstable_maps;
+    known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+    known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
+    broker()->dependencies()->DependOnStableMap(map);
+  } else {
+    compiler::ZoneRefSet<Map> stable_maps;
+    compiler::ZoneRefSet<Map> unstable_maps(map);
+    known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+    known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
+  }
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     compiler::PropertyAccessInfo access_info, ValueNode* receiver,
     compiler::AccessMode access_mode) {
@@ -3315,23 +3335,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (access_info.HasTransitionMap()) {
-    compiler::MapRef transition = access_info.transition_map().value();
-    AddNewNode<StoreMap>({receiver}, transition);
-    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
-    DCHECK(transition.IsJSReceiverMap());
-    node_info->type = NodeType::kJSReceiverWithKnownMap;
-    if (transition.is_stable()) {
-      compiler::ZoneRefSet<Map> stable_maps(transition);
-      compiler::ZoneRefSet<Map> unstable_maps;
-      known_node_aspects().stable_maps.emplace(receiver, stable_maps);
-      known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
-      broker()->dependencies()->DependOnStableMap(transition);
-    } else {
-      compiler::ZoneRefSet<Map> stable_maps;
-      compiler::ZoneRefSet<Map> unstable_maps(transition);
-      known_node_aspects().stable_maps.emplace(receiver, stable_maps);
-      known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
-    }
+    BuildStoreReceiverMap(receiver, access_info.transition_map().value());
   }
 
   return ReduceResult::Done();
@@ -7023,7 +7027,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   // TODO(leszeks): Fold allocations.
   ValueNode* allocation = ExtendOrReallocateCurrentRawAllocation(
       object.instance_size, allocation_type);
-  AddNewNode<StoreMap>({allocation}, object.map);
+  BuildStoreReceiverMap(allocation, object.map);
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetRootConstant(RootIndex::kEmptyFixedArray)},
       JSObject::kPropertiesOrHashOffset);
@@ -7037,7 +7041,6 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     BuildStoreTaggedField(allocation, properties[i],
                           object.map.GetInObjectPropertyOffset(i));
   }
-  EnsureType(allocation, NodeType::kJSReceiver);
   return allocation;
 }
 

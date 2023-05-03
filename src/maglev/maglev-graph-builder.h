@@ -720,6 +720,8 @@ class MaglevGraphBuilder {
   void BuildStoreContextSlot(ValueNode* context, size_t depth, int slot_index,
                              ValueNode* value);
 
+  void BuildStoreReceiverMap(ValueNode* receiver, compiler::MapRef map);
+
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
     using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
