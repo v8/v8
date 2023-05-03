@@ -145,9 +145,10 @@ void PrintSignatureOneLine(StringBuilder& out, const FunctionSig* sig,
   }
 }
 
-void PrintStringRaw(StringBuilder& out, const byte* start, const byte* end) {
-  for (const byte* ptr = start; ptr < end; ptr++) {
-    byte b = *ptr;
+void PrintStringRaw(StringBuilder& out, const uint8_t* start,
+                    const uint8_t* end) {
+  for (const uint8_t* ptr = start; ptr < end; ptr++) {
+    uint8_t b = *ptr;
     if (b < 32 || b >= 127 || b == '"' || b == '\\') {
       out << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
     } else {
@@ -348,7 +349,7 @@ class ImmediatesPrinter {
   void BranchDepth(BranchDepthImmediate& imm) { PrintDepthAsLabel(imm.depth); }
 
   void BranchTable(BranchTableImmediate& imm) {
-    const byte* pc = imm.table;
+    const uint8_t* pc = imm.table;
     for (uint32_t i = 0; i <= imm.table_count; i++) {
       auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
       PrintDepthAsLabel(target);
@@ -523,13 +524,14 @@ class ImmediatesPrinter {
     out_ << " \"";
     const WasmStringRefLiteral& lit =
         owner_->module_->stringref_literals[imm.index];
-    const byte* start = owner_->wire_bytes_.start() + lit.source.offset();
+    const uint8_t* start = owner_->wire_bytes_.start() + lit.source.offset();
     static constexpr uint32_t kMaxCharsPrinted = 40;
     if (lit.source.length() <= kMaxCharsPrinted) {
-      const byte* end = owner_->wire_bytes_.start() + lit.source.end_offset();
+      const uint8_t* end =
+          owner_->wire_bytes_.start() + lit.source.end_offset();
       PrintStringRaw(out_, start, end);
     } else {
-      const byte* end = start + kMaxCharsPrinted - 1;
+      const uint8_t* end = start + kMaxCharsPrinted - 1;
       PrintStringRaw(out_, start, end);
       out_ << "…";
     }
@@ -652,7 +654,7 @@ class OffsetsProvider : public ITracer {
 
   // Unused by this tracer:
   void ImportsDone() override {}
-  void Bytes(const byte* start, uint32_t count) override {}
+  void Bytes(const uint8_t* start, uint32_t count) override {}
   void Description(const char* desc) override {}
   void Description(const char* desc, size_t length) override {}
   void Description(uint32_t number) override {}
@@ -662,11 +664,11 @@ class OffsetsProvider : public ITracer {
   void NextLine() override {}
   void NextLineIfFull() override {}
   void NextLineIfNonEmpty() override {}
-  void InitializerExpression(const byte* start, const byte* end,
+  void InitializerExpression(const uint8_t* start, const uint8_t* end,
                              ValueType expected_type) override {}
-  void FunctionBody(const WasmFunction* func, const byte* start) override {}
+  void FunctionBody(const WasmFunction* func, const uint8_t* start) override {}
   void FunctionName(uint32_t func_index) override {}
-  void NameSection(const byte* start, const byte* end,
+  void NameSection(const uint8_t* start, const uint8_t* end,
                    uint32_t offset) override {}
 
 #define GETTER(name)                       \
@@ -812,7 +814,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   out_ << indentation << "(module";
   if (module_->name.is_set()) {
     out_ << " $";
-    const byte* name_start = start_ + module_->name.offset();
+    const uint8_t* name_start = start_ + module_->name.offset();
     out_.write(name_start, module_->name.length());
   }
   indentation.increase();
@@ -1007,7 +1009,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
     WasmFeatures detected;
-    base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+    base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
     FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
                                wire_bytes_, names_);
@@ -1116,8 +1118,8 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
       break;
     case ConstantExpression::kWireBytesRef:
       WireBytesRef ref = init.wire_bytes_ref();
-      const byte* start = start_ + ref.offset();
-      const byte* end = start_ + ref.end_offset();
+      const uint8_t* start = start_ + ref.offset();
+      const uint8_t* end = start_ + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmFeatures detected;
@@ -1143,9 +1145,9 @@ void ModuleDisassembler::PrintString(WireBytesRef ref) {
 // This mimics legacy wasmparser behavior. It might be a questionable choice,
 // but we'll follow suit for now.
 void ModuleDisassembler::PrintStringAsJSON(WireBytesRef ref) {
-  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
-       ptr++) {
-    byte b = *ptr;
+  for (const uint8_t* ptr = start_ + ref.offset();
+       ptr < start_ + ref.end_offset(); ptr++) {
+    uint8_t b = *ptr;
     if (b <= 34) {
       switch (b) {
         // clang-format off

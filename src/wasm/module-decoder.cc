@@ -220,7 +220,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
       continue;
     }
     DCHECK(decoder.checkAvailable(size));
-    const byte* table_end = decoder.pc() + size;
+    const uint8_t* table_end = decoder.pc() + size;
     uint32_t locals_size = decoder.consume_u32v("locals size");
     int function_start_position = decoder.consume_u32v("function start pos");
     int function_end_position = function_start_position;
@@ -268,7 +268,7 @@ std::vector<CustomSectionOffset> DecodeCustomSections(
   std::vector<CustomSectionOffset> result;
 
   while (decoder.more()) {
-    byte section_code = decoder.consume_u8("section code");
+    uint8_t section_code = decoder.consume_u8("section code");
     uint32_t section_length = decoder.consume_u32v("section length");
     uint32_t section_start = decoder.pc_offset();
     if (section_code != 0) {

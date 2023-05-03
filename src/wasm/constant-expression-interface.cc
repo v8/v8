@@ -136,7 +136,7 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
   result->runtime_value =
       global.type.is_numeric()
           ? WasmValue(
-                reinterpret_cast<byte*>(
+                reinterpret_cast<uint8_t*>(
                     instance_->untagged_globals_buffer().backing_store()) +
                     global.offset,
                 global.type)

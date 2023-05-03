@@ -483,7 +483,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-    base::Vector<const byte> asm_js_offset_table_bytes,
+    base::Vector<const uint8_t> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",

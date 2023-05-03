@@ -41,8 +41,9 @@ namespace wasm {
 
 namespace {
 
-byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
-  return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
+uint8_t* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
+  return static_cast<uint8_t*>(buffer.ToHandleChecked()->backing_store()) +
+         offset;
 }
 
 using ImportWrapperQueue =
@@ -993,7 +994,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     instance->set_untagged_globals_buffer(*untagged_globals_);
     instance->set_globals_start(
-        reinterpret_cast<byte*>(untagged_globals_->backing_store()));
+        reinterpret_cast<uint8_t*>(untagged_globals_->backing_store()));
   }
 
   uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
@@ -1436,12 +1437,12 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        const WasmValue& value) {
   TRACE("init [globals_start=%p + %u] = %s, type = %s\n",
         global.type.is_reference()
-            ? reinterpret_cast<byte*>(tagged_globals_->address())
+            ? reinterpret_cast<uint8_t*>(tagged_globals_->address())
             : raw_buffer_ptr(untagged_globals_, 0),
         global.offset, value.to_string().c_str(), global.type.name().c_str());
   DCHECK(IsSubtypeOf(value.type(), global.type, module_));
   if (global.type.is_numeric()) {
-    value.CopyTo(GetRawUntaggedGlobalPtr<byte>(global));
+    value.CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
   } else {
     tagged_globals_->set(global.offset, *value.to_ref());
   }
@@ -2135,7 +2136,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
     if (global.type.is_reference()) {
       tagged_globals_->set(global.offset, *to_value(result).to_ref());
     } else {
-      to_value(result).CopyTo(GetRawUntaggedGlobalPtr<byte>(global));
+      to_value(result).CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
     }
   }
 }
@@ -2497,7 +2498,7 @@ base::Optional<MessageTemplate> InitializeElementSegment(
   const WasmElemSegment& elem_segment =
       instance->module()->elem_segments[segment_index];
 
-  base::Vector<const byte> module_bytes =
+  base::Vector<const uint8_t> module_bytes =
       instance->module_object().native_module()->wire_bytes();
 
   Decoder decoder(module_bytes);
@@ -2543,7 +2544,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
       return;
     }
 
-    base::Vector<const byte> module_bytes =
+    base::Vector<const uint8_t> module_bytes =
         instance->module_object().native_module()->wire_bytes();
     Decoder decoder(module_bytes);
     decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);

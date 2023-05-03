@@ -178,7 +178,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
     // Inlining of imported functions is not supported.
     return false;
   }
-  base::Vector<const byte> bytes(native_module->wire_bytes().SubVector(
+  base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end());

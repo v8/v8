@@ -187,13 +187,13 @@ int WasmCode::code_comments_size() const {
   return static_cast<int>(unpadded_binary_size_ - code_comments_offset_);
 }
 
-std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
-    std::initializer_list<base::Vector<const byte>> vectors) {
+std::unique_ptr<const uint8_t[]> WasmCode::ConcatenateBytes(
+    std::initializer_list<base::Vector<const uint8_t>> vectors) {
   size_t total_size = 0;
   for (auto& vec : vectors) total_size += vec.size();
   // Use default-initialization (== no initialization).
-  std::unique_ptr<byte[]> result{new byte[total_size]};
-  byte* ptr = result.get();
+  std::unique_ptr<uint8_t[]> result{new uint8_t[total_size]};
+  uint8_t* ptr = result.get();
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
     memcpy(ptr, vec.begin(), vec.size());
@@ -529,7 +529,7 @@ int WasmCode::GetSourceOffsetBefore(int code_offset) {
 std::pair<int, SourcePosition> WasmCode::GetInliningPosition(
     int inlining_id) const {
   const size_t elem_size = sizeof(int) + sizeof(SourcePosition);
-  const byte* start = inlining_positions().begin() + elem_size * inlining_id;
+  const uint8_t* start = inlining_positions().begin() + elem_size * inlining_id;
   DCHECK_LE(start, inlining_positions().end());
   std::pair<int, SourcePosition> result;
   std::memcpy(&result.first, start, sizeof result.first);
@@ -673,12 +673,12 @@ constexpr base::AddressRegion kUnrestrictedRegion{
 
 }  // namespace
 
-base::Vector<byte> WasmCodeAllocator::AllocateForCode(
+base::Vector<uint8_t> WasmCodeAllocator::AllocateForCode(
     NativeModule* native_module, size_t size) {
   return AllocateForCodeInRegion(native_module, size, kUnrestrictedRegion);
 }
 
-base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
+base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
     NativeModule* native_module, size_t size, base::AddressRegion region) {
   DCHECK_LT(0, size);
   auto* code_manager = GetWasmCodeManager();
@@ -756,7 +756,7 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
 
   TRACE_HEAP("Code alloc for %p: 0x%" PRIxPTR ",+%zu\n", this,
              code_space.begin(), size);
-  return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
+  return {reinterpret_cast<uint8_t*>(code_space.begin()), code_space.size()};
 }
 
 void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
@@ -909,22 +909,22 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   CodeSpaceWriteScope code_space_write_scope(this);
   const size_t relocation_size = code->relocation_size();
-  base::OwnedVector<byte> reloc_info;
+  base::OwnedVector<uint8_t> reloc_info;
   if (relocation_size > 0) {
-    reloc_info = base::OwnedVector<byte>::Of(
-        base::Vector<byte>{code->relocation_start(), relocation_size});
+    reloc_info = base::OwnedVector<uint8_t>::Of(
+        base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->source_position_table(),
                                      code->instruction_stream().GetIsolate());
-  base::OwnedVector<byte> source_pos =
-      base::OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
+  base::OwnedVector<uint8_t> source_pos =
+      base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
     source_pos_table->copy_out(0, source_pos.begin(),
                                source_pos_table->length());
   }
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  base::Vector<const byte> instructions(
-      reinterpret_cast<byte*>(code->body_start()),
+  base::Vector<const uint8_t> instructions(
+      reinterpret_cast<uint8_t*>(code->body_start()),
       static_cast<size_t>(code->body_size()));
   const int stack_slots = code->stack_slots();
 
@@ -1051,11 +1051,11 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
 std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
-    base::Vector<const byte> protected_instructions_data,
-    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+    base::Vector<const uint8_t> protected_instructions_data,
+    base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
-  base::Vector<byte> code_space;
-  base::Vector<byte> inlining_positions;
+  base::Vector<uint8_t> code_space;
+  base::Vector<uint8_t> inlining_positions;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -1076,13 +1076,13 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
-    base::Vector<const byte> protected_instructions_data,
-    base::Vector<const byte> source_position_table,
-    base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
+    base::Vector<const uint8_t> protected_instructions_data,
+    base::Vector<const uint8_t> source_position_table,
+    base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
     bool frame_has_feedback_slot, base::Vector<uint8_t> dst_code_bytes,
     const JumpTablesRef& jump_tables) {
-  base::Vector<byte> reloc_info{
+  base::Vector<uint8_t> reloc_info{
       desc.buffer + desc.buffer_size - desc.reloc_size,
       static_cast<size_t>(desc.reloc_size)};
   UpdateCodeSize(desc.instr_size, tier, for_debugging);
@@ -1319,14 +1319,14 @@ NativeModule::AllocateForDeserializedCode(size_t total_code_size) {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
-    int index, base::Vector<byte> instructions, int stack_slots,
+    int index, base::Vector<uint8_t> instructions, int stack_slots,
     uint32_t tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int unpadded_binary_size,
-    base::Vector<const byte> protected_instructions_data,
-    base::Vector<const byte> reloc_info,
-    base::Vector<const byte> source_position_table,
-    base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
+    base::Vector<const uint8_t> protected_instructions_data,
+    base::Vector<const uint8_t> reloc_info,
+    base::Vector<const uint8_t> source_position_table,
+    base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier) {
   UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
@@ -1492,7 +1492,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   if (WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
-    base::Vector<byte> padding =
+    base::Vector<uint8_t> padding =
         code_allocator_.AllocateForCodeInRegion(this, size, region);
     CHECK_EQ(reinterpret_cast<Address>(padding.begin()), region.begin());
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
@@ -2246,7 +2246,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     }
     total_code_space += new_code_space;
   }
-  base::Vector<byte> code_space;
+  base::Vector<uint8_t> code_space;
   NativeModule::JumpTablesRef jump_tables;
   CodeSpaceWriteScope code_space_write_scope(this);
   {
@@ -2266,7 +2266,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer->start());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
-    base::Vector<byte> this_code_space = code_space.SubVector(0, code_size);
+    base::Vector<uint8_t> this_code_space = code_space.SubVector(0, code_size);
     code_space += code_size;
     generated_code.emplace_back(AddCodeWithCodeSpace(
         result.func_index, result.code_desc, result.frame_slot_count,

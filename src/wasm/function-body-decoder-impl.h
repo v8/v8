@@ -180,7 +180,7 @@ static constexpr StoreType GetStoreType(WasmOpcode opcode) {
 // Depending on the validation tag and the number of arguments, this forwards to
 // a V8_NOINLINE and V8_PRESERVE_MOST method of the decoder.
 template <typename ValidationTag, typename... Args>
-V8_INLINE void DecodeError(Decoder* decoder, const byte* pc, const char* str,
+V8_INLINE void DecodeError(Decoder* decoder, const uint8_t* pc, const char* str,
                            Args&&... args) {
   // Decode errors can only happen if we are validating; the compiler should
   // know this e.g. from the VALIDATE macro, but this assumption tells it again
@@ -216,7 +216,8 @@ V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
 namespace value_type_reader {
 
 template <typename ValidationTag>
-std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder, const byte* pc,
+std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
+                                             const uint8_t* pc,
                                              const WasmFeatures& enabled) {
   auto [heap_index, length] =
       decoder->read_i33v<ValidationTag>(pc, "heap type");
@@ -287,9 +288,10 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder, const byte* pc,
 // No bytes are consumed.
 // Returns the read value type and the number of bytes read (a.k.a. length).
 template <typename ValidationTag>
-std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder, const byte* pc,
+std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
+                                               const uint8_t* pc,
                                                const WasmFeatures& enabled) {
-  byte val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
+  uint8_t val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
   if (!VALIDATE(decoder->ok())) {
     return {kWasmBottom, 0};
   }
@@ -376,7 +378,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder, const byte* pc,
 }
 
 template <typename ValidationTag>
-bool ValidateHeapType(Decoder* decoder, const byte* pc,
+bool ValidateHeapType(Decoder* decoder, const uint8_t* pc,
                       const WasmModule* module, HeapType type) {
   if (!type.is_index()) return true;
   // A {nullptr} module is accepted if we are not validating anyway (e.g. for
@@ -391,7 +393,7 @@ bool ValidateHeapType(Decoder* decoder, const byte* pc,
 }
 
 template <typename ValidationTag>
-bool ValidateValueType(Decoder* decoder, const byte* pc,
+bool ValidateValueType(Decoder* decoder, const uint8_t* pc,
                        const WasmModule* module, ValueType type) {
   if (V8_LIKELY(!type.is_object_reference())) return true;
   return ValidateHeapType<ValidationTag>(decoder, pc, module, type.heap_type());
@@ -407,7 +409,7 @@ struct ImmI32Immediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  ImmI32Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  ImmI32Immediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     std::tie(value, length) = decoder->read_i32v<ValidationTag>(pc, "immi32");
   }
 };
@@ -417,7 +419,7 @@ struct ImmI64Immediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  ImmI64Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  ImmI64Immediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     std::tie(value, length) = decoder->read_i64v<ValidationTag>(pc, "immi64");
   }
 };
@@ -427,7 +429,7 @@ struct ImmF32Immediate {
   uint32_t length = 4;
 
   template <typename ValidationTag>
-  ImmF32Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  ImmF32Immediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     // We can't use base::bit_cast here because calling any helper function
     // that returns a float would potentially flip NaN bits per C++ semantics,
     // so we have to inline the memcpy call directly.
@@ -441,7 +443,7 @@ struct ImmF64Immediate {
   uint32_t length = 8;
 
   template <typename ValidationTag>
-  ImmF64Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  ImmF64Immediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     // Avoid base::bit_cast because it might not preserve the signalling bit
     // of a NaN.
     uint64_t tmp = decoder->read_u64<ValidationTag>(pc, "immf64");
@@ -454,7 +456,8 @@ struct MemoryIndexImmediate {
   uint32_t length = 1;
 
   template <typename ValidationTag>
-  MemoryIndexImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  MemoryIndexImmediate(Decoder* decoder, const uint8_t* pc,
+                       ValidationTag = {}) {
     index = decoder->read_u8<ValidationTag>(pc, "memory index");
   }
 };
@@ -482,7 +485,7 @@ struct BrOnCastImmediate {
   uint32_t length = 1;
 
   template <typename ValidationTag>
-  BrOnCastImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  BrOnCastImmediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     raw_value = decoder->read_u8<ValidationTag>(pc, "br_on_cast flags");
     if (raw_value > (BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL)) {
       if constexpr (ValidationTag::full_validation) {
@@ -503,7 +506,7 @@ struct IndexImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  IndexImmediate(Decoder* decoder, const byte* pc, const char* name,
+  IndexImmediate(Decoder* decoder, const uint8_t* pc, const char* name,
                  ValidationTag = {}) {
     std::tie(index, length) = decoder->read_u32v<ValidationTag>(pc, name);
   }
@@ -513,7 +516,7 @@ struct TagIndexImmediate : public IndexImmediate {
   const WasmTag* tag = nullptr;
 
   template <typename ValidationTag>
-  TagIndexImmediate(Decoder* decoder, const byte* pc,
+  TagIndexImmediate(Decoder* decoder, const uint8_t* pc,
                     ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "tag index", validate) {}
 };
@@ -522,7 +525,7 @@ struct GlobalIndexImmediate : public IndexImmediate {
   const WasmGlobal* global = nullptr;
 
   template <typename ValidationTag>
-  GlobalIndexImmediate(Decoder* decoder, const byte* pc,
+  GlobalIndexImmediate(Decoder* decoder, const uint8_t* pc,
                        ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "global index", validate) {}
 };
@@ -531,7 +534,7 @@ struct SigIndexImmediate : public IndexImmediate {
   const FunctionSig* sig = nullptr;
 
   template <typename ValidationTag>
-  SigIndexImmediate(Decoder* decoder, const byte* pc,
+  SigIndexImmediate(Decoder* decoder, const uint8_t* pc,
                     ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "signature index", validate) {}
 };
@@ -540,7 +543,7 @@ struct StructIndexImmediate : public IndexImmediate {
   const StructType* struct_type = nullptr;
 
   template <typename ValidationTag>
-  StructIndexImmediate(Decoder* decoder, const byte* pc,
+  StructIndexImmediate(Decoder* decoder, const uint8_t* pc,
                        ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "struct index", validate) {}
 };
@@ -549,7 +552,7 @@ struct ArrayIndexImmediate : public IndexImmediate {
   const ArrayType* array_type = nullptr;
 
   template <typename ValidationTag>
-  ArrayIndexImmediate(Decoder* decoder, const byte* pc,
+  ArrayIndexImmediate(Decoder* decoder, const uint8_t* pc,
                       ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "array index", validate) {}
 };
@@ -558,7 +561,7 @@ struct CallFunctionImmediate : public IndexImmediate {
   const FunctionSig* sig = nullptr;
 
   template <typename ValidationTag>
-  CallFunctionImmediate(Decoder* decoder, const byte* pc,
+  CallFunctionImmediate(Decoder* decoder, const uint8_t* pc,
                         ValidationTag validate = {})
       : IndexImmediate(decoder, pc, "function index", validate) {}
 };
@@ -569,7 +572,7 @@ struct SelectTypeImmediate {
 
   template <typename ValidationTag>
   SelectTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                      const byte* pc, ValidationTag = {}) {
+                      const uint8_t* pc, ValidationTag = {}) {
     uint8_t num_types;
     std::tie(num_types, length) =
         decoder->read_u32v<ValidationTag>(pc, "number of select types");
@@ -645,7 +648,8 @@ struct BranchDepthImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  BranchDepthImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  BranchDepthImmediate(Decoder* decoder, const uint8_t* pc,
+                       ValidationTag = {}) {
     std::tie(depth, length) =
         decoder->read_u32v<ValidationTag>(pc, "branch depth");
   }
@@ -657,7 +661,8 @@ struct FieldImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  FieldImmediate(Decoder* decoder, const byte* pc, ValidationTag validate = {})
+  FieldImmediate(Decoder* decoder, const uint8_t* pc,
+                 ValidationTag validate = {})
       : struct_imm(decoder, pc, validate),
         field_imm(decoder, pc + struct_imm.length, "field index", validate),
         length(struct_imm.length + field_imm.length) {}
@@ -670,7 +675,7 @@ struct CallIndirectImmediate {
   const FunctionSig* sig = nullptr;
 
   template <typename ValidationTag>
-  CallIndirectImmediate(Decoder* decoder, const byte* pc,
+  CallIndirectImmediate(Decoder* decoder, const uint8_t* pc,
                         ValidationTag validate = {})
       : sig_imm(decoder, pc, "singature index", validate),
         table_imm(decoder, pc + sig_imm.length, "table index", validate),
@@ -679,11 +684,12 @@ struct CallIndirectImmediate {
 
 struct BranchTableImmediate {
   uint32_t table_count;
-  const byte* start;
-  const byte* table;
+  const uint8_t* start;
+  const uint8_t* table;
 
   template <typename ValidationTag>
-  BranchTableImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  BranchTableImmediate(Decoder* decoder, const uint8_t* pc,
+                       ValidationTag = {}) {
     start = pc;
     uint32_t len;
     std::tie(table_count, len) =
@@ -712,7 +718,7 @@ class BranchTableIterator {
     while (has_next()) next();
     return static_cast<uint32_t>(pc_ - start_);
   }
-  const byte* pc() { return pc_; }
+  const uint8_t* pc() { return pc_; }
 
   BranchTableIterator(Decoder* decoder, const BranchTableImmediate& imm)
       : decoder_(decoder),
@@ -722,8 +728,8 @@ class BranchTableIterator {
 
  private:
   Decoder* const decoder_;
-  const byte* start_;
-  const byte* pc_;
+  const uint8_t* start_;
+  const uint8_t* pc_;
   uint32_t index_ = 0;          // the current index.
   const uint32_t table_count_;  // the count of entries, not including default.
 };
@@ -734,7 +740,7 @@ struct MemoryAccessImmediate {
   uint32_t length = 0;
 
   template <typename ValidationTag>
-  V8_INLINE MemoryAccessImmediate(Decoder* decoder, const byte* pc,
+  V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
                                   uint32_t max_alignment, bool is_memory64,
                                   ValidationTag = {}) {
     // Check for the fast path (two single-byte LEBs).
@@ -759,7 +765,7 @@ struct MemoryAccessImmediate {
  private:
   template <typename ValidationTag>
   V8_NOINLINE V8_PRESERVE_MOST void ConstructSlow(Decoder* decoder,
-                                                  const byte* pc,
+                                                  const uint8_t* pc,
                                                   uint32_t max_alignment,
                                                   bool is_memory64) {
     uint32_t alignment_length;
@@ -783,7 +789,7 @@ struct SimdLaneImmediate {
   uint32_t length = 1;
 
   template <typename ValidationTag>
-  SimdLaneImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  SimdLaneImmediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     lane = decoder->read_u8<ValidationTag>(pc, "lane");
   }
 };
@@ -793,7 +799,7 @@ struct Simd128Immediate {
   uint8_t value[kSimd128Size] = {0};
 
   template <typename ValidationTag>
-  Simd128Immediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  Simd128Immediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
       value[i] = decoder->read_u8<ValidationTag>(pc + i, "value");
     }
@@ -806,7 +812,7 @@ struct MemoryInitImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  MemoryInitImmediate(Decoder* decoder, const byte* pc,
+  MemoryInitImmediate(Decoder* decoder, const uint8_t* pc,
                       ValidationTag validate = {})
       : data_segment(decoder, pc, "data segment index", validate),
         memory(decoder, pc + data_segment.length, validate),
@@ -819,7 +825,7 @@ struct MemoryCopyImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  MemoryCopyImmediate(Decoder* decoder, const byte* pc,
+  MemoryCopyImmediate(Decoder* decoder, const uint8_t* pc,
                       ValidationTag validate = {})
       : memory_src(decoder, pc, validate),
         memory_dst(decoder, pc + memory_src.length, validate),
@@ -832,7 +838,7 @@ struct TableInitImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  TableInitImmediate(Decoder* decoder, const byte* pc,
+  TableInitImmediate(Decoder* decoder, const uint8_t* pc,
                      ValidationTag validate = {})
       : element_segment(decoder, pc, "element segment index", validate),
         table(decoder, pc + element_segment.length, "table index", validate),
@@ -845,7 +851,7 @@ struct TableCopyImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  TableCopyImmediate(Decoder* decoder, const byte* pc,
+  TableCopyImmediate(Decoder* decoder, const uint8_t* pc,
                      ValidationTag validate = {})
       : table_dst(decoder, pc, "table index", validate),
         table_src(decoder, pc + table_dst.length, "table index", validate),
@@ -858,7 +864,7 @@ struct HeapTypeImmediate {
 
   template <typename ValidationTag>
   HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                    const byte* pc, ValidationTag = {}) {
+                    const uint8_t* pc, ValidationTag = {}) {
     std::tie(type, length) =
         value_type_reader::read_heap_type<ValidationTag>(decoder, pc, enabled);
   }
@@ -869,7 +875,8 @@ struct StringConstImmediate {
   uint32_t length;
 
   template <typename ValidationTag>
-  StringConstImmediate(Decoder* decoder, const byte* pc, ValidationTag = {}) {
+  StringConstImmediate(Decoder* decoder, const uint8_t* pc,
+                       ValidationTag = {}) {
     std::tie(index, length) =
         decoder->read_u32v<ValidationTag>(pc, "stringref literal index");
   }
@@ -878,18 +885,18 @@ struct StringConstImmediate {
 template <bool full_validation>
 struct PcForErrors {
   static_assert(full_validation == false);
-  explicit PcForErrors(const byte* /* pc */) {}
+  explicit PcForErrors(const uint8_t* /* pc */) {}
 
-  const byte* pc() const { return nullptr; }
+  const uint8_t* pc() const { return nullptr; }
 };
 
 template <>
 struct PcForErrors<true> {
-  const byte* pc_for_errors = nullptr;
+  const uint8_t* pc_for_errors = nullptr;
 
-  explicit PcForErrors(const byte* pc) : pc_for_errors(pc) {}
+  explicit PcForErrors(const uint8_t* pc) : pc_for_errors(pc) {}
 
-  const byte* pc() const { return pc_for_errors; }
+  const uint8_t* pc() const { return pc_for_errors; }
 };
 
 // An entry on the value stack.
@@ -897,7 +904,7 @@ template <typename ValidationTag>
 struct ValueBase : public PcForErrors<ValidationTag::full_validation> {
   ValueType type = kWasmVoid;
 
-  ValueBase(const byte* pc, ValueType type)
+  ValueBase(const uint8_t* pc, ValueType type)
       : PcForErrors<ValidationTag::full_validation>(pc), type(type) {}
 };
 
@@ -1359,8 +1366,9 @@ class WasmDecoder : public Decoder {
 
  public:
   WasmDecoder(Zone* zone, const WasmModule* module, WasmFeatures enabled,
-              WasmFeatures* detected, const FunctionSig* sig, const byte* start,
-              const byte* end, uint32_t buffer_offset = 0)
+              WasmFeatures* detected, const FunctionSig* sig,
+              const uint8_t* start, const uint8_t* end,
+              uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
         zone_(zone),
         module_(module),
@@ -1396,7 +1404,7 @@ class WasmDecoder : public Decoder {
   // The decoded locals will be appended to {this->local_types_}.
   // The decoder's pc is not advanced.
   // The total length of decoded locals is returned.
-  uint32_t DecodeLocals(const byte* pc) {
+  uint32_t DecodeLocals(const uint8_t* pc) {
     DCHECK_NULL(local_types_);
     DCHECK_EQ(0, num_locals_);
 
@@ -1491,7 +1499,8 @@ class WasmDecoder : public Decoder {
   // variables that are assigned in the loop starting at {pc}. The additional
   // position at the end of the vector represents possible assignments to
   // the instance cache.
-  static BitVector* AnalyzeLoopAssignment(WasmDecoder* decoder, const byte* pc,
+  static BitVector* AnalyzeLoopAssignment(WasmDecoder* decoder,
+                                          const uint8_t* pc,
                                           uint32_t locals_count, Zone* zone,
                                           bool* loop_is_innermost = nullptr) {
     if (pc >= decoder->end()) return nullptr;
@@ -1540,7 +1549,7 @@ class WasmDecoder : public Decoder {
     return VALIDATE(decoder->ok()) ? assigned : nullptr;
   }
 
-  bool Validate(const byte* pc, TagIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, TagIndexImmediate& imm) {
     size_t num_tags = module_->tags.size();
     if (!VALIDATE(imm.index < num_tags)) {
       DecodeError(pc, "Invalid tag index: %u", imm.index);
@@ -1551,7 +1560,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, GlobalIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, GlobalIndexImmediate& imm) {
     // We compare with the current size of the globals vector. This is important
     // if we are decoding a constant expression in the global section.
     size_t num_globals = module_->globals.size();
@@ -1579,7 +1588,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, SigIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, SigIndexImmediate& imm) {
     if (!VALIDATE(module_->has_signature(imm.index))) {
       DecodeError(pc, "invalid signature index: %u", imm.index);
       return false;
@@ -1588,7 +1597,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, StructIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, StructIndexImmediate& imm) {
     if (!VALIDATE(module_->has_struct(imm.index))) {
       DecodeError(pc, "invalid struct index: %u", imm.index);
       return false;
@@ -1597,7 +1606,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, FieldImmediate& imm) {
+  bool Validate(const uint8_t* pc, FieldImmediate& imm) {
     if (!Validate(pc, imm.struct_imm)) return false;
     if (!VALIDATE(imm.field_imm.index <
                   imm.struct_imm.struct_type->field_count())) {
@@ -1608,7 +1617,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, ArrayIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, ArrayIndexImmediate& imm) {
     if (!VALIDATE(module_->has_array(imm.index))) {
       DecodeError(pc, "invalid array index: %u", imm.index);
       return false;
@@ -1626,7 +1635,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, CallFunctionImmediate& imm) {
+  bool Validate(const uint8_t* pc, CallFunctionImmediate& imm) {
     size_t num_functions = module_->functions.size();
     if (!VALIDATE(imm.index < num_functions)) {
       DecodeError(pc, "function index #%u is out of bounds", imm.index);
@@ -1637,7 +1646,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, CallIndirectImmediate& imm) {
+  bool Validate(const uint8_t* pc, CallIndirectImmediate& imm) {
     if (!ValidateSignature(pc, imm.sig_imm)) return false;
     if (!ValidateTable(pc + imm.sig_imm.length, imm.table_imm)) {
       return false;
@@ -1665,7 +1674,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, BranchDepthImmediate& imm,
+  bool Validate(const uint8_t* pc, BranchDepthImmediate& imm,
                 size_t control_depth) {
     if (!VALIDATE(imm.depth < control_depth)) {
       DecodeError(pc, "invalid branch depth: %u", imm.depth);
@@ -1674,7 +1683,8 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, BranchTableImmediate& imm, size_t block_depth) {
+  bool Validate(const uint8_t* pc, BranchTableImmediate& imm,
+                size_t block_depth) {
     if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
       DecodeError(pc, "invalid table count (> max br_table size): %u",
                   imm.table_count);
@@ -1683,7 +1693,7 @@ class WasmDecoder : public Decoder {
     return checkAvailable(imm.table_count);
   }
 
-  bool Validate(const byte* pc, WasmOpcode opcode, SimdLaneImmediate& imm) {
+  bool Validate(const uint8_t* pc, WasmOpcode opcode, SimdLaneImmediate& imm) {
     uint8_t num_lanes = 0;
     switch (opcode) {
       case kExprF64x2ExtractLane:
@@ -1728,7 +1738,7 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  bool Validate(const byte* pc, Simd128Immediate& imm) {
+  bool Validate(const uint8_t* pc, Simd128Immediate& imm) {
     uint8_t max_lane = 0;
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
       max_lane = std::max(max_lane, imm.value[i]);
@@ -1741,7 +1751,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, BlockTypeImmediate& imm) {
+  bool Validate(const uint8_t* pc, BlockTypeImmediate& imm) {
     if (imm.sig.all().begin() == nullptr) {
       // Then use {sig_index} to initialize the signature.
       if (!VALIDATE(module_->has_signature(imm.sig_index))) {
@@ -1761,7 +1771,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, MemoryIndexImmediate& imm) {
+  bool Validate(const uint8_t* pc, MemoryIndexImmediate& imm) {
     if (!VALIDATE(this->module_->has_memory)) {
       this->DecodeError(pc, "memory instruction with no memory");
       return false;
@@ -1773,7 +1783,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, MemoryAccessImmediate& imm) {
+  bool Validate(const uint8_t* pc, MemoryAccessImmediate& imm) {
     if (!VALIDATE(this->module_->has_memory)) {
       this->DecodeError(pc, "memory instruction with no memory");
       return false;
@@ -1781,17 +1791,17 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, MemoryInitImmediate& imm) {
+  bool Validate(const uint8_t* pc, MemoryInitImmediate& imm) {
     return ValidateDataSegment(pc, imm.data_segment) &&
            Validate(pc + imm.data_segment.length, imm.memory);
   }
 
-  bool Validate(const byte* pc, MemoryCopyImmediate& imm) {
+  bool Validate(const uint8_t* pc, MemoryCopyImmediate& imm) {
     return Validate(pc, imm.memory_src) &&
            Validate(pc + imm.memory_src.length, imm.memory_dst);
   }
 
-  bool Validate(const byte* pc, TableInitImmediate& imm) {
+  bool Validate(const uint8_t* pc, TableInitImmediate& imm) {
     if (!ValidateElementSegment(pc, imm.element_segment)) return false;
     if (!ValidateTable(pc + imm.element_segment.length, imm.table)) {
       return false;
@@ -1807,7 +1817,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, TableCopyImmediate& imm) {
+  bool Validate(const uint8_t* pc, TableCopyImmediate& imm) {
     if (!ValidateTable(pc, imm.table_src)) return false;
     if (!ValidateTable(pc + imm.table_src.length, imm.table_dst)) return false;
     size_t num_tables = module_->tables.size();
@@ -1823,7 +1833,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, StringConstImmediate& imm) {
+  bool Validate(const uint8_t* pc, StringConstImmediate& imm) {
     if (!VALIDATE(imm.index < module_->stringref_literals.size())) {
       DecodeError(pc, "Invalid string literal index: %u", imm.index);
       return false;
@@ -1833,7 +1843,7 @@ class WasmDecoder : public Decoder {
 
   // The following Validate* functions all validate an IndexImmediate, albeit
   // differently according to context.
-  bool ValidateTable(const byte* pc, IndexImmediate& imm) {
+  bool ValidateTable(const uint8_t* pc, IndexImmediate& imm) {
     if (imm.index > 0 || imm.length > 1) {
       this->detected_->Add(kFeature_reftypes);
     }
@@ -1846,7 +1856,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateElementSegment(const byte* pc, IndexImmediate& imm) {
+  bool ValidateElementSegment(const uint8_t* pc, IndexImmediate& imm) {
     size_t num_elem_segments = module_->elem_segments.size();
     if (!VALIDATE(imm.index < num_elem_segments)) {
       DecodeError(pc, "invalid element segment index: %u", imm.index);
@@ -1856,7 +1866,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateLocal(const byte* pc, IndexImmediate& imm) {
+  bool ValidateLocal(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(imm.index < num_locals())) {
       DecodeError(pc, "invalid local index: %u", imm.index);
       return false;
@@ -1864,7 +1874,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateType(const byte* pc, IndexImmediate& imm) {
+  bool ValidateType(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(module_->has_type(imm.index))) {
       DecodeError(pc, "invalid type index: %u", imm.index);
       return false;
@@ -1872,7 +1882,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateSignature(const byte* pc, IndexImmediate& imm) {
+  bool ValidateSignature(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(module_->has_signature(imm.index))) {
       DecodeError(pc, "invalid signature index: %u", imm.index);
       return false;
@@ -1880,7 +1890,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateFunction(const byte* pc, IndexImmediate& imm) {
+  bool ValidateFunction(const uint8_t* pc, IndexImmediate& imm) {
     size_t num_functions = module_->functions.size();
     if (!VALIDATE(imm.index < num_functions)) {
       DecodeError(pc, "function index #%u is out of bounds", imm.index);
@@ -1895,7 +1905,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool ValidateDataSegment(const byte* pc, IndexImmediate& imm) {
+  bool ValidateDataSegment(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(imm.index < module_->num_declared_data_segments)) {
       DecodeError(pc, "invalid data segment index: %u", imm.index);
       return false;
@@ -1903,27 +1913,27 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, SelectTypeImmediate& imm) {
+  bool Validate(const uint8_t* pc, SelectTypeImmediate& imm) {
     return ValidateValueType(pc, imm.type);
   }
 
-  bool Validate(const byte* pc, HeapTypeImmediate& imm) {
+  bool Validate(const uint8_t* pc, HeapTypeImmediate& imm) {
     return ValidateHeapType(pc, imm.type);
   }
 
-  bool ValidateValueType(const byte* pc, ValueType type) {
+  bool ValidateValueType(const uint8_t* pc, ValueType type) {
     return value_type_reader::ValidateValueType<ValidationTag>(this, pc,
                                                                module_, type);
   }
 
-  bool ValidateHeapType(const byte* pc, HeapType type) {
+  bool ValidateHeapType(const uint8_t* pc, HeapType type) {
     return value_type_reader::ValidateHeapType<ValidationTag>(this, pc, module_,
                                                               type);
   }
 
   // Returns the length of the opcode under {pc}.
   template <typename... ImmediateObservers>
-  static uint32_t OpcodeLength(WasmDecoder* decoder, const byte* pc,
+  static uint32_t OpcodeLength(WasmDecoder* decoder, const uint8_t* pc,
                                ImmediateObservers&... ios) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // We don't have information about the module here, so we just assume that
@@ -2560,7 +2570,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
   }
 
-  const char* SafeOpcodeNameAt(const byte* pc) {
+  const char* SafeOpcodeNameAt(const uint8_t* pc) {
     if (!pc) return "<null>";
     if (pc >= this->end_) return "<end>";
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
@@ -3335,7 +3345,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     while (iterator.has_next()) {
       const uint32_t index = iterator.cur_index();
-      const byte* pos = iterator.pc();
+      const uint8_t* pos = iterator.pc();
       const uint32_t target = iterator.next();
       if (!VALIDATE(target < control_depth())) {
         this->DecodeError(pos, "invalid branch depth: %u", target);
@@ -3906,7 +3916,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // Initializes start- and end-merges of {c} with values according to the
   // in- and out-types of {c} respectively.
   void SetBlockType(Control* c, BlockTypeImmediate& imm, Value* args) {
-    const byte* pc = this->pc_;
+    const uint8_t* pc = this->pc_;
     InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
       return Value{pc, imm.out_type(i)};
     });
@@ -4550,7 +4560,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           UNIMPLEMENTED();
         }
 #endif
-        const byte* data_index_pc =
+        const uint8_t* data_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate data_segment(this, data_index_pc, "data segment",
                                     validate);
@@ -4585,7 +4595,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               array_imm.index);
           return 0;
         }
-        const byte* elem_index_pc =
+        const uint8_t* elem_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate elem_segment(this, elem_index_pc, "element segment",
                                     validate);
@@ -4647,7 +4657,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           UNIMPLEMENTED();
         }
 #endif
-        const byte* data_index_pc =
+        const uint8_t* data_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate data_segment(this, data_index_pc, "data segment",
                                     validate);
@@ -4683,7 +4693,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               array_imm.index);
           return 0;
         }
-        const byte* elem_index_pc =
+        const uint8_t* elem_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate elem_segment(this, elem_index_pc, "element segment",
                                     validate);
@@ -6290,7 +6300,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       ATOMIC_OP_LIST(CASE_ATOMIC_OP)
 #undef CASE_ATOMIC_OP
       case kExprAtomicFence: {
-        byte zero = this->template read_u8<ValidationTag>(
+        uint8_t zero = this->template read_u8<ValidationTag>(
             this->pc_ + opcode_length, "zero");
         if (!VALIDATE(zero == 0)) {
           this->DecodeError(this->pc_ + opcode_length,
@@ -6720,7 +6730,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return true;
   }
 
-  int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
+  int startrel(const uint8_t* ptr) {
+    return static_cast<int>(ptr - this->start_);
+  }
 
   void FallThrough() {
     Control* c = &control_.back();

@@ -8341,7 +8341,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   auto* native_module = code->native_module();
   auto* function = &native_module->module()->functions[code->index()];
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
-  base::Vector<const byte> function_bytes =
+  base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
   CompilationEnv env = native_module->CreateCompilationEnv();
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),

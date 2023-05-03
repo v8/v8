@@ -915,7 +915,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr TrapReason MessageIdToTrapReason(MessageTemplate message);
 
   // Extract the prefix byte (or 0x00) from a {WasmOpcode}.
-  static constexpr byte ExtractPrefix(WasmOpcode);
+  static constexpr uint8_t ExtractPrefix(WasmOpcode);
   static inline const char* TrapReasonMessage(TrapReason);
 };
 

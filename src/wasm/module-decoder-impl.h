@@ -71,7 +71,7 @@ inline WireBytesRef consume_string(Decoder* decoder,
     tracer->NextLine();
   }
   uint32_t offset = decoder->pc_offset();
-  const byte* string_start = decoder->pc();
+  const uint8_t* string_start = decoder->pc();
   // Consume bytes before validation to guarantee that the string is not oob.
   if (length > 0) {
     if (tracer) {
@@ -121,7 +121,7 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
   if (decoder->failed()) {
     return kUnknownSectionCode;
   }
-  const byte* section_name_start =
+  const uint8_t* section_name_start =
       decoder->start() + decoder->GetBufferRelativeOffset(string.offset());
 
   TRACE("  +%d  section name        : \"%.*s\"\n",
@@ -167,7 +167,7 @@ class WasmSectionIterator {
 
   SectionCode section_code() const { return section_code_; }
 
-  const byte* section_start() const { return section_start_; }
+  const uint8_t* section_start() const { return section_start_; }
 
   uint32_t section_length() const {
     return static_cast<uint32_t>(section_end_ - section_start_);
@@ -177,13 +177,13 @@ class WasmSectionIterator {
     return {payload_start_, payload_length()};
   }
 
-  const byte* payload_start() const { return payload_start_; }
+  const uint8_t* payload_start() const { return payload_start_; }
 
   uint32_t payload_length() const {
     return static_cast<uint32_t>(section_end_ - payload_start_);
   }
 
-  const byte* section_end() const { return section_end_; }
+  const uint8_t* section_end() const { return section_end_; }
 
   // Advances to the next section, checking that decoding the current section
   // stopped at {section_end_}.
@@ -207,9 +207,9 @@ class WasmSectionIterator {
   Decoder* decoder_;
   ITracer* tracer_;
   SectionCode section_code_;
-  const byte* section_start_;
-  const byte* payload_start_;
-  const byte* section_end_;
+  const uint8_t* section_start_;
+  const uint8_t* payload_start_;
+  const uint8_t* section_end_;
 
   // Reads the section code/name at the current position and sets up
   // the embedder fields.
@@ -250,7 +250,7 @@ class WasmSectionIterator {
       // To identify the unknown section we set the end of the decoder bytes to
       // the end of the custom section, so that we do not read the section name
       // beyond the end of the section.
-      const byte* module_end = decoder_->end();
+      const uint8_t* module_end = decoder_->end();
       decoder_->set_end(section_end_);
       section_code = IdentifyUnknownSectionInternal(decoder_, tracer_);
       if (decoder_->ok()) decoder_->set_end(module_end);
@@ -272,7 +272,8 @@ class WasmSectionIterator {
   }
 };
 
-inline void DumpModule(const base::Vector<const byte> module_bytes, bool ok) {
+inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
+                       bool ok) {
   std::string path;
   if (v8_flags.dump_wasm_module_path) {
     path = v8_flags.dump_wasm_module_path;
@@ -318,7 +319,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return;
     Reset(bytes);
 
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic", tracer_);
     if (tracer_) tracer_->NextLine();
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
@@ -734,7 +735,7 @@ class ModuleDecoderImpl : public Decoder {
           0                   // index
       });
       WasmImport* import = &module_->import_table.back();
-      const byte* pos = pc_;
+      const uint8_t* pos = pc_;
       import->module_name = consume_utf8_string(this, "module name", tracer_);
       import->field_name = consume_utf8_string(this, "field name", tracer_);
       import->kind =
@@ -764,7 +765,7 @@ class ModuleDecoderImpl : public Decoder {
           module_->tables.emplace_back();
           WasmTable* table = &module_->tables.back();
           table->imported = true;
-          const byte* type_position = pc();
+          const uint8_t* type_position = pc();
           ValueType type = consume_value_type();
           if (!type.is_object_reference()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
@@ -865,7 +866,7 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->TableOffset(pc_offset());
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
-      const byte* type_position = pc();
+      const uint8_t* type_position = pc();
 
       bool has_initializer = false;
       if (enabled_features_.has_typed_funcref() &&
@@ -978,7 +979,7 @@ class ModuleDecoderImpl : public Decoder {
 
       exp->name = consume_utf8_string(this, "field name", tracer_);
 
-      const byte* pos = pc();
+      const uint8_t* pos = pc();
       exp->kind =
           static_cast<ImportExportKindCode>(consume_u8("kind: ", tracer_));
       if (tracer_) {
@@ -1044,8 +1045,10 @@ class ModuleDecoderImpl : public Decoder {
         if (a.name.length() != b.name.length()) {
           return a.name.length() < b.name.length();
         }
-        const byte* left = start() + GetBufferRelativeOffset(a.name.offset());
-        const byte* right = start() + GetBufferRelativeOffset(b.name.offset());
+        const uint8_t* left =
+            start() + GetBufferRelativeOffset(a.name.offset());
+        const uint8_t* right =
+            start() + GetBufferRelativeOffset(b.name.offset());
         return memcmp(left, right, a.name.length()) < 0;
       };
       std::stable_sort(sorted_exports.begin(), sorted_exports.end(), cmp_less);
@@ -1055,7 +1058,8 @@ class ModuleDecoderImpl : public Decoder {
       for (auto end = sorted_exports.end(); it != end; last = &*it++) {
         DCHECK(!cmp_less(*it, *last));  // Vector must be sorted.
         if (!cmp_less(*last, *it)) {
-          const byte* pc = start() + GetBufferRelativeOffset(it->name.offset());
+          const uint8_t* pc =
+              start() + GetBufferRelativeOffset(it->name.offset());
           TruncatedUserString<> name(pc, it->name.length());
           errorf(pc, "Duplicate export name '%.*s' for %s %d and %s %d",
                  name.length(), name.start(), ExternalKindName(last->kind),
@@ -1069,7 +1073,7 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeStartSection() {
     if (tracer_) tracer_->StartOffset(pc_offset());
     WasmFunction* func;
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     module_->start_function_index = consume_func_index(module_.get(), &func);
     if (tracer_) tracer_->NextLine();
     if (func &&
@@ -1121,7 +1125,7 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->FunctionName(function_index);
         tracer_->NextLine();
       }
-      const byte* pos = pc();
+      const uint8_t* pos = pc();
       uint32_t size = consume_u32v("body size", tracer_);
       if (tracer_) {
         tracer_->Description(size);
@@ -1204,7 +1208,7 @@ class ModuleDecoderImpl : public Decoder {
 
     module_->data_segments.reserve(data_segments_count);
     for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
-      const byte* pos = pc();
+      const uint8_t* pos = pc();
       TRACE("DecodeDataSegment[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->DataOffset(pc_offset());
@@ -1632,7 +1636,7 @@ class ModuleDecoderImpl : public Decoder {
   ModuleResult DecodeModule(bool validate_functions) {
     // Keep a reference to the wire bytes, in case this decoder gets reset on
     // error.
-    base::Vector<const byte> wire_bytes(start_, end_ - start_);
+    base::Vector<const uint8_t> wire_bytes(start_, end_ - start_);
     size_t max_size = max_module_size();
     if (wire_bytes.size() > max_size) {
       return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
@@ -1705,7 +1709,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single function signature at {start}.
-  const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
+  const FunctionSig* DecodeFunctionSignature(Zone* zone, const uint8_t* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     const FunctionSig* result = consume_sig(zone);
@@ -1739,7 +1743,7 @@ class ModuleDecoderImpl : public Decoder {
     seen_unordered_sections_ |= 1 << section_code;
   }
 
-  uint32_t off(const byte* ptr) {
+  uint32_t off(const uint8_t* ptr) {
     return static_cast<uint32_t>(ptr - start_) + buffer_offset_;
   }
 
@@ -1788,7 +1792,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (!module->has_signature(sig_index)) {
@@ -1807,7 +1811,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   uint32_t consume_tag_sig_index(WasmModule* module, const FunctionSig** sig) {
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     uint32_t sig_index = consume_sig_index(module, sig);
     if (*sig && (*sig)->return_count() != 0) {
       errorf(pos, "tag signature %u has non-void return", sig_index);
@@ -1818,7 +1822,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   uint32_t consume_count(const char* name, size_t maximum) {
-    const byte* p = pc_;
+    const uint8_t* p = pc_;
     uint32_t count = consume_u32v(name, tracer_);
     if (tracer_) {
       tracer_->Description(count);
@@ -1853,7 +1857,7 @@ class ModuleDecoderImpl : public Decoder {
 
   template <typename T>
   uint32_t consume_index(const char* name, std::vector<T>* vector, T** ptr) {
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     uint32_t index = consume_u32v("index:", tracer_);
     if (tracer_) tracer_->Description(index);
     if (index >= vector->size()) {
@@ -1926,7 +1930,7 @@ class ModuleDecoderImpl : public Decoder {
                                 uint32_t max_initial, uint32_t* initial,
                                 bool has_maximum, uint32_t max_maximum,
                                 uint32_t* maximum, ResizableLimitsType type) {
-    const byte* pos = pc();
+    const uint8_t* pos = pc();
     // Note that even if we read the values as 64-bit value, all V8 limits are
     // still within uint32_t range.
     uint64_t initial_64 = type == k64BitLimits
@@ -1971,7 +1975,7 @@ class ModuleDecoderImpl : public Decoder {
 
   // Consumes a byte, and emits an error if it does not equal {expected}.
   bool expect_u8(const char* name, uint8_t expected) {
-    const byte* pos = pc();
+    const uint8_t* pos = pc();
     uint8_t value = consume_u8(name);
     if (value != expected) {
       errorf(pos, "expected %s 0x%02x, got 0x%02x", name, expected, value);
@@ -2096,7 +2100,7 @@ class ModuleDecoderImpl : public Decoder {
   // Read a mutability flag
   bool consume_mutability() {
     if (tracer_) tracer_->Bytes(pc_, 1);
-    byte val = consume_u8("mutability");
+    uint8_t val = consume_u8("mutability");
     if (tracer_) {
       tracer_->Description(val == 0   ? " immutable"
                            : val == 1 ? " mutable"
@@ -2201,7 +2205,7 @@ class ModuleDecoderImpl : public Decoder {
 
   // Consume the attribute field of an exception.
   uint32_t consume_exception_attribute() {
-    const byte* pos = pc_;
+    const uint8_t* pos = pc_;
     uint32_t attribute = consume_u32v("exception attribute");
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (attribute != kExceptionAttribute) {
@@ -2212,7 +2216,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmElemSegment consume_element_segment_header() {
-    const byte* pos = pc();
+    const uint8_t* pos = pc();
 
     // The mask for the bit in the flag which indicates if the segment is
     // active or not (0 is active).
@@ -2347,7 +2351,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void consume_data_segment_header(bool* is_active, uint32_t* index,
                                    ConstantExpression* offset) {
-    const byte* pos = pc();
+    const uint8_t* pos = pc();
     uint32_t flag = consume_u32v("flag: ", tracer_);
     if (tracer_) {
       tracer_->Description(
@@ -2388,7 +2392,7 @@ class ModuleDecoderImpl : public Decoder {
 
   uint32_t consume_element_func_index(WasmModule* module, ValueType expected) {
     WasmFunction* func = nullptr;
-    const byte* initial_pc = pc();
+    const uint8_t* initial_pc = pc();
     uint32_t index = consume_func_index(module, &func);
     if (tracer_) tracer_->NextLine();
     if (failed()) return index;
@@ -2407,8 +2411,8 @@ class ModuleDecoderImpl : public Decoder {
 
   const WasmFeatures enabled_features_;
   const std::shared_ptr<WasmModule> module_;
-  const byte* module_start_ = nullptr;
-  const byte* module_end_ = nullptr;
+  const uint8_t* module_start_ = nullptr;
+  const uint8_t* module_end_ = nullptr;
   ITracer* tracer_;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;

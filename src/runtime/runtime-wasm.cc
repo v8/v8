@@ -1123,7 +1123,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
   }
 
-  const byte* bytes = instance.memory0_start() + offset;
+  const uint8_t* bytes = instance.memory0_start() + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
       {codeunits, size_in_codeunits}));
@@ -1439,10 +1439,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
 
-  byte* memory_start = reinterpret_cast<byte*>(instance.memory0_start());
-  const byte* src =
-      reinterpret_cast<const byte*>(array->GetDataStartAddress() + start);
-  byte* dst = memory_start + addr;
+  uint8_t* memory_start = reinterpret_cast<uint8_t*>(instance.memory0_start());
+  const uint8_t* src =
+      reinterpret_cast<const uint8_t*>(array->GetDataStartAddress() + start);
+  uint8_t* dst = memory_start + addr;
 
   std::vector<size_t> surrogates;
   if (utf8_variant != unibrow::Utf8Variant::kWtf8) {

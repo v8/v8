@@ -59,7 +59,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
   intptr_t displacement = static_cast<intptr_t>(
-      reinterpret_cast<byte*>(target) - pc_ - kNearJmpInstrSize);
+      reinterpret_cast<uint8_t*>(target) - pc_ - kNearJmpInstrSize);
   if (!is_int32(displacement)) return false;
   near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
   return true;
@@ -199,8 +199,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   static constexpr ptrdiff_t kCodeEntryMarkerSize = 0;
 #endif
 
-  byte* jump_pc = pc_ + kCodeEntryMarkerSize;
-  ptrdiff_t jump_distance = reinterpret_cast<byte*>(target) - jump_pc;
+  uint8_t* jump_pc = pc_ + kCodeEntryMarkerSize;
+  ptrdiff_t jump_distance = reinterpret_cast<uint8_t*>(target) - jump_pc;
   DCHECK_EQ(0, jump_distance % kInstrSize);
   int64_t instr_offset = jump_distance / kInstrSize;
   if (!MacroAssembler::IsNearCallOffset(instr_offset)) {
@@ -280,7 +280,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+  intptr_t relative_target = reinterpret_cast<uint8_t*>(target) - pc_;
 
   if (!is_int32(relative_target / 2)) {
     return false;
@@ -377,7 +377,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
 }
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+  intptr_t relative_target = reinterpret_cast<uint8_t*>(target) - pc_;
   DCHECK_EQ(relative_target % 4, 0);
   intptr_t instr_offset = relative_target / kInstrSize;
   if (!is_int26(instr_offset)) {
@@ -431,7 +431,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+  intptr_t relative_target = reinterpret_cast<uint8_t*>(target) - pc_;
 
   if (!is_int26(relative_target)) {
     return false;
@@ -442,13 +442,13 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  byte* start = pc_;
+  uint8_t* start = pc_;
   mov(ip, Operand(reinterpret_cast<Address>(start + kFarJumpTableSlotSize -
                                             8)));  // 5 instr
   LoadU64(ip, MemOperand(ip));
   mtctr(ip);
   bctr();
-  byte* end = pc_;
+  uint8_t* end = pc_;
   int used = end - start;
   CHECK(used < kFarJumpTableSlotSize - 8);
   NopBytes(kFarJumpTableSlotSize - 8 - used);

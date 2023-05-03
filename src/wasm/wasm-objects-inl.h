@@ -146,8 +146,8 @@ double WasmGlobalObject::GetF64() {
   return base::ReadUnalignedValue<double>(address());
 }
 
-byte* WasmGlobalObject::GetS128RawBytes() {
-  return reinterpret_cast<byte*>(address());
+uint8_t* WasmGlobalObject::GetS128RawBytes() {
+  return reinterpret_cast<uint8_t*>(address());
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
@@ -196,7 +196,7 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
                     kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, isorecursive_canonical_types,
                     const uint32_t*, kIsorecursiveCanonicalTypesOffset)
-SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, byte*,
+SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, uint8_t*,
                             kGlobalsStartOffset)
 ACCESSORS(WasmInstanceObject, imported_mutable_globals, FixedAddressArray,
           kImportedMutableGlobalsOffset)

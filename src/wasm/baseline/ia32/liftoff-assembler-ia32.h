@@ -2711,12 +2711,12 @@ void EmitSimdShiftOp(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, byte),
-          void (Assembler::*sse_op)(XMMRegister, byte), uint8_t width>
+template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, uint8_t),
+          void (Assembler::*sse_op)(XMMRegister, uint8_t), uint8_t width>
 void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister operand, int32_t count) {
   constexpr int mask = (1 << width) - 1;
-  byte shift = static_cast<byte>(count & mask);
+  uint8_t shift = static_cast<uint8_t>(count & mask);
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
     (assm->*avx_op)(dst.fp(), operand.fp(), shift);
@@ -4278,10 +4278,10 @@ void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
     psubd(dst.fp(), liftoff::kScratchDoubleReg);
   }
   Cvtdq2ps(liftoff::kScratchDoubleReg,
-           liftoff::kScratchDoubleReg);  // Convert lo exactly.
-  Psrld(dst.fp(), dst.fp(), byte{1});   // Divide by 2 to get in unsigned range.
-  Cvtdq2ps(dst.fp(), dst.fp());         // Convert hi, exactly.
-  Addps(dst.fp(), dst.fp(), dst.fp());  // Double hi, exactly.
+           liftoff::kScratchDoubleReg);   // Convert lo exactly.
+  Psrld(dst.fp(), dst.fp(), uint8_t{1});  // Div by 2 to get in unsigned range.
+  Cvtdq2ps(dst.fp(), dst.fp());           // Convert hi, exactly.
+  Addps(dst.fp(), dst.fp(), dst.fp());    // Double hi, exactly.
   Addps(dst.fp(), dst.fp(),
         liftoff::kScratchDoubleReg);  // Add hi and lo, may round.
 }

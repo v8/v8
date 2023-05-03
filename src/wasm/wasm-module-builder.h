@@ -32,7 +32,7 @@ class ZoneBuffer : public ZoneObject {
 
   static constexpr size_t kInitialSize = 1024;
   explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
-      : zone_(zone), buffer_(zone->NewArray<byte, Buffer>(initial)) {
+      : zone_(zone), buffer_(zone->NewArray<uint8_t, Buffer>(initial)) {
     pos_ = buffer_;
     end_ = buffer_ + initial;
   }
@@ -90,7 +90,7 @@ class ZoneBuffer : public ZoneObject {
 
   void write_f64(double val) { write_u64(base::bit_cast<uint64_t>(val)); }
 
-  void write(const byte* data, size_t size) {
+  void write(const uint8_t* data, size_t size) {
     if (size == 0) return;
     EnsureSpace(size);
     memcpy(pos_, data, size);
@@ -99,7 +99,7 @@ class ZoneBuffer : public ZoneObject {
 
   void write_string(base::Vector<const char> name) {
     write_size(name.length());
-    write(reinterpret_cast<const byte*>(name.begin()), name.length());
+    write(reinterpret_cast<const uint8_t*>(name.begin()), name.length());
   }
 
   size_t reserve_u32v() {
@@ -111,10 +111,10 @@ class ZoneBuffer : public ZoneObject {
 
   // Patch a (padded) u32v at the given offset to be the given value.
   void patch_u32v(size_t offset, uint32_t val) {
-    byte* ptr = buffer_ + offset;
+    uint8_t* ptr = buffer_ + offset;
     for (size_t pos = 0; pos != kPaddedVarInt32Size; ++pos) {
       uint32_t next = val >> 7;
-      byte out = static_cast<byte>(val & 0x7f);
+      uint8_t out = static_cast<uint8_t>(val & 0x7f);
       if (pos != kPaddedVarInt32Size - 1) {
         *(ptr++) = 0x80 | out;
         val = next;
@@ -124,21 +124,21 @@ class ZoneBuffer : public ZoneObject {
     }
   }
 
-  void patch_u8(size_t offset, byte val) {
+  void patch_u8(size_t offset, uint8_t val) {
     DCHECK_GE(size(), offset);
     buffer_[offset] = val;
   }
 
   size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
   size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
-  const byte* data() const { return buffer_; }
-  const byte* begin() const { return buffer_; }
-  const byte* end() const { return pos_; }
+  const uint8_t* data() const { return buffer_; }
+  const uint8_t* begin() const { return buffer_; }
+  const uint8_t* end() const { return pos_; }
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
       size_t new_size = size + (end_ - buffer_) * 2;
-      byte* new_buffer = zone_->NewArray<byte, Buffer>(new_size);
+      uint8_t* new_buffer = zone_->NewArray<uint8_t, Buffer>(new_size);
       memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
@@ -152,13 +152,13 @@ class ZoneBuffer : public ZoneObject {
     pos_ = buffer_ + size;
   }
 
-  byte** pos_ptr() { return &pos_; }
+  uint8_t** pos_ptr() { return &pos_; }
 
  private:
   Zone* zone_;
-  byte* buffer_;
-  byte* pos_;
-  byte* end_;
+  uint8_t* buffer_;
+  uint8_t* pos_;
+  uint8_t* end_;
 };
 
 class WasmModuleBuilder;
@@ -169,10 +169,10 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void SetSignature(const FunctionSig* sig);
   void SetSignature(uint32_t sig_index);
   uint32_t AddLocal(ValueType type);
-  void EmitByte(byte b);
+  void EmitByte(uint8_t b);
   void EmitI32V(int32_t val);
   void EmitU32V(uint32_t val);
-  void EmitCode(const byte* code, uint32_t code_size);
+  void EmitCode(const uint8_t* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
   void EmitWithPrefix(WasmOpcode opcode);
   void EmitGetLocal(uint32_t index);
@@ -183,8 +183,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitF32Const(float val);
   void EmitF64Const(double val);
   void EmitS128Const(Simd128 val);
-  void EmitWithU8(WasmOpcode opcode, const byte immediate);
-  void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
+  void EmitWithU8(WasmOpcode opcode, const uint8_t immediate);
+  void EmitWithU8U8(WasmOpcode opcode, const uint8_t imm1, const uint8_t imm2);
   void EmitWithI32V(WasmOpcode opcode, int32_t immediate);
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
   void EmitValueType(ValueType type);
@@ -197,7 +197,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
                           WasmCompilationHintTier top_tier);
 
   size_t GetPosition() const { return body_.size(); }
-  void FixupByte(size_t position, byte value) {
+  void FixupByte(size_t position, uint8_t value) {
     body_.patch_u8(position, value);
   }
   void DeleteCodeAfter(size_t position);
@@ -319,7 +319,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,
                            bool mutability,
                            base::Vector<const char> module = {});
-  void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
+  void AddDataSegment(const uint8_t* data, uint32_t size, uint32_t dest);
   // Add an element segment to this {WasmModuleBuilder}. {segment}'s enties
   // have to be initialized.
   void AddElementSegment(WasmElemSegment segment);
@@ -456,7 +456,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmDataSegment {
-    ZoneVector<byte> data;
+    ZoneVector<uint8_t> data;
     uint32_t dest;
   };
 

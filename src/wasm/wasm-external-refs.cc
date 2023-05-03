@@ -459,7 +459,7 @@ class V8_NODISCARD ThreadNotInWasmScope {
 #endif
 };
 
-inline byte* EffectiveAddress(WasmInstanceObject instance, uintptr_t index) {
+inline uint8_t* EffectiveAddress(WasmInstanceObject instance, uintptr_t index) {
   // TODO(13918): Support multiple memories.
   return instance.memory0_start() + index;
 }
@@ -493,8 +493,8 @@ int32_t memory_init_wrapper(Address data) {
   uint32_t seg_size = instance.data_segment_sizes().get(seg_index);
   if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
-  byte* seg_start =
-      reinterpret_cast<byte*>(instance.data_segment_starts().get(seg_index));
+  uint8_t* seg_start =
+      reinterpret_cast<uint8_t*>(instance.data_segment_starts().get(seg_index));
   std::memcpy(EffectiveAddress(instance, dst), seg_start + src, size);
   return kSuccess;
 }

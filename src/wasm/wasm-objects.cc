@@ -720,17 +720,17 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                 buffer->GetBackingStore()->has_guard_regions());
 
   // TODO(13918): Support multiple memories.
-  instance->SetRawMemory(0, reinterpret_cast<byte*>(buffer->backing_store()),
+  instance->SetRawMemory(0, reinterpret_cast<uint8_t*>(buffer->backing_store()),
                          buffer->byte_length());
 #if DEBUG
   if (!v8_flags.mock_arraybuffer_allocator) {
     // To flush out bugs earlier, in DEBUG mode, check that all pages of the
     // memory are accessible by reading and writing one byte on each page.
     // Don't do this if the mock ArrayBuffer allocator is enabled.
-    byte* mem_start = instance->memory0_start();
+    uint8_t* mem_start = instance->memory0_start();
     size_t mem_size = instance->memory0_size();
     for (size_t offset = 0; offset < mem_size; offset += wasm::kWasmPageSize) {
-      byte val = mem_start[offset];
+      uint8_t val = mem_start[offset];
       USE(val);
       mem_start[offset] = val;
     }
@@ -1103,7 +1103,7 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
   return true;
 }
 
-void WasmInstanceObject::SetRawMemory(int memory_index, byte* mem_start,
+void WasmInstanceObject::SetRawMemory(int memory_index, uint8_t* mem_start,
                                       size_t mem_size) {
   // TODO(13918): Support multiple memories.
   CHECK_EQ(0, memory_index);
@@ -1172,7 +1172,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_old_allocation_top_address(
       isolate->heap()->OldSpaceAllocationTopAddress());
   instance->set_globals_start(
-      reinterpret_cast<byte*>(EmptyBackingStoreBuffer()));
+      reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer()));
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_refs(
       ReadOnlyRoots(isolate).empty_fixed_array());
@@ -1194,8 +1194,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
-  instance->SetRawMemory(0, reinterpret_cast<byte*>(EmptyBackingStoreBuffer()),
-                         0);
+  instance->SetRawMemory(
+      0, reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer()), 0);
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1527,7 +1527,7 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
   DCHECK(!global.type.is_reference());
   if (global.mutability && global.imported) {
-    return reinterpret_cast<byte*>(
+    return reinterpret_cast<uint8_t*>(
         instance->imported_mutable_globals().get_sandboxed_pointer(
             global.index));
   } else {

@@ -273,21 +273,21 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 #endif  // V8_IS_TSAN
 
-  base::Vector<byte> instructions() const {
+  base::Vector<uint8_t> instructions() const {
     return base::VectorOf(instructions_,
                           static_cast<size_t>(instructions_size_));
   }
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
-  base::Vector<const byte> reloc_info() const {
+  base::Vector<const uint8_t> reloc_info() const {
     return {protected_instructions_data().end(),
             static_cast<size_t>(reloc_info_size_)};
   }
-  base::Vector<const byte> source_positions() const {
+  base::Vector<const uint8_t> source_positions() const {
     return {reloc_info().end(), static_cast<size_t>(source_positions_size_)};
   }
-  base::Vector<const byte> inlining_positions() const {
+  base::Vector<const uint8_t> inlining_positions() const {
     return {source_positions().end(),
             static_cast<size_t>(inlining_positions_size_)};
   }
@@ -422,14 +422,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
 
   WasmCode(NativeModule* native_module, int index,
-           base::Vector<byte> instructions, int stack_slots,
+           base::Vector<uint8_t> instructions, int stack_slots,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
            int handler_table_offset, int constant_pool_offset,
            int code_comments_offset, int unpadded_binary_size,
-           base::Vector<const byte> protected_instructions_data,
-           base::Vector<const byte> reloc_info,
-           base::Vector<const byte> source_position_table,
-           base::Vector<const byte> inlining_positions, Kind kind,
+           base::Vector<const uint8_t> protected_instructions_data,
+           base::Vector<const uint8_t> reloc_info,
+           base::Vector<const uint8_t> source_position_table,
+           base::Vector<const uint8_t> inlining_positions, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
@@ -459,8 +459,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(constant_pool_offset, unpadded_binary_size);
   }
 
-  std::unique_ptr<const byte[]> ConcatenateBytes(
-      std::initializer_list<base::Vector<const byte>>);
+  std::unique_ptr<const uint8_t[]> ConcatenateBytes(
+      std::initializer_list<base::Vector<const uint8_t>>);
 
   // Tries to get a reasonable name. Lazily looks up the name section, and falls
   // back to the function index. Return value is guaranteed to not be empty.
@@ -488,13 +488,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
   V8_NOINLINE bool DecRefOnPotentiallyDeadCode();
 
   NativeModule* const native_module_ = nullptr;
-  byte* const instructions_;
+  uint8_t* const instructions_;
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
   //  - source positions of size {source_positions_size_}
   // Note that the protected instructions come first to ensure alignment.
-  std::unique_ptr<const byte[]> meta_data_;
+  std::unique_ptr<const uint8_t[]> meta_data_;
   const int instructions_size_;
   const int reloc_info_size_;
   const int source_positions_size_;
@@ -561,13 +561,13 @@ class WasmCodeAllocator {
 
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  base::Vector<byte> AllocateForCode(NativeModule*, size_t size);
+  base::Vector<uint8_t> AllocateForCode(NativeModule*, size_t size);
 
   // Allocate code space within a specific region. Returns a valid buffer or
   // fails with OOM (crash).
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  base::Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
-                                             base::AddressRegion);
+  base::Vector<uint8_t> AllocateForCodeInRegion(NativeModule*, size_t size,
+                                                base::AddressRegion);
 
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
@@ -621,8 +621,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmCode> AddCode(
       int index, const CodeDesc& desc, int stack_slots,
       uint32_t tagged_parameter_slots,
-      base::Vector<const byte> protected_instructions,
-      base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+      base::Vector<const uint8_t> protected_instructions,
+      base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
@@ -652,14 +652,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
       size_t total_code_size);
 
   std::unique_ptr<WasmCode> AddDeserializedCode(
-      int index, base::Vector<byte> instructions, int stack_slots,
+      int index, base::Vector<uint8_t> instructions, int stack_slots,
       uint32_t tagged_parameter_slots, int safepoint_table_offset,
       int handler_table_offset, int constant_pool_offset,
       int code_comments_offset, int unpadded_binary_size,
-      base::Vector<const byte> protected_instructions_data,
-      base::Vector<const byte> reloc_info,
-      base::Vector<const byte> source_position_table,
-      base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
+      base::Vector<const uint8_t> protected_instructions_data,
+      base::Vector<const uint8_t> reloc_info,
+      base::Vector<const uint8_t> source_position_table,
+      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
@@ -882,9 +882,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
       int index, const CodeDesc& desc, int stack_slots,
       uint32_t tagged_parameter_slots,
-      base::Vector<const byte> protected_instructions_data,
-      base::Vector<const byte> source_position_table,
-      base::Vector<const byte> inlining_positions, WasmCode::Kind kind,
+      base::Vector<const uint8_t> protected_instructions_data,
+      base::Vector<const uint8_t> source_position_table,
+      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
       bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);
