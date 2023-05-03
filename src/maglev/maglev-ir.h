@@ -248,6 +248,7 @@ class MergePointInterpreterFrameState;
   V(ToNumberOrNumeric)                       \
   V(ToObject)                                \
   V(ToString)                                \
+  V(NumberToString)                          \
   CONSTANT_VALUE_NODE_LIST(V)                \
   INT32_OPERATIONS_NODE_LIST(V)              \
   FLOAT64_OPERATIONS_NODE_LIST(V)            \
@@ -3794,6 +3795,25 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
 
  private:
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
+};
+
+class NumberToString : public FixedInputValueNodeT<1, NumberToString> {
+  using Base = FixedInputValueNodeT<1, NumberToString>;
+
+ public:
+  explicit NumberToString(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::LazyDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& value_input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class GeneratorRestoreRegister

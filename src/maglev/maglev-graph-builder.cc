@@ -2709,6 +2709,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       // TODO(verwaest): Check what we need here.
       return NodeType::kUnknown;
     case Opcode::kToString:
+    case Opcode::kNumberToString:
       return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
@@ -6641,6 +6642,10 @@ ValueNode* MaglevGraphBuilder::BuildToString(ValueNode* value,
                                              ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
   // TODO(victorgomes): Add fast path for constant primitives.
+  if (CheckType(value, NodeType::kNumber)) {
+    // TODO(verwaest): Float64ToString if float.
+    return AddNewNode<NumberToString>({GetTaggedValue(value)});
+  }
   return AddNewNode<ToString>({GetContext(), GetTaggedValue(value)}, mode);
 }
 

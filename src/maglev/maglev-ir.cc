@@ -3313,6 +3313,21 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void NumberToString::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kNumberToString>::type;
+  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void NumberToString::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kNumberToString>::type;
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
+#endif  // DEBUG
+  __ CallBuiltin(Builtin::kNumberToString);
+  masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
+}
+
 int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
 void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
   UseAny(value());
