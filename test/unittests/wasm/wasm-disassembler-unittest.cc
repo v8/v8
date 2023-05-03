@@ -25,7 +25,9 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
   AccountingAllocator allocator;
 
   ModuleResult module_result = DecodeWasmModuleForDisassembler(module_bytes);
-  DCHECK(module_result.ok());
+  ASSERT_TRUE(module_result.ok())
+      << "Decoding error: " << module_result.error().message() << " at offset "
+      << module_result.error().offset();
   WasmModule* module = module_result.value().get();
 
   ModuleWireBytes wire_bytes(module_bytes);

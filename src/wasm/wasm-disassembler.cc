@@ -346,6 +346,14 @@ class ImmediatesPrinter {
     if (imm.type.is_index()) use_type(imm.type.ref_index());
   }
 
+  void ValueType(HeapTypeImmediate& imm, bool is_nullable) {
+    out_ << " ";
+    names()->PrintValueType(
+        out_, ValueType::RefMaybeNull(imm.type,
+                                      is_nullable ? kNullable : kNonNullable));
+    if (imm.type.is_index()) use_type(imm.type.ref_index());
+  }
+
   void BranchDepth(BranchDepthImmediate& imm) { PrintDepthAsLabel(imm.depth); }
 
   void BranchTable(BranchTableImmediate& imm) {
@@ -570,10 +578,6 @@ class ImmediatesPrinter {
     names()->PrintTypeName(out_, src.index);
     use_type(dst.index);
     use_type(src.index);
-  }
-
-  void BrOnCastFlags(BrOnCastImmediate& imm) {
-    out_ << " " << static_cast<unsigned>(imm.raw_value);
   }
 
  private:

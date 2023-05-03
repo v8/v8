@@ -2317,13 +2317,13 @@ class WasmDecoder : public Decoder {
             HeapTypeImmediate source_imm(
                 WasmFeatures::All(), decoder,
                 pc + length + flags_imm.length + branch.length, validate);
-            HeapTypeImmediate target_imm(
-                WasmFeatures::All(), decoder,
-                pc + length + flags_imm.length + branch.length, validate);
-            (ios.BrOnCastFlags(flags_imm), ...);
+            HeapTypeImmediate target_imm(WasmFeatures::All(), decoder,
+                                         pc + length + flags_imm.length +
+                                             branch.length + source_imm.length,
+                                         validate);
             (ios.BranchDepth(branch), ...);
-            (ios.HeapType(source_imm), ...);
-            (ios.HeapType(target_imm), ...);
+            (ios.ValueType(source_imm, flags_imm.flags.src_is_null), ...);
+            (ios.ValueType(target_imm, flags_imm.flags.res_is_null), ...);
             return length + flags_imm.length + branch.length +
                    source_imm.length + target_imm.length;
           }
