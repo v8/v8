@@ -10187,7 +10187,8 @@ template void CodeStubAssembler::LoadPropertyFromDictionary(
 TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
     TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
     TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
-    Label* if_bailout, GetOwnPropertyMode mode) {
+    Label* if_bailout, GetOwnPropertyMode mode,
+    ExpectedReceiverMode expected_receiver_mode) {
   TVARIABLE(Object, var_value, value);
   Label done(this), if_accessor_info(this, Label::kDeferred);
 
@@ -10220,6 +10221,9 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       {
         // Call the accessor. No need to check side-effect mode here, since it
         // will be checked later in DebugOnFunctionCall.
+        // It's too early to convert receiver to JSReceiver at this point
+        // (the Call builtin will do the conversion), so we ignore the
+        // |expected_receiver_mode| here.
         var_value = Call(context, getter, receiver);
         Goto(&done);
       }
@@ -10237,12 +10241,25 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
                                          : if_bailout;
         GotoIfNot(IsTheHole(cached_property_name), has_cached_property);
 
+        TNode<JSReceiver> js_receiver;
+        switch (expected_receiver_mode) {
+          case kExpectingJSReceiver:
+            js_receiver = CAST(receiver);
+            break;
+          case kExpectingAnyReceiver:
+            // TODO(ishell): in case the function template info has a signature
+            // and receiver is not a JSReceiver the signature check in
+            // CallFunctionTemplate builtin will fail anyway, so we can short
+            // cut it here and throw kIllegalInvocation immediately.
+            js_receiver = ToObject_Inline(context, receiver);
+            break;
+        }
         TNode<NativeContext> creation_context =
             GetCreationContext(CAST(holder), if_bailout);
         var_value = CallBuiltin(
             Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
             creation_context, getter, IntPtrConstant(i::JSParameterCount(0)),
-            receiver);
+            js_receiver);
         Goto(&done);
 
         if (mode == kCallJSGetterUseCachedName) {
@@ -10330,12 +10347,13 @@ void CodeStubAssembler::TryGetOwnProperty(
     TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
     TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
     Label* if_found_value, TVariable<Object>* var_value, Label* if_not_found,
-    Label* if_bailout) {
+    Label* if_bailout, ExpectedReceiverMode expected_receiver_mode) {
   TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
                     if_found_value, var_value, nullptr, nullptr, if_not_found,
                     if_bailout,
                     receiver == object ? kCallJSGetterUseCachedName
-                                       : kCallJSGetterDontUseCachedName);
+                                       : kCallJSGetterDontUseCachedName,
+                    expected_receiver_mode);
 }
 
 void CodeStubAssembler::TryGetOwnProperty(
@@ -10343,9 +10361,15 @@ void CodeStubAssembler::TryGetOwnProperty(
     TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
     Label* if_found_value, TVariable<Object>* var_value,
     TVariable<Uint32T>* var_details, TVariable<Object>* var_raw_value,
-    Label* if_not_found, Label* if_bailout, GetOwnPropertyMode mode) {
+    Label* if_not_found, Label* if_bailout, GetOwnPropertyMode mode,
+    ExpectedReceiverMode expected_receiver_mode) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
+  if (receiver == object) {
+    // If |receiver| is exactly the same Node as the |object| which is
+    // guaranteed to be JSReceiver override the |expected_receiver_mode|.
+    expected_receiver_mode = kExpectingJSReceiver;
+  }
   CSA_DCHECK(this, IsUniqueNameNoCachedIndex(unique_name));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_entry);
@@ -10394,9 +10418,9 @@ void CodeStubAssembler::TryGetOwnProperty(
     if (var_raw_value) {
       *var_raw_value = *var_value;
     }
-    TNode<Object> value =
-        CallGetterIfAccessor(var_value->value(), object, var_details->value(),
-                             context, receiver, unique_name, if_bailout, mode);
+    TNode<Object> value = CallGetterIfAccessor(
+        var_value->value(), object, var_details->value(), context, receiver,
+        unique_name, if_bailout, mode, expected_receiver_mode);
     *var_value = value;
     Goto(if_found_value);
   }

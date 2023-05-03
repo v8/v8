@@ -1389,9 +1389,12 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
           TNode<Name> unique_name, Label* next_holder, Label* if_bailout) {
         TVARIABLE(Object, var_value);
         Label if_found(this);
+        // If we get here then it's guaranteed that |object| (and thus the
+        // |receiver|) is a JSReceiver.
         TryGetOwnProperty(context, receiver, CAST(holder), holder_map,
                           holder_instance_type, unique_name, &if_found,
-                          &var_value, next_holder, if_bailout);
+                          &var_value, next_holder, if_bailout,
+                          kExpectingJSReceiver);
         BIND(&if_found);
         Return(var_value.value());
       };
@@ -1446,7 +1449,8 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
         Label if_found(this);
         TryGetOwnProperty(context, receiver, CAST(holder), holder_map,
                           holder_instance_type, unique_name, &if_found,
-                          &var_value, next_holder, if_bailout);
+                          &var_value, next_holder, if_bailout,
+                          kExpectingAnyReceiver);
         BIND(&if_found);
         Return(var_value.value());
       };

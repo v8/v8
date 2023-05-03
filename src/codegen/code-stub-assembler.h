@@ -3259,22 +3259,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // descriptor
     kReturnAccessorPair
   };
+  // Receiver handling mode for TryGetOwnProperty and CallGetterIfAccessor.
+  enum ExpectedReceiverMode {
+    // The receiver is guaranteed to be JSReceiver, no conversion is necessary
+    // in case a function callback template has to be called.
+    kExpectingJSReceiver,
+    // The receiver can be anything, it has to be converted to JSReceiver
+    // in case a function callback template has to be called.
+    kExpectingAnyReceiver,
+  };
   // Tries to get {object}'s own {unique_name} property value. If the property
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number. {unique_name} must be
   // a unique name (Symbol or InternalizedString) that is not an array index.
-  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
-                         TNode<JSReceiver> object, TNode<Map> map,
-                         TNode<Int32T> instance_type, TNode<Name> unique_name,
-                         Label* if_found_value, TVariable<Object>* var_value,
-                         Label* if_not_found, Label* if_bailout);
-  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
-                         TNode<JSReceiver> object, TNode<Map> map,
-                         TNode<Int32T> instance_type, TNode<Name> unique_name,
-                         Label* if_found_value, TVariable<Object>* var_value,
-                         TVariable<Uint32T>* var_details,
-                         TVariable<Object>* var_raw_value, Label* if_not_found,
-                         Label* if_bailout, GetOwnPropertyMode mode);
+  void TryGetOwnProperty(
+      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+      Label* if_found_value, TVariable<Object>* var_value, Label* if_not_found,
+      Label* if_bailout,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingAnyReceiver);
+  void TryGetOwnProperty(
+      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+      Label* if_found_value, TVariable<Object>* var_value,
+      TVariable<Uint32T>* var_details, TVariable<Object>* var_raw_value,
+      Label* if_not_found, Label* if_bailout, GetOwnPropertyMode mode,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingAnyReceiver);
 
   TNode<PropertyDescriptorObject> AllocatePropertyDescriptorObject(
       TNode<Context> context);
@@ -4164,7 +4174,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
       TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
       Label* if_bailout,
-      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName);
+      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingJSReceiver);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
