@@ -2703,8 +2703,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
-    case Opcode::kCreateEmptyArrayLiteral:
-      return NodeType::kJSReceiver;
     case Opcode::kToName:
       return NodeType::kName;
     case Opcode::kFloat64Equal:
@@ -6785,10 +6783,28 @@ void MaglevGraphBuilder::VisitCreateArrayFromIterable() {
 }
 
 void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
-  // TODO(v8:7700): Consider inlining the allocation.
   FeedbackSlot slot_index = GetSlotOperand(0);
-  SetAccumulator(AddNewNode<CreateEmptyArrayLiteral>(
-      {}, compiler::FeedbackSource{feedback(), slot_index}));
+  compiler::FeedbackSource feedback_source(feedback(), slot_index);
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
+  if (processed_feedback.IsInsufficient()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral);
+    return;
+  }
+  compiler::AllocationSiteRef site = processed_feedback.AsLiteral().value();
+
+  broker()->dependencies()->DependOnElementsKinds(site);
+  ElementsKind kind = site.GetElementsKind();
+
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  compiler::MapRef map = native_context.GetInitialJSArrayMap(broker(), kind);
+  FastObject literal(map, zone(), {});
+  literal.js_array_length = MakeRef(broker(), Object::cast(Smi::zero()));
+  SetAccumulator(BuildAllocateFastObject(literal, AllocationType::kYoung));
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentRawAllocation();
 }
 
 base::Optional<FastObject> MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(

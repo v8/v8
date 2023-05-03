@@ -2119,23 +2119,6 @@ void CheckConstructResult::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-int CreateEmptyArrayLiteral::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kCreateEmptyArrayLiteral>::type;
-  return D::GetStackParameterCount();
-}
-void CreateEmptyArrayLiteral::SetValueLocationConstraints() {
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateEmptyArrayLiteral::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  using D = CreateEmptyArrayLiteralDescriptor;
-  __ Move(kContextRegister, masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-  __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
 int CreateObjectLiteral::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->nargs, 4);
   return 4;

@@ -137,7 +137,10 @@ struct FastObject {
         inobject_properties(map.GetInObjectProperties()),
         instance_size(map.instance_size()),
         fields(zone->NewArray<FastField>(inobject_properties)),
-        elements(elements) {}
+        elements(elements) {
+    DCHECK(!map.is_dictionary_map());
+    DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  }
   FastObject(compiler::JSFunctionRef constructor, Zone* zone,
              compiler::JSHeapBroker* broker);
 

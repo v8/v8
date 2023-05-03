@@ -149,7 +149,6 @@ class MergePointInterpreterFrameState;
   V(ConstructWithSpread)                     \
   V(ConvertReceiver)                         \
   V(ConvertHoleToUndefined)                  \
-  V(CreateEmptyArrayLiteral)                 \
   V(CreateArrayLiteral)                      \
   V(CreateShallowArrayLiteral)               \
   V(CreateObjectLiteral)                     \
@@ -3982,30 +3981,6 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
 
  private:
   const RootIndex index_;
-};
-
-class CreateEmptyArrayLiteral
-    : public FixedInputValueNodeT<0, CreateEmptyArrayLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateEmptyArrayLiteral>;
-
- public:
-  explicit CreateEmptyArrayLiteral(uint64_t bitfield,
-                                   const compiler::FeedbackSource& feedback)
-      : Base(bitfield), feedback_(feedback) {}
-
-  compiler::FeedbackSource feedback() const { return feedback_; }
-
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::GenericRuntimeOrBuiltinCall();
-
-  int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  const compiler::FeedbackSource feedback_;
 };
 
 class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
