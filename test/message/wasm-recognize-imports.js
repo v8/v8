@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --allow-natives-syntax
-// Flags: --trace-wasm-inlining --liftoff
+// Flags: --trace-wasm-inlining --liftoff --experimental-wasm-typed-funcref
 // Also explicitly enable inlining and disable debug code to avoid differences
 // between --future and --no-future or debug and release builds.
 // Flags: --experimental-wasm-inlining --no-debug-code
@@ -59,14 +59,28 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       makeSig([kWasmStringRef, kWasmStringRef, kWasmI32], [kWasmI32]);
   let sig_w_d = makeSig([kWasmF64], [kWasmStringRef]);
   let sig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
+  let sig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
+  let nn_string = wasmRefType(kWasmStringRef);
+  let sig_w_ww_nonnullable = makeSig([nn_string, nn_string], [nn_string]);
   builder.addImport("m", "intToString", sig_w_ii);
   builder.addImport("m", "doubleToString", sig_w_d);
   builder.addImport("m", "parseFloat", sig_d_w);
   builder.addImport("m", "indexOf", sig_i_wwi);
+  builder.addImport("m", "toLocaleLowerCase", sig_w_ww);
+  builder.addImport("m", "toLocaleLowerCase_nn", sig_w_ww_nonnullable);
   let indexOf = Function.prototype.call.bind(String.prototype.indexOf);
   let intToString = Function.prototype.call.bind(Number.prototype.toString);
   let doubleToString = intToString;
+  let toLocaleLowerCase =
+      Function.prototype.call.bind(String.prototype.toLocaleLowerCase);
   builder.instantiate({
-    m: {intToString, doubleToString, parseFloat, indexOf}
+    m: {
+      intToString,
+      doubleToString,
+      parseFloat,
+      indexOf,
+      toLocaleLowerCase,
+      toLocaleLowerCase_nn: toLocaleLowerCase,
+    }
   });
 })();

@@ -155,3 +155,40 @@ assertEquals("abc", instance1.exports.call_tolower("ABC"));
       () => indexOf(null, 'null', 0),
       () => String.prototype.indexOf.call(null, 'null', 0), 'call_indexof');
 })();
+
+(function TestToLocaleLower() {
+  console.log("Testing String.toLocaleLowerCase");
+  let builder = new WasmModuleBuilder();
+  let sig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
+  let tolower = builder.addImport("m", "tolower", sig_w_ww);
+  builder.addFunction('call_tolower', sig_w_ww).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprCallFunction, tolower,
+  ]);
+  tolower = builder.instantiate({
+    m: {
+      tolower: Function.prototype.call.bind(String.prototype.toLocaleLowerCase)
+    }
+  }).exports.call_tolower;
+  %WasmTierUpFunction(tolower);
+  assertEquals("abc", tolower("ABC", "en"));
+  let has_i18n = typeof Intl !== "undefined";
+  if (has_i18n) {
+    // Check that the locale isn't ignored.
+    assertEquals("\u0131", tolower("I", "az"));
+    CheckStackTrace(
+        () => tolower('ABC', null),
+        () => String.prototype.toLocaleLowerCase.call('ABC', null),
+        'call_tolower');
+  } else {
+    // Non-i18n builds ignore the locale parameter.
+    assertEquals("i", tolower("I", "az"));
+    assertEquals('abc', tolower('ABC', null));
+    assertEquals('abc', String.prototype.toLocaleLowerCase.call('ABC', null));
+  }
+  CheckStackTrace(
+      () => tolower(null, 'en'),
+      () => String.prototype.toLocaleLowerCase.call(null, 'en'),
+      'call_tolower');
+})();

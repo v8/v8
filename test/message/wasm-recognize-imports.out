@@ -13,3 +13,5 @@ Still optimized: false
 [import 1 is well-known built-in DoubleToString]
 [import 2 is well-known built-in ParseFloat]
 [import 3 is well-known built-in String.indexOf]
+[import 4 is well-known built-in String.toLocaleLowerCase]
+[import 5 is well-known built-in String.toLocaleLowerCase]

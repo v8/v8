@@ -28,6 +28,7 @@ enum class WellKnownImport : uint8_t {
   kIntToString,
   kParseFloat,
   kStringIndexOf,
+  kStringToLocaleLowerCaseStringref,
   kStringToLowerCaseStringref,
 };
 
