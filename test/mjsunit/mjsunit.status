@@ -1916,6 +1916,14 @@
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
 ['variant == stress_maglev', {
+  # Maglev doesn't support elements transitions (yet!).
+  'compiler/regress-9945-2': [FAIL],
+}], # variant == stress_maglev
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant == stress_maglev or variant == stress_maglev_future', {
   # Maglev doesn't inline Array constructors, so it won't bake in allocation
   # site feedback.
   'array-constructor-feedback': [FAIL],
@@ -1966,7 +1974,6 @@
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).
   'compiler/regress-9945-1': [FAIL],
-  'compiler/regress-9945-2': [FAIL],
   # Maglev doesn't support growing elements stores.
   'array-store-and-grow': [FAIL],
   # This test requires inlining, currently disabled in Maglev
@@ -1976,7 +1983,7 @@
   # the deprecated map. Wiring this through in Maglev would be too messy to be
   # worth it.
   'regress/regress-map-invalidation-2': [FAIL],
-}], # variant == stress_maglev
+}], # variant == stress_maglev or variant == stress_maglev_future
 
 ##############################################################################
 ['is_clang_coverage and mode == debug', {
