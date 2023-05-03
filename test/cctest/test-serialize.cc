@@ -808,13 +808,11 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
     v8::Context::Scope c_scope(context);
     {
-      // Check that compiled irregexp code has not been flushed prior to
+      // Check that compiled irregexp code has been flushed prior to
       // serialization.
       i::Handle<i::JSRegExp> re =
           Utils::OpenHandle(*CompileRun("re1").As<v8::RegExp>());
-      CHECK_EQ(re->HasCompiledCode(),
-               function_code_handling ==
-                   v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+      CHECK(!re->HasCompiledCode());
     }
     {
       v8::Maybe<int32_t> result =

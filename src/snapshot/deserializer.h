@@ -113,7 +113,6 @@ class Deserializer : public SerializerDeserializer {
   Handle<HeapObject> ReadObject();
 
  private:
-  friend class DeserializerRelocInfoVisitor;
   // A circular queue of hot objects. This is added to in the same order as in
   // Serializer::HotObjectsList, but this stores the objects as a vector of
   // existing handles. This allows us to add Handles to the queue without having
@@ -197,8 +196,6 @@ class Deserializer : public SerializerDeserializer {
   int ReadResolvePendingForwardRef(byte data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadVariableRawData(byte data, SlotAccessor slot_accessor);
-  template <typename SlotAccessor>
-  int ReadCodeBody(byte data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadVariableRepeat(byte data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>

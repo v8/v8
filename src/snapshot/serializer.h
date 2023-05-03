@@ -484,8 +484,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   Isolate* isolate() { return isolate_; }
 
  private:
-  class RelocInfoObjectPreSerializer;
-
   void SerializePrologue(SnapshotSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
@@ -494,7 +492,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void OutputExternalReference(Address target, int target_size, bool sandboxify,
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);
-  void SerializeInstructionStream(Map map, int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
                                  Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();

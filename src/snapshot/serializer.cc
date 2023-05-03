@@ -897,15 +897,10 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
 void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   HeapObject raw = *object_;
   UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
-  if (raw.IsInstructionStream()) {
-    // For InstructionStream objects, perform a custom serialization.
-    SerializeInstructionStream(map, size);
-  } else {
-    // For other objects, iterate references first.
-    raw.IterateBody(map, size, this);
-    // Then output data payload, if any.
-    OutputRawData(raw.address() + size);
-  }
+  // Iterate references first.
+  raw.IterateBody(map, size, this);
+  // Then output data payload, if any.
+  OutputRawData(raw.address() + size);
 }
 
 void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
@@ -984,31 +979,34 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 
 void Serializer::ObjectSerializer::VisitCodePointer(Code host,
                                                     CodeObjectSlot slot) {
-  // A version of VisitPointers() customized for CodeObjectSlot.
-  HandleScope scope(isolate());
-  DisallowGarbageCollection no_gc;
+  DCHECK(!host.has_instruction_stream());
+}
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-  PtrComprCageBase code_cage_base(isolate()->code_cage_base());
-#else
-  PtrComprCageBase code_cage_base(isolate());
-#endif
-  Object contents = slot.load(code_cage_base);
-  if (contents.IsSmi()) {
-    // The contents of the CodeObjectSlot being a Smi means that the host
-    // Code corresponds to Code-less embedded builtin
-    // trampoline, the value will be serialized as a Smi.
-    DCHECK_EQ(contents, Smi::zero());
-    return;
-  }
-  DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(contents.ptr()));
-  DCHECK(contents.IsInstructionStream());
+// All of these visitor functions are unreachable since we don't serialize
+// InstructionStream objects anymore.
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(InstructionStream host,
+                                                        RelocInfo* rinfo) {
+  UNREACHABLE();
+}
 
-  Handle<HeapObject> obj = handle(HeapObject::cast(contents), isolate());
-  if (!serializer_->SerializePendingObject(*obj)) {
-    serializer_->SerializeObject(obj, SlotType::kAnySlot);
-  }
-  bytes_processed_so_far_ += kTaggedSize;
+void Serializer::ObjectSerializer::VisitExternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
+  UNREACHABLE();
+}
+
+void Serializer::ObjectSerializer::VisitInternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
+  UNREACHABLE();
+}
+
+void Serializer::ObjectSerializer::VisitOffHeapTarget(InstructionStream host,
+                                                      RelocInfo* rinfo) {
+  UNREACHABLE();
+}
+
+void Serializer::ObjectSerializer::VisitCodeTarget(InstructionStream host,
+                                                   RelocInfo* rinfo) {
+  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::OutputExternalReference(
@@ -1069,72 +1067,6 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   }
 }
 
-class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
- public:
-  explicit RelocInfoObjectPreSerializer(Serializer* serializer)
-      : serializer_(serializer) {}
-
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* target) {
-    HeapObject object = target->target_object(isolate());
-    serializer_->SerializeObject(handle(object, isolate()), SlotType::kAnySlot);
-    num_serialized_objects_++;
-  }
-  void VisitCodeTarget(InstructionStream host, RelocInfo* target) {
-#ifdef V8_TARGET_ARCH_ARM
-    DCHECK(!RelocInfo::IsRelativeCodeTarget(target->rmode()));
-#endif
-    InstructionStream object =
-        InstructionStream::FromTargetAddress(target->target_address());
-    serializer_->SerializeObject(handle(object, isolate()), SlotType::kAnySlot);
-    num_serialized_objects_++;
-  }
-
-  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo) {}
-  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo) {}
-  void VisitOffHeapTarget(InstructionStream host, RelocInfo* target) {}
-
-  int num_serialized_objects() const { return num_serialized_objects_; }
-
-  Isolate* isolate() { return serializer_->isolate(); }
-
- private:
-  Serializer* serializer_;
-  int num_serialized_objects_ = 0;
-};
-
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(InstructionStream host,
-                                                        RelocInfo* rinfo) {
-  // Target object should be pre-serialized by RelocInfoObjectPreSerializer, so
-  // just track the pointer's existence as kTaggedSize in
-  // bytes_processed_so_far_.
-  // TODO(leszeks): DCHECK that RelocInfoObjectPreSerializer serialized this
-  // specific object already.
-  bytes_processed_so_far_ += kTaggedSize;
-}
-
-void Serializer::ObjectSerializer::VisitExternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
-  Address target = rinfo->target_external_reference();
-  DCHECK_NE(target,
-            kNullAddress);  // InstructionStream does not reference null.
-  DCHECK_IMPLIES(serializer_->EncodeExternalReference(target).is_from_api(),
-                 !rinfo->IsCodedSpecially());
-  // Don't "sandboxify" external references embedded in the code.
-  OutputExternalReference(target, rinfo->target_address_size(), false,
-                          kExternalPointerNullTag);
-}
-
-void Serializer::ObjectSerializer::VisitInternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
-  Address entry = host.instruction_start();
-  DCHECK_GE(rinfo->target_internal_reference(), entry);
-  uintptr_t target_offset = rinfo->target_internal_reference() - entry;
-  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  DCHECK_LT(target_offset, host.code(kAcquireLoad).instruction_size());
-  sink_->Put(kInternalReference, "InternalRef");
-  sink_->PutInt(target_offset, "internal ref value");
-}
-
 void Serializer::ObjectSerializer::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
   PtrComprCageBase cage_base(isolate());
@@ -1172,34 +1104,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         // See ObjectSerializer::OutputRawData().
         InstanceTypeChecker::IsCode(instance_type));
   }
-}
-
-void Serializer::ObjectSerializer::VisitOffHeapTarget(InstructionStream host,
-                                                      RelocInfo* rinfo) {
-  static_assert(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
-
-  // Currently we don't serialize code that contains near builtin entries.
-  CHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
-
-  Address addr = rinfo->target_off_heap_target();
-  CHECK_NE(kNullAddress, addr);
-
-  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate(), addr);
-  CHECK(Builtins::IsBuiltinId(builtin));
-  CHECK(Builtins::IsIsolateIndependent(builtin));
-
-  sink_->Put(kOffHeapTarget, "OffHeapTarget");
-  sink_->PutInt(static_cast<int>(builtin), "builtin index");
-}
-
-void Serializer::ObjectSerializer::VisitCodeTarget(InstructionStream host,
-                                                   RelocInfo* rinfo) {
-  // Target object should be pre-serialized by RelocInfoObjectPreSerializer, so
-  // just track the pointer's existence as kTaggedSize in
-  // bytes_processed_so_far_.
-  // TODO(leszeks): DCHECK that RelocInfoObjectPreSerializer serialized this
-  // specific object already.
-  bytes_processed_so_far_ += kTaggedSize;
 }
 
 namespace {
@@ -1292,103 +1196,6 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                     bytes_to_output, "Bytes");
     }
   }
-}
-
-void Serializer::ObjectSerializer::SerializeInstructionStream(Map map,
-                                                              int size) {
-  static const int kWipeOutModeMask =
-      RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-      RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
-      RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
-
-  DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
-  Handle<InstructionStream> on_heap_istream =
-      Handle<InstructionStream>::cast(object_);
-  Handle<Code> code = handle(on_heap_istream->code(kAcquireLoad), isolate_);
-
-  ByteArray relocation_info = on_heap_istream->relocation_info();
-
-  // To make snapshots reproducible, we make a copy of the InstructionStream
-  // object and wipe all pointers in the copy, which we then serialize.
-  InstructionStream off_heap_istream = serializer_->CopyCode(*on_heap_istream);
-  for (RelocIterator it(*code, off_heap_istream, relocation_info,
-                        kWipeOutModeMask);
-       !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    rinfo->WipeOut();
-  }
-
-  // Initially skip serializing the code header. We'll serialize it after the
-  // InstructionStream body, so that the various fields the InstructionStream
-  // needs for iteration are already valid.
-  // TODO(v8:13784): rename to kInstructionStreamBody
-  sink_->Put(kCodeBody, "kCodeBody");
-
-  // Now serialize the wiped off-heap InstructionStream, as length + data.
-  Address start = off_heap_istream.address() + InstructionStream::kDataStart;
-  int bytes_to_output = size - InstructionStream::kDataStart;
-  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
-  int tagged_to_output = bytes_to_output / kTaggedSize;
-
-  sink_->PutInt(tagged_to_output, "length");
-
-#ifdef MEMORY_SANITIZER
-  // Check that we do not serialize uninitialized memory.
-  __msan_check_mem_is_initialized(reinterpret_cast<void*>(start),
-                                  bytes_to_output);
-#endif  // MEMORY_SANITIZER
-  sink_->PutRaw(reinterpret_cast<byte*>(start), bytes_to_output,
-                "InstructionStream");
-
-  // Manually serialize the code header. We don't use
-  // InstructionStream::BodyDescriptor here as we don't yet want to walk the
-  // RelocInfos.
-  DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
-  VisitPointers(*on_heap_istream,
-                on_heap_istream->RawField(HeapObject::kHeaderSize),
-                on_heap_istream->RawField(InstructionStream::kDataStart));
-  DCHECK_EQ(bytes_processed_so_far_, InstructionStream::kDataStart);
-
-  // Now serialize RelocInfos. We can't allocate during a RelocInfo walk during
-  // deserialization, so we have two passes for RelocInfo serialization:
-  //   1. A pre-serializer which serializes all allocatable objects in the
-  //      RelocInfo, followed by a kSynchronize bytecode, and
-  //   2. A walk the RelocInfo with this serializer, serializing any objects
-  //      implicitly as offsets into the pre-serializer's object array.
-  // This way, the deserializer can deserialize the allocatable objects first,
-  // without walking RelocInfo, re-build the pre-serializer's object array, and
-  // only then walk the RelocInfo itself.
-  // TODO(leszeks): We only really need to pre-serialize objects which need
-  // serialization, i.e. no backrefs or roots.
-  RelocInfoObjectPreSerializer pre_serializer(serializer_);
-  for (RelocIterator it(*code, *on_heap_istream, relocation_info,
-                        InstructionStream::BodyDescriptor::kRelocModeMask);
-       !it.done(); it.next()) {
-    it.rinfo()->Visit(*on_heap_istream, &pre_serializer);
-  }
-  // Mark that the pre-serialization finished with a kSynchronize bytecode.
-  sink_->Put(kSynchronize, "PreSerializationFinished");
-
-  // Finally serialize all RelocInfo objects in the on-heap InstructionStream,
-  // knowing that we will not do a recursive serialization.
-  // TODO(leszeks): Add a scope that DCHECKs this.
-  for (RelocIterator it(*code, *on_heap_istream, relocation_info,
-                        InstructionStream::BodyDescriptor::kRelocModeMask);
-       !it.done(); it.next()) {
-    it.rinfo()->Visit(*on_heap_istream, this);
-  }
-
-  // We record a kTaggedSize for every object encountered during the
-  // serialization, so DCHECK that bytes_processed_so_far_ matches the expected
-  // number of bytes (i.e. the code header + a tagged size per pre-serialized
-  // object).
-  DCHECK_EQ(bytes_processed_so_far_,
-            InstructionStream::kDataStart +
-                kTaggedSize * pre_serializer.num_serialized_objects());
 }
 
 Serializer::HotObjectsList::HotObjectsList(Heap* heap) : heap_(heap) {

@@ -227,13 +227,13 @@ void Snapshot::ClearReconstructableDataForSerialization(
   // Clear SFIs and JSRegExps.
   PtrComprCageBase cage_base(isolate);
 
-  if (clear_recompilable_data) {
+  {
     HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
     {
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-        if (o.IsSharedFunctionInfo(cage_base)) {
+        if (clear_recompilable_data && o.IsSharedFunctionInfo(cage_base)) {
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
           if (shared.script(cage_base).IsScript(cage_base) &&
               Script::cast(shared.script(cage_base)).type() ==

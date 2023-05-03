@@ -713,106 +713,6 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   return obj;
 }
 
-class DeserializerRelocInfoVisitor {
- public:
-  DeserializerRelocInfoVisitor(Deserializer<Isolate>* deserializer,
-                               const std::vector<Handle<HeapObject>>* objects)
-      : deserializer_(deserializer), objects_(objects), current_object_(0) {}
-
-  DeserializerRelocInfoVisitor(Deserializer<LocalIsolate>* deserializer,
-                               const std::vector<Handle<HeapObject>>* objects) {
-    UNREACHABLE();
-  }
-
-  ~DeserializerRelocInfoVisitor() {
-    DCHECK_EQ(current_object_, objects_->size());
-  }
-
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo);
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo);
-  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo);
-  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo);
-  void VisitOffHeapTarget(InstructionStream host, RelocInfo* rinfo);
-
- private:
-  Isolate* isolate() { return deserializer_->isolate(); }
-  SnapshotByteSource& source() { return deserializer_->source_; }
-
-  Deserializer<Isolate>* deserializer_;
-  const std::vector<Handle<HeapObject>>* objects_;
-  int current_object_;
-};
-
-void DeserializerRelocInfoVisitor::VisitCodeTarget(InstructionStream host,
-                                                   RelocInfo* rinfo) {
-  HeapObject object = *objects_->at(current_object_++);
-  rinfo->set_target_address(
-      host, InstructionStream::cast(object).instruction_start());
-}
-
-void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(InstructionStream host,
-                                                        RelocInfo* rinfo) {
-  HeapObject object = *objects_->at(current_object_++);
-  // Embedded object reference must be a strong one.
-  rinfo->set_target_object(host, object);
-}
-
-void DeserializerRelocInfoVisitor::VisitExternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kExternalReference);
-
-  Address address = deserializer_->ReadExternalReferenceCase();
-
-  if (rinfo->IsCodedSpecially()) {
-    Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(
-        location_of_branch_data, host.code(kAcquireLoad), address);
-  } else {
-    WriteUnalignedValue(rinfo->target_address_address(), address);
-  }
-}
-
-void DeserializerRelocInfoVisitor::VisitInternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kInternalReference);
-
-  // An internal reference target is encoded as an offset from code entry.
-  int target_offset = source().GetInt();
-  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(host.code(kAcquireLoad).instruction_size()));
-  Address target = host.instruction_start() + target_offset;
-  Assembler::deserialization_set_target_internal_reference_at(
-      rinfo->pc(), target, rinfo->rmode());
-}
-
-void DeserializerRelocInfoVisitor::VisitOffHeapTarget(InstructionStream host,
-                                                      RelocInfo* rinfo) {
-  // Currently we don't serialize code that contains near builtin entries.
-  DCHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
-
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kOffHeapTarget);
-
-  Builtin builtin = Builtins::FromInt(source().GetInt());
-
-  CHECK_NOT_NULL(isolate()->embedded_blob_code());
-  EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address address = d.InstructionStartOf(builtin);
-  CHECK_NE(kNullAddress, address);
-
-  // TODO(ishell): implement RelocInfo::set_target_off_heap_target()
-  if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
-    Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(
-        location_of_branch_data, host.code(kAcquireLoad), address);
-  } else {
-    WriteUnalignedValue(rinfo->target_address_address(), address);
-  }
-}
-
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
@@ -910,12 +810,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case kExternalReference:
       return ReadExternalReference(data, slot_accessor);
     case kSandboxedRawExternalReference:
-    case kRawExternalReference:
       return ReadRawExternalReference(data, slot_accessor);
-    case kInternalReference:
-    case kOffHeapTarget:
-      //  These bytecodes are expected only during RelocInfo iteration.
-      UNREACHABLE();
     case kAttachedReference:
       return ReadAttachedReference(data, slot_accessor);
     case kNop:
@@ -930,8 +825,6 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       UNREACHABLE();
     case kVariableRawData:
       return ReadVariableRawData(data, slot_accessor);
-    case kCodeBody:
-      return ReadCodeBody(data, slot_accessor);
     case kVariableRepeat:
       return ReadVariableRepeat(data, slot_accessor);
     case kOffHeapBackingStore:
@@ -1173,70 +1066,6 @@ int Deserializer<IsolateT>::ReadVariableRawData(byte data,
   return size_in_tagged;
 }
 
-// Custom deserialization for a Code object and its associated InstructionStream
-// object.
-template <typename IsolateT>
-template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadCodeBody(byte data,
-                                         SlotAccessor slot_accessor) {
-  // This operation is only supported for tagged-size slots, else we might
-  // become misaligned.
-  DCHECK_EQ(decltype(slot_accessor.slot())::kSlotDataSize, kTaggedSize);
-  // CodeBody can only occur right after the heap object header.
-  DCHECK_EQ(slot_accessor.offset(), HeapObject::kHeaderSize);
-
-  int size_in_tagged = source_.GetInt();
-  int size_in_bytes = size_in_tagged * kTaggedSize;
-
-  {
-    DisallowGarbageCollection no_gc;
-    InstructionStream istream =
-        InstructionStream::cast(*slot_accessor.object());
-
-    // First deserialize the untagged region of the InstructionStream object.
-    source_.CopyRaw(reinterpret_cast<void*>(istream.address() +
-                                            InstructionStream::kDataStart),
-                    size_in_bytes);
-  }
-
-  // Then deserialize the InstructionStream header
-  ReadData(slot_accessor.object(), HeapObject::kHeaderSize / kTaggedSize,
-           InstructionStream::kDataStart / kTaggedSize);
-
-  // Then deserialize the pre-serialized RelocInfo objects.
-  std::vector<Handle<HeapObject>> preserialized_objects;
-  while (source_.Peek() != kSynchronize) {
-    Handle<HeapObject> obj = ReadObject();
-    preserialized_objects.push_back(obj);
-  }
-  // Skip the synchronize bytecode.
-  source_.Advance(1);
-
-  // Finally iterate RelocInfos (the same way it was done by the serializer)
-  // and deserialize respective data into RelocInfos. The RelocIterator
-  // holds a raw pointer to the code, so we have to disable garbage
-  // collection here. It's ok though, any objects it would have needed are
-  // in the preserialized_objects vector.
-  {
-    DisallowGarbageCollection no_gc;
-
-    InstructionStream istream =
-        InstructionStream::cast(*slot_accessor.object());
-    Code code = istream.code(kAcquireLoad);
-    DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
-    for (RelocIterator it(code, istream, istream.relocation_info(),
-                          InstructionStream::BodyDescriptor::kRelocModeMask);
-         !it.done(); it.next()) {
-      it.rinfo()->Visit(istream, &visitor);
-    }
-  }
-
-  // Advance to the end of the code object.
-  return (int{InstructionStream::kDataStart} - HeapObject::kHeaderSize) /
-             kTaggedSize +
-         size_in_tagged;
-}
-
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadVariableRepeat(byte data,
@@ -1279,7 +1108,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadApiReference(byte data,
                                              SlotAccessor slot_accessor) {
-  DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
+  DCHECK_IMPLIES(data == kSandboxedApiReference, V8_ENABLE_SANDBOX_BOOL);
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   Address address;
   if (main_thread_isolate()->api_external_references()) {
