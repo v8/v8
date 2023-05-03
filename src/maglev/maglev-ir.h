@@ -948,7 +948,8 @@ class DeoptFrame {
 
   struct ConstructStubFrameData {
     const MaglevCompilationUnit& unit;
-    BytecodeOffset bytecode_position;
+    const BytecodeOffset bytecode_position;
+    const SourcePosition source_position;
     ValueNode* closure;
     ValueNode* receiver;
     const base::Vector<ValueNode*> arguments_without_receiver;
@@ -1095,14 +1096,15 @@ inline InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments() {
 class ConstructStubDeoptFrame : public DeoptFrame {
  public:
   ConstructStubDeoptFrame(const MaglevCompilationUnit& unit,
-                          BytecodeOffset bytecode_position, ValueNode* closure,
+                          BytecodeOffset bytecode_position,
+                          SourcePosition source_position, ValueNode* closure,
                           ValueNode* receiver,
                           base::Vector<ValueNode*> arguments_without_receiver,
                           ValueNode* context, DeoptFrame* parent)
-      : DeoptFrame(
-            ConstructStubFrameData{unit, bytecode_position, closure, receiver,
-                                   arguments_without_receiver, context},
-            parent) {}
+      : DeoptFrame(ConstructStubFrameData{unit, bytecode_position,
+                                          source_position, closure, receiver,
+                                          arguments_without_receiver, context},
+                   parent) {}
 
   const MaglevCompilationUnit& unit() const {
     return data_.construct_stub_frame_data.unit;
@@ -1110,7 +1112,7 @@ class ConstructStubDeoptFrame : public DeoptFrame {
   BytecodeOffset bytecode_position() const {
     return data_.construct_stub_frame_data.bytecode_position;
   }
-  ValueNode*& closure() { return data_.inlined_arguments_frame_data.closure; }
+  ValueNode*& closure() { return data_.construct_stub_frame_data.closure; }
   ValueNode* closure() const { return data_.construct_stub_frame_data.closure; }
   ValueNode*& receiver() { return data_.construct_stub_frame_data.receiver; }
   ValueNode* receiver() const {
@@ -1121,6 +1123,9 @@ class ConstructStubDeoptFrame : public DeoptFrame {
   }
   ValueNode*& context() { return data_.construct_stub_frame_data.context; }
   ValueNode* context() const { return data_.construct_stub_frame_data.context; }
+  SourcePosition source_position() const {
+    return data_.construct_stub_frame_data.source_position;
+  }
 };
 
 // Make sure storing/passing deopt frames by value doesn't truncate them.
