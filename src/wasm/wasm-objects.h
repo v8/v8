@@ -347,8 +347,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_ACCESSORS(feedback_vectors, FixedArray)
-  DECL_SANDBOXED_POINTER_ACCESSORS(memory_start, byte*)
-  DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
+  DECL_SANDBOXED_POINTER_ACCESSORS(memory0_start, uint8_t*)
+  DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
@@ -387,8 +387,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  V(kMemoryStartOffset, kSystemPointerSize)                               \
-  V(kMemorySizeOffset, kSizetSize)                                        \
+  V(kMemory0StartOffset, kSystemPointerSize)                              \
+  V(kMemory0SizeOffset, kSizetSize)                                       \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
   V(kIsorecursiveCanonicalTypesOffset, kSystemPointerSize)                \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
@@ -469,7 +469,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       Handle<WasmInstanceObject> instance, int table_index,
       uint32_t minimum_size);
 
-  void SetRawMemory(byte* mem_start, size_t mem_size);
+  void SetRawMemory(int memory_index, byte* mem_start, size_t mem_size);
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 

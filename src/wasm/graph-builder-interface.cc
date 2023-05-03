@@ -2287,7 +2287,7 @@ class WasmGraphBuildingInterface {
       SetAndTypeNode(&returns[i], return_nodes[i]);
     }
     // The invoked function could have used grow_memory, so we need to
-    // reload mem_size and mem_start.
+    // reload memory information.
     ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
   }
 
@@ -2355,15 +2355,12 @@ class WasmGraphBuildingInterface {
       }
     }
     if (loop->loop_assignments->Contains(decoder->num_locals())) {
-#define WRAP_CACHE_FIELD(field)                                                \
-  if (ssa_env_->instance_cache.field != nullptr) {                             \
-    ssa_env_->instance_cache.field = builder_->LoopExitValue(                  \
-        ssa_env_->instance_cache.field, MachineType::PointerRepresentation()); \
-  }
-
-      WRAP_CACHE_FIELD(mem_start);
-      WRAP_CACHE_FIELD(mem_size);
-#undef WRAP_CACHE_FIELD
+      for (auto field : compiler::WasmInstanceCacheNodes::kFields) {
+        if (ssa_env_->instance_cache.*field == nullptr) continue;
+        ssa_env_->instance_cache.*field =
+            builder_->LoopExitValue(ssa_env_->instance_cache.*field,
+                                    MachineType::PointerRepresentation());
+      }
     }
   }
 

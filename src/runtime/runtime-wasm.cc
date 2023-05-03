@@ -1056,12 +1056,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  uint64_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
 
-  const base::Vector<const uint8_t> bytes{instance.memory_start() + offset,
+  const base::Vector<const uint8_t> bytes{instance.memory0_start() + offset,
                                           size};
   MaybeHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
@@ -1112,7 +1113,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   DCHECK_EQ(memory, 0);
   USE(memory);
 
-  uint64_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  uint64_t mem_size = instance.memory0_size();
   if (size_in_codeunits > kMaxUInt32 / 2 ||
       !base::IsInBounds<uint64_t>(offset, size_in_codeunits * 2, mem_size)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
@@ -1121,7 +1123,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
   }
 
-  const byte* bytes = instance.memory_start() + offset;
+  const byte* bytes = instance.memory0_start() + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
       {codeunits, size_in_codeunits}));
@@ -1319,11 +1321,12 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
 
-  char* memory_start = reinterpret_cast<char*>(instance.memory_start());
+  // TODO(13918): Support multiple memories.
+  char* memory_start = reinterpret_cast<char*>(instance.memory0_start());
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {memory_start, instance.memory_size()};
+    return {memory_start, instance.memory0_size()};
   };
   return EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, offset,
                     MessageTemplate::kWasmTrapMemOutOfBounds);
@@ -1364,7 +1367,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   USE(memory);
   DCHECK(base::IsInBounds<uint32_t>(start, length, string.length()));
 
-  size_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  size_t mem_size = instance.memory0_size();
   static_assert(String::kMaxLength <=
                 (std::numeric_limits<size_t>::max() / sizeof(base::uc16)));
   if (!base::IsInBounds<size_t>(offset, length * sizeof(base::uc16),
@@ -1376,7 +1380,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   }
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  uint16_t* dst = reinterpret_cast<uint16_t*>(instance.memory_start() + offset);
+  uint16_t* dst =
+      reinterpret_cast<uint16_t*>(instance.memory0_start() + offset);
   String::WriteToFlat(string, dst, start, length);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
@@ -1429,11 +1434,12 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   size_t length = end - start;
 
-  if (!base::IsInBounds<size_t>(addr, length, instance.memory_size())) {
+  // TODO(13918): Support multiple memories.
+  if (!base::IsInBounds<size_t>(addr, length, instance.memory0_size())) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
 
-  byte* memory_start = reinterpret_cast<byte*>(instance.memory_start());
+  byte* memory_start = reinterpret_cast<byte*>(instance.memory0_start());
   const byte* src =
       reinterpret_cast<const byte*>(array->GetDataStartAddress() + start);
   byte* dst = memory_start + addr;

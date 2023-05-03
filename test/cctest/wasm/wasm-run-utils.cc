@@ -113,6 +113,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
+  // TODO(13918): Support multiple memories.
   DCHECK(!instance_object_->has_memory_object());
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages = (test_module_->maximum_pages != 0)
@@ -137,7 +138,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   // TODO(wasm): Delete the following two lines when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  instance_object_->SetRawMemory(mem_start_, mem_size_);
+  instance_object_->SetRawMemory(0, mem_start_, mem_size_);
   return mem_start_;
 }
 

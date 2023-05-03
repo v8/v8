@@ -2213,8 +2213,8 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
-  PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(memory_size, +);
+  PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
   PRINT_WASM_INSTANCE_FIELD(stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(real_stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);

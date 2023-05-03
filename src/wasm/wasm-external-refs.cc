@@ -460,7 +460,8 @@ class V8_NODISCARD ThreadNotInWasmScope {
 };
 
 inline byte* EffectiveAddress(WasmInstanceObject instance, uintptr_t index) {
-  return instance.memory_start() + index;
+  // TODO(13918): Support multiple memories.
+  return instance.memory0_start() + index;
 }
 
 template <typename V>
@@ -485,7 +486,8 @@ int32_t memory_init_wrapper(Address data) {
   uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  uint64_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   uint32_t seg_size = instance.data_segment_sizes().get(seg_index);
@@ -507,7 +509,8 @@ int32_t memory_copy_wrapper(Address data) {
   uintptr_t src = ReadAndIncrementOffset<uintptr_t>(data, &offset);
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
-  uint64_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
   if (!base::IsInBounds<uint64_t>(src, size, mem_size)) return kOutOfBounds;
 
@@ -529,7 +532,8 @@ int32_t memory_fill_wrapper(Address data) {
       static_cast<uint8_t>(ReadAndIncrementOffset<uint32_t>(data, &offset));
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
-  uint64_t mem_size = instance.memory_size();
+  // TODO(13918): Support multiple memories.
+  uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(instance, dst), value, size);

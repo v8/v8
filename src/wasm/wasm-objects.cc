@@ -719,15 +719,16 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
   CHECK_IMPLIES(is_wasm_module && use_trap_handler,
                 buffer->GetBackingStore()->has_guard_regions());
 
-  instance->SetRawMemory(reinterpret_cast<byte*>(buffer->backing_store()),
+  // TODO(13918): Support multiple memories.
+  instance->SetRawMemory(0, reinterpret_cast<byte*>(buffer->backing_store()),
                          buffer->byte_length());
 #if DEBUG
   if (!v8_flags.mock_arraybuffer_allocator) {
     // To flush out bugs earlier, in DEBUG mode, check that all pages of the
     // memory are accessible by reading and writing one byte on each page.
     // Don't do this if the mock ArrayBuffer allocator is enabled.
-    byte* mem_start = instance->memory_start();
-    size_t mem_size = instance->memory_size();
+    byte* mem_start = instance->memory0_start();
+    size_t mem_size = instance->memory0_size();
     for (size_t offset = 0; offset < mem_size; offset += wasm::kWasmPageSize) {
       byte val = mem_start[offset];
       USE(val);
@@ -1102,11 +1103,14 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
   return true;
 }
 
-void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
+void WasmInstanceObject::SetRawMemory(int memory_index, byte* mem_start,
+                                      size_t mem_size) {
+  // TODO(13918): Support multiple memories.
+  CHECK_EQ(0, memory_index);
   CHECK_LE(mem_size, module()->is_memory64 ? wasm::max_mem64_bytes()
                                            : wasm::max_mem32_bytes());
-  set_memory_start(mem_start);
-  set_memory_size(mem_size);
+  set_memory0_start(mem_start);
+  set_memory0_size(mem_size);
 }
 
 const WasmModule* WasmInstanceObject::module() {
@@ -1190,7 +1194,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
-  instance->SetRawMemory(reinterpret_cast<byte*>(EmptyBackingStoreBuffer()), 0);
+  instance->SetRawMemory(0, reinterpret_cast<byte*>(EmptyBackingStoreBuffer()),
+                         0);
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.

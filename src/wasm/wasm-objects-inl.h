@@ -178,9 +178,10 @@ void WasmGlobalObject::SetRef(Handle<Object> value) {
 }
 
 // WasmInstanceObject
-SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, memory_start, byte*,
-                            kMemoryStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
+SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, memory0_start, uint8_t*,
+                            kMemory0StartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory0_size, size_t,
+                    kMemory0SizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
                     kStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, real_stack_limit_address, Address,

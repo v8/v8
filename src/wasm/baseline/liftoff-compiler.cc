@@ -756,8 +756,8 @@ class LiftoffCompiler {
       // The only exception is the cached memory start, which we just push
       // before the stack check and pop afterwards.
       regs_to_save = {};
-      if (__ cache_state()->cached_mem_start != no_reg) {
-        regs_to_save.set(__ cache_state()->cached_mem_start);
+      if (__ cache_state()->cached_mem0_start != no_reg) {
+        regs_to_save.set(__ cache_state()->cached_mem0_start);
       }
       spilled_regs = GetSpilledRegistersForInspection();
     }
@@ -3050,7 +3050,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
     // TODO(13957): Clamp the loaded memory size to a safe value.
-    LOAD_INSTANCE_FIELD(mem_size.gp(), MemorySize, kSystemPointerSize, pinned);
+    LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize, pinned);
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
@@ -3191,8 +3191,9 @@ class LiftoffCompiler {
     return true;
   }
 
+  // TODO(13918): Support multiple memories.
   V8_INLINE Register GetMemoryStart(LiftoffRegList pinned) {
-    Register memory_start = __ cache_state()->cached_mem_start;
+    Register memory_start = __ cache_state()->cached_mem0_start;
     if (V8_UNLIKELY(memory_start == no_reg)) {
       memory_start = GetMemoryStart_Slow(pinned);
     }
@@ -3201,14 +3202,14 @@ class LiftoffCompiler {
 
   V8_NOINLINE V8_PRESERVE_MOST Register
   GetMemoryStart_Slow(LiftoffRegList pinned) {
-    DCHECK_EQ(no_reg, __ cache_state()->cached_mem_start);
+    DCHECK_EQ(no_reg, __ cache_state()->cached_mem0_start);
     SCOPED_CODE_COMMENT("load memory start");
     Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize, pinned);
+    LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize, pinned);
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(memory_start);
 #endif
-    __ cache_state()->SetMemStartCacheRegister(memory_start);
+    __ cache_state()->SetMem0StartCacheRegister(memory_start);
     return memory_start;
   }
 
@@ -3434,7 +3435,7 @@ class LiftoffCompiler {
 
   void CurrentMemoryPages(FullDecoder* /* decoder */, Value* /* result */) {
     Register mem_size = __ GetUnusedRegister(kGpReg, {}).gp();
-    LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize, {});
+    LOAD_INSTANCE_FIELD(mem_size, Memory0Size, kSystemPointerSize, {});
     __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
     LiftoffRegister result{mem_size};
     if (env_->module->is_memory64 && kNeedI64RegPair) {
@@ -4911,7 +4912,7 @@ class LiftoffCompiler {
 
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(addr);
 #endif

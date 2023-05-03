@@ -972,8 +972,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     // Double-check the {memory} array buffer matches the instance.
     Handle<JSArrayBuffer> memory = memory_buffer_.ToHandleChecked();
-    CHECK_EQ(instance->memory_size(), memory->byte_length());
-    CHECK_EQ(instance->memory_start(), memory->backing_store());
+    CHECK_EQ(instance->memory0_size(), memory->byte_length());
+    CHECK_EQ(instance->memory0_start(), memory->backing_store());
   }
 
   //--------------------------------------------------------------------------
@@ -1411,7 +1411,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset.
-      DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory_size());
+      DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory0_size());
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
@@ -1421,12 +1421,13 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       dest_offset = to_value(result).to_u32();
     }
 
-    if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
+    if (!base::IsInBounds<size_t>(dest_offset, size,
+                                  instance->memory0_size())) {
       thrower_->RuntimeError("data segment is out of bounds");
       return;
     }
 
-    std::memcpy(instance->memory_start() + dest_offset,
+    std::memcpy(instance->memory0_start() + dest_offset,
                 wire_bytes.begin() + segment.source.offset(), size);
   }
 }
