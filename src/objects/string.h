@@ -420,9 +420,6 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
-  // TODO(pthier, v8:13785): Remove once v8::String::CanMakeExternal without
-  // encoding is removed.
-  bool SupportsExternalization();
   bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.

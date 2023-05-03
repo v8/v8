@@ -396,7 +396,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
-  DCHECK(this->SupportsExternalization());
+  DCHECK(
+      this->SupportsExternalization(v8::String::Encoding::TWO_BYTE_ENCODING));
   DCHECK(resource->IsCacheable());
 #ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
@@ -475,7 +476,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
-  DCHECK(this->SupportsExternalization());
+  DCHECK(
+      this->SupportsExternalization(v8::String::Encoding::ONE_BYTE_ENCODING));
   DCHECK(resource->IsCacheable());
 #ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
@@ -550,31 +552,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
   if (is_internalized) self.EnsureHash();
-  return true;
-}
-
-bool String::SupportsExternalization() {
-  if (this->IsThinString()) {
-    return i::ThinString::cast(*this).actual().SupportsExternalization();
-  }
-
-  // RO_SPACE strings cannot be externalized.
-  if (IsReadOnlyHeapObject(*this)) {
-    return false;
-  }
-
-  // Already an external string.
-  if (StringShape(*this).IsExternal()) {
-    return false;
-  }
-
-#ifdef V8_COMPRESS_POINTERS
-  // Small strings may not be in-place externalizable.
-  if (this->Size() < ExternalString::kUncachedSize) return false;
-#else
-  DCHECK_LE(ExternalString::kUncachedSize, this->Size());
-#endif
-
   return true;
 }
 

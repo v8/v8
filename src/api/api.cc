@@ -7660,7 +7660,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     obj = i::ThinString::cast(obj).actual();
   }
 
-  if (!obj.SupportsExternalization()) {
+  if (!obj.SupportsExternalization(Encoding::TWO_BYTE_ENCODING)) {
     return false;
   }
 
@@ -7693,7 +7693,7 @@ bool v8::String::MakeExternal(
     obj = i::ThinString::cast(obj).actual();
   }
 
-  if (!obj.SupportsExternalization()) {
+  if (!obj.SupportsExternalization(Encoding::ONE_BYTE_ENCODING)) {
     return false;
   }
 
@@ -7714,21 +7714,6 @@ bool v8::String::MakeExternal(
   bool result = obj.MakeExternal(resource);
   DCHECK_IMPLIES(result, HasExternalStringResource(obj));
   return result;
-}
-
-bool v8::String::CanMakeExternal() const {
-  i::String obj = *Utils::OpenHandle(this);
-
-  if (obj.IsThinString()) {
-    obj = i::ThinString::cast(obj).actual();
-  }
-
-  if (!obj.SupportsExternalization()) {
-    return false;
-  }
-
-  // Only old space strings should be externalized.
-  return !i::Heap::InYoungGeneration(obj);
 }
 
 bool v8::String::CanMakeExternal(Encoding encoding) const {
