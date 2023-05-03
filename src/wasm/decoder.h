@@ -572,7 +572,8 @@ class Decoder {
     if (ValidationTag::validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
       if constexpr (ValidationTag::full_validation) {
-        errorf(pc, "expected %s", name);
+        errorf(pc, "%s while decoding %s",
+               at_end ? "reached end" : "length overflow", name);
       } else {
         MarkError();
       }

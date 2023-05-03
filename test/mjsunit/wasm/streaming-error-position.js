@@ -43,7 +43,7 @@ function testErrorPosition(bytes, pos, message) {
   bytes.emit_u8(kTypeSectionCode);
   bytes.emit_bytes([0x80, 0x80, 0x80, 0x80, 0x80, 0x00]);
   let pos = bytes.length - 1 - 1;
-  testErrorPosition(bytes, pos, 'expected section length');
+  testErrorPosition(bytes, pos, 'length overflow while decoding section length');
 })();
 
 (function testSectionLengthTooBig() {
@@ -400,7 +400,7 @@ function testErrorPosition(bytes, pos, message) {
 
   // Find error at the code section length.
   let pos = bytes.length;
-  testErrorPosition(bytes, pos, 'expected functions count');
+  testErrorPosition(bytes, pos, 'reached end while decoding functions count');
 })();
 
 (function testInvalidSection() {
