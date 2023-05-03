@@ -435,6 +435,7 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -483,8 +484,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-future.
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -576,6 +575,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -642,6 +642,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # GCMole.
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
@@ -976,6 +977,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -989,6 +991,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -1002,6 +1005,7 @@
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -1358,6 +1362,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Noavx.
       {
@@ -1464,6 +1469,7 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Noavx.
       {
@@ -1519,8 +1525,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-future.
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1581,8 +1585,6 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
-      # Stress maglev-future.
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
@@ -1865,6 +1867,7 @@
       {'name': 'v8testing', 'variant': 'extra'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
@@ -1884,6 +1887,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
     ],
   },
