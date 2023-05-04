@@ -444,3 +444,24 @@ function allowOOM(fn) {
   // This test can fail if 5GB of memory cannot be allocated.
   allowOOM(() => BasicMemory64Tests(num_pages, true));
 })();
+
+(function Test64BitOffsetOn32BitMemory() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+
+  builder.addFunction('load', makeSig([kWasmI32], [kWasmI32]))
+      .addBody([
+        // local.get 0
+        kExprLocalGet, 0,
+        // i32.load align=0 offset=2^32+2
+        kExprI32LoadMem, 0, ...wasmSignedLeb64(Math.pow(2, 32) + 2),
+      ])
+      .exportFunc();
+
+  // Instantiation works, this should throw at runtime.
+  let instance = builder.instantiate();
+  let load = instance.exports.load;
+
+  assertTraps(kTrapMemOutOfBounds, () => load(0));
+})();

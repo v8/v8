@@ -2125,7 +2125,7 @@ function wasmSignedLeb(val, max_len = 5) {
       'Leb value <' + val + '> exceeds maximum length of ' + max_len);
 }
 
-function wasmSignedLeb64(val, max_len) {
+function wasmSignedLeb64(val, max_len = 10) {
   if (val == null) throw new Error("Leb value many not be null/undefined");
   if (typeof val != "bigint") {
     if (val < Math.pow(2, 31)) {

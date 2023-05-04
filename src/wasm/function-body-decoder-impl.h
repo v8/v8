@@ -2817,7 +2817,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   V8_INLINE MemoryAccessImmediate
   MakeMemoryAccessImmediate(uint32_t pc_offset, uint32_t max_alignment) {
     return MemoryAccessImmediate(this, this->pc_ + pc_offset, max_alignment,
-                                 this->module_->is_memory64, validate);
+                                 this->enabled_.has_memory64(), validate);
   }
 
 #ifdef DEBUG
@@ -4140,8 +4140,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return opcode_length + mem_imm.length + lane_imm.length;
   }
 
-  bool CheckStaticallyOutOfBounds(uintptr_t size, uintptr_t offset) {
-    const bool statically_oob = !base::IsInBounds<uintptr_t>(
+  bool CheckStaticallyOutOfBounds(uint64_t size, uint64_t offset) {
+    const bool statically_oob = !base::IsInBounds<uint64_t>(
         offset, size, this->module_->max_memory_size);
     if (V8_UNLIKELY(statically_oob)) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap, TrapReason::kTrapMemOutOfBounds);

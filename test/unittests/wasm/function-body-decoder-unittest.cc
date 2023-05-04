@@ -20,10 +20,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace function_body_decoder_unittest {
+namespace v8::internal::wasm {
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -5228,6 +5225,10 @@ class FunctionBodyDecoderTestOnBothMemoryTypes
     : public FunctionBodyDecoderTestBase<
           WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
  public:
+  FunctionBodyDecoderTestOnBothMemoryTypes() {
+    if (is_memory64()) enabled_features_.Add(kFeature_memory64);
+  }
+
   bool is_memory64() const { return GetParam() == kMemory64; }
 };
 
@@ -5257,28 +5258,43 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
            {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64, WASM_ZERO)});
 }
 
-TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffset) {
-  builder.InitializeMemory(GetParam());
-  // Macro for defining a zero constant of the right type. Explicitly use
-  // {uint8_t} to make MSVC happy.
-#define ZERO_FOR_TYPE \
-  WASM_SEQ(is_memory64() ? uint8_t{kExprI64Const} : uint8_t{kExprI32Const}, 0)
-  // Offset is zero encoded in 5 bytes (works always).
-  Validate(
-      true, sigs.i_v(),
-      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), ZERO_FOR_TYPE)});
-  // Offset is zero encoded in 6 bytes (works only in memory64).
-  Validate(
-      is_memory64(), sigs.i_v(),
-      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), ZERO_FOR_TYPE)});
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
+  // Check that with memory64 enabled, the offset is always decoded as u64, even
+  // if the memory is declared as 32-bit memory.
+  builder.InitializeMemory(kMemory32);
+  // Offset is zero encoded in 5 bytes (always works).
+  Validate(true, sigs.i_v(),
+           {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO)});
+  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
+  Validate(is_memory64(), sigs.i_v(),
+           {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO)});
   // Same with store.
   Validate(true, sigs.v_v(),
-           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0),
-                                  ZERO_FOR_TYPE, WASM_ZERO)});
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO,
+                                  WASM_ZERO)});
   Validate(is_memory64(), sigs.v_v(),
-           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0),
-                                  ZERO_FOR_TYPE, WASM_ZERO)});
-#undef ZERO_FOR_TYPE
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO,
+                                  WASM_ZERO)});
+}
+
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
+  // Same as above, but on a 64-bit memory.
+  builder.InitializeMemory(kMemory64);
+  // Offset is zero encoded in 5 bytes.
+  Validate(
+      true, sigs.i_v(),
+      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64)});
+  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
+  Validate(
+      is_memory64(), sigs.i_v(),
+      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64)});
+  // Same with store.
+  Validate(true, sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64,
+                                  WASM_ZERO)});
+  Validate(is_memory64(), sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64,
+                                  WASM_ZERO)});
 }
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemorySize) {
@@ -5312,7 +5328,4 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
 #undef WASM_BRV_IF_ZERO
 #undef EXPECT_OK
 
-}  // namespace function_body_decoder_unittest
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

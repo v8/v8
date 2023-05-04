@@ -77,6 +77,15 @@
   'proposals/multi-memory/store1': [FAIL],
   'proposals/multi-memory/store': [FAIL],
   'proposals/multi-memory/traps0': [FAIL],
+
+  # The 'address' and 'binary' tests fail because they expect too-big-LEBs
+  # as memory offsets to fail validation. With memory64, all offsets are
+  # decoded as u64 though, so they pass validation.
+  # TODO(13918): Update main spec tests to be memory64 compliant; see
+  # https://github.com/WebAssembly/spec/pull/1648.
+  'proposals/extended-const/binary': [FAIL],
+  'proposals/js-types/binary': [FAIL],
+  'proposals/memory64/address': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
