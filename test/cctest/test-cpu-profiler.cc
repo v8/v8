@@ -4671,11 +4671,8 @@ TEST(BytecodeFlushEventsEagerLogging) {
     CcTest::CollectAllGarbage();
     CHECK(function->shared().is_compiled());
 
-    // Simulate several GCs that use full marking.
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      CcTest::CollectAllGarbage();
-    }
+    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    CcTest::CollectAllGarbage();
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared().is_compiled());

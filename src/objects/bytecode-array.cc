@@ -173,6 +173,11 @@ void BytecodeArray::MakeOlder() {
   DCHECK_LE(bytecode_age(), v8_flags.bytecode_old_age);
 }
 
+void BytecodeArray::EnsureOldForTesting() {
+  set_bytecode_age(v8_flags.bytecode_old_age);
+  DCHECK(IsOld());
+}
+
 bool BytecodeArray::IsOld() const {
   return bytecode_age() >= v8_flags.bytecode_old_age;
 }

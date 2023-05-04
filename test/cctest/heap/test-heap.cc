@@ -690,11 +690,7 @@ TEST(BytecodeArrayAging) {
                                 kParameterCount, factory->empty_fixed_array());
 
   CHECK_EQ(0, array->bytecode_age());
-  array->MakeOlder();
-  CHECK_EQ(1, array->bytecode_age());
-  array->set_bytecode_age(v8_flags.bytecode_old_age);
-  array->MakeOlder();
-  CHECK_EQ(v8_flags.bytecode_old_age, array->bytecode_age());
+  array->EnsureOldForTesting();
 }
 
 static const char* not_so_random_string_table[] = {
@@ -1137,11 +1133,8 @@ TEST(TestBytecodeFlushing) {
     CcTest::CollectAllGarbage();
     CHECK(function->shared().is_compiled());
 
-    // Simulate several GCs that use full marking.
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      CcTest::CollectAllGarbage();
-    }
+    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    CcTest::CollectAllGarbage();
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared().is_compiled());
@@ -1168,6 +1161,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
 
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
@@ -1213,11 +1207,8 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
           i_isolate, copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
     }
 
-    // Simulate several GCs that use full marking.
-    const int kAgingThreshold = 7;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      CcTest::CollectAllGarbage();
-    }
+    shared->GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    CcTest::CollectAllGarbage();
 
     // foo should no longer be in the compilation cache
     CHECK(!shared->is_compiled());
@@ -1282,11 +1273,7 @@ HEAP_TEST(Regress10560) {
 
     // Pre-age bytecode so it will be flushed on next run.
     CHECK(function->shared().HasBytecodeArray());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      function->shared().GetBytecodeArray(i_isolate).MakeOlder();
-      if (function->shared().GetBytecodeArray(i_isolate).IsOld()) break;
-    }
+    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
 
     CHECK(function->shared().GetBytecodeArray(i_isolate).IsOld());
 
@@ -1464,12 +1451,9 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CcTest::CollectAllGarbage();
   CHECK(function->shared().is_compiled());
 
-  // Simulate several GCs that use incremental marking.
-  const int kAgingThreshold = 6;
-  for (int i = 0; i < kAgingThreshold; i++) {
-    heap::SimulateIncrementalMarking(CcTest::heap());
-    CcTest::CollectAllGarbage();
-  }
+  function->shared().GetBytecodeArray(isolate).EnsureOldForTesting();
+  CcTest::CollectAllGarbage();
+
   CHECK(!function->shared().is_compiled());
   CHECK(!function->is_compiled());
 
@@ -1479,13 +1463,8 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
     CompileRun("foo();");
   }
 
-  // Simulate several GCs that use incremental marking but make sure
-  // the loop breaks once the function is enqueued as a candidate.
-  for (int i = 0; i < kAgingThreshold; i++) {
-    heap::SimulateIncrementalMarking(CcTest::heap());
-    if (function->shared().GetBytecodeArray(CcTest::i_isolate()).IsOld()) break;
-    CcTest::CollectAllGarbage();
-  }
+  function->shared().GetBytecodeArray(isolate).EnsureOldForTesting();
+  heap::SimulateIncrementalMarking(CcTest::heap());
 
   // Force optimization while incremental marking is active and while
   // the function is enqueued as a candidate.
@@ -1605,10 +1584,7 @@ void CompilationCacheCachingBehavior(bool retain_script) {
     Handle<SharedFunctionInfo> shared =
         lookup_result.toplevel_sfi().ToHandleChecked();
     CHECK(shared->HasBytecodeArray());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      shared->GetBytecodeArray(CcTest::i_isolate()).MakeOlder();
-    }
+    shared->GetBytecodeArray(CcTest::i_isolate()).EnsureOldForTesting();
   }
 
   CcTest::CollectAllGarbage();
@@ -1647,10 +1623,7 @@ template <typename T>
 void AgeBytecode(v8::Local<T> function_or_script) {
   Handle<SharedFunctionInfo> shared = GetSharedFunctionInfo(function_or_script);
   CHECK(shared->HasBytecodeArray());
-  const int kAgingThreshold = 6;
-  for (int i = 0; i < kAgingThreshold; i++) {
-    shared->GetBytecodeArray(CcTest::i_isolate()).MakeOlder();
-  }
+  shared->GetBytecodeArray(CcTest::i_isolate()).EnsureOldForTesting();
 }
 
 void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,

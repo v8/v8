@@ -352,10 +352,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
             i::SharedFunctionInfo::cast(
                 original_objects->Get(index).GetHeapObjectAssumeWeak())
                 .GetBytecodeArray(i_isolate);
-        const int kAgingThreshold = 6;
-        for (int j = 0; j < kAgingThreshold; ++j) {
-          bytecode.MakeOlder();
-        }
+        bytecode.EnsureOldForTesting();
       }
     }
 
@@ -670,10 +667,7 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   // contain only the Script.
   i::BytecodeArray bytecode =
       GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
-  const int kAgingThreshold = 6;
-  for (int j = 0; j < kAgingThreshold; ++j) {
-    bytecode.MakeOlder();
-  }
+  bytecode.EnsureOldForTesting();
   i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                        i::GarbageCollectionReason::kTesting);
 
@@ -769,10 +763,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
     // contain only the Script.
     i::BytecodeArray bytecode =
         GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    const int kAgingThreshold = 6;
-    for (int j = 0; j < kAgingThreshold; ++j) {
-      bytecode.MakeOlder();
-    }
+    bytecode.EnsureOldForTesting();
   }
 
   i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
@@ -849,9 +840,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
     // contain only the Script.
     i::BytecodeArray bytecode =
         GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    for (int j = 0; j < i::v8_flags.bytecode_old_age; ++j) {
-      bytecode.MakeOlder();
-    }
+    bytecode.EnsureOldForTesting();
   }
 
   i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
