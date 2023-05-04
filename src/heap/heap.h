@@ -1590,8 +1590,15 @@ class Heap {
   // Sweeping. =================================================================
   // ===========================================================================
 
-  bool sweeping_in_progress() const {
-    return sweeper_ && sweeper_->sweeping_in_progress();
+  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
+  bool sweeping_in_progress_for_space(AllocationSpace space) const {
+    return sweeper_->sweeping_in_progress_for_space(space);
+  }
+  bool minor_sweeping_in_progress() const {
+    return sweeper_->minor_sweeping_in_progress();
+  }
+  bool major_sweeping_in_progress() const {
+    return sweeper_->major_sweeping_in_progress();
   }
 
   void FinishSweepingIfOutOfWork();
@@ -1603,7 +1610,7 @@ class Heap {
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
       SweepingForcedFinalizationMode mode);
-  void PauseSweepingAndEnsureYoungSweepingCompleted();
+  void EnsureYoungSweepingCompleted();
 
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 

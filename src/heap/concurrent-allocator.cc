@@ -187,7 +187,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
   if (result) return result;
 
   // Sweeping is still in progress.
-  if (owning_heap()->sweeping_in_progress()) {
+  if (owning_heap()->major_sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
@@ -231,7 +231,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
     if (result) return result;
   }
 
-  if (owning_heap()->sweeping_in_progress()) {
+  if (owning_heap()->major_sweeping_in_progress()) {
     // Complete sweeping for this space.
     TRACE_GC_EPOCH(owning_heap()->tracer(),
                    GCTracer::Scope::MC_BACKGROUND_SWEEPING,

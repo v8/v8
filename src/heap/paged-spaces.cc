@@ -930,7 +930,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   const auto sweeping_scope_id =
       heap()->sweeper()->GetTracingScope(identity(), is_main_thread);
   // Sweeping is still in progress.
-  if (heap()->sweeping_in_progress()) {
+  if (heap()->sweeping_in_progress_for_space(identity())) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     if (heap()->sweeper()->ShouldRefillFreelistForSpace(identity())) {
@@ -993,8 +993,10 @@ bool PagedSpaceBase::ContributeToSweepingMain(
     int required_freed_bytes, int max_pages, int size_in_bytes,
     AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
     ThreadKind sweeping_scope_kind) {
-  if (!heap()->sweeping_in_progress()) return false;
-  if (!heap()->sweeper()->AreSweeperTasksRunning() &&
+  if (!heap()->sweeping_in_progress_for_space(identity())) return false;
+  if (!(identity() == NEW_SPACE
+            ? heap()->sweeper()->AreMinorSweeperTasksRunning()
+            : heap()->sweeper()->AreMajorSweeperTasksRunning()) &&
       heap()->sweeper()->IsSweepingDoneForSpace(identity()))
     return false;
 

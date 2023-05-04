@@ -1036,7 +1036,7 @@ bool PagedSpaceForNewSpace::WaitForSweepingForAllocation(
   if (!v8_flags.concurrent_sweeping || !heap()->sweeping_in_progress())
     return false;
   Sweeper* sweeper = heap()->sweeper();
-  if (!sweeper->AreSweeperTasksRunning() &&
+  if (!sweeper->AreMinorSweeperTasksRunning() &&
       !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
 #if DEBUG
     for (Page* p : *this) {

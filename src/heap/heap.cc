@@ -654,7 +654,7 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                NewSpaceSize() / KB, new_space_->Available() / KB,
-               (v8_flags.minor_mc && sweeping_in_progress()) ? "*" : "",
+               (v8_flags.minor_mc && minor_sweeping_in_progress()) ? "*" : "",
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "New large object space, used: %6zu KB"
@@ -668,14 +668,14 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
-               sweeping_in_progress() ? "*" : "",
+               major_sweeping_in_progress() ? "*" : "",
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Code space,             used: %6zu KB"
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
-               sweeping_in_progress() ? "*" : "",
+               major_sweeping_in_progress() ? "*" : "",
                code_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Large object space,     used: %6zu KB"
@@ -1924,9 +1924,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
   // Delay incremental marking start while concurrent sweeping still has work.
   // This helps avoid large CompleteSweep blocks on the main thread when major
   // incremental marking should be scheduled following a minor GC.
-  if (sweeper()->AreSweeperTasksRunning() &&
-      (!sweeper()->IsSweepingDoneForSpace(NEW_SPACE) ||
-       sweeper()->IsIteratingPromotedPages()))
+  if (sweeper()->AreMinorSweeperTasksRunning() ||
+      !sweeper()->IsSweepingDoneForSpace(NEW_SPACE) ||
+      sweeper()->IsIteratingPromotedPages())
     return;
 
   if (IsYoungGenerationCollector(collector)) {
@@ -2435,8 +2435,8 @@ void Heap::CompleteSweepingYoung() {
   // generation GC.
   FinishSweepingIfOutOfWork();
 
-  if (v8_flags.minor_mc && sweeping_in_progress()) {
-    PauseSweepingAndEnsureYoungSweepingCompleted();
+  if (v8_flags.minor_mc) {
+    EnsureYoungSweepingCompleted();
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -7151,8 +7151,8 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork() {
-  if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
-      !sweeper()->AreSweeperTasksRunning()) {
+  if (sweeper()->major_sweeping_in_progress() && v8_flags.concurrent_sweeping &&
+      !sweeper()->AreMajorSweeperTasksRunning()) {
     // At this point we know that all concurrent sweeping tasks have run
     // out of work and quit: all pages are swept. The main thread still needs
     // to complete sweeping though.
@@ -7169,15 +7169,11 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   CompleteArrayBufferSweeping(this);
 
   if (sweeper()->sweeping_in_progress()) {
-    // Get the scope id before finishing sweeping since it will be reset
-    // afterwards.
-    const auto new_space_sweeping_scope_id =
-        sweeper()->GetTracingScopeForCompleteYoungSweep();
-
-    sweeper()->EnsureCompleted();
+    sweeper()->EnsureMajorCompleted();
 
     if (v8_flags.minor_mc && new_space()) {
-      TRACE_GC_EPOCH(tracer(), new_space_sweeping_scope_id, ThreadKind::kMain);
+      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MC_COMPLETE_SWEEPING,
+                     ThreadKind::kMain);
       paged_new_space()->paged_space()->RefillFreeList();
     }
 
@@ -7216,19 +7212,20 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       !tracer()->IsSweepingInProgress());
 }
 
-void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
-  if (!sweeper()->sweeping_in_progress()) return;
-  TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
+void Heap::EnsureYoungSweepingCompleted() {
+  if (!sweeper()->minor_sweeping_in_progress()) return;
+
+  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MC_COMPLETE_SWEEPING,
                  ThreadKind::kMain);
 
-  sweeper()->PauseAndEnsureNewSpaceCompleted();
+  sweeper()->EnsureMinorCompleted();
   paged_new_space()->paged_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
 }
 
 void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
-  if (!sweeper()->sweeping_in_progress()) return;
+  DCHECK(sweeper()->sweeping_in_progress_for_space(space));
   sweeper()->DrainSweepingWorklistForSpace(space);
 }
 

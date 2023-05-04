@@ -968,7 +968,7 @@ void MarkCompactCollector::Finish() {
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
 
-  sweeper()->StartSweeperTasks();
+  sweeper()->StartMajorSweeperTasks();
 
   // Ensure unmapper tasks are stopped such that queued pages aren't freed
   // before this point. We still need all pages to be accessible for the "update
@@ -5445,7 +5445,7 @@ void MarkCompactCollector::Sweep() {
     StartSweepNewSpace();
   }
 
-  sweeper()->StartSweeping(garbage_collector_);
+  sweeper()->StartMajorSweeping();
 }
 
 namespace {
@@ -5707,7 +5707,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
   DCHECK_NOT_NULL(heap()->new_space());
   DCHECK(!heap()->array_buffer_sweeper()->sweeping_in_progress());
-  DCHECK(!sweeper()->AreSweeperTasksRunning());
+  DCHECK(!sweeper()->AreMinorSweeperTasksRunning());
   DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
 
   heap()->new_space()->FreeLinearAllocationArea();
@@ -6389,7 +6389,7 @@ bool MinorMarkCompactCollector::SweepNewLargeSpace() {
 }
 
 void MinorMarkCompactCollector::Sweep() {
-  DCHECK(!sweeper()->AreSweeperTasksRunning());
+  DCHECK(!sweeper()->AreMinorSweeperTasksRunning());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP);
 
   bool has_promoted_pages = false;
@@ -6409,7 +6409,7 @@ void MinorMarkCompactCollector::Sweep() {
     });
   }
 
-  sweeper_->StartSweeping(GarbageCollector::MINOR_MARK_COMPACTOR);
+  sweeper_->StartMinorSweeping();
 
 #ifdef DEBUG
   VerifyRememberedSetsAfterEvacuation(heap(),
@@ -6420,7 +6420,7 @@ void MinorMarkCompactCollector::Sweep() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP_START_JOBS);
-    sweeper()->StartSweeperTasks();
+    sweeper()->StartMinorSweeperTasks();
     DCHECK_EQ(0, heap_->new_lo_space()->Size());
     heap_->array_buffer_sweeper()->RequestSweep(
         ArrayBufferSweeper::SweepingType::kYoung,
