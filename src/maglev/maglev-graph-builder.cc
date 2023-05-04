@@ -2704,6 +2704,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kUnknown;
     case Opcode::kToString:
     case Opcode::kNumberToString:
+    case Opcode::kStringConcat:
       return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
