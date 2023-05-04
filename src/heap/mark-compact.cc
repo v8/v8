@@ -3153,6 +3153,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   RememberedSet<OLD_TO_NEW>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
@@ -3440,6 +3443,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+      chunk, start, end, SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(chunk, start, end,
                                             SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
@@ -4062,6 +4067,10 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
       // Old-to-new slot sets must be empty after evacuation.
       DCHECK_NULL((chunk->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
+      DCHECK_NULL(
+          (chunk->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::ATOMIC>()));
+      DCHECK_NULL(
+          (chunk->typed_slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::ATOMIC>()));
     }
 
     // Old-to-shared slots may survive GC but there should never be any slots in
@@ -4916,18 +4925,20 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedPointers() {
-    UpdateUntypedOldToNewPointers();
+    UpdateUntypedOldToNewPointers<OLD_TO_NEW>();
+    UpdateUntypedOldToNewPointers<OLD_TO_NEW_BACKGROUND>();
     UpdateUntypedOldToOldPointers();
     UpdateUntypedOldToCodePointers();
   }
 
+  template <RememberedSetType old_to_new_type>
   void UpdateUntypedOldToNewPointers() {
-    if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) {
+    if (chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) {
       const PtrComprCageBase cage_base = heap_->isolate();
       // Marking bits are cleared already when the page is already swept. This
       // is fine since in that case the sweeper has already removed dead invalid
       // objects as well.
-      RememberedSet<OLD_TO_NEW>::Iterate(
+      RememberedSet<old_to_new_type>::Iterate(
           chunk_,
           [this, cage_base](MaybeObjectSlot slot) {
             CheckAndUpdateOldToNewSlot(slot);
@@ -4943,8 +4954,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
     }
 
-    // Full GCs will empty new space, so OLD_TO_NEW is empty.
-    chunk_->ReleaseSlotSet<OLD_TO_NEW>();
+    // Full GCs will empty new space, so [old_to_new_type] is empty.
+    chunk_->ReleaseSlotSet<old_to_new_type>();
   }
 
   void UpdateUntypedOldToOldPointers() {
@@ -5023,6 +5034,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         });
     // Full GCs will empty new space, so OLD_TO_NEW is empty.
     chunk_->ReleaseTypedSlotSet<OLD_TO_NEW>();
+    // OLD_TO_NEW_BACKGROUND typed slots set should always be empty.
+    DCHECK_NULL(chunk_->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
   void UpdateTypedOldToOldPointers() {
@@ -5274,6 +5287,10 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
                                               failed_start);
+
+  RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+      page, page->address(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
+  DCHECK_NULL(page->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
 
   RememberedSet<OLD_TO_SHARED>::RemoveRange(page, page->address(), failed_start,
                                             SlotSet::FREE_EMPTY_BUCKETS);
@@ -5909,7 +5926,8 @@ void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
   if (slots_type_ == SlotsType::kRegularSlots) {
-    MarkUntypedPointers(task);
+    MarkUntypedPointers<OLD_TO_NEW>(task);
+    MarkUntypedPointers<OLD_TO_NEW_BACKGROUND>(task);
   } else {
     MarkTypedPointers(task);
   }
@@ -5944,13 +5962,14 @@ void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk, SlotType slot_type,
 
 }  // namespace
 
+template <RememberedSetType old_to_new_type>
 void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "PageMarkingItem::MarkUntypedPointers");
   const bool record_old_to_shared_slots =
       chunk_->heap()->isolate()->has_shared_space();
   const auto slot_count =
-      RememberedSet<OLD_TO_NEW>::Iterate<AccessMode::NON_ATOMIC>(
+      RememberedSet<old_to_new_type>::template Iterate<AccessMode::NON_ATOMIC>(
           chunk_,
           [this, task, record_old_to_shared_slots](MaybeObjectSlot slot) {
             SlotCallbackResult result = CheckAndMarkObject(task, slot);
@@ -5961,7 +5980,7 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
           },
           SlotSet::FREE_EMPTY_BUCKETS);
   if (slot_count == 0) {
-    chunk_->ReleaseSlotSet<OLD_TO_NEW>();
+    chunk_->ReleaseSlotSet<old_to_new_type>();
   }
 }
 
@@ -6120,13 +6139,13 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
 
     if (!was_marked_incrementally) {
       // Create items for each page.
-      RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+      RememberedSetOperations::IterateOldMemoryChunks(
           heap(), [&marking_items](MemoryChunk* chunk) {
-            if (chunk->slot_set<OLD_TO_NEW>()) {
+            if (chunk->slot_set<OLD_TO_NEW>() ||
+                chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
               marking_items.emplace_back(
                   chunk, PageMarkingItem::SlotsType::kRegularSlots);
             }
-
             if (chunk->typed_slot_set<OLD_TO_NEW>()) {
               marking_items.emplace_back(
                   chunk, PageMarkingItem::SlotsType::kTypedSlots);

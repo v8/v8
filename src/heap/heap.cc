@@ -3854,6 +3854,9 @@ void Heap::NotifyObjectLayoutChange(
       RememberedSet<OLD_TO_NEW>::RemoveRange(
           chunk, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+          chunk, clear_range_start, clear_range_end,
+          SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_SHARED>::RemoveRange(
           chunk, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
@@ -6125,6 +6128,7 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
       // No need to update old-to-old here since that remembered set is gone
       // after a full GC and not re-recorded until sweeping is finished.
       RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::Remove(page, slot.address());
       RememberedSet<OLD_TO_SHARED>::Remove(page, slot.address());
     }
   }
@@ -6133,6 +6137,9 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
 
 // static
 int Heap::InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot) {
+  // This is called during runtime by a builtin, therefore it is run in the main
+  // thread.
+  DCHECK_NULL(LocalHeap::Current());
   RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
   return 0;
 }
@@ -6142,6 +6149,7 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   Page* page = Page::FromAddress(start);
   RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
+  RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_SHARED>::CheckNoneInRange(page, start, end);
 #endif
 }
@@ -6160,6 +6168,8 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     if (!page->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+          page, start, end, SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_SHARED>::RemoveRange(page, start, end,
                                                 SlotSet::KEEP_EMPTY_BUCKETS);
     }
@@ -6863,7 +6873,6 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
 
   if (value_chunk->InYoungGeneration()) {
-    DCHECK_NULL(LocalHeap::Current());
     Heap::GenerationalBarrierSlow(object, slot, value);
 
   } else {
@@ -6891,7 +6900,12 @@ void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
 void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
                                    HeapObject value) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  if (LocalHeap::Current() == nullptr) {
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  } else {
+    RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(chunk,
+                                                                     slot);
+  }
 }
 
 void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot) {
@@ -7027,6 +7041,7 @@ void Heap::GenerationalBarrierForCodeSlow(InstructionStream host,
   const MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
 
+  base::MutexGuard write_scope(info.memory_chunk->mutex());
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
                                          info.offset);
 }

@@ -591,6 +591,8 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     // sweeper thread would race with the main thread.
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, free_start, free_end,
                                            SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
+        page, free_start, free_end, SlotSet::KEEP_EMPTY_BUCKETS);
 
     // While we only add old-to-old slots on live objects, we can still end up
     // with old-to-old slots in free memory with e.g. right-trimming of objects.

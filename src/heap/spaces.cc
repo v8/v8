@@ -140,6 +140,7 @@ size_t Page::ShrinkToHighWaterMark() {
   // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
+  DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
 
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),

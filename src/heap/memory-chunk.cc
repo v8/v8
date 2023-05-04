@@ -204,6 +204,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 
   possibly_empty_buckets_.Release();
   ReleaseSlotSet<OLD_TO_NEW>();
+  ReleaseSlotSet<OLD_TO_NEW_BACKGROUND>();
   ReleaseSlotSet<OLD_TO_OLD>();
   ReleaseSlotSet<OLD_TO_CODE>();
   ReleaseSlotSet<OLD_TO_SHARED>();
@@ -222,6 +223,8 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
 }
 
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
+template V8_EXPORT_PRIVATE SlotSet*
+MemoryChunk::AllocateSlotSet<OLD_TO_NEW_BACKGROUND>();
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 template V8_EXPORT_PRIVATE SlotSet*
 MemoryChunk::AllocateSlotSet<OLD_TO_SHARED>();
@@ -245,6 +248,7 @@ SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
 }
 
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
+template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW_BACKGROUND>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_SHARED>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
@@ -279,6 +283,7 @@ TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
 }
 
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
+template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW_BACKGROUND>();
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_SHARED>();
 
@@ -302,7 +307,9 @@ bool MemoryChunk::HasRecordedSlots() const {
 }
 
 bool MemoryChunk::HasRecordedOldToNewSlots() const {
-  return slot_set_[OLD_TO_NEW] || typed_slot_set_[OLD_TO_NEW];
+  DCHECK_NULL(typed_slot_set_[OLD_TO_NEW_BACKGROUND]);
+  return slot_set_[OLD_TO_NEW] || typed_slot_set_[OLD_TO_NEW] ||
+         slot_set_[OLD_TO_NEW_BACKGROUND];
 }
 
 #ifdef DEBUG

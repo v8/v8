@@ -671,6 +671,7 @@ class PageMarkingItem : public ParallelWorkItem {
  private:
   inline Heap* heap() { return chunk_->heap(); }
 
+  template <RememberedSetType old_to_new_type>
   void MarkUntypedPointers(YoungGenerationMarkingTask* task);
   void MarkTypedPointers(YoungGenerationMarkingTask* task);
   template <typename TSlot>

@@ -16,6 +16,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -250,7 +251,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
   void VerifyObject(HeapObject object) final;
   void VerifyObjectMap(HeapObject object);
   void VerifyOutgoingPointers(HeapObject object);
-  // Verifies OLD_TO_NEW and OLD_TO_SHARED remembered sets for this object.
+  // Verifies OLD_TO_NEW, OLD_TO_NEW_BACKGROUND and OLD_TO_SHARED remembered
+  // sets for this object.
   void VerifyRememberedSetFor(HeapObject object);
 
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
@@ -628,6 +630,9 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
   CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
+  CollectSlots<OLD_TO_NEW_BACKGROUND>(chunk, start, end, &old_to_new,
+                                      &typed_old_to_new);
+
   OldToNewSlotVerifyingVisitor old_to_new_visitor(
       isolate(), &old_to_new, &typed_old_to_new,
       heap()->ephemeron_remembered_set()->tables());
@@ -647,11 +652,17 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
 
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
+
+    CHECK_NULL(chunk->slot_set<OLD_TO_NEW_BACKGROUND>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
   if (Heap::InYoungGeneration(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
+
+    CHECK_NULL(chunk->slot_set<OLD_TO_NEW_BACKGROUND>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
 
     CHECK_NULL(chunk->slot_set<OLD_TO_OLD>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_OLD>());

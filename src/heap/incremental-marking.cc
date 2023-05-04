@@ -21,6 +21,7 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -230,13 +231,14 @@ void IncrementalMarking::MarkRoots() {
     isolate()->traced_handles()->IterateYoungRoots(&visitor);
 
     std::vector<PageMarkingItem> marking_items;
-    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+
+    RememberedSetOperations::IterateOldMemoryChunks(
         heap(), [&marking_items](MemoryChunk* chunk) {
-          if (chunk->slot_set<OLD_TO_NEW>()) {
+          if (chunk->slot_set<OLD_TO_NEW>() ||
+              chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
             marking_items.emplace_back(
                 chunk, PageMarkingItem::SlotsType::kRegularSlots);
           }
-
           if (chunk->typed_slot_set<OLD_TO_NEW>()) {
             marking_items.emplace_back(chunk,
                                        PageMarkingItem::SlotsType::kTypedSlots);

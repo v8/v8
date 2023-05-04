@@ -25,6 +25,7 @@ class SlotSet;
 
 enum RememberedSetType {
   OLD_TO_NEW,
+  OLD_TO_NEW_BACKGROUND,
   OLD_TO_OLD,
   OLD_TO_SHARED,
   OLD_TO_CODE,

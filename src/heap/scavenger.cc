@@ -16,6 +16,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/pretenuring-handler.h"
@@ -327,8 +328,10 @@ void ScavengerCollector::CollectGarbage() {
     // access to the slots of a page and can completely avoid any locks on
     // the page itself.
     Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages(
-        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
+    filter_scope.FilterOldSpaceSweepingPages([](Page* page) {
+      return !page->ContainsSlots<OLD_TO_NEW>() &&
+             !page->ContainsSlots<OLD_TO_NEW_BACKGROUND>();
+    });
 
     const bool is_logging = isolate_->log_object_relocation();
     for (int i = 0; i < num_scavenge_tasks; ++i) {
@@ -338,9 +341,13 @@ void ScavengerCollector::CollectGarbage() {
     }
 
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> memory_chunks;
-    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+    RememberedSetOperations::IterateOldMemoryChunks(
         heap_, [&memory_chunks](MemoryChunk* chunk) {
-          memory_chunks.emplace_back(ParallelWorkItem{}, chunk);
+          if (chunk->slot_set<OLD_TO_NEW>() ||
+              chunk->typed_slot_set<OLD_TO_NEW>() ||
+              chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
+            memory_chunks.emplace_back(ParallelWorkItem{}, chunk);
+          }
         });
 
     RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId].get());
@@ -466,15 +473,20 @@ void ScavengerCollector::CollectGarbage() {
       // swept.
       if (chunk->SweepingDone()) {
         RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
+        RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckPossiblyEmptyBuckets(chunk);
       } else {
         chunk->possibly_empty_buckets()->Release();
       }
     }
 
 #ifdef DEBUG
-    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+    RememberedSetOperations::IterateOldMemoryChunks(
         heap_, [](MemoryChunk* chunk) {
-          DCHECK(chunk->possibly_empty_buckets()->IsEmpty());
+          if (chunk->slot_set<OLD_TO_NEW>() ||
+              chunk->typed_slot_set<OLD_TO_NEW>() ||
+              chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
+            DCHECK(chunk->possibly_empty_buckets()->IsEmpty());
+          }
         });
 #endif
   }
@@ -699,6 +711,21 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
               return result;
             });
       });
+
+  if (page->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::ATOMIC>() != nullptr) {
+    RememberedSet<OLD_TO_NEW_BACKGROUND>::IterateAndTrackEmptyBuckets(
+        page,
+        [this, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
+          SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
+          // A new space string might have been promoted into the shared heap
+          // during GC.
+          if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+            CheckOldToNewSlotForSharedUntyped(page, slot);
+          }
+          return result;
+        },
+        &empty_chunks_local_);
+  }
 
   AddPageToSweeperIfNecessary(page);
 }

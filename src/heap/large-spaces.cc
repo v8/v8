@@ -16,6 +16,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces-inl.h"
@@ -70,6 +71,9 @@ size_t LargeObjectSpace::Available() const {
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(typed_slot_set<OLD_TO_NEW>());
+
+  DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_NEW_BACKGROUND>());
 
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
