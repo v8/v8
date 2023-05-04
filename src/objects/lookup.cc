@@ -307,17 +307,18 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         receiver->IsJSPromisePrototype()) {
       Protectors::InvalidatePromiseThenLookupChain(isolate);
     }
-  } else if (*name == roots.replace_symbol()) {
-    if (!Protectors::IsNumberStringPrototypeNoReplaceIntact(isolate)) return;
+  } else if (*name == roots.match_all_symbol() ||
+             *name == roots.replace_symbol() || *name == roots.split_symbol()) {
+    if (!Protectors::IsNumberStringNotRegexpLikeIntact(isolate)) return;
     // We need to protect the prototype chains of `Number.prototype` and
-    // `String.prototype`: that `Symbol.replace` is not added as a property on
-    // any object on these prototype chains.
-    // We detect `Number.prototype` and `String.prototype` by checking for a
-    // prototype that is a JSPrimitiveWrapper. This is a safe approximation.
-    // Using JSPrimitiveWrapper as prototype should be sufficiently rare.
+    // `String.prototype`: that `Symbol.{matchAll|replace|split}` is not added
+    // as a property on any object on these prototype chains. We detect
+    // `Number.prototype` and `String.prototype` by checking for a prototype
+    // that is a JSPrimitiveWrapper. This is a safe approximation. Using
+    // JSPrimitiveWrapper as prototype should be sufficiently rare.
     if (receiver->map().is_prototype_map() &&
         (receiver->IsJSPrimitiveWrapper() || receiver->IsJSObjectPrototype())) {
-      Protectors::InvalidateNumberStringPrototypeNoReplace(isolate);
+      Protectors::InvalidateNumberStringNotRegexpLike(isolate);
     }
   }
 }

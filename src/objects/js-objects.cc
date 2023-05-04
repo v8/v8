@@ -5245,7 +5245,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
   isolate->UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
       real_receiver);
-  isolate->UpdateNumberStringPrototypeNoReplaceProtectorOnSetPrototype(
+  isolate->UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
       real_receiver);
 
   Handle<Map> new_map =

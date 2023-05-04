@@ -427,9 +427,11 @@
   V(_, string_string, "string")                                      \
   V(_, string_to_string, "[object String]")                          \
   V(_, Symbol_iterator_string, "Symbol.iterator")                    \
+  V(_, Symbol_match_all_string, "Symbol.matchAll")                   \
   V(_, Symbol_replace_string, "Symbol.replace")                      \
   V(_, symbol_species_string, "[Symbol.species]")                    \
   V(_, Symbol_species_string, "Symbol.species")                      \
+  V(_, Symbol_split_string, "Symbol.split")                          \
   V(_, Symbol_string, "Symbol")                                      \
   V(_, symbol_string, "symbol")                                      \
   V(_, SyntaxError_string, "SyntaxError")                            \
@@ -522,10 +524,8 @@
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
-  V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
 
@@ -550,8 +550,10 @@
 // description in between the symbols during deserialization.
 #define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, match_all_symbol, Symbol.matchAll)         \
   V(_, replace_symbol, Symbol.replace)            \
-  V(_, species_symbol, Symbol.species)
+  V(_, species_symbol, Symbol.species)            \
+  V(_, split_symbol, Symbol.split)
 
 #define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable)

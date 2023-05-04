@@ -4941,9 +4941,9 @@ void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
   }
 }
 
-void Isolate::UpdateNumberStringPrototypeNoReplaceProtectorOnSetPrototype(
+void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
     Handle<JSObject> object) {
-  if (!Protectors::IsNumberStringPrototypeNoReplaceIntact(this)) {
+  if (!Protectors::IsNumberStringNotRegexpLikeIntact(this)) {
     return;
   }
   // We need to protect the prototype chain of `Number.prototype` and
@@ -4955,7 +4955,7 @@ void Isolate::UpdateNumberStringPrototypeNoReplaceProtectorOnSetPrototype(
   // sufficiently rare.
   DCHECK(!object->IsJSObjectPrototype());
   if (object->map().is_prototype_map() && (object->IsJSPrimitiveWrapper())) {
-    Protectors::InvalidateNumberStringPrototypeNoReplace(this);
+    Protectors::InvalidateNumberStringNotRegexpLike(this);
   }
 }
 

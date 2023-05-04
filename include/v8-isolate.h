@@ -534,7 +534,7 @@ class V8_EXPORT Isolate {
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
     kDurationFormat = 117,
-    kInvalidatedNumberStringPrototypeNoReplaceProtector = 118,
+    kInvalidatedNumberStringNotRegexpLikeProtector = 118,
     kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,  // Unused.
     kImportAssertionDeprecatedSyntax = 120,
     kLocaleInfoObsoletedGetters = 121,

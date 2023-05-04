@@ -259,7 +259,8 @@ void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
       *name == roots.resolve_string() || *name == roots.then_string() ||
       *name == roots.is_concat_spreadable_symbol() ||
       *name == roots.iterator_symbol() || *name == roots.species_symbol() ||
-      *name == roots.replace_symbol();
+      *name == roots.match_all_symbol() || *name == roots.replace_symbol() ||
+      *name == roots.split_symbol();
   DCHECK_EQ(maybe_protector, debug_maybe_protector);
 #endif  // DEBUG
 

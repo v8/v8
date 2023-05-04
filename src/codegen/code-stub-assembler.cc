@@ -6555,9 +6555,9 @@ TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
 }
 
 TNode<BoolT>
-CodeStubAssembler::IsNumberStringPrototypeNoReplaceProtectorCellInvalid() {
+CodeStubAssembler::IsNumberStringNotRegexpLikeProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
-  TNode<PropertyCell> cell = NumberStringPrototypeNoReplaceProtectorConstant();
+  TNode<PropertyCell> cell = NumberStringNotRegexpLikeProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }

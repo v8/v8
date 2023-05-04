@@ -82,9 +82,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
   V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                    \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
-  V(NumberStringPrototypeNoReplaceProtector,                                   \
-    number_string_prototype_no_replace_protector,                              \
-    NumberStringPrototypeNoReplaceProtector)                                   \
+  V(NumberStringNotRegexpLikeProtector,                                        \
+    number_string_not_regexp_like_protector,                                   \
+    NumberStringNotRegexpLikeProtector)                                        \
   V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
     PromiseAllResolveElementSharedFun)                                         \
   V(PromiseAllSettledRejectElementSharedFun,                                   \
@@ -2690,7 +2690,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
-  TNode<BoolT> IsNumberStringPrototypeNoReplaceProtectorCellInvalid();
+  TNode<BoolT> IsNumberStringNotRegexpLikeProtectorCellInvalid();
 
   TNode<IntPtrT> LoadBasicMemoryChunkFlags(TNode<HeapObject> object);
 
