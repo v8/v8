@@ -291,6 +291,10 @@ class Code : public HeapObject {
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
                                      Isolate* isolate,
                                      Address current_pc = kNullAddress);
+  V8_EXPORT_PRIVATE void DisassembleOnlyCode(const char* name, std::ostream& os,
+                                             Isolate* isolate,
+                                             Address current_pc,
+                                             size_t range_limit);
 #endif  // ENABLE_DISASSEMBLER
 
 #ifdef OBJECT_PRINT

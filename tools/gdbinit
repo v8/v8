@@ -79,6 +79,23 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print Code objects assembly code surrounding given PC.
+define jca
+  if $argc == 0
+    call (void) _v8_internal_Print_OnlyCode((void*)($pc), 30)
+  else
+    if $argc == 0
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), 30)
+    else
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), (size_t)($arg1))
+    end
+  end
+end
+document jco
+Print a v8 Code object from an internal code address
+Usage: jco pc
+end
+
 # Print TransitionTree.
 define jtt
 call (void) _v8_internal_Print_TransitionTree((void*)($arg0))

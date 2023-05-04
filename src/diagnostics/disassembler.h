@@ -23,7 +23,8 @@ class Disassembler : public AllStatic {
   V8_EXPORT_PRIVATE static int Decode(Isolate* isolate, std::ostream& os,
                                       byte* begin, byte* end,
                                       CodeReference code = {},
-                                      Address current_pc = kNullAddress);
+                                      Address current_pc = kNullAddress,
+                                      size_t range_limit = 0);
 };
 
 }  // namespace internal
