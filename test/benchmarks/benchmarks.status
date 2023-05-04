@@ -99,6 +99,7 @@
   # Too slow for stress_incremental_marking.
   'octane/box2d': [SKIP],
   'octane/typescript': [SKIP],
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', FAIL]],
 }],
 
 ['gc_fuzzer', {
