@@ -1796,8 +1796,6 @@ class Heap {
                                 GarbageCollectionReason gc_reason,
                                 const char* collector_reason);
 
-  inline void UpdateOldSpaceLimits();
-
   bool CreateEarlyReadOnlyMaps();
   bool CreateImportantReadOnlyObjects();
   bool CreateLateReadOnlyMaps();
