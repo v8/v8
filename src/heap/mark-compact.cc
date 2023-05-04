@@ -2004,40 +2004,26 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
 class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateRecordOnlyVisitor(Heap* heap)
-      : heap_(heap)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        cage_base_(heap->isolate())
-#endif  // V8_COMPRESS_POINTERS
-  {
-  }
+      : heap_(heap), cage_base_(heap->isolate()) {}
 
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to InstructionStream objects.
-  V8_INLINE PtrComprCageBase cage_base() const {
-#ifdef V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  inline bool Visit(HeapObject object, int size) override {
+  bool Visit(HeapObject object, int size) override {
     RecordMigratedSlotVisitor visitor(
         heap_, heap_->ephemeron_remembered_set()->tables());
-    Map map = object.map(cage_base());
+    Map map = object.map(cage_base_);
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
     DCHECK_EQ(object.SizeFromMap(map), size);
+    live_object_size_ += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
     object.IterateFast(map, size, &visitor);
     return true;
   }
 
+  size_t live_object_size() const { return live_object_size_; }
+
  private:
   Heap* heap_;
-#ifdef V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
+  size_t live_object_size_ = 0;
 };
 
 // static
@@ -4278,6 +4264,50 @@ void Evacuator::Finalize() {
   }
 }
 
+class LiveObjectVisitor final : AllStatic {
+ public:
+  // Visits marked objects using `bool Visitor::Visit(HeapObject object, size_t
+  // size)` as long as the return value is true.
+  //
+  // Returns whether all objects were successfully visited. Upon returning
+  // false, also sets `failed_object` to the object for which the visitor
+  // returned false.
+  template <class Visitor>
+  static bool VisitMarkedObjects(Page* page, Visitor* visitor,
+                                 HeapObject* failed_object);
+
+  // Visits marked objects using `bool Visitor::Visit(HeapObject object, size_t
+  // size)` as long as the return value is true. Assumes that the return value
+  // is always true (success).
+  template <class Visitor>
+  static void VisitMarkedObjectsNoFail(Page* page, Visitor* visitor);
+};
+
+template <class Visitor>
+bool LiveObjectVisitor::VisitMarkedObjects(Page* page, Visitor* visitor,
+                                           HeapObject* failed_object) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitMarkedObjects");
+  for (auto [object, size] : LiveObjectRange(page)) {
+    if (!visitor->Visit(object, size)) {
+      *failed_object = object;
+      return false;
+    }
+  }
+  return true;
+}
+
+template <class Visitor>
+void LiveObjectVisitor::VisitMarkedObjectsNoFail(Page* page, Visitor* visitor) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitMarkedObjectsNoFail");
+  for (auto [object, size] : LiveObjectRange(page)) {
+    const bool success = visitor->Visit(object, size);
+    USE(success);
+    DCHECK(success);
+  }
+}
+
 bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
   NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
@@ -4285,26 +4315,32 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
                EvacuationModeName(evacuation_mode), "live_bytes", *live_bytes);
-  HeapObject failed_object;
   switch (evacuation_mode) {
     case kObjectsNewToOld:
 #if DEBUG
       new_space_visitor_.DisableAbortEvacuationAtAddress(chunk);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
-                                                 &new_space_visitor_);
+      LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
+                                                  &new_space_visitor_);
       marking_state->ClearLiveness(chunk);
       break;
     case kPageNewToOld:
-      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
-                                                 &new_to_old_page_visitor_);
+      if (chunk->IsLargePage()) {
+        auto object = LargePage::cast(chunk)->GetObject();
+        bool success = new_to_old_page_visitor_.Visit(object, object.Size());
+        USE(success);
+        DCHECK(success);
+      } else {
+        LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
+                                                    &new_to_old_page_visitor_);
+      }
       new_to_old_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       break;
     case kPageNewToNew:
       DCHECK(!v8_flags.minor_mc);
-      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
-                                                 &new_to_new_page_visitor_);
+      LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
+                                                  &new_to_new_page_visitor_);
       new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       break;
@@ -4315,9 +4351,9 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
 #if DEBUG
       old_space_visitor_.SetUpAbortEvacuationAtAddress(chunk);
 #endif  // DEBUG
-      const bool success = LiveObjectVisitor::VisitBlackObjects(
-          chunk, marking_state, &old_space_visitor_, &failed_object);
-      if (success) {
+      HeapObject failed_object;
+      if (LiveObjectVisitor::VisitMarkedObjects(
+              Page::cast(chunk), &old_space_visitor_, &failed_object)) {
         marking_state->ClearLiveness(chunk);
       } else {
         if (v8_flags.crash_on_aborted_evacuation) {
@@ -4600,55 +4636,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
     return object;
   }
 };
-
-template <class Visitor, typename MarkingState>
-bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
-                                          MarkingState* marking_state,
-                                          Visitor* visitor,
-                                          HeapObject* failed_object) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "LiveObjectVisitor::VisitBlackObjects");
-  for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
-    if (!visitor->Visit(object, size)) {
-      *failed_object = object;
-      return false;
-    }
-  }
-  return true;
-}
-
-template <class Visitor, typename MarkingState>
-void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
-                                                MarkingState* marking_state,
-                                                Visitor* visitor) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "LiveObjectVisitor::VisitBlackObjectsNoFail");
-  if (chunk->IsLargePage()) {
-    HeapObject object = reinterpret_cast<LargePage*>(chunk)->GetObject();
-    if (marking_state->IsMarked(object)) {
-      const bool success = visitor->Visit(object, object.Size());
-      USE(success);
-      DCHECK(success);
-    }
-  } else {
-    for (auto [object, size] : LiveObjectRange(Page::cast(chunk))) {
-      DCHECK(marking_state->IsMarked(object));
-      const bool success = visitor->Visit(object, size);
-      USE(success);
-      DCHECK(success);
-    }
-  }
-}
-
-template <typename MarkingState>
-void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
-                                           MarkingState* marking_state) {
-  int new_live_size = 0;
-  for (auto object_and_size : LiveObjectRange(Page::cast(chunk))) {
-    new_live_size += ALIGN_TO_ALLOCATION_ALIGNMENT(object_and_size.second);
-  }
-  marking_state->SetLiveBytes(chunk, new_live_size);
-}
 
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
@@ -5297,12 +5284,10 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
   RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(page, page->address(),
                                                  failed_start);
 
-  // Recompute live bytes.
-  LiveObjectVisitor::RecomputeLiveBytes(page, marking_state);
-  // Re-record slots.
-  EvacuateRecordOnlyVisitor record_visitor(heap);
-  LiveObjectVisitor::VisitBlackObjectsNoFail(page, marking_state,
-                                             &record_visitor);
+  // Re-record slots and recompute live bytes.
+  EvacuateRecordOnlyVisitor visitor(heap);
+  LiveObjectVisitor::VisitMarkedObjectsNoFail(page, &visitor);
+  marking_state->SetLiveBytes(page, visitor.live_object_size());
   // Array buffers will be processed during pointer updating.
 }
 

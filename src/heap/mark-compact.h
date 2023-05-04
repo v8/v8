@@ -39,24 +39,6 @@ class RecordMigratedSlotVisitor;
 class UpdatingItem;
 class YoungGenerationMarkingTask;
 
-class LiveObjectVisitor : AllStatic {
- public:
-  // Visits black objects on a MemoryChunk until the Visitor returns |false| for
-  // an object.
-  template <class Visitor, typename MarkingState>
-  static bool VisitBlackObjects(MemoryChunk* chunk, MarkingState* state,
-                                Visitor* visitor, HeapObject* failed_object);
-
-  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
-  // visitation for an object.
-  template <class Visitor, typename MarkingState>
-  static void VisitBlackObjectsNoFail(MemoryChunk* chunk, MarkingState* state,
-                                      Visitor* visitor);
-
-  template <typename MarkingState>
-  static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);
-};
-
 enum class PromoteUnusablePages { kYes, kNo };
 enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
