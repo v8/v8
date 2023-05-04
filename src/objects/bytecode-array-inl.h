@@ -87,6 +87,16 @@ void BytecodeArray::set_bytecode_age(uint16_t age) {
   RELAXED_WRITE_UINT16_FIELD(*this, kBytecodeAgeOffset, age);
 }
 
+uint16_t BytecodeArray::CompareExchangeBytecodeAge(uint16_t expected_age,
+                                                   uint16_t new_age) {
+  Address age_addr = address() + kBytecodeAgeOffset;
+  // The word must be completely within the byte code array.
+  DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
+  static_assert(kBytecodeAgeSize == kUInt16Size);
+  return base::AsAtomic16::Relaxed_CompareAndSwap(
+      reinterpret_cast<base::Atomic16*>(age_addr), expected_age, new_age);
+}
+
 int32_t BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.

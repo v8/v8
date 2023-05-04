@@ -166,17 +166,10 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
 }
 
 void BytecodeArray::MakeOlder() {
-  // BytecodeArray is aged in concurrent marker.
-  // The word must be completely within the byte code array.
-  Address age_addr = address() + kBytecodeAgeOffset;
-  DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   uint16_t age = bytecode_age();
   if (age < v8_flags.bytecode_old_age) {
-    static_assert(kBytecodeAgeSize == kUInt16Size);
-    base::AsAtomic16::Relaxed_CompareAndSwap(
-        reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
+    CompareExchangeBytecodeAge(age, age + 1);
   }
-
   DCHECK_LE(bytecode_age(), v8_flags.bytecode_old_age);
 }
 
