@@ -1679,17 +1679,6 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
       case interpreter::Bytecode::kJumpIfTrueConstant:
       case interpreter::Bytecode::kJumpIfToBooleanTrue:
       case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
-        // This jump must kill the accumulator, otherwise we need to materialize
-        // the actual boolean value.
-        if (GetOutLivenessFor(it.current_offset())->AccumulatorIsLive()) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout
-                << "  ! Bailing out of test->branch fusion because accumulator "
-                   "is live"
-                << std::endl;
-          }
-          return {};
-        }
         return {it.current_offset()};
 
       default:
@@ -1789,7 +1778,12 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
 
+  SetAccumulatorInBranch(GetBooleanConstant((jump_type == kJumpIfTrue) ^ flip));
+
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+
+  SetAccumulatorInBranch(
+      GetBooleanConstant((jump_type == kJumpIfFalse) ^ flip));
   StartFallthroughBlock(next_offset(), block);
   return true;
 }
@@ -7594,9 +7588,12 @@ MaglevGraphBuilder::JumpType MaglevGraphBuilder::NegateJumpType(
   }
 }
 
-void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
-                                                   JumpType jump_type,
-                                                   RootIndex root_index) {
+void MaglevGraphBuilder::BuildBranchIfRootConstant(
+    ValueNode* node, JumpType jump_type, RootIndex root_index,
+    BranchSpecializationMode mode) {
+  ValueNode* original_node = node;
+  JumpType original_jump_type = jump_type;
+
   int fallthrough_offset = next_offset();
   int jump_offset = iterator_.GetJumpTargetOffset();
 
@@ -7607,6 +7604,20 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
   } else {
     true_target = &jump_targets_[fallthrough_offset];
     false_target = &jump_targets_[jump_offset];
+  }
+
+  if (root_index != RootIndex::kTrueValue &&
+      root_index != RootIndex::kFalseValue &&
+      CheckType(node, NodeType::kBoolean)) {
+    bool is_jump_taken = jump_type == kJumpIfFalse;
+    if (is_jump_taken) {
+      BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
+      MergeDeadIntoFrameState(fallthrough_offset);
+      MergeIntoFrameState(block, jump_offset);
+    } else {
+      MergeDeadIntoFrameState(jump_offset);
+    }
+    return;
   }
 
   while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
@@ -7633,12 +7644,41 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
       {node}, root_index, true_target, false_target);
 
+  // If the node we're checking is in the accumulator, swap it in the branch
+  // with the checked value. Cache whether we want to swap, since after we've
+  // swapped the accumulator isn't the original node anymore.
+  bool swap_accumulator = original_node == GetRawAccumulator();
+
+  if (swap_accumulator) {
+    if (mode == BranchSpecializationMode::kAlwaysBoolean) {
+      SetAccumulatorInBranch(
+          GetBooleanConstant(original_jump_type == kJumpIfTrue));
+    } else if (original_jump_type == kJumpIfTrue) {
+      SetAccumulatorInBranch(GetRootConstant(root_index));
+    } else {
+      SetAccumulatorInBranch(node);
+    }
+  }
+
   MergeIntoFrameState(block, jump_offset);
+
+  if (swap_accumulator) {
+    if (mode == BranchSpecializationMode::kAlwaysBoolean) {
+      SetAccumulatorInBranch(
+          GetBooleanConstant(original_jump_type == kJumpIfFalse));
+    } else if (original_jump_type == kJumpIfFalse) {
+      SetAccumulatorInBranch(GetRootConstant(root_index));
+    } else {
+      SetAccumulatorInBranch(node);
+    }
+  }
+
   StartFallthroughBlock(fallthrough_offset, block);
 }
 void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node,
                                            JumpType jump_type) {
-  BuildBranchIfRootConstant(node, jump_type, RootIndex::kTrueValue);
+  BuildBranchIfRootConstant(node, jump_type, RootIndex::kTrueValue,
+                            BranchSpecializationMode::kAlwaysBoolean);
 }
 void MaglevGraphBuilder::BuildBranchIfNull(ValueNode* node,
                                            JumpType jump_type) {
