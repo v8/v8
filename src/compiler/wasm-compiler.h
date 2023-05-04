@@ -185,8 +185,6 @@ class WasmGraphBuilder {
     kCanOmitBoundsCheck = false
   };
   enum BoundsCheckResult {
-    // Statically OOB.
-    kOutOfBounds,
     // Dynamically checked (using 1-2 conditional branches).
     kDynamicallyChecked,
     // OOB handled via the trap handler.
@@ -352,25 +350,26 @@ class WasmGraphBuilder {
   void TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                             uintptr_t offset, wasm::WasmCodePosition);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
-                uint64_t offset, uint32_t alignment,
+                uintptr_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
   Node* LoadTransformBigEndian(wasm::ValueType type, MachineType memtype,
                                wasm::LoadTransformationKind transform,
-                               Node* index, uint64_t offset, uint32_t alignment,
+                               Node* index, uintptr_t offset,
+                               uint32_t alignment,
                                wasm::WasmCodePosition position);
 #endif
   Node* LoadTransform(wasm::ValueType type, MachineType memtype,
                       wasm::LoadTransformationKind transform, Node* index,
-                      uint64_t offset, uint32_t alignment,
+                      uintptr_t offset, uint32_t alignment,
                       wasm::WasmCodePosition position);
   Node* LoadLane(wasm::ValueType type, MachineType memtype, Node* value,
-                 Node* index, uint64_t offset, uint32_t alignment,
+                 Node* index, uintptr_t offset, uint32_t alignment,
                  uint8_t laneidx, wasm::WasmCodePosition position);
-  void StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
+  void StoreMem(MachineRepresentation mem_rep, Node* index, uintptr_t offset,
                 uint32_t alignment, Node* val, wasm::WasmCodePosition position,
                 wasm::ValueType type);
-  void StoreLane(MachineRepresentation mem_rep, Node* index, uint64_t offset,
+  void StoreLane(MachineRepresentation mem_rep, Node* index, uintptr_t offset,
                  uint32_t alignment, Node* val, uint8_t laneidx,
                  wasm::WasmCodePosition position, wasm::ValueType type);
   static void PrintDebugName(Node* node);
@@ -423,7 +422,7 @@ class WasmGraphBuilder {
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
-                 uint32_t alignment, uint64_t offset,
+                 uint32_t alignment, uintptr_t offset,
                  wasm::WasmCodePosition position);
   void AtomicFence();
 
@@ -649,12 +648,12 @@ class WasmGraphBuilder {
   // the kind of bounds check performed (or why none was needed).
   std::pair<Node*, BoundsCheckResult> BoundsCheckMem(uint8_t access_size,
                                                      Node* index,
-                                                     uint64_t offset,
+                                                     uintptr_t offset,
                                                      wasm::WasmCodePosition,
                                                      EnforceBoundsCheck);
 
   std::pair<Node*, BoundsCheckResult> CheckBoundsAndAlignment(
-      int8_t access_size, Node* index, uint64_t offset, wasm::WasmCodePosition,
+      int8_t access_size, Node* index, uintptr_t offset, wasm::WasmCodePosition,
       EnforceBoundsCheck);
 
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
