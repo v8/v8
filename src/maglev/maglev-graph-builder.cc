@@ -2709,6 +2709,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
+      return NodeType::kJSReceiver;
     case Opcode::kToName:
       return NodeType::kName;
     case Opcode::kFloat64Equal:
