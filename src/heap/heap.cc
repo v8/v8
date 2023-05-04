@@ -301,9 +301,9 @@ Heap::~Heap() = default;
 
 size_t Heap::MaxReserved() const {
   const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
-  return static_cast<size_t>(2 * max_semi_space_size_ +
-                             kMaxNewLargeObjectSpaceSize +
-                             max_old_generation_size());
+  return static_cast<size_t>(
+      (v8_flags.minor_mc ? 1 : 2) * max_semi_space_size_ +
+      kMaxNewLargeObjectSpaceSize + max_old_generation_size());
 }
 
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
