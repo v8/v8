@@ -212,7 +212,7 @@ class GraphVisitor {
             assembler().GetPredecessorValue(var.value(), predecessor_index);
       }
     }
-    DCHECK(result.valid());
+    DCHECK_IMPLIES(!can_be_invalid, result.valid());
     return result;
   }
 

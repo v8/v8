@@ -115,6 +115,23 @@ class BranchEliminationReducer : public Next {
   //               \  /
   //              merge2
   //
+  //   2bis- In the 2nd optimization, if `cond` is a Phi of 2 values that come
+  //   from B1 and B2, then the same optimization can be applied for a similar
+  //   result. For instance:
+  //
+  //     if (cond) {                                if (cond) {
+  //       x = 1                                        x = 1;
+  //     } else {                becomes                B1
+  //       x = 0                 ======>            } else {
+  //     }                                              x = 0;
+  //     if (x) B1 else B2                              B2;
+  //                                                }
+  //
+  //   If `x` is more complex than a simple boolean, then the 2nd branch will
+  //   remain, except that it will be on `x`'s value directly rather than on a
+  //   Phi (so, it avoids creating a Phi, and it will probably be better for
+  //   branch prediction).
+  //
   //
   //   3- Optimizing {Return} nodes through merges. It checks that
   //    the return value is actually a {Phi} and the Return is dominated
@@ -269,25 +286,23 @@ class BranchEliminationReducer : public Next {
     LABEL_BLOCK(no_change) { return Next::ReduceGoto(destination); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    if (const Block* destination_origin = destination->OriginForBlockStart()) {
-      if (!destination_origin->IsMerge()) goto no_change;
-      if (destination_origin->HasExactlyNPredecessors(1)) {
-        // There is no point in trying the 2nd optimization: this would remove
-        // neither Phi nor Branch.
-        // TODO(dmercadier, tebbi): this block has a single predecessor and a
-        // single successor, so we might want to inline it.
-        goto no_change;
-      }
-      const Operation& last_op =
-          destination_origin->LastOperation(Asm().input_graph());
-      if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
-        OpIndex condition =
-            Asm().template MapToNewGraph<true>(branch->condition());
-        if (!condition.valid()) {
-          // The condition of the subsequent block's Branch hasn't been visited
-          // before, so we definitely don't know its value.
-          goto no_change;
-        }
+    const Block* destination_origin = destination->OriginForBlockStart();
+    if (!destination_origin || !destination_origin->IsMerge()) goto no_change;
+
+    if (destination_origin->HasExactlyNPredecessors(1)) {
+      // There is no point in trying the 2nd optimization: this would remove
+      // neither Phi nor Branch.
+      // TODO(dmercadier, tebbi): this block has a single predecessor and a
+      // single successor, so we might want to inline it.
+      goto no_change;
+    }
+
+    const Operation& last_op =
+        destination_origin->LastOperation(Asm().input_graph());
+    if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
+      OpIndex condition =
+          Asm().template MapToNewGraph<true>(branch->condition());
+      if (condition.valid()) {
         base::Optional<bool> condition_value = known_conditions_.Get(condition);
         if (!condition_value.has_value()) {
           // We've already visited the subsequent block's Branch condition, but
@@ -301,17 +316,32 @@ class BranchEliminationReducer : public Next {
         // its current Branch.
         Asm().CloneAndInlineBlock(destination_origin);
         return OpIndex::Invalid();
-      } else if (const ReturnOp* return_op =
-                     last_op.template TryCast<ReturnOp>()) {
-        // The destination block in the old graph ends with a Return
-        // and the old destination is a merge block, so we can directly
-        // inline the destination block in place of the Goto.
-        // TODO(nicohartmann@): Temporarily disable this "optimization" because
-        // it prevents dead code elimination in some cases. Reevaluate this and
-        // reenable if phases have been reordered properly.
-        // Asm().CloneAndInlineBlock(old_dst);
-        // return OpIndex::Invalid();
+      } else {
+        // Optimization 2bis:
+        // {condition} hasn't been visited yet, and thus it doesn't have a
+        // mapping to the new graph. However, if it's the result of a Phi whose
+        // input is coming from the current block, then it still makes sense to
+        // inline {destination_origin}: the condition will then be known.
+        if (destination_origin->Contains(branch->condition())) {
+          const PhiOp* cond = Asm()
+                                  .input_graph()
+                                  .Get(branch->condition())
+                                  .template TryCast<PhiOp>();
+          if (!cond) goto no_change;
+          Asm().CloneAndInlineBlock(destination_origin);
+          return OpIndex::Invalid();
+        }
       }
+    } else if (const ReturnOp* return_op =
+                   last_op.template TryCast<ReturnOp>()) {
+      // The destination block in the old graph ends with a Return
+      // and the old destination is a merge block, so we can directly
+      // inline the destination block in place of the Goto.
+      // TODO(nicohartmann@): Temporarily disable this "optimization" because
+      // it prevents dead code elimination in some cases. Reevaluate this and
+      // reenable if phases have been reordered properly.
+      // Asm().CloneAndInlineBlock(old_dst);
+      // return OpIndex::Invalid();
     }
 
     goto no_change;
