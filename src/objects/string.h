@@ -216,8 +216,8 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
-  const byte* AddressOfCharacterAt(int start_index,
-                                   const DisallowGarbageCollection& no_gc);
+  const uint8_t* AddressOfCharacterAt(int start_index,
+                                      const DisallowGarbageCollection& no_gc);
 
   // Forward declare the non-atomic (set_)length defined in torque.
   using TorqueGeneratedString::length;

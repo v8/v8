@@ -77,8 +77,8 @@ class InstructionStream : public HeapObject {
   // Unchecked accessor to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
 
-  inline byte* relocation_start() const;
-  inline byte* relocation_end() const;
+  inline uint8_t* relocation_start() const;
+  inline uint8_t* relocation_end() const;
   inline int relocation_size() const;
 
   // The size of the entire body section, containing instructions and inlined

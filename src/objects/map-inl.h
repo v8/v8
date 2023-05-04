@@ -279,7 +279,7 @@ VisitorId Map::visitor_id() const {
 
 void Map::set_visitor_id(VisitorId id) {
   CHECK_LT(static_cast<unsigned>(id), 256);
-  RELAXED_WRITE_BYTE_FIELD(*this, kVisitorIdOffset, static_cast<byte>(id));
+  RELAXED_WRITE_BYTE_FIELD(*this, kVisitorIdOffset, static_cast<uint8_t>(id));
 }
 
 int Map::instance_size_in_words() const {
@@ -288,7 +288,7 @@ int Map::instance_size_in_words() const {
 
 void Map::set_instance_size_in_words(int value) {
   RELAXED_WRITE_BYTE_FIELD(*this, kInstanceSizeInWordsOffset,
-                           static_cast<byte>(value));
+                           static_cast<uint8_t>(value));
 }
 
 int Map::instance_size() const {
@@ -314,7 +314,7 @@ void Map::set_inobject_properties_start_or_constructor_function_index(
   CHECK_LT(static_cast<unsigned>(value), 256);
   RELAXED_WRITE_BYTE_FIELD(
       *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset,
-      static_cast<byte>(value));
+      static_cast<uint8_t>(value));
 }
 
 int Map::GetInObjectPropertiesStartInWords() const {
@@ -409,7 +409,7 @@ int Map::used_or_unused_instance_size_in_words() const {
 void Map::set_used_or_unused_instance_size_in_words(int value) {
   CHECK_LE(static_cast<unsigned>(value), 255);
   RELAXED_WRITE_BYTE_FIELD(*this, kUsedOrUnusedInstanceSizeInWordsOffset,
-                           static_cast<byte>(value));
+                           static_cast<uint8_t>(value));
 }
 
 int Map::UsedInstanceSize() const {
@@ -518,30 +518,30 @@ void Map::SetWasmByte2(uint8_t value) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-byte Map::bit_field() const {
+uint8_t Map::bit_field() const {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   return relaxed_bit_field();
 }
 
-void Map::set_bit_field(byte value) {
+void Map::set_bit_field(uint8_t value) {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   set_relaxed_bit_field(value);
 }
 
-byte Map::relaxed_bit_field() const {
+uint8_t Map::relaxed_bit_field() const {
   return RELAXED_READ_BYTE_FIELD(*this, kBitFieldOffset);
 }
 
-void Map::set_relaxed_bit_field(byte value) {
+void Map::set_relaxed_bit_field(uint8_t value) {
   RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
-byte Map::bit_field2() const { return ReadField<byte>(kBitField2Offset); }
+uint8_t Map::bit_field2() const { return ReadField<uint8_t>(kBitField2Offset); }
 
-void Map::set_bit_field2(byte value) {
-  WriteField<byte>(kBitField2Offset, value);
+void Map::set_bit_field2(uint8_t value) {
+  WriteField<uint8_t>(kBitField2Offset, value);
 }
 
 uint32_t Map::bit_field3() const {

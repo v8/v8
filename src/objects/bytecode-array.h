@@ -27,8 +27,8 @@ class BytecodeArray
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
 
-  inline byte get(int index) const;
-  inline void set(int index, byte value);
+  inline uint8_t get(int index) const;
+  inline void set(int index, uint8_t value);
 
   inline Address GetFirstBytecodeAddress();
 

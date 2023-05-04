@@ -34,7 +34,7 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
     os << "{\"offset\":" << iterator.current_offset() << ", \"disassembly\":\"";
     interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<byte*>(current_address), false);
+        os, reinterpret_cast<uint8_t*>(current_address), false);
 
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       os << " (" << iterator.GetJumpTargetOffset() << ")";
@@ -108,7 +108,7 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<byte*>(current_address));
+        os, reinterpret_cast<uint8_t*>(current_address));
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       Address jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << reinterpret_cast<void*>(jump_target) << " @ "
@@ -160,8 +160,8 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
   BytecodeArray from = *this;
   DCHECK_EQ(from.length(), to.length());
-  CopyBytes(reinterpret_cast<byte*>(to.GetFirstBytecodeAddress()),
-            reinterpret_cast<byte*>(from.GetFirstBytecodeAddress()),
+  CopyBytes(reinterpret_cast<uint8_t*>(to.GetFirstBytecodeAddress()),
+            reinterpret_cast<uint8_t*>(from.GetFirstBytecodeAddress()),
             from.length());
 }
 

@@ -1003,14 +1003,15 @@ uint8_t SeqOneByteString::Get(
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+  return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   DCHECK_LE(value, kMaxOneByteCharCode);
-  WriteField<byte>(kHeaderSize + index * kCharSize, static_cast<byte>(value));
+  WriteField<uint8_t>(kHeaderSize + index * kCharSize,
+                      static_cast<uint8_t>(value));
 }
 
 void SeqOneByteString::SeqOneByteStringSetChars(int index,

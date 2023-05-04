@@ -81,9 +81,9 @@ class PreparseData
   inline int inner_start_offset() const;
   inline ObjectSlot inner_data_start() const;
 
-  inline byte get(int index) const;
-  inline void set(int index, byte value);
-  inline void copy_in(int index, const byte* buffer, int length);
+  inline uint8_t get(int index) const;
+  inline void set(int index, uint8_t value);
+  inline void copy_in(int index, const uint8_t* buffer, int length);
 
   inline PreparseData get_child(int index) const;
   inline void set_child(int index, PreparseData value,

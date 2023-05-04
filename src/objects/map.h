@@ -269,10 +269,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // on, or performs the write non-atomically if it's off. The read is always
   // non-atomically. This is done to have wider TSAN coverage on the cases where
   // it's possible.
-  DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+  DECL_PRIMITIVE_ACCESSORS(bit_field, uint8_t)
 
   // Atomic accessors, used for allowlisting legitimate concurrent accesses.
-  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, uint8_t)
 
   // Bit positions for |bit_field|.
   struct Bits1 {
@@ -282,7 +282,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   //
   // Bit field 2.
   //
-  DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
+  DECL_PRIMITIVE_ACCESSORS(bit_field2, uint8_t)
 
   // Bit positions for |bit_field2|.
   struct Bits2 {

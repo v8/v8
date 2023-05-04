@@ -4867,7 +4867,7 @@ STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
 
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
-                         const char* type_of, byte kind) {
+                         const char* type_of, uint8_t kind) {
   Handle<String> internalized_to_string =
       isolate->factory()->InternalizeUtf8String(to_string);
   Handle<String> internalized_type_of =

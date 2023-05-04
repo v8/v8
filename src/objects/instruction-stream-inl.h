@@ -90,11 +90,11 @@ ByteArray InstructionStream::unchecked_relocation_info() const {
                                                                    *this));
 }
 
-byte* InstructionStream::relocation_start() const {
+uint8_t* InstructionStream::relocation_start() const {
   return relocation_info().GetDataStartAddress();
 }
 
-byte* InstructionStream::relocation_end() const {
+uint8_t* InstructionStream::relocation_end() const {
   return relocation_info().GetDataEndAddress();
 }
 

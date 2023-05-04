@@ -27,8 +27,8 @@ RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 void FeedbackCell::clear_padding() {
   if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
   DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
-  memset(reinterpret_cast<byte*>(address() + FeedbackCell::kUnalignedSize), 0,
-         FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
+  memset(reinterpret_cast<uint8_t*>(address() + FeedbackCell::kUnalignedSize),
+         0, FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
 }
 
 void FeedbackCell::reset_feedback_vector(

@@ -50,21 +50,21 @@ void PreparseData::clear_padding() {
   memset(reinterpret_cast<void*>(address() + data_end_offset), 0, padding_size);
 }
 
-byte PreparseData::get(int index) const {
+uint8_t PreparseData::get(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  return ReadField<byte>(offset);
+  return ReadField<uint8_t>(offset);
 }
 
-void PreparseData::set(int index, byte value) {
+void PreparseData::set(int index, uint8_t value) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  WriteField<byte>(offset, value);
+  WriteField<uint8_t>(offset, value);
 }
 
-void PreparseData::copy_in(int index, const byte* buffer, int length) {
+void PreparseData::copy_in(int index, const uint8_t* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->data_length());
   Address dst_addr = field_address(kDataStartOffset + index * kByteSize);

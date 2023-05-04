@@ -197,8 +197,8 @@ class Code : public HeapObject {
   inline int unwinding_info_size() const;
   inline bool has_unwinding_info() const;
 
-  inline byte* relocation_start() const;
-  inline byte* relocation_end() const;
+  inline uint8_t* relocation_start() const;
+  inline uint8_t* relocation_end() const;
   inline int relocation_size() const;
 
   inline int safepoint_table_offset() const { return 0; }

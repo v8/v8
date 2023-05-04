@@ -592,16 +592,16 @@ void ArrayList::Clear(int index, Object undefined) {
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
-byte ByteArray::get(int offset) const {
+uint8_t ByteArray::get(int offset) const {
   DCHECK_GE(offset, 0);
   DCHECK_LT(offset, length());
-  return ReadField<byte>(kHeaderSize + offset);
+  return ReadField<uint8_t>(kHeaderSize + offset);
 }
 
-void ByteArray::set(int offset, byte value) {
+void ByteArray::set(int offset, uint8_t value) {
   DCHECK_GE(offset, 0);
   DCHECK_LT(offset, length());
-  WriteField<byte>(kHeaderSize + offset, value);
+  WriteField<uint8_t>(kHeaderSize + offset, value);
 }
 
 int ByteArray::get_int(int offset) const {
@@ -644,7 +644,7 @@ FixedAddressArray::FixedAddressArray(Address ptr)
 
 CAST_ACCESSOR(FixedAddressArray)
 
-void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
+void ByteArray::copy_in(int offset, const uint8_t* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
   DCHECK_LE(slice_length, kMaxInt - offset);
@@ -653,7 +653,7 @@ void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
 }
 
-void ByteArray::copy_out(int offset, byte* buffer, int slice_length) {
+void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
   DCHECK_LE(slice_length, kMaxInt - offset);
@@ -674,11 +674,11 @@ ByteArray ByteArray::FromDataStartAddress(Address address) {
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
-byte* ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<byte*>(address() + kHeaderSize);
+uint8_t* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<uint8_t*>(address() + kHeaderSize);
 }
 
-byte* ByteArray::GetDataEndAddress() {
+uint8_t* ByteArray::GetDataEndAddress() {
   return GetDataStartAddress() + length();
 }
 

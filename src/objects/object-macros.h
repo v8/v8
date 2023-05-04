@@ -671,11 +671,11 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
   RELAXED_WRITE_UINT32_FIELD(p, offset, value)
 
 #define RELAXED_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::Relaxed_Load(    \
+  static_cast<uint8_t>(base::Relaxed_Load( \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define ACQUIRE_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::Acquire_Load(    \
+  static_cast<uint8_t>(base::Acquire_Load( \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define RELAXED_WRITE_BYTE_FIELD(p, offset, value)                             \

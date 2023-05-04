@@ -208,13 +208,13 @@ FixedArray Code::unchecked_deoptimization_data() const {
           *this));
 }
 
-byte* Code::relocation_start() const {
+uint8_t* Code::relocation_start() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().relocation_start()
              : nullptr;
 }
 
-byte* Code::relocation_end() const {
+uint8_t* Code::relocation_end() const {
   return V8_LIKELY(has_instruction_stream())
              ? instruction_stream().relocation_end()
              : nullptr;

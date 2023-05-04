@@ -2042,7 +2042,7 @@ String ConsStringIterator::NextLeaf(bool* blew_stack) {
   UNREACHABLE();
 }
 
-const byte* String::AddressOfCharacterAt(
+const uint8_t* String::AddressOfCharacterAt(
     int start_index, const DisallowGarbageCollection& no_gc) {
   DCHECK(IsFlat());
   String subject = *this;
@@ -2064,17 +2064,17 @@ const byte* String::AddressOfCharacterAt(
   CHECK_LE(start_index, subject.length());
   switch (shape.representation_and_encoding_tag()) {
     case kOneByteStringTag | kSeqStringTag:
-      return reinterpret_cast<const byte*>(
+      return reinterpret_cast<const uint8_t*>(
           SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
     case kTwoByteStringTag | kSeqStringTag:
-      return reinterpret_cast<const byte*>(
+      return reinterpret_cast<const uint8_t*>(
           SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
     case kOneByteStringTag | kExternalStringTag:
-      return reinterpret_cast<const byte*>(
+      return reinterpret_cast<const uint8_t*>(
           ExternalOneByteString::cast(subject).GetChars(cage_base) +
           start_index);
     case kTwoByteStringTag | kExternalStringTag:
-      return reinterpret_cast<const byte*>(
+      return reinterpret_cast<const uint8_t*>(
           ExternalTwoByteString::cast(subject).GetChars(cage_base) +
           start_index);
     default:

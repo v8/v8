@@ -58,7 +58,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
       AllocationType allocation = AllocationType::kYoung);
   static Handle<BigInt> NewFromInt(Isolate* isolate, int value);
   static Handle<BigInt> NewFromDouble(Isolate* isolate, double value);
-  void InitializeDigits(int length, byte value = 0);
+  void InitializeDigits(int length, uint8_t value = 0);
   static Handle<MutableBigInt> Copy(Isolate* isolate,
                                     Handle<BigIntBase> source);
   template <typename IsolateT>
@@ -295,7 +295,7 @@ Handle<MutableBigInt> MutableBigInt::Copy(Isolate* isolate,
   return result;
 }
 
-void MutableBigInt::InitializeDigits(int length, byte value) {
+void MutableBigInt::InitializeDigits(int length, uint8_t value) {
   memset(reinterpret_cast<void*>(ptr() + kDigitsOffset - kHeapObjectTag), value,
          length * kDigitSize);
 }
@@ -1438,10 +1438,10 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   }
   if (bytelength % kDigitSize) {
     *digit = 0;
-    byte* digit_byte = reinterpret_cast<byte*>(digit);
+    uint8_t* digit_byte = reinterpret_cast<uint8_t*>(digit);
     digit_byte += sizeof(*digit) - 1;
-    const byte* digit_storage_byte =
-        reinterpret_cast<const byte*>(digit_storage);
+    const uint8_t* digit_storage_byte =
+        reinterpret_cast<const uint8_t*>(digit_storage);
     for (int i = 0; i < bytelength % kDigitSize; i++) {
       *digit_byte = *digit_storage_byte;
       digit_byte--;

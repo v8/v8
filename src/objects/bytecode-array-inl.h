@@ -21,14 +21,14 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 
-byte BytecodeArray::get(int index) const {
+uint8_t BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+  return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
-void BytecodeArray::set(int index, byte value) {
+void BytecodeArray::set(int index, uint8_t value) {
   DCHECK(index >= 0 && index < this->length());
-  WriteField<byte>(kHeaderSize + index * kCharSize, value);
+  WriteField<uint8_t>(kHeaderSize + index * kCharSize, value);
 }
 
 void BytecodeArray::set_frame_size(int32_t frame_size) {
@@ -90,7 +90,7 @@ void BytecodeArray::set_bytecode_age(uint16_t age) {
 uint16_t BytecodeArray::CompareExchangeBytecodeAge(uint16_t expected_age,
                                                    uint16_t new_age) {
   Address age_addr = address() + kBytecodeAgeOffset;
-  // The word must be completely within the byte code array.
+  // The word must be completely within the bytecode array.
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   static_assert(kBytecodeAgeSize == kUInt16Size);
   return base::AsAtomic16::Relaxed_CompareAndSwap(

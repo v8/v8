@@ -526,15 +526,15 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   inline int Size();
 
   // Get/set the contents of this array.
-  inline byte get(int offset) const;
-  inline void set(int offset, byte value);
+  inline uint8_t get(int offset) const;
+  inline void set(int offset, uint8_t value);
 
   inline int get_int(int offset) const;
   inline void set_int(int offset, int value);
 
   // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, byte* buffer, int slice_length);
-  inline void copy_in(int index, const byte* buffer, int slice_length);
+  inline void copy_out(int index, uint8_t* buffer, int slice_length);
+  inline void copy_in(int index, const uint8_t* buffer, int slice_length);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -554,9 +554,9 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   }
 
   // Returns data start address.
-  inline byte* GetDataStartAddress();
+  inline uint8_t* GetDataStartAddress();
   // Returns address of the past-the-end element.
-  inline byte* GetDataEndAddress();
+  inline uint8_t* GetDataEndAddress();
 
   inline int DataSize() const;
 
@@ -645,12 +645,13 @@ class PodArray : public ByteArray {
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
   void copy_out(int index, T* result, int length) {
-    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
+    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<uint8_t*>(result),
                         length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
-    ByteArray::copy_in(index * sizeof(T), reinterpret_cast<const byte*>(buffer),
+    ByteArray::copy_in(index * sizeof(T),
+                       reinterpret_cast<const uint8_t*>(buffer),
                        length * sizeof(T));
   }
 
