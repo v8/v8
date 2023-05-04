@@ -862,9 +862,6 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0("v8.wasm", "wasm.GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
-  // Any buffer used as an asmjs memory cannot be detached, and
-  // therefore this memory cannot be grown.
-  if (old_buffer->is_asmjs_memory()) return -1;
 
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
   if (!backing_store) return -1;

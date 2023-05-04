@@ -114,7 +114,8 @@ namespace internal {
   /* ExternalPointerTable::TableCompactionOutcome enum for more details. */    \
   HR(external_pointer_table_compaction_outcome,                                \
      V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)                        \
-  HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)
+  HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)               \
+  HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)
 
 // Like TIMED_HISTOGRAM_LIST, but allows the use of NestedTimedHistogramScope.
 // HT(name, caption, max, unit)

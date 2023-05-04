@@ -167,6 +167,13 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   return function->code();
 }
 
+// The enum values need to match "AsmJsInstantiateResult" in
+// tools/metrics/histograms/enums.xml.
+enum AsmJsInstantiateResult {
+  kAsmJsInstantiateSuccess = 0,
+  kAsmJsInstantiateFail = 1,
+};
+
 RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 4);
@@ -190,7 +197,14 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
-    if (!result.is_null()) return *result.ToHandleChecked();
+    if (!result.is_null()) {
+      isolate->counters()->asmjs_instantiate_result()->AddSample(
+          kAsmJsInstantiateSuccess);
+      return *result.ToHandleChecked();
+    }
+    isolate->counters()->asmjs_instantiate_result()->AddSample(
+        kAsmJsInstantiateFail);
+
     // Remove wasm data, mark as broken for asm->wasm, replace function code
     // with UncompiledData, and return a smi 0 to indicate failure.
     SharedFunctionInfo::DiscardCompiled(isolate, shared);

@@ -929,7 +929,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (memory_buffer_.ToHandle(&buffer)) {
       // asm.js instantiation should have changed the state of the buffer.
       CHECK(!buffer->is_detachable());
-      CHECK(buffer->is_asmjs_memory());
     } else {
       // Use an empty JSArrayBuffer for degenerate asm.js modules.
       memory_buffer_ = isolate_->factory()->NewJSArrayBufferAndBackingStore(
@@ -938,7 +937,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         thrower_->RangeError("Out of memory: asm.js memory");
         return {};
       }
-      buffer->set_is_asmjs_memory(true);
       buffer->set_is_detachable(false);
     }
 
