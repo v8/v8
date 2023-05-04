@@ -4014,13 +4014,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) {
       return ReduceResult::Fail();
     }
-    if (CheckType(index_object, NodeType::kString)) {
-      return BuildCallBuiltin<Builtin::kKeyedLoadIC_MegamorphicStringKey>(
-          {object, GetTaggedValue(index_object)}, feedback_source);
-    } else {
-      return BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
-          {object, GetTaggedValue(index_object)}, feedback_source);
-    }
+    return BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
+        {object, GetTaggedValue(index_object)}, feedback_source);
   }
 
   // TODO(leszeks): Add non-deopting bounds check (has to support undefined
