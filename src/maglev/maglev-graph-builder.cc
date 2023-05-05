@@ -7750,6 +7750,10 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
       // convert the node to BranchIfFloat64ToBooleanTrue or
       // BranchIfInt32ToBooleanTrue.
       node = GetTaggedValue(node, UseReprHintRecording::kDoNotRecord);
+      if (CheckType(node, NodeType::kBoolean)) {
+        return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
+                                                 true_target, false_target);
+      }
       return FinishBlock<BranchIfToBooleanTrue>({node}, true_target,
                                                 false_target);
     }
@@ -7793,21 +7797,6 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
 
   BasicBlock* block;
   switch (node->opcode()) {
-    case Opcode::kInt32Equal: {
-      Int32Equal* int32_equal = node->Cast<Int32Equal>();
-      block = FinishBlock<BranchIfInt32Compare>(
-          {int32_equal->left_input().node(), int32_equal->right_input().node()},
-          Operation::kEqual, true_target, false_target);
-      break;
-    }
-    case Opcode::kFloat64Equal: {
-      Float64Equal* float64_equal = node->Cast<Float64Equal>();
-      block = FinishBlock<BranchIfFloat64Compare>(
-          {float64_equal->left_input().node(),
-           float64_equal->right_input().node()},
-          Operation::kEqual, true_target, false_target);
-      break;
-    }
     // Known boolean-valued codes, we don't need to call ToBoolean on them.
     case Opcode::kToBoolean:
     case Opcode::kToBooleanLogicalNot: {
