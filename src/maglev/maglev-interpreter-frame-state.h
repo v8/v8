@@ -122,13 +122,15 @@ struct NodeInfo {
   ValueNode* tagged_alternative = nullptr;
   ValueNode* int32_alternative = nullptr;
   ValueNode* float64_alternative = nullptr;
+  ValueNode* constant_alternative = nullptr;
   // Alternative nodes with a value equivalent to the ToNumber of this node.
   ValueNode* truncated_int32_to_number = nullptr;
 
   bool is_empty() {
     return type == NodeType::kUnknown && tagged_alternative == nullptr &&
            int32_alternative == nullptr && float64_alternative == nullptr &&
-           truncated_int32_to_number == nullptr;
+           truncated_int32_to_number == nullptr &&
+           constant_alternative == nullptr;
   }
 
   bool is_smi() const { return NodeTypeIsSmi(type); }
@@ -138,6 +140,7 @@ struct NodeInfo {
     return NodeTypeIsInternalizedString(type);
   }
   bool is_symbol() const { return NodeTypeIsSymbol(type); }
+  bool is_constant() const { return constant_alternative != nullptr; }
 
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
@@ -152,6 +155,9 @@ struct NodeInfo {
     float64_alternative = float64_alternative == other.float64_alternative
                               ? float64_alternative
                               : nullptr;
+    constant_alternative = constant_alternative == other.constant_alternative
+                               ? constant_alternative
+                               : nullptr;
     truncated_int32_to_number =
         truncated_int32_to_number == other.truncated_int32_to_number
             ? truncated_int32_to_number

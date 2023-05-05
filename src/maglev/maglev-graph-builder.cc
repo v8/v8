@@ -1819,6 +1819,18 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
   return {};
 }
 
+compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
+    ValueNode* node) {
+  if (auto result = TryGetConstant(broker(), local_isolate(), node)) {
+    return result;
+  }
+  const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
+  if (info && info->is_constant()) {
+    return TryGetConstant(info->constant_alternative);
+  }
+  return {};
+}
+
 template <Operation kOperation>
 bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   // First handle strict equal comparison with constant.
@@ -2649,6 +2661,25 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
 }
 
 namespace {
+NodeType StaticTypeForConstant(compiler::HeapObjectRef ref) {
+  if (ref.IsString()) {
+    if (ref.IsInternalizedString()) {
+      return NodeType::kInternalizedString;
+    }
+    return NodeType::kString;
+  } else if (ref.IsSymbol()) {
+    return NodeType::kSymbol;
+  } else if (ref.IsHeapNumber()) {
+    return NodeType::kHeapNumber;
+  } else if (ref.IsJSReceiver()) {
+    return NodeType::kJSReceiverWithKnownMap;
+  }
+  return NodeType::kHeapObjectWithKnownMap;
+}
+NodeType StaticTypeForConstant(compiler::ObjectRef ref) {
+  if (ref.IsSmi()) return NodeType::kSmi;
+  return StaticTypeForConstant(ref.AsHeapObject());
+}
 NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
                            LocalIsolate* isolate, ValueNode* node) {
   switch (node->properties().value_representation()) {
@@ -2690,19 +2721,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kConstant: {
       compiler::HeapObjectRef ref =
           MaglevGraphBuilder::TryGetConstant(broker, isolate, node).value();
-      if (ref.IsString()) {
-        if (ref.IsInternalizedString()) {
-          return NodeType::kInternalizedString;
-        }
-        return NodeType::kString;
-      } else if (ref.IsSymbol()) {
-        return NodeType::kSymbol;
-      } else if (ref.IsHeapNumber()) {
-        return NodeType::kHeapNumber;
-      } else if (ref.IsJSReceiver()) {
-        return NodeType::kJSReceiverWithKnownMap;
-      }
-      return NodeType::kHeapObjectWithKnownMap;
+      return StaticTypeForConstant(ref);
     }
     case Opcode::kLoadPolymorphicTaggedField: {
       Representation field_representation =
@@ -2779,6 +2798,15 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   if (NodeTypeIs(known_info->type, type)) return true;
   known_info->type = CombineType(known_info->type, type);
   return false;
+}
+
+void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
+                                       compiler::ObjectRef ref) {
+  DCHECK(!node->Is<Constant>());
+  DCHECK(!node->Is<RootConstant>());
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  known_info->type = StaticTypeForConstant(ref);
+  known_info->constant_alternative = GetConstant(ref);
 }
 
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
@@ -5615,6 +5643,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   } else {
     AddNewNode<CheckValue>({node}, ref);
   }
+  SetKnownValue(node, ref);
   return ReduceResult::Done();
 }
 
@@ -5648,9 +5677,19 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
       // TODO(verwaest): Handle NaN.
       EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
       return ReduceResult::DoneWithAbort();
+    } else if (compiler::OptionalHeapObjectRef constant =
+                   TryGetConstant(node)) {
+      if (constant.value().IsHeapNumber() &&
+          constant.value().AsHeapNumber().value() == ref_value) {
+        return ReduceResult::Done();
+      }
+      // TODO(verwaest): Handle NaN.
+      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return ReduceResult::DoneWithAbort();
     }
     AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
   }
+  SetKnownValue(node, ref);
   return ReduceResult::Done();
 }
 

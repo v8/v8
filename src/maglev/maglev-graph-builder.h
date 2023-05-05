@@ -332,6 +332,7 @@ class MaglevGraphBuilder {
 
   bool CheckType(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
   bool ShouldEmitInterruptBudgetChecks() {
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
@@ -1368,9 +1369,7 @@ class MaglevGraphBuilder {
   ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
 
-  compiler::OptionalHeapObjectRef TryGetConstant(ValueNode* node) {
-    return TryGetConstant(broker(), local_isolate(), node);
-  }
+  compiler::OptionalHeapObjectRef TryGetConstant(ValueNode* node);
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,
