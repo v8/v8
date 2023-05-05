@@ -305,6 +305,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                          true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
+      allow_loop_peeling_(is_inline() ? parent_->allow_loop_peeling_
+                                      : v8_flags.maglev_loop_peeling),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
@@ -7369,6 +7371,7 @@ void MaglevGraphBuilder::PeelLoop() {
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));
   in_peeled_iteration_ = true;
+  allow_loop_peeling_ = false;
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
     VisitSingleBytecode();
@@ -7469,6 +7472,9 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   merge_states_[target]->MergeLoop(*compilation_unit_, this,
                                    current_interpreter_frame_, block);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
+  if (loop_headers_to_peel_.Contains(iterator_.current_offset())) {
+    allow_loop_peeling_ = true;
+  }
 }
 void MaglevGraphBuilder::VisitJump() {
   BasicBlock* block =
