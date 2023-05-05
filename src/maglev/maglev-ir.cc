@@ -105,7 +105,19 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
 void Phi::RecordUseReprHint(UseRepresentationSet repr_mask) {
-  uses_repr_hint_.Add(repr_mask);
+  if (!repr_mask.is_subset_of(uses_repr_hint_)) {
+    uses_repr_hint_.Add(repr_mask);
+
+    // Propagate in inputs, ignoring unbounded loop backedges.
+    int bound_inputs = input_count();
+    if (merge_state()->is_unmerged_loop()) --bound_inputs;
+
+    for (int i = 0; i < bound_inputs; i++) {
+      if (Phi* phi_input = input(i).node()->TryCast<Phi>()) {
+        phi_input->RecordUseReprHint(repr_mask);
+      }
+    }
+  }
 }
 
 namespace {

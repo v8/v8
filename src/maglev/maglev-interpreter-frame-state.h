@@ -587,7 +587,7 @@ class MergePointInterpreterFrameState {
   bool is_unmerged_loop() const {
     // If this is a loop and not all predecessors are set, then the loop isn't
     // merged yet.
-    DCHECK_GT(predecessor_count_, 0);
+    DCHECK_IMPLIES(is_loop(), predecessor_count_ > 0);
     return is_loop() && predecessors_so_far_ < predecessor_count_;
   }
 

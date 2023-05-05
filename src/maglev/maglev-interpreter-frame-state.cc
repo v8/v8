@@ -508,6 +508,11 @@ void MergePointInterpreterFrameState::MergeLoopValue(
   unmerged = EnsureTagged(compilation_unit, smi_constants, unmerged_aspects,
                           unmerged, predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
+
+  if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
+    // Propagating the `uses_repr` from {result} to {unmerged_phi}.
+    unmerged_phi->RecordUseReprHint(result->get_uses_repr_hints());
+  }
 }
 
 ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
@@ -515,6 +520,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
   DCHECK_EQ(predecessors_so_far_, 0);
   // Create a new loop phi, which for now is empty.
   Phi* result = Node::New<Phi>(zone, predecessor_count_, this, reg);
+
   if (v8_flags.trace_maglev_graph_building) {
     for (int i = 0; i < predecessor_count_; i++) {
       result->set_input(i, nullptr);
