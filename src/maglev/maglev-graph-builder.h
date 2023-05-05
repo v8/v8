@@ -1524,6 +1524,7 @@ class MaglevGraphBuilder {
   void BuildCheckSmi(ValueNode* object, bool elidable = true);
   void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
+  void BuildCheckJSReceiver(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
   void BuildCheckMaps(ValueNode* object,

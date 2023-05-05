@@ -4611,8 +4611,15 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
  public:
   explicit CheckInstanceType(uint64_t bitfield, CheckType check_type,
                              InstanceType instance_type)
+      : CheckInstanceType(bitfield, check_type, instance_type, instance_type) {}
+  explicit CheckInstanceType(uint64_t bitfield, CheckType check_type,
+                             InstanceType first_instance_type,
+                             InstanceType last_instance_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)),
-        instance_type_(instance_type) {}
+        first_instance_type_(first_instance_type),
+        last_instance_type_(last_instance_type) {
+    DCHECK_LE(first_instance_type, last_instance_type);
+  }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4622,7 +4629,6 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
   Input& receiver_input() { return input(kReceiverIndex); }
 
   CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
-  InstanceType instance_type() const { return instance_type_; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -4630,7 +4636,8 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
-  const InstanceType instance_type_;
+  const InstanceType first_instance_type_;
+  const InstanceType last_instance_type_;
 };
 
 class CheckString : public FixedInputNodeT<1, CheckString> {
