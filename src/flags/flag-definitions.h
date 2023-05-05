@@ -123,7 +123,12 @@
 #error ENABLE_SPARKPLUG must be defined at this point.
 #endif  // ENABLE_SPARKPLUG
 
+#if ENABLE_SPARKPLUG && !defined(ANDROID)
+// Enable Sparkplug by default on desktop-only.
 #define ENABLE_SPARKPLUG_BY_DEFAULT true
+#else
+#define ENABLE_SPARKPLUG_BY_DEFAULT false
+#endif
 
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
