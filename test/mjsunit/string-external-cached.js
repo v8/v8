@@ -31,16 +31,16 @@
 function test() {
   // Test string.charAt.
   var charat_str = new Array(5);
-  charat_str[0] = "0123456789ABCDEF0123456789ABCDEF\
+  charat_str[0] = createExternalizableString('0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
-0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
-  charat_str[1] = "0123456789ABCDEF";
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF');
+  charat_str[1] = createExternalizableString('0123456789ABCDEF');
   for (var i = 0; i < 6; i++) charat_str[1] += charat_str[1];
   try {  // String can only be externalized once
-    externalizeString(charat_str[0], false);
-    externalizeString(charat_str[1], true);
+    externalizeString(charat_str[0]);
+    externalizeString(charat_str[1]);
   } catch (ex) { }
   charat_str[2] = charat_str[0].slice(0, -1);
   charat_str[3] = charat_str[1].slice(0, -1);
@@ -53,17 +53,17 @@ function test() {
     assertEquals('B', charat_str[i].charAt(3*16 + 11));
   }
 
-  charat_short = "01234";
+  charat_short = createExternalizableString('01234');
   try {  // String can only be externalized once
-    externalizeString(charat_short, true);
+    externalizeString(charat_short);
   } catch (ex) { }
   assertEquals("1", charat_short.charAt(1));
 
   // Test regexp and short substring.
   var re = /(A|B)/;
   var rere = /(T.{1,3}B)/u;
-  var ascii = "ABCDEFGHIJKLMNOPQRST";
-  var twobyte = "_ABCDEFGHIJKLMNOPQRST🤓";
+  var ascii = createExternalizableString('ABCDEFGHIJKLMNOPQRST');
+  var twobyte = createExternalizableString('_ABCDEFGHIJKLMNOPQRST🤓');
   try {  // String can only be externalized once
     externalizeString(ascii);
     externalizeString(twobyte);
@@ -88,15 +88,15 @@ function test() {
   }
 
   // Test adding external strings
-  var short_ascii = "E=";
-  var long_ascii = "MCsquared";
-  var short_twobyte = "E\u1234";
-  var long_twobyte = "MCsquare\u1234";
+  var short_ascii = createExternalizableString('E=');
+  var long_ascii = createExternalizableString('MCsquared');
+  var short_twobyte = createExternalizableString('E\u1234');
+  var long_twobyte = createExternalizableString('MCsquare\u1234');
   try {  // String can only be externalized once
-    externalizeString(short_ascii, false);
-    externalizeString(long_ascii, false);
-    externalizeString(short_twobyte, true);
-    externalizeString(long_twobyte, true);
+    externalizeString(short_ascii);
+    externalizeString(long_ascii);
+    externalizeString(short_twobyte);
+    externalizeString(long_twobyte);
     assertTrue(isOneByteString(short_asii) && isOneByteString(long_ascii));
     assertFalse(isOneByteString(short_twobyte) || isOneByteString(long_twobyte));
   } catch (ex) { }

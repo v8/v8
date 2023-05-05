@@ -212,7 +212,9 @@ assertEquals(
 
 // Externalizing strings.
 var a = "internalized dummy";
-a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
+a = createExternalizableString(
+    '123456789' +
+    'qwertyuiopasdfghjklzxcvbnm');
 var b = '23456789qwertyuiopasdfghjklzxcvbn';
 assertEquals(a.slice(1, -1), b);
 

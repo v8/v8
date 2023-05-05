@@ -45,7 +45,7 @@ function test() {
   assertTrue(isOneByteString(str));
 
   var realTwoByteExternalString =
-      "\u1234\u1234\u1234\u1234" + dont_inline2();
+      createExternalizableString('\u1234\u1234\u1234\u1234' + dont_inline2());
   externalizeString(realTwoByteExternalString);
   assertFalse(isOneByteString(realTwoByteExternalString));
 

@@ -5,8 +5,8 @@
 // Flags: --expose-externalize-string --harmony-string-is-well-formed
 
 (function TestIsWellFormed() {
-  const short2ByteWellFormed = '\u1234';
-  const short2ByteIllFormed = '\uD83D';
+  const short2ByteWellFormed = createExternalizableString('\u1234');
+  const short2ByteIllFormed = createExternalizableString('\uD83D');
 
   assertTrue(short2ByteWellFormed.isWellFormed());
   assertFalse(short2ByteIllFormed.isWellFormed());
@@ -14,17 +14,18 @@
   try {
     // Turn the strings into uncached external strings to hit the slow runtime
     // path.
-    externalizeString(short2ByteWellFormed, true);
-    externalizeString(short2ByteIllFormed, true);
-  } catch (e) {}
+    externalizeString(short2ByteWellFormed);
+    externalizeString(short2ByteIllFormed);
+  } catch (e) {
+  }
 
   assertTrue(short2ByteWellFormed.isWellFormed());
   assertFalse(short2ByteIllFormed.isWellFormed());
 })();
 
 (function TestToWellFormed() {
-  const short2ByteWellFormed = '\u1234';
-  const short2ByteIllFormed = '\uD83D';
+  const short2ByteWellFormed = createExternalizableString('\u1234');
+  const short2ByteIllFormed = createExternalizableString('\uD83D');
 
   assertTrue(short2ByteWellFormed.isWellFormed());
   assertFalse(short2ByteIllFormed.isWellFormed());
@@ -32,9 +33,10 @@
   try {
     // Turn the strings into uncached external strings to hit the slow runtime
     // path.
-    externalizeString(short2ByteWellFormed, true);
-    externalizeString(short2ByteIllFormed, true);
-  } catch (e) {}
+    externalizeString(short2ByteWellFormed);
+    externalizeString(short2ByteIllFormed);
+  } catch (e) {
+  }
 
   assertEquals('\u1234', short2ByteWellFormed.toWellFormed());
   // U+FFFD (REPLACEMENT CHARACTER)
