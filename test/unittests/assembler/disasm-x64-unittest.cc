@@ -749,6 +749,15 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
           cmovq(less_equal, rax, Operand(rdx, 2)));
   COMPARE("480f4f4203           REX.W cmovgq rax,[rdx+0x3]",
           cmovq(greater, rax, Operand(rdx, 3)));
+  COMPARE("4180f803             cmpb r8l,0x3", cmpb(r8, Immediate(0x3)));
+  COMPARE("6681fa1008           cmpw rdx,0x810", cmpw(rdx, Immediate(0x810)));
+  COMPARE("4180e208             andb r10l,0x8", andb(r10, Immediate(0x8)));
+  COMPARE("4181e1ff3f0000       andl r9,0x3fff", andl(r9, Immediate(0x3fff)));
+  COMPARE("4183e30f             andl r11,0xf", andl(r11, Immediate(0xf)));
+  COMPARE("4883c418             REX.W addq rsp,0x18",
+          addq(rsp, Immediate(0x18)));
+  COMPARE("4881c1cd000000       REX.W addq rcx,0xcd",
+          addq(rcx, Immediate(0xcd)));
 }
 
 // This compares just the disassemble instruction (without the hex).
