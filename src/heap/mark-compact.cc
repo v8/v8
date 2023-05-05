@@ -5910,6 +5910,8 @@ void YoungGenerationMarkingTask::PublishMarkingWorklist() {
 void YoungGenerationMarkingTask::Finalize() { visitor_.Finalize(); }
 
 void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
+  CodePageHeaderModificationScope header_modification_scope(
+      "Marking modifies the remembered sets in the page header");
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers<OLD_TO_NEW>(task);
     MarkUntypedPointers<OLD_TO_NEW_BACKGROUND>(task);
