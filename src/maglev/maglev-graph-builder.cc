@@ -2809,10 +2809,12 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
   known_info->constant_alternative = GetConstant(ref);
 }
 
+bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type) {
+  return NodeTypeIs(StaticTypeForNode(broker(), local_isolate(), node), type);
+}
+
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
-  if (NodeTypeIs(StaticTypeForNode(broker(), local_isolate(), node), type)) {
-    return true;
-  }
+  if (CheckStaticType(node, type)) return true;
   auto it = known_node_aspects().FindInfo(node);
   if (!known_node_aspects().IsValid(it)) return false;
   return NodeTypeIs(it->second.type, type);
@@ -2855,6 +2857,7 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
 }
 
 void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object, bool elidable) {
+  if (CheckStaticType(object, NodeType::kSmi)) return;
   if (EnsureType(object, NodeType::kSmi) && elidable) return;
   AddNewNode<CheckSmi>({object});
 }
