@@ -1692,7 +1692,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ AddWord(sp, sp,
              Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(ra);
-  __ LoadEntryFromBuiltinIndex(t6);
+  __ LoadEntryFromBuiltinIndex(t6, t6);
   __ Jump(t6);
 }
 }  // namespace
@@ -3099,9 +3099,8 @@ namespace {
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
-                              ExternalReference thunk_ref,
-                              Register thunk_last_arg, int stack_space,
-                              MemOperand* stack_space_operand,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
                               MemOperand return_value_operand) {
   ASM_CODE_COMMENT(masm);
   using ER = ExternalReference;
@@ -3115,25 +3114,28 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
       ER::handle_scope_level_address(isolate), no_reg);
 
   Register return_value = a0;
-  Register scratch = arg_reg_4;
-  Register scratch2 = kScratchReg2;
+  Register scratch = kScratchReg2;
+  Register scratch2 = s11;
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
   // by allocating it in callee-saved registers it'll be preserved by C code.
-  Register prev_next_address_reg = s3;
+  Register prev_next_address_reg = kScratchReg;
   Register prev_limit_reg = s1;
   Register prev_level_reg = s2;
 
   // C arguments (arg_reg_1/2) are expected to be initialized outside, so this
   // function must not corrupt them (return_value overlaps with arg_reg_1 but
   // that's ok because we start using it only after the C call).
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2, arg_reg_3,  // C args
+  DCHECK(!AreAliased(arg_reg_1, arg_reg_2,  // C args
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
-  // Ensure the additional argument for thunk_ref is already in the right
-  // register.
-  DCHECK(thunk_last_arg == arg_reg_2 || thunk_last_arg == arg_reg_3);
-  DCHECK_EQ(function_address, thunk_last_arg);
+  // function_address and thunk_arg might overlap but this function must not
+  // corrupted them until the call is made (i.e. overlap with return_value is
+  // fine).
+  DCHECK(!AreAliased(function_address,  // incoming parameters
+                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+  DCHECK(!AreAliased(thunk_arg,  // incoming parameters
+                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
 
   Label profiler_or_side_effects_check_enabled, done_api_call;
   {
@@ -3207,10 +3209,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    __ LoadRoot(a4, RootIndex::kTheHoleValue);
-    __ LoadWord(a5, __ ExternalReferenceAsOperand(
-                        ER::scheduled_exception_address(isolate), no_reg));
-    __ Branch(&promote_scheduled_exception, ne, a4, Operand(a5),
+    __ LoadRoot(scratch2, RootIndex::kTheHoleValue);
+    __ LoadWord(scratch, __ ExternalReferenceAsOperand(
+                             ER::scheduled_exception_address(isolate), no_reg));
+    __ Branch(&promote_scheduled_exception, ne, scratch2, Operand(scratch),
               Label::Distance::kNear);
   }
   {
@@ -3230,7 +3232,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
     __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback function.
-    __ Move(thunk_last_arg, function_address);
+    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
+        ER::api_callback_thunk_argument_address(isolate), no_reg);
+    __ StoreWord(thunk_arg, thunk_arg_mem_op);
     __ li(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);
     __ Branch(&done_api_call);
@@ -3281,7 +3285,6 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //  -- sp[(argc) * 8]      : last argument
   // -----------------------------------
   Register function_callback_info_arg = arg_reg_1;
-  Register thunk_callback_arg = arg_reg_2;
 
   Register api_function_address = a1;
   Register argc = a2;
@@ -3389,8 +3392,6 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // function_callback_info_arg = v8::FunctionCallbackInfo&
   __ AddWord(function_callback_info_arg, sp, Operand(1 * kSystemPointerSize));
 
-  // It's okay if api_function_address == thunk_callback_arg, but not
-  // function_callback_info_arg.
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
@@ -3398,12 +3399,15 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   MemOperand return_value_operand =
       ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
 
+  // Pass api function address to thunk wrapper in case profiler or side-effect
+  // checking is enabled.
+  Register thunk_arg = api_function_address;
+
   static constexpr int kUseStackSpaceOperand = 0;
 
-  AllowExternalCallThatCantCauseGC scope(masm);
-  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           thunk_callback_arg, kUseStackSpaceOperand,
-                           &stack_space_operand, return_value_operand);
+  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
+                           kUseStackSpaceOperand, &stack_space_operand,
+                           return_value_operand);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -3416,6 +3420,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
+  using PCI = PropertyCallbackInfo<v8::Value>;
   using PCA = PropertyCallbackArguments;
   static_assert(PCA::kShouldThrowOnErrorIndex == 0);
   static_assert(PCA::kHolderIndex == 1);
@@ -3439,9 +3444,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Register name_arg = arg_reg_1;
   Register property_callback_info_arg = arg_reg_2;
-  Register thunk_getter_arg = arg_reg_3;
 
-  Register api_function_address = thunk_getter_arg;
+  Register api_function_address = arg_reg_3;
+
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
@@ -3494,11 +3499,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
              Operand(1 * kSystemPointerSize));
 
   const int kApiStackSpace = 1;
+  static_assert(kApiStackSpace * kSystemPointerSize == sizeof(PCI));
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(kApiStackSpace);
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
-  // Initialize its args_ field.
+  // Initialize v8::PropertyCallbackInfo::args_ field.
   __ StoreWord(property_callback_info_arg,
                MemOperand(sp, 1 * kSystemPointerSize));
   // property_callback_info_arg = v8::PropertyCallbackInfo&
@@ -3508,20 +3514,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       api_function_address,
       FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
 
-  // It's okay if api_function_address == thunk_getter_arg, but not
-  // property_callback_info_arg or name_arg.
   DCHECK(
       !AreAliased(api_function_address, property_callback_info_arg, name_arg));
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
+  // Pass AccessorInfo to thunk wrapper in case profiler or side-effect
+  // checking is enabled.
+  Register thunk_arg = callback;
+
   MemOperand return_value_operand =
       ExitFrameCallerStackSlotOperand(kPCAStackIndex + PCA::kReturnValueIndex);
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
-  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           thunk_getter_arg, kStackUnwindSpace,
-                           kUseStackSpaceConstant, return_value_operand);
+  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
+                           kStackUnwindSpace, kUseStackSpaceConstant,
+                           return_value_operand);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

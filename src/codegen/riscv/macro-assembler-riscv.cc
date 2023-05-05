@@ -4417,7 +4417,8 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   }
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
 #if V8_TARGET_ARCH_RISCV64
   static_assert(kSystemPointerSize == 8);
 #elif V8_TARGET_ARCH_RISCV32
@@ -4427,15 +4428,16 @@ void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
   static_assert(kSmiTag == 0);
 
   // The builtin register contains the builtin index as a Smi.
-  SmiUntag(builtin, builtin);
-  CalcScaledAddress(builtin, kRootRegister, builtin, kSystemPointerSizeLog2);
-  LoadWord(builtin,
-           MemOperand(builtin, IsolateData::builtin_entry_table_offset()));
+  SmiUntag(target, builtin_index);
+  CalcScaledAddress(target, kRootRegister, target, kSystemPointerSizeLog2);
+  LoadWord(target,
+           MemOperand(target, IsolateData::builtin_entry_table_offset()));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin) {
-  LoadEntryFromBuiltinIndex(builtin);
-  Call(builtin);
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {
