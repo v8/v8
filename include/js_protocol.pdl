@@ -1014,8 +1014,27 @@ domain Runtime
   # Unique script identifier.
   type ScriptId extends string
 
-  # Represents the value serialiazed by the WebDriver BiDi specification
-  # https://goo.gle/browser-automation-deepserialization.
+  # Represents options for serialization. Overrides `generatePreview`, `returnByValue` and
+  # `generateWebDriverValue`.
+  type SerializationOptions extends object
+    properties
+      enum serialization
+        # Whether the result should be deep-serialized. The result is put into
+        # `deepSerializedValue` and `ObjectId` is provided.
+        deep
+        # Whether the result is expected to be a JSON object which should be sent by value.
+        # The result is put either into `value` or into `unserializableValue`. Synonym of
+        # `returnByValue: true`. Overrides `returnByValue`.
+        json
+        # Only remote object id is put in the result. Same bahaviour as if no
+        # `serializationOptions`, `generatePreview`, `returnByValue` nor `generateWebDriverValue`
+        # are provided.
+        idOnly
+
+      # Deep serialization depth. Default is full depth. Respected only in `deep` serialization mode.
+      optional integer maxDepth
+
+  # Represents deep serialized value.
   type DeepSerializedValue extends object
     properties
       enum type
@@ -1101,8 +1120,10 @@ domain Runtime
       optional UnserializableValue unserializableValue
       # String representation of the object.
       optional string description
-      # WebDriver BiDi representation of the value.
-      experimental optional DeepSerializedValue webDriverValue
+      # Deprecated. Use `deepSerializedValue` instead. WebDriver BiDi representation of the value.
+      deprecated optional DeepSerializedValue webDriverValue
+      # Deep serialized value.
+      experimental optional DeepSerializedValue deepSerializedValue
       # Unique object identifier (for non-primitive values).
       optional RemoteObjectId objectId
       # Preview containing abbreviated property values. Specified for `object` type values only.
@@ -1392,6 +1413,7 @@ domain Runtime
       # execution. Overrides `setPauseOnException` state.
       optional boolean silent
       # Whether the result is expected to be a JSON object which should be sent by value.
+      # Can be overriden by `serializationOptions`.
       optional boolean returnByValue
       # Whether preview should be generated for the result.
       experimental optional boolean generatePreview
@@ -1415,10 +1437,15 @@ domain Runtime
       # boundaries).
       # This is mutually exclusive with `executionContextId`.
       experimental optional string uniqueContextId
+      # Deprecated. Use `serializationOptions: {serialization:"deep"}` instead.
       # Whether the result should contain `webDriverValue`, serialized according to
-      # https://goo.gle/browser-automation-deepserialization. This is mutually
-      # exclusive with `returnByValue`, but resulting `objectId` is still provided.
-      experimental optional boolean generateWebDriverValue
+      # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
+      # resulting `objectId` is still provided.
+      deprecated optional boolean generateWebDriverValue
+      # Specifies the result serialization. If provided, overrides
+      # `returnByValue` and `generateWebDriverValue`.
+      experimental optional SerializationOptions serializationOptions
+
     returns
       # Call result.
       RemoteObject result
@@ -1504,8 +1531,15 @@ domain Runtime
       # boundaries).
       # This is mutually exclusive with `contextId`.
       experimental optional string uniqueContextId
-      # Whether the result should be serialized according to https://goo.gle/browser-automation-deepserialization.
-      experimental optional boolean generateWebDriverValue
+      # Deprecated. Use `serializationOptions: {serialization:"deep"}` instead.
+      # Whether the result should contain `webDriverValue`, serialized
+      # according to
+      # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
+      # resulting `objectId` is still provided.
+      deprecated optional boolean generateWebDriverValue
+      # Specifies the result serialization. If provided, overrides
+      # `returnByValue` and `generateWebDriverValue`.
+      experimental optional SerializationOptions serializationOptions
     returns
       # Evaluation result.
       RemoteObject result

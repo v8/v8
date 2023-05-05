@@ -32,6 +32,13 @@ using protocol::Runtime::ObjectPreview;
 using protocol::Runtime::PropertyPreview;
 using protocol::Runtime::RemoteObject;
 
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
+// For whatever reason, ASan on MacOS has bigger stack frames.
+static const int kMaxProtocolDepth = 900;
+#else
+static const int kMaxProtocolDepth = 1000;
+#endif
+
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result);
@@ -155,13 +162,7 @@ Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value,
                          std::unique_ptr<protocol::Value>* result) {
   if (value->IsUndefined()) return Response::Success();
-#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
-  // For whatever reason, ASan on MacOS has bigger stack frames.
-  static const int kMaxDepth = 900;
-#else
-  static const int kMaxDepth = 1000;
-#endif
-  return toProtocolValue(context, value, kMaxDepth, result);
+  return toProtocolValue(context, value, kMaxProtocolDepth, result);
 }
 
 namespace {
@@ -472,8 +473,6 @@ class PrimitiveValueMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
-    // https://goo.gle/browser-automation-deepserialization
-
     if (m_value->IsUndefined()) {
       std::unique_ptr<protocol::DictionaryValue> result =
           protocol::DictionaryValue::create();
@@ -570,8 +569,6 @@ class NumberMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
-    // https://goo.gle/browser-automation-deepserialization
-
     std::unique_ptr<protocol::DictionaryValue> result =
         protocol::DictionaryValue::create();
     result->setString("type",
@@ -652,8 +649,6 @@ class BigIntMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
-    // https://goo.gle/browser-automation-deepserialization
-
     v8::Local<v8::String> stringValue =
         v8::debug::GetBigIntStringValue(context->GetIsolate(), m_value);
 
@@ -718,7 +713,6 @@ class SymbolMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
-    // https://goo.gle/browser-automation-deepserialization
     bool isKnown;
     std::unique_ptr<protocol::DictionaryValue> result =
         duplicateTracker.LinkExistingOrCreate(m_symbol, &isKnown);
@@ -1166,7 +1160,7 @@ class ObjectMirror final : public ValueMirror {
   std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const override {
-    // https://goo.gle/browser-automation-deepserialization
+    maxDepth = std::min(kMaxProtocolDepth, maxDepth);
     bool isKnown;
     std::unique_ptr<protocol::DictionaryValue> result =
         duplicateTracker.LinkExistingOrCreate(m_value, &isKnown);

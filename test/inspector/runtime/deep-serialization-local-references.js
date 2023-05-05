@@ -1,9 +1,9 @@
-// Copyright 2022 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 const { session, contextGroup, Protocol } =
-  InspectorTest.start('RemoteObject.webDriverValue');
+  InspectorTest.start('RemoteObject.deepSerializedValue');
 
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(m => InspectorTest.logMessage(m));
@@ -93,15 +93,15 @@ async function testExpression(expression) {
   InspectorTest.logMessage("Runtime.evaluate");
   dumpResult(await Protocol.Runtime.evaluate({
     expression: wrappedExpression,
-    generateWebDriverValue: true
+    serializationOptions: { serialization: "deep" }
   }));
 }
 
 function dumpResult(result) {
-  if (result?.result?.result?.webDriverValue) {
-    InspectorTest.logMessage(result.result.result.webDriverValue);
+  if (result?.result?.result?.deepSerializedValue) {
+    InspectorTest.logMessage(result.result.result.deepSerializedValue);
   } else {
-    InspectorTest.log("...no webDriverValue...");
+    InspectorTest.log("...no deepSerializedValue...");
     InspectorTest.logMessage(result);
   }
 }

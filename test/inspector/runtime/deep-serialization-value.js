@@ -1,9 +1,9 @@
-// Copyright 2022 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 const { session, contextGroup, Protocol } =
-  InspectorTest.start('RemoteObject.webDriverValue');
+  InspectorTest.start('RemoteObject.deepSerializedValue');
 
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(m => InspectorTest.logMessage(m));
@@ -86,22 +86,39 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}");
  }]);
 
+async function serializeViaEvaluate(expression) {
+  return await Protocol.Runtime.evaluate({
+    expression: "("+expression+")",
+    serializationOptions: { serialization: "deep" }
+  });
+}
+
+async function serializeViaCallFunctionOn(expression) {
+  const objectId = (await Protocol.Runtime.evaluate({
+    expression: "({})",
+  })).result.result.objectId;
+
+  return await Protocol.Runtime.callFunctionOn({
+    functionDeclaration: "()=>{return " + expression + "}",
+    objectId,
+    serializationOptions: { serialization: "deep" }
+ });
+}
+
 async function testExpression(expression) {
-  const wrappedExpression = `(()=>{const a=${expression}; const b=${expression}; return [a,b,a,b,a,b]})()`
   InspectorTest.logMessage("testing expression: "+expression);
 
   InspectorTest.logMessage("Runtime.evaluate");
-  dumpResult(await Protocol.Runtime.evaluate({
-    expression: wrappedExpression,
-    generateWebDriverValue: true
-  }));
+  dumpResult(await serializeViaEvaluate(expression));
+  InspectorTest.logMessage("Runtime.callFunctionOn");
+  dumpResult(await serializeViaCallFunctionOn(expression));
 }
 
 function dumpResult(result) {
-  if (result?.result?.result?.webDriverValue) {
-    InspectorTest.logMessage(result.result.result.webDriverValue);
+  if (result?.result?.result?.deepSerializedValue) {
+    InspectorTest.logMessage(result.result.result.deepSerializedValue);
   } else {
-    InspectorTest.log("...no webDriverValue...");
+    InspectorTest.log("...no deepSerializedValue...");
     InspectorTest.logMessage(result);
   }
 }

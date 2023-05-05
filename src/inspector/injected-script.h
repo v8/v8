@@ -51,7 +51,6 @@ class RemoteObjectId;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 class ValueMirror;
-enum class WrapMode;
 
 using protocol::Maybe;
 using protocol::Response;

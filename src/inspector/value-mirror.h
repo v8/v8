@@ -67,6 +67,7 @@ class ValueMirror {
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
   virtual v8::Local<v8::Value> v8Value() const = 0;
+  // https://goo.gle/browser-automation-deepserialization
   virtual std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker) const = 0;
