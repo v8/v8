@@ -289,24 +289,52 @@ template("v8_header_set") {
 }
 
 template("v8_executable") {
-  executable(target_name) {
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "configs",
-                             "remove_configs",
-                           ])
-    configs -= v8_remove_configs
-    configs += v8_add_configs
-    if (defined(invoker.remove_configs)) {
-      configs -= invoker.remove_configs
+  if (is_ios) {
+    import("//build/config/ios/rules.gni")
+
+    ios_app_bundle(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
+
+      # Provide sensible defaults in case invoker did not define any of those
+      # required variables.
+      if (!defined(info_plist) && !defined(info_plist_target)) {
+        info_plist = v8_path_prefix + "/gni/Info.plist"
+      }
+
+      bundle_identifier = "$ios_app_bundle_id_prefix.chrome.unittests.dev"
     }
-    configs += invoker.configs
-    if (is_linux || is_chromeos) {
-      # For enabling ASLR.
-      ldflags = [ "-pie" ]
+  } else {
+    executable(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      if (is_linux || is_chromeos) {
+        # For enabling ASLR.
+        ldflags = [ "-pie" ]
+      }
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
     }
-    deps += [ v8_path_prefix + ":v8_dump_build_config" ]
   }
 }
 
