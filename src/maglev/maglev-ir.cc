@@ -1969,6 +1969,9 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
 
 void CheckInstanceType::SetValueLocationConstraints() {
   UseRegister(receiver_input());
+  if (first_instance_type_ != last_instance_type_) {
+    set_temporaries_needed(1);
+  }
 }
 void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -1983,8 +1986,10 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
     __ IsObjectType(object, first_instance_type_);
     __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongInstanceType, this);
   } else {
-    __ CompareInstanceTypeRange(object, first_instance_type_,
-                                last_instance_type_);
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register map = temps.Acquire();
+    __ LoadMap(map, object);
+    __ CompareInstanceTypeRange(map, first_instance_type_, last_instance_type_);
     __ EmitEagerDeoptIf(kUnsignedGreaterThan,
                         DeoptimizeReason::kWrongInstanceType, this);
   }
