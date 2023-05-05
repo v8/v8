@@ -2705,18 +2705,17 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(static_cast<Address>(target_index), rmode, cond, rj, rk);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   static_assert(kSystemPointerSize == 8);
   static_assert(kSmiTagSize == 1);
   static_assert(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
-  SmiUntag(builtin_index, builtin_index);
-  Alsl_d(builtin_index, builtin_index, kRootRegister, kSystemPointerSizeLog2,
-         t7);
-  Ld_d(builtin_index,
-       MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  SmiUntag(target, builtin_index);
+  Alsl_d(target, target, kRootRegister, kSystemPointerSizeLog2, t7);
+  Ld_d(target, MemOperand(target, IsolateData::builtin_entry_table_offset()));
 }
 
 void MacroAssembler::LoadEntryFromBuiltin(Builtin builtin,
@@ -2729,11 +2728,13 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
   ASM_CODE_COMMENT(this);
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
+
 void MacroAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
   UseScratchRegisterScope temps(this);
