@@ -523,16 +523,20 @@ class MergePointInterpreterFrameState {
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void Merge(MaglevCompilationUnit& compilation_unit,
-             ZoneMap<int, SmiConstant*>& smi_constants,
-             InterpreterFrameState& unmerged, BasicBlock* predecessor);
+  void Merge(MaglevGraphBuilder* graph_builder, InterpreterFrameState& unmerged,
+             BasicBlock* predecessor);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void MergeLoop(MaglevCompilationUnit& compilation_unit,
-                 MaglevGraphBuilder* graph_builder,
+  void MergeLoop(MaglevGraphBuilder* graph_builder,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
+
+  // Merges an unmerged framestate with a possibly merged framestate into |this|
+  // framestate.
+  void MergeThrow(MaglevGraphBuilder* builder,
+                  const MaglevCompilationUnit* handler_unit,
+                  InterpreterFrameState& unmerged);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
@@ -659,18 +663,16 @@ class MergePointInterpreterFrameState {
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness);
 
-  ValueNode* MergeValue(MaglevCompilationUnit& compilation_unit,
-                        ZoneMap<int, SmiConstant*>& smi_constants,
+  ValueNode* MergeValue(MaglevGraphBuilder* graph_builder,
                         interpreter::Register owner,
                         const KnownNodeAspects& unmerged_aspects,
                         ValueNode* merged, ValueNode* unmerged,
-                        Alternatives::List& per_predecessor_alternatives);
+                        Alternatives::List* per_predecessor_alternatives);
 
   void ReducePhiPredecessorCount(interpreter::Register owner,
                                  ValueNode* merged);
 
-  void MergeLoopValue(MaglevCompilationUnit& compilation_unit,
-                      ZoneMap<int, SmiConstant*>& smi_constants,
+  void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,
                       KnownNodeAspects& unmerged_aspects, ValueNode* merged,
                       ValueNode* unmerged);
@@ -678,7 +680,6 @@ class MergePointInterpreterFrameState {
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
   ValueNode* NewExceptionPhi(Zone* zone, interpreter::Register reg) {
-    DCHECK_EQ(predecessors_so_far_, 0);
     DCHECK_EQ(predecessor_count_, 0);
     DCHECK_NULL(predecessors_);
     Phi* result = Node::New<Phi>(zone, 0, this, reg);

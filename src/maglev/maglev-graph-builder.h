@@ -280,6 +280,19 @@ class MaglevGraphBuilder {
     }
   }
 
+  SmiConstant* GetSmiConstant(int constant) {
+    DCHECK(Smi::IsValid(constant));
+    auto it = graph_->smi().find(constant);
+    if (it == graph_->smi().end()) {
+      SmiConstant* node =
+          CreateNewConstantNode<SmiConstant>(0, Smi::FromInt(constant));
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->smi().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   Int32Constant* GetInt32Constant(int constant) {
     // The constant must fit in a Smi, since it could be later tagged in a Phi.
     DCHECK(Smi::IsValid(constant));
@@ -316,6 +329,10 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
+  const InterpreterFrameState& current_interpreter_frame() const {
+    return current_interpreter_frame_;
+  }
+  const MaglevGraphBuilder* parent() const { return parent_; }
 
   bool has_graph_labeller() const {
     return compilation_unit_->has_graph_labeller();
@@ -510,8 +527,7 @@ class MaglevGraphBuilder {
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
         BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
-        merge_state->Merge(*compilation_unit_, graph_->smi(),
-                           current_interpreter_frame_, predecessor);
+        merge_state->Merge(this, current_interpreter_frame_, predecessor);
       }
       if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
@@ -685,10 +701,15 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachExceptionHandlerInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_throw()) {
-      BasicBlockRef* catch_block_ref = GetCurrentTryCatchBlockOffset();
-      if (catch_block_ref) {
+      CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
+      if (catch_block.ref) {
         new (node->exception_handler_info())
-            ExceptionHandlerInfo(catch_block_ref);
+            ExceptionHandlerInfo(catch_block.ref);
+
+        // Merge the current state into the handler state.
+        DCHECK_NOT_NULL(catch_block.state);
+        catch_block.state->MergeThrow(this, catch_block.unit,
+                                      current_interpreter_frame_);
       } else {
         // Patch no exception handler marker.
         // TODO(victorgomes): Avoid allocating exception handler data in this
@@ -698,17 +719,20 @@ class MaglevGraphBuilder {
     }
   }
 
-  BasicBlockRef* GetCurrentTryCatchBlockOffset() {
+  struct CatchBlockDetails {
+    BasicBlockRef* ref = nullptr;
+    MergePointInterpreterFrameState* state = nullptr;
+    const MaglevCompilationUnit* unit = nullptr;
+  };
+
+  CatchBlockDetails GetCurrentTryCatchBlock() {
     if (catch_block_stack_.size() > 0) {
       // Inside a try-block.
-      return &jump_targets_[catch_block_stack_.top().handler];
+      int offset = catch_block_stack_.top().handler;
+      return {&jump_targets_[offset], merge_states_[offset], compilation_unit_};
     }
-    // Function is inlined and the call is inside a catch block.
-    if (parent_catch_block_) {
-      DCHECK(is_inline());
-      return parent_catch_block_;
-    }
-    return nullptr;
+    DCHECK_IMPLIES(parent_catch_.ref != nullptr, is_inline());
+    return parent_catch_;
   }
 
   enum ContextSlotMutability { kImmutable, kMutable };
@@ -844,19 +868,6 @@ class MaglevGraphBuilder {
         broker(), broker()->CanonicalPersistentHandle(
                       Handle<T>::cast(iterator_.GetConstantForIndexOperand(
                           operand_index, local_isolate()))));
-  }
-
-  SmiConstant* GetSmiConstant(int constant) {
-    DCHECK(Smi::IsValid(constant));
-    auto it = graph_->smi().find(constant);
-    if (it == graph_->smi().end()) {
-      SmiConstant* node =
-          CreateNewConstantNode<SmiConstant>(0, Smi::FromInt(constant));
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-      graph_->smi().emplace(constant, node);
-      return node;
-    }
-    return it->second;
   }
 
   ExternalConstant* GetExternalConstant(ExternalReference reference) {
@@ -1851,7 +1862,7 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   DeoptFrame* parent_deopt_frame_ = nullptr;
-  BasicBlockRef* parent_catch_block_ = nullptr;
+  CatchBlockDetails parent_catch_;
   // Cache the heap broker since we access it a bunch.
   compiler::JSHeapBroker* broker_ = compilation_unit_->broker();
 

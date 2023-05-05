@@ -438,43 +438,42 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // (the first one by default) that is marked with the
         // virtual_accumulator and force kReturnRegister0. This corresponds to
         // the exception message object.
-        Phi::List::Iterator phi_it = block->phis()->begin();
-        Phi* phi = *phi_it;
-        DCHECK_EQ(phi->input_count(), 0);
-        if (phi->owner() == interpreter::Register::virtual_accumulator() &&
-            !phi->is_dead()) {
-          phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
-          if (v8_flags.trace_maglev_regalloc) {
-            printing_visitor_->Process(phi, ProcessingState(block_it_));
-            printing_visitor_->os() << "phi (exception message object) "
-                                    << phi->result().operand() << std::endl;
+        for (Phi* phi : *block->phis()) {
+          DCHECK_EQ(phi->input_count(), 0);
+          DCHECK(phi->is_exception_phi());
+          if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+            if (!phi->is_dead()) {
+              phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
+              if (v8_flags.trace_maglev_regalloc) {
+                printing_visitor_->Process(phi, ProcessingState(block_it_));
+                printing_visitor_->os() << "phi (exception message object) "
+                                        << phi->result().operand() << std::endl;
+              }
+            }
+          } else if (phi->owner().is_parameter() &&
+                     phi->owner().is_receiver()) {
+            // The receiver is a special case for a fairly silly reason:
+            // OptimizedFrame::Summarize requires the receiver (and the
+            // function) to be in a stack slot, since its value must be
+            // available even though we're not deoptimizing (and thus register
+            // states are not available).
+            //
+            // TODO(leszeks):
+            // For inlined functions / nested graph generation, this a) doesn't
+            // work (there's no receiver stack slot); and b) isn't necessary
+            // (Summarize only looks at noninlined functions).
+            phi->Spill(compiler::AllocatedOperand(
+                compiler::AllocatedOperand::STACK_SLOT,
+                MachineRepresentation::kTagged,
+                (StandardFrameConstants::kExpressionsOffset -
+                 UnoptimizedFrameConstants::kRegisterFileFromFp) /
+                        kSystemPointerSize +
+                    interpreter::Register::receiver().index()));
+            phi->result().SetAllocated(phi->spill_slot());
+            // Break once both accumulator and receiver have been processed.
+            break;
           }
         }
-        // The receiver is the next phi after the accumulator (or the first phi
-        // if there is no accumulator).
-        if (phi->owner() == interpreter::Register::virtual_accumulator()) {
-          ++phi_it;
-          phi = *phi_it;
-        }
-        DCHECK(phi->owner().is_receiver());
-        // The receiver is a special case for a fairly silly reason:
-        // OptimizedFrame::Summarize requires the receiver (and the function)
-        // to be in a stack slot, since its value must be available even
-        // though we're not deoptimizing (and thus register states are not
-        // available).
-        //
-        // TODO(leszeks):
-        // For inlined functions / nested graph generation, this a) doesn't
-        // work (there's no receiver stack slot); and b) isn't necessary
-        // (Summarize only looks at noninlined functions).
-        phi->Spill(compiler::AllocatedOperand(
-            compiler::AllocatedOperand::STACK_SLOT,
-            MachineRepresentation::kTagged,
-            (StandardFrameConstants::kExpressionsOffset -
-             UnoptimizedFrameConstants::kRegisterFileFromFp) /
-                    kSystemPointerSize +
-                interpreter::Register::receiver().index()));
-        phi->result().SetAllocated(phi->spill_slot());
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {

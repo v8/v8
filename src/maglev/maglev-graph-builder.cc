@@ -5060,7 +5060,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       BytecodeOffset(iterator_.current_offset()), this);
 
   // Propagate catch block.
-  inner_graph_builder.parent_catch_block_ = GetCurrentTryCatchBlockOffset();
+  inner_graph_builder.parent_catch_ = GetCurrentTryCatchBlock();
 
   // Finish the current block with a jump to the inlined function.
   BasicBlockRef start_ref, end_ref;
@@ -7534,8 +7534,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   BasicBlock* block =
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
-  merge_states_[target]->MergeLoop(*compilation_unit_, this,
-                                   current_interpreter_frame_, block);
+  merge_states_[target]->MergeLoop(this, current_interpreter_frame_, block);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
   if (loop_headers_to_peel_.Contains(iterator_.current_offset())) {
     allow_loop_peeling_ = true;
@@ -7589,8 +7588,7 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
         num_of_predecessors, predecessor, liveness);
   } else {
     // If there already is a frame state, merge.
-    merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
-                                 current_interpreter_frame_, predecessor);
+    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
   }
 }
 
@@ -7646,8 +7644,7 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     // Again, all returns should have the same liveness, so double check this.
     DCHECK(GetInLiveness()->Equals(
         *merge_states_[target]->frame_state().liveness()));
-    merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
-                                 current_interpreter_frame_, predecessor);
+    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
   }
 }
 
