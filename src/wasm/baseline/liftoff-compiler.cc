@@ -3597,7 +3597,7 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    CallIndirect(decoder, index_val, imm, kNoTailCall);
+    CallIndirect(decoder, imm, kNoTailCall);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -3616,7 +3616,7 @@ class LiftoffCompiler {
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallIndirect(decoder, index_val, imm, kTailCall);
+    CallIndirect(decoder, imm, kTailCall);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
@@ -7550,8 +7550,8 @@ class LiftoffCompiler {
     }
   }
 
-  void CallIndirect(FullDecoder* decoder, const Value& index_val,
-                    const CallIndirectImmediate& imm, TailCall tail_call) {
+  void CallIndirect(FullDecoder* decoder, const CallIndirectImmediate& imm,
+                    TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
