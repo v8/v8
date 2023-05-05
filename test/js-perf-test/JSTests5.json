@@ -286,10 +286,13 @@
       "tests": [
         {"name": "Babel"},
         {"name": "BabelAndOverwrite"},
+        {"name": "BabelAndExtend"},
         {"name": "ObjectAssign"},
         {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectAssignAndExtend"},
         {"name": "ObjectSpread"},
-        {"name": "ObjectSpreadAndOverwrite"}
+        {"name": "ObjectSpreadAndOverwrite"},
+        {"name": "ObjectSpreadAndExtend"}
       ]
     },
     {
