@@ -1037,6 +1037,29 @@ class WasmGraphBuildingInterface {
     builder_->TerminateThrow(effect(), control());
   }
 
+  void CatchAndUnpackWasmException(FullDecoder* decoder, Control* block,
+                                   TFNode* exception, const WasmTag* tag,
+                                   TFNode* caught_tag, TFNode* exception_tag,
+                                   base::Vector<Value> values) {
+    TFNode* if_catch = nullptr;
+    TFNode* if_no_catch = nullptr;
+    TFNode* compare = builder_->ExceptionTagEqual(caught_tag, exception_tag);
+    builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
+    // If the tags don't match we continue with the next tag by setting the
+    // false environment as the new {TryInfo::catch_env} here.
+    block->try_info->catch_env = Split(decoder->zone(), ssa_env_);
+    block->try_info->catch_env->control = if_no_catch;
+    block->block_env = Steal(decoder->zone(), ssa_env_);
+    block->block_env->control = if_catch;
+    SetEnv(block->block_env);
+    NodeVector caught_values(values.size());
+    base::Vector<TFNode*> caught_vector = base::VectorOf(caught_values);
+    builder_->GetExceptionValues(exception, tag, caught_vector);
+    for (size_t i = 0, e = values.size(); i < e; ++i) {
+      SetAndTypeNode(&values[i], caught_values[i]);
+    }
+  }
+
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
@@ -1051,32 +1074,61 @@ class WasmGraphBuildingInterface {
     TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
 
-    TFNode* if_catch = nullptr;
-    TFNode* if_no_catch = nullptr;
-
-    // Get the exception tag and see if it matches the expected one.
     TFNode* caught_tag = builder_->GetExceptionTag(exception);
-    TFNode* exception_tag = builder_->LoadTagFromTable(imm.index);
-    TFNode* compare = builder_->ExceptionTagEqual(caught_tag, exception_tag);
-    builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
+    TFNode* expected_tag = builder_->LoadTagFromTable(imm.index);
 
-    // If the tags don't match we continue with the next tag by setting the
-    // false environment as the new {TryInfo::catch_env} here.
-    SsaEnv* if_no_catch_env = Split(decoder->zone(), ssa_env_);
-    if_no_catch_env->control = if_no_catch;
-    SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
-    if_catch_env->control = if_catch;
-    block->try_info->catch_env = if_no_catch_env;
-    block->block_env = if_catch_env;
+    if (imm.tag->sig->parameter_count() == 1 &&
+        imm.tag->sig->GetParam(0) == kWasmExternRef) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref, otherwise we know
+      // statically that it cannot be the JSTag.
 
-    // If the tags match we extract the values from the exception object and
-    // push them onto the operand stack using the passed {values} vector.
-    SetEnv(if_catch_env);
-    NodeVector caught_values(values.size());
-    base::Vector<TFNode*> caught_vector = base::VectorOf(caught_values);
-    builder_->GetExceptionValues(exception, imm.tag, caught_vector);
-    for (size_t i = 0, e = values.size(); i < e; ++i) {
-      SetAndTypeNode(&values[i], caught_values[i]);
+      TFNode* exn_is_wasm = nullptr;
+      TFNode* exn_is_js = nullptr;
+
+      TFNode* is_js_exn = builder_->IsExceptionTagUndefined(caught_tag);
+      builder_->BranchExpectFalse(is_js_exn, &exn_is_js, &exn_is_wasm);
+      SsaEnv* exn_is_js_env = Split(decoder->zone(), ssa_env_);
+      exn_is_js_env->control = exn_is_js;
+      SsaEnv* exn_is_wasm_env = Steal(decoder->zone(), ssa_env_);
+      exn_is_wasm_env->control = exn_is_wasm;
+
+      // Case 1: A wasm exception.
+      SetEnv(exn_is_wasm_env);
+      CatchAndUnpackWasmException(decoder, block, exception, imm.tag,
+                                  caught_tag, expected_tag, values);
+
+      // Case 2: A JS exception.
+      TFNode* if_catch = nullptr;
+      TFNode* if_no_catch = nullptr;
+      SetEnv(exn_is_js_env);
+      TFNode* js_tag = builder_->LoadJSTag();
+      TFNode* compare = builder_->ExceptionTagEqual(expected_tag, js_tag);
+      builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
+      // Merge the wasm no-catch and JS no-catch paths.
+      SsaEnv* if_no_catch_env = Split(decoder->zone(), ssa_env_);
+      if_no_catch_env->control = if_no_catch;
+      SetEnv(if_no_catch_env);
+      Goto(decoder, block->try_info->catch_env);
+      // Merge the wasm catch and JS catch paths.
+      SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
+      if_catch_env->control = if_catch;
+      SetEnv(if_catch_env);
+      Goto(decoder, block->block_env);
+
+      // The final env is a merge of case 1 and 2. The unpacked value is a Phi
+      // of the unpacked value (case 1) and the exception itself (case 2).
+      SetEnv(block->block_env);
+      TFNode* phi_inputs[] = {values[0].node, exception,
+                              block->block_env->control};
+      TFNode* ref = builder_->Phi(wasm::kWasmExternRef, 2, phi_inputs);
+      SetAndTypeNode(&values[0], ref);
+    } else {
+      CatchAndUnpackWasmException(decoder, block, exception, imm.tag,
+                                  caught_tag, expected_tag, values);
     }
   }
 
