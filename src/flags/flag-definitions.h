@@ -1621,9 +1621,6 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
 
 DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
-DEFINE_BOOL(crash_on_aborted_evacuation, false,
-            "crash when evacuation of page fails")
-
 // v8::CppHeap flags that allow fine-grained control of how C++ memory is
 // reclaimed in the garbage collector.
 DEFINE_BOOL(cppheap_incremental_marking, false,

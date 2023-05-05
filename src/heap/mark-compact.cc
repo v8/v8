@@ -4356,16 +4356,12 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
               Page::cast(chunk), &old_space_visitor_, &failed_object)) {
         marking_state->ClearLiveness(chunk);
       } else {
-        if (v8_flags.crash_on_aborted_evacuation) {
-          heap_->FatalProcessOutOfMemory("FullEvacuator::RawEvacuatePage");
-        } else {
-          // Aborted compaction page. Actual processing happens on the main
-          // thread for simplicity reasons.
-          heap_->mark_compact_collector()
-              ->ReportAbortedEvacuationCandidateDueToOOM(
-                  failed_object.address(), static_cast<Page*>(chunk));
-          return false;
-        }
+        // Aborted compaction page. Actual processing happens on the main
+        // thread for simplicity reasons.
+        heap_->mark_compact_collector()
+            ->ReportAbortedEvacuationCandidateDueToOOM(
+                failed_object.address(), static_cast<Page*>(chunk));
+        return false;
       }
       break;
     }
@@ -5294,8 +5290,6 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
 }  // namespace
 
 size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
-  CHECK_IMPLIES(v8_flags.crash_on_aborted_evacuation,
-                aborted_evacuation_candidates_due_to_oom_.empty());
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     Page* page = start_and_page.second;
     DCHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
