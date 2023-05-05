@@ -1151,7 +1151,15 @@ class LiftoffCompiler {
 
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
     DCHECK(for_debugging_);
+
+    // Snapshot the value types (from the decoder) here, for potentially
+    // building a debug side table entry later. Arguments will have been popped
+    // from the stack later (when we need them), and Liftoff does not keep
+    // precise type information.
+    stack_value_types_for_debugging_ = GetStackValueTypesForDebugging(decoder);
+
     if (!WasmOpcodes::IsBreakable(opcode)) return;
+
     bool has_breakpoint = false;
     if (next_breakpoint_ptr_) {
       if (*next_breakpoint_ptr_ == 0) {
@@ -1217,9 +1225,6 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
-    // Add a single check, so that the fast path can be inlined while
-    // {EmitDebuggingInfo} stays outlined.
-    if (V8_UNLIKELY(for_debugging_)) EmitDebuggingInfo(decoder, opcode);
     TraceCacheState(decoder);
     SLOW_DCHECK(__ ValidateCacheState());
     CODE_COMMENT(WasmOpcodes::OpcodeName(
@@ -1233,6 +1238,10 @@ class LiftoffCompiler {
       DCHECK_EQ(decoder->stack_size() + __ num_locals() + num_exceptions_,
                 __ cache_state()->stack_state.size());
     }
+
+    // Add a single check, so that the fast path can be inlined while
+    // {EmitDebuggingInfo} stays outlined.
+    if (V8_UNLIKELY(for_debugging_)) EmitDebuggingInfo(decoder, opcode);
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
@@ -3504,22 +3513,53 @@ class LiftoffCompiler {
     }
   }
 
+  base::OwnedVector<ValueType> GetStackValueTypesForDebugging(
+      FullDecoder* decoder) {
+    DCHECK(for_debugging_);
+    auto stack_value_types =
+        base::OwnedVector<ValueType>::NewForOverwrite(decoder->stack_size());
+
+    int depth = 0;
+    for (ValueType& type : base::Reversed(stack_value_types)) {
+      type = decoder->stack_value(++depth)->type;
+    }
+    return stack_value_types;
+  }
+
   base::OwnedVector<DebugSideTable::Entry::Value>
   GetCurrentDebugSideTableEntries(
       FullDecoder* decoder,
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     auto& stack_state = __ cache_state()->stack_state;
+
+    // For value types, we use the cached {stack_value_types_for_debugging_}
+    // vector (gathered in {NextInstruction}). This still includes call
+    // arguments, which Liftoff has already popped at this point. Hence the size
+    // of this vector can be larger than the Liftoff stack size. Just ignore
+    // that and use the lower part only.
+    size_t expected_value_stack_size =
+        stack_state.size() - num_exceptions_ - __ num_locals();
+
+    // WasmGC sometimes pushes a value on the stack before performing the actual
+    // operation, e.g. the rtt for array.new and friends.
+    // TODO(clemensb): Fix this.
+    size_t num_gc_stack_values_to_ignore = 0;
+    if (*decoder->pc() == kGCPrefix &&
+        expected_value_stack_size > stack_value_types_for_debugging_.size()) {
+      num_gc_stack_values_to_ignore =
+          expected_value_stack_size - stack_value_types_for_debugging_.size();
+    }
+
+    DCHECK_LE(expected_value_stack_size,
+              stack_value_types_for_debugging_.size() +
+                  num_gc_stack_values_to_ignore);
+
     auto values =
         base::OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
-            stack_state.size());
+            stack_state.size() - num_gc_stack_values_to_ignore);
 
-    // For function calls, the decoder still has the arguments on the stack, but
-    // Liftoff already popped them. Hence {decoder->stack_size()} can be bigger
-    // than expected. Just ignore that and use the lower part only.
-    DCHECK_LE(stack_state.size() - num_exceptions_,
-              decoder->num_locals() + decoder->stack_size());
     int index = 0;
-    int decoder_stack_index = decoder->stack_size();
+    ValueType* stack_value_type_ptr = stack_value_types_for_debugging_.begin();
     // Iterate the operand stack control block by control block, so that we can
     // handle the implicit exception value for try blocks.
     for (int j = decoder->control_depth() - 1; j >= 0; j--) {
@@ -3528,19 +3568,25 @@ class LiftoffCompiler {
       int end_index = next_control
                           ? next_control->stack_depth + __ num_locals() +
                                 next_control->num_exceptions
-                          : __ cache_state()->stack_height();
-      bool exception = control->is_try_catch() || control->is_try_catchall();
+                          : __ cache_state()->stack_height() -
+                                static_cast<int>(num_gc_stack_values_to_ignore);
+      bool exception_on_stack =
+          control->is_try_catch() || control->is_try_catchall();
       for (; index < end_index; ++index) {
         auto& slot = stack_state[index];
         auto& value = values[index];
         value.index = index;
-        ValueType type =
-            index < static_cast<int>(__ num_locals())
-                ? decoder->local_type(index)
-            : exception ? ValueType::Ref(HeapType::kAny)
-                        : decoder->stack_value(decoder_stack_index--)->type;
-        DCHECK(CompatibleStackSlotTypes(slot.kind(), type.kind()));
-        value.type = type;
+        if (exception_on_stack) {
+          value.type = ValueType::Ref(HeapType::kAny);
+          exception_on_stack = false;
+        } else if (index < static_cast<int>(__ num_locals())) {
+          value.type = decoder->local_type(index);
+        } else {
+          DCHECK_LT(stack_value_type_ptr,
+                    stack_value_types_for_debugging_.end());
+          value.type = *stack_value_type_ptr++;
+        }
+        DCHECK(CompatibleStackSlotTypes(slot.kind(), value.type.kind()));
         switch (slot.loc()) {
           case kIntConst:
             value.storage = DebugSideTable::Entry::kConstant;
@@ -3560,10 +3606,12 @@ class LiftoffCompiler {
             value.stack_offset = slot.offset();
             break;
         }
-        exception = false;
       }
     }
     DCHECK_EQ(values.size(), index);
+    DCHECK_EQ(stack_value_types_for_debugging_.data() +
+                  expected_value_stack_size - num_gc_stack_values_to_ignore,
+              stack_value_type_ptr);
     return values;
   }
 
@@ -8177,6 +8225,7 @@ class LiftoffCompiler {
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
   DebugSideTableBuilder* const debug_sidetable_builder_;
+  base::OwnedVector<ValueType> stack_value_types_for_debugging_;
   const ForDebugging for_debugging_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const int func_index_;
