@@ -7225,7 +7225,7 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
-  DCHECK(sweeper()->sweeping_in_progress_for_space(space));
+  if (!sweeper()->sweeping_in_progress_for_space(space)) return;
   sweeper()->DrainSweepingWorklistForSpace(space);
 }
 
