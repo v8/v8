@@ -531,7 +531,10 @@ DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
 DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
                   "insert stack size checks before every IR node")
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
-DEFINE_BOOL(print_maglev_graph, false, "print maglev graph")
+DEFINE_BOOL(print_maglev_graph, false, "print the final maglev graph")
+DEFINE_BOOL(print_maglev_graphs, false, "print maglev graph across all phases")
+DEFINE_BOOL(maglev_print_feedback, true,
+            "print feedback vector for maglev compiled code")
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
