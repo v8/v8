@@ -329,6 +329,7 @@ enum ContextLookupFlags {
   V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
+  V(WASM_JS_TAG_INDEX, JSObject, wasm_js_tag)                                  \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \

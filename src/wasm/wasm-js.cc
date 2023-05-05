@@ -3129,6 +3129,16 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       SetupConstructor(isolate, tag_constructor, i::WASM_TAG_OBJECT_TYPE,
                        WasmTagObject::kHeaderSize, "WebAssembly.Tag");
   context->set_wasm_tag_constructor(*tag_constructor);
+  wasm::ValueType param = wasm::kWasmExternRef;
+  const i::wasm::FunctionSig sig{0, 1, &param};
+  auto js_tag = WasmExceptionTag::New(isolate, 0);
+  uint32_t canonical_type_index =
+      i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(&sig);
+  i::Handle<i::JSObject> js_tag_object =
+      i::WasmTagObject::New(isolate, &sig, canonical_type_index, js_tag);
+  context->set_wasm_js_tag(*js_tag_object);
+  JSObject::AddProperty(isolate, webassembly, "JSTag", js_tag_object,
+                        ro_attributes);
 
   if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);

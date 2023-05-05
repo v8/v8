@@ -250,3 +250,13 @@ function TestGetArgHelper(types_str, types, values) {
   assertThrows(() => exception.is.apply({}, tag1), TypeError,
       /Receiver is not a WebAssembly.Exception/);
 })();
+
+(function TestJSTag() {
+  print(arguments.callee.name);
+  assertTrue(WebAssembly.JSTag instanceof WebAssembly.Tag);
+  let desc = Object.getOwnPropertyDescriptor(WebAssembly, 'JSTag');
+  assertEquals(typeof desc.value, 'object');
+  assertFalse(desc.writable);
+  assertFalse(desc.enumerable);
+  assertTrue(desc.configurable);
+})();
