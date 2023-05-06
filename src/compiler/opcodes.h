@@ -1123,6 +1123,9 @@
   V(I32x8UConvertI16x8)            \
   V(I16x16SConvertI8x16)           \
   V(I16x16UConvertI8x16)           \
+  V(I32x8DotI16x16S)               \
+  V(I16x16RoundingAverageU)        \
+  V(I8x32RoundingAverageU)         \
   V(S256Select)                    \
   V(ExtractF128)
 

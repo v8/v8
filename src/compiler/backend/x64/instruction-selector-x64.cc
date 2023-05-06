@@ -3329,13 +3329,13 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2ExtMulLowI32x4U)          \
   V(I64x2ExtMulHighI32x4U)         \
   V(I32x4DotI16x8S)                \
+  V(I32x8DotI16x16S)               \
   V(I32x4ExtMulLowI16x8S)          \
   V(I32x4ExtMulHighI16x8S)         \
   V(I32x4ExtMulLowI16x8U)          \
   V(I32x4ExtMulHighI16x8U)         \
   V(I16x8SConvertI32x4)            \
   V(I16x8UConvertI32x4)            \
-  V(I16x8RoundingAverageU)         \
   V(I16x8ExtMulLowI8x16S)          \
   V(I16x8ExtMulHighI8x16S)         \
   V(I16x8ExtMulLowI8x16U)          \
@@ -3344,91 +3344,94 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8RelaxedQ15MulRS)          \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
-  V(I8x16RoundingAverageU)         \
   V(S128And)                       \
   V(S128Or)                        \
   V(S128Xor)
 
-#define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
-  V(F64x2Add, FAdd, kL64, kV128)                           \
-  V(F64x4Add, FAdd, kL64, kV256)                           \
-  V(F32x4Add, FAdd, kL32, kV128)                           \
-  V(F32x8Add, FAdd, kL32, kV256)                           \
-  V(I64x2Add, IAdd, kL64, kV128)                           \
-  V(I64x4Add, IAdd, kL64, kV256)                           \
-  V(I32x8Add, IAdd, kL32, kV256)                           \
-  V(I16x16Add, IAdd, kL16, kV256)                          \
-  V(I8x32Add, IAdd, kL8, kV256)                            \
-  V(I32x4Add, IAdd, kL32, kV128)                           \
-  V(I16x8Add, IAdd, kL16, kV128)                           \
-  V(I8x16Add, IAdd, kL8, kV128)                            \
-  V(F64x4Sub, FSub, kL64, kV256)                           \
-  V(F64x2Sub, FSub, kL64, kV128)                           \
-  V(F32x4Sub, FSub, kL32, kV128)                           \
-  V(F32x8Sub, FSub, kL32, kV256)                           \
-  V(I64x2Sub, ISub, kL64, kV128)                           \
-  V(I64x4Sub, ISub, kL64, kV256)                           \
-  V(I32x8Sub, ISub, kL32, kV256)                           \
-  V(I16x16Sub, ISub, kL16, kV256)                          \
-  V(I8x32Sub, ISub, kL8, kV256)                            \
-  V(I32x4Sub, ISub, kL32, kV128)                           \
-  V(I16x8Sub, ISub, kL16, kV128)                           \
-  V(I8x16Sub, ISub, kL8, kV128)                            \
-  V(F64x2Mul, FMul, kL64, kV128)                           \
-  V(F32x4Mul, FMul, kL32, kV128)                           \
-  V(F64x4Mul, FMul, kL64, kV256)                           \
-  V(F32x8Mul, FMul, kL32, kV256)                           \
-  V(I32x8Mul, IMul, kL32, kV256)                           \
-  V(I16x16Mul, IMul, kL16, kV256)                          \
-  V(I32x4Mul, IMul, kL32, kV128)                           \
-  V(I16x8Mul, IMul, kL16, kV128)                           \
-  V(F64x2Div, FDiv, kL64, kV128)                           \
-  V(F32x4Div, FDiv, kL32, kV128)                           \
-  V(F64x4Div, FDiv, kL64, kV256)                           \
-  V(F32x8Div, FDiv, kL32, kV256)                           \
-  V(I16x8AddSatS, IAddSatS, kL16, kV128)                   \
-  V(I16x16AddSatS, IAddSatS, kL16, kV256)                  \
-  V(I8x16AddSatS, IAddSatS, kL8, kV128)                    \
-  V(I8x32AddSatS, IAddSatS, kL8, kV256)                    \
-  V(I16x8SubSatS, ISubSatS, kL16, kV128)                   \
-  V(I16x16SubSatS, ISubSatS, kL16, kV256)                  \
-  V(I8x16SubSatS, ISubSatS, kL8, kV128)                    \
-  V(I8x32SubSatS, ISubSatS, kL8, kV256)                    \
-  V(I16x8AddSatU, IAddSatU, kL16, kV128)                   \
-  V(I16x16AddSatU, IAddSatU, kL16, kV256)                  \
-  V(I8x16AddSatU, IAddSatU, kL8, kV128)                    \
-  V(I8x32AddSatU, IAddSatU, kL8, kV256)                    \
-  V(I16x8SubSatU, ISubSatU, kL16, kV128)                   \
-  V(I16x16SubSatU, ISubSatU, kL16, kV256)                  \
-  V(I8x16SubSatU, ISubSatU, kL8, kV128)                    \
-  V(I8x32SubSatU, ISubSatU, kL8, kV256)                    \
-  V(F64x2Eq, FEq, kL64, kV128)                             \
-  V(F32x4Eq, FEq, kL32, kV128)                             \
-  V(I64x2Eq, IEq, kL64, kV128)                             \
-  V(I32x4Eq, IEq, kL32, kV128)                             \
-  V(I16x8Eq, IEq, kL16, kV128)                             \
-  V(I8x16Eq, IEq, kL8, kV128)                              \
-  V(F64x2Ne, FNe, kL64, kV128)                             \
-  V(F32x4Ne, FNe, kL32, kV128)                             \
-  V(I32x4GtS, IGtS, kL32, kV128)                           \
-  V(I16x8GtS, IGtS, kL16, kV128)                           \
-  V(I8x16GtS, IGtS, kL8, kV128)                            \
-  V(F64x2Lt, FLt, kL64, kV128)                             \
-  V(F32x4Lt, FLt, kL32, kV128)                             \
-  V(F64x2Le, FLe, kL64, kV128)                             \
-  V(F32x4Le, FLe, kL32, kV128)                             \
-  V(I32x4MinS, IMinS, kL32, kV128)                         \
-  V(I16x8MinS, IMinS, kL16, kV128)                         \
-  V(I8x16MinS, IMinS, kL8, kV128)                          \
-  V(I32x4MinU, IMinU, kL32, kV128)                         \
-  V(I16x8MinU, IMinU, kL16, kV128)                         \
-  V(I8x16MinU, IMinU, kL8, kV128)                          \
-  V(I32x4MaxS, IMaxS, kL32, kV128)                         \
-  V(I16x8MaxS, IMaxS, kL16, kV128)                         \
-  V(I8x16MaxS, IMaxS, kL8, kV128)                          \
-  V(I32x4MaxU, IMaxU, kL32, kV128)                         \
-  V(I16x8MaxU, IMaxU, kL16, kV128)                         \
-  V(I8x16MaxU, IMaxU, kL8, kV128)
+#define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V)  \
+  V(F64x2Add, FAdd, kL64, kV128)                            \
+  V(F64x4Add, FAdd, kL64, kV256)                            \
+  V(F32x4Add, FAdd, kL32, kV128)                            \
+  V(F32x8Add, FAdd, kL32, kV256)                            \
+  V(I64x2Add, IAdd, kL64, kV128)                            \
+  V(I64x4Add, IAdd, kL64, kV256)                            \
+  V(I32x8Add, IAdd, kL32, kV256)                            \
+  V(I16x16Add, IAdd, kL16, kV256)                           \
+  V(I8x32Add, IAdd, kL8, kV256)                             \
+  V(I32x4Add, IAdd, kL32, kV128)                            \
+  V(I16x8Add, IAdd, kL16, kV128)                            \
+  V(I8x16Add, IAdd, kL8, kV128)                             \
+  V(F64x4Sub, FSub, kL64, kV256)                            \
+  V(F64x2Sub, FSub, kL64, kV128)                            \
+  V(F32x4Sub, FSub, kL32, kV128)                            \
+  V(F32x8Sub, FSub, kL32, kV256)                            \
+  V(I64x2Sub, ISub, kL64, kV128)                            \
+  V(I64x4Sub, ISub, kL64, kV256)                            \
+  V(I32x8Sub, ISub, kL32, kV256)                            \
+  V(I16x16Sub, ISub, kL16, kV256)                           \
+  V(I8x32Sub, ISub, kL8, kV256)                             \
+  V(I32x4Sub, ISub, kL32, kV128)                            \
+  V(I16x8Sub, ISub, kL16, kV128)                            \
+  V(I8x16Sub, ISub, kL8, kV128)                             \
+  V(F64x2Mul, FMul, kL64, kV128)                            \
+  V(F32x4Mul, FMul, kL32, kV128)                            \
+  V(F64x4Mul, FMul, kL64, kV256)                            \
+  V(F32x8Mul, FMul, kL32, kV256)                            \
+  V(I32x8Mul, IMul, kL32, kV256)                            \
+  V(I16x16Mul, IMul, kL16, kV256)                           \
+  V(I32x4Mul, IMul, kL32, kV128)                            \
+  V(I16x8Mul, IMul, kL16, kV128)                            \
+  V(F64x2Div, FDiv, kL64, kV128)                            \
+  V(F32x4Div, FDiv, kL32, kV128)                            \
+  V(F64x4Div, FDiv, kL64, kV256)                            \
+  V(F32x8Div, FDiv, kL32, kV256)                            \
+  V(I16x8AddSatS, IAddSatS, kL16, kV128)                    \
+  V(I16x16AddSatS, IAddSatS, kL16, kV256)                   \
+  V(I8x16AddSatS, IAddSatS, kL8, kV128)                     \
+  V(I8x32AddSatS, IAddSatS, kL8, kV256)                     \
+  V(I16x8SubSatS, ISubSatS, kL16, kV128)                    \
+  V(I16x16SubSatS, ISubSatS, kL16, kV256)                   \
+  V(I8x16SubSatS, ISubSatS, kL8, kV128)                     \
+  V(I8x32SubSatS, ISubSatS, kL8, kV256)                     \
+  V(I16x8AddSatU, IAddSatU, kL16, kV128)                    \
+  V(I16x16AddSatU, IAddSatU, kL16, kV256)                   \
+  V(I8x16AddSatU, IAddSatU, kL8, kV128)                     \
+  V(I8x32AddSatU, IAddSatU, kL8, kV256)                     \
+  V(I16x8SubSatU, ISubSatU, kL16, kV128)                    \
+  V(I16x16SubSatU, ISubSatU, kL16, kV256)                   \
+  V(I8x16SubSatU, ISubSatU, kL8, kV128)                     \
+  V(I8x32SubSatU, ISubSatU, kL8, kV256)                     \
+  V(F64x2Eq, FEq, kL64, kV128)                              \
+  V(F32x4Eq, FEq, kL32, kV128)                              \
+  V(I64x2Eq, IEq, kL64, kV128)                              \
+  V(I32x4Eq, IEq, kL32, kV128)                              \
+  V(I16x8Eq, IEq, kL16, kV128)                              \
+  V(I8x16Eq, IEq, kL8, kV128)                               \
+  V(F64x2Ne, FNe, kL64, kV128)                              \
+  V(F32x4Ne, FNe, kL32, kV128)                              \
+  V(I32x4GtS, IGtS, kL32, kV128)                            \
+  V(I16x8GtS, IGtS, kL16, kV128)                            \
+  V(I8x16GtS, IGtS, kL8, kV128)                             \
+  V(F64x2Lt, FLt, kL64, kV128)                              \
+  V(F32x4Lt, FLt, kL32, kV128)                              \
+  V(F64x2Le, FLe, kL64, kV128)                              \
+  V(F32x4Le, FLe, kL32, kV128)                              \
+  V(I32x4MinS, IMinS, kL32, kV128)                          \
+  V(I16x8MinS, IMinS, kL16, kV128)                          \
+  V(I8x16MinS, IMinS, kL8, kV128)                           \
+  V(I32x4MinU, IMinU, kL32, kV128)                          \
+  V(I16x8MinU, IMinU, kL16, kV128)                          \
+  V(I8x16MinU, IMinU, kL8, kV128)                           \
+  V(I32x4MaxS, IMaxS, kL32, kV128)                          \
+  V(I16x8MaxS, IMaxS, kL16, kV128)                          \
+  V(I8x16MaxS, IMaxS, kL8, kV128)                           \
+  V(I32x4MaxU, IMaxU, kL32, kV128)                          \
+  V(I16x8MaxU, IMaxU, kL16, kV128)                          \
+  V(I8x16MaxU, IMaxU, kL8, kV128)                           \
+  V(I16x8RoundingAverageU, IRoundingAverageU, kL16, kV128)  \
+  V(I16x16RoundingAverageU, IRoundingAverageU, kL16, kV256) \
+  V(I8x16RoundingAverageU, IRoundingAverageU, kL8, kV128)   \
+  V(I8x32RoundingAverageU, IRoundingAverageU, kL8, kV256)
 
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \
