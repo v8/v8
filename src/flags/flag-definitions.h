@@ -479,13 +479,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(maglev_future, maglev)
 DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
                             "enable inlining in the maglev optimizing compiler")
-DEFINE_EXPERIMENTAL_FEATURE(
-    maglev_untagged_phis,
-    "enable phi untagging in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, false,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_untagged_phis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
 DEFINE_INT(max_maglev_inline_depth, 1,
@@ -500,6 +496,8 @@ DEFINE_FLOAT(min_maglev_inlining_frequency, 0.10,
              "minimum frequency for inlining")
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_untagged_phis, true,
+            "enable phi untagging in the maglev optimizing compiler")
 
 DEFINE_BOOL(
     optimize_on_next_call_optimizes_to_maglev, false,
