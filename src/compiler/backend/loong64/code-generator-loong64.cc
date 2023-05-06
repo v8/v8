@@ -1939,6 +1939,7 @@ void SignExtend(MacroAssembler* masm, Instruction* instr, Register* left,
     need_signed = IsAnyTagged(rep_right) || IsAnyCompressed(rep_right) ||
                   rep_right == MachineRepresentation::kWord64;
     if (need_signed && right->is_reg()) {
+      DCHECK(*temp1 != no_reg);
       masm->slli_w(*temp1, right->rm(), 0);
       *right = Operand(*temp1);
     }
@@ -2005,7 +2006,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     // Word32Compare has two temp registers.
     if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
       Register temp0 = i.TempRegister(0);
-      Register temp1 = i.TempRegister(1);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
       SignExtend(masm, instr, &left, &right, &temp0, &temp1);
     }
     __ Branch(tlabel, cc, left, right);
@@ -2153,16 +2154,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kLoong64Cmp32 ||
              instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+      Register temp0 = i.TempRegister(0);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
+      SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+    }
     switch (cc) {
       case eq:
       case ne: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         if (instr->InputAt(1)->IsImmediate()) {
           if (is_int12(-right.immediate())) {
             if (right.immediate() == 0) {
@@ -2195,63 +2196,32 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
             __ Sltu(result, zero_reg, result);
           }
         }
-      } break;
+        break;
+      }
       case lt:
-      case ge: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         __ Slt(result, left, right);
-        if (cc == ge) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        break;
       case gt:
-      case le: {
-        Register left = i.InputRegister(1);
-        Operand right = i.InputOperand(0);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
-        __ Slt(result, left, right);
-        if (cc == le) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        __ Sgt(result, left, right);
+        break;
+      case le:
+        __ Sle(result, left, right);
+        break;
+      case ge:
+        __ Sge(result, left, right);
+        break;
       case lo:
-      case hs: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         __ Sltu(result, left, right);
-        if (cc == hs) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        break;
+      case hs:
+        __ Sgeu(result, left, right);
+        break;
       case hi:
-      case ls: {
-        Register left = i.InputRegister(1);
-        Operand right = i.InputOperand(0);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
-        __ Sltu(result, left, right);
-        if (cc == ls) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        __ Sgtu(result, left, right);
+        break;
+      case ls:
+        __ Sleu(result, left, right);
+        break;
       default:
         UNREACHABLE();
     }
