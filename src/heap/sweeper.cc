@@ -625,7 +625,7 @@ void Sweeper::EnsureMinorCompleted() {
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
-  DCHECK(sweeping_in_progress_for_space(space));
+  if (!sweeping_in_progress_for_space(space)) return;
   main_thread_local_sweeper_.ParallelSweepSpace(
       space, SweepingMode::kLazyOrConcurrent, 0);
 }
