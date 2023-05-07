@@ -195,8 +195,8 @@
   # Skip tests that might fail with concurrent allocation
   'debugger/pause-on-oom-wide': [SKIP],
 
-  # TODO(v8:12612): This test fails on debug builds with MinorMC because incremental marking prevents getting any minor GCs.
-  'heap-profiler/sampling-heap-profiler-flags': [PASS, ['mode == debug', SKIP]],
+  # TODO(v8:12612): This test may fail on builds with MinorMC because incremental marking prevents getting any minor GCs.
+  'heap-profiler/sampling-heap-profiler-flags': [PASS, ['mode == debug or tsan', SKIP]],
 }], # stress_concurrent_allocation
 
 ##############################################################################
