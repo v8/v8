@@ -1577,10 +1577,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     if (value->IsStrongOrWeak()) {
       BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
-        DCHECK_IMPLIES(p->IsToPage(),
-                       v8_flags.minor_mc ||
-                           p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
-                           p->IsLargePage());
+        DCHECK_IMPLIES(p->IsToPage(), v8_flags.minor_mc || p->IsLargePage());
 
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         DCHECK(chunk->SweepingDone());
@@ -1928,10 +1925,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   const bool shortcut_strings_;
 };
 
-template <PageEvacuationMode mode>
-class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
+class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
  public:
-  explicit EvacuateNewSpacePageVisitor(
+  explicit EvacuateNewToOldSpacePageVisitor(
       Heap* heap, RecordMigratedSlotVisitor* record_visitor,
       PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : heap_(heap),
@@ -1941,32 +1937,17 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   static void Move(Page* page) {
-    switch (mode) {
-      case NEW_TO_NEW:
-        DCHECK(!v8_flags.minor_mc);
-        page->heap()->new_space()->PromotePageInNewSpace(page);
-        break;
-      case NEW_TO_OLD: {
-        page->heap()->new_space()->PromotePageToOldSpace(page);
-        break;
-      }
-    }
+    page->heap()->new_space()->PromotePageToOldSpace(page);
   }
 
   inline bool Visit(HeapObject object, int size) override {
-    if (mode == NEW_TO_NEW) {
-      DCHECK(!v8_flags.minor_mc);
+    if (v8_flags.minor_mc) {
       pretenuring_handler_->UpdateAllocationSite(object.map(), object,
                                                  local_pretenuring_feedback_);
-    } else if (mode == NEW_TO_OLD) {
-      if (v8_flags.minor_mc) {
-        pretenuring_handler_->UpdateAllocationSite(object.map(), object,
-                                                   local_pretenuring_feedback_);
-      }
-      DCHECK(!IsCodeSpaceObject(object));
-      PtrComprCageBase cage_base = GetPtrComprCageBase(object);
-      object.IterateFast(cage_base, record_visitor_);
     }
+    DCHECK(!IsCodeSpaceObject(object));
+    PtrComprCageBase cage_base = GetPtrComprCageBase(object);
+    object.IterateFast(cage_base, record_visitor_);
     return true;
   }
 
@@ -4108,7 +4089,6 @@ class Evacuator : public Malloced {
     kObjectsNewToOld,
     kPageNewToOld,
     kObjectsOldToOld,
-    kPageNewToNew,
   };
 
   static const char* EvacuationModeName(EvacuationMode mode) {
@@ -4119,8 +4099,6 @@ class Evacuator : public Malloced {
         return "page-new-to-old";
       case kObjectsOldToOld:
         return "objects-old-to-old";
-      case kPageNewToNew:
-        return "page-new-to-new";
     }
   }
 
@@ -4128,8 +4106,6 @@ class Evacuator : public Malloced {
     // Note: The order of checks is important in this function.
     if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION))
       return kPageNewToOld;
-    if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION))
-      return kPageNewToNew;
     if (chunk->InYoungGeneration()) return kObjectsNewToOld;
     return kObjectsOldToOld;
   }
@@ -4145,8 +4121,6 @@ class Evacuator : public Malloced {
         new_space_visitor_(heap_, &local_allocator_,
                            shared_old_allocator_.get(), &record_visitor_,
                            &local_pretenuring_feedback_),
-        new_to_new_page_visitor_(heap_, &record_visitor_,
-                                 &local_pretenuring_feedback_),
         new_to_old_page_visitor_(heap_, &record_visitor_,
                                  &local_pretenuring_feedback_),
 
@@ -4194,10 +4168,7 @@ class Evacuator : public Malloced {
 
   // Visitors for the corresponding spaces.
   EvacuateNewSpaceVisitor new_space_visitor_;
-  EvacuateNewSpacePageVisitor<PageEvacuationMode::NEW_TO_NEW>
-      new_to_new_page_visitor_;
-  EvacuateNewSpacePageVisitor<PageEvacuationMode::NEW_TO_OLD>
-      new_to_old_page_visitor_;
+  EvacuateNewToOldSpacePageVisitor new_to_old_page_visitor_;
   EvacuateOldSpaceVisitor old_space_visitor_;
 
   // Book keeping info.
@@ -4224,8 +4195,7 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
                  "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
                  static_cast<void*>(this), static_cast<void*>(chunk),
                  chunk->InNewSpace(),
-                 chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-                     chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+                 chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION),
                  chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
                  heap()->new_space()->IsPromotionCandidate(chunk),
                  saved_live_bytes, evacuation_time, success);
@@ -4239,13 +4209,11 @@ void Evacuator::Finalize() {
   heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
                                        new_to_old_page_visitor_.moved_bytes());
   heap()->IncrementNewSpaceSurvivingObjectSize(
-      new_space_visitor_.semispace_copied_size() +
-      new_to_new_page_visitor_.moved_bytes());
+      new_space_visitor_.semispace_copied_size());
   heap()->IncrementYoungSurvivorsCounter(
       new_space_visitor_.promoted_size() +
       new_space_visitor_.semispace_copied_size() +
-      new_to_old_page_visitor_.moved_bytes() +
-      new_to_new_page_visitor_.moved_bytes());
+      new_to_old_page_visitor_.moved_bytes());
   heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
 
@@ -4335,13 +4303,6 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
                                                     &new_to_old_page_visitor_);
       }
       new_to_old_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(chunk));
-      break;
-    case kPageNewToNew:
-      DCHECK(!v8_flags.minor_mc);
-      LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
-                                                  &new_to_new_page_visitor_);
-      new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       break;
     case kObjectsOldToOld: {
@@ -4540,7 +4501,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                        live_bytes_on_page, 0, memory_reduction_mode,
                        PromoteUnusablePages::kNo) ||
         force_page_promotion) {
-      EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
+      EvacuateNewToOldSpacePageVisitor::Move(page);
       page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
       DCHECK_EQ(heap()->old_space(), page->owner());
       // The move added page->allocated_bytes to the old space, but we are
@@ -4653,8 +4614,6 @@ void MarkCompactCollector::Evacuate() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
     for (Page* p : new_space_evacuation_pages_) {
-      // Full GCs don't promote pages within new space.
-      DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
       if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
         DCHECK_EQ(OLD_SPACE, p->owner_identity());
@@ -4765,60 +4724,6 @@ class PointersUpdatingJob : public v8::JobTask {
   IndexGenerator generator_;
 
   GCTracer* tracer_;
-};
-
-template <typename MarkingState>
-class ToSpaceUpdatingItem : public UpdatingItem {
- public:
-  explicit ToSpaceUpdatingItem(Heap* heap, MemoryChunk* chunk, Address start,
-                               Address end, MarkingState* marking_state)
-      : heap_(heap),
-        chunk_(chunk),
-        start_(start),
-        end_(end),
-        marking_state_(marking_state) {}
-  ~ToSpaceUpdatingItem() override = default;
-
-  void Process() override {
-    if (chunk_->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
-      // New->new promoted pages contain garbage so they require iteration using
-      // markbits.
-      ProcessVisitLive();
-    } else {
-      ProcessVisitAll();
-    }
-  }
-
- private:
-  void ProcessVisitAll() {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "ToSpaceUpdatingItem::ProcessVisitAll");
-    PointersUpdatingVisitor visitor(heap_);
-    for (Address cur = start_; cur < end_;) {
-      HeapObject object = HeapObject::FromAddress(cur);
-      Map map = object.map(visitor.cage_base());
-      int size = object.SizeFromMap(map);
-      object.IterateBodyFast(map, size, &visitor);
-      cur += size;
-    }
-  }
-
-  void ProcessVisitLive() {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "ToSpaceUpdatingItem::ProcessVisitLive");
-    // For young generation evacuations we want to visit grey objects, for
-    // full MC, we need to visit black objects.
-    PointersUpdatingVisitor visitor(heap_);
-    for (auto object_and_size : LiveObjectRange(Page::cast(chunk_))) {
-      object_and_size.first.IterateBodyFast(visitor.cage_base(), &visitor);
-    }
-  }
-
-  Heap* heap_;
-  MemoryChunk* chunk_;
-  Address start_;
-  Address end_;
-  MarkingState* marking_state_;
 };
 
 namespace {
@@ -6331,7 +6236,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
                        heap()->tracer()->IsCurrentGCDueToAllocationFailure()
                            ? PromoteUnusablePages::kYes
                            : PromoteUnusablePages::kNo)) {
-      EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(p);
+      EvacuateNewToOldSpacePageVisitor::Move(p);
       has_promoted_pages = true;
       sweeper()->AddPromotedPageForIteration(p);
     } else {

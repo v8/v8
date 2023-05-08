@@ -59,8 +59,6 @@ bool SemiSpace::EnsureCurrentCapacity() {
     while (current_page) {
       DCHECK_EQ(actual_pages, expected_pages);
       MemoryChunk* next_current = current_page->list_node().next();
-      // Promoted pages contain live objects and should not be discarded.
-      DCHECK(!current_page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
       // `current_page_` contains the current allocation area. Thus, we should
       // never free the `current_page_`. Furthermore, live objects generally
       // reside before the current allocation area, so `current_page_` also
@@ -856,13 +854,6 @@ void SemiSpaceNewSpace::RemovePage(Page* page) {
   DCHECK(!page->IsToPage());
   DCHECK(page->IsFromPage());
   from_space().RemovePage(page);
-}
-
-void SemiSpaceNewSpace::PromotePageInNewSpace(Page* page) {
-  DCHECK(page->IsFromPage());
-  from_space_.RemovePage(page);
-  to_space_.PrependPage(page);
-  page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
 }
 
 bool SemiSpaceNewSpace::IsPromotionCandidate(const MemoryChunk* page) const {

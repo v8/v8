@@ -71,45 +71,41 @@ class BasicMemoryChunk {
     // from new to old space during evacuation.
     PAGE_NEW_OLD_PROMOTION = 1u << 10,
 
-    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
-    // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION = 1u << 11,
-
     // This flag is intended to be used for testing. Works only when both
     // v8_flags.stress_compaction and
     // v8_flags.manual_evacuation_candidates_selection are set. It forces the
     // page to become an evacuation candidate at next candidates selection
     // cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 12,
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
 
     // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 13,
+    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
 
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
-    PRE_FREED = 1u << 14,
+    PRE_FREED = 1u << 13,
 
     // |POOLED|: When actually freeing this chunk, only uncommit and do not
     // give up the reservation as we still reuse the chunk at some point.
-    POOLED = 1u << 15,
+    POOLED = 1u << 14,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 16,
+    COMPACTION_WAS_ABORTED = 1u << 15,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 16,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 19,
+    UNREGISTERED = 1u << 17,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 20,
+    PINNED = 1u << 18,
 
     // A Page with code objects.
-    IS_EXECUTABLE = 1u << 21,
+    IS_EXECUTABLE = 1u << 19,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

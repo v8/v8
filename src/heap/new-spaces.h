@@ -249,7 +249,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   }
 
   void PromotePageToOldSpace(Page* page);
-  virtual void PromotePageInNewSpace(Page* page) = 0;
 
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;
@@ -378,8 +377,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   }
 
   size_t AllocatedSinceLastGC() const final;
-
-  void PromotePageInNewSpace(Page* page) final;
 
   bool EnsureCurrentCapacity() final;
 
@@ -793,8 +790,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.EnsureAllocation(size_in_bytes, alignment, origin,
                                          out_max_aligned_size);
   }
-
-  void PromotePageInNewSpace(Page* page) final { UNREACHABLE(); }
 
   void RemovePage(Page* page) final { paged_space_.RemovePage(page); }
 
