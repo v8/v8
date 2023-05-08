@@ -91,8 +91,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     if (result->expose_internals() && heap()->cpp_heap())
       use_cpp_class_name.emplace(heap()->cpp_heap());
 
-    HeapSnapshotGenerator generator(
-        result, options.control, options.global_object_name_resolver, heap());
+    HeapSnapshotGenerator generator(result, options.control,
+                                    options.global_object_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = nullptr;

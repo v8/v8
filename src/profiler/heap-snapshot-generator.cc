@@ -2772,12 +2772,14 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
     HeapSnapshot* snapshot, v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver, Heap* heap)
+    v8::HeapProfiler::ObjectNameResolver* resolver, Heap* heap,
+    cppgc::EmbedderStackState stack_state)
     : snapshot_(snapshot),
       control_(control),
       v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this),
-      heap_(heap) {}
+      heap_(heap),
+      stack_state_(stack_state) {}
 
 namespace {
 class V8_NODISCARD NullContextForSnapshotScope {
@@ -2802,6 +2804,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   base::Optional<HandleScope> handle_scope(base::in_place, isolate);
   v8_heap_explorer_.CollectGlobalObjectsTags();
 
+  EmbedderStackStateScope stack_scope(
+      heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(isolate);
