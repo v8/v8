@@ -1371,16 +1371,15 @@ TEST(Regress1402187) {
   {
     v8::HandleScope scope(CcTest::isolate());
     // Internalize a string with the same hash to ensure collision.
-    Handle<String> intern = factory->NewStringFromAsciiChecked(
+    Handle<String> intern = isolate->factory()->NewStringFromAsciiChecked(
         "internalized1234567", AllocationType::kOld);
     intern->set_raw_hash_field(fake_hash);
     factory->InternalizeName(intern);
     CHECK(intern->IsInternalizedString());
 
     v8::Local<v8::String> ext_string =
-        Utils::ToLocal(factory->NewStringFromAsciiChecked(
-            ext_string_content, AllocationType::kOld));
-    CHECK(ext_string->MakeExternal(resource));
+        v8::String::NewFromUtf8Literal(CcTest::isolate(), ext_string_content);
+    ext_string->MakeExternal(resource);
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     string->set_raw_hash_field(fake_hash);
     CHECK(string->IsExternalString());

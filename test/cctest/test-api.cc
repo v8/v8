@@ -614,7 +614,8 @@ THREADED_TEST(ScriptMakingExternalString) {
         String::NewFromTwoByte(env->GetIsolate(), two_byte_source)
             .ToLocalChecked();
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::OLD_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
     CHECK(!source->IsExternalTwoByte());
     CHECK(!source->IsExternalOneByte());
     CHECK(!source->IsExternal());
@@ -648,7 +649,8 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
     v8::HandleScope scope(env->GetIsolate());
     Local<String> source = v8_str(c_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::OLD_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
         new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
@@ -753,7 +755,8 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs so that the newly allocated string moves to old gen.
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::CollectGarbage(i::OLD_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
 
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";

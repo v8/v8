@@ -7720,7 +7720,16 @@ bool v8::String::MakeExternal(
 bool v8::String::CanMakeExternal(Encoding encoding) const {
   i::String obj = *Utils::OpenHandle(this);
 
-  return obj.SupportsExternalization(encoding);
+  if (obj.IsThinString()) {
+    obj = i::ThinString::cast(obj).actual();
+  }
+
+  if (!obj.SupportsExternalization(encoding)) {
+    return false;
+  }
+
+  // Only old space strings should be externalized.
+  return !i::Heap::InYoungGeneration(obj);
 }
 
 bool v8::String::StringEquals(Local<String> that) const {

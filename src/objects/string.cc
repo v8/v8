@@ -568,9 +568,7 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
 
 #ifdef V8_COMPRESS_POINTERS
   // Small strings may not be in-place externalizable.
-  if (this->Size() < ExternalString::kUncachedSize) {
-    return false;
-  }
+  if (this->Size() < ExternalString::kUncachedSize) return false;
 #else
   DCHECK_LE(ExternalString::kUncachedSize, this->Size());
 #endif
@@ -579,11 +577,6 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
 
   // Already an external string.
   if (shape.IsExternal()) {
-    return false;
-  }
-
-  // Only strings in old space can be externalized.
-  if (Heap::InYoungGeneration(*this)) {
     return false;
   }
 

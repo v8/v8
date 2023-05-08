@@ -50,13 +50,13 @@ function test() {
     expected_two_byte += expected_two_byte;
     cons += cons;
   }
-  externalizeString(createExternalizableString(cons));
+  externalizeString(cons);
   assertEquals(expected_two_byte, cons.replace(/[a-z]/g, ""));
   cons = "\u12340b1c2d3";
   for (var i = 0; i < 5; i++) {
     cons += cons;
   }
-  externalizeString(createExternalizableString(cons));
+  externalizeString(cons);
   assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
 }
 

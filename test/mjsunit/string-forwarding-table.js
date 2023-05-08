@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --always-use-string-forwarding-table --expose-externalize-string
-// Flags: --expose-gc
 
 // The main purpose of this test is to make ClusterFuzz aware of the flag and
 // provide some interesting input.
@@ -12,9 +11,6 @@ const long_key = 'key1234567890abcdefg';
 const substr_key = long_key.substring(3,17);
 const consstr_key = 'key' + 1234567890 + 'abcdefg';
 const integer_index = long_key.substring(3,8);
-
-gc();
-gc();
 
 // Test object with in-place properties.
 {

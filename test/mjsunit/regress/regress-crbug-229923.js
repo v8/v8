@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,54 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-externalize-string --expose-gc --allow-natives-syntax
+// Flags: --expose-externalize-string
 
-var size = 1024;
+var slice = "slow path of JSON.stringify for sliced string".substring(1);
+assertEquals('"' + slice + '"', JSON.stringify(slice, null, 0));
 
-function dont_inline() { return "A"; }
-%NeverOptimizeFunction(dont_inline);
-
-function dont_inline2() { return "\u1234"; }
-%NeverOptimizeFunction(dont_inline2);
-
-function test() {
-  var str = "";
-
-  // Build an ascii cons string.
-  for (var i = 0; i < size; i++) {
-      str += String.fromCharCode(i & 0x7f);
-  }
-  assertTrue(isOneByteString(str));
-
-  var realTwoByteExternalString =
-      "\u1234\u1234\u1234\u1234" + dont_inline2();
-  externalizeString(realTwoByteExternalString);
-  assertFalse(isOneByteString(realTwoByteExternalString));
-
-  assertFalse(isOneByteString(["a", realTwoByteExternalString].join("")));
-
-  // Appending a real two-byte string should produce a two-byte cons.
-  var str2 = str + realTwoByteExternalString;
-  assertFalse(isOneByteString(str2));
-
-  // Force flattening of the string.
-  old_length = str2.length - realTwoByteExternalString.length;
-  for (var i = 0; i < old_length; i++) {
-    assertEquals(String.fromCharCode(i & 0x7f), str2[i]);
-  }
-  for (var i = old_length; i < str.length; i++) {
-    assertEquals("\u1234", str2[i]);
-  }
-
-  // Flattened string should still be two-byte.
-  assertFalse(isOneByteString(str2));
-}
-
-// Run the test many times to ensure IC-s don't break things.
-for (var i = 0; i < 10; i++) {
-  test();
-}
-
-// Clean up string to make Valgrind happy.
-gc();
-gc();
+var parent = "external string turned into two byte";
+var slice_of_external = parent.substring(1);
+try {
+  // Turn the string to a two-byte external string, so that the sliced
+  // string looks like one-byte, but its parent is actually two-byte.
+  externalizeString(parent, true);
+} catch (e) { }
+assertEquals('"' + slice_of_external + '"',
+             JSON.stringify(slice_of_external, null, 0));

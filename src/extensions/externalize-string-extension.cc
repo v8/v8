@@ -40,7 +40,6 @@ using SimpleTwoByteStringResource =
 
 const char* const ExternalizeStringExtension::kSource =
     "native function externalizeString();"
-    "native function createExternalizableString();"
     "native function isOneByteString();"
     "function x() { return 1; }";
 
@@ -50,10 +49,6 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
   if (strcmp(*v8::String::Utf8Value(isolate, str), "externalizeString") == 0) {
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
-  } else if (strcmp(*v8::String::Utf8Value(isolate, str),
-                    "createExternalizableString") == 0) {
-    return v8::FunctionTemplate::New(
-        isolate, ExternalizeStringExtension::CreateExternalizableString);
   } else {
     DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
               0);
@@ -114,76 +109,6 @@ void ExternalizeStringExtension::Externalize(
     info.GetIsolate()->ThrowError("externalizeString() failed.");
     return;
   }
-}
-
-namespace {
-
-MaybeHandle<String> CopyConsStringToOld(Isolate* isolate,
-                                        Handle<ConsString> string) {
-  return isolate->factory()->NewConsString(handle(string->first(), isolate),
-                                           handle(string->second(), isolate),
-                                           AllocationType::kOld);
-}
-
-}  // namespace
-
-void ExternalizeStringExtension::CreateExternalizableString(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
-  if (info.Length() < 1 || !info[0]->IsString()) {
-    info.GetIsolate()->ThrowError(
-        "First parameter to createExternalizableString() must be a string.");
-    return;
-  }
-  Handle<String> string = Utils::OpenHandle(*info[0].As<v8::String>());
-  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-  v8::String::Encoding encoding = string->IsOneByteRepresentation(isolate)
-                                      ? v8::String::Encoding::ONE_BYTE_ENCODING
-                                      : v8::String::Encoding::TWO_BYTE_ENCODING;
-  if (string->SupportsExternalization(encoding)) {
-    info.GetReturnValue().Set(Utils::ToLocal(string));
-    return;
-  }
-  // Special handling for ConsStrings, as the ConsString -> ExternalString
-  // migration is special for GC (Tagged pointers to Untagged pointers).
-  if (string->IsConsString(isolate)) {
-    Handle<String> result;
-    if (CopyConsStringToOld(isolate, Handle<ConsString>::cast(string))
-            .ToHandle(&result)) {
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(result));
-      return;
-    }
-  }
-  // All other strings can be implicitly flattened.
-  if (encoding == v8::String::ONE_BYTE_ENCODING) {
-    MaybeHandle<SeqOneByteString> maybe_result =
-        isolate->factory()->NewRawOneByteString(string->length(),
-                                                AllocationType::kOld);
-    Handle<SeqOneByteString> result;
-    if (maybe_result.ToHandle(&result)) {
-      DisallowGarbageCollection no_gc;
-      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
-                          string->length());
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
-      return;
-    }
-  } else {
-    MaybeHandle<SeqTwoByteString> maybe_result =
-        isolate->factory()->NewRawTwoByteString(string->length(),
-                                                AllocationType::kOld);
-    Handle<SeqTwoByteString> result;
-    if (maybe_result.ToHandle(&result)) {
-      DisallowGarbageCollection no_gc;
-      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
-                          string->length());
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
-      return;
-    }
-  }
-  info.GetIsolate()->ThrowError("Unable to create string");
 }
 
 void ExternalizeStringExtension::IsOneByte(
