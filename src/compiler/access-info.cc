@@ -512,12 +512,12 @@ using AccessorsObjectGetter = std::function<Handle<Object>()>;
 PropertyAccessInfo AccessorAccessInfoHelper(
     Isolate* isolate, Zone* zone, JSHeapBroker* broker,
     const AccessInfoFactory* ai_factory, MapRef receiver_map, NameRef name,
-    MapRef map, OptionalJSObjectRef holder, AccessMode access_mode,
+    MapRef holder_map, OptionalJSObjectRef holder, AccessMode access_mode,
     AccessorsObjectGetter get_accessors) {
-  if (map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
-    DCHECK(map.object()->is_prototype_map());
+  if (holder_map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
+    DCHECK(holder_map.object()->is_prototype_map());
     Handle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        PrototypeInfo::cast(map.object()->prototype_info()));
+        PrototypeInfo::cast(holder_map.object()->prototype_info()));
     Handle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
             JSModuleNamespace::cast(proto_info->module_namespace()));
@@ -537,7 +537,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
-    DCHECK(!map.is_dictionary_map());
+    DCHECK(!holder_map.is_dictionary_map());
 
     // HasProperty checks don't call getter/setters, existence is sufficient.
     return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, holder,
@@ -560,8 +560,15 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     CallOptimization optimization(broker->local_isolate_or_isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
-            *broker->target_native_context().object(), *map.object())) {
+            *broker->target_native_context().object(), *holder_map.object())) {
       return PropertyAccessInfo::Invalid(zone);
+    }
+    if (DEBUG_BOOL && holder.has_value()) {
+      base::Optional<NativeContext> holder_creation_context =
+          holder->object()->GetCreationContextRaw();
+      CHECK(holder_creation_context.has_value());
+      CHECK_EQ(*broker->target_native_context().object(),
+               holder_creation_context.value());
     }
 
     CallOptimization::HolderLookup holder_lookup;
@@ -590,13 +597,13 @@ PropertyAccessInfo AccessorAccessInfoHelper(
           TryMakeRef(broker, cached_property_name.value());
       if (cached_property_name_ref.has_value()) {
         PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-            map, cached_property_name_ref.value(), access_mode);
+            holder_map, cached_property_name_ref.value(), access_mode);
         if (!access_info.IsInvalid()) return access_info;
       }
     }
   }
 
-  if (map.is_dictionary_map()) {
+  if (holder_map.is_dictionary_map()) {
     CHECK(!api_holder_ref.has_value());
     return PropertyAccessInfo::DictionaryProtoAccessorConstant(
         zone, receiver_map, holder, accessor_ref.value(), api_holder_ref, name);

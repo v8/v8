@@ -678,8 +678,8 @@ base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
       }
     }
   }
-  if (function.has_context()) return function.native_context();
-  return {};
+  CHECK(function.has_context());
+  return function.native_context();
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {

@@ -23,19 +23,39 @@ template CallOptimization::CallOptimization(Isolate* isolate,
 template CallOptimization::CallOptimization(LocalIsolate* isolate,
                                             Handle<Object> function);
 
-Context CallOptimization::GetAccessorContext(Map holder_map) const {
+base::Optional<NativeContext> CallOptimization::GetAccessorContext(
+    Map holder_map) const {
   if (is_constant_call()) {
     return constant_function_->native_context();
   }
-  JSFunction constructor = JSFunction::cast(holder_map.GetConstructor());
+  Object maybe_constructor = holder_map.GetConstructor();
+  if (maybe_constructor.IsNull()) {
+    CHECK(holder_map.IsJSFunctionMap());
+    // This happens when the holder is a JSFunction with a
+    // |native_context_index_symbol| property containing index of the
+    // respective constructor function that's supposed to be taken the
+    // current native context. See InstallWithIntrinsicDefaultProto().
+    return {};
+  }
+  CHECK(maybe_constructor.IsJSFunction());
+  JSFunction constructor = JSFunction::cast(maybe_constructor);
   return constructor.native_context();
 }
 
-bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,
-                                                      Map holder_map) const {
+bool CallOptimization::IsCrossContextLazyAccessorPair(
+    NativeContext native_context, Map holder_map) const {
   DCHECK(native_context.IsNativeContext());
   if (is_constant_call()) return false;
-  return native_context != GetAccessorContext(holder_map);
+  base::Optional<NativeContext> maybe_context = GetAccessorContext(holder_map);
+  if (!maybe_context.has_value()) {
+    // This happens when the holder is a JSFunction with a
+    // |native_context_index_symbol| property containing index of the
+    // respective constructor function that's supposed to be taken the
+    // current native context. See InstallWithIntrinsicDefaultProto().
+    // So this means that the holder is compatible with any context.
+    return false;
+  }
+  return native_context != maybe_context.value();
 }
 
 template <class IsolateT>

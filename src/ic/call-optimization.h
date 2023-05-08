@@ -17,8 +17,14 @@ class CallOptimization {
   template <class IsolateT>
   CallOptimization(IsolateT* isolate, Handle<Object> function);
 
-  Context GetAccessorContext(Map holder_map) const;
-  bool IsCrossContextLazyAccessorPair(Context native_context,
+  // Gets accessor context by given holder map via holder's constructor.
+  // Returns empty value in case the constructor is a function that's supposed
+  // to be taken from current native context, i.e. when the holder object
+  // is a JSFunction with |native_context_index_symbol| property.
+  // See InstallWithIntrinsicDefaultProto() for details.
+  base::Optional<NativeContext> GetAccessorContext(Map holder_map) const;
+
+  bool IsCrossContextLazyAccessorPair(NativeContext native_context,
                                       Map holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }

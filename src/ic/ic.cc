@@ -535,8 +535,10 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
   return LoadIC::Load(global, name, update_feedback);
 }
 
-static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
-                                       Handle<Map> new_receiver_map) {
+namespace {
+
+bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
+                                Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
   for (Handle<Map> map : *receiver_maps) {
     if (!map.is_null() && map.is_identical_to(new_receiver_map)) {
@@ -547,7 +549,7 @@ static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
   return true;
 }
 
-static bool AddOneReceiverMapIfMissing(
+bool AddOneReceiverMapIfMissing(
     std::vector<MapAndHandler>* receiver_maps_and_handlers,
     Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
@@ -562,6 +564,25 @@ static bool AddOneReceiverMapIfMissing(
       MapAndHandler(new_receiver_map, MaybeObjectHandle()));
   return true;
 }
+
+Handle<NativeContext> GetAccessorContext(
+    const CallOptimization& call_optimization, Map holder_map,
+    Isolate* isolate) {
+  base::Optional<NativeContext> maybe_context =
+      call_optimization.GetAccessorContext(holder_map);
+
+  if (maybe_context.has_value()) {
+    return handle(maybe_context.value(), isolate);
+  }
+
+  // This happens when the holder is a JSFunction with a
+  // |native_context_index_symbol| property containing index of the
+  // respective constructor function that's supposed to be taken the
+  // current native context. See InstallWithIntrinsicDefaultProto().
+  return isolate->native_context();
+}
+
+}  // namespace
 
 bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
   if (!v8_flags.mega_dom_ic) return false;
@@ -602,8 +623,8 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
   call_optimization.LookupHolderOfExpectedType(isolate(), map, &holder_lookup);
   if (holder_lookup != CallOptimization::kHolderIsReceiver) return false;
 
-  Handle<Context> accessor_context(call_optimization.GetAccessorContext(*map),
-                                   isolate());
+  Handle<NativeContext> accessor_context =
+      GetAccessorContext(call_optimization, *map, isolate());
 
   Handle<FunctionTemplateInfo> fti;
   if (accessor_obj->IsJSFunction()) {
@@ -979,14 +1000,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           smi_handler = LoadHandler::LoadApiGetter(
               isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
 
-          Handle<Context> context(
-              call_optimization.GetAccessorContext(holder->map()), isolate());
+          Handle<NativeContext> accessor_context =
+              GetAccessorContext(call_optimization, holder->map(), isolate());
 
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-              MaybeObjectHandle::Weak(context)));
+              MaybeObjectHandle::Weak(accessor_context)));
         }
 
         if (holder->HasFastProperties()) {
@@ -1997,13 +2018,14 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                 isolate(),
                 holder_lookup == CallOptimization::kHolderIsReceiver);
 
-            Handle<Context> context(
-                call_optimization.GetAccessorContext(holder->map()), isolate());
+            Handle<NativeContext> accessor_context =
+                GetAccessorContext(call_optimization, holder->map(), isolate());
+
             TRACE_HANDLER_STATS(isolate(), StoreIC_StoreApiSetterOnPrototypeDH);
             return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
                 isolate(), lookup_start_object_map(), holder, smi_handler,
                 MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-                MaybeObjectHandle::Weak(context)));
+                MaybeObjectHandle::Weak(accessor_context)));
           }
           set_slow_stub_reason("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
