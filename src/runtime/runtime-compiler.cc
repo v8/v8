@@ -454,7 +454,8 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
   if (!Compiler::CompileOptimizedOSR(
            isolate, function, osr_offset, mode,
            v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN)
-           .ToHandle(&result)) {
+           .ToHandle(&result) ||
+      result->marked_for_deoptimization()) {
     // An empty result can mean one of two things:
     // 1) we've started a concurrent compilation job - everything is fine.
     // 2) synchronous compilation failed for some reason.
