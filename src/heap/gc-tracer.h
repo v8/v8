@@ -401,10 +401,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   V8_INLINE WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 
-  bool IsCurrentGCDueToAllocationFailure() const {
-    return current_.gc_reason == GarbageCollectionReason::kAllocationFailure;
-  }
-
   GarbageCollector GetCurrentCollector() const;
 
  private:

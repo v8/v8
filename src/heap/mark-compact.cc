@@ -4435,8 +4435,7 @@ intptr_t NewSpacePageEvacuationThreshold(GarbageCollector collector) {
 
 bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
                     intptr_t wasted_bytes,
-                    MemoryReductionMode memory_reduction_mode,
-                    PromoteUnusablePages promote_unusable_pages) {
+                    MemoryReductionMode memory_reduction_mode) {
   Heap* heap = p->heap();
   DCHECK(!p->NeverEvacuate());
   bool should_move_page =
@@ -4444,7 +4443,7 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
       (memory_reduction_mode == MemoryReductionMode::kNone) &&
       ((live_bytes + wasted_bytes >
         NewSpacePageEvacuationThreshold(collector)) ||
-       (promote_unusable_pages == PromoteUnusablePages::kYes &&
+       (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
         (p->AllocatedLabSize() == 0))) &&
       (collector == GarbageCollector::MARK_COMPACTOR ||
        heap->new_space()->IsPromotionCandidate(p)) &&
@@ -4453,11 +4452,10 @@ bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
     PrintIsolate(
         p->owner()->heap()->isolate(),
         "[Page Promotion] %p: collector=%s, live bytes = %zu, "
-        "wasted bytes = %zu, promotion threshold = %zu, promote unusable page "
-        "= %s, allocated labs size = %zu\n",
+        "wasted bytes = %zu, promotion threshold = %zu, allocated labs size = "
+        "%zu\n",
         p, collector == GarbageCollector::MARK_COMPACTOR ? "mc" : "mmc",
         live_bytes, wasted_bytes, NewSpacePageEvacuationThreshold(collector),
-        promote_unusable_pages == PromoteUnusablePages::kYes ? "yes" : "no",
         p->AllocatedLabSize());
   }
   return should_move_page;
@@ -4498,8 +4496,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         heap()->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                      : MemoryReductionMode::kNone;
     if (ShouldMovePage(GarbageCollector::MARK_COMPACTOR, page,
-                       live_bytes_on_page, 0, memory_reduction_mode,
-                       PromoteUnusablePages::kNo) ||
+                       live_bytes_on_page, 0, memory_reduction_mode) ||
         force_page_promotion) {
       EvacuateNewToOldSpacePageVisitor::Move(page);
       page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -6232,10 +6229,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
 
     if (ShouldMovePage(GarbageCollector::MINOR_MARK_COMPACTOR, p,
                        live_bytes_on_page, p->wasted_memory(),
-                       MemoryReductionMode::kNone,
-                       heap()->tracer()->IsCurrentGCDueToAllocationFailure()
-                           ? PromoteUnusablePages::kYes
-                           : PromoteUnusablePages::kNo)) {
+                       MemoryReductionMode::kNone)) {
       EvacuateNewToOldSpacePageVisitor::Move(p);
       has_promoted_pages = true;
       sweeper()->AddPromotedPageForIteration(p);
