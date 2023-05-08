@@ -136,9 +136,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'f8279b01085b800724f5c5629dc365b9f040dc53',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '82063d591566ab31b492c3bcd7caaf789c75a802',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd5e79e117ce9adfdcfdc5dde56ee8cddd7742854',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9a92f3b6925b1e4418c4993b10f0c86acee8b16d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '229ff3e23223299d50a33caa1b90e89b78fdd84b',
   'buildtools/win': {
     'packages': [
       {
