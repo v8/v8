@@ -1518,6 +1518,10 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vpabsb(ymm3, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c4e27d1df5           vpabsw ymm6,ymm5", vpabsw(ymm6, ymm5));
     COMPARE("c4c27d1efa           vpabsd ymm7,ymm10", vpabsd(ymm7, ymm10));
+    COMPARE("c4e3fd00ebd8         vpermq ymm5,ymm3,0xd8",
+            vpermq(ymm5, ymm3, 0xD8));
+    COMPARE("c463fd00848b102700001e vpermq ymm8,[rbx+rcx*4+0x2710],0x1e",
+            vpermq(ymm8, Operand(rbx, rcx, times_4, 10000), 0x1E));
   }
 }
 

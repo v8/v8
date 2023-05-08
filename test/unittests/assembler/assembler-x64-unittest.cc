@@ -2730,6 +2730,9 @@ TEST_F(AssemblerX64Test, AssemblerX64Integer256bit) {
   // SSE4_2_AVX_INSTRUCTION
   __ vpcmpgtq(ymm3, ymm2, ymm0);
 
+  __ vpermq(ymm8, Operand(rbx, rcx, times_4, 10000), 0x1E);
+  __ vpermq(ymm5, ymm3, 0xD8);
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
 #ifdef OBJECT_PRINT
@@ -2793,7 +2796,13 @@ TEST_F(AssemblerX64Test, AssemblerX64Integer256bit) {
 
                      // SSE4_2_AVX_INSTRUCTION
                      // vpcmpgtq ymm3, ymm2, ymm0
-                     0xC4, 0xE2, 0x6D, 0x37, 0xD8};
+                     0xC4, 0xE2, 0x6D, 0x37, 0xD8,
+
+                     // vpermq ymm8, YMMWORD PTR [rbx+rcx*4+0x2710], 0x1e
+                     0xC4, 0x63, 0xFD, 0x00, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     0x1E,
+                     // vpermq ymm5, ymm3, 0xD8
+                     0xC4, 0xE3, 0xFD, 0x00, 0xEB, 0xD8};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

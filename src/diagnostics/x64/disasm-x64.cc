@@ -975,6 +975,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x00:
+        AppendToBuffer("vpermq %s,", NameOfAVXRegister(regop));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
       case 0x08:
         AppendToBuffer("vroundps %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);

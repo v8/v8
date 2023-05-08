@@ -862,6 +862,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void palignr(XMMRegister dst, Operand src, uint8_t mask);
   void palignr(XMMRegister dst, XMMRegister src, uint8_t mask);
 
+  void vpermq(YMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x0, dst, ymm0, src, k66, k0F3A, kW1, AVX2);
+    emit(imm8);
+  }
+  void vpermq(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+    vinstr(0x0, dst, ymm0, src, k66, k0F3A, kW1, AVX2);
+    emit(imm8);
+  }
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
