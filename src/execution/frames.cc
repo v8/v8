@@ -249,9 +249,10 @@ FrameSummary DebuggableStackFrameIterator::GetTopValidFrame() const {
   frame()->Summarize(&frames);
   if (is_javascript()) {
     for (int i = static_cast<int>(frames.size()) - 1; i >= 0; i--) {
-      JSFunction function = *frames[i].AsJavaScript().function();
-      if (!function.shared().IsSubjectToDebugging()) continue;
-      return frames[i];
+      const FrameSummary& summary = frames[i];
+      if (summary.is_subject_to_debugging()) {
+        return summary;
+      }
     }
     UNREACHABLE();
   }
@@ -1560,8 +1561,11 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
 bool CommonFrame::HasTaggedOutgoingParams(GcSafeCode code_lookup) const {
 #if V8_ENABLE_WEBASSEMBLY
   // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
-  // directly call a Wasm function from JavaScript. In this case the
-  // parameters we pass to the callee are not tagged.
+  // directly call a Wasm function from JavaScript. In this case the Wasm frame
+  // is responsible for visiting incoming potentially tagged parameters.
+  // (This is required for tail-call support: If the direct callee tail-called
+  // another function which then caused a GC, the caller would not be able to
+  // determine where there might be tagged parameters.)
   wasm::WasmCode* wasm_callee =
       wasm::GetWasmCodeManager()->LookupCode(callee_pc());
   return (wasm_callee == nullptr) && code_lookup.has_tagged_outgoing_params();
@@ -2110,6 +2114,44 @@ Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
                                                  function_name, false);
 }
 
+FrameSummary::WasmInlinedFrameSummary::WasmInlinedFrameSummary(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int function_index,
+    int op_wire_bytes_offset)
+    : FrameSummaryBase(isolate, WASM_INLINED),
+      wasm_instance_(instance),
+      function_index_(function_index),
+      op_wire_bytes_offset_(op_wire_bytes_offset) {}
+
+Handle<Object> FrameSummary::WasmInlinedFrameSummary::receiver() const {
+  return wasm_instance_->GetIsolate()->global_proxy();
+}
+
+uint32_t FrameSummary::WasmInlinedFrameSummary::function_index() const {
+  return function_index_;
+}
+
+int FrameSummary::WasmInlinedFrameSummary::SourcePosition() const {
+  const wasm::WasmModule* module = wasm_instance()->module_object().module();
+  return GetSourcePosition(module, function_index(), code_offset(), false);
+}
+
+Handle<Script> FrameSummary::WasmInlinedFrameSummary::script() const {
+  return handle(wasm_instance()->module_object().script(),
+                wasm_instance()->GetIsolate());
+}
+
+Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
+  return handle(wasm_instance()->native_context(), isolate());
+}
+
+Handle<StackFrameInfo>
+FrameSummary::WasmInlinedFrameSummary::CreateStackFrameInfo() const {
+  Handle<String> function_name =
+      GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
+  return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
+                                                 function_name, false);
+}
+
 FrameSummary::BuiltinFrameSummary::BuiltinFrameSummary(Isolate* isolate,
                                                        Builtin builtin)
     : FrameSummaryBase(isolate, FrameSummary::BUILTIN), builtin_(builtin) {}
@@ -2176,18 +2218,20 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-#define FRAME_SUMMARY_DISPATCH(ret, name)   \
-  ret FrameSummary::name() const {          \
-    switch (base_.kind()) {                 \
-      case JAVA_SCRIPT:                     \
-        return java_script_summary_.name(); \
-      case WASM:                            \
-        return wasm_summary_.name();        \
-      case BUILTIN:                         \
-        return builtin_summary_.name();     \
-      default:                              \
-        UNREACHABLE();                      \
-    }                                       \
+#define FRAME_SUMMARY_DISPATCH(ret, name)    \
+  ret FrameSummary::name() const {           \
+    switch (base_.kind()) {                  \
+      case JAVA_SCRIPT:                      \
+        return java_script_summary_.name();  \
+      case WASM:                             \
+        return wasm_summary_.name();         \
+      case WASM_INLINED:                     \
+        return wasm_inlined_summary_.name(); \
+      case BUILTIN:                          \
+        return builtin_summary_.name();      \
+      default:                               \
+        UNREACHABLE();                       \
+    }                                        \
   }
 #else
 #define FRAME_SUMMARY_DISPATCH(ret, name) \
@@ -2215,8 +2259,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  GcSafeCode code = GcSafeLookupCode();
-  if (code.kind() == CodeKind::BUILTIN) {
+  Handle<GcSafeCode> code(GcSafeLookupCode(), isolate());
+  if (code->kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -2230,17 +2274,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     // summary which is a bit more aware of maglev behaviour and can e.g. handle
     // more compact safepointed frame information for both function entry and
     // loop stack checks.
-    //
-    // TODO(7748): For JS functions containing inlined wasm we need support to
-    // create a frame summary for the wasm function as well which is needed for
-    // wasm trap stack traces. Also, the current hack does not preserve the code
-    // position in the JavaScript frame.
-    if (code.is_maglevved()
-#if V8_ENABLE_WEBASSEMBLY
-        || ((code.kind() == CodeKind::TURBOFAN) &&
-            v8_flags.experimental_wasm_js_inlining)
-#endif
-    ) {
+    if (code->is_maglevved()) {
       DCHECK(frames->empty());
       Handle<AbstractCode> abstract_code(
           AbstractCode::cast(function().shared().GetBytecodeArray(isolate())),
@@ -2316,6 +2350,36 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       // The next encountered JS frame will be marked as a constructor call.
       DCHECK(!is_constructor);
       is_constructor = true;
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (it->kind() == TranslatedFrame::kWasmInlinedIntoJS) {
+      Handle<SharedFunctionInfo> shared_info = it->shared_info();
+      DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
+      Handle<Code> js_code = handle(code->UnsafeCastToCode(), isolate());
+      SourcePositionTableIterator iter(js_code->source_position_table());
+      const int offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+      SourcePosition pos;
+      // Search for the source position before or at the current pc.
+      while (!iter.done() && iter.code_offset() < offset) {
+        pos = iter.source_position();
+        iter.Advance();
+      }
+      if (pos.IsKnown()) {
+        DCHECK_EQ(*shared_info,
+                  DeoptimizationData::cast(js_code->deoptimization_data())
+                      .GetInlinedFunction(pos.InliningId()));
+        DCHECK(shared_info->HasWasmExportedFunctionData());
+        WasmExportedFunctionData function_data =
+            shared_info->wasm_exported_function_data();
+        Handle<WasmInstanceObject> instance =
+            handle(function_data.instance(), isolate());
+        int func_index = function_data.function_index();
+        FrameSummary::WasmInlinedFrameSummary summary(
+            isolate(), instance, func_index, pos.ScriptOffset());
+        frames->push_back(summary);
+      } else {
+        DCHECK(false && "Missing source position for inlined wasm frame");
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
   }
 }

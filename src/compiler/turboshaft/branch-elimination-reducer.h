@@ -368,23 +368,27 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(TrapIf)(OpIndex condition, bool negated,
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
                          const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceTrapIf(condition, negated, trap_id);
+      return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     base::Optional<bool> condition_value = known_conditions_.Get(condition);
     if (!condition_value.has_value()) goto no_change;
 
-    if ((*condition_value && !negated) || (!*condition_value && negated)) {
-      // The condition is true, so we always trap.
-      return Next::ReduceUnreachable();
-    } else {
-      // The condition is false, so we never trap.
-      return OpIndex::Invalid();
+    if (Asm().template Is<ConstantOp>(condition)) {
+      goto no_change;
     }
+
+    OpIndex static_condition = Asm().Word32Constant(*condition_value);
+    if (negated) {
+      Asm().TrapIfNot(static_condition, frame_state, trap_id);
+    } else {
+      Asm().TrapIf(static_condition, frame_state, trap_id);
+    }
+    return OpIndex::Invalid();
   }
 
  private:

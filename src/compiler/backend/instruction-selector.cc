@@ -862,6 +862,17 @@ Instruction* InstructionSelector::EmitWithContinuation(
   } else if (cont->IsTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
+
+    if (cont->frame_state()) {
+      int immediate_args_count = 0;
+      opcode |=
+          DeoptImmedArgsCountField::encode(immediate_args_count) |
+          DeoptFrameStateOffsetField::encode(static_cast<int>(input_count + 1));
+      AppendDeoptimizeArguments(
+          &continuation_inputs_, DeoptimizeReason::kWasmTrap, cont->node_id(),
+          FeedbackSource{}, FrameState{cont->frame_state()},
+          DeoptimizeKind::kLazy);
+    }
   } else {
     DCHECK(cont->IsNone());
   }
@@ -880,11 +891,12 @@ Instruction* InstructionSelector::EmitWithContinuation(
 
 void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, NodeId node_id,
-    FeedbackSource const& feedback, FrameState frame_state) {
+    FeedbackSource const& feedback, FrameState frame_state,
+    DeoptimizeKind kind) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   int const state_id = sequence()->AddDeoptimizationEntry(
-      descriptor, DeoptimizeKind::kEager, reason, node_id, feedback);
+      descriptor, kind, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -3334,12 +3346,22 @@ void InstructionSelector::VisitSelect(Node* node) {
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
+  Node* frame_state =
+      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
+  DCHECK_IMPLIES(frame_state != nullptr,
+                 frame_state->opcode() == IrOpcode::kFrameState);
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->id(), frame_state);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
+  Node* frame_state =
+      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
+  DCHECK_IMPLIES(frame_state != nullptr,
+                 frame_state->opcode() == IrOpcode::kFrameState);
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, trap_id, node->id(), frame_state);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

@@ -256,7 +256,13 @@ void CodeGenerator::AssembleCode() {
   }
   for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
-    DefineDeoptimizationLiteral(DeoptimizationLiteral(inlined.bytecode_array));
+    if (!inlined.bytecode_array.is_null()) {
+      DefineDeoptimizationLiteral(
+          DeoptimizationLiteral(inlined.bytecode_array));
+    } else {
+      // Inlined wasm functions do not have a bytecode array.
+      DCHECK(info->inline_js_wasm_calls());
+    }
   }
 
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
@@ -1109,6 +1115,10 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+      translations_.BeginWasmInlinedIntoJSFrame(bailout_id, shared_info_id,
+                                                height);
+      break;
     case FrameStateType::kJSToWasmBuiltinContinuation: {
       const JSToWasmFrameStateDescriptor* js_to_wasm_descriptor =
           static_cast<const JSToWasmFrameStateDescriptor*>(descriptor);

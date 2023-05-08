@@ -163,7 +163,8 @@ WasmGraphBuilder::WasmGraphBuilder(
 WasmGraphBuilder::~WasmGraphBuilder() = default;
 
 bool WasmGraphBuilder::TryWasmInlining(int fct_index,
-                                       wasm::NativeModule* native_module) {
+                                       wasm::NativeModule* native_module,
+                                       int inlining_id) {
   DCHECK(v8_flags.experimental_wasm_js_inlining);
   DCHECK(native_module->enabled_features().has_gc());
   DCHECK(native_module->HasWireBytes());
@@ -197,7 +198,8 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
     module->set_function_validated(fct_index);
   }
   return WasmIntoJSInliner::TryInlining(graph()->zone(), module, mcgraph_,
-                                        inlinee_body, bytes);
+                                        inlinee_body, bytes,
+                                        source_position_table_, inlining_id);
 }
 
 void WasmGraphBuilder::Start(unsigned params) {

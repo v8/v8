@@ -551,8 +551,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
-  const Operator* TrapIf(TrapId trap_id);
-  const Operator* TrapUnless(TrapId trap_id);
+  const Operator* TrapIf(TrapId trap_id, bool has_frame_state);
+  const Operator* TrapUnless(TrapId trap_id, bool has_frame_state);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 

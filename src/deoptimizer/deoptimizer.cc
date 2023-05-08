@@ -864,6 +864,10 @@ void Deoptimizer::DoComputeOutputFrames() {
                 ? BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION
                 : BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH);
         break;
+#if V8_ENABLE_WEBASSEMBLY
+      case TranslatedFrame::kWasmInlinedIntoJS:
+        FATAL("inlined wasm frames may not appear in deopts for built-ins");
+#endif
       case TranslatedFrame::kInvalid:
         FATAL("invalid frame");
     }

@@ -65,6 +65,9 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
       os << "BUILTIN_CONTINUATION_FRAME";
       break;
 #if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+      os << "WASM_INLINED_INTO_JS_FRAME";
+      break;
     case FrameStateType::kJSToWasmBuiltinContinuation:
       os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
       break;

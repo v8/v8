@@ -210,7 +210,8 @@ class WasmGraphBuilder {
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
-  bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module);
+  bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module,
+                       int inlining_id);
 
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.

@@ -730,6 +730,10 @@ class CallSiteBuilder {
       AppendWasmFrame(summary.AsWasm());
       return true;
     }
+    if (summary.IsWasmInlined()) {
+      AppendWasmInlinedFrame(summary.AsWasmInlined());
+      return true;
+    }
     if (summary.IsBuiltin()) {
       AppendBuiltinFrame(summary.AsBuiltin());
       return true;
@@ -814,6 +818,16 @@ class CallSiteBuilder {
         isolate_, 0, summary.code(),
         instance->module_object().shared_native_module());
     AppendFrame(instance,
+                handle(Smi::FromInt(summary.function_index()), isolate_), code,
+                summary.code_offset(), flags,
+                isolate_->factory()->empty_fixed_array());
+  }
+
+  void AppendWasmInlinedFrame(
+      FrameSummary::WasmInlinedFrameSummary const& summary) {
+    Handle<HeapObject> code = isolate_->factory()->undefined_value();
+    int flags = CallSiteInfo::kIsWasm;
+    AppendFrame(summary.wasm_instance(),
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
                 summary.code_offset(), flags,
                 isolate_->factory()->empty_fixed_array());
@@ -4836,6 +4850,13 @@ bool Isolate::NeedsSourcePositions() const {
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
       v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
       v8_flags.log_ic || v8_flags.log_function_events ||
+#if V8_ENABLE_WEBASSEMBLY
+      // TODO(mliedtke): We need the source positions of wasm trap nodes.
+      // All other positions are not needed. For wasm we do not have the source
+      // position in the FrameState as we only have one FrameState per inlined
+      // function which itself could have many trap instructions.
+      v8_flags.experimental_wasm_js_inlining ||
+#endif  // V8_ENABLE_WEBASSEMBLY
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).

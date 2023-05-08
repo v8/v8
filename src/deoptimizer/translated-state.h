@@ -191,6 +191,7 @@ class TranslatedFrame {
     kConstructStub,
     kBuiltinContinuation,
 #if V8_ENABLE_WEBASSEMBLY
+    kWasmInlinedIntoJS,
     kJSToWasmBuiltinContinuation,
 #endif  // V8_ENABLE_WEBASSEMBLY
     kJavaScriptBuiltinContinuation,
@@ -294,6 +295,9 @@ class TranslatedFrame {
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
 #if V8_ENABLE_WEBASSEMBLY
+  static TranslatedFrame WasmInlinedIntoJSFrame(BytecodeOffset bailout_id,
+                                                SharedFunctionInfo shared_info,
+                                                int height);
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
       base::Optional<wasm::ValueKind> return_type);

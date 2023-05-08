@@ -434,6 +434,13 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
       SignedOperand(return_kind ? static_cast<int>(return_kind.value())
                                 : kNoWasmReturnKind));
 }
+
+void TranslationArrayBuilder::BeginWasmInlinedIntoJSFrame(
+    BytecodeOffset bailout_id, int literal_id, unsigned height) {
+  auto opcode = TranslationOpcode::WASM_INLINED_INTO_JS_FRAME;
+  Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(

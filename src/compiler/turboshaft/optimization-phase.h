@@ -710,8 +710,9 @@ class GraphVisitor {
                                           op.negated, op.parameters);
   }
   OpIndex AssembleOutputGraphTrapIf(const TrapIfOp& op) {
-    return assembler().ReduceTrapIf(MapToNewGraph(op.condition()), op.negated,
-                                    op.trap_id);
+    return assembler().ReduceTrapIf(MapToNewGraph(op.condition()),
+                                    MapToNewGraphIfValid(op.frame_state()),
+                                    op.negated, op.trap_id);
   }
   OpIndex AssembleOutputGraphTuple(const TupleOp& op) {
     return assembler().ReduceTuple(

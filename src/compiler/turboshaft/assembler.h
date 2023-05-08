@@ -2168,17 +2168,17 @@ class AssemblerOpInterface {
     Deoptimize(frame_state, params);
   }
 
-  void TrapIf(OpIndex condition, TrapId trap_id) {
+  void TrapIf(OpIndex condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
-    stack().ReduceTrapIf(condition, false, trap_id);
+    stack().ReduceTrapIf(condition, frame_state, false, trap_id);
   }
-  void TrapIfNot(OpIndex condition, TrapId trap_id) {
+  void TrapIfNot(OpIndex condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
-    stack().ReduceTrapIf(condition, true, trap_id);
+    stack().ReduceTrapIf(condition, frame_state, true, trap_id);
   }
 
   void StaticAssert(OpIndex condition, const char* source) {

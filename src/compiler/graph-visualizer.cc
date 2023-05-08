@@ -123,10 +123,13 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
-      int len = shared->EndPosition() - start;
-      SubStringRange source(String::cast(script->source()), no_gc, start, len);
-      for (auto c : source) {
-        os << AsEscapedUC16ForJSON(c);
+      if (!script->source().IsUndefined()) {
+        int len = shared->EndPosition() - start;
+        SubStringRange source(String::cast(script->source()), no_gc, start,
+                              len);
+        for (auto c : source) {
+          os << AsEscapedUC16ForJSON(c);
+        }
       }
       os << "\"";
     }
@@ -180,8 +183,13 @@ void JsonPrintAllBytecodeSources(std::ostream& os,
   SourceIdAssigner id_assigner(info->inlined_functions().size());
 
   for (unsigned id = 0; id < inlined.size(); id++) {
-    os << ", ";
     Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
+#if V8_ENABLE_WEBASSEMBLY
+    if (shared_info->HasWasmFunctionData()) {
+      continue;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    os << ", ";
     const int source_id = id_assigner.GetIdFor(shared_info);
     JsonPrintBytecodeSource(os, source_id, shared_info->DebugNameCStr(),
                             inlined[id].bytecode_array);

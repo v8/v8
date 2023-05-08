@@ -2016,11 +2016,12 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
   void Validate(const Graph& graph) const {
     DCHECK(
         ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
   }
   auto options() const { return std::tuple{negated, parameters}; }
 };
 
-struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
+struct TrapIfOp : OperationT<TrapIfOp> {
   bool negated;
   const TrapId trap_id;
 
@@ -2028,13 +2029,31 @@ struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex condition() const { return input(0); }
+  OpIndex frame_state() const {
+    return input_count > 1 ? input(1) : OpIndex::Invalid();
+  }
 
-  TrapIfOp(OpIndex condition, bool negated, const TrapId trap_id)
-      : Base(condition), negated(negated), trap_id(trap_id) {}
+  TrapIfOp(OpIndex condition, OpIndex frame_state, bool negated,
+           const TrapId trap_id)
+      : Base(1 + frame_state.valid()), negated(negated), trap_id(trap_id) {
+    input(0) = condition;
+    if (frame_state.valid()) {
+      input(1) = frame_state;
+    }
+  }
+
+  static TrapIfOp& New(Graph* graph, OpIndex condition, OpIndex frame_state,
+                       bool negated, const TrapId trap_id) {
+    return Base::New(graph, 1 + frame_state.valid(), condition, frame_state,
+                     negated, trap_id);
+  }
 
   void Validate(const Graph& graph) const {
     DCHECK(
         ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));
+    if (frame_state().valid()) {
+      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+    }
   }
   auto options() const { return std::tuple{negated, trap_id}; }
 };

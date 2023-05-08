@@ -444,19 +444,20 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
 
   void Generate() override {
-    X64OperandConverter i(gen_, instr_);
-    TrapId trap_id =
-        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-    GenerateWithTrapId(trap_id);
+    auto [trap_id, frame_state_offset] =
+        gen_->DecodeTrapIdAndFrameStateOffset<X64OperandConverter>(instr_);
+    GenerateWithTrapId(trap_id, frame_state_offset);
   }
 
  protected:
   CodeGenerator* gen_;
 
-  void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
+  void GenerateWithTrapId(TrapId trap_id, size_t frame_state_offset) {
+    GenerateCallToTrap(trap_id, frame_state_offset);
+  }
 
  private:
-  void GenerateCallToTrap(TrapId trap_id) {
+  void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
     if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
@@ -478,6 +479,11 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       ReferenceMap* reference_map =
           gen_->zone()->New<ReferenceMap>(gen_->zone());
       gen_->RecordSafepoint(reference_map);
+      // If we have a frame state, the offset is not 0.
+      if (frame_state_offset != 0) {
+        gen_->BuildTranslation(instr_, masm()->pc_offset(), frame_state_offset,
+                               0, OutputFrameStateCombine::Ignore());
+      }
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
   }
@@ -494,7 +500,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
   void Generate() final {
     DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
-    GenerateWithTrapId(trap_id_);
+    GenerateWithTrapId(trap_id_, 0);
   }
 
  private:

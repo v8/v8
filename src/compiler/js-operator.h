@@ -842,11 +842,13 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(const wasm::WasmModule* module,
                                 const wasm::FunctionSig* signature,
                                 int function_index,
+                                SharedFunctionInfoRef shared_fct_info,
                                 wasm::NativeModule* native_module,
                                 FeedbackSource const& feedback)
       : module_(module),
         signature_(signature),
         function_index_(function_index),
+        shared_fct_info_(shared_fct_info),
         native_module_(native_module),
         feedback_(feedback) {
     DCHECK_NOT_NULL(module);
@@ -856,6 +858,7 @@ class JSWasmCallParameters {
   const wasm::WasmModule* module() const { return module_; }
   const wasm::FunctionSig* signature() const { return signature_; }
   int function_index() const { return function_index_; }
+  SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   wasm::NativeModule* native_module() const { return native_module_; }
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
@@ -865,6 +868,7 @@ class JSWasmCallParameters {
   const wasm::WasmModule* const module_;
   const wasm::FunctionSig* const signature_;
   int function_index_;
+  SharedFunctionInfoRef shared_fct_info_;
   wasm::NativeModule* native_module_;
   const FeedbackSource feedback_;
 };
@@ -1001,7 +1005,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
                            const wasm::FunctionSig* wasm_signature,
-                           int function_index,
+                           int wasm_function_index,
+                           SharedFunctionInfoRef shared_fct_info,
                            wasm::NativeModule* native_module,
                            FeedbackSource const& feedback);
 #endif  // V8_ENABLE_WEBASSEMBLY

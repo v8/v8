@@ -42,6 +42,7 @@ namespace internal {
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3) \
   IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4)    \
+  IF_WASM(V, WASM_INLINED_INTO_JS_FRAME, 3)               \
   V(OPTIMIZED_OUT, 0)                                     \
   V(LITERAL, 1)                                           \
   V(REGISTER, 1)                                          \

@@ -1559,14 +1559,15 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(TrapIf)(OpIndex condition, bool negated, TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
+                         TrapId trap_id) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceTrapIf(condition, negated, trap_id);
+      return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
       if (*decision != negated) {
-        Next::ReduceTrapIf(condition, negated, trap_id);
+        Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
         Asm().Unreachable();
       }
       // `TrapIf` doesn't produce a value.
@@ -1574,7 +1575,8 @@ class MachineOptimizationReducer : public Next {
     }
     if (base::Optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
-      return Asm().ReduceTrapIf(new_condition.value(), negated, trap_id);
+      return Asm().ReduceTrapIf(new_condition.value(), frame_state, negated,
+                                trap_id);
     } else {
       goto no_change;
     }

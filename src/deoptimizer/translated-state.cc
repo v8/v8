@@ -83,6 +83,9 @@ void TranslationArrayPrintSingleFrame(
         break;
       }
 
+#if V8_ENABLE_WEBASSEMBLY
+      case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME:
+#endif
       case TranslationOpcode::CONSTRUCT_STUB_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
         int bailout_id = iterator.NextOperand();
@@ -799,6 +802,14 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    int height) {
+  TranslatedFrame frame(kWasmInlinedIntoJS, shared_info, height);
+  frame.bytecode_offset_ = bytecode_offset;
+  return frame;
+}
+
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
     base::Optional<wasm::ValueKind> return_kind) {
@@ -854,6 +865,12 @@ int TranslatedFrame::GetValueCount() {
       static constexpr int kTheContext = 1;
       return height() + kTheContext + kTheFunction;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case kWasmInlinedIntoJS: {
+      static constexpr int kTheContext = 1;
+      return height() + kTheContext + kTheFunction;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     case kInvalid:
       UNREACHABLE();
@@ -948,6 +965,22 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
 #if V8_ENABLE_WEBASSEMBLY
+    case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME: {
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
+      SharedFunctionInfo shared_info =
+          SharedFunctionInfo::cast(literal_array.get(iterator->NextOperand()));
+      int height = iterator->NextOperand();
+      if (trace_file != nullptr) {
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        PrintF(trace_file, "  reading Wasm inlined into JS frame %s",
+               name.get());
+        PrintF(trace_file, " => bailout_id=%d, height=%d ; inputs:\n",
+               bailout_id.ToInt(), height);
+      }
+      return TranslatedFrame::WasmInlinedIntoJSFrame(bailout_id, shared_info,
+                                                     height);
+    }
+
     case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
       SharedFunctionInfo shared_info =
@@ -1139,6 +1172,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME:
 #if V8_ENABLE_WEBASSEMBLY
+    case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME:
     case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case TranslationOpcode::UPDATE_FEEDBACK:

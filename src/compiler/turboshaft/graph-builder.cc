@@ -1268,10 +1268,17 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
 
     case IrOpcode::kTrapIf:
-      __ TrapIf(Map(node->InputAt(0)), TrapIdOf(op));
+      // For wasm the dominating_frame_state is invalid and will not be used.
+      // For traps inlined into JS the dominating_frame_state is valid and is
+      // needed for the trap.
+      __ TrapIf(Map(node->InputAt(0)), dominating_frame_state, TrapIdOf(op));
       return OpIndex::Invalid();
+
     case IrOpcode::kTrapUnless:
-      __ TrapIfNot(Map(node->InputAt(0)), TrapIdOf(op));
+      // For wasm the dominating_frame_state is invalid and will not be used.
+      // For traps inlined into JS the dominating_frame_state is valid and is
+      // needed for the trap.
+      __ TrapIfNot(Map(node->InputAt(0)), dominating_frame_state, TrapIdOf(op));
       return OpIndex::Invalid();
 
     case IrOpcode::kDeoptimize: {

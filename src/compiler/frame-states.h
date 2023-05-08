@@ -74,6 +74,8 @@ enum class FrameStateType {
 #if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only
   kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
                                    // JS to Wasm call.
+  kWasmInlinedIntoJS,              // Represents a Wasm function inlined into a
+                                   // JS function.
 #endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.

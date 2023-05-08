@@ -269,6 +269,11 @@ class EffectControlLinearizer {
   Maybe<Node*> LowerFloat64RoundTiesEven(Node* node);
   Maybe<Node*> LowerFloat64RoundTruncate(Node* node);
 
+  // Lowering of Wasm-specific operators.
+#if V8_ENABLE_WEBASSEMBLY
+  void LowerWasmTrap(Node* node, Node* frame_state);
+#endif
+
   Node* AllocateHeapNumberWithValue(Node* node);
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
                                    const FeedbackSource& feedback, Node* value,
@@ -1923,6 +1928,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       if (v8_flags.turboshaft) return false;
       result = LowerDoubleArrayMinMax(node);
       break;
+#if V8_ENABLE_WEBASSEMBLY
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      LowerWasmTrap(node, frame_state);
+      return false;
+    case IrOpcode::kLoadTrapOnNull:
+    case IrOpcode::kStoreTrapOnNull:
+      FATAL("Inlined wasm code may not use trap handler instructions");
+#endif
     default:
       return false;
   }
@@ -8543,6 +8557,19 @@ Node* EffectControlLinearizer::BuildAllocateJSExternalObject(Node* pointer) {
   __ Bind(&done);
   return done.PhiAt(0);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+void EffectControlLinearizer::LowerWasmTrap(Node* node, Node* frame_state) {
+  // Store frame_state from CheckPoint.
+  node->InsertInput(graph()->zone(), 1, frame_state);
+  bool has_frame_state = true;
+  const Operator* op =
+      node->opcode() == IrOpcode::kTrapIf
+          ? common()->TrapIf(TrapIdOf(node->op()), has_frame_state)
+          : common()->TrapUnless(TrapIdOf(node->op()), has_frame_state);
+  NodeProperties::ChangeOp(node, op);
+}
+#endif
 
 #undef __
 
