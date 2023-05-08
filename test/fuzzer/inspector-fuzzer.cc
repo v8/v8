@@ -612,8 +612,6 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   ready_semaphore.Signal();
   watchdog.Join();
 
-  ChannelHolder::ClearAllChannels();
-
   // TaskRunners go out of scope here, which causes Isolate teardown and all
   // running background tasks to be properly joined.
 }

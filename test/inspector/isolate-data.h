@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 
 #include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
@@ -47,14 +48,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
                        WithInspector with_inspector);
   static InspectorIsolateData* FromContext(v8::Local<v8::Context> context);
 
-  ~InspectorIsolateData() override {
-    // Enter the isolate before destructing this InspectorIsolateData, so that
-    // destructors that run before the Isolate's destructor still see it as
-    // entered. Use a v8::Locker, in case the thread destroying the isolate is
-    // not the last one that entered it.
-    locker_.emplace(isolate());
-    isolate()->Enter();
-  }
+  ~InspectorIsolateData() override;
 
   v8::Isolate* isolate() const { return isolate_.get(); }
   TaskRunner* task_runner() const { return task_runner_; }
@@ -176,6 +170,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   int last_session_id_ = 0;
   std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
   std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;
+  std::set<int> session_ids_for_cleanup_;
   v8::Global<v8::Value> memory_info_;
   bool current_time_set_ = false;
   double current_time_ = 0.0;
@@ -200,7 +195,6 @@ class ChannelHolder {
                          std::unique_ptr<FrontendChannelImpl> channel);
   static FrontendChannelImpl* GetChannel(int session_id);
   static void RemoveChannel(int session_id);
-  static void ClearAllChannels();
 
  private:
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;

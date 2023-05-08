@@ -897,7 +897,6 @@ int InspectorTestMain(int argc, char* argv[]) {
     frontend_runner.Join();
     backend_runner.Join();
 
-    ChannelHolder::ClearAllChannels();
     delete[] startup_data.data;
 
     // TaskRunners go out of scope here, which causes Isolate teardown and all

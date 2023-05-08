@@ -78,6 +78,30 @@ InspectorIsolateData* InspectorIsolateData::FromContext(
       context->GetAlignedPointerFromEmbedderData(kIsolateDataIndex));
 }
 
+InspectorIsolateData::~InspectorIsolateData() {
+  // Enter the isolate before destructing this InspectorIsolateData, so that
+  // destructors that run before the Isolate's destructor still see it as
+  // entered. Use a v8::Locker, in case the thread destroying the isolate is
+  // not the last one that entered it.
+  locker_.emplace(isolate());
+  isolate()->Enter();
+
+  // Sessions need to be deleted before channels can be cleaned up, and channels
+  // must be deleted before the isolate gets cleaned up. This means we first
+  // clean up all the sessions and immedatly after all the channels used by
+  // those sessions.
+  for (const auto& pair : sessions_) {
+    session_ids_for_cleanup_.insert(pair.first);
+  }
+
+  context_group_by_session_.clear();
+  sessions_.clear();
+
+  for (int session_id : session_ids_for_cleanup_) {
+    ChannelHolder::RemoveChannel(session_id);
+  }
+}
+
 int InspectorIsolateData::CreateContextGroup() {
   int context_group_id = ++last_context_group_id_;
   if (!CreateContext(context_group_id, v8_inspector::StringView())) {
@@ -211,6 +235,10 @@ std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
   //       Any task scheduled in turn by one of the "cleanup tasks" will run
   //       AFTER the channel was removed.
   context_task_runner->Append(std::make_unique<RemoveChannelTask>(session_id));
+
+  // In case we shutdown the test runner before the above task can run, we
+  // let the desctructor clean up the channel.
+  session_ids_for_cleanup_.insert(session_id);
   return result;
 }
 
@@ -608,9 +636,6 @@ FrontendChannelImpl* ChannelHolder::GetChannel(int session_id) {
 void ChannelHolder::RemoveChannel(int session_id) {
   channels_.erase(session_id);
 }
-
-// static
-void ChannelHolder::ClearAllChannels() { channels_.clear(); }
 
 // static
 std::map<int, std::unique_ptr<FrontendChannelImpl>> ChannelHolder::channels_;
