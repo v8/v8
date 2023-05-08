@@ -374,7 +374,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
 
   // Tiering support.
   // TODO(jgruber): Extract to a builtin.
-  {
+  if (v8_flags.turbofan) {
     ScratchRegisterScope temps(this);
     Register flags = temps.Acquire();
     Register feedback_vector = temps.Acquire();
