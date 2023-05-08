@@ -5802,6 +5802,14 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
          obj = iterator.Next()) {
       if (!obj.IsSharedFunctionInfo()) continue;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+      // If the script_or_debug_info is a Smi, then the SharedFunctionInfo is in
+      // the process of being deserialized.
+      Object script_or_debug_info = sfi.script_or_debug_info(kAcquireLoad);
+      if (script_or_debug_info.IsSmi()) {
+        DCHECK_EQ(script_or_debug_info,
+                  Smi::uninitialized_deserialization_value());
+        continue;
+      }
       if (!sfi.CanCollectSourcePosition(this)) continue;
       sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
     }
