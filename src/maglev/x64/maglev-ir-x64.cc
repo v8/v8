@@ -132,6 +132,17 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     }
   }
 
+  RegisterSnapshot save_registers = register_snapshot();
+  // Make sure that object_map is not clobbered by the
+  // Runtime::kTryMigrateInstance runtime call.
+  save_registers.live_registers.set(object);
+  save_registers.live_tagged_registers.set(object);
+  // We can eager deopt after the snapshot, so make sure the nodes used by the
+  // deopt are included in it.
+  // TODO(leszeks): This is a bit of a footgun -- we likely want the snapshot to
+  // always include eager deopt input registers.
+  AddDeoptRegistersToSnapshot(&save_registers, eager_deopt_info());
+
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count; ++i) {
     ZoneLabelRef continue_label(masm);
@@ -142,9 +153,9 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     if (map->is_migration_target()) {
       __ JumpToDeferredIf(
           not_equal,
-          [](MaglevAssembler* masm, ZoneLabelRef continue_label,
-             ZoneLabelRef done, Register object, int map_index,
-             CheckMapsWithMigration* node) {
+          [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+             ZoneLabelRef continue_label, ZoneLabelRef done, Register object,
+             int map_index, CheckMapsWithMigration* node) {
             // Reload the map to avoid needing to save it on a temporary in the
             // fast path.
             __ LoadMap(kScratchRegister, object);
@@ -160,13 +171,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             // returns Smi zero, then it failed the migration.
             Register return_val = Register::no_reg();
             {
-              RegisterSnapshot register_snapshot = node->register_snapshot();
-              // We can eager deopt after the snapshot, so make sure the nodes
-              // used by the deopt are included in it.
-              // TODO(leszeks): This is a bit of a footgun -- we likely want the
-              // snapshot to always include eager deopt input registers.
-              AddDeoptRegistersToSnapshot(&register_snapshot,
-                                          node->eager_deopt_info());
               SaveRegisterStateForCall save_register_state(masm,
                                                            register_snapshot);
 
@@ -197,6 +201,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             __ j(equal, *done);
             __ jmp(*continue_label);
           },
+          save_registers,
           // If this is the last map to check, we should deopt if we fail.
           // This is safe to do, since {eager_deopt_info} is ZoneAllocated.
           (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(masm->GetDeoptLabel(
