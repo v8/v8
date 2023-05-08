@@ -117,11 +117,14 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   const bool nullable =
       (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
   if (nullable) {
+    // TODO(7748): kWasmExternRef should also be allowed for non-nullable types.
+    // This probably requires having an imported (ref extern) global.
     types.insert(types.end(),
                  {kWasmI31Ref, kWasmFuncRef, kWasmExternRef, kWasmNullRef,
                   kWasmNullExternRef, kWasmNullFuncRef});
   }
   if (include_generics == kIncludeGenerics) {
+    // TODO(7748): Add support for kWasmArrayRef.
     types.insert(types.end(), {kWasmStructRef, kWasmAnyRef, kWasmEqRef});
   }
 
@@ -354,13 +357,14 @@ class WasmGenerator {
         data);
   }
 
+  // TODO(7748): kExprBrOnNonNull is not covered.
   template <ValueKind wanted_kind>
   void br_on_null(DataRange* data) {
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
     Generate(break_types, data);
-    GenerateRef(HeapType(HeapType::kAny), data);
+    GenerateRef(data);
     builder_->EmitWithI32V(
         kExprBrOnNull,
         static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
@@ -1062,6 +1066,7 @@ class WasmGenerator {
       DCHECK(builder->IsStructType(i));
       int field_count = builder->GetStructType(i)->field_count();
       for (int index = 0; index < field_count; index++) {
+        // TODO(7748): This should be a subtype check!
         if (builder->GetStructType(i)->field(index) == value_type) {
           field_index.push_back(index);
           struct_index.push_back(i);
@@ -1238,6 +1243,8 @@ class WasmGenerator {
     Generate<T1>(&first_data);
     Generate<T2, Ts...>(data);
   }
+
+  void GenerateRef(DataRange* data);
 
   void GenerateRef(HeapType type, DataRange* data,
                    Nullability nullability = kNullable);
@@ -2043,6 +2050,17 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
   }
 }
 
+void WasmGenerator::GenerateRef(DataRange* data) {
+  constexpr HeapType::Representation top_types[] = {
+      HeapType::kAny,
+      HeapType::kFunc,
+      HeapType::kExtern,
+  };
+  HeapType::Representation type =
+      top_types[data->get<uint8_t>() % arraysize(top_types)];
+  GenerateRef(HeapType(type), data);
+}
+
 void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
                                 Nullability nullability) {
   base::Optional<GeneratorRecursionScope> rec_scope;
@@ -2466,6 +2484,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     uint8_t num_arrays = range.get<uint8_t>() % (kMaxArrays + 1);
     uint16_t num_types = num_functions + num_structs + num_arrays;
 
+    // TODO(7748): Support sub-type relationships.
     for (int struct_index = 0; struct_index < num_structs; struct_index++) {
       uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
       StructType::Builder struct_builder(zone, num_fields);
