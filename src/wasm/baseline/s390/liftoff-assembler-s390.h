@@ -2364,6 +2364,8 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
   V(f64x2_floor, F64x2Floor, fp, fp, true, bool)                       \
   V(f64x2_trunc, F64x2Trunc, fp, fp, true, bool)                       \
   V(f64x2_nearest_int, F64x2NearestInt, fp, fp, true, bool)            \
+  V(f64x2_convert_low_i32x4_s, F64x2ConvertLowI32x4S, fp, fp, , void)  \
+  V(f64x2_convert_low_i32x4_u, F64x2ConvertLowI32x4U, fp, fp, , void)  \
   V(f32x4_abs, F32x4Abs, fp, fp, , void)                               \
   V(f32x4_splat, F32x4Splat, fp, fp, , void)                           \
   V(f32x4_neg, F32x4Neg, fp, fp, , void)                               \
@@ -2396,6 +2398,7 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
   V(i8x16_abs, I8x16Abs, fp, fp, , void)                               \
   V(i8x16_neg, I8x16Neg, fp, fp, , void)                               \
   V(i8x16_splat, I8x16Splat, fp, gp, , void)                           \
+  V(i8x16_popcnt, I8x16Popcnt, fp, fp, , void)                         \
   V(s128_not, S128Not, fp, fp, , void)
 
 #define EMIT_SIMD_UNOP(name, op, dtype, stype, return_val, return_type) \
@@ -2723,16 +2726,6 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   I8x16Swizzle(dest, src1, src2, r0, r1, kScratchDoubleReg);
 }
 
-void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
-                                                      LiftoffRegister src) {
-  F64x2ConvertLowI32x4S(dst.fp(), src.fp());
-}
-
-void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
-                                                      LiftoffRegister src) {
-  F64x2ConvertLowI32x4U(dst.fp(), src.fp());
-}
-
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
   F64x2PromoteLowF32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0, r1, ip);
@@ -2815,11 +2808,6 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 #endif
   I8x16Shuffle(dst.fp(), lhs.fp(), rhs.fp(), vals[1], vals[0], r0, ip,
                kScratchDoubleReg);
-}
-
-void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
-                                         LiftoffRegister src) {
-  I8x16Popcnt(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
