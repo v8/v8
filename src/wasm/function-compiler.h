@@ -27,7 +27,6 @@ class TurbofanCompilationJob;
 
 namespace wasm {
 
-class AssemblerBufferCache;
 class NativeModule;
 class WasmCode;
 class WasmEngine;
@@ -97,7 +96,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
-                                           AssemblerBufferCache*,
                                            WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
@@ -112,7 +110,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   WasmCompilationResult ExecuteFunctionCompilation(CompilationEnv*,
                                                    const WireBytesStorage*,
                                                    Counters*,
-                                                   AssemblerBufferCache*,
                                                    WasmFeatures* detected);
 
   WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);

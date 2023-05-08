@@ -55,7 +55,6 @@ struct WasmTypeCheckConfig;
 }  // namespace compiler
 
 namespace wasm {
-class AssemblerBufferCache;
 struct DecodeStruct;
 class WasmCode;
 class WireBytesStorage;
@@ -156,7 +155,6 @@ struct WasmCompilationData {
 
   const wasm::FunctionBody& func_body;
   const wasm::WireBytesStorage* wire_bytes_storage;
-  wasm::AssemblerBufferCache* buffer_cache;
   NodeOriginTable* node_origins{nullptr};
   std::vector<WasmLoopInfo>* loop_infos{nullptr};
   wasm::AssumptionsJournal* assumptions{nullptr};

@@ -23,10 +23,6 @@
 #include "src/trap-handler/trap-handler.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8::internal::wasm {
-class AssemblerBufferCache;
-}
-
 namespace v8::internal::compiler {
 
 // Forward declarations.
@@ -146,14 +142,16 @@ struct TurbolizerInstructionStartInfo {
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(
-      Zone* codegen_zone, Frame* frame, Linkage* linkage,
-      InstructionSequence* instructions, OptimizedCompilationInfo* info,
-      Isolate* isolate, base::Optional<OsrHelper> osr_helper,
-      int start_source_position, JumpOptimizationInfo* jump_opt,
-      const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
-      Builtin builtin, size_t max_unoptimized_frame_height,
-      size_t max_pushed_argument_count, const char* debug_name = nullptr);
+  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
+                         InstructionSequence* instructions,
+                         OptimizedCompilationInfo* info, Isolate* isolate,
+                         base::Optional<OsrHelper> osr_helper,
+                         int start_source_position,
+                         JumpOptimizationInfo* jump_opt,
+                         const AssemblerOptions& options, Builtin builtin,
+                         size_t max_unoptimized_frame_height,
+                         size_t max_pushed_argument_count,
+                         const char* debug_name = nullptr);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,

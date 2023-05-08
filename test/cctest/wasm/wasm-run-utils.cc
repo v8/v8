@@ -89,7 +89,6 @@ TestingModuleBuilder::TestingModuleBuilder(
         static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
-      CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
           canonical_type_index,
@@ -593,7 +592,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        nullptr, nullptr, &unused_detected_features));
+        nullptr, &unused_detected_features));
   }
   CHECK(result->succeeded());
   WasmCode* code =
