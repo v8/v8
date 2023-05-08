@@ -728,12 +728,12 @@ ValueNode* MaglevGraphBuilder::GetSmiValue(
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) {
-    BuildCheckSmi(value, /* elidable */ false);
+    BuildCheckSmi(value, !value->Is<Phi>());
     return value;
   }
 
   if (node_info->tagged_alternative != nullptr) {
-    BuildCheckSmi(node_info->tagged_alternative, /* elidable */ false);
+    BuildCheckSmi(node_info->tagged_alternative, !value->Is<Phi>());
     return node_info->tagged_alternative;
   }
 
