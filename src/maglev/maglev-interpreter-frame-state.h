@@ -622,6 +622,11 @@ class MergePointInterpreterFrameState {
 
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
+  const compiler::LoopInfo* loop_info() const {
+    DCHECK(loop_info_.has_value());
+    return loop_info_.value();
+  }
+
  private:
   using kBasicBlockTypeBits = base::BitField<BasicBlockType, 0, 2>;
   using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
@@ -713,6 +718,8 @@ class MergePointInterpreterFrameState {
     // {per_predecessor_alternatives_} is thus not used anymore.
     DeoptFrame* backedge_deopt_frame_;
   };
+
+  base::Optional<const compiler::LoopInfo*> loop_info_ = base::nullopt;
 };
 
 void InterpreterFrameState::CopyFrom(

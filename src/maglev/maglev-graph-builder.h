@@ -343,6 +343,18 @@ class MaglevGraphBuilder {
 
   DeoptFrame GetLatestCheckpointedFrame();
 
+  void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
+    phi->RecordUseReprHint(reprs, iterator_.current_offset());
+  }
+  void RecordUseReprHint(Phi* phi, UseRepresentation repr) {
+    RecordUseReprHint(phi, UseRepresentationSet{repr});
+  }
+  void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr) {
+    if (Phi* phi = node->TryCast<Phi>()) {
+      RecordUseReprHint(phi, repr);
+    }
+  }
+
  private:
   class CallSpeculationScope;
   class LazyDeoptFrameScope;
@@ -355,14 +367,14 @@ class MaglevGraphBuilder {
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
-  BasicBlock* CreateEdgeSplitBlock(int offset) {
+  BasicBlock* CreateEdgeSplitBlock(int offset, BasicBlock* predecessor) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== New empty block ==" << std::endl;
     }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr, zone());
     BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
-    result->set_edge_split_block();
+    result->set_edge_split_block(predecessor);
 #ifdef DEBUG
     new_nodes_.clear();
 #endif
@@ -420,7 +432,7 @@ class MaglevGraphBuilder {
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEdgeSplitBlock(offset);
+        predecessor = CreateEdgeSplitBlock(offset, predecessor);
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
@@ -552,7 +564,10 @@ class MaglevGraphBuilder {
         ProcessMergePoint(offset);
       }
 
-      StartNewBlock(offset);
+      // We pass nullptr for the `predecessor` argument of StartNewBlock because
+      // this block is guaranteed to have a merge_state_, and hence to not have
+      // a `predecessor_` field.
+      StartNewBlock(offset, /*predecessor*/ nullptr);
     } else if (V8_UNLIKELY(current_block_ == nullptr)) {
       // If we don't have a current block, the bytecode must be dead (because of
       // some earlier deopt). Mark this bytecode dead too and return.
@@ -1304,9 +1319,13 @@ class MaglevGraphBuilder {
     return bytecode_analysis().GetOutLivenessFor(offset);
   }
 
-  void StartNewBlock(int offset) {
+  void StartNewBlock(int offset, BasicBlock* predecessor) {
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(merge_states_[offset], zone());
+    if (merge_states_[offset] == nullptr) {
+      DCHECK_NOT_NULL(predecessor);
+      current_block_->set_predecessor(predecessor);
+    }
     ResolveJumpsToBlockAtOffset(current_block_, offset);
   }
 
@@ -1363,7 +1382,7 @@ class MaglevGraphBuilder {
                   << compilation_unit_->shared_function_info()
                   << "==" << std::endl;
       }
-      StartNewBlock(next_block_offset);
+      StartNewBlock(next_block_offset, predecessor);
     } else {
       MergeIntoFrameState(predecessor, next_block_offset);
     }

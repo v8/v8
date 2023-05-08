@@ -96,6 +96,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
           BasicBlockType::kLoopHeader, liveness);
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
+  state->loop_info_ = loop_info;
   if (loop_info->resumable()) {
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
@@ -544,7 +545,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
     // Propagating the `uses_repr` from {result} to {unmerged_phi}.
-    unmerged_phi->RecordUseReprHint(result->get_uses_repr_hints());
+    builder->RecordUseReprHint(unmerged_phi, result->get_uses_repr_hints());
   }
 }
 

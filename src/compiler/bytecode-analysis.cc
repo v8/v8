@@ -690,7 +690,8 @@ void BytecodeAnalysis::PushLoop(int loop_header, int loop_end) {
 
   end_to_header_.insert({loop_end, loop_header});
   auto it = header_to_info_.insert(
-      {loop_header, LoopInfo(parent_offset, bytecode_array_->parameter_count(),
+      {loop_header, LoopInfo(parent_offset, loop_header, loop_end,
+                             bytecode_array_->parameter_count(),
                              bytecode_array_->register_count(), zone_)});
   // Get the loop info pointer from the output of insert.
   LoopInfo* loop_info = &it.first->second;

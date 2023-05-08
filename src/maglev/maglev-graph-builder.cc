@@ -670,9 +670,8 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
-  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord) &&
-      value->Is<Phi>()) {
-    value->Cast<Phi>()->RecordUseReprHint(UseRepresentation::kTagged);
+  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
+    RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
   }
 
   ValueRepresentation representation =
@@ -718,9 +717,8 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
 
 ValueNode* MaglevGraphBuilder::GetSmiValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
-  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord) &&
-      value->Is<Phi>()) {
-    value->Cast<Phi>()->RecordUseReprHint(UseRepresentation::kTagged);
+  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
+    RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
   }
 
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
@@ -807,9 +805,7 @@ TaggedToFloat64ConversionType ToNumberHintToConversionType(
 
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
                                                             ToNumberHint hint) {
-  if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kTruncatedInt32);
-  }
+  RecordUseReprHintIfPhi(value, UseRepresentation::kTruncatedInt32);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -908,9 +904,8 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
 }
 
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
-  if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kInt32);
-  }
+  RecordUseReprHintIfPhi(value, UseRepresentation::kInt32);
+
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kInt32) return value;
@@ -967,9 +962,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
 }
 
 ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
-  if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kFloat64);
-  }
+  RecordUseReprHintIfPhi(value, UseRepresentation::kFloat64);
 
   return GetFloat64ForToNumber(value, ToNumberHint::kDisallowToNumber);
 }
@@ -1075,9 +1068,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
 
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(ValueNode* value,
                                                           ToNumberHint hint) {
-  if (Phi* phi = value->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kHoleyFloat64);
-  }
+  RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -3687,9 +3678,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 }
 
 ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
-  if (Phi* phi = object->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kInt32);
-  }
+  RecordUseReprHintIfPhi(object, UseRepresentation::kInt32);
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kWord64:
@@ -3721,9 +3710,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 // TODO(victorgomes): Consider caching the values and adding an
 // uint32_alternative in node_info.
 ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
-  if (Phi* phi = object->TryCast<Phi>()) {
-    phi->RecordUseReprHint(UseRepresentation::kUint32);
-  }
+  RecordUseReprHintIfPhi(object, UseRepresentation::kUint32);
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kWord64:
@@ -4931,7 +4918,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   }
 
   ProcessMergePoint(inline_exit_offset());
-  StartNewBlock(inline_exit_offset());
+  StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
   FinishBlock<JumpFromInlined>({}, end_ref);
 
   // Pull the returned accumulator value out of the inlined function's final
@@ -5072,6 +5059,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
 
   ReduceResult result = inner_graph_builder.BuildInlined(
       context, function, args, &start_ref, &end_ref);
+  start_ref.block_ptr()->set_predecessor(block);
   if (result.IsDoneWithAbort()) {
     MarkBytecodeDead();
     return ReduceResult::DoneWithAbort();
@@ -8320,7 +8308,7 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   MergeIntoFrameState(block_is_generator_undefined, next_offset());
 
   // We create the generator prologue block.
-  StartNewBlock(generator_prologue_block_offset);
+  StartNewBlock(generator_prologue_block_offset, block_is_generator_undefined);
 
   // Generator prologue.
   ValueNode* generator = maybe_generator;

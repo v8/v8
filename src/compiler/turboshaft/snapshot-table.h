@@ -66,14 +66,29 @@ class SnapshotTable {
   // A `Snapshot` captures the state of the `SnapshotTable`.
   // A `Snapshot` is implemented as a pointer to internal data and is therefore
   // cheap to copy.
+  class MaybeSnapshot;
   class Snapshot {
    public:
     bool operator==(Snapshot other) const { return data_ == other.data_; }
 
    private:
     friend SnapshotTable;
+    friend MaybeSnapshot;
+
     SnapshotData* data_;
     explicit Snapshot(SnapshotData& data) : data_(&data) {}
+    explicit Snapshot(SnapshotData* data) : data_(data) {}
+  };
+
+  class MaybeSnapshot {
+   public:
+    bool has_value() const { return data_ != nullptr; }
+    Snapshot value() const { return Snapshot{data_}; }
+
+    void Set(Snapshot snapshot) { data_ = snapshot.data_; }
+
+   private:
+    SnapshotData* data_ = nullptr;
   };
 
   // A new Snapshot is based on a list of predecessor Snapshots. If no

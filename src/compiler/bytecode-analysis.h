@@ -66,17 +66,25 @@ class V8_EXPORT_PRIVATE ResumeJumpTarget {
 
 struct V8_EXPORT_PRIVATE LoopInfo {
  public:
-  LoopInfo(int parent_offset, int parameter_count, int register_count,
-           Zone* zone)
+  LoopInfo(int parent_offset, int loop_start, int loop_end, int parameter_count,
+           int register_count, Zone* zone)
       : parent_offset_(parent_offset),
+        loop_start_(loop_start),
+        loop_end_(loop_end),
         assignments_(parameter_count, register_count, zone),
         resume_jump_targets_(zone) {}
 
   int parent_offset() const { return parent_offset_; }
+  int loop_start() const { return loop_start_; }
+  int loop_end() const { return loop_end_; }
   bool resumable() const { return resumable_; }
   void mark_resumable() { resumable_ = true; }
   bool innermost() const { return innermost_; }
   void mark_not_innermost() { innermost_ = false; }
+
+  bool Contains(int offset) const {
+    return offset >= loop_start_ && offset < loop_end_;
+  }
 
   const ZoneVector<ResumeJumpTarget>& resume_jump_targets() const {
     return resume_jump_targets_;
@@ -91,6 +99,8 @@ struct V8_EXPORT_PRIVATE LoopInfo {
  private:
   // The offset to the parent loop, or -1 if there is no parent.
   int parent_offset_;
+  int loop_start_;
+  int loop_end_;
   bool resumable_ = false;
   bool innermost_ = true;
   BytecodeLoopAssignments assignments_;

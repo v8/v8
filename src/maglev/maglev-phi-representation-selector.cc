@@ -96,7 +96,14 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
     }
   }
 
-  UseRepresentationSet use_reprs = node->get_uses_repr_hints();
+  UseRepresentationSet use_reprs;
+  if (node->is_loop_phi() && !node->get_same_loop_uses_repr_hints().empty()) {
+    // {node} is a loop phi that has uses inside the loop; we will tag/untag
+    // based on those uses, ignoring uses after the loop.
+    use_reprs = node->get_same_loop_uses_repr_hints();
+  } else {
+    use_reprs = node->get_uses_repr_hints();
+  }
 
   TRACE_UNTAGGING("  + use_reprs  : " << use_reprs);
   TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
@@ -216,7 +223,7 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
     ValueNode* input = phi->input(i).node();
     if (Phi* phi_input = input->TryCast<Phi>()) {
       phi->set_input(i, EnsurePhiTagged(phi_input, phi->predecessor_at(i),
-                                        NewNodePosition::kEnd));
+                                        NewNodePosition::kEnd, i));
     } else {
       // Inputs of Phis that aren't Phi should always be tagged (except for the
       // phis untagged by this class, but {phi} isn't one of them).
@@ -676,34 +683,79 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 }
 
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
-    Phi* phi, BasicBlock* block, NewNodePosition pos) {
+    Phi* phi, BasicBlock* block, NewNodePosition pos,
+    base::Optional<int> predecessor_index) {
+  if (phi->value_representation() == ValueRepresentation::kTagged) {
+    return phi;
+  }
+
+  // Try to find an existing Tagged conversion for {phi} in {phi_taggings_}.
+  auto it = phi_to_key_.find(phi);
+  if (it != phi_to_key_.end()) {
+    if (predecessor_index.has_value()) {
+      if (ValueNode* tagging = phi_taggings_.GetPredecessorValue(
+              it->second, predecessor_index.value())) {
+        return tagging;
+      }
+    } else {
+      if (ValueNode* tagging = phi_taggings_.Get(it->second)) {
+        return tagging;
+      }
+    }
+  }
+
+  // We didn't already Tag {phi} on the current path; creating this tagging now.
+  ValueNode* tagged = nullptr;
   switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64:
       // It's important to use kCanonicalizeSmi for Float64ToTagged, as
       // otherwise, we could end up storing HeapNumbers in Smi fields.
-      return AddNode(NodeBase::New<Float64ToTagged>(
-                         builder_->zone(), {phi},
-                         Float64ToTagged::ConversionMode::kCanonicalizeSmi),
-                     block, pos);
+      tagged = AddNode(NodeBase::New<Float64ToTagged>(
+                           builder_->zone(), {phi},
+                           Float64ToTagged::ConversionMode::kCanonicalizeSmi),
+                       block, pos);
+      break;
     case ValueRepresentation::kHoleyFloat64:
       // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
       // otherwise, we could end up storing HeapNumbers in Smi fields.
-      return AddNode(
-          NodeBase::New<HoleyFloat64ToTagged>(
-              builder_->zone(), {phi},
-              HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi),
-          block, pos);
+      tagged =
+          AddNode(NodeBase::New<HoleyFloat64ToTagged>(
+                      builder_->zone(), {phi},
+                      HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi),
+                  block, pos);
+      break;
     case ValueRepresentation::kInt32:
-      return AddNode(NodeBase::New<Int32ToNumber>(builder_->zone(), {phi}),
-                     block, pos);
+      tagged = AddNode(NodeBase::New<Int32ToNumber>(builder_->zone(), {phi}),
+                       block, pos);
+      break;
     case ValueRepresentation::kUint32:
-      return AddNode(NodeBase::New<Uint32ToNumber>(builder_->zone(), {phi}),
-                     block, pos);
+      tagged = AddNode(NodeBase::New<Uint32ToNumber>(builder_->zone(), {phi}),
+                       block, pos);
+      break;
     case ValueRepresentation::kTagged:
-      return phi;
+      // Already handled at the begining of this function.
     case ValueRepresentation::kWord64:
       UNREACHABLE();
   }
+
+  if (predecessor_index.has_value()) {
+    // We inserted the new tagging node in a predecessor of the current block,
+    // so we shouldn't update the snapshot table for the current block (and we
+    // can't update it for the predecessor either since its snapshot is sealed).
+    DCHECK_NE(block, current_block_);
+    return tagged;
+  }
+
+  if (it != phi_to_key_.end()) {
+    // The Key already existed, but wasn't set on the current path.
+    phi_taggings_.Set(it->second, tagged);
+  } else {
+    // The Key didn't already exist, so we create it now.
+    auto key = phi_taggings_.NewKey();
+    phi_to_key_.insert({phi, key});
+    phi_taggings_.Set(key, tagged);
+  }
+  return tagged;
 }
 
 void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
@@ -782,13 +834,17 @@ ValueNode* MaglevPhiRepresentationSelector::AddNode(ValueNode* node,
     DCHECK_EQ(pos, NewNodePosition::kEnd);
     block->nodes().Add(node);
   }
+  RegisterNewNode(node);
+  return node;
+}
+
+void MaglevPhiRepresentationSelector::RegisterNewNode(ValueNode* node) {
   if (builder_->has_graph_labeller()) {
     builder_->graph_labeller()->RegisterNode(node);
   }
 #ifdef DEBUG
   new_nodes_.insert(node);
 #endif
-  return node;
 }
 
 void MaglevPhiRepresentationSelector::MergeNewNodesInBlock(BasicBlock* block) {
@@ -805,6 +861,68 @@ void MaglevPhiRepresentationSelector::MergeNewNodesInBlock(BasicBlock* block) {
     }
   }
   new_nodes_current_block_end_.clear();
+}
+
+void MaglevPhiRepresentationSelector::PreparePhiTaggings(
+    BasicBlock* old_block, const BasicBlock* new_block) {
+  // Sealing and saving current snapshot
+  if (phi_taggings_.IsSealed()) {
+    phi_taggings_.StartNewSnapshot();
+    return;
+  }
+  old_block->SetSnapshot(phi_taggings_.Seal());
+
+  // Setting up new snapshot
+  predecessors_.clear();
+
+  if (!new_block->is_merge_block()) {
+    BasicBlock* pred = new_block->predecessor();
+    predecessors_.push_back(pred->snapshot());
+  } else {
+    int skip_backedge = new_block->is_loop();
+    for (int i = 0; i < new_block->predecessor_count() - skip_backedge; i++) {
+      BasicBlock* pred = new_block->predecessor_at(i);
+      predecessors_.push_back(pred->snapshot());
+    }
+  }
+
+  auto merge_taggings =
+      [&](Key key, base::Vector<ValueNode* const> predecessors) -> ValueNode* {
+    for (ValueNode* node : predecessors) {
+      if (node == nullptr) {
+        // There is a predecessor that doesn't have this Tagging, so we'll
+        // return nullptr, and if we need it in the future, we'll have to
+        // recreate it. An alternative would be to eagerly insert this Tagging
+        // in all of the other predecesors, but it's possible that it's not used
+        // anymore or not on all future path, so this could also introduce
+        // unnecessary tagging.
+        return static_cast<Phi*>(nullptr);
+      }
+    }
+
+    // Only merge blocks should require Phis.
+    DCHECK(new_block->is_merge_block());
+
+    // We create a Phi to merge all of the existing taggings.
+    int predecessor_count = new_block->predecessor_count();
+    Phi* phi = Node::New<Phi>(builder_->zone(), predecessor_count,
+                              new_block->state(), interpreter::Register());
+    for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
+      phi->set_input(i, predecessors[i]);
+    }
+    if (predecessors.size() != static_cast<size_t>(predecessor_count)) {
+      // The backedge is omitted from {predecessors}. With set the Phi as its
+      // own backedge.
+      DCHECK(new_block->is_loop());
+      phi->set_input(predecessor_count - 1, phi);
+    }
+    RegisterNewNode(phi);
+    new_block->AddPhi(phi);
+
+    return phi;
+  };
+
+  phi_taggings_.StartNewSnapshot(base::VectorOf(predecessors_), merge_taggings);
 }
 
 }  // namespace maglev
