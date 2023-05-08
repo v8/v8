@@ -45,20 +45,24 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 }  // namespace
 
 MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
-                                             Handle<JSFunction> function)
+                                             Handle<JSFunction> function,
+                                             BytecodeOffset osr_offset)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(new compiler::JSHeapBroker(
           isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV)),
-      toplevel_function_(function)
+      toplevel_function_(function),
+      osr_offset_(osr_offset)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
       ,
       specialize_to_function_context_(
+          osr_offset == BytecodeOffset::None() &&
           v8_flags.maglev_function_context_specialization &&
           function->raw_feedback_cell().map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(v8_flags.maglev);
+  DCHECK_IMPLIES(osr_offset != BytecodeOffset::None(), v8_flags.maglev_osr);
   canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
       isolate->heap(), ZoneAllocationPolicy(&zone_));
   compiler::CurrentHeapBrokerScope current_broker(broker_.get());

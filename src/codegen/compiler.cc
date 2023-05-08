@@ -1195,8 +1195,6 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
                                 CompileResultBehavior result_behavior) {
 #ifdef V8_ENABLE_MAGLEV
   DCHECK(v8_flags.maglev);
-  // TODO(v8:7700): Add missing support.
-  CHECK(!IsOSR(osr_offset));
   CHECK(result_behavior == CompileResultBehavior::kDefault);
 
   // TODO(v8:7700): Tracing, see CompileTurbofan.
@@ -1211,7 +1209,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   // ...
 
   // Prepare the job.
-  auto job = maglev::MaglevCompilationJob::New(isolate, function);
+  auto job = maglev::MaglevCompilationJob::New(isolate, function, osr_offset);
 
   {
     TRACE_EVENT_WITH_FLOW0(
@@ -1237,11 +1235,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
     }
 
-    {
-      // TODO(v8:7700): Support OSR in FinalizeMaglevCompilationJob.
-      DCHECK(osr_offset.IsNone());
-      Compiler::FinalizeMaglevCompilationJob(job.get(), isolate);
-    }
+    { Compiler::FinalizeMaglevCompilationJob(job.get(), isolate); }
 
     return handle(function->code(), isolate);
   }
@@ -3860,7 +3854,8 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
                                                 Handle<JSFunction> function,
                                                 BytecodeOffset osr_offset,
-                                                ConcurrencyMode mode) {
+                                                ConcurrencyMode mode,
+                                                CodeKind code_kind) {
   DCHECK(IsOSR(osr_offset));
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
@@ -3883,8 +3878,8 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
   function->feedback_vector().reset_osr_urgency();
 
   CompilerTracer::TraceOptimizeOSRStarted(isolate, function, osr_offset, mode);
-  MaybeHandle<Code> result = GetOrCompileOptimized(
-      isolate, function, mode, CodeKind::TURBOFAN, osr_offset);
+  MaybeHandle<Code> result =
+      GetOrCompileOptimized(isolate, function, mode, code_kind, osr_offset);
 
   if (result.is_null()) {
     CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset,
@@ -3989,15 +3984,14 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   // when all the bytecodes are implemented.
   USE(status);
 
-  static constexpr BytecodeOffset osr_offset = BytecodeOffset::None();
+  BytecodeOffset osr_offset = job->osr_offset();
   ResetTieringState(*function, osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
     // Note the finalized InstructionStream object has already been installed on
     // the function by MaglevCompilationJob::FinalizeJobImpl.
 
-    OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
-                               function->code(),
+    OptimizedCodeCache::Insert(isolate, *function, osr_offset, function->code(),
                                job->specialize_to_function_context());
 
     RecordMaglevFunctionCompilation(isolate, function);

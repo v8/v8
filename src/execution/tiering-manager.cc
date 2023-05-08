@@ -283,9 +283,8 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
   // is in a loop, and can't OSR, because Maglev doesn't have OSR. Allow it to
   // skip over Maglev by re-checking ShouldOptimize as if we were in Maglev.
-  // TODO(v8:7700): Remove this when Maglev can OSR.
-  static_assert(!CodeKindCanOSR(CodeKind::MAGLEV));
-  if (d.should_optimize() && d.code_kind == CodeKind::MAGLEV) {
+  if (!v8_flags.maglev_osr && d.should_optimize() &&
+      d.code_kind == CodeKind::MAGLEV) {
     bool is_marked_for_maglev_optimization =
         IsRequestMaglev(tiering_state) ||
         function.HasAvailableCodeKind(CodeKind::MAGLEV);

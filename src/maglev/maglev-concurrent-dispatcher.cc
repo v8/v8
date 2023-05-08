@@ -76,8 +76,8 @@ void ExportedMaglevCompilationInfo::set_canonical_handles(
 
 // static
 std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
-    Isolate* isolate, Handle<JSFunction> function) {
-  auto info = maglev::MaglevCompilationInfo::New(isolate, function);
+    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset) {
+  auto info = maglev::MaglevCompilationInfo::New(isolate, function, osr_offset);
   return std::unique_ptr<MaglevCompilationJob>(
       new MaglevCompilationJob(std::move(info)));
 }
@@ -122,6 +122,10 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 
 Handle<JSFunction> MaglevCompilationJob::function() const {
   return info_->toplevel_function();
+}
+
+BytecodeOffset MaglevCompilationJob::osr_offset() const {
+  return info_->osr_offset();
 }
 
 bool MaglevCompilationJob::specialize_to_function_context() const {

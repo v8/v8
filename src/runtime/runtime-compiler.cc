@@ -451,7 +451,9 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
           : ConcurrencyMode::kSynchronous;
 
   Handle<Code> result;
-  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode)
+  if (!Compiler::CompileOptimizedOSR(
+           isolate, function, osr_offset, mode,
+           v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
     // 1) we've started a concurrent compilation job - everything is fine.
@@ -465,7 +467,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(!result.is_null());
-  DCHECK(result->is_turbofanned());  // TODO(v8:7700): Support Maglev.
+  DCHECK(result->is_turbofanned() || result->is_maglevved());
   DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
 
 #ifdef DEBUG

@@ -1475,6 +1475,16 @@ void MaglevCodeGenerator::EmitCode() {
       processor(SafepointingNodeProcessor{local_isolate_},
                 MaglevCodeGeneratingNodeProcessor{masm()});
   RecordInlinedFunctions();
+
+  if (code_gen_state_.compilation_info()->is_osr()) {
+    // Do we really want to have this offset or should we set it to 0?
+    masm_.Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
+    masm_.RecordComment("-- OSR entrpoint --");
+    masm_.bind(code_gen_state_.osr_entry());
+    // TODO(v8:7700): Implement compilation with OSR offset.
+    masm_.Abort(AbortReason::kMaglevOsrTodo);
+  }
+
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
   EmitDeopts();
@@ -1688,10 +1698,13 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   raw_data.SetLiteralArray(raw_literals);
   raw_data.SetInliningPositions(*inlining_positions);
 
-  // TODO(leszeks): Fix once we have OSR.
-  BytecodeOffset osr_offset = BytecodeOffset::None();
-  raw_data.SetOsrBytecodeOffset(Smi::FromInt(osr_offset.ToInt()));
-  raw_data.SetOsrPcOffset(Smi::FromInt(-1));
+  auto info = code_gen_state_.compilation_info();
+  raw_data.SetOsrBytecodeOffset(Smi::FromInt(info->osr_offset().ToInt()));
+  if (info->is_osr()) {
+    raw_data.SetOsrPcOffset(Smi::FromInt(code_gen_state_.osr_entry()->pos()));
+  } else {
+    raw_data.SetOsrPcOffset(Smi::FromInt(-1));
+  }
 
   // Populate deoptimization entries.
   int i = 0;

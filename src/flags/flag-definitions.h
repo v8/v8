@@ -990,6 +990,8 @@ DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
+DEFINE_EXPERIMENTAL_FEATURE(maglev_osr,
+                            "use maglev as on-stack replacement target")
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
 // TODO(dmercadier): re-enable Turbofan's string builder once it's fixed.

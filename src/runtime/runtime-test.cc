@@ -409,10 +409,11 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   Handle<Code> code;
   base::ElapsedTimer timer;
   timer.Start();
-  code = Maglev::Compile(isolate, function).ToHandleChecked();
+  code = Maglev::Compile(isolate, function, BytecodeOffset::None())
+             .ToHandleChecked();
   for (int i = 1; i < count; ++i) {
     HandleScope handle_scope(isolate);
-    Maglev::Compile(isolate, function);
+    Maglev::Compile(isolate, function, BytecodeOffset::None());
   }
   PrintF("Maglev compile time: %g ms!\n",
          timer.Elapsed().InMillisecondsF() / count);
@@ -695,7 +696,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
     // Queue the job.
     auto unused_result = Compiler::CompileOptimizedOSR(
-        isolate, function, osr_offset, ConcurrencyMode::kConcurrent);
+        isolate, function, osr_offset, ConcurrencyMode::kConcurrent,
+        v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN);
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
