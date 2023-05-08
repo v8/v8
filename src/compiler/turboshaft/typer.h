@@ -903,12 +903,13 @@ struct FloatOperationTyper {
     // a ** b produces NaN if a < 0 && b is fraction.
     if (l.min() < 0.0 && !IsIntegerSet(r)) maybe_nan = true;
 
-    // a ** b produces -0 iff a == -0 and b is odd. Checking for all the cases
-    // where b does only contain odd integer values seems not worth the
-    // additional information we get here. We accept this over-approximation for
-    // now. We could refine this whenever we see a benefit.
-    uint32_t special_values =
-        (maybe_nan ? type_t::kNaN : 0) | l.special_values();
+    // Precise checks for when the result can be -0 is difficult, because of
+    // large (negative) exponents. To be safe we add -0 whenever the left hand
+    // side can be negative. We might refine this when necessary.
+    bool maybe_minus_zero = l.max() < 0.0 || l.has_minus_zero();
+    uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
+                              (maybe_minus_zero ? type_t::kMinusZero : 0) |
+                              l.special_values();
 
     // If both sides are decently small sets, we produce the product set.
     auto combine = [](float_t a, float_t b) { return std::pow(a, b); };
