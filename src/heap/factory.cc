@@ -2079,6 +2079,7 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                 V8HeapCompressionScheme::CompressObject(result.ptr()) >
                     InstanceTypeChecker::kNonJsReceiverMapLimit);
 #endif
+  isolate()->counters()->maps_created()->Increment();
   return handle(InitializeMap(Map::cast(result), type, instance_size,
                               elements_kind, inobject_properties, roots),
                 isolate());
