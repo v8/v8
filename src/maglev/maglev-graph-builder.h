@@ -1427,6 +1427,7 @@ class MaglevGraphBuilder {
   V(MathCeil)                      \
   V(MathFloor)                     \
   V(MathPow)                       \
+  V(ArrayPrototypePush)            \
   V(MathRound)                     \
   V(StringConstructor)             \
   V(StringFromCharCode)            \
@@ -1619,8 +1620,8 @@ class MaglevGraphBuilder {
       const compiler::ElementAccessInfo& access_info,
       KeyedAccessLoadMode load_mode);
   ReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
-      ValueNode* object, ValueNode* index,
-      const compiler::ElementAccessInfo& access_info,
+      ValueNode* object, ValueNode* index_object, ValueNode* value,
+      const base::Vector<const compiler::MapRef>& maps, ElementsKind kind,
       KeyedAccessStoreMode store_mode);
   ReduceResult TryBuildElementAccessOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index,
@@ -1640,6 +1641,10 @@ class MaglevGraphBuilder {
                            compiler::AccessMode access_mode);
   ReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                          compiler::NameRef name);
+
+  // Converts the input node to a representation that's valid to store into an
+  // array with elements kind |kind|.
+  ValueNode* ConvertForStoring(ValueNode* node, ElementsKind kind);
 
   enum InferHasInPrototypeChainResult {
     kMayBeInPrototypeChain,

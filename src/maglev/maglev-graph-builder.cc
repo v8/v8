@@ -3938,15 +3938,24 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   return result;
 }
 
+ValueNode* MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
+                                                 ElementsKind kind) {
+  if (IsDoubleElementsKind(kind)) {
+    // Make sure we do not store signalling NaNs into double arrays.
+    // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
+    // rather than a separate node.
+    return GetSilencedNaN(GetFloat64(value));
+  }
+  if (IsSmiElementsKind(kind)) return GetSmiValue(value);
+  return GetTaggedValue(value);
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
-    ValueNode* object, ValueNode* index_object,
-    const compiler::ElementAccessInfo& access_info,
-    KeyedAccessStoreMode store_mode) {
-  ElementsKind elements_kind = access_info.elements_kind();
+    ValueNode* object, ValueNode* index_object, ValueNode* value,
+    const base::Vector<const compiler::MapRef>& maps,
+    ElementsKind elements_kind, KeyedAccessStoreMode store_mode) {
   DCHECK(IsFastElementsKind(elements_kind));
 
-  base::Vector<const compiler::MapRef> maps =
-      base::VectorOf(access_info.lookup_start_object_maps());
   const bool is_jsarray = HasOnlyJSArrayMaps(maps);
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
@@ -3954,23 +3963,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   ValueNode* elements_array =
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
 
-  // Get value.
-  ValueNode* value;
-  if (IsDoubleElementsKind(elements_kind)) {
-    // Make sure we do not store signalling NaNs into double arrays.
-    // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
-    // rather than a separate node.
-    value = GetSilencedNaN(GetAccumulatorFloat64());
-  } else {
-    if (IsSmiElementsKind(elements_kind)) {
-      value = GetAccumulatorSmi();
-    } else {
-      value = GetAccumulatorTagged();
-    }
-  }
+  value = ConvertForStoring(value, elements_kind);
 
   // Check boundaries.
-  ValueNode* index = GetInt32ElementIndex(index_object);
   ValueNode* elements_array_length = nullptr;
   ValueNode* length;
   if (is_jsarray) {
@@ -3981,6 +3976,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
         AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
             {elements_array}, FixedArray::kLengthOffset)});
   }
+  ValueNode* index = GetInt32ElementIndex(index_object);
   if (store_mode == STORE_AND_GROW_HANDLE_COW) {
     if (elements_array_length == nullptr) {
       elements_array_length =
@@ -4050,9 +4046,14 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
     case compiler::AccessMode::kLoad:
       return TryBuildElementLoadOnJSArrayOrJSObject(
           object, index_object, access_info, keyed_mode.load_mode());
-    case compiler::AccessMode::kStore:
+    case compiler::AccessMode::kStore: {
+      base::Vector<const compiler::MapRef> maps =
+          base::VectorOf(access_info.lookup_start_object_maps());
+      ElementsKind elements_kind = access_info.elements_kind();
       return TryBuildElementStoreOnJSArrayOrJSObject(
-          object, index_object, access_info, keyed_mode.store_mode());
+          object, index_object, GetRawAccumulator(), maps, elements_kind,
+          keyed_mode.store_mode());
+    }
     default:
       // TODO(victorgomes): Implement more access types.
       return ReduceResult::Fail();
@@ -5283,6 +5284,83 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
     }
   }
   return BuildGenericCall(receiver, Call::TargetType::kAny, args);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
+    CallArguments& args) {
+  // We can't reduce Function#call when there is no receiver function.
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    return ReduceResult::Fail();
+  }
+  if (args.count() != 1) return ReduceResult::Fail();
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+
+  auto stable_it = known_node_aspects().stable_maps.find(receiver);
+  auto unstable_it = known_node_aspects().unstable_maps.find(receiver);
+  auto stable_end = known_node_aspects().stable_maps.end();
+  auto unstable_end = known_node_aspects().unstable_maps.end();
+
+  // If either of the map sets is not found, then we don't know anything about
+  // the map of the receiver, so bail.
+  if (stable_it == stable_end || unstable_it == unstable_end) {
+    return ReduceResult::Fail();
+  }
+
+  ElementsKind kind;
+  ZoneVector<compiler::MapRef> receiver_map_refs(zone());
+  // Check that all receiver maps are JSArray maps with compatible elements
+  // kinds.
+  for (const compiler::ZoneRefSet<Map>& map_set :
+       {stable_it->second, unstable_it->second}) {
+    for (compiler::MapRef map : map_set) {
+      if (!map.IsJSArrayMap()) return ReduceResult::Fail();
+      ElementsKind packed = GetPackedElementsKind(map.elements_kind());
+      if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
+      if (!map.supports_fast_array_resize(broker()))
+        return ReduceResult::Fail();
+      if (receiver_map_refs.empty()) {
+        kind = packed;
+      } else if (kind != packed) {
+        return ReduceResult::Fail();
+      }
+      receiver_map_refs.push_back(map);
+    }
+  }
+
+  ValueNode* value = ConvertForStoring(args[0], kind);
+
+  ValueNode* old_array_length_smi =
+      AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
+  ValueNode* old_array_length =
+      AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
+  ValueNode* new_array_length =
+      AddNewNode<Int32IncrementWithOverflow>({old_array_length});
+  ValueNode* new_array_length_smi = GetSmiValue(new_array_length);
+
+  ValueNode* elements_array =
+      AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
+
+  ValueNode* elements_array_length =
+      AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
+          {elements_array}, FixedArray::kLengthOffset)});
+
+  elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
+      {elements_array, receiver, old_array_length, elements_array_length},
+      kind);
+
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
+                                             JSArray::kLengthOffset);
+
+  // Do the store
+  if (IsDoubleElementsKind(kind)) {
+    AddNewNode<StoreFixedDoubleArrayElement>(
+        {elements_array, old_array_length, value});
+  } else {
+    BuildStoreFixedArrayElement(elements_array, old_array_length, value);
+  }
+
+  SetAccumulator(new_array_length);
+  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
