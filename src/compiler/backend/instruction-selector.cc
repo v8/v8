@@ -3294,9 +3294,12 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
       // {result} back into it through the back edge. In this case, it's normal
       // to schedule {result} before the Phi that uses it.
       for (Node* use : result->uses()) {
-        if (IsUsed(use) && !IsDefined(use) &&
-            schedule_->block(use) == current_block_ &&
+        if (!IsDefined(use) && schedule_->block(use) == current_block_ &&
             use->opcode() != IrOpcode::kPhi) {
+          // {use} is in the current block but is not defined yet. It's possible
+          // that it's not actually used, but the IsUsed(x) predicate is not
+          // valid until we have visited `x`, so we overaproximate and assume
+          // that {use} is itself used.
           return;
         }
       }
