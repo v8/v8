@@ -6,6 +6,14 @@
 
 namespace iterator {
 
+macro IsIteratorHelperExhausted(helper: JSIteratorHelper): bool {
+  return helper.underlying.next == Null;
+}
+
+macro MarkIteratorHelperAsExhausted(helper: JSIteratorHelper): void {
+  helper.underlying.next = Null;
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
 transitioning macro GetIteratorDirect(implicit context: Context)(
     obj: JSReceiver): IteratorRecord {
@@ -73,16 +81,23 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
   // Return for flatMap helper is not the same as other helpers.
   typeswitch (receiver) {
     case (helper: JSIteratorFlatMapHelper): {
-      try {
-        // d. If completion is an abrupt completion, then
-        // i. Let backupCompletion be Completion(IteratorClose(innerIterator,
-        // completion)).
-        IteratorClose(helper.innerIterator);
+      if (IsIteratorHelperExhausted(helper)) {
+        return AllocateJSIteratorResult(Undefined, True);
+      }
+      MarkIteratorHelperAsExhausted(helper);
 
-      } catch (e, message) {
-        // ii. IfAbruptCloseIterator(backupCompletion, iterated).
-        IteratorCloseOnException(helper.underlying);
-        ReThrowWithMessage(context, e, message);
+      if (helper.innerAlive == True) {
+        try {
+          // d. If completion is an abrupt completion, then
+          // i. Let backupCompletion be Completion(IteratorClose(innerIterator,
+          // completion)).
+          IteratorClose(helper.innerIterator);
+
+        } catch (e, message) {
+          // ii. IfAbruptCloseIterator(backupCompletion, iterated).
+          IteratorCloseOnException(helper.underlying);
+          ReThrowWithMessage(context, e, message);
+        }
       }
 
       // iii. Return ? IteratorClose(completion, iterated).
@@ -96,8 +111,10 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
       const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
           MessageTemplate::kIncompatibleMethodReceiver,
           'Iterator Helper.prototype.return', receiver);
-
-      IteratorCloseOnException(helper.underlying);
+      if (!IsIteratorHelperExhausted(helper)) {
+        MarkIteratorHelperAsExhausted(helper);
+        IteratorClose(helper.underlying);
+      }
       return AllocateJSIteratorResult(Undefined, True);
     }
   }
@@ -153,38 +170,48 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
   const underlying = helper.underlying;
   const counter = helper.counter;
 
-  // b. Repeat,
-  let next: JSReceiver;
-  try {
-    // i. Let next be ? IteratorStep(iterated).
-    next = IteratorStep(underlying, fastIteratorResultMap)
-        otherwise Done;
-  } label Done {
-    // ii. If next is false, return undefined.
+  if (IsIteratorHelperExhausted(helper)) {
     return AllocateJSIteratorResult(Undefined, True);
   }
 
-  // iii. Let value be ? IteratorValue(next).
-  const value = IteratorValue(next, fastIteratorResultMap);
-
   try {
-    // iv. Let mapped be Completion(
-    //     Call(mapper, undefined, « value, 𝔽(counter) »)).
-    const mapped = Call(context, helper.mapper, Undefined, value, counter);
+    // b. Repeat,
+    let next: JSReceiver;
+    try {
+      // i. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(underlying, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // ii. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
 
-    // viii. Set counter to counter + 1.
-    // (Done out of order. Iterator helpers are specified as generators with
-    // yields but we implement them as direct iterators.)
-    helper.counter = counter + 1;
+    // iii. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
 
-    // vi. Let completion be Completion(Yield(mapped)).
-    return AllocateJSIteratorResult(mapped, False);
+    try {
+      // iv. Let mapped be Completion(
+      //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+      const mapped = Call(context, helper.mapper, Undefined, value, counter);
 
-    // vii. IfAbruptCloseIterator(completion, iterated).
-    // (Done in IteratorHelperPrototypeReturn.)
+      // viii. Set counter to counter + 1.
+      // (Done out of order. Iterator helpers are specified as generators with
+      // yields but we implement them as direct iterators.)
+      helper.counter = counter + 1;
+
+      // vi. Let completion be Completion(Yield(mapped)).
+      return AllocateJSIteratorResult(mapped, False);
+
+      // vii. IfAbruptCloseIterator(completion, iterated).
+      // (Done in IteratorHelperPrototypeReturn.)
+    } catch (e, message) {
+      // v. IfAbruptCloseIterator(mapped, iterated).
+      IteratorCloseOnException(underlying);
+      ReThrowWithMessage(context, e, message);
+    }
   } catch (e, message) {
-    // v. IfAbruptCloseIterator(mapped, iterated).
-    IteratorCloseOnException(underlying);
+    MarkIteratorHelperAsExhausted(helper);
     ReThrowWithMessage(context, e, message);
   }
 }
@@ -238,46 +265,56 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
   const fastIteratorResultMap = GetIteratorResultMap();
   const underlying = helper.underlying;
 
-  while (true) {
-    const counter = helper.counter;
+  if (IsIteratorHelperExhausted(helper)) {
+    return AllocateJSIteratorResult(Undefined, True);
+  }
 
-    // b. Repeat,
-    let next: JSReceiver;
-    try {
-      // i. Let next be ? IteratorStep(iterated).
-      next = IteratorStep(underlying, fastIteratorResultMap)
-          otherwise Done;
-    } label Done {
-      // ii. If next is false, return undefined.
-      return AllocateJSIteratorResult(Undefined, True);
-    }
+  try {
+    while (true) {
+      const counter = helper.counter;
 
-    // iii. Let value be ? IteratorValue(next).
-    const value = IteratorValue(next, fastIteratorResultMap);
-
-    try {
-      // iv. Let selected be Completion(
-      //     Call(predicate, undefined, « value, 𝔽(counter) »)).
-      const selected =
-          Call(context, helper.predicate, Undefined, value, counter);
-
-      // vii. Set counter to counter + 1.
-      // (Done out of order. Iterator helpers are specified as generators with
-      // yields but we implement them as direct iterators.)
-      helper.counter = counter + 1;
-
-      // vi. If ToBoolean(selected) is true, then
-      if (ToBoolean(selected)) {
-        // 1. Let completion be Completion(Yield(value)).
-        return AllocateJSIteratorResult(value, False);
-        // 2. IfAbruptCloseIterator(completion, iterated).
-        // (Done in IteratorHelperPrototypeReturn.)
+      // b. Repeat,
+      let next: JSReceiver;
+      try {
+        // i. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(underlying, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        // ii. If next is false, return undefined.
+        MarkIteratorHelperAsExhausted(helper);
+        return AllocateJSIteratorResult(Undefined, True);
       }
-    } catch (e, message) {
-      // v. IfAbruptCloseIterator(selected, iterated).
-      IteratorCloseOnException(underlying);
-      ReThrowWithMessage(context, e, message);
+
+      // iii. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      try {
+        // iv. Let selected be Completion(
+        //     Call(predicate, undefined, « value, 𝔽(counter) »)).
+        const selected =
+            Call(context, helper.predicate, Undefined, value, counter);
+
+        // vii. Set counter to counter + 1.
+        // (Done out of order. Iterator helpers are specified as generators with
+        // yields but we implement them as direct iterators.)
+        helper.counter = counter + 1;
+
+        // vi. If ToBoolean(selected) is true, then
+        if (ToBoolean(selected)) {
+          // 1. Let completion be Completion(Yield(value)).
+          return AllocateJSIteratorResult(value, False);
+          // 2. IfAbruptCloseIterator(completion, iterated).
+          // (Done in IteratorHelperPrototypeReturn.)
+        }
+      } catch (e, message) {
+        // v. IfAbruptCloseIterator(selected, iterated).
+        IteratorCloseOnException(underlying);
+        ReThrowWithMessage(context, e, message);
+      }
     }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
   }
   unreachable;
 }
@@ -343,37 +380,48 @@ transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
   const underlying = helper.underlying;
   const remaining = helper.remaining;
 
-  // b. Repeat,
-  let next: JSReceiver;
-
-  // i. If remaining is 0, then
-  if (remaining == 0) {
-    // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
-    IteratorClose(underlying);
+  if (IsIteratorHelperExhausted(helper)) {
     return AllocateJSIteratorResult(Undefined, True);
-  }
-
-  // ii. If remaining is not +∞, then
-  if (!NumberIsSomeInfinity(remaining)) {
-    // 1. Set remaining to remaining - 1.
-    helper.remaining = remaining - 1;
   }
 
   try {
-    // iii. Let next be ? IteratorStep(iterated).
-    next = IteratorStep(underlying, fastIteratorResultMap)
-        otherwise Done;
-  } label Done {
-    // iv. If next is false, return undefined.
-    return AllocateJSIteratorResult(Undefined, True);
+    // b. Repeat,
+    let next: JSReceiver;
+
+    // i. If remaining is 0, then
+    if (remaining == 0) {
+      // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
+      MarkIteratorHelperAsExhausted(helper);
+      IteratorClose(underlying);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // ii. If remaining is not +∞, then
+    if (!NumberIsSomeInfinity(remaining)) {
+      // 1. Set remaining to remaining - 1.
+      helper.remaining = remaining - 1;
+    }
+
+    try {
+      // iii. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(underlying, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // iv. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // v. Let completion be Completion(Yield(? IteratorValue(next))).
+    const value = IteratorValue(next, fastIteratorResultMap);
+    return AllocateJSIteratorResult(value, False);
+
+    // vi. IfAbruptCloseIterator(completion, iterated).
+    // (Done in IteratorHelperPrototypeReturn.)
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
   }
-
-  // v. Let completion be Completion(Yield(? IteratorValue(next))).
-  const value = IteratorValue(next, fastIteratorResultMap);
-  return AllocateJSIteratorResult(value, False);
-
-  // vi. IfAbruptCloseIterator(completion, iterated).
-  // (Done in IteratorHelperPrototypeReturn.)
 }
 
 // --- drop helper
@@ -438,36 +486,46 @@ transitioning builtin IteratorDropHelperNext(implicit context: Context)(
   let remaining = helper.remaining;
   let next: JSReceiver;
 
-  // b. Repeat, while remaining > 0,
-  try {
-    while (remaining > 0) {
-      // i. If remaining is not +∞, then
-      if (!NumberIsSomeInfinity(remaining)) {
-        // 1. Set remaining to remaining - 1.
-        remaining = remaining - 1;
-        helper.remaining = remaining;
-      }
-
-      // ii. Let next be ? IteratorStep(iterated).
-      IteratorStep(underlying, fastIteratorResultMap)
-          otherwise Done;
-    }
-
-    // c. Repeat,
-    // i. Let next be ? IteratorStep(iterated).
-    next = IteratorStep(underlying, fastIteratorResultMap)
-        otherwise Done;
-  } label Done {
-    // ii. If next is false, return undefined.
+  if (IsIteratorHelperExhausted(helper)) {
     return AllocateJSIteratorResult(Undefined, True);
   }
 
-  // iii. Let completion be Completion(Yield(? IteratorValue(next))).
-  const value = IteratorValue(next, fastIteratorResultMap);
-  return AllocateJSIteratorResult(value, False);
+  try {
+    // b. Repeat, while remaining > 0,
+    try {
+      while (remaining > 0) {
+        // i. If remaining is not +∞, then
+        if (!NumberIsSomeInfinity(remaining)) {
+          // 1. Set remaining to remaining - 1.
+          remaining = remaining - 1;
+          helper.remaining = remaining;
+        }
 
-  // iv. IfAbruptCloseIterator(completion, iterated).
-  // (Done in IteratorHelperPrototypeReturn.)
+        // ii. Let next be ? IteratorStep(iterated).
+        IteratorStep(underlying, fastIteratorResultMap)
+            otherwise Done;
+      }
+
+      // c. Repeat,
+      // i. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(underlying, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // ii. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // iii. Let completion be Completion(Yield(? IteratorValue(next))).
+    const value = IteratorValue(next, fastIteratorResultMap);
+    return AllocateJSIteratorResult(value, False);
+
+    // iv. IfAbruptCloseIterator(completion, iterated).
+    // (Done in IteratorHelperPrototypeReturn.)
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
 }
 
 // --- flatMap helper
@@ -523,79 +581,90 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
   const fastIteratorResultMap = GetIteratorResultMap();
   const underlying = helper.underlying;
 
-  while (true) {
-    const counter = helper.counter;
-    let innerIterator = helper.innerIterator;
-    // b. Repeat,
-    if (helper.innerAlive == False) {
-      let next: JSReceiver;
-      try {
-        // i. Let next be ? IteratorStep(iterated).
-        next = IteratorStep(underlying, fastIteratorResultMap)
-            otherwise Done;
-      } label Done {
-        // ii. If next is false, return undefined.
-        return AllocateJSIteratorResult(Undefined, True);
+  if (IsIteratorHelperExhausted(helper)) {
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  try {
+    while (true) {
+      const counter = helper.counter;
+      let innerIterator = helper.innerIterator;
+      // b. Repeat,
+      if (helper.innerAlive == False) {
+        let next: JSReceiver;
+        try {
+          // i. Let next be ? IteratorStep(iterated).
+          next = IteratorStep(underlying, fastIteratorResultMap)
+              otherwise Done;
+        } label Done {
+          // ii. If next is false, return undefined.
+          MarkIteratorHelperAsExhausted(helper);
+          return AllocateJSIteratorResult(Undefined, True);
+        }
+
+        // iii. Let value be ? IteratorValue(next).
+        const value = IteratorValue(next, fastIteratorResultMap);
+
+        try {
+          // iv. Let mapped be Completion(
+          //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+          const mapped =
+              Call(context, helper.mapper, Undefined, value, counter);
+          const mappedIter = Cast<JSReceiver>(mapped)
+              otherwise ThrowTypeError(
+              MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+
+          // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped,
+          // sync)).
+          innerIterator = GetIteratorFlattenable(mappedIter);
+          helper.innerIterator = innerIterator;
+
+          // viii. Let innerAlive be true.
+          helper.innerAlive = True;
+
+        } catch (e, message) {
+          // v. IfAbruptCloseIterator(mapped, iterated)
+          IteratorCloseOnException(underlying);
+          ReThrowWithMessage(context, e, message);
+        }
+        // x. Set counter to counter + 1.
+        helper.counter = counter + 1;
       }
 
-      // iii. Let value be ? IteratorValue(next).
-      const value = IteratorValue(next, fastIteratorResultMap);
-
+      // ix. Repeat, while innerAlive is true,
       try {
-        // iv. Let mapped be Completion(
-        //     Call(mapper, undefined, « value, 𝔽(counter) »)).
-        const mapped = Call(context, helper.mapper, Undefined, value, counter);
-        const mappedIter = Cast<JSReceiver>(mapped)
-            otherwise ThrowTypeError(
-            MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+        // 1. Let innerNext be Completion(IteratorStep(innerIterator)).
+        let innerNext: JSReceiver;
+        innerNext = IteratorStep(innerIterator, fastIteratorResultMap)
+            otherwise Done;
 
-        // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped,
-        // sync)).
-        innerIterator = GetIteratorFlattenable(mappedIter);
-        helper.innerIterator = innerIterator;
+        // 4. Else,
+        //    a. Let innerValue be Completion(IteratorValue(innerNext)).
+        const innerValue = IteratorValue(innerNext, fastIteratorResultMap);
 
-        // viii. Let innerAlive be true.
-        helper.innerAlive = True;
+        // c. Let completion be Completion(Yield(innerValue)).
+        return AllocateJSIteratorResult(innerValue, False);
+
+        // d. If completion is an abrupt completion, then
+        //    i. Let backupCompletion be Completion(IteratorClose(innerIterator,
+        // completion)).
+        //    ii. IfAbruptCloseIterator(backupCompletion, iterated).
+        //    iii. Return ? IteratorClose(completion, iterated).
+        // Done in IteratorHelperPrototypeReturn.
 
       } catch (e, message) {
-        // v. IfAbruptCloseIterator(mapped, iterated)
+        // 2. IfAbruptCloseIterator(innerNext, iterated)
         IteratorCloseOnException(underlying);
         ReThrowWithMessage(context, e, message);
+      } label Done {
+        // 3. If innerNext is false, then
+        //    a. Set innerAlive to false.
+        helper.innerAlive = False;
       }
-      // x. Set counter to counter + 1.
-      helper.counter = counter + 1;
     }
-
-    // ix. Repeat, while innerAlive is true,
-    try {
-      // 1. Let innerNext be Completion(IteratorStep(innerIterator)).
-      let innerNext: JSReceiver;
-      innerNext = IteratorStep(innerIterator, fastIteratorResultMap)
-          otherwise Done;
-
-      // 4. Else,
-      //    a. Let innerValue be Completion(IteratorValue(innerNext)).
-      const innerValue = IteratorValue(innerNext, fastIteratorResultMap);
-
-      // c. Let completion be Completion(Yield(innerValue)).
-      return AllocateJSIteratorResult(innerValue, False);
-
-      // d. If completion is an abrupt completion, then
-      //    i. Let backupCompletion be Completion(IteratorClose(innerIterator,
-      // completion)).
-      //    ii. IfAbruptCloseIterator(backupCompletion, iterated).
-      //    iii. Return ? IteratorClose(completion, iterated).
-      // Done in IteratorHelperPrototypeReturn.
-
-    } catch (e, message) {
-      // 2. IfAbruptCloseIterator(innerNext, iterated)
-      IteratorCloseOnException(underlying);
-      ReThrowWithMessage(context, e, message);
-    } label Done {
-      // 3. If innerNext is false, then
-      //    a. Set innerAlive to false.
-      helper.innerAlive = False;
-    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
   }
   unreachable;
 }

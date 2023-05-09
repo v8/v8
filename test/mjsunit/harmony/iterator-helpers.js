@@ -64,6 +64,124 @@ function TestHelperPrototypeSurface(helper) {
   });
 })();
 
+(function TestMapNoReturnInIterator() {
+  const IteratorNoReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorNoReturn, Iterator.prototype);
+  const mapIter = IteratorNoReturn.map((x, i) => {
+    return x;
+  });
+  TestHelperPrototypeSurface(mapIter);
+  assertEquals({value: 1, done: false}, mapIter.next());
+  assertEquals({value: undefined, done: true}, mapIter.return());
+})();
+
+(function TestMapThrowInReturnInIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const mapIter = IteratorThrowReturn.map((x, i) => {
+    return x;
+  });
+  assertThrows(() => {
+    mapIter.return();
+  });
+})();
+
+(function TestMapThrowInReturnButExhaustedIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const mapIter = IteratorThrowReturn.map((x, i) => {
+    return x;
+  });
+  assertEquals({value: 1, done: false}, mapIter.next());
+  assertEquals({value: 2, done: false}, mapIter.next());
+  assertEquals({value: 3, done: false}, mapIter.next());
+  assertEquals({value: undefined, done: true}, mapIter.next());
+  assertEquals({value: undefined, done: true}, mapIter.return());
+})();
+
+(function TestMapReturnNotReturnAfterExhaustion() {
+  let returnCount = 0;
+
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    return() {
+      ++returnCount;
+      return {};
+    }
+  }
+
+  let iterator = new TestIterator().map((x, i) => {
+    return x;
+  });
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+})();
+
+(function TestMapMarkIteratorExhaustedAfterThrow() {
+  const IteratorThrow = {
+    i: 1,
+    next() {
+      if (this.i == 3) {
+        throw new Error('Throw return');
+      } else {
+        return {value: this.i++, done: false};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrow, Iterator.prototype);
+  const mapIter = IteratorThrow.map((x, i) => {
+    return x;
+  });
+  assertEquals({value: 1, done: false}, mapIter.next());
+  assertEquals({value: 2, done: false}, mapIter.next());
+  assertThrows(() => {
+    mapIter.next();
+  });
+  assertEquals({value: undefined, done: true}, mapIter.next());
+})();
+
 // --- Test filter helper
 
 (function TestFilter() {
@@ -122,6 +240,125 @@ function TestHelperPrototypeSurface(helper) {
       Object.defineProperty(filterIter, 58, {set: func});
     }
   });
+})();
+
+(function TestFilterThrowInReturnInIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const filterIter = IteratorThrowReturn.filter((x, i) => {
+    return x == 1;
+  });
+  assertThrows(() => {
+    filterIter.return();
+  });
+})();
+
+(function TestMapThrowInReturnEmptyIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const filterIter = IteratorThrowReturn.filter((x, i) => {
+    return x == 0;
+  });
+  assertEquals({value: undefined, done: true}, filterIter.next());
+  assertEquals({value: undefined, done: true}, filterIter.return());
+})();
+
+(function TestMapThrowInReturnButExhaustedIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const filterIter = IteratorThrowReturn.filter((x, i) => {
+    return x == 1;
+  });
+  assertEquals({value: 1, done: false}, filterIter.next());
+  assertThrows(() => {
+    filterIter.return();
+  });
+})();
+
+(function TestFilterReturnNotReturnAfterExhaustion() {
+  let returnCount = 0;
+
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    return() {
+      ++returnCount;
+      return {};
+    }
+  }
+
+  let iterator = new TestIterator().filter((x, i) => {
+    return x == x;
+  });
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+})();
+
+(function TestFilterMarkIteratorExhaustedAfterThrow() {
+  const IteratorThrow = {
+    i: 1,
+    next() {
+      if (this.i == 3) {
+        throw new Error('Throw return');
+      } else {
+        return {value: this.i++, done: false};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrow, Iterator.prototype);
+  const filterIter = IteratorThrow.filter((x, i) => {
+    return x == x;
+  });
+  assertEquals({value: 1, done: false}, filterIter.next());
+  assertEquals({value: 2, done: false}, filterIter.next());
+  assertThrows(() => {
+    filterIter.next();
+  });
+  assertEquals({value: undefined, done: true}, filterIter.next());
 })();
 
 // --- Test take helper
@@ -189,7 +426,7 @@ function TestHelperPrototypeSurface(helper) {
     return() {return {value: undefined, done: true};},
   };
 
-  Object.setPrototypeOf(NormalIterator, Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(NormalIterator, Iterator.prototype);
   const takeIter = NormalIterator.take(1);
   TestHelperPrototypeSurface(takeIter);
   assertEquals({value: 1, done: false }, takeIter.next());
@@ -208,9 +445,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      IteratorNoReturn,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(IteratorNoReturn, Iterator.prototype);
   const takeIter = IteratorNoReturn.take(1);
   TestHelperPrototypeSurface(takeIter);
   assertEquals({value: 1, done: false}, takeIter.next());
@@ -232,9 +467,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      IteratorThrowReturn,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
   const takeIter = IteratorThrowReturn.take(0);
   assertThrows(() => {
     takeIter.next();
@@ -256,9 +489,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      IteratorNonObjectReturn,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(IteratorNonObjectReturn, Iterator.prototype);
   const takeIter = IteratorNonObjectReturn.take(0);
   assertThrows(() => {
     takeIter.next();
@@ -276,6 +507,119 @@ function TestHelperPrototypeSurface(helper) {
       Object.defineProperty(takeIter, 58, {set: func});
     }
   });
+})();
+
+(function TestTakeThrowInReturnInIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const takeIter = IteratorThrowReturn.take(5);
+  assertEquals({value: 1, done: false}, takeIter.next());
+  assertEquals({value: 2, done: false}, takeIter.next());
+  assertEquals({value: 3, done: false}, takeIter.next());
+  assertEquals({value: undefined, done: true}, takeIter.next());
+  assertEquals({value: undefined, done: true}, takeIter.return());
+})();
+
+(function TestTakeThrowInReturnButNotExhaustedIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const takeIter = IteratorThrowReturn.take(1);
+  assertEquals({value: 1, done: false}, takeIter.next());
+  assertThrows(() => {
+    takeIter.return();
+  });
+})();
+
+(function TestTakeThrowInReturnButExhaustedIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const takeIter = IteratorThrowReturn.take(1);
+  assertEquals({value: 1, done: false}, takeIter.next());
+  assertThrows(() => {
+    takeIter.return();
+  });
+})();
+
+(function TestTakeReturnNotReturnAfterExhaustion() {
+  let returnCount = 0;
+
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    return() {
+      ++returnCount;
+      return {};
+    }
+  }
+
+  let iterator = new TestIterator().take(1);
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+})();
+
+(function TestTakeMarkIteratorExhaustedAfterThrow() {
+  const IteratorThrow = {
+    i: 1,
+    next() {
+      if (this.i == 3) {
+        throw new Error('Throw return');
+      } else {
+        return {value: this.i++, done: false};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrow, Iterator.prototype);
+  const takeIter = IteratorThrow.take(4);
+  assertEquals({value: 1, done: false}, takeIter.next());
+  assertEquals({value: 2, done: false}, takeIter.next());
+  assertThrows(() => {
+    takeIter.next();
+  });
+  assertEquals({value: undefined, done: true}, takeIter.next());
 })();
 
 // --- Test drop helper
@@ -336,6 +680,111 @@ function TestHelperPrototypeSurface(helper) {
       Object.defineProperty(dropIter, 58, {set: func});
     }
   });
+})();
+
+(function TestDropReturnThrows() {
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    get return() {
+      throw new Test262Error;
+    }
+  }
+
+  let iterator = new TestIterator().drop(1);
+  iterator.next();
+  assertThrows(() => {iterator.return()});
+})();
+
+(function TestDropReturnNotReturnAfterExhaustion() {
+  let returnCount = 0;
+
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    return() {
+      ++returnCount;
+      return {};
+    }
+  }
+
+  let iterator = new TestIterator().drop(0);
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+
+  returnCount = 0;
+
+  iterator = new TestIterator().drop(1);
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+
+  returnCount = 0;
+
+  iterator = new TestIterator().drop(1).drop(1).drop(1).drop(1).drop(1);
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+})();
+
+(function TestDropOnExhausetdIterator() {
+  class TestIterator extends Iterator {
+    next() {
+      return {done: true, value: undefined};
+    }
+    return() {
+      throw new Error('Throw return');
+    }
+  }
+
+  let iterator = new TestIterator().drop(0);
+  assertThrows(() => {iterator.return()});
+  iterator.next();
+  iterator.return();
+
+  iterator = new TestIterator().drop(1);
+  iterator.next();
+  iterator.return();
+
+  iterator = new TestIterator().drop(1);
+  assertThrows(() => {iterator.return()});
+  iterator.next();
+  iterator.return();
+
+  iterator = new TestIterator().drop(1).drop(1).drop(1).drop(1).drop(1);
+  assertThrows(() => {iterator.return()});
+  iterator.next();
+  iterator.return();
+})();
+
+(function TestDropMarkIteratorExhaustedAfterThrow() {
+  const IteratorThrow = {
+    i: 1,
+    next() {
+      if (this.i == 3) {
+        throw new Error('Throw return');
+      } else {
+        return {value: this.i++, done: false};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrow, Iterator.prototype);
+  const dropIter = IteratorThrow.drop(1);
+  assertEquals({value: 2, done: false}, dropIter.next());
+  assertThrows(() => {
+    dropIter.next();
+  });
+  assertEquals({value: undefined, done: true}, dropIter.next());
 })();
 
 // --- Test flatMap helper
@@ -410,9 +859,7 @@ function TestHelperPrototypeSurface(helper) {
       return {value: undefined, done: true};
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -451,9 +898,7 @@ function TestHelperPrototypeSurface(helper) {
       throw new Error('Throw return');
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -492,9 +937,7 @@ function TestHelperPrototypeSurface(helper) {
       return {value: undefined, done: true};
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -533,9 +976,7 @@ function TestHelperPrototypeSurface(helper) {
       return 42;
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -574,9 +1015,7 @@ function TestHelperPrototypeSurface(helper) {
       throw new Error('Throw return');
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -615,9 +1054,7 @@ function TestHelperPrototypeSurface(helper) {
       return 42;
     },
   };
-  Object.setPrototypeOf(
-      outerIterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(outerIterator, Iterator.prototype);
   const flatMapIter = outerIterator.flatMap(value => value);
   assertEquals({value: 1, done: false}, flatMapIter.next());
   assertEquals({value: 2, done: false}, flatMapIter.next());
@@ -635,6 +1072,96 @@ function TestHelperPrototypeSurface(helper) {
       Object.defineProperty(flatMapIter, 58, {set: func});
     }
   });
+})();
+
+(function TestIteratorReturnInIteratorsFlatMapwithNoInnerIterator() {
+  let returnCount = 0;
+
+  class TestIterator extends Iterator {
+    next() {
+      return {done: false, value: 1};
+    }
+    return() {
+      ++returnCount;
+      return {};
+    }
+  }
+
+  let iterator = new TestIterator().flatMap(() => []);
+  assertEquals(0, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+  iterator.return();
+  assertEquals(1, returnCount);
+})();
+
+(function TestFlatMapThrowInReturnWithNoInnerIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 3) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const flatMapIter = IteratorThrowReturn.flatMap(x => [x]);
+  assertEquals({value: 1, done: false}, flatMapIter.next());
+  assertEquals({value: 2, done: false}, flatMapIter.next());
+  assertEquals({value: 3, done: false}, flatMapIter.next());
+  assertEquals({value: undefined, done: true}, flatMapIter.next());
+  assertEquals({value: undefined, done: true}, flatMapIter.return());
+})();
+
+(function TestFlatMapThrowInReturnButNotExhaustedIteratorWithNoInnerIterator() {
+  const IteratorThrowReturn = {
+    i: 1,
+    next() {
+      if (this.i <= 1) {
+        return {value: this.i++, done: false};
+      } else {
+        return {value: undefined, done: true};
+      }
+    },
+    return () {
+      throw new Error('Throw return');
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrowReturn, Iterator.prototype);
+  const flatMapIter = IteratorThrowReturn.flatMap(x => [x]);
+  assertEquals({value: 1, done: false}, flatMapIter.next());
+  assertThrows(() => {
+    flatMapIter.return();
+  });
+})();
+
+(function TestFlatMapMarkIteratorExhaustedAfterThrow() {
+  const IteratorThrow = {
+    i: 1,
+    next() {
+      if (this.i == 3) {
+        throw new Error('Throw return');
+      } else {
+        return {value: this.i++, done: false};
+      }
+    },
+  };
+
+  Object.setPrototypeOf(IteratorThrow, Iterator.prototype);
+  const flatMapIter = IteratorThrow.flatMap(x => [x]);
+  assertEquals({value: 1, done: false}, flatMapIter.next());
+  assertEquals({value: 2, done: false}, flatMapIter.next());
+  assertThrows(() => {
+    flatMapIter.next();
+  });
+  assertEquals({value: undefined, done: true}, flatMapIter.next());
 })();
 
 // --- Test reduce helper
@@ -670,9 +1197,7 @@ function TestHelperPrototypeSurface(helper) {
       return {value: undefined, done: true};
     },
   };
-  Object.setPrototypeOf(
-      iterator,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(iterator, Iterator.prototype);
 
   assertThrows(() => {iterator.reduce((x, sum) => {
                  return sum + x;
@@ -752,9 +1277,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      iter,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(iter, Iterator.prototype);
   assertThrows(() => {iter.some(v => v == 1)});
 })();
 
@@ -799,9 +1322,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      iter,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(iter, Iterator.prototype);
   assertThrows(() => {iter.every(v => v == 0)});
 })();
 
@@ -852,9 +1373,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      iter,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(iter, Iterator.prototype);
   assertThrows(() => {iter.find(v => v == 1)});
 })();
 
@@ -873,9 +1392,7 @@ function TestHelperPrototypeSurface(helper) {
     },
   };
 
-  Object.setPrototypeOf(
-      iter,
-      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+  Object.setPrototypeOf(iter, Iterator.prototype);
   assertEquals(undefined, iter.find(v => v > 4));
 })();
 
