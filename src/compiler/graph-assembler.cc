@@ -261,8 +261,7 @@ Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
 }
 
 Node* GraphAssembler::Projection(int index, Node* value) {
-  return AddNode(
-      graph()->NewNode(common()->Projection(index), value, control()));
+  return AddNode(graph()->NewNode(common()->Projection(index), value));
 }
 
 Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size) {

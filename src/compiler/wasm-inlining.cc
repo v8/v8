@@ -345,7 +345,7 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         } else if (return_arity > 1) {
           for (int i = 0; i < return_arity; i++) {
             Node* ith_projection =
-                graph()->NewNode(common()->Projection(i), input, input);
+                graph()->NewNode(common()->Projection(i), input);
             // Similarly here we have to type the call's projections.
             NodeProperties::SetType(
                 ith_projection,

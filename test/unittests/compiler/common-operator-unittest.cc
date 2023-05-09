@@ -383,8 +383,8 @@ TEST_F(CommonOperatorTest, Projection) {
     const Operator* op = common()->Projection(index);
     EXPECT_EQ(index, ProjectionIndexOf(op));
     EXPECT_EQ(1, op->ValueInputCount());
-    EXPECT_EQ(1, op->ControlInputCount());
-    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(0, op->ControlOutputCount());
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(1, op->ValueOutputCount());
