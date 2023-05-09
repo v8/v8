@@ -1090,6 +1090,12 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Can only be called if {HasMemoryProtectionKeySupport()} is {true}.
   static bool MemoryProtectionKeyWritable();
 
+  // Allocate new memory for assembler buffers, potentially protected by PKU.
+  base::AddressRegion AllocateAssemblerBufferSpace(int size);
+
+  // Free previously allocated space for assembler buffers.
+  void FreeAssemblerBufferSpace(base::AddressRegion region);
+
  private:
   friend class WasmCodeAllocator;
   friend class WasmEngine;

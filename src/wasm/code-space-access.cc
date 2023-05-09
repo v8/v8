@@ -12,9 +12,19 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-CodeSpaceWriteScope::CodeSpaceWriteScope() { SetWritable(); }
+thread_local int CodeSpaceWriteScope::scope_depth_ = 0;
 
-CodeSpaceWriteScope::~CodeSpaceWriteScope() { SetExecutable(); }
+// TODO(jkummerow): Background threads could permanently stay in
+// writable mode; only the main thread has to switch back and forth.
+CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module) {
+  DCHECK_LE(0, scope_depth_);
+  if (++scope_depth_ == 1) SetWritable();
+}
+
+CodeSpaceWriteScope::~CodeSpaceWriteScope() {
+  DCHECK_LT(0, scope_depth_);
+  if (--scope_depth_ == 0) SetExecutable();
+}
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
@@ -31,7 +41,6 @@ void CodeSpaceWriteScope::SetExecutable() {
 // static
 void CodeSpaceWriteScope::SetWritable() {
   if (WasmCodeManager::MemoryProtectionKeysEnabled()) {
-    DCHECK(!WasmCodeManager::MemoryProtectionKeyWritable());
     RwxMemoryWriteScope::SetWritable();
   }
 }

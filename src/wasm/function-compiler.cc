@@ -19,13 +19,14 @@ namespace v8::internal::wasm {
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    Counters* counters, AssemblerBufferCache* buffer_cache,
+    WasmFeatures* detected) {
   WasmCompilationResult result;
   if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
     result = ExecuteImportWrapperCompilation(env);
   } else {
-    result =
-        ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
+    result = ExecuteFunctionCompilation(env, wire_bytes_storage, counters,
+                                        buffer_cache, detected);
   }
 
   if (result.succeeded() && counters) {
@@ -55,7 +56,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    Counters* counters, AssemblerBufferCache* buffer_cache,
+    WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
@@ -132,6 +134,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
                 .set_for_debugging(for_debugging_)
                 .set_counters(counters)
                 .set_detected_features(detected)
+                .set_assembler_buffer_cache(buffer_cache)
                 .set_debug_sidetable(debug_sidetable_ptr));
         if (result.succeeded()) break;
       }
@@ -149,6 +152,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
+      data.buffer_cache = buffer_cache;
       result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
                                                         detected);
       result.for_debugging = for_debugging_;
@@ -176,7 +180,7 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-      counters, detected);
+      counters, nullptr, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     AssumptionsJournal* assumptions = result.assumptions.get();

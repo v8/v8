@@ -21,6 +21,7 @@
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
+#include "src/wasm/assembler-buffer-cache.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/pgo.h"
@@ -1139,10 +1140,12 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
       func_index, tiers.baseline_tier,
       is_in_debug_state ? kForDebugging : kNotForDebugging};
   CompilationEnv env = native_module->CreateCompilationEnv();
+  // TODO(wasm): Use an assembler buffer cache for lazy compilation.
+  AssemblerBufferCache* assembler_buffer_cache = nullptr;
   WasmFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(), counters,
-      &detected_features);
+      assembler_buffer_cache, &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
 
   // During lazy compilation, we can only get compilation errors when
@@ -1154,8 +1157,11 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
   }
 
   WasmCodeRefScope code_ref_scope;
-  WasmCode* code =
-      native_module->PublishCode(native_module->AddCompiledCode(result));
+  WasmCode* code;
+  {
+    CodeSpaceWriteScope code_space_write_scope(native_module);
+    code = native_module->PublishCode(native_module->AddCompiledCode(result));
+  }
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) {
@@ -1494,6 +1500,20 @@ CompilationExecutionResult ExecuteCompilationUnits(
   }
   TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
 
+  // If PKU is enabled, use an assembler buffer cache to avoid many expensive
+  // buffer allocations. Otherwise, malloc/free is efficient enough to prefer
+  // that bit of overhead over the memory consumption increase by the cache.
+  base::Optional<AssemblerBufferCache> optional_assembler_buffer_cache;
+  AssemblerBufferCache* assembler_buffer_cache = nullptr;
+  // Also, open a CodeSpaceWriteScope now to have (thread-local) write access to
+  // the assembler buffers.
+  base::Optional<CodeSpaceWriteScope> write_scope_for_assembler_buffers;
+  if (WasmCodeManager::MemoryProtectionKeysEnabled()) {
+    optional_assembler_buffer_cache.emplace();
+    assembler_buffer_cache = &*optional_assembler_buffer_cache;
+    write_scope_for_assembler_buffers.emplace(nullptr);
+  }
+
   std::vector<WasmCompilationResult> results_to_publish;
   while (true) {
     ExecutionTier current_tier = unit->tier();
@@ -1501,8 +1521,9 @@ CompilationExecutionResult ExecuteCompilationUnits(
     TRACE_EVENT0("v8.wasm", event_name);
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
-      WasmCompilationResult result = unit->ExecuteCompilation(
-          &env.value(), wire_bytes.get(), counters, &detected_features);
+      WasmCompilationResult result =
+          unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
+                                   assembler_buffer_cache, &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -3383,6 +3404,10 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   }
 
   auto* module = native_module_->module();
+  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
+  if (IsLazyModule(module) || !lazy_functions.empty()) {
+    lazy_code_space_write_scope.emplace(native_module_);
+  }
   {
     base::MutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());
@@ -3499,6 +3524,7 @@ void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
   // We should not have a {CodeSpaceWriteScope} open at this point, as
   // {NotifyConcurrencyIncrease} can spawn new threads which could inherit PKU
   // permissions (which would be a security issue).
+  DCHECK(!CodeSpaceWriteScope::IsInScope());
   top_tier_compile_job_->NotifyConcurrencyIncrease();
 }
 
@@ -3750,6 +3776,7 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     }
     state.publisher_running_ = true;
   }
+  CodeSpaceWriteScope code_space_write_scope(native_module_);
   while (true) {
     PublishCompilationResults(std::move(unpublished_code));
     unpublished_code.clear();
@@ -3963,14 +3990,17 @@ WasmCode* CompileImportWrapper(
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity, suspend);
-
-  std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
-      result.func_index, result.code_desc, result.frame_slot_count,
-      result.tagged_parameter_slots,
-      result.protected_instructions_data.as_vector(),
-      result.source_positions.as_vector(), GetCodeKind(result),
-      ExecutionTier::kNone, kNotForDebugging);
-  WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
+  WasmCode* published_code;
+  {
+    CodeSpaceWriteScope code_space_write_scope(native_module);
+    std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
+        result.func_index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
+        ExecutionTier::kNone, kNotForDebugging);
+    published_code = native_module->PublishCode(std::move(wasm_code));
+  }
   (*cache_scope)[key] = published_code;
   published_code->IncRef();
   counters->wasm_generated_code_size()->Increment(
