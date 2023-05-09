@@ -100,6 +100,9 @@ class TracedNode final {
   bool has_old_host() const { return HasOldHost::decode(flags_); }
   void set_has_old_host(bool v) { flags_ = HasOldHost::update(flags_, v); }
 
+  bool should_be_freed() const { return ToBeFreed::decode(flags_); }
+  void set_should_be_freed(bool v) { flags_ = ToBeFreed::update(flags_, v); }
+
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void set_raw_object(Address value) {
     if constexpr (access_mode == AccessMode::NON_ATOMIC) {
@@ -126,6 +129,7 @@ class TracedNode final {
   // threads at the same time.
   using Markbit = IsRoot::Next<bool, 1>;
   using HasOldHost = Markbit::Next<bool, 1>;
+  using ToBeFreed = HasOldHost::Next<bool, 1>;
 
   Address object_ = kNullAddress;
   union {
@@ -149,6 +153,7 @@ TracedNode::TracedNode(IndexType index, IndexType next_free_index)
   DCHECK(!is_root());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!should_be_freed());
 }
 
 // Publishes all internal state to be consumed by other threads.
@@ -185,6 +190,7 @@ void TracedNode::Release() {
   DCHECK(!is_root());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!should_be_freed());
   set_raw_object(kGlobalHandleZapValue);
 }
 
@@ -852,7 +858,7 @@ void TracedHandlesImpl::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
     return;
   }
 
-  if (is_marking_ || ShouldDeferNodeFreeingForCurrentThread()) {
+  if (is_marking_) {
     // Incremental/concurrent marking is running. This also covers the scavenge
     // case which prohibits eagerly reclaiming nodes when marking is on during a
     // scavenge.
@@ -862,6 +868,13 @@ void TracedHandlesImpl::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
     // marked. Eagerly clear out the object here to avoid needlessly marking it
     // from this point on. The node will be reclaimed on the next cycle.
     node.set_raw_object<AccessMode::ATOMIC>(kNullAddress);
+    return;
+  }
+
+  if (ShouldDeferNodeFreeingForCurrentThread()) {
+    // We cannot eagerly free the object, since we're running from the
+    // concurrent thread. Mark the object as to be freed and reprocess it later.
+    node.set_should_be_freed(true);
     return;
   }
 
@@ -1161,10 +1174,13 @@ class TracedHandlesClearingProcessor final
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
         }
       }
-      // Then destroy all the unrooted young nodes.
+      // Then destroy all the unrooted young nodes that were half-processed
+      // concurrently.
       for (TracedNode* handle : young_handles_) {
-        if (!handle->raw_object())
+        if (handle->should_be_freed()) {
+          handle->set_should_be_freed(false);
           TracedHandles::Destroy(reinterpret_cast<Address*>(handle));
+        }
       }
     }
     // If CppGC is attached, leave the NoGC scope.
