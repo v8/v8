@@ -977,7 +977,6 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
-  // FIXME(mliedtke): Get inlining positions from input.
   std::unique_ptr<WasmCode> new_code{
       new WasmCode{this,                     // native_module
                    kAnonymousFuncIndex,      // index

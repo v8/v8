@@ -484,11 +484,8 @@ void WasmGCOperatorReducer::UpdateSourcePosition(Node* new_node,
   if (source_position_table_) {
     SourcePosition position =
         source_position_table_->GetSourcePosition(old_node);
-    // TODO(mliedtke): Once wasm into js inlining supports source positions,
-    // this should become a DCHECK.
-    if (position.ScriptOffset() != kNoSourcePosition) {
-      source_position_table_->SetSourcePosition(new_node, position);
-    }
+    DCHECK(position.ScriptOffset() != kNoSourcePosition);
+    source_position_table_->SetSourcePosition(new_node, position);
   }
 }
 

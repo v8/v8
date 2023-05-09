@@ -85,7 +85,6 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       return false;
     }
     // Parse body.
-    // TODO(mliedtke): Use zone vector?
     base::SmallVector<Value, 4> stack;
     while (is_inlineable_) {
       WasmOpcode opcode = ReadOpcode();

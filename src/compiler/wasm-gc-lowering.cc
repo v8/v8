@@ -854,13 +854,8 @@ void WasmGCLowering::UpdateSourcePosition(Node* new_node, Node* old_node) {
   if (source_position_table_) {
     SourcePosition position =
         source_position_table_->GetSourcePosition(old_node);
-    if (position.ScriptOffset() != kNoSourcePosition) {
-      source_position_table_->SetSourcePosition(new_node, position);
-    } else {
-      // TODO(mliedtke): Source positions are not yet supported for inlining
-      // wasm into JS. Add support for it and replace the if with a DCHECK.
-      DCHECK_EQ(kExplicitNullChecks, null_check_strategy_);
-    }
+    DCHECK(position.ScriptOffset() != kNoSourcePosition);
+    source_position_table_->SetSourcePosition(new_node, position);
   }
 }
 
