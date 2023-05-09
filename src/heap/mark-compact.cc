@@ -5408,7 +5408,6 @@ void MinorMarkCompactCollector::PerformWrapperTracing() {
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   if (!cpp_heap) return;
 
-  DCHECK(CppHeap::From(heap_->cpp_heap())->generational_gc_supported());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_TRACING);
   cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
