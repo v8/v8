@@ -1304,8 +1304,7 @@ TopTierRegisterAllocationData::TopTierRegisterAllocationData(
       phi_map_(allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
-      live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
-                   allocation_zone()),
+      live_ranges_(code->VirtualRegisterCount(), nullptr, allocation_zone()),
       fixed_live_ranges_(kNumberOfFixedRangesPerRegister *
                              this->config()->num_general_registers(),
                          nullptr, allocation_zone()),
