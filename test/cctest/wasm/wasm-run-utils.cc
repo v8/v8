@@ -58,7 +58,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   // The GlobalsData must be located inside the sandbox, so allocate it from the
   // ArrayBuffer allocator.
-  globals_data_ = reinterpret_cast<byte*>(
+  globals_data_ = reinterpret_cast<uint8_t*>(
       CcTest::array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
@@ -109,7 +109,7 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   CcTest::array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
-byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
+uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
@@ -130,7 +130,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   instance_object_->set_memory_object(*memory_object);
 
   mem_start_ =
-      reinterpret_cast<byte*>(memory_object->array_buffer().backing_store());
+      reinterpret_cast<uint8_t*>(memory_object->array_buffer().backing_store());
   mem_size_ = size;
   CHECK(size == 0 || mem_start_);
 
@@ -178,8 +178,8 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
             test_module_->num_imported_functions +
                 test_module_->num_declared_functions);
   if (name) {
-    base::Vector<const byte> name_vec =
-        base::Vector<const byte>::cast(base::CStrVector(name));
+    base::Vector<const uint8_t> name_vec =
+        base::Vector<const uint8_t>::cast(base::CStrVector(name));
     test_module_->lazily_generated_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
@@ -263,7 +263,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   instance_object_->set_tables(*new_tables);
 }
 
-uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
+uint32_t TestingModuleBuilder::AddBytes(base::Vector<const uint8_t> bytes) {
   base::Vector<const uint8_t> old_bytes = native_module_->wire_bytes();
   uint32_t old_size = static_cast<uint32_t>(old_bytes.size());
   // Avoid placing strings at offset 0, this might be interpreted as "not
@@ -297,7 +297,7 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
 }
 
 uint32_t TestingModuleBuilder::AddPassiveDataSegment(
-    base::Vector<const byte> bytes) {
+    base::Vector<const uint8_t> bytes) {
   uint32_t index = static_cast<uint32_t>(test_module_->data_segments.size());
   DCHECK_EQ(index, test_module_->data_segments.size());
   DCHECK_EQ(index, data_segment_starts_.size());
@@ -334,13 +334,13 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   Handle<FixedAddressArray> data_segment_starts =
       FixedAddressArray::New(isolate_, size);
   data_segment_starts->copy_in(
-      0, reinterpret_cast<byte*>(data_segment_starts_.data()),
+      0, reinterpret_cast<uint8_t*>(data_segment_starts_.data()),
       size * sizeof(Address));
   instance_object_->set_data_segment_starts(*data_segment_starts);
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate_, size);
   data_segment_sizes->copy_in(
-      0, reinterpret_cast<byte*>(data_segment_sizes_.data()),
+      0, reinterpret_cast<uint8_t*>(data_segment_sizes_.data()),
       size * sizeof(uint32_t));
   instance_object_->set_data_segment_sizes(*data_segment_sizes);
   return index;
@@ -352,7 +352,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
-  byte size = type.value_kind_size();
+  uint8_t size = type.value_kind_size();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_->globals.push_back(
       {type, true, {}, {global_offset}, false, false});
@@ -392,7 +392,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   Zone* zone, const FunctionSig* sig,
-                                  const byte* start, const byte* end) {
+                                  const uint8_t* start, const uint8_t* end) {
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   std::vector<compiler::WasmLoopInfo> loops;
@@ -405,7 +405,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        CompilationEnv* env, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
-                       const byte* start, const byte* end) {
+                       const uint8_t* start, const uint8_t* end) {
   compiler::WasmGraphBuilder builder(env, zone, jsgraph, sig,
                                      source_position_table);
   TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
@@ -536,7 +536,8 @@ struct WasmFunctionCompilerBuffer {};
 void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   size_t locals_size = local_decls.Size();
   size_t total_size = bytes.size() + locals_size + 1;
-  byte* buffer = zone()->NewArray<byte, WasmFunctionCompilerBuffer>(total_size);
+  uint8_t* buffer =
+      zone()->NewArray<uint8_t, WasmFunctionCompilerBuffer>(total_size);
   // Prepend the local decls to the code.
   local_decls.Emit(buffer);
   // Emit the code.

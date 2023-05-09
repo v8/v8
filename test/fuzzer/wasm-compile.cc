@@ -529,7 +529,7 @@ class WasmGenerator {
   void simd_const(DataRange* data) {
     builder_->EmitWithPrefix(kExprS128Const);
     for (int i = 0; i < kSimd128Size; i++) {
-      builder_->EmitByte(data->get<byte>());
+      builder_->EmitByte(data->get<uint8_t>());
     }
   }
 
@@ -537,21 +537,21 @@ class WasmGenerator {
   void simd_lane_op(DataRange* data) {
     Generate<Args...>(data);
     builder_->EmitWithPrefix(Op);
-    builder_->EmitByte(data->get<byte>() % lanes);
+    builder_->EmitByte(data->get<uint8_t>() % lanes);
   }
 
   template <WasmOpcode Op, int lanes, ValueKind... Args>
   void simd_lane_memop(DataRange* data) {
     // Simd load/store instructions that have a lane immediate.
     memop<Op, Args...>(data);
-    builder_->EmitByte(data->get<byte>() % lanes);
+    builder_->EmitByte(data->get<uint8_t>() % lanes);
   }
 
   void simd_shuffle(DataRange* data) {
     Generate<kS128, kS128>(data);
     builder_->EmitWithPrefix(kExprI8x16Shuffle);
     for (int i = 0; i < kSimd128Size; i++) {
-      builder_->EmitByte(static_cast<uint8_t>(data->get<byte>() % 32));
+      builder_->EmitByte(static_cast<uint8_t>(data->get<uint8_t>() % 32));
     }
   }
 
@@ -2366,7 +2366,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
     case kI16:
     case kI32: {
       // 50% to generate a constant, 50% to generate a binary operator.
-      byte choice = range.get<byte>() % 6;
+      uint8_t choice = range.get<uint8_t>() % 6;
       switch (choice) {
         case 0:
         case 1:
@@ -2386,7 +2386,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
     }
     case kI64: {
       // 50% to generate a constant, 50% to generate a binary operator.
-      byte choice = range.get<byte>() % 6;
+      uint8_t choice = range.get<uint8_t>() % 6;
       switch (choice) {
         case 0:
         case 1:

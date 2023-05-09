@@ -606,7 +606,7 @@ struct CRFTData {
 };
 
 Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
-  byte buffer[1];
+  uint8_t buffer[1];
   CodeDesc desc;
   desc.buffer = buffer;
   desc.buffer_size = arraysize(buffer);

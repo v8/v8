@@ -88,7 +88,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
  private:
   std::shared_ptr<NativeModule> CompileNativeModule() {
     // Define the bytes for a module with a single empty function.
-    static const byte module_bytes[] = {
+    static const uint8_t module_bytes[] = {
         WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
         SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
         SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0 /* locals */, kExprEnd))};

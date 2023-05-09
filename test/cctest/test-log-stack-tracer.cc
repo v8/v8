@@ -237,7 +237,7 @@ TEST(PureJSStackTrace) {
                                 sample.stack[base + 1]));
 }
 
-static void CFuncDoTrace(byte dummy_param) {
+static void CFuncDoTrace(uint8_t dummy_param) {
   Address fp;
 #if V8_HAS_BUILTIN_FRAME_ADDRESS
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
@@ -250,7 +250,6 @@ static void CFuncDoTrace(byte dummy_param) {
 #endif
   i::TraceExtension::DoTrace(fp);
 }
-
 
 static int CFunc(int depth) {
   if (depth <= 0) {

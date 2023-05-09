@@ -57,7 +57,7 @@ constexpr uint32_t kBufferSlotStartOffset = 0;
 #endif
 
 Address AllocateJumpTableThunk(
-    Address jump_target, byte* thunk_slot_buffer,
+    Address jump_target, uint8_t* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
     std::vector<std::unique_ptr<TestingAssemblerBuffer>>* thunk_buffers) {
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_LOONG64
@@ -252,7 +252,7 @@ TEST(JumpTablePatchingStress) {
   static_assert(kAssemblerBufferSize >= kJumpTableSize);
   auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
                                         JitPermission::kMapAsJittable);
-  byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
+  uint8_t* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();

@@ -60,7 +60,7 @@ WASM_EXEC_TEST(InitExpression) {
 
   ErrorThrower thrower(isolate, "TestMemory64InitExpression");
 
-  const byte data[] = {
+  const uint8_t data[] = {
       WASM_MODULE_HEADER,                     //
       SECTION(Memory,                         //
               ENTRY_COUNT(1),                 //

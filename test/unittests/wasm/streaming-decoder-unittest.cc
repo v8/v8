@@ -30,7 +30,7 @@ struct MockStreamingResult {
 
 class NoTracer {
  public:
-  void Bytes(const byte* start, uint32_t count) {}
+  void Bytes(const uint8_t* start, uint32_t count) {}
   void Description(const char* desc) {}
 };
 

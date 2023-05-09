@@ -175,7 +175,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main",
                     kRuntimeExceptionSupport);
 
-  std::vector<byte> trap_code(1, kExprUnreachable);
+  std::vector<uint8_t> trap_code(1, kExprUnreachable);
   r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
   WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
@@ -237,7 +237,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main",
                       kRuntimeExceptionSupport);
 
-    std::vector<byte> trap_code(unreachable_pos + 1, kExprNop);
+    std::vector<uint8_t> trap_code(unreachable_pos + 1, kExprNop);
     trap_code[unreachable_pos] = kExprUnreachable;
     r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 

@@ -13,7 +13,7 @@ namespace v8::internal::wasm {
 WASM_EXEC_TEST(TryCatchThrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -32,7 +32,7 @@ WASM_EXEC_TEST(TryCatchThrow) {
 WASM_EXEC_TEST(TryCatchThrowWithValue) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_i());
+  uint8_t except = r.builder().AddException(sigs.v_i());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -52,15 +52,15 @@ WASM_EXEC_TEST(TryCatchThrowWithValue) {
 WASM_EXEC_TEST(TryMultiCatchThrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except1 = r.builder().AddException(sigs.v_v());
-  byte except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(sigs.v_v());
+  uint8_t except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
 
   // Build the main test function.
   r.Build(
-      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+      {kExprTry, static_cast<uint8_t>((kWasmI32).value_type_code()),
        WASM_STMTS(WASM_I32V(kResult2),
                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
                   WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
@@ -77,13 +77,13 @@ WASM_EXEC_TEST(TryMultiCatchThrow) {
 WASM_EXEC_TEST(TryCatchAllThrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
   r.Build(
-      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+      {kExprTry, static_cast<uint8_t>((kWasmI32).value_type_code()),
        WASM_STMTS(WASM_I32V(kResult1),
                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except))),
        kExprCatchAll, WASM_I32V(kResult0), kExprEnd});
@@ -96,15 +96,15 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
 WASM_EXEC_TEST(TryCatchCatchAllThrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except1 = r.builder().AddException(sigs.v_v());
-  byte except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(sigs.v_v());
+  uint8_t except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
 
   // Build the main test function.
   r.Build(
-      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+      {kExprTry, static_cast<uint8_t>((kWasmI32).value_type_code()),
        WASM_STMTS(WASM_I32V(kResult2),
                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
                   WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
@@ -121,8 +121,8 @@ WASM_EXEC_TEST(TryCatchCatchAllThrow) {
 WASM_EXEC_TEST(TryImplicitRethrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except1 = r.builder().AddException(sigs.v_v());
-  byte except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(sigs.v_v());
+  uint8_t except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -145,7 +145,7 @@ WASM_EXEC_TEST(TryImplicitRethrow) {
 WASM_EXEC_TEST(TryDelegate) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -167,7 +167,7 @@ WASM_EXEC_TEST(TryDelegate) {
 WASM_EXEC_TEST(TestCatchlessTry) {
   TestSignatures sigs;
   WasmRunner<uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_i());
+  uint8_t except = r.builder().AddException(sigs.v_i());
   r.Build({WASM_TRY_CATCH_T(
       kWasmI32,
       WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
@@ -178,8 +178,8 @@ WASM_EXEC_TEST(TestCatchlessTry) {
 WASM_EXEC_TEST(TryCatchRethrow) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except1 = r.builder().AddException(sigs.v_v());
-  byte except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(sigs.v_v());
+  uint8_t except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kUnreachable = 51;
@@ -206,7 +206,7 @@ WASM_EXEC_TEST(TryCatchRethrow) {
 WASM_EXEC_TEST(TryDelegateToCaller) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -229,7 +229,7 @@ WASM_EXEC_TEST(TryDelegateToCaller) {
 WASM_EXEC_TEST(TryCatchCallDirect) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -256,7 +256,7 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
 WASM_EXEC_TEST(TryCatchAllCallDirect) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -283,7 +283,7 @@ WASM_EXEC_TEST(TryCatchAllCallDirect) {
 WASM_EXEC_TEST(TryCatchCallIndirect) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -316,7 +316,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
 WASM_EXEC_TEST(TryCatchAllCallIndirect) {
   TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -404,7 +404,7 @@ WASM_COMPILED_EXEC_TEST(TryCatchAllCallExternal) {
 
 namespace {
 
-void TestTrapNotCaught(byte* code, size_t code_size,
+void TestTrapNotCaught(uint8_t* code, size_t code_size,
                        TestExecutionTier execution_tier) {
   TestSignatures sigs;
   WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
@@ -437,22 +437,22 @@ void TestTrapNotCaught(byte* code, size_t code_size,
 }  // namespace
 
 WASM_EXEC_TEST(TryCatchTrapUnreachable) {
-  byte code[] = {WASM_UNREACHABLE};
+  uint8_t code[] = {WASM_UNREACHABLE};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
 WASM_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
-  byte code[] = {WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-1))};
+  uint8_t code[] = {WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-1))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
 WASM_EXEC_TEST(TryCatchTrapDivByZero) {
-  byte code[] = {WASM_I32_DIVS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
+  uint8_t code[] = {WASM_I32_DIVS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
 WASM_EXEC_TEST(TryCatchTrapRemByZero) {
-  byte code[] = {WASM_I32_REMS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
+  uint8_t code[] = {WASM_I32_REMS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
@@ -460,9 +460,10 @@ WASM_EXEC_TEST(TryCatchTrapTableFill) {
   int table_index = 0;
   int length = 10;  // OOB.
   int start = 10;   // OOB.
-  byte code[] = {WASM_TABLE_FILL(table_index, WASM_I32V(length),
-                                 WASM_REF_NULL(kFuncRefCode), WASM_I32V(start)),
-                 WASM_I32V_1(42)};
+  uint8_t code[] = {
+      WASM_TABLE_FILL(table_index, WASM_I32V(length),
+                      WASM_REF_NULL(kFuncRefCode), WASM_I32V(start)),
+      WASM_I32V_1(42)};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
@@ -504,14 +505,14 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());
-  stack_overflow.Build(
-      {kExprCallFunction, static_cast<byte>(stack_overflow.function_index())});
+  stack_overflow.Build({kExprCallFunction,
+                        static_cast<uint8_t>(stack_overflow.function_index())});
 
   // Build the main test function.
   r.Build({WASM_TRY_CATCH_ALL_T(
       kWasmI32,
       WASM_STMTS(WASM_I32V(1), kExprCallFunction,
-                 static_cast<byte>(stack_overflow.function_index())),
+                 static_cast<uint8_t>(stack_overflow.function_index())),
       WASM_STMTS(WASM_I32V(1)))});
 
   // Need to call through JS to allow for creation of stack traces.

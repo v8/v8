@@ -50,7 +50,7 @@ using DisasmX64Test = TestWithIsolate;
 namespace {
 
 Handle<Code> CreateDummyCode(Isolate* isolate) {
-  i::byte buffer[128];
+  uint8_t buffer[128];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   __ nop();
@@ -66,7 +66,7 @@ Handle<Code> CreateDummyCode(Isolate* isolate) {
 
 TEST_F(DisasmX64Test, DisasmX64) {
   HandleScope handle_scope(isolate());
-  v8::internal::byte buffer[8192];
+  uint8_t buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
   // Some instructions are tested in DisasmX64CheckOutput.
@@ -307,8 +307,8 @@ TEST_F(DisasmX64Test, DisasmX64) {
   code->Print(os);
   Address begin = code->instruction_start();
   Address end = code->instruction_start();
-  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
-                                    reinterpret_cast<byte*>(end));
+  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<uint8_t*>(begin),
+                                    reinterpret_cast<uint8_t*>(end));
 #endif
 }
 
@@ -331,7 +331,7 @@ struct DisassemblerTester {
 
   Assembler* assm() { return &assm_; }
 
-  v8::internal::byte buffer_[kAssemblerBufferSize];
+  uint8_t buffer_[kAssemblerBufferSize];
   Assembler assm_;
   disasm::NameConverter converter_;
   disasm::Disassembler disasm;

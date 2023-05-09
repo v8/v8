@@ -25,7 +25,7 @@ TEST_F(WasmCapiTest, Serialize) {
   FunctionSig sig(0, 0, nullptr);
   uint32_t callback_index =
       builder()->AddImport(base::CStrVector("callback"), &sig);
-  byte code[] = {WASM_CALL_FUNCTION0(callback_index)};
+  uint8_t code[] = {WASM_CALL_FUNCTION0(callback_index)};
   AddExportedFunction(base::CStrVector("run"), code, sizeof(code), &sig);
   Compile();
 

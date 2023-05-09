@@ -82,7 +82,7 @@ using compiler::Node;
 
 #define ADD_CODE(vec, ...)                           \
   do {                                               \
-    byte __buf[] = {__VA_ARGS__};                    \
+    uint8_t __buf[] = {__VA_ARGS__};                 \
     for (size_t __i = 0; __i < sizeof(__buf); __i++) \
       vec.push_back(__buf[__i]);                     \
   } while (false)
@@ -107,7 +107,7 @@ class TestingModuleBuilder {
                        TestingModuleMemoryType, Isolate* isolate);
   ~TestingModuleBuilder();
 
-  byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
+  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
@@ -124,14 +124,14 @@ class TestingModuleBuilder {
   }
 
   // TODO(7748): Allow selecting type finality.
-  byte AddSignature(const FunctionSig* sig) {
+  uint8_t AddSignature(const FunctionSig* sig) {
     test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     instance_object_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
-    return static_cast<byte>(size - 1);
+    return static_cast<uint8_t>(size - 1);
   }
 
   uint32_t mem_size() { return mem_size_; }
@@ -171,14 +171,14 @@ class TestingModuleBuilder {
 
   // Zero-initialize the memory.
   void BlankMemory() {
-    byte* raw = raw_mem_start<byte>();
+    uint8_t* raw = raw_mem_start<uint8_t>();
     memset(raw, 0, mem_size_);
   }
 
   // Pseudo-randomly initialize the memory.
   void RandomizeMemory(unsigned int seed = 88) {
-    byte* raw = raw_mem_start<byte>();
-    byte* end = raw_mem_end<byte>();
+    uint8_t* raw = raw_mem_start<uint8_t>();
+    uint8_t* end = raw_mem_end<uint8_t>();
     v8::base::RandomNumberGenerator rng;
     rng.SetSeed(seed);
     rng.NextBytes(raw, end - raw);
@@ -210,11 +210,11 @@ class TestingModuleBuilder {
                                 uint32_t table_size,
                                 ValueType table_type = kWasmFuncRef);
 
-  uint32_t AddBytes(base::Vector<const byte> bytes);
+  uint32_t AddBytes(base::Vector<const uint8_t> bytes);
 
   uint32_t AddException(const FunctionSig* sig);
 
-  uint32_t AddPassiveDataSegment(base::Vector<const byte> bytes);
+  uint32_t AddPassiveDataSegment(base::Vector<const uint8_t> bytes);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
@@ -273,9 +273,9 @@ class TestingModuleBuilder {
   Isolate* isolate_;
   WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
-  byte* mem_start_ = nullptr;
+  uint8_t* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
-  byte* globals_data_ = nullptr;
+  uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
@@ -284,10 +284,10 @@ class TestingModuleBuilder {
   int32_t nondeterminism_ = 0;
 
   // Data segment arrays that are normally allocated on the instance.
-  std::vector<byte> data_segment_data_;
+  std::vector<uint8_t> data_segment_data_;
   std::vector<Address> data_segment_starts_;
   std::vector<uint32_t> data_segment_sizes_;
-  std::vector<byte> dropped_elem_segments_;
+  std::vector<uint8_t> dropped_elem_segments_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -297,7 +297,7 @@ class TestingModuleBuilder {
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        CompilationEnv* env, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
-                       const byte* start, const byte* end);
+                       const uint8_t* start, const uint8_t* end);
 
 class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  public:
@@ -365,9 +365,9 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   }
   void Build(base::Vector<const uint8_t> bytes);
 
-  byte AllocateLocal(ValueType type) {
+  uint8_t AllocateLocal(ValueType type) {
     uint32_t index = local_decls.AddLocals(1, type);
-    byte result = static_cast<byte>(index);
+    uint8_t result = static_cast<uint8_t>(index);
     DCHECK_EQ(index, result);
     return result;
   }
@@ -444,12 +444,12 @@ class WasmRunnerBase : public InitializedHandleScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
-    byte sig_index = builder().AddSignature(sig);
+    uint8_t sig_index = builder().AddSignature(sig);
     functions_.back()->SetSigIndex(sig_index);
     return *functions_.back();
   }
 
-  byte AllocateLocal(ValueType type) {
+  uint8_t AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
   }
 

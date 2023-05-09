@@ -520,7 +520,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     HeapObject value;
     {
       HandleScope handle_scope(i_isolate);
-      i::byte buffer[i::Assembler::kDefaultBufferSize];
+      uint8_t buffer[i::Assembler::kDefaultBufferSize];
       MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
                           ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 #if V8_TARGET_ARCH_ARM64

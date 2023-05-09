@@ -253,10 +253,10 @@ const char* foo_source = R"(
 
 bool PagesContainsAddress(size_t length, MemoryRange* pages,
                           Address search_address) {
-  byte* addr = reinterpret_cast<byte*>(search_address);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(search_address);
   auto it = std::find_if(pages, pages + length, [addr](const MemoryRange& r) {
-    const byte* page_start = reinterpret_cast<const byte*>(r.start);
-    const byte* page_end = page_start + r.length_in_bytes;
+    const uint8_t* page_start = reinterpret_cast<const uint8_t*>(r.start);
+    const uint8_t* page_end = page_start + r.length_in_bytes;
     return addr >= page_start && addr < page_end;
   });
   return it != pages + length;
@@ -456,7 +456,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   RegisterState register_state;
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry.instruction_start());
+  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry.instruction_start());
   register_state.pc = start + 10;
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -593,7 +593,7 @@ TEST(PCIsInV8_ValidStateNullPC_Fail_CodePagesAPI) {
 }
 
 void TestRangeBoundaries(size_t pages_length, MemoryRange* code_pages,
-                         byte* range_start, size_t range_length) {
+                         uint8_t* range_start, size_t range_length) {
   void* pc = range_start - 1;
   CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start;
@@ -618,8 +618,8 @@ TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
 
   for (size_t i = 0; i < pages_length; i++) {
-    byte* range_start =
-        const_cast<byte*>(reinterpret_cast<const byte*>(code_pages[i].start));
+    uint8_t* range_start = const_cast<uint8_t*>(
+        reinterpret_cast<const uint8_t*>(code_pages[i].start));
     size_t range_length = code_pages[i].length_in_bytes;
     TestRangeBoundaries(pages_length, code_pages, range_start, range_length);
   }
@@ -638,7 +638,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry.instruction_start());
+  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry.instruction_start());
   size_t length = js_entry.instruction_size();
 
   void* pc = start;
@@ -661,7 +661,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   CHECK_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -677,7 +677,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
 
   CHECK(i_isolate->heap()->InSpace(foo_code->instruction_stream(),
                                    CODE_LO_SPACE));
-  byte* start = reinterpret_cast<byte*>(foo_code->instruction_start());
+  uint8_t* start = reinterpret_cast<uint8_t*>(foo_code->instruction_start());
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   size_t pages_length =

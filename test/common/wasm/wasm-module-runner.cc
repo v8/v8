@@ -77,8 +77,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
   return arguments;
 }
 
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end) {
+int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
+                                const uint8_t* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   MaybeHandle<WasmInstanceObject> instance = CompileAndInstantiateForTesting(
