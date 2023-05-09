@@ -16,6 +16,7 @@
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
@@ -1088,6 +1089,24 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
   if (arith_type.IsNone()) {
     type = Type::None();
   } else {
+    // We support a few additional type conversions on the lhs of the arithmetic
+    // operation. This needs to be kept in sync with the corresponding code in
+    // {LoopVariableOptimizer::TryGetInductionVariable}.
+    Node* arith_input = arith->InputAt(0);
+    switch (arith_input->opcode()) {
+      case IrOpcode::kSpeculativeToNumber:
+        type = typer_->operation_typer_.SpeculativeToNumber(type);
+        break;
+      case IrOpcode::kJSToNumber:
+        type = typer_->operation_typer_.ToNumber(type);
+        break;
+      case IrOpcode::kJSToNumberConvertBigInt:
+        type = typer_->operation_typer_.ToNumberConvertBigInt(type);
+        break;
+      default:
+        break;
+    }
+
     // Apply ordinary typing to the "increment" operation.
     // clang-format off
     switch (arith->opcode()) {
