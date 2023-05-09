@@ -47,7 +47,8 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
 
 Maybe<bool> AlwaysSharedSpaceJSObject::HasInstance(
     Isolate* isolate, Handle<JSFunction> constructor, Handle<Object> object) {
-  if (!constructor->has_initial_map() || !object->IsJSReceiver()) {
+  if (!constructor->has_prototype_slot() || !constructor->has_initial_map() ||
+      !object->IsJSReceiver()) {
     return Just(false);
   }
   Handle<Map> constructor_map = handle(constructor->initial_map(), isolate);

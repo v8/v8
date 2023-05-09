@@ -110,3 +110,10 @@ function BuildPrototypeChain(base_obj) {
   Object.setPrototypeOf(v, newPrototype);
   assertThrows(()=>{v  instanceof SharedArray});
 })();
+
+(function TestInheritHasInstance() {
+  const func = () => {};
+  const sa = new SharedArray(1);
+  Object.setPrototypeOf(func, SharedArray);
+  assertFalse(sa instanceof func);
+})();
