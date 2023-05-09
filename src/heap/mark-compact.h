@@ -56,11 +56,12 @@ class MainMarkingVisitor final
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool trace_embedder_fields,
-                     bool should_keep_ages_unchanged)
+                     bool should_keep_ages_unchanged,
+                     uint16_t code_flushing_increase)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, trace_embedder_fields,
-            should_keep_ages_unchanged),
+            should_keep_ages_unchanged, code_flushing_increase),
         marking_state_(marking_state) {}
 
  private:

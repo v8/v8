@@ -506,6 +506,7 @@ void MarkCompactCollector::StartMarking() {
       contexts.push_back(context->ptr());
     }
   }
+  heap()->tracer()->NotifyMarkingStart();
   code_flush_mode_ = Heap::GetCodeFlushMode(isolate());
   marking_worklists()->CreateContextWorklists(contexts);
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
@@ -517,7 +518,8 @@ void MarkCompactCollector::StartMarking() {
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), local_weak_objects_.get(),
       heap_, epoch(), code_flush_mode(), heap_->cpp_heap(),
-      heap_->ShouldCurrentGCKeepAgesUnchanged());
+      heap_->ShouldCurrentGCKeepAgesUnchanged(),
+      heap_->tracer()->CodeFlushingIncrease());
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -3082,6 +3084,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   DCHECK(v8_flags.flush_bytecode || v8_flags.flush_baseline_code ||
          weak_objects_.code_flushing_candidates.IsEmpty());
   SharedFunctionInfo flushing_candidate;
+  int number_of_flushed_sfis = 0;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
     Code baseline_code;
@@ -3151,6 +3154,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // with an uncompiled data object.
         FlushBytecodeFromSFI(flushing_candidate);
       }
+      number_of_flushed_sfis++;
     }
 
     // Now record the slot, which has either been updated to an uncompiled data,
@@ -3158,6 +3162,11 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     ObjectSlot slot =
         flushing_candidate.RawField(SharedFunctionInfo::kFunctionDataOffset);
     RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
+  }
+
+  if (v8_flags.trace_flush_code) {
+    PrintIsolate(isolate(), "%d flushed SharedFunctionInfo(s)\n",
+                 number_of_flushed_sfis);
   }
 }
 

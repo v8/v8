@@ -130,18 +130,16 @@ class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
                                 ConcurrentMarkingState> {
  public:
-  ConcurrentMarkingVisitor(int task_id,
-                           MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects::Local* local_weak_objects, Heap* heap,
-                           unsigned mark_compact_epoch,
-                           base::EnumSet<CodeFlushMode> code_flush_mode,
-                           bool embedder_tracing_enabled,
-                           bool should_keep_ages_unchanged,
-                           MemoryChunkDataMap* memory_chunk_data)
+  ConcurrentMarkingVisitor(
+      int task_id, MarkingWorklists::Local* local_marking_worklists,
+      WeakObjects::Local* local_weak_objects, Heap* heap,
+      unsigned mark_compact_epoch, base::EnumSet<CodeFlushMode> code_flush_mode,
+      bool embedder_tracing_enabled, bool should_keep_ages_unchanged,
+      uint16_t code_flushing_increase, MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
                            mark_compact_epoch, code_flush_mode,
-                           embedder_tracing_enabled,
-                           should_keep_ages_unchanged),
+                           embedder_tracing_enabled, should_keep_ages_unchanged,
+                           code_flushing_increase),
         marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
@@ -310,7 +308,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, &local_weak_objects, heap_,
       mark_compact_epoch, code_flush_mode, heap_->cpp_heap(),
-      should_keep_ages_unchanged, &task_state->memory_chunk_data);
+      should_keep_ages_unchanged, heap_->tracer()->CodeFlushingIncrease(),
+      &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
       task_state->native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;

@@ -165,21 +165,46 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
             from.length());
 }
 
-void BytecodeArray::MakeOlder() {
-  uint16_t age = bytecode_age();
-  if (age < v8_flags.bytecode_old_age) {
-    CompareExchangeBytecodeAge(age, age + 1);
+void BytecodeArray::MakeOlder(uint16_t increment) {
+  if (v8_flags.flush_code_based_on_time) {
+    DCHECK_NE(increment, 0);
+    uint16_t current_age;
+    uint16_t updated_age;
+
+    do {
+      current_age = bytecode_age();
+      // When the age is 0, it was reset by the function prologue in
+      // Ignition/Sparkplug. But that might have been some time after the last
+      // full GC. So in this case we don't increment the value like we normally
+      // would but just set the age to 1. All non-0 values can be incremented as
+      // expected (we add the number of seconds since the last GC) as they were
+      // definitely last executed before the last full GC.
+      updated_age = current_age == 0 ? 1 : SaturateAdd(current_age, increment);
+    } while (CompareExchangeBytecodeAge(current_age, updated_age) !=
+             current_age);
+  } else {
+    uint16_t age = bytecode_age();
+    if (age < v8_flags.bytecode_old_age) {
+      CompareExchangeBytecodeAge(age, age + 1);
+    }
+    DCHECK_LE(bytecode_age(), v8_flags.bytecode_old_age);
   }
-  DCHECK_LE(bytecode_age(), v8_flags.bytecode_old_age);
 }
 
 void BytecodeArray::EnsureOldForTesting() {
-  set_bytecode_age(v8_flags.bytecode_old_age);
+  uint16_t old_age = v8_flags.flush_code_based_on_time
+                         ? UINT16_MAX
+                         : v8_flags.bytecode_old_age;
+  set_bytecode_age(old_age);
   DCHECK(IsOld());
 }
 
 bool BytecodeArray::IsOld() const {
-  return bytecode_age() >= v8_flags.bytecode_old_age;
+  if (v8_flags.flush_code_based_on_time) {
+    return bytecode_age() >= v8_flags.bytecode_old_time;
+  } else {
+    return bytecode_age() >= v8_flags.bytecode_old_age;
+  }
 }
 
 }  // namespace internal

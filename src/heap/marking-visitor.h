@@ -44,7 +44,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool trace_embedder_fields,
-                     bool should_keep_ages_unchanged)
+                     bool should_keep_ages_unchanged,
+                     uint16_t code_flushing_increase)
       : ConcurrentHeapVisitor<int, ConcreteVisitor>(heap->isolate()),
         local_marking_worklists_(local_marking_worklists),
         local_weak_objects_(local_weak_objects),
@@ -53,7 +54,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate())
+        should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
+        code_flushing_increase_(code_flushing_increase)
 #ifdef V8_ENABLE_SANDBOX
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
@@ -193,6 +195,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
   const bool should_mark_shared_heap_;
+  const uint16_t code_flushing_increase_;
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;

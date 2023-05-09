@@ -381,6 +381,13 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifyIncrementalMarkingStart();
 
+  // Invoked when starting marking - either incremental or as part of the atomic
+  // pause. Used for computing/updating code flushing increase.
+  void NotifyMarkingStart();
+
+  // Returns the current cycle's code flushing increase in seconds.
+  uint16_t CodeFlushingIncrease();
+
   // Returns average mutator utilization with respect to mark-compact
   // garbage collections. This ignores scavenger.
   double AverageMarkCompactMutatorUtilization() const;
@@ -514,6 +521,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   double average_time_to_incremental_marking_task_ = 0.0;
 
   double recorded_embedder_speed_ = 0.0;
+
+  double last_marking_start_time_ = 0.0;
+  uint16_t code_flushing_increase_ = 0;
 
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
