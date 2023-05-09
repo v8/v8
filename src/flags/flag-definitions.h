@@ -1574,7 +1574,7 @@ DEFINE_BOOL(flush_baseline_code, false,
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
 DEFINE_INT(bytecode_old_age, 5, "number of gcs before we flush code")
-DEFINE_BOOL(flush_code_based_on_time, true,
+DEFINE_BOOL(flush_code_based_on_time, false,
             "Use time-base code flushing instead of age.")
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
