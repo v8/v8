@@ -5294,6 +5294,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     return ReduceResult::Fail();
   }
 
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    return ReduceResult::Fail();
+  }
+
   ElementsKind kind;
   ZoneVector<compiler::MapRef> receiver_map_refs(zone());
   // Check that all receiver maps are JSArray maps with compatible elements
@@ -5304,8 +5308,14 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       if (!map.IsJSArrayMap()) return ReduceResult::Fail();
       ElementsKind packed = GetPackedElementsKind(map.elements_kind());
       if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
-      if (!map.supports_fast_array_resize(broker()))
+      if (!map.supports_fast_array_resize(broker())) {
         return ReduceResult::Fail();
+      }
+      compiler::ObjectRef prototype = map.prototype(broker());
+      if (!prototype.IsJSObject() ||
+          !broker()->IsArrayOrObjectPrototype(prototype.AsJSObject())) {
+        return ReduceResult::Fail();
+      }
       if (receiver_map_refs.empty()) {
         kind = packed;
       } else if (kind != packed) {
