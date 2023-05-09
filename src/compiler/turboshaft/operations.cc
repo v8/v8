@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -448,10 +449,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "external: " << external_reference();
       break;
     case Kind::kHeapObject:
-      os << "heap object: " << handle();
+      os << "heap object: " << JSONEscaped(handle());
       break;
     case Kind::kCompressedHeapObject:
-      os << "compressed heap object: " << handle();
+      os << "compressed heap object: " << JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
       os << "relocatable wasm call: 0x"

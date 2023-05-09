@@ -526,7 +526,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     DCHECK(!detail::is_float_special_value(min));
     DCHECK(!detail::is_float_special_value(max));
     DCHECK_LE(min, max);
-    if (min == max) return Set({min}, zone);
+    if (min == max) return Set({min}, special_values, zone);
     return FloatType{SubKind::kRange, 0, special_values,
                      Payload_Range{min, max}};
   }

@@ -62,30 +62,6 @@ std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
   return out;
 }
 
-class JSONEscaped {
- public:
-  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
-
-  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
-    for (char c : e.str_) PipeCharacter(os, c);
-    return os;
-  }
-
- private:
-  static std::ostream& PipeCharacter(std::ostream& os, char c) {
-    if (c == '"') return os << "\\\"";
-    if (c == '\\') return os << "\\\\";
-    if (c == '\b') return os << "\\b";
-    if (c == '\f') return os << "\\f";
-    if (c == '\n') return os << "\\n";
-    if (c == '\r') return os << "\\r";
-    if (c == '\t') return os << "\\t";
-    return os << c;
-  }
-
-  const std::string str_;
-};
-
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
                              Handle<BytecodeArray> bytecode_array) {
