@@ -140,14 +140,14 @@ TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterCompilation) {
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeWritableWithinScope) {
   CompileModule();
-  CodeSpaceWriteScope write_scope(native_module());
+  CodeSpaceWriteScope write_scope;
   WriteToCode();
 }
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterScope) {
   CompileModule();
   {
-    CodeSpaceWriteScope write_scope(native_module());
+    CodeSpaceWriteScope write_scope;
     WriteToCode();
   }
   AssertCodeEventuallyProtected();
@@ -274,7 +274,7 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
     ASSERT_DEATH(
         {
           base::Optional<CodeSpaceWriteScope> write_scope;
-          if (open_write_scope) write_scope.emplace(native_module());
+          if (open_write_scope) write_scope.emplace();
           pthread_kill(pthread_self(), SIGPROF);
           base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
         },
@@ -294,7 +294,7 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
 #endif  // GTEST_HAS_DEATH_TEST
   } else {
     base::Optional<CodeSpaceWriteScope> write_scope;
-    if (open_write_scope) write_scope.emplace(native_module());
+    if (open_write_scope) write_scope.emplace();
     // The signal handler does not write or code is not protected, hence this
     // should succeed.
     pthread_kill(pthread_self(), SIGPROF);

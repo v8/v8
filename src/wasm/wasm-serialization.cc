@@ -631,7 +631,6 @@ class DeserializeCodeTask : public JobTask {
       : deserializer_(deserializer), reloc_queue_(reloc_queue) {}
 
   void Run(JobDelegate* delegate) override {
-    CodeSpaceWriteScope code_space_write_scope(deserializer_->native_module_);
     bool finished = false;
     while (!finished) {
       // Repeatedly publish everything that was copied already.
@@ -722,7 +721,6 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 
   std::vector<DeserializationUnit> batch;
   size_t batch_size = 0;
-  CodeSpaceWriteScope code_space_write_scope(native_module_);
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     DeserializationUnit unit = ReadCode(i, reader);
     if (!unit.code) continue;
@@ -833,6 +831,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
 
 void NativeModuleDeserializer::CopyAndRelocate(
     const DeserializationUnit& unit) {
+  CodeSpaceWriteScope write_scope;
   memcpy(unit.code->instructions().begin(), unit.src_code_buffer.begin(),
          unit.src_code_buffer.size());
 

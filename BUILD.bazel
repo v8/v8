@@ -2515,8 +2515,6 @@ filegroup(
             "src/trap-handler/handler-shared.cc",
             "src/trap-handler/trap-handler.h",
             "src/trap-handler/trap-handler-internal.h",
-            "src/wasm/assembler-buffer-cache.cc",
-            "src/wasm/assembler-buffer-cache.h",
             "src/wasm/baseline/liftoff-assembler.cc",
             "src/wasm/baseline/liftoff-assembler.h",
             "src/wasm/baseline/liftoff-assembler-defs.h",
