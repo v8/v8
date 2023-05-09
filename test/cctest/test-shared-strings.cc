@@ -1083,7 +1083,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     young_object->set(0, *shared_string);
 
-    CcTest::CollectGarbage(OLD_SPACE, i_isolate);
+    heap::EmptyNewSpaceUsingGC(heap);
 
     // Object should get promoted using page promotion, so address should remain
     // the same.
@@ -2126,8 +2126,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(**shared_string_));
       young_object->set(0, **shared_string_);
 
-      CcTest::CollectGarbage(NEW_SPACE, i_client);
-      CcTest::CollectGarbage(NEW_SPACE, i_client);
+      heap::EmptyNewSpaceUsingGC(heap);
       heap->CompleteSweepingFull();
 
       // Object should get promoted using page promotion, so address should
@@ -2295,8 +2294,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(*shared_string));
       young_object->set(0, *shared_string);
 
-      CcTest::CollectGarbage(NEW_SPACE, i_client);
-      CcTest::CollectGarbage(NEW_SPACE, i_client);
+      heap::EmptyNewSpaceUsingGC(heap);
 
       // Object should get promoted using page promotion, so address should
       // remain the same.

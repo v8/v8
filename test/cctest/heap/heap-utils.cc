@@ -340,6 +340,10 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
   }
 }
 
+void EmptyNewSpaceUsingGC(Heap* heap) {
+  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+}
+
 void ForceEvacuationCandidate(Page* page) {
   CHECK(v8_flags.manual_evacuation_candidates_selection);
   page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);

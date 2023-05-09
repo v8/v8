@@ -614,8 +614,7 @@ THREADED_TEST(ScriptMakingExternalString) {
         String::NewFromTwoByte(env->GetIsolate(), two_byte_source)
             .ToLocalChecked();
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     CHECK(!source->IsExternalTwoByte());
     CHECK(!source->IsExternalOneByte());
     CHECK(!source->IsExternal());
@@ -649,8 +648,7 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
     v8::HandleScope scope(env->GetIsolate());
     Local<String> source = v8_str(c_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     bool success = source->MakeExternal(
         new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
@@ -673,8 +671,7 @@ TEST(MakingExternalStringConditions) {
 
   if (!i::v8_flags.single_generation) {
     // Free some space in the new space so that we can check freshness.
-    CcTest::CollectGarbage(i::NEW_SPACE);
-    CcTest::CollectGarbage(i::NEW_SPACE);
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
   }
 
   Local<String> tiny_local_string = v8_str("\xCF\x80");
@@ -686,8 +683,7 @@ TEST(MakingExternalStringConditions) {
   if (!i::v8_flags.single_generation) {
     // We should refuse to externalize new space strings.
     CHECK(!local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
-    // Trigger full GC so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::OLD_SPACE);
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
   }
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
@@ -709,8 +705,7 @@ TEST(MakingExternalOneByteStringConditions) {
 
   if (!i::v8_flags.single_generation) {
     // Free some space in the new space so that we can check freshness.
-    CcTest::CollectGarbage(i::NEW_SPACE);
-    CcTest::CollectGarbage(i::NEW_SPACE);
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
   }
 
   Local<String> tiny_local_string = v8_str("s");
@@ -726,8 +721,8 @@ TEST(MakingExternalOneByteStringConditions) {
   if (!i::v8_flags.single_generation) {
     // We should refuse to externalize new space strings.
     CHECK(!local_string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
-    // Trigger full GC so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::OLD_SPACE);
+    // Trigger GC so that the newly allocated string moves to old gen.
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     CHECK(!tiny_local_string->CanMakeExternal(
         String::Encoding::ONE_BYTE_ENCODING));
   }
@@ -754,9 +749,7 @@ TEST(MakingExternalUnalignedOneByteString) {
       "slice('abcdefghijklmnopqrstuvwxyz');"));
 
   // Trigger GCs so that the newly allocated string moves to old gen.
-  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+  i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
 
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
@@ -785,8 +778,7 @@ THREADED_TEST(UsingExternalString) {
             .ToLocalChecked();
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
@@ -808,8 +800,7 @@ THREADED_TEST(UsingExternalOneByteString) {
             .ToLocalChecked();
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());

@@ -96,6 +96,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
           Heap::SweepingForcedFinalizationMode::kV8Only);
     }
   }
+
+  void EmptyNewSpaceUsingGC() { CollectGarbage(OLD_SPACE); }
 };
 
 using TestWithHeapInternals =                  //

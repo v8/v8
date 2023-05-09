@@ -53,7 +53,7 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
 
     // Ensure that the new space is empty so that the page to be promoted
     // does not contain the age mark.
-    CollectGarbage(OLD_SPACE);
+    EmptyNewSpaceUsingGC();
 
     std::vector<Handle<FixedArray>> handles;
     SimulateFullSpace(heap->new_space(), &handles);
@@ -75,7 +75,7 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
     // during a full GC.
     CHECK(heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
     CHECK(!heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
-    CollectGarbage(OLD_SPACE);
+    EmptyNewSpaceUsingGC();
     CHECK(!heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
     CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
   }
