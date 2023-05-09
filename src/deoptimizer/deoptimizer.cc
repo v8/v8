@@ -886,10 +886,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   // after deopt, and we still want to tier up to non-OSR code even if OSR code
   // deoptimized.
   if (function_.IsJSFunction() &&
-      (compiled_code_.osr_offset().IsNone() ||
-       DeoptExitIsInsideOsrLoop(isolate(), function_,
-                                bytecode_offset_in_outermost_frame_,
-                                compiled_code_.osr_offset()))) {
+      (compiled_code_.osr_offset().IsNone()
+           ? function_.code() == compiled_code_
+           : DeoptExitIsInsideOsrLoop(isolate(), function_,
+                                      bytecode_offset_in_outermost_frame_,
+                                      compiled_code_.osr_offset()))) {
     function_.SetInterruptBudget(isolate_, true);
     function_.reset_tiering_state();
   }
