@@ -3431,8 +3431,10 @@ class RepresentationSelector {
                 }
                 return;
               } else if (input_type.Is(Type::SignedBigInt64())) {
-                VisitBinop<T>(node, UseInfo::Word64(), UseInfo::Any(),
-                              MachineRepresentation::kWord64);
+                VisitBinop<T>(
+                    node,
+                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::Any(), MachineRepresentation::kWord64);
                 if (lower<T>()) {
                   if (!lossless || shift_amount > 63) {
                     ReplaceWithPureNode(
@@ -3453,8 +3455,10 @@ class RepresentationSelector {
                 }
                 return;
               } else if (input_type.Is(Type::UnsignedBigInt64())) {
-                VisitBinop<T>(node, UseInfo::Word64(), UseInfo::Any(),
-                              MachineRepresentation::kWord64);
+                VisitBinop<T>(
+                    node,
+                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::Any(), MachineRepresentation::kWord64);
                 if (lower<T>()) {
                   if (!lossless || shift_amount > 63) {
                     DeferReplacement(node, jsgraph_->Int64Constant(0));
