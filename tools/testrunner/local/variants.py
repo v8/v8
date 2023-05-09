@@ -17,12 +17,20 @@ ALL_VARIANT_FLAGS = {
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
     "maglev_future": [["--maglev", "--maglev-future"]],
+    "maglev_no_turbofan": [[
+        "--maglev", "--no-turbofan",
+        "--optimize-on-next-call-optimizes-to-maglev"
+    ]],
     "stress_maglev": [[
         "--maglev", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
     "stress_maglev_future": [[
         "--maglev", "--maglev-future", "--stress-maglev",
+        "--optimize-on-next-call-optimizes-to-maglev"
+    ]],
+    "stress_maglev_no_turbofan": [[
+        "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
     "turboshaft": [["--turboshaft"]],
@@ -111,8 +119,16 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless", "--no-maglev"],
     "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "maglev_no_turbofan": [
+        "--jitless", "--no-maglev", "--turbofan", "--always-turbofan",
+        "--stress-concurrent-inlining",
+    ],
     "stress_maglev": ["--jitless"],
     "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "stress_maglev_no_turbofan": [
+        "--jitless", "--no-maglev", "--turbofan", "--always-turbofan",
+        "--stress-concurrent-inlining",
+    ],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"

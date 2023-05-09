@@ -494,6 +494,9 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Variants for maglev.
+      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg': {
@@ -1556,6 +1559,9 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Variants for maglev.
+      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'V8 Linux64 - cppgc-non-default - debug': {
@@ -1616,6 +1622,9 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Variants for maglev.
+      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'V8 Linux64 gcc': {
