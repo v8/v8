@@ -1167,11 +1167,11 @@ class ObjectMirror final : public ValueMirror {
     if (isKnown) return result;
 
     // Check if embedder implemented custom serialization.
-    // TODO(sadym): pass `duplicateTracker`.
-    // TODO(sadym): pass additional serialization `deepOptions`. Until then,
-    // limit depth to 1.
+    // TODO(crbug.com/1420968): pass additional serialization `deepOptions`.
+    // Until then, limit depth to 0, meaning no children should be serialized.
+    // TODO(crbug.com/1420968): pass `duplicateTracker`.
     std::unique_ptr<v8_inspector::WebDriverValue> embedderSerializedResult =
-        clientFor(context)->serializeToWebDriverValue(m_value, 1);
+        clientFor(context)->serializeToWebDriverValue(m_value, 0);
 
     if (embedderSerializedResult) {
       // Embedder-implemented serialization.
