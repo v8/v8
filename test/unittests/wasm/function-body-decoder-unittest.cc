@@ -2983,7 +2983,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   ExpectFailure(
       sigs.i_ii(),
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
-      kAppendEnd, "f32.add[1] expected type f32, found block of type i32");
+      kAppendEnd, "f32.add[0] expected type f32, found block of type i32");
 
   uint8_t sig1 = builder.AddSignature(sigs.v_i());
   ExpectFailure(
@@ -4001,7 +4001,7 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                 {WASM_I32V(10), WASM_GC_OP(kExprArrayNew), array_type_index},
                 kAppendEnd,
                 "not enough arguments on the stack for array.new "
-                "(need 3, got 2)");
+                "(need 2, got 1)");
   // Mistyped initializer.
   ExpectFailure(&sig_r_v,
                 {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kExternRefCode),

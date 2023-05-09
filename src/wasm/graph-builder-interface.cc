@@ -1001,8 +1001,8 @@ class WasmGraphBuildingInterface {
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
-                  const SimdLaneImmediate& imm, base::Vector<Value> inputs,
-                  Value* result) {
+                  const SimdLaneImmediate& imm,
+                  base::Vector<const Value> inputs, Value* result) {
     NodeVector nodes(inputs.size());
     GetNodes(nodes.begin(), inputs);
     SetAndTypeNode(result,
@@ -2004,13 +2004,13 @@ class WasmGraphBuildingInterface {
     return v8_flags.wasm_loop_unrolling || v8_flags.wasm_loop_peeling;
   }
 
-  void GetNodes(TFNode** nodes, Value* values, size_t count) {
+  void GetNodes(TFNode** nodes, const Value* values, size_t count) {
     for (size_t i = 0; i < count; ++i) {
       nodes[i] = values[i].node;
     }
   }
 
-  void GetNodes(TFNode** nodes, base::Vector<Value> values) {
+  void GetNodes(TFNode** nodes, base::Vector<const Value> values) {
     GetNodes(nodes, values.begin(), values.size());
   }
 

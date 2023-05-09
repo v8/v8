@@ -4537,7 +4537,7 @@ class LiftoffCompiler {
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate& imm,
-                  const base::Vector<Value> inputs, Value* result) {
+                  base::Vector<const Value> inputs, Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
