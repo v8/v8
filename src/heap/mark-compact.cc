@@ -3087,75 +3087,14 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   int number_of_flushed_sfis = 0;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
-    Code baseline_code;
-    InstructionStream baseline_istream;
-    HeapObject baseline_bytecode_or_interpreter_data;
+    bool is_bytecode_live;
     if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
-      baseline_code =
-          Code::cast(flushing_candidate.function_data(kAcquireLoad));
-      // Safe to do a relaxed load here since the Code was acquire-loaded.
-      baseline_istream = baseline_code.instruction_stream(
-          baseline_code.code_cage_base(), kRelaxedLoad);
-      baseline_bytecode_or_interpreter_data =
-          baseline_code.bytecode_or_interpreter_data();
-    }
-    // During flushing a BytecodeArray is transformed into an UncompiledData in
-    // place. Seeing an UncompiledData here implies that another
-    // SharedFunctionInfo had a reference to the same BytecodeArray and flushed
-    // it before processing this candidate. This can happen when using
-    // CloneSharedFunctionInfo().
-    bool bytecode_already_decompiled =
-        flushing_candidate.function_data(isolate(), kAcquireLoad)
-            .IsUncompiledData(isolate()) ||
-        (!baseline_istream.is_null() &&
-         baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate()));
-    bool is_bytecode_live = !bytecode_already_decompiled &&
-                            non_atomic_marking_state()->IsMarked(
-                                flushing_candidate.GetBytecodeArray(isolate()));
-    if (!baseline_istream.is_null()) {
-      if (non_atomic_marking_state()->IsMarked(baseline_istream)) {
-        // Currently baseline code holds bytecode array strongly and it is
-        // always ensured that bytecode is live if baseline code is live. Hence
-        // baseline code can safely load bytecode array without any additional
-        // checks. In future if this changes we need to update these checks to
-        // flush code if the bytecode is not live and also update baseline code
-        // to bailout if there is no bytecode.
-        DCHECK(is_bytecode_live);
-
-        // Regardless of whether the Code is a Code or
-        // the InstructionStream itself, if the InstructionStream is live then
-        // the Code has to be live and will have been marked via
-        // the owning JSFunction.
-        DCHECK(non_atomic_marking_state()->IsMarked(baseline_code));
-      } else if (is_bytecode_live || bytecode_already_decompiled) {
-        // Reset the function_data field to the BytecodeArray, InterpreterData,
-        // or UncompiledData found on the baseline code. We can skip this step
-        // if the BytecodeArray is not live and not already decompiled, because
-        // FlushBytecodeFromSFI below will set the function_data field.
-        flushing_candidate.set_function_data(
-            baseline_bytecode_or_interpreter_data, kReleaseStore);
-      }
+      is_bytecode_live = ProcessOldBaselineSFI(flushing_candidate);
+    } else {
+      is_bytecode_live = ProcessOldBytecodeSFI(flushing_candidate);
     }
 
-    if (!is_bytecode_live) {
-      // If baseline code flushing is disabled we should only flush bytecode
-      // from functions that don't have baseline data.
-      DCHECK(v8_flags.flush_baseline_code ||
-             !flushing_candidate.HasBaselineCode());
-
-      if (bytecode_already_decompiled) {
-        flushing_candidate.DiscardCompiledMetadata(
-            isolate(),
-            [](HeapObject object, ObjectSlot slot, HeapObject target) {
-              RecordSlot(object, slot, target);
-            });
-      } else {
-        // If the BytecodeArray is dead, flush it, which will replace the field
-        // with an uncompiled data object.
-        FlushBytecodeFromSFI(flushing_candidate);
-      }
-      number_of_flushed_sfis++;
-    }
+    if (!is_bytecode_live) number_of_flushed_sfis++;
 
     // Now record the slot, which has either been updated to an uncompiled data,
     // Baseline code or BytecodeArray which is still alive.
@@ -3167,6 +3106,96 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   if (v8_flags.trace_flush_code) {
     PrintIsolate(isolate(), "%d flushed SharedFunctionInfo(s)\n",
                  number_of_flushed_sfis);
+  }
+}
+
+bool MarkCompactCollector::ProcessOldBytecodeSFI(
+    SharedFunctionInfo flushing_candidate) {
+  // During flushing a BytecodeArray is transformed into an UncompiledData
+  // in place. Seeing an UncompiledData here implies that another
+  // SharedFunctionInfo had a reference to the same BytecodeArray and
+  // flushed it before processing this candidate. This can happen when using
+  // CloneSharedFunctionInfo().
+  const bool bytecode_already_decompiled =
+      flushing_candidate.function_data(isolate(), kAcquireLoad)
+          .IsUncompiledData(isolate());
+  const bool is_bytecode_live =
+      !bytecode_already_decompiled &&
+      non_atomic_marking_state()->IsMarked(
+          flushing_candidate.GetBytecodeArray(isolate()));
+
+  if (!is_bytecode_live) {
+    FlushSFI(flushing_candidate, bytecode_already_decompiled);
+  }
+  return is_bytecode_live;
+}
+
+bool MarkCompactCollector::ProcessOldBaselineSFI(
+    SharedFunctionInfo flushing_candidate) {
+  Code baseline_code =
+      Code::cast(flushing_candidate.function_data(kAcquireLoad));
+  // Safe to do a relaxed load here since the Code was acquire-loaded.
+  InstructionStream baseline_istream = baseline_code.instruction_stream(
+      baseline_code.code_cage_base(), kRelaxedLoad);
+  HeapObject baseline_bytecode_or_interpreter_data =
+      baseline_code.bytecode_or_interpreter_data();
+
+  // During flushing a BytecodeArray is transformed into an UncompiledData
+  // in place. Seeing an UncompiledData here implies that another
+  // SharedFunctionInfo had a reference to the same BytecodeArray and
+  // flushed it before processing this candidate. This can happen when using
+  // CloneSharedFunctionInfo().
+  const bool bytecode_already_decompiled =
+      baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate());
+  const bool is_bytecode_live =
+      !bytecode_already_decompiled &&
+      non_atomic_marking_state()->IsMarked(
+          flushing_candidate.GetBytecodeArray(isolate()));
+
+  if (non_atomic_marking_state()->IsMarked(baseline_istream)) {
+    // Currently baseline code holds bytecode array strongly and it is
+    // always ensured that bytecode is live if baseline code is live. Hence
+    // baseline code can safely load bytecode array without any additional
+    // checks. In future if this changes we need to update these checks to
+    // flush code if the bytecode is not live and also update baseline code
+    // to bailout if there is no bytecode.
+    DCHECK(is_bytecode_live);
+
+    // Regardless of whether the Code is a Code or
+    // the InstructionStream itself, if the InstructionStream is live then
+    // the Code has to be live and will have been marked via
+    // the owning JSFunction.
+    DCHECK(non_atomic_marking_state()->IsMarked(baseline_code));
+  } else if (is_bytecode_live || bytecode_already_decompiled) {
+    // Reset the function_data field to the BytecodeArray, InterpreterData,
+    // or UncompiledData found on the baseline code. We can skip this step
+    // if the BytecodeArray is not live and not already decompiled, because
+    // FlushBytecodeFromSFI below will set the function_data field.
+    flushing_candidate.set_function_data(baseline_bytecode_or_interpreter_data,
+                                         kReleaseStore);
+  }
+
+  if (!is_bytecode_live) {
+    FlushSFI(flushing_candidate, bytecode_already_decompiled);
+  }
+  return is_bytecode_live;
+}
+
+void MarkCompactCollector::FlushSFI(SharedFunctionInfo sfi,
+                                    bool bytecode_already_decompiled) {
+  // If baseline code flushing is disabled we should only flush bytecode
+  // from functions that don't have baseline data.
+  DCHECK(v8_flags.flush_baseline_code || !sfi.HasBaselineCode());
+
+  if (bytecode_already_decompiled) {
+    sfi.DiscardCompiledMetadata(
+        isolate(), [](HeapObject object, ObjectSlot slot, HeapObject target) {
+          RecordSlot(object, slot, target);
+        });
+  } else {
+    // If the BytecodeArray is dead, flush it, which will replace the field
+    // with an uncompiled data object.
+    FlushBytecodeFromSFI(sfi);
   }
 }
 

@@ -441,6 +441,11 @@ class MarkCompactCollector final : public CollectorBase {
   // Clears bytecode arrays / baseline code that have not been executed for
   // multiple collections.
   void ProcessOldCodeCandidates();
+
+  bool ProcessOldBytecodeSFI(SharedFunctionInfo flushing_candidate);
+  bool ProcessOldBaselineSFI(SharedFunctionInfo flushing_candidate);
+  void FlushSFI(SharedFunctionInfo sfi, bool bytecode_already_decompiled);
+
   void ProcessFlushedBaselineCandidates();
 
   // Resets any JSFunctions which have had their bytecode flushed.
