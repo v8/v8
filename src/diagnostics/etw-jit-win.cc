@@ -259,24 +259,32 @@ void EventHandler(const JitCodeEvent* event) {
 
   std::wstring method_name = GetScriptMethodName(event);
 
-  v8::Isolate* script_context = event->isolate;
-  v8::Local<v8::UnboundScript> script = event->script;
-  int script_id = 0;
-  if (!script.IsEmpty()) {
-    // if the first time seeing this source file, log the SourceLoad event
-    script_id = script->GetId();
+  // No heap allocations after this point.
+  DisallowGarbageCollection no_gc;
 
-    auto isolate = reinterpret_cast<Isolate*>(script_context);
+  v8::Isolate* script_context = event->isolate;
+  Isolate* isolate = reinterpret_cast<Isolate*>(script_context);
+
+  int script_id = 0;
+  uint32_t script_line = -1;
+  uint32_t script_column = -1;
+
+  SharedFunctionInfo sfi = GetSharedFunctionInfo(event);
+  if (!sfi.is_null() && sfi.script().IsScript()) {
+    Script script = Script::cast(sfi.script());
+
+    // if the first time seeing this source file, log the SourceLoad event
+    script_id = script.id();
     if (IsolateLoadScriptData::MaybeAddLoadedScript(isolate, script_id)) {
-      v8::Local<v8::Value> script_name = script->GetScriptName();
       std::wstring wstr_name(0, L'\0');
-      if (script_name->IsString()) {
-        auto v8str_name = script_name.As<v8::String>();
-        wstr_name.resize(v8str_name->Length());
+      Object script_name = script.GetNameOrSourceURL();
+      if (script_name.IsString()) {
+        String v8str_name = String::cast(script_name);
+        wstr_name.resize(v8str_name.length());
         // On Windows wchar_t == uint16_t. const_Cast needed for C++14.
         uint16_t* wstr_data = const_cast<uint16_t*>(
             reinterpret_cast<const uint16_t*>(wstr_name.data()));
-        v8str_name->Write(event->isolate, wstr_data);
+        String::WriteToFlat(v8str_name, wstr_data, 0, v8str_name.length());
       }
 
       constexpr static auto source_load_event_meta =
@@ -291,6 +299,11 @@ void EventHandler(const JitCodeEvent* event) {
                    (uint32_t)0,  // SourceFlags
                    wstr_name);
     }
+
+    Script::PositionInfo info;
+    script.GetPositionInfo(sfi.StartPosition(), &info);
+    script_line = info.line + 1;
+    script_column = info.column + 1;
   }
 
   constexpr static auto method_load_event_meta =
@@ -303,16 +316,6 @@ void EventHandler(const JitCodeEvent* event) {
       Field("MethodAddressRangeID", TlgInUINT16),
       Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
       Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
-
-  uint32_t script_line = -1;
-  uint32_t script_column = -1;
-  auto sfi = GetSharedFunctionInfo(event);
-  if (!sfi.is_null()) {
-    Script::PositionInfo info;
-    Script::cast(sfi.script()).GetPositionInfo(sfi.StartPosition(), &info);
-    script_line = info.line + 1;
-    script_column = info.column + 1;
-  }
 
   LogEventData(g_v8Provider, &method_load_event_meta, &method_load_event_fields,
                script_context, event->code_start, (uint64_t)event->code_len,
