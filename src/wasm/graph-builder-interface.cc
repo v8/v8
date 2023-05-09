@@ -754,9 +754,12 @@ class WasmGraphBuildingInterface {
             NullCheckFor(args[0].type), NullCheckFor(args[1].type));
         break;
       case WKI::kStringToLocaleLowerCaseStringref:
-        result = builder_->WellKnown_StringToLocaleLowerCaseStringref(
-            args[0].node, args[1].node, NullCheckFor(args[0].type));
-        break;
+        // Temporarily ignored because of bugs (v8:13977, v8:13985).
+        // TODO(jkummerow): Fix and re-enable.
+        return false;
+        // result = builder_->WellKnown_StringToLocaleLowerCaseStringref(
+        //     args[0].node, args[1].node, NullCheckFor(args[0].type));
+        // break;
       case WKI::kStringToLowerCaseStringref:
         result = builder_->WellKnown_StringToLowerCaseStringref(
             args[0].node, NullCheckFor(args[0].type));
