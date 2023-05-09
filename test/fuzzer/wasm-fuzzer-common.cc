@@ -436,7 +436,7 @@ class InitExprInterface {
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     const base::Vector<Value>& elements, const Value& rtt,
+                     base::Vector<const Value> elements, const Value& rtt,
                      Value* result) {
     os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
         << index(static_cast<uint32_t>(elements.size()));

@@ -4878,7 +4878,7 @@ class LiftoffCompiler {
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             const base::Vector<Value>& /* args */) {
+             base::Vector<Value> /* args */) {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
@@ -5991,7 +5991,7 @@ class LiftoffCompiler {
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     const base::Vector<Value>& elements, const Value& rtt,
+                     base::Vector<Value> elements, const Value& rtt,
                      Value* result) {
     ValueKind rtt_kind = rtt.type.kind();
     ValueKind elem_kind = imm.array_type->element_type().kind();

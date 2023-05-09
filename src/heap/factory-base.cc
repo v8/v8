@@ -633,7 +633,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::InternalizeString(
-    const base::Vector<const uint8_t>& string, bool convert_encoding) {
+    base::Vector<const uint8_t> string, bool convert_encoding) {
   SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
                                    convert_encoding);
   return InternalizeStringWithKey(&key);
@@ -641,7 +641,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::InternalizeString(
-    const base::Vector<const uint16_t>& string, bool convert_encoding) {
+    base::Vector<const uint16_t> string, bool convert_encoding) {
   SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
                                     convert_encoding);
   return InternalizeStringWithKey(&key);
@@ -649,7 +649,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
-    const base::Vector<const uint8_t>& str, uint32_t raw_hash_field) {
+    base::Vector<const uint8_t> str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
   // No synchronization is needed since the shared string hasn't yet escaped to
@@ -662,7 +662,7 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
 
 template <typename Impl>
 Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
-    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
+    base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   // No synchronization is needed since the shared string hasn't yet escaped to
@@ -676,7 +676,7 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 template <typename Impl>
 Handle<SeqOneByteString>
 FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
-    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
+    base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
   DisallowGarbageCollection no_gc;
@@ -862,7 +862,7 @@ Handle<String> FactoryBase<Impl>::LookupSingleCharacterStringFromCode(
 
 template <typename Impl>
 MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
-    const base::Vector<const uint8_t>& string, AllocationType allocation) {
+    base::Vector<const uint8_t> string, AllocationType allocation) {
   DCHECK_NE(allocation, AllocationType::kReadOnly);
   int length = string.length();
   if (length == 0) return empty_string();

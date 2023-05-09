@@ -2795,8 +2795,8 @@ static const char* record_trace_tree_source =
 "\n"
 "for (var i = 0; i < 100; i++) start();\n";
 
-static AllocationTraceNode* FindNode(
-    AllocationTracker* tracker, const v8::base::Vector<const char*>& names) {
+static AllocationTraceNode* FindNode(AllocationTracker* tracker,
+                                     v8::base::Vector<const char*> names) {
   AllocationTraceNode* node = tracker->trace_tree()->root();
   for (int i = 0; node != nullptr && i < names.length(); i++) {
     const char* name = names[i];
@@ -3599,7 +3599,7 @@ TEST(AddressToTraceMap) {
 
 static const v8::AllocationProfile::Node* FindAllocationProfileNode(
     v8::Isolate* isolate, v8::AllocationProfile* profile,
-    const v8::base::Vector<const char*>& names) {
+    v8::base::Vector<const char*> names) {
   v8::AllocationProfile::Node* node = profile->GetRootNode();
   for (int i = 0; node != nullptr && i < names.length(); ++i) {
     const char* name = names[i];

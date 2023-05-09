@@ -115,7 +115,7 @@ class SnapshotImpl : public AllStatic {
 }  // namespace
 
 SnapshotData MaybeDecompress(Isolate* isolate,
-                             const base::Vector<const byte>& snapshot_data) {
+                             base::Vector<const byte> snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
   TRACE_EVENT0("v8", "V8.SnapshotDecompress");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kSnapshotDecompress);

@@ -4158,7 +4158,7 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
 }
 
 bool LinearScanAllocator::TryAllocatePreferredReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
       current->FirstHintPosition(&hint_register) != nullptr ||
@@ -4183,7 +4183,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
 
 int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
     LiveRange* current, int hint_reg,
-    const base::Vector<LifetimePosition>& free_until_pos) {
+    base::Vector<const LifetimePosition> free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -4229,7 +4229,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
 }
 
 bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||

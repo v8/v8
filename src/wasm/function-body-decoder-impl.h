@@ -1046,7 +1046,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(ArrayNewDefault, const ArrayIndexImmediate& imm, const Value& length,      \
     const Value& rtt, Value* result)                                           \
   F(ArrayNewFixed, const ArrayIndexImmediate& imm,                             \
-    const base::Vector<Value>& elements, const Value& rtt, Value* result)      \
+    base::Vector<const Value> elements, const Value& rtt, Value* result)       \
   F(ArrayNewSegment, const ArrayIndexImmediate& array_imm,                     \
     const IndexImmediate& data_segment, const Value& offset,                   \
     const Value& length, const Value& rtt, Value* result)                      \
@@ -1113,7 +1113,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     base::Vector<const Value> inputs, Value* result)                           \
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
     const Value& input1, Value* result)                                        \
-  F(Throw, const TagIndexImmediate& imm, const base::Vector<Value>& args)      \
+  F(Throw, const TagIndexImmediate& imm, base::Vector<const Value> args)       \
   F(Rethrow, Control* block)                                                   \
   F(CatchException, const TagIndexImmediate& imm, Control* block,              \
     base::Vector<Value> caught_values)                                         \

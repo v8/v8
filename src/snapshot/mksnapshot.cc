@@ -45,8 +45,7 @@ class SnapshotFileWriter {
   }
 
  private:
-  void MaybeWriteStartupBlob(
-      const v8::base::Vector<const i::byte>& blob) const {
+  void MaybeWriteStartupBlob(v8::base::Vector<const i::byte> blob) const {
     if (!snapshot_blob_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_blob_path_);
@@ -59,8 +58,7 @@ class SnapshotFileWriter {
     }
   }
 
-  void MaybeWriteSnapshotFile(
-      const v8::base::Vector<const i::byte>& blob) const {
+  void MaybeWriteSnapshotFile(v8::base::Vector<const i::byte> blob) const {
     if (!snapshot_cpp_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_cpp_path_);
@@ -95,8 +93,8 @@ class SnapshotFileWriter {
     fprintf(fp, "}  // namespace v8\n");
   }
 
-  static void WriteSnapshotFileData(
-      FILE* fp, const v8::base::Vector<const i::byte>& blob) {
+  static void WriteSnapshotFileData(FILE* fp,
+                                    v8::base::Vector<const i::byte> blob) {
     fprintf(fp,
             "alignas(kPointerAlignment) static const byte blob_data[] = {\n");
     WriteBinaryContentsAsCArray(fp, blob);
@@ -107,7 +105,7 @@ class SnapshotFileWriter {
   }
 
   static void WriteBinaryContentsAsCArray(
-      FILE* fp, const v8::base::Vector<const i::byte>& blob) {
+      FILE* fp, v8::base::Vector<const i::byte> blob) {
     for (int i = 0; i < blob.length(); i++) {
       if ((i & 0x1F) == 0x1F) fprintf(fp, "\n");
       if (i > 0) fprintf(fp, ",");

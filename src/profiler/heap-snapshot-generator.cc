@@ -2974,8 +2974,7 @@ template<> struct ToUnsigned<8> {
 }  // namespace
 
 template <typename T>
-static int utoa_impl(T value, const base::Vector<char>& buffer,
-                     int buffer_pos) {
+static int utoa_impl(T value, base::Vector<char> buffer, int buffer_pos) {
   static_assert(static_cast<T>(-1) > 0);  // Check that T is unsigned
   int number_of_digits = 0;
   T t = value;
@@ -2994,7 +2993,7 @@ static int utoa_impl(T value, const base::Vector<char>& buffer,
 }
 
 template <typename T>
-static int utoa(T value, const base::Vector<char>& buffer, int buffer_pos) {
+static int utoa(T value, base::Vector<char> buffer, int buffer_pos) {
   typename ToUnsigned<sizeof(value)>::Type unsigned_value = value;
   static_assert(sizeof(value) == sizeof(unsigned_value));
   return utoa_impl(unsigned_value, buffer, buffer_pos);
@@ -3215,7 +3214,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
 
 
 // 0-based position is converted to 1-based during the serialization.
-static int SerializePosition(int position, const base::Vector<char>& buffer,
+static int SerializePosition(int position, base::Vector<char> buffer,
                              int buffer_pos) {
   if (position == -1) {
     buffer[buffer_pos++] = '0';

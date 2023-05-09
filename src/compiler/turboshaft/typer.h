@@ -87,7 +87,7 @@ struct WordOperationTyper {
   // element either by increasing the 'to' or decreasing the 'from' of the
   // range, whichever leads to a smaller range.
   static std::pair<word_t, word_t> MakeRange(
-      const base::Vector<const word_t>& elements) {
+      base::Vector<const word_t> elements) {
     DCHECK(!elements.empty());
     DCHECK(detail::is_unique_and_sorted(elements));
     if (elements[elements.size() - 1] - elements[0] <= max / 2) {

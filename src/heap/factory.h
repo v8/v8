@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(const base::Vector<const char>& str);
+  Handle<String> InternalizeUtf8String(base::Vector<const char> str);
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(base::CStrVector(str));
   }
@@ -269,10 +269,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      const base::Vector<const char>& str,
+      base::Vector<const char> str,
       AllocationType allocation = AllocationType::kYoung);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      const base::Vector<const uint8_t>& str, unibrow::Utf8Variant utf8_variant,
+      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -296,7 +296,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      const base::Vector<const base::uc16>& str,
+      base::Vector<const base::uc16> str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
@@ -307,7 +307,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Usually the two-byte encodings are in the native endianness, but for
   // WebAssembly linear memory, they are explicitly little-endian.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByteLittleEndian(
-      const base::Vector<const base::uc16>& str,
+      base::Vector<const base::uc16> str,
       AllocationType allocation = AllocationType::kYoung);
 #endif  // V8_ENABLE_WEBASSEMBLY
 

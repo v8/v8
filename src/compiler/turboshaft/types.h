@@ -355,7 +355,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
     return Set(base::Vector<const word_t>{elements.begin(), elements.size()},
                zone);
   }
-  static WordType Set(const base::Vector<const word_t>& elements, Zone* zone) {
+  static WordType Set(base::Vector<const word_t> elements, Zone* zone) {
     DCHECK(detail::is_unique_and_sorted(elements));
     DCHECK_IMPLIES(elements.size() > kMaxInlineSetSize, zone != nullptr);
     DCHECK_GT(elements.size(), 0);
@@ -554,7 +554,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     return Set(base::Vector<const float_t>{elements.data(), elements.size()},
                special_values, zone);
   }
-  static FloatType Set(const base::Vector<const float_t>& elements,
+  static FloatType Set(base::Vector<const float_t> elements,
                        uint32_t special_values, Zone* zone) {
     DCHECK(detail::is_unique_and_sorted(elements));
     // NaN should be passed via {special_values} rather than {elements}.
@@ -785,7 +785,7 @@ class TupleType : public Type {
     return TupleType{2, p};
   }
 
-  static TupleType Tuple(const base::Vector<Type>& elements, Zone* zone) {
+  static TupleType Tuple(base::Vector<Type> elements, Zone* zone) {
     DCHECK_LE(elements.size(), kMaxTupleSize);
     Payload p;
     p.array = zone->NewArray<Type>(elements.size());

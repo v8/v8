@@ -2296,8 +2296,7 @@ class AssemblerOpInterface {
   }
 
   OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
-                      const base::Vector<OpIndex>& arguments,
-                      Isolate* isolate) {
+                      base::Vector<OpIndex> arguments, Isolate* isolate) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }

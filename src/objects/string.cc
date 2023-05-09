@@ -1601,7 +1601,7 @@ bool String::HasOneBytePrefix(base::Vector<const char> str) {
 namespace {
 
 template <typename Char>
-bool IsIdentifierVector(const base::Vector<Char>& vec) {
+bool IsIdentifierVector(base::Vector<Char> vec) {
   if (vec.empty()) {
     return false;
   }

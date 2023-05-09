@@ -1519,11 +1519,11 @@ class LinearScanAllocator final : public RegisterAllocator {
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
   int PickRegisterThatIsAvailableLongest(
       LiveRange* current, int hint_reg,
-      const base::Vector<LifetimePosition>& free_until_pos);
+      base::Vector<const LifetimePosition> free_until_pos);
   bool TryAllocateFreeReg(LiveRange* range,
-                          const base::Vector<LifetimePosition>& free_until_pos);
+                          base::Vector<const LifetimePosition> free_until_pos);
   bool TryAllocatePreferredReg(
-      LiveRange* range, const base::Vector<LifetimePosition>& free_until_pos);
+      LiveRange* range, base::Vector<const LifetimePosition> free_until_pos);
   void GetFPRegisterSet(MachineRepresentation rep, int* num_regs,
                         int* num_codes, const int** codes) const;
   void GetSIMD128RegisterSet(int* num_regs, int* num_codes,

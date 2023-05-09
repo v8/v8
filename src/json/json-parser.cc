@@ -1394,7 +1394,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
 namespace {
 
 template <typename Char>
-bool Matches(const base::Vector<const Char>& chars, Handle<String> string) {
+bool Matches(base::Vector<const Char> chars, Handle<String> string) {
   DCHECK(!string.is_null());
   return string->IsEqualTo(chars);
 }

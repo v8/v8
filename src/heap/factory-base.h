@@ -229,20 +229,20 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(const base::Vector<const uint8_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint8_t> string,
                                    bool convert_encoding = false);
-  Handle<String> InternalizeString(const base::Vector<const uint16_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint16_t> string,
                                    bool convert_encoding = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
+      base::Vector<const uint8_t> str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
   Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);
@@ -254,7 +254,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& string,
+      base::Vector<const uint8_t> string,
       AllocationType allocation = AllocationType::kYoung);
 
   inline Handle<String> NewStringFromAsciiChecked(

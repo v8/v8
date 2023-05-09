@@ -3939,8 +3939,8 @@ ValueNode* MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
 
 ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object, ValueNode* value,
-    const base::Vector<const compiler::MapRef>& maps,
-    ElementsKind elements_kind, KeyedAccessStoreMode store_mode) {
+    base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
+    KeyedAccessStoreMode store_mode) {
   DCHECK(IsFastElementsKind(elements_kind));
 
   const bool is_jsarray = HasOnlyJSArrayMaps(maps);

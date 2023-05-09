@@ -666,8 +666,7 @@ Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
 }
 
 // Internalized strings are created in the old generation (data space).
-Handle<String> Factory::InternalizeUtf8String(
-    const base::Vector<const char>& string) {
+Handle<String> Factory::InternalizeUtf8String(base::Vector<const char> string) {
   base::Vector<const uint8_t> utf8_data =
       base::Vector<const uint8_t>::cast(string);
   Utf8Decoder decoder(utf8_data);
@@ -789,8 +788,8 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
 }  // namespace
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
-    const base::Vector<const uint8_t>& string,
-    unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+    base::Vector<const uint8_t> string, unibrow::Utf8Variant utf8_variant,
+    AllocationType allocation) {
   if (string.size() > kMaxInt) {
     // The Utf8Decode can't handle longer inputs, and we couldn't create
     // strings from them anyway.
@@ -801,8 +800,8 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
                                   allocation);
 }
 
-MaybeHandle<String> Factory::NewStringFromUtf8(
-    const base::Vector<const char>& string, AllocationType allocation) {
+MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
+                                               AllocationType allocation) {
   return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
                            unibrow::Utf8Variant::kLossyUtf8, allocation);
 }
@@ -845,14 +844,14 @@ namespace {
 struct Wtf16Decoder {
   int length_;
   bool is_one_byte_;
-  explicit Wtf16Decoder(const base::Vector<const uint16_t>& data)
+  explicit Wtf16Decoder(base::Vector<const uint16_t> data)
       : length_(data.length()),
         is_one_byte_(String::IsOneByte(data.begin(), length_)) {}
   bool is_invalid() const { return false; }
   bool is_one_byte() const { return is_one_byte_; }
   int utf16_length() const { return length_; }
   template <typename Char>
-  void Decode(Char* out, const base::Vector<const uint16_t>& data) {
+  void Decode(Char* out, base::Vector<const uint16_t> data) {
     CopyChars(out, data.begin(), length_);
   }
 };
@@ -955,7 +954,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
 }
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(
-    const base::Vector<const base::uc16>& string, AllocationType allocation) {
+    base::Vector<const base::uc16> string, AllocationType allocation) {
   return NewStringFromTwoByte(string.begin(), string.length(), allocation);
 }
 
@@ -967,7 +966,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(
 
 #if V8_ENABLE_WEBASSEMBLY
 MaybeHandle<String> Factory::NewStringFromTwoByteLittleEndian(
-    const base::Vector<const base::uc16>& str, AllocationType allocation) {
+    base::Vector<const base::uc16> str, AllocationType allocation) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   return NewStringFromTwoByte(str, allocation);
 #elif defined(V8_TARGET_BIG_ENDIAN)

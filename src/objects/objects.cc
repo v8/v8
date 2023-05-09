@@ -4989,7 +4989,7 @@ bool Script::ContainsAsmModule() {
 namespace {
 
 template <typename Char>
-bool GetPositionInfoSlowImpl(const base::Vector<Char>& source, int position,
+bool GetPositionInfoSlowImpl(base::Vector<Char> source, int position,
                              Script::PositionInfo* info) {
   if (position < 0) {
     position = 0;

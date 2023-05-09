@@ -1017,7 +1017,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             const base::Vector<Value>& value_args) {
+             base::Vector<const Value> value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
     for (int i = 0; i < count; ++i) {
@@ -1353,7 +1353,7 @@ class WasmGraphBuildingInterface {
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     const base::Vector<Value>& elements, const Value& rtt,
+                     base::Vector<const Value> elements, const Value& rtt,
                      Value* result) {
     NodeVector element_nodes(elements.size());
     for (uint32_t i = 0; i < elements.size(); i++) {

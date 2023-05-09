@@ -137,7 +137,7 @@ class TestSerializer {
 };
 
 static base::Vector<const uint8_t> WritePayload(
-    const base::Vector<const uint8_t>& payload) {
+    base::Vector<const uint8_t> payload) {
   int length = payload.length();
   uint8_t* blob = NewArray<uint8_t>(length);
   memcpy(blob, payload.begin(), length);
