@@ -6960,7 +6960,7 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   }
   compiler::AllocationSiteRef site = processed_feedback.AsLiteral().value();
 
-  broker()->dependencies()->DependOnElementsKinds(site);
+  broker()->dependencies()->DependOnElementsKind(site);
   ElementsKind kind = site.GetElementsKind();
 
   compiler::NativeContextRef native_context = broker()->target_native_context();
