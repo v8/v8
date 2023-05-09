@@ -378,7 +378,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     }
     // We don't allow WebAssembly.Memory, because WebAssembly.Memory.grow()
     // detaches the ArrayBuffer, and that would invalidate the asm.js module.
-    if (memory->GetBackingStore()->is_wasm_memory()) {
+    if (memory->GetBackingStore() &&
+        memory->GetBackingStore()->is_wasm_memory()) {
       ReportInstantiationFailure(script, position,
                                  "Invalid heap type: WebAssembly.Memory");
       return MaybeHandle<Object>();
