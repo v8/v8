@@ -864,21 +864,59 @@ class WasmGenerator {
                                     ->GetArrayType(index)
                                     ->element_type()
                                     .is_defaultable();
-      if (new_default && can_be_defaultable) {
-        Generate(kWasmI32, data);
-        builder_->EmitI32Const(kMaxArraySize);
-        builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprArrayNewDefault);
-        builder_->EmitU32V(index);
-      } else {
-        Generate(
-            builder_->builder()->GetArrayType(index)->element_type().Unpacked(),
-            data);
-        Generate(kWasmI32, data);
-        builder_->EmitI32Const(kMaxArraySize);
-        builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprArrayNew);
-        builder_->EmitU32V(index);
+      // TODO(7748): Add array.new_data and array.new_elem.
+      // (This requires data / element segments.)
+      WasmOpcode array_new_op[] = {
+          kExprArrayNew, kExprArrayNewFixed,
+          kExprArrayNewDefault,  // default op has to be at the end of the list.
+      };
+      size_t op_size = arraysize(array_new_op);
+      if (!can_be_defaultable) --op_size;
+      switch (array_new_op[data->get<uint8_t>() % op_size]) {
+        case kExprArrayNew:
+          Generate(builder_->builder()
+                       ->GetArrayType(index)
+                       ->element_type()
+                       .Unpacked(),
+                   data);
+          Generate(kWasmI32, data);
+          builder_->EmitI32Const(kMaxArraySize);
+          builder_->Emit(kExprI32RemS);
+          builder_->EmitWithPrefix(kExprArrayNew);
+          builder_->EmitU32V(index);
+          break;
+        case kExprArrayNewFixed: {
+          uint32_t element_count;
+          uint8_t diceroll = data->get<uint8_t>();
+          if (diceroll < 250) {
+            // Most generated arrays will be small and fast...
+            element_count = diceroll % 25;
+          } else {
+            // ...but we also want to test some huge arrays.
+            element_count =
+                data->get<uint16_t>() % kV8MaxWasmArrayNewFixedLength;
+          }
+          ValueType element_type = builder_->builder()
+                                       ->GetArrayType(index)
+                                       ->element_type()
+                                       .Unpacked();
+          for (uint32_t i = 0; i < element_count; ++i) {
+            Generate(element_type, data);
+          }
+          builder_->EmitWithPrefix(kExprArrayNewFixed);
+          builder_->EmitU32V(index);
+          builder_->EmitU32V(element_count);
+          break;
+        }
+        case kExprArrayNewDefault:
+          Generate(kWasmI32, data);
+          builder_->EmitI32Const(kMaxArraySize);
+          builder_->Emit(kExprI32RemS);
+          builder_->EmitWithPrefix(kExprArrayNewDefault);
+          builder_->EmitU32V(index);
+          break;
+        default:
+          FATAL("Unimplemented opcode");
       }
     } else {
       // Map the type index to a function index.
@@ -1015,7 +1053,6 @@ class WasmGenerator {
 
   void i31_get(DataRange* data) {
     GenerateRef(HeapType(HeapType::kI31), data);
-    builder_->Emit(kExprRefAsNonNull);
     if (data->get<bool>()) {
       builder_->EmitWithPrefix(kExprI31GetS);
     } else {
@@ -1024,14 +1061,31 @@ class WasmGenerator {
   }
 
   void array_len(DataRange* data) {
-    if (num_arrays_ > 1) {
-      int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
-      DCHECK(builder_->builder()->IsArrayType(array_index));
-      GenerateRef(HeapType(array_index), data);
-      builder_->EmitWithPrefix(kExprArrayLen);
-    } else {
+    if (num_arrays_ == 0) {
       Generate(kWasmI32, data);
+      return;
     }
+    GenerateRef(HeapType(HeapType::kArray), data);
+    builder_->EmitWithPrefix(kExprArrayLen);
+  }
+
+  void array_copy(DataRange* data) {
+    if (num_arrays_ == 0) {
+      return;
+    }
+    // TODO(7748): The source element type only has to be a subtype of the
+    // destination element type. Currently this only generates copy from same
+    // typed arrays.
+    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK(builder_->builder()->IsArrayType(array_index));
+    GenerateRef(HeapType(array_index), data);  // destination
+    Generate(kWasmI32, data);                  // destination index
+    GenerateRef(HeapType(array_index), data);  // source
+    Generate(kWasmI32, data);                  // source index
+    Generate(kWasmI32, data);                  // length
+    builder_->EmitWithPrefix(kExprArrayCopy);
+    builder_->EmitU32V(array_index);  // destination array type index
+    builder_->EmitU32V(array_index);  // source array type index
   }
 
   void array_set(DataRange* data) {
@@ -1118,6 +1172,25 @@ class WasmGenerator {
     builder_->EmitWithPrefix(nullable ? kExprRefCastNull : kExprRefCast);
     builder_->EmitI32V(type.code());
     return true;  // It always produces the desired result type.
+  }
+
+  bool extern_internalize(HeapType type, DataRange* data,
+                          Nullability nullable) {
+    if (type.representation() != HeapType::kAny) {
+      return false;
+    }
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    builder_->EmitWithPrefix(kExprExternInternalize);
+    if (nullable == kNonNullable) {
+      builder_->Emit(kExprRefAsNonNull);
+    }
+    return true;
+  }
+
+  bool ref_as_non_null(HeapType type, DataRange* data, Nullability nullable) {
+    GenerateRef(type, data, kNullable);
+    builder_->Emit(kExprRefAsNonNull);
+    return true;
   }
 
   void struct_set(DataRange* data) {
@@ -1368,6 +1441,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
 
       &WasmGenerator::struct_set,
       &WasmGenerator::array_set,
+      &WasmGenerator::array_copy,
 
       &WasmGenerator::table_set,
       &WasmGenerator::table_fill,
@@ -2110,18 +2184,20 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   }
 
   constexpr GenerateFnWithHeap alternatives_indexed_type[] = {
-      &WasmGenerator::new_object, &WasmGenerator::get_local_ref,
+      &WasmGenerator::new_object,    &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast};
+      &WasmGenerator::ref_cast,      &WasmGenerator::ref_as_non_null};
 
   constexpr GenerateFnWithHeap alternatives_func_any[] = {
-      &WasmGenerator::table_get, &WasmGenerator::get_local_ref,
-      &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast};
+      &WasmGenerator::table_get,      &WasmGenerator::get_local_ref,
+      &WasmGenerator::array_get_ref,  &WasmGenerator::struct_get_ref,
+      &WasmGenerator::ref_cast,       &WasmGenerator::extern_internalize,
+      &WasmGenerator::ref_as_non_null};
 
   constexpr GenerateFnWithHeap alternatives_other[] = {
       &WasmGenerator::array_get_ref, &WasmGenerator::get_local_ref,
-      &WasmGenerator::struct_get_ref, &WasmGenerator::ref_cast};
+      &WasmGenerator::struct_get_ref, &WasmGenerator::ref_cast,
+      &WasmGenerator::ref_as_non_null};
 
   switch (type.representation()) {
     // For abstract types, sometimes generate one of their subtypes.
@@ -2165,6 +2241,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         if (GenerateOneOf(alternatives_other, type, data, nullability)) return;
         random = data->get<uint8_t>() % num_arrays_;
       }
+      DCHECK(builder_->builder()->IsArrayType(random + num_structs_));
       GenerateRef(HeapType(random + num_structs_), data, nullability);
       return;
     }
@@ -2180,6 +2257,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         }
         random = data->get<uint8_t>() % num_structs_;
       }
+      DCHECK(builder_->builder()->IsStructType(random));
       GenerateRef(HeapType(random), data, nullability);
       return;
     }
@@ -2231,6 +2309,12 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       return;
     }
     case HeapType::kExtern:
+      if (data->get<bool>()) {
+        GenerateRef(HeapType(HeapType::kAny), data);
+        builder_->EmitWithPrefix(kExprExternExternalize);
+        return;
+      }
+      V8_FALLTHROUGH;
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
     case HeapType::kNone:
