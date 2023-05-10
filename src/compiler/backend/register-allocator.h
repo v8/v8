@@ -758,6 +758,10 @@ class LiveRangeBundle : public ZoneObject {
         : start(s.value()), end(e.value()) {}
     int start;
     int end;
+    bool operator==(const Range& rhs) const {
+      return this->start == rhs.start && this->end == rhs.end;
+    }
+    bool operator!=(const Range& rhs) const { return !(*this == rhs); }
   };
 
   struct RangeOrdering {
@@ -780,9 +784,11 @@ class LiveRangeBundle : public ZoneObject {
   }
   void InsertUses(UseInterval* interval) {
     while (interval != nullptr) {
-      auto done = uses_.insert({interval->start(), interval->end()});
-      USE(done);
-      DCHECK_EQ(done.second, 1);
+      Range range = {interval->start(), interval->end()};
+      Range* pos =
+          std::lower_bound(uses_.begin(), uses_.end(), range, RangeOrdering());
+      DCHECK_IMPLIES(pos != uses_.end(), *pos != range);
+      uses_.insert(pos, 1, range);
       interval = interval->next();
     }
   }
@@ -797,7 +803,7 @@ class LiveRangeBundle : public ZoneObject {
                                    bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
-  ZoneSet<Range, RangeOrdering> uses_;
+  ZoneVector<Range> uses_;  // Sorted by `RangeOrdering`, essentially a set.
   int id_;
   int reg_ = kUnassignedRegister;
 };
