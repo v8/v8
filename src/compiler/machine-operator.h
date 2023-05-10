@@ -1034,8 +1034,15 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8DotI16x16S();
   const Operator* I16x16RoundingAverageU();
   const Operator* I8x32RoundingAverageU();
-  const Operator* S256Select();
   const Operator* ExtractF128(int32_t lane_index);
+
+  const Operator* S256Zero();
+  const Operator* S256And();
+  const Operator* S256Or();
+  const Operator* S256Xor();
+  const Operator* S256Not();
+  const Operator* S256Select();
+  const Operator* S256AndNot();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

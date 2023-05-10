@@ -4526,14 +4526,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SetupSimdImmediateInRegister(masm(), imm, dst);
       break;
     }
-    case kX64S128Zero: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Pxor(dst, dst);
+    case kX64SZero: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128Zero
+        XMMRegister dst = i.OutputSimd128Register();
+        __ Pxor(dst, dst);
+      } else if (vec_len == kV256) {  // S256Zero
+        YMMRegister dst = i.OutputSimd256Register();
+        CpuFeatureScope avx2_scope(masm(), AVX2);
+        __ vpxor(dst, dst, dst);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128AllOnes: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Pcmpeqd(dst, dst);
+    case kX64SAllOnes: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128AllOnes
+        XMMRegister dst = i.OutputSimd128Register();
+        __ Pcmpeqd(dst, dst);
+      } else if (vec_len == kV256) {  // S256AllOnes
+        YMMRegister dst = i.OutputSimd256Register();
+        CpuFeatureScope avx2_scope(masm(), AVX2);
+        __ vpcmpeqd(dst, dst, dst);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     // case kX64I16x8ExtractLaneS: {
@@ -4918,35 +4936,85 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                      /*is_signed=*/false);
       break;
     }
-    case kX64S128And: {
-      ASSEMBLE_SIMD_BINOP(pand);
+    case kX64SAnd: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128And
+        ASSEMBLE_SIMD_BINOP(pand);
+      } else if (vec_len == kV256) {  // S256And
+        ASSEMBLE_SIMD256_BINOP(pand, AVX2);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128Or: {
-      ASSEMBLE_SIMD_BINOP(por);
+    case kX64SOr: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128Or
+        ASSEMBLE_SIMD_BINOP(por);
+      } else if (vec_len == kV256) {  // S256Or
+        ASSEMBLE_SIMD256_BINOP(por, AVX2);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128Xor: {
-      ASSEMBLE_SIMD_BINOP(pxor);
+    case kX64SXor: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128Xor
+        ASSEMBLE_SIMD_BINOP(pxor);
+      } else if (vec_len == kV256) {  // S256Xor
+        ASSEMBLE_SIMD256_BINOP(pxor, AVX2);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128Not: {
-      __ S128Not(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 kScratchDoubleReg);
+    case kX64SNot: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128Not
+        __ S128Not(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   kScratchDoubleReg);
+      } else if (vec_len == kV256) {  // S256Not
+        __ S256Not(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   kScratchSimd256Reg);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128Select: {
-      __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), i.InputSimd128Register(2),
-                    kScratchDoubleReg);
+    case kX64SSelect: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128Select
+        __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                      i.InputSimd128Register(1), i.InputSimd128Register(2),
+                      kScratchDoubleReg);
+      } else if (vec_len == kV256) {  // S256Select
+        __ S256Select(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                      i.InputSimd256Register(1), i.InputSimd256Register(2),
+                      kScratchSimd256Reg);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
-    case kX64S128AndNot: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The inputs have been inverted by instruction selector, so we can call
-      // andnps here without any modifications.
-      __ Andnps(dst, i.InputSimd128Register(1));
+    case kX64SAndNot: {
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {  // S128AndNot
+        XMMRegister dst = i.OutputSimd128Register();
+        DCHECK_EQ(dst, i.InputSimd128Register(0));
+        // The inputs have been inverted by instruction selector, so we can call
+        // andnps here without any modifications.
+        __ Andnps(dst, i.InputSimd128Register(1));
+      } else if (vec_len == kV256) {  // S256AndNot
+        YMMRegister dst = i.OutputSimd256Register();
+        DCHECK_EQ(dst, i.InputSimd256Register(0));
+        // The inputs have been inverted by instruction selector, so we can call
+        // andnps here without any modifications.
+        CpuFeatureScope avx_scope(masm(), AVX);
+        __ vandnps(dst, dst, i.InputSimd256Register(1));
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64I8x16Swizzle: {

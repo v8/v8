@@ -1438,6 +1438,31 @@ void MacroAssembler::Cmpeqsd(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::S256Not(YMMRegister dst, YMMRegister src,
+                             YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  if (dst == src) {
+    vpcmpeqd(scratch, scratch, scratch);
+    vpxor(dst, dst, scratch);
+  } else {
+    vpcmpeqd(dst, dst, dst);
+    vpxor(dst, dst, src);
+  }
+}
+
+void MacroAssembler::S256Select(YMMRegister dst, YMMRegister mask,
+                                YMMRegister src1, YMMRegister src2,
+                                YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  // v256.select = v256.or(v256.and(v1, c), v256.andnot(v2, c)).
+  // pandn(x, y) = !x & y, so we have to flip the mask and input.
+  vpandn(scratch, mask, src2);
+  vpand(dst, src1, mask);
+  vpor(dst, dst, scratch);
+}
+
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
 

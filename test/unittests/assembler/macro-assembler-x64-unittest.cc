@@ -104,6 +104,7 @@ namespace test_macro_assembler_x64 {
 
 using F0 = int();
 using F1 = int(uint64_t*, uint64_t*, uint64_t*);
+using F2 = int(uint64_t*, uint64_t*, uint64_t*, uint64_t*);
 
 #define __ masm->
 
@@ -1078,6 +1079,96 @@ TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
+}
+
+TEST_F(MacroAssemblerX64Test, S256Select) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister mask = ymm1;
+  const YMMRegister src1 = ymm2;
+  const YMMRegister src2 = ymm3;
+  const YMMRegister tmp = ymm4;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load src1, src2, mask
+  __ vmovdqu(src1, Operand(arg_reg_1, 0));
+  __ vmovdqu(src2, Operand(arg_reg_2, 0));
+  __ vmovdqu(mask, Operand(arg_reg_3, 0));
+  // Bitselect
+  __ S256Select(dst, mask, src1, src2, tmp);
+  // Store result
+  __ vmovdqu(Operand(arg_reg_4, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 12>> test_cases = {
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x00112345F00FFFFF,
+       0x10112021BBAABBAA, 0x0000000000000000, 0x0000000000000000},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x1111111111111111,
+       0x1111111111111111, 0x0123456789ABCDEF, 0xFEDCBA9876543210},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0x5555555555555555, 0x5555555555555555,
+       0x5555555555555555, 0x5555555555555555, 0x0123456789ABCDEF,
+       0xFEDCBA9876543210, 0x55555555AAAAAAAA, 0x00000000FFFFFFFF},
+      {0x499602D2499602D2, 0x499602D2499602D2, 0x1234567812345678,
+       0x1234567812345678, 0xB669FD2EB669FD2E, 0xB669FD2EB669FD2E,
+       0x90ABCDEF90ABCDEF, 0x90ABCDEF90ABCDEF, 0xCDEFCDEFCDEFCDEF,
+       0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF}};
+
+  uint64_t v1[4];
+  uint64_t v2[4];
+  uint64_t c[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    v1[0] = arr[0];
+    v1[1] = arr[1];
+    v1[2] = arr[2];
+    v1[3] = arr[3];
+
+    v2[0] = arr[4];
+    v2[1] = arr[5];
+    v2[2] = arr[6];
+    v2[3] = arr[7];
+
+    c[0] = arr[8];
+    c[1] = arr[9];
+    c[2] = arr[10];
+    c[3] = arr[11];
+
+    f.Call(v1, v2, c, output);
+
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], (v1[i] & c[i]) | (v2[i] & ~c[i]));
+    }
+  }
 }
 
 TEST_F(MacroAssemblerX64Test, AreAliased) {

@@ -696,7 +696,13 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)                      \
   V(I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)               \
   V(I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
-  V(S256Select, Operator::kNoProperties, 3, 0, 1)
+  V(S256Zero, Operator::kNoProperties, 0, 0, 1)                            \
+  V(S256And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
+  V(S256Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(S256Not, Operator::kNoProperties, 1, 0, 1)                             \
+  V(S256Select, Operator::kNoProperties, 3, 0, 1)                          \
+  V(S256AndNot, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

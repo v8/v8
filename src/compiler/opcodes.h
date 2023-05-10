@@ -1126,8 +1126,14 @@
   V(I32x8DotI16x16S)               \
   V(I16x16RoundingAverageU)        \
   V(I8x32RoundingAverageU)         \
+  V(ExtractF128)                   \
+  V(S256Zero)                      \
+  V(S256Not)                       \
+  V(S256And)                       \
+  V(S256Or)                        \
+  V(S256Xor)                       \
   V(S256Select)                    \
-  V(ExtractF128)
+  V(S256AndNot)
 
 #define VALUE_OP_LIST(V)     \
   COMMON_OP_LIST(V)          \

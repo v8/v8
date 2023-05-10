@@ -3343,10 +3343,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Q15MulRSatS)              \
   V(I16x8RelaxedQ15MulRS)          \
   V(I8x16SConvertI16x8)            \
-  V(I8x16UConvertI16x8)            \
-  V(S128And)                       \
-  V(S128Or)                        \
-  V(S128Xor)
+  V(I8x16UConvertI16x8)
 
 #define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V)  \
   V(F64x2Add, FAdd, kL64, kV128)                            \
@@ -3431,7 +3428,13 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8RoundingAverageU, IRoundingAverageU, kL16, kV128)  \
   V(I16x16RoundingAverageU, IRoundingAverageU, kL16, kV256) \
   V(I8x16RoundingAverageU, IRoundingAverageU, kL8, kV128)   \
-  V(I8x32RoundingAverageU, IRoundingAverageU, kL8, kV256)
+  V(I8x32RoundingAverageU, IRoundingAverageU, kL8, kV256)   \
+  V(S128And, SAnd, kL8, kV128)                              \
+  V(S256And, SAnd, kL8, kV256)                              \
+  V(S128Or, SOr, kL8, kV128)                                \
+  V(S256Or, SOr, kL8, kV256)                                \
+  V(S128Xor, SXor, kL8, kV128)                              \
+  V(S256Xor, SXor, kL8, kV256)
 
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \
@@ -3476,8 +3479,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x16SConvertI8x16)    \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
-  V(I16x16UConvertI8x16)    \
-  V(S128Not)
+  V(I16x16UConvertI8x16)
 
 #define SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F32x4Abs, FAbs, kL32, kV128)                  \
@@ -3497,7 +3499,9 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2AllTrue, IAllTrue, kL64, kV128)          \
   V(I32x4AllTrue, IAllTrue, kL32, kV128)          \
   V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
-  V(I8x16AllTrue, IAllTrue, kL8, kV128)
+  V(I8x16AllTrue, IAllTrue, kL8, kV128)           \
+  V(S128Not, SNot, kL8, kV128)                    \
+  V(S256Not, SNot, kL8, kV256)
 
 #define SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(V) \
   V(I64x2Shl, IShl, kL64, kV128)                      \
@@ -3525,9 +3529,9 @@ void InstructionSelector::VisitS128Const(Node* node) {
                   val[2] == UINT32_MAX && val[3] == UINT32_MAX;
   InstructionOperand dst = g.DefineAsRegister(node);
   if (all_zeros) {
-    Emit(kX64S128Zero, dst);
+    Emit(kX64SZero | VectorLengthField::encode(kV128), dst);
   } else if (all_ones) {
-    Emit(kX64S128AllOnes, dst);
+    Emit(kX64SAllOnes | VectorLengthField::encode(kV128), dst);
   } else {
     Emit(kX64S128Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
          g.UseImmediate(val[2]), g.UseImmediate(val[3]));
@@ -3536,9 +3540,13 @@ void InstructionSelector::VisitS128Const(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64S128Zero, g.DefineAsRegister(node));
+  Emit(kX64SZero | VectorLengthField::encode(kV128), g.DefineAsRegister(node));
 }
 
+void InstructionSelector::VisitS256Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64SZero | VectorLengthField::encode(kV256), g.DefineAsRegister(node));
+}
 // Name, LaneSize, VectorLength
 #define SIMD_INT_TYPES_FOR_SPLAT(V) \
   V(I64x2, kL64, kV128)             \
@@ -3552,7 +3560,8 @@ void InstructionSelector::VisitS128Zero(Node* node) {
     X64OperandGenerator g(this);                                             \
     Node* input = node->InputAt(0);                                          \
     if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
-      Emit(kX64S128Zero, g.DefineAsRegister(node));                          \
+      Emit(kX64SZero | VectorLengthField::encode(kV128),                     \
+           g.DefineAsRegister(node));                                        \
     } else {                                                                 \
       Emit(kX64ISplat | LaneSizeField::encode(LaneSize) |                    \
                VectorLengthField::encode(VectorLength),                      \
@@ -3783,15 +3792,32 @@ void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64S128Select, dst, g.UseRegister(node->InputAt(0)),
-       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+  Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitS256Select(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64SSelect | VectorLengthField::encode(kV256), g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
 }
 
 void InstructionSelector::VisitS128AndNot(Node* node) {
   X64OperandGenerator g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
-  Emit(kX64S128AndNot, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  Emit(kX64SAndNot | VectorLengthField::encode(kV128),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitS256AndNot(Node* node) {
+  X64OperandGenerator g(this);
+  // andnps a b does ~a & b, but we want a & !b, so flip the input.
+  Emit(kX64SAndNot | VectorLengthField::encode(kV256),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {

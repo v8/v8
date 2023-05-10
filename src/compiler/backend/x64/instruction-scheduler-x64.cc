@@ -245,15 +245,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8DotI8x16I7x16S:
     case kX64I8x16SConvertI16x8:
     case kX64I8x16UConvertI16x8:
-    case kX64S128And:
-    case kX64S128Or:
-    case kX64S128Xor:
-    case kX64S128Not:
-    case kX64S128Select:
+    case kX64SAnd:
+    case kX64SOr:
+    case kX64SXor:
+    case kX64SNot:
+    case kX64SSelect:
     case kX64S128Const:
-    case kX64S128Zero:
-    case kX64S128AllOnes:
-    case kX64S128AndNot:
+    case kX64SZero:
+    case kX64SAllOnes:
+    case kX64SAndNot:
     case kX64IAllTrue:
     case kX64I8x16Swizzle:
     case kX64I8x16Shuffle:
