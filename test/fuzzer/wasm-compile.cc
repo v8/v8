@@ -1105,6 +1105,21 @@ class WasmGenerator {
     return struct_get_helper(needed_type, data);
   }
 
+  bool ref_cast(HeapType type, DataRange* data, Nullability nullable) {
+    // Check the target type and pick the corresponding type hierarchy for the
+    // source type.
+    HeapType::Representation input_type = HeapType::kAny;
+    if (type.representation() == HeapType::kFunc ||
+        std::find(functions_.begin(), functions_.end(),
+                  type.representation()) != functions_.end()) {
+      input_type = HeapType::kFunc;
+    }
+    GenerateRef(HeapType(input_type), data);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastNull : kExprRefCast);
+    builder_->EmitI32V(type.code());
+    return true;  // It always produces the desired result type.
+  }
+
   void struct_set(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     if (num_structs_ > 0) {
@@ -1130,10 +1145,25 @@ class WasmGenerator {
     }
   }
 
-  template <ValueKind wanted_kind>
   void ref_is_null(DataRange* data) {
     GenerateRef(HeapType(HeapType::kAny), data);
     builder_->Emit(kExprRefIsNull);
+  }
+
+  template <WasmOpcode opcode>
+  void ref_test(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kAny), data);
+    constexpr int generic_types[] = {kAnyRefCode,    kEqRefCode, kArrayRefCode,
+                                     kStructRefCode, kNoneCode,  kI31RefCode};
+    int num_types = num_structs_ + num_arrays_;
+    int num_all_types = num_types + arraysize(generic_types);
+    int type_choice = data->get<uint8_t>() % num_all_types;
+    builder_->EmitWithPrefix(opcode);
+    if (type_choice < num_types) {
+      builder_->EmitU32V(type_choice);
+    } else {
+      builder_->EmitU32V(generic_types[type_choice - num_types]);
+    }
   }
 
   void ref_eq(DataRange* data) {
@@ -1499,8 +1529,10 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::array_get<kI32>,
       &WasmGenerator::array_len,
 
-      &WasmGenerator::ref_is_null<kI32>,
+      &WasmGenerator::ref_is_null,
       &WasmGenerator::ref_eq,
+      &WasmGenerator::ref_test<kExprRefTest>,
+      &WasmGenerator::ref_test<kExprRefTestNull>,
 
       &WasmGenerator::table_size,
       &WasmGenerator::table_grow};
@@ -2079,15 +2111,17 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
 
   constexpr GenerateFnWithHeap alternatives_indexed_type[] = {
       &WasmGenerator::new_object, &WasmGenerator::get_local_ref,
-      &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref};
+      &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
+      &WasmGenerator::ref_cast};
 
   constexpr GenerateFnWithHeap alternatives_func_any[] = {
       &WasmGenerator::table_get, &WasmGenerator::get_local_ref,
-      &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref};
+      &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
+      &WasmGenerator::ref_cast};
 
   constexpr GenerateFnWithHeap alternatives_other[] = {
       &WasmGenerator::array_get_ref, &WasmGenerator::get_local_ref,
-      &WasmGenerator::struct_get_ref};
+      &WasmGenerator::struct_get_ref, &WasmGenerator::ref_cast};
 
   switch (type.representation()) {
     // For abstract types, sometimes generate one of their subtypes.
@@ -2131,7 +2165,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         if (GenerateOneOf(alternatives_other, type, data, nullability)) return;
         random = data->get<uint8_t>() % num_arrays_;
       }
-      GenerateRef(HeapType(random), data, nullability);
+      GenerateRef(HeapType(random + num_structs_), data, nullability);
       return;
     }
     case HeapType::kStruct: {
