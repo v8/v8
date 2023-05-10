@@ -20,6 +20,7 @@ EXTRA_FLAGS = [
     (0.1, '--jit-fuzzing'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
+    (0.1, '--maglev-future'),
     (0.1, '--minor-mc'),
     (0.2, '--no-analyze-environment-liveness'),
     # TODO(machenbach): Enable when it doesn't collide with crashing on missing
@@ -40,6 +41,7 @@ EXTRA_FLAGS = [
     (0.1, '--no-turbofan'),
     (0.2, '--no-regexp-tier-up'),
     (0.1, '--no-wasm-tier-up'),
+    (0.1, '--optimize-on-next-call-optimizes-to-maglev'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
@@ -47,6 +49,7 @@ EXTRA_FLAGS = [
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
+    (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
     (0.2, '--turboshaft'),
     (0.1, '--turbo-instruction-scheduling'),
