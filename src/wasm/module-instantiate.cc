@@ -358,7 +358,9 @@ bool IsStringRef(wasm::ValueType type) {
 // - `Function.prototype.call.bind(foo)`, where `foo` is something that has a
 //   Builtin id.
 // - JSFunction with Builtin id (e.g. `parseFloat`).
-WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
+WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
+                                        int func_index,
+                                        Handle<JSReceiver> callable,
                                         const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
   // Check for plain JS functions.
@@ -406,6 +408,12 @@ WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
       if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
           IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetParam(1)) &&
           IsStringRef(sig->GetReturn(0))) {
+        // TODO(jkummerow): If we had only one call site of the {WasmImportData}
+        // constructor, we wouldn't need to make this conditional here.
+        if (!instance.is_null()) {
+          DCHECK_GE(func_index, 0);
+          instance->well_known_imports().set(func_index, bound_this);
+        }
         return WellKnownImport::kStringToLocaleLowerCaseStringref;
       }
       break;
@@ -447,14 +455,17 @@ WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
 
 }  // namespace
 
-WasmImportData::WasmImportData(Handle<JSReceiver> callable,
+WasmImportData::WasmImportData(Handle<WasmInstanceObject> instance,
+                               int func_index, Handle<JSReceiver> callable,
                                const wasm::FunctionSig* expected_sig,
                                uint32_t expected_canonical_type_index)
     : callable_(callable) {
-  kind_ = ComputeKind(expected_sig, expected_canonical_type_index);
+  kind_ = ComputeKind(instance, func_index, expected_sig,
+                      expected_canonical_type_index);
 }
 
 ImportCallKind WasmImportData::ComputeKind(
+    Handle<WasmInstanceObject> instance, int func_index,
     const wasm::FunctionSig* expected_sig,
     uint32_t expected_canonical_type_index) {
   Isolate* isolate = callable_->GetIsolate();
@@ -499,7 +510,8 @@ ImportCallKind WasmImportData::ComputeKind(
       ResolveBoundJSFastApiFunction(expected_sig, callable_)) {
     return ImportCallKind::kWasmToJSFastApi;
   }
-  well_known_status_ = CheckForWellKnownImport(callable_, expected_sig);
+  well_known_status_ =
+      CheckForWellKnownImport(instance, func_index, callable_, expected_sig);
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable_->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable_);
@@ -1523,7 +1535,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t sig_index = module_->functions[func_index].sig_index;
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
-  WasmImportData resolved(js_receiver, expected_sig, canonical_type_index);
+  WasmImportData resolved(instance, func_index, js_receiver, expected_sig,
+                          canonical_type_index);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
@@ -1997,7 +2010,8 @@ void InstanceBuilder::CompileImportWrappers(
     uint32_t sig_index = module_->functions[func_index].sig_index;
     uint32_t canonical_type_index =
         module_->isorecursive_canonical_type_ids[sig_index];
-    WasmImportData resolved(js_receiver, sig, canonical_type_index);
+    WasmImportData resolved({}, func_index, js_receiver, sig,
+                            canonical_type_index);
     ImportCallKind kind = resolved.kind();
     if (kind == ImportCallKind::kWasmToWasm ||
         kind == ImportCallKind::kLinkError ||

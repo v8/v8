@@ -1184,6 +1184,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+  Handle<FixedArray> well_known_imports =
+      isolate->factory()->NewFixedArray(num_imported_functions);
+  instance->set_well_known_imports(*well_known_imports);
   Handle<FixedArray> functions = isolate->factory()->NewFixedArrayWithZeroes(
       static_cast<int>(module->functions.size()));
   instance->set_wasm_internal_functions(*functions);
@@ -1479,7 +1482,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    wasm::WasmImportData resolved(callable, sig, canonical_sig_index);
+    wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index);
     wasm::ImportCallKind kind = resolved.kind();
     callable = resolved.callable();  // Update to ultimate target.
     DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);

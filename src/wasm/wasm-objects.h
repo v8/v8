@@ -347,6 +347,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_ACCESSORS(feedback_vectors, FixedArray)
+  DECL_ACCESSORS(well_known_imports, FixedArray)
   DECL_SANDBOXED_POINTER_ACCESSORS(memory0_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
@@ -419,6 +420,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kFeedbackVectorsOffset, kTaggedSize)                                  \
+  V(kWellKnownImportsOffset, kTaggedSize)                                 \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
@@ -457,6 +459,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kWasmInternalFunctionsOffset,
       kManagedObjectMapsOffset,
       kFeedbackVectorsOffset,
+      kWellKnownImportsOffset,
       kImportedMutableGlobalsOffset,
       kImportedFunctionTargetsOffset,
       kDataSegmentStartsOffset,

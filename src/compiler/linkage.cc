@@ -381,16 +381,8 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
 
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int js_parameter_count,
-                                             CallDescriptor::Flags flags) {
-  return GetCallDescriptorWithJSLinkage(
-      zone, js_parameter_count,
-      is_osr ? JSDescKind::kOSR : JSDescKind::kFunction, flags,
-      Operator::kNoProperties);
-}
-
-CallDescriptor* Linkage::GetCallDescriptorWithJSLinkage(
-    Zone* zone, int js_parameter_count, JSDescKind kind,
-    CallDescriptor::Flags flags, Operator::Properties properties) {
+                                             CallDescriptor::Flags flags,
+                                             Operator::Properties properties) {
   const size_t return_count = 1;
   const size_t context_count = 1;
   const size_t new_target_count = 1;
@@ -427,14 +419,10 @@ CallDescriptor* Linkage::GetCallDescriptorWithJSLinkage(
   // is not in a register, but it is on the stack in the marker spill slot.
   // For kind == JSDescKind::kBuiltin, we should still use the regular
   // kJSFunctionRegister, so that frame attribution for stack traces works.
-  LinkageLocation target_loc = kind == JSDescKind::kOSR
+  LinkageLocation target_loc = is_osr
                                    ? LinkageLocation::ForSavedCallerFunction()
                                    : regloc(kJSFunctionRegister, target_type);
-  CallDescriptor::Kind descriptor_kind =
-      kind == JSDescKind::kBuiltin ? CallDescriptor::kCallBuiltinPointer
-                                   : CallDescriptor::kCallJSFunction;
-  const char* debug_name =
-      kind == JSDescKind::kBuiltin ? "js-builtin-call" : "js-call";
+  CallDescriptor::Kind descriptor_kind = CallDescriptor::kCallJSFunction;
   return zone->New<CallDescriptor>(  // --
       descriptor_kind,               // kind
       target_type,                   // target MachineType
@@ -445,22 +433,7 @@ CallDescriptor* Linkage::GetCallDescriptorWithJSLinkage(
       kNoCalleeSaved,                // callee-saved
       kNoCalleeSavedFp,              // callee-saved fp
       flags,                         // flags
-      debug_name);                   // debug name
-}
-
-CallDescriptor* Linkage::GetJSBuiltinCallDescriptor(
-    Zone* zone, int js_parameter_count, Operator::Properties properties) {
-  // {kFixedTargetRegister} signals to the code generator that we want the
-  // actual callable address to be loaded into kJavaScriptCallCodeStartRegister
-  // (except on platforms that can load it directly from memory, e.g. x64).
-  // Separately, we will (inside the helper called below) choose the
-  // "target location" to be the kJSFunctionRegister, where the builtin index
-  // will be held as a Smi, allowing the stack walker to recognize the frame
-  // despite not having a JSFunction for it.
-  return GetCallDescriptorWithJSLinkage(
-      zone, js_parameter_count, JSDescKind::kBuiltin,
-      CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister,
-      properties);
+      "js-call");                    // debug name
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.

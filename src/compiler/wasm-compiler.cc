@@ -6648,7 +6648,8 @@ Node* WasmGraphBuilder::WellKnown_StringIndexOf(
 }
 
 Node* WasmGraphBuilder::WellKnown_StringToLocaleLowerCaseStringref(
-    Node* string, Node* locale, CheckForNull string_null_check) {
+    int func_index, Node* string, Node* locale,
+    CheckForNull string_null_check) {
 #if V8_INTL_SUPPORT
   if (string_null_check == kWithNullCheck) {
     // We can let the builtin throw the exception, but it only checks for
@@ -6658,18 +6659,15 @@ Node* WasmGraphBuilder::WellKnown_StringToLocaleLowerCaseStringref(
     string = gasm_->WasmExternExternalize(string);
   }
   int param_count = 2;  // String, locale.
-  CallDescriptor* call_descriptor = Linkage::GetJSBuiltinCallDescriptor(
-      zone_, param_count, Operator::kNoDeopt | Operator::kNoWrite);
-  // TODO(jkummerow): This ends up leaving the Smi-tagged builtin ID in the
-  // "function" frame slot. That won't work for other builtins which expect
-  // that slot to contain an actual function; so when generalizing this
-  // technique to other/all builtins we'll have to find another solution.
-  Node* call_target = gasm_->GetBuiltinPointerTarget(
-      Builtin::kStringPrototypeToLocaleLowerCase);
-  Node* context =
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
+  CallDescriptor* call_descriptor = Linkage::GetJSCallDescriptor(
+      zone_, false, param_count, CallDescriptor::kCanUseRoots,
+      Operator::kNoDeopt | Operator::kNoWrite);
+  Node* callees_array =
+      LOAD_INSTANCE_FIELD(WellKnownImports, MachineType::TaggedPointer());
+  Node* callee = gasm_->LoadFixedArrayElementPtr(callees_array, func_index);
+  Node* context = gasm_->LoadContextFromJSFunction(callee);
   BuildModifyThreadInWasmFlag(false);
-  Node* result = gasm_->Call(call_descriptor, call_target, string, locale,
+  Node* result = gasm_->Call(call_descriptor, callee, string, locale,
                              UndefinedValue(),                   // new.target
                              gasm_->Int32Constant(param_count),  // argc
                              context);                           // context

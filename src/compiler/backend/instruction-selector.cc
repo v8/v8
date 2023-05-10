@@ -1052,10 +1052,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       bool location_is_fixed_register =
           location.IsRegister() && !location.IsAnyRegister();
       InstructionOperand op;
-      // We must check {location_is_fixed_register} first, because calls from
-      // Wasm to JS-linkage builtins specify a particular register, *and*
-      // set the {call_use_fixed_target_reg} flag, but don't want their choice
-      // of register to be overridden with {kJavaScriptCallCodeStartRegister}.
+      // If earlier phases specified a particular register, don't override
+      // their choice.
       if (location_is_fixed_register) {
         op = g.UseLocation(callee, location);
       } else if (call_use_fixed_target_reg) {
