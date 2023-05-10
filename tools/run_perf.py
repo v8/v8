@@ -119,19 +119,23 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 The test flags are passed to the js test file after '--'.
 """
 
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from math import sqrt
+from pathlib import Path
 from statistics import mean, stdev
+
+import argparse
 import copy
 import json
 import logging
 import math
-import argparse
-import pathlib
 import os
+import psutil
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 
@@ -153,6 +157,8 @@ RESULT_LIST_RE = re.compile(r'^\[([^\]]+)\]$')
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 INFRA_FAILURE_RETCODE = 87
 MIN_RUNS_FOR_CONFIDENCE = 10
+
+WARMUP_CACHE_FILE = Path(tempfile.gettempdir()) / 'v8_perf_warmup_cache.json'
 
 
 def GeometricMean(values):
@@ -749,6 +755,73 @@ def find_build_directory(base_path, arch):
   return actual_paths[0]
 
 
+class CacheHandler:
+  def __init__(self, cache_file):
+    self.cache_file = cache_file
+
+  def read_cache(self):
+    try:
+      with open(self.cache_file) as f:
+        return json.load(f)
+    except FileNotFoundError:
+      logging.info(f"{self.cache_file} doesn't exist yet. Creating new.")
+    return {}
+
+  def write_cache(self, cache):
+    with open(self.cache_file, 'w') as f:
+      return json.dump(cache, f)
+
+
+class WarmupManager(ABC):
+  @abstractmethod
+  def maybe_warm_up(self, name, warmup_fun):
+    """Run the warmup_fun if needed, e.g. after a system reboot."""
+
+
+class NullWarmupManager(WarmupManager):
+  """Null-object place-holder used when warm-up isn't activated or for
+  platforms where it isn't implemented.
+  """
+  def maybe_warm_up(self, name, warmup_fun):
+    pass
+
+
+class TempfileWarmupManager(WarmupManager):
+  """On-demand warm-up based on system reboot.
+
+  The warm-up function is run once after reboot for every benchmark key.
+  The keys are cached in a file in the temp folder.
+  """
+  def __init__(self):
+    self.cache_handler = CacheHandler(WARMUP_CACHE_FILE)
+    self.cache = self.cache_handler.read_cache()
+    self.last_reboot = psutil.boot_time()
+    self.trim_cache()
+    # Update file stats to prevent file from being cleaned up too often.
+    # Also ensure the trimmed version on disk.
+    self.cache_handler.write_cache(self.cache)
+
+  def is_warmed_up(self, timestamp):
+     return timestamp > self.last_reboot
+
+  def trim_cache(self):
+    """Prevent obsolete entries occupying the cache file."""
+    self.cache = dict(
+        (k, v) for k, v in self.cache.items() if self.is_warmed_up(v))
+
+  def maybe_warm_up(self, name, warmup_fun):
+    if self.is_warmed_up(self.cache.get(name, 0)):
+      return
+
+    logging.info(f'Warm-up run of {name} - disregarding output.')
+    try:
+      warmup_fun()
+    finally:
+      self.cache[name] = time.time()
+      self.cache_handler.write_cache(self.cache)
+      logging.info(f'Warm-up done.')
+
+
 class Platform(object):
   def __init__(self, args):
     self.shell_dir = args.shell_dir
@@ -756,6 +829,7 @@ class Platform(object):
     self.is_dry_run = args.dry_run
     self.extra_flags = args.extra_flags.split()
     self.args = args
+    self.warmup_manager = NullWarmupManager()
 
   @staticmethod
   def ReadBuildConfig(args):
@@ -772,14 +846,14 @@ class Platform(object):
     else:
       return DesktopPlatform(args)
 
-  def _Run(self, runnable, count, secondary=False):
+  def _Run(self, runnable, count, secondary=False, post_process=True):
     raise NotImplementedError()  # pragma: no cover
 
-  def _LoggedRun(self, runnable, count, secondary=False):
+  def _LoggedRun(self, runnable, count, secondary=False, post_process=True):
     suffix = ' - secondary' if secondary else ''
     title = '>>> %%s (#%d)%s:' % ((count + 1), suffix)
     try:
-      output = self._Run(runnable, count, secondary)
+      output = self._Run(runnable, count, secondary, post_process)
     except OSError:
       logging.exception(title % 'OSError')
       raise
@@ -806,6 +880,10 @@ class Platform(object):
       A tuple with the two benchmark outputs. The latter will be NULL_OUTPUT if
       secondary is False.
     """
+    self.warmup_manager.maybe_warm_up(
+        runnable.name,
+        lambda: self._LoggedRun(
+            runnable, 0, secondary=False, post_process=False))
     output = self._LoggedRun(runnable, count, secondary=False)
     if secondary:
       return output, self._LoggedRun(runnable, count, secondary=True)
@@ -835,6 +913,9 @@ class DesktopPlatform(Platform):
         self.command_prefix += ['-a', ('0x%x' % core)]
       self.command_prefix += ['-e']
 
+    if args.checked_warmup_internal:
+      self.warmup_manager = TempfileWarmupManager()
+
   def PreExecution(self):
     pass
 
@@ -845,18 +926,20 @@ class DesktopPlatform(Platform):
     if isinstance(node, RunnableConfig):
       node.ChangeCWD(path)
 
-  def _Run(self, runnable, count, secondary=False):
+  def _Run(self, runnable, count, secondary=False, post_process=True):
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     logging.debug('Running command: %s' % cmd)
     output = Output() if self.is_dry_run else cmd.execute()
 
-    if output.IsSuccess() and '--prof' in self.extra_flags:
+    if (not self.is_dry_run and
+        post_process and
+        output.IsSuccess() and
+        '--prof' in self.extra_flags):
       os_prefix = {'linux': 'linux', 'macos': 'mac'}.get(utils.GuessOS())
       if os_prefix:
-        if not self.is_dry_run:
-          tick_tools = os.path.join(TOOLS_BASE, '%s-tick-processor' % os_prefix)
-          subprocess.check_call(tick_tools + ' --only-summary', shell=True)
+        tick_tools = os.path.join(TOOLS_BASE, '%s-tick-processor' % os_prefix)
+        subprocess.check_call(tick_tools + ' --only-summary', shell=True)
       else:  # pragma: no cover
         logging.warning(
             'Profiler option currently supported on Linux and Mac OS.')
@@ -901,7 +984,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     for resource in node.resources:
       self.driver.push_file(bench_abs, resource, bench_rel)
 
-  def _Run(self, runnable, count, secondary=False):
+  def _Run(self, runnable, count, secondary=False, post_process=True):
     target_dir = 'bin_secondary' if secondary else 'bin'
     self.driver.drop_ram_caches()
 
@@ -1141,6 +1224,11 @@ def Main(argv):
       help='Do not run any actual tests.')
   parser.add_argument('-v', '--verbose', default=False, action='store_true',
                       help='Be verbose and print debug output.')
+  parser.add_argument('--checked-warmup', default=False, action='store_true',
+                      help='Warm up benchmarks not run since last reboot.')
+  # TODO(https://crbug.com/v8/13984): Flip to above once called from recipe.
+  parser.add_argument('--checked-warmup-internal', default=False,
+                      action='store_true', help='Internal only.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
   try:
@@ -1172,7 +1260,7 @@ def Main(argv):
         os.path.join(workspace, args.outdir), args.arch)
     default_binary_name = 'd8'
   else:
-    path = pathlib.Path(args.binary_override_path).expanduser().resolve()
+    path = Path(args.binary_override_path).expanduser().resolve()
     if not path.is_file():
       logging.error(f'binary-override-path "{path}" must be a file name')
       return INFRA_FAILURE_RETCODE
