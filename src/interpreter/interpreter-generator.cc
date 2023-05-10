@@ -2830,9 +2830,8 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 
   TNode<JSFunction> this_function = CAST(LoadRegisterAtOperandIndex(0));
 
-  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
-                                       &found_default_base_ctor,
-                                       &found_something_else);
+  FindNonDefaultConstructor(this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
 
   BIND(&found_default_base_ctor);
   {

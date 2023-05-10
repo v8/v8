@@ -2036,11 +2036,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
-  void FindNonDefaultConstructorOrConstruct(TNode<Context> context,
-                                            TNode<JSFunction> this_function,
-                                            TVariable<Object>& constructor,
-                                            Label* found_default_base_ctor,
-                                            Label* found_something_else);
+  void FindNonDefaultConstructor(TNode<JSFunction> this_function,
+                                 TVariable<Object>& constructor,
+                                 Label* found_default_base_ctor,
+                                 Label* found_something_else);
 
   TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
 

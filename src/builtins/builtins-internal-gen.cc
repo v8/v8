@@ -1577,9 +1577,8 @@ TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
   Label found_default_base_ctor(this, &constructor),
       found_something_else(this, &constructor);
 
-  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
-                                       &found_default_base_ctor,
-                                       &found_something_else);
+  FindNonDefaultConstructor(this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
 
   BIND(&found_default_base_ctor);
   {
