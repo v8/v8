@@ -548,10 +548,6 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     CHECK(heap->marking_state()->IsUnmarked(value));
 
     {
-      // TODO(v8:13023): remove ResetPKUPermissionsForThreadSpawning in the
-      // future when RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() is
-      // stable.
-      ResetPKUPermissionsForThreadSpawning thread_scope;
       auto thread =
           std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
       CHECK(thread->Start());

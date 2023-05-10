@@ -3477,7 +3477,6 @@ void CompilationStateImpl::CommitCompilationUnits(
     compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
                                       native_module_->module());
   }
-  ResetPKUPermissionsForThreadSpawning pku_reset_scope;
   if (!baseline_units.empty()) {
     DCHECK(baseline_compile_job_->IsValid());
     baseline_compile_job_->NotifyConcurrencyIncrease();

@@ -152,27 +152,6 @@ using CodePageMemoryModificationScopeForPerf = RwxMemoryWriteScope;
 using CodePageMemoryModificationScopeForPerf = NopRwxMemoryWriteScope;
 #endif
 
-// Sometimes we need to call a function which will / might spawn a new thread,
-// like {JobHandle::NotifyConcurrencyIncrease}, while holding a
-// {RwxMemoryWriteScope}. This is problematic since the new thread will inherit
-// the parent thread's PKU permissions.
-// The {ResetPKUPermissionsForThreadSpawning} scope will thus reset the PKU
-// permissions as long as it is in scope, such that it is safe to spawn new
-// threads.
-class V8_NODISCARD ResetPKUPermissionsForThreadSpawning {
- public:
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  V8_EXPORT_PRIVATE ResetPKUPermissionsForThreadSpawning();
-  V8_EXPORT_PRIVATE ~ResetPKUPermissionsForThreadSpawning();
-
- private:
-  bool was_writable_;
-#else
-  // Define an empty constructor to avoid "unused variable" warnings.
-  ResetPKUPermissionsForThreadSpawning() {}
-#endif
-};
-
 // Same as the RwxMemoryWriteScope but without inlining the code.
 // This is a workaround for component build issue (crbug/1316800), when
 // a thread_local value can't be properly exported.
