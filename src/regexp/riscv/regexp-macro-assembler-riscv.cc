@@ -681,8 +681,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     //
     // *int(*match)(String input_string,      // a0
     //             int start_offset,          // a1
-    //             byte* input_start,         // a2
-    //             byte* input_end,           // a3
+    //             uint8_t* input_start,      // a2
+    //             uint8_t* input_end,        // a3
     //             int* output,               // a4
     //             int output_size,           // a5
     //             int call_origin,           // a6
@@ -1223,8 +1223,8 @@ int64_t RegExpMacroAssemblerRISCV::CheckStackGuardState(Address* return_address,
           frame_entry<int64_t>(re_frame, kDirectCallOffset)),
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
-      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
-      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
 }
 
 MemOperand RegExpMacroAssemblerRISCV::register_location(int register_index) {
