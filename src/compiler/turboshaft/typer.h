@@ -267,21 +267,15 @@ struct WordOperationTyper {
   static type_t WidenMaximal(const type_t& old_type, const type_t& new_type,
                              Zone* zone) {
     if (new_type.is_any()) return new_type;
+    if (old_type.is_wrapping() || new_type.is_wrapping()) return type_t::Any();
 
-    if (old_type.is_wrapping()) {
-      DCHECK(new_type.is_wrapping());
-      return type_t::Any();
-    } else if (new_type.is_wrapping()) {
-      return type_t::Any();
-    } else {
-      word_t result_from = new_type.unsigned_min();
-      if (result_from < old_type.unsigned_min()) result_from = 0;
-      word_t result_to = new_type.unsigned_max();
-      if (result_to > old_type.unsigned_max()) {
-        result_to = std::numeric_limits<word_t>::max();
-      }
-      return type_t::Range(result_from, result_to, zone);
+    word_t result_from = new_type.unsigned_min();
+    if (result_from < old_type.unsigned_min()) result_from = 0;
+    word_t result_to = new_type.unsigned_max();
+    if (result_to > old_type.unsigned_max()) {
+      result_to = std::numeric_limits<word_t>::max();
     }
+    return type_t::Range(result_from, result_to, zone);
   }
 
   // Performs exponential widening, which means that the number of values
