@@ -7186,8 +7186,7 @@ void MaglevGraphBuilder::ClearCurrentRawAllocation() {
 
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastObject object, AllocationType allocation_type) {
-  base::SmallVector<ValueNode*, 8, ZoneAllocator<ValueNode*>> properties(
-      object.inobject_properties, ZoneAllocator<ValueNode*>(zone()));
+  SmallZoneVector<ValueNode*, 8> properties(object.inobject_properties, zone());
   for (int i = 0; i < object.inobject_properties; ++i) {
     properties[i] = BuildAllocateFastObject(object.fields[i], allocation_type);
   }
@@ -7246,8 +7245,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastFixedArray value, AllocationType allocation_type) {
   switch (value.type) {
     case FastFixedArray::kTagged: {
-      base::SmallVector<ValueNode*, 8, ZoneAllocator<ValueNode*>> elements(
-          value.length, ZoneAllocator<ValueNode*>(zone()));
+      SmallZoneVector<ValueNode*, 8> elements(value.length, zone());
       for (int i = 0; i < value.length; ++i) {
         elements[i] = BuildAllocateFastObject(value.values[i], allocation_type);
       }

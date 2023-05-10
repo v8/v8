@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "src/base/bits.h"
-#include "src/base/small-vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -211,8 +210,7 @@ class LiftoffAssembler : public MacroAssembler {
   ASSERT_TRIVIALLY_COPYABLE(VarState);
 
   struct CacheState {
-    explicit CacheState(Zone* zone)
-        : stack_state(ZoneAllocator<VarState>{zone}) {}
+    explicit CacheState(Zone* zone) : stack_state(zone) {}
 
     // Allow move construction and move assignment.
     CacheState(CacheState&&) V8_NOEXCEPT = default;
@@ -240,7 +238,7 @@ class LiftoffAssembler : public MacroAssembler {
 
     // TODO(jkummerow): Wrap all accesses to {stack_state} in accessors that
     // check {frozen}.
-    base::SmallVector<VarState, 16, ZoneAllocator<VarState>> stack_state;
+    SmallZoneVector<VarState, 16> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
