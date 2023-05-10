@@ -2928,7 +2928,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   PROFILE(heap()->isolate(), WeakCodeClearEvent());
 
   MarkDependentCodeForDeoptimization();
-  Deoptimizer::DeoptimizeMarkedCode(heap()->isolate());
 
 #ifdef V8_ENABLE_SANDBOX
   {
