@@ -4948,12 +4948,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
     return false;
   }
-  if (feedback_vector->object()->has_optimized_code() &&
-      feedback_vector->object()->optimized_code().kind() ==
-          CodeKind::TURBOFAN) {
-    TRACE_CANNOT_INLINE("already turbofanned");
-    return false;
-  }
   if (compilation_unit_->shared_function_info().equals(shared)) {
     TRACE_CANNOT_INLINE("direct recursion");
     return false;

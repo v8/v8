@@ -364,6 +364,7 @@ class MaglevGraphBuilder {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
   bool ShouldEmitInterruptBudgetChecks() {
+    if (is_inline()) return false;
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
