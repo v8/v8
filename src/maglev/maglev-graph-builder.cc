@@ -5311,11 +5311,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       if (!map.supports_fast_array_resize(broker())) {
         return ReduceResult::Fail();
       }
-      compiler::ObjectRef prototype = map.prototype(broker());
-      if (!prototype.IsJSObject() ||
-          !broker()->IsArrayOrObjectPrototype(prototype.AsJSObject())) {
-        return ReduceResult::Fail();
-      }
       if (receiver_map_refs.empty()) {
         kind = packed;
       } else if (kind != packed) {
