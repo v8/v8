@@ -384,13 +384,13 @@ class ZoneVector {
     return new_capacity < minimum ? minimum : new_capacity;
   }
 
-  void EnsureOneMoreCapacity() {
-    if (end_ < capacity_) return;
+  V8_INLINE void EnsureOneMoreCapacity() {
+    if (V8_LIKELY(end_ < capacity_)) return;
     Grow(capacity() + 1);
   }
 
-  void EnsureCapacity(size_t minimum) {
-    if (minimum <= capacity()) return;
+  V8_INLINE void EnsureCapacity(size_t minimum) {
+    if (V8_LIKELY(minimum <= capacity())) return;
     Grow(minimum);
   }
 
@@ -462,7 +462,7 @@ class ZoneVector {
 
 #undef EMIT_TRIVIAL_CASE
 
-  void Grow(size_t minimum) {
+  V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t minimum) {
     T* old_data = data_;
     T* old_end = end_;
     size_t old_size = size();
