@@ -571,6 +571,34 @@ class PageAllocator {
   virtual bool CanAllocateSharedPages() { return false; }
 };
 
+/**
+ * An allocator that uses per-thread permissions to protect the memory.
+ *
+ * The implementation is platform/hardware specific, e.g. using pkeys on x64.
+ *
+ * INTERNAL ONLY: This interface has not been stabilised and may change
+ * without notice from one release to another without being deprecated first.
+ */
+class ThreadIsolatedAllocator {
+ public:
+  virtual ~ThreadIsolatedAllocator() = default;
+
+  virtual void* Allocate(size_t size) = 0;
+
+  virtual void Free(void* object) = 0;
+
+  enum class Type {
+    kPkey,
+  };
+
+  virtual Type Type() const = 0;
+
+  /**
+   * Return the pkey used to implement the thread isolation if Type == kPkey.
+   */
+  virtual int Pkey() const { return -1; }
+};
+
 // Opaque type representing a handle to a shared memory region.
 using PlatformSharedMemoryHandle = intptr_t;
 static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
@@ -973,6 +1001,16 @@ class Platform {
    * Returning nullptr will cause V8 to use the default page allocator.
    */
   virtual PageAllocator* GetPageAllocator() = 0;
+
+  /**
+   * Allows the embedder to provide an allocator that uses per-thread memory
+   * permissions to protect allocations.
+   * Returning nullptr will cause V8 to disable protections that rely on this
+   * feature.
+   */
+  virtual ThreadIsolatedAllocator* GetThreadIsolatedAllocator() {
+    return nullptr;
+  }
 
   /**
    * Allows the embedder to specify a custom allocator used for zones.
