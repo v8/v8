@@ -42,13 +42,13 @@ class SnapshotImpl : public AllStatic {
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
-  static base::Vector<const byte> ExtractStartupData(
+  static base::Vector<const uint8_t> ExtractStartupData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractReadOnlyData(
+  static base::Vector<const uint8_t> ExtractReadOnlyData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractSharedHeapData(
+  static base::Vector<const uint8_t> ExtractSharedHeapData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractContextData(
+  static base::Vector<const uint8_t> ExtractContextData(
       const v8::StartupData* data, uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
@@ -93,12 +93,12 @@ class SnapshotImpl : public AllStatic {
   static const uint32_t kFirstContextOffsetOffset =
       kSharedHeapOffsetOffset + kUInt32Size;
 
-  static base::Vector<const byte> ChecksummedContent(
+  static base::Vector<const uint8_t> ChecksummedContent(
       const v8::StartupData* data) {
     static_assert(kVersionStringOffset == kChecksumOffset + kUInt32Size);
     const uint32_t kChecksumStart = kVersionStringOffset;
-    return base::Vector<const byte>(
-        reinterpret_cast<const byte*>(data->data + kChecksumStart),
+    return base::Vector<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(data->data + kChecksumStart),
         data->raw_size - kChecksumStart);
   }
 
@@ -115,7 +115,7 @@ class SnapshotImpl : public AllStatic {
 }  // namespace
 
 SnapshotData MaybeDecompress(Isolate* isolate,
-                             base::Vector<const byte> snapshot_data) {
+                             base::Vector<const uint8_t> snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
   TRACE_EVENT0("v8", "V8.SnapshotDecompress");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kSnapshotDecompress);
@@ -166,11 +166,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
     CHECK(VerifyChecksum(blob));
   }
 
-  base::Vector<const byte> startup_data =
+  base::Vector<const uint8_t> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
-  base::Vector<const byte> read_only_data =
+  base::Vector<const uint8_t> read_only_data =
       SnapshotImpl::ExtractReadOnlyData(blob);
-  base::Vector<const byte> shared_heap_data =
+  base::Vector<const uint8_t> shared_heap_data =
       SnapshotImpl::ExtractSharedHeapData(blob);
 
   SnapshotData startup_snapshot_data(MaybeDecompress(isolate, startup_data));
@@ -201,7 +201,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
-  base::Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
+  base::Vector<const uint8_t> context_data = SnapshotImpl::ExtractContextData(
       blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(isolate, context_data));
 
@@ -661,19 +661,19 @@ bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
 }
 
 namespace {
-base::Vector<const byte> ExtractData(const v8::StartupData* snapshot,
-                                     uint32_t start_offset,
-                                     uint32_t end_offset) {
+base::Vector<const uint8_t> ExtractData(const v8::StartupData* snapshot,
+                                        uint32_t start_offset,
+                                        uint32_t end_offset) {
   CHECK_LT(start_offset, end_offset);
   CHECK_LT(end_offset, snapshot->raw_size);
   uint32_t length = end_offset - start_offset;
-  const byte* data =
-      reinterpret_cast<const byte*>(snapshot->data + start_offset);
-  return base::Vector<const byte>(data, length);
+  const uint8_t* data =
+      reinterpret_cast<const uint8_t*>(snapshot->data + start_offset);
+  return base::Vector<const uint8_t>(data, length);
 }
 }  // namespace
 
-base::Vector<const byte> SnapshotImpl::ExtractStartupData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractStartupData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -682,7 +682,7 @@ base::Vector<const byte> SnapshotImpl::ExtractStartupData(
                      GetHeaderValue(data, kReadOnlyOffsetOffset));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractReadOnlyData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -690,7 +690,7 @@ base::Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
                      GetHeaderValue(data, kSharedHeapOffsetOffset));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractSharedHeapData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractSharedHeapData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -698,7 +698,7 @@ base::Vector<const byte> SnapshotImpl::ExtractSharedHeapData(
                      GetHeaderValue(data, ContextSnapshotOffsetOffset(0)));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractContextData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractContextData(
     const v8::StartupData* data, uint32_t index) {
   uint32_t num_contexts = ExtractNumContexts(data);
   CHECK_LT(index, num_contexts);
@@ -712,10 +712,10 @@ base::Vector<const byte> SnapshotImpl::ExtractContextData(
     CHECK_LT(next_context_offset, data->raw_size);
   }
 
-  const byte* context_data =
-      reinterpret_cast<const byte*>(data->data + context_offset);
+  const uint8_t* context_data =
+      reinterpret_cast<const uint8_t*>(data->data + context_offset);
   uint32_t context_length = next_context_offset - context_offset;
-  return base::Vector<const byte>(context_data, context_length);
+  return base::Vector<const uint8_t>(context_data, context_length);
 }
 
 void SnapshotImpl::CheckVersion(const v8::StartupData* data) {

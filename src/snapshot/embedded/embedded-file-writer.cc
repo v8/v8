@@ -69,11 +69,11 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   w->DeclareFunctionBegin(builtin_symbol.begin(),
                           blob->InstructionSizeOf(builtin));
   const int builtin_id = static_cast<int>(builtin);
-  const std::vector<byte>& current_positions = source_positions_[builtin_id];
+  const std::vector<uint8_t>& current_positions = source_positions_[builtin_id];
   // The code below interleaves bytes of assembly code for the builtin
   // function with source positions at the appropriate offsets.
-  base::Vector<const byte> vpos(current_positions.data(),
-                                current_positions.size());
+  base::Vector<const uint8_t> vpos(current_positions.data(),
+                                   current_positions.size());
   v8::internal::SourcePositionTableIterator positions(
       vpos, SourcePositionTableIterator::kExternalOnly);
 

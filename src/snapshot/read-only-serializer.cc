@@ -60,7 +60,7 @@ class ReadOnlyHeapImageSerializer {
       __msan_check_mem_is_initialized(reinterpret_cast<void*>(pos),
                                       static_cast<int>(page_content_bytes));
 #endif
-      sink.PutRaw(reinterpret_cast<const byte*>(pos),
+      sink.PutRaw(reinterpret_cast<const uint8_t*>(pos),
                   static_cast<int>(page_content_bytes), "page");
     };
 

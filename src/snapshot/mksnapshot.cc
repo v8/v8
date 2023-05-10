@@ -38,14 +38,14 @@ class SnapshotFileWriter {
     // we end up with a corrupted snapshot file. The build step would succeed,
     // but the build target is unusable. Ideally we would write out temporary
     // files and only move them to the final destination as last step.
-    v8::base::Vector<const i::byte> blob_vector(
-        reinterpret_cast<const i::byte*>(blob.data), blob.raw_size);
+    v8::base::Vector<const uint8_t> blob_vector(
+        reinterpret_cast<const uint8_t*>(blob.data), blob.raw_size);
     MaybeWriteSnapshotFile(blob_vector);
     MaybeWriteStartupBlob(blob_vector);
   }
 
  private:
-  void MaybeWriteStartupBlob(v8::base::Vector<const i::byte> blob) const {
+  void MaybeWriteStartupBlob(v8::base::Vector<const uint8_t> blob) const {
     if (!snapshot_blob_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_blob_path_);
@@ -58,7 +58,7 @@ class SnapshotFileWriter {
     }
   }
 
-  void MaybeWriteSnapshotFile(v8::base::Vector<const i::byte> blob) const {
+  void MaybeWriteSnapshotFile(v8::base::Vector<const uint8_t> blob) const {
     if (!snapshot_cpp_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_cpp_path_);
@@ -94,9 +94,10 @@ class SnapshotFileWriter {
   }
 
   static void WriteSnapshotFileData(FILE* fp,
-                                    v8::base::Vector<const i::byte> blob) {
-    fprintf(fp,
-            "alignas(kPointerAlignment) static const byte blob_data[] = {\n");
+                                    v8::base::Vector<const uint8_t> blob) {
+    fprintf(
+        fp,
+        "alignas(kPointerAlignment) static const uint8_t blob_data[] = {\n");
     WriteBinaryContentsAsCArray(fp, blob);
     fprintf(fp, "};\n");
     fprintf(fp, "static const int blob_size = %d;\n", blob.length());
@@ -105,7 +106,7 @@ class SnapshotFileWriter {
   }
 
   static void WriteBinaryContentsAsCArray(
-      FILE* fp, v8::base::Vector<const i::byte> blob) {
+      FILE* fp, v8::base::Vector<const uint8_t> blob) {
     for (int i = 0; i < blob.length(); i++) {
       if ((i & 0x1F) == 0x1F) fprintf(fp, "\n");
       if (i > 0) fprintf(fp, ",");

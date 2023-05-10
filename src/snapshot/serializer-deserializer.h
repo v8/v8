@@ -84,7 +84,7 @@ class SerializerDeserializer : public RootVisitor {
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kHotObjectCount = 8;
 
-  enum Bytecode : byte {
+  enum Bytecode : uint8_t {
     //
     // ---------- byte code range 0x00..0x1f ----------
     //
@@ -189,12 +189,13 @@ class SerializerDeserializer : public RootVisitor {
       return base::IsInRange(static_cast<int>(value), kMinValue, kMaxValue);
     }
 
-    static constexpr byte Encode(TValue value) {
+    static constexpr uint8_t Encode(TValue value) {
       DCHECK(IsEncodable(value));
-      return static_cast<byte>(kBytecode + static_cast<int>(value) - kMinValue);
+      return static_cast<uint8_t>(kBytecode + static_cast<int>(value) -
+                                  kMinValue);
     }
 
-    static constexpr TValue Decode(byte bytecode) {
+    static constexpr TValue Decode(uint8_t bytecode) {
       DCHECK(base::IsInRange(bytecode, Encode(static_cast<TValue>(kMinValue)),
                              Encode(static_cast<TValue>(kMaxValue))));
       return static_cast<TValue>(bytecode - kBytecode + kMinValue);

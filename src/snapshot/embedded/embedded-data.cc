@@ -403,14 +403,14 @@ size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
   static constexpr uint32_t kFirstHashedDataOffset = IsolateHashOffset();
   // Hash the entire data section except the embedded blob hash fields
   // themselves.
-  base::Vector<const byte> payload(data_ + kFirstHashedDataOffset,
-                                   data_size_ - kFirstHashedDataOffset);
+  base::Vector<const uint8_t> payload(data_ + kFirstHashedDataOffset,
+                                      data_size_ - kFirstHashedDataOffset);
   return Checksum(payload);
 }
 
 size_t EmbeddedData::CreateEmbeddedBlobCodeHash() const {
   CHECK(v8_flags.text_is_readable);
-  base::Vector<const byte> payload(code_, code_size_);
+  base::Vector<const uint8_t> payload(code_, code_size_);
   return Checksum(payload);
 }
 

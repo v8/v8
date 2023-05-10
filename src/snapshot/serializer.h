@@ -183,7 +183,7 @@ class Serializer : public SerializerDeserializer {
   Serializer(const Serializer&) = delete;
   Serializer& operator=(const Serializer&) = delete;
 
-  const std::vector<byte>* Payload() const { return sink_.data(); }
+  const std::vector<uint8_t>* Payload() const { return sink_.data(); }
 
   bool ReferenceMapContains(Handle<HeapObject> o) {
     return reference_map()->LookupReference(o) != nullptr;
@@ -395,7 +395,7 @@ class Serializer : public SerializerDeserializer {
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
   std::unique_ptr<CodeAddressMap> code_address_map_;
-  std::vector<byte> code_buffer_;
+  std::vector<uint8_t> code_buffer_;
   GlobalHandleVector<HeapObject>
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;

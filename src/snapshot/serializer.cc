@@ -301,7 +301,8 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   sink_.Put(FixedRawDataWithSize::Encode(size_in_tagged), "Smi");
 
   Address raw_value = Smi::cast(*slot).ptr();
-  const byte* raw_value_as_bytes = reinterpret_cast<const byte*>(&raw_value);
+  const uint8_t* raw_value_as_bytes =
+      reinterpret_cast<const uint8_t*>(&raw_value);
   sink_.PutRaw(raw_value_as_bytes, bytes_to_output, "Bytes");
 }
 
@@ -429,8 +430,8 @@ InstructionStream Serializer::CopyCode(InstructionStream istream) {
   code_buffer_.resize(InstructionStream::kCodeAlignmentMinusCodeHeader);
   int size = istream.Size();
   code_buffer_.insert(code_buffer_.end(),
-                      reinterpret_cast<byte*>(istream.address()),
-                      reinterpret_cast<byte*>(istream.address() + size));
+                      reinterpret_cast<uint8_t*>(istream.address()),
+                      reinterpret_cast<uint8_t*>(istream.address() + size));
   // When pointer compression is enabled the checked cast will try to
   // decompress map field of off-heap InstructionStream object.
   return InstructionStream::unchecked_cast(
@@ -534,7 +535,8 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
   if (max_byte_length.IsJust()) {
     sink_->PutInt(max_byte_length.FromJust(), "max length");
   }
-  sink_->PutRaw(static_cast<byte*>(backing_store), byte_length, "BackingStore");
+  sink_->PutRaw(static_cast<uint8_t*>(backing_store), byte_length,
+                "BackingStore");
   DCHECK_NE(0, serializer_->seen_backing_stores_index_);
   SerializerReference reference =
       SerializerReference::OffHeapBackingStoreReference(
@@ -660,7 +662,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   Map map;
   int content_size;
   int allocation_size;
-  const byte* resource;
+  const uint8_t* resource;
   // Find the map and size for the imaginary sequential string.
   bool internalized = object_->IsInternalizedString(cage_base);
   if (object_->IsExternalOneByteString(cage_base)) {
@@ -668,13 +670,13 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
                        : roots.one_byte_string_map();
     allocation_size = SeqOneByteString::SizeFor(length);
     content_size = length * kCharSize;
-    resource = reinterpret_cast<const byte*>(
+    resource = reinterpret_cast<const uint8_t*>(
         Handle<ExternalOneByteString>::cast(string)->resource()->data());
   } else {
     map = internalized ? roots.internalized_string_map() : roots.string_map();
     allocation_size = SeqTwoByteString::SizeFor(length);
     content_size = length * kShortSize;
-    resource = reinterpret_cast<const byte*>(
+    resource = reinterpret_cast<const uint8_t*>(
         Handle<ExternalTwoByteString>::cast(string)->resource()->data());
   }
 
@@ -691,7 +693,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   sink_->PutInt(slots_to_output, "length");
 
   // Serialize string header (except for map).
-  byte* string_start = reinterpret_cast<byte*>(string->address());
+  uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
   for (int i = HeapObject::kHeaderSize; i < SeqString::kHeaderSize; i++) {
     sink_->Put(string_start[i], "StringHeader");
   }
@@ -704,7 +706,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   int padding_size = allocation_size - SeqString::kHeaderSize - content_size;
   DCHECK(0 <= padding_size && padding_size < kObjectAlignment);
   for (int i = 0; i < padding_size; i++) {
-    sink_->Put(static_cast<byte>(0), "StringPadding");
+    sink_->Put(static_cast<uint8_t>(0), "StringPadding");
   }
 }
 
@@ -1036,14 +1038,14 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     if (sandboxify) {
       CHECK_EQ(target_size, kSystemPointerSize);
       sink_->Put(kSandboxedRawExternalReference, "SandboxedRawReference");
-      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+      sink_->PutRaw(reinterpret_cast<uint8_t*>(&target), target_size,
                     "raw pointer");
     } else {
       // Encode as FixedRawData instead of RawExternalReference as the target
       // may be less than kSystemPointerSize large.
       int size_in_tagged = target_size >> kTaggedSizeLog2;
       sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
-      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+      sink_->PutRaw(reinterpret_cast<uint8_t*>(&target), target_size,
                     "raw pointer");
     }
   } else if (encoded_reference.is_from_api()) {
@@ -1113,19 +1115,19 @@ namespace {
 void OutputRawWithCustomField(SnapshotByteSink* sink, Address object_start,
                               int written_so_far, int bytes_to_write,
                               int field_offset, int field_size,
-                              const byte* field_value) {
+                              const uint8_t* field_value) {
   int offset = field_offset - written_so_far;
   if (0 <= offset && offset < bytes_to_write) {
     DCHECK_GE(bytes_to_write, offset + field_size);
-    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far), offset,
-                 "Bytes");
+    sink->PutRaw(reinterpret_cast<uint8_t*>(object_start + written_so_far),
+                 offset, "Bytes");
     sink->PutRaw(field_value, field_size, "Bytes");
     written_so_far += offset + field_size;
     bytes_to_write -= offset + field_size;
-    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+    sink->PutRaw(reinterpret_cast<uint8_t*>(object_start + written_so_far),
                  bytes_to_write, "Bytes");
   } else {
-    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+    sink->PutRaw(reinterpret_cast<uint8_t*>(object_start + written_so_far),
                  bytes_to_write, "Bytes");
   }
 }
@@ -1163,7 +1165,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                BytecodeArray::kBytecodeAgeOffset,
                                sizeof(field_value),
-                               reinterpret_cast<byte*>(&field_value));
+                               reinterpret_cast<uint8_t*>(&field_value));
     } else if (object_->IsDescriptorArray(cage_base)) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.
@@ -1172,12 +1174,12 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                DescriptorArray::kRawGcStateOffset,
                                sizeof(field_value),
-                               reinterpret_cast<const byte*>(&field_value));
+                               reinterpret_cast<const uint8_t*>(&field_value));
     } else if (object_->IsCode(cage_base)) {
       // instruction_start field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.
-      static byte field_value[kSystemPointerSize] = {0};
+      static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
@@ -1188,11 +1190,11 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           SeqString::cast(*object_).GetDataAndPaddingSizes();
       DCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
       int data_bytes_to_output = sizes.data_size - base;
-      sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+      sink_->PutRaw(reinterpret_cast<uint8_t*>(object_start + base),
                     data_bytes_to_output, "SeqStringData");
       sink_->PutN(sizes.padding_size, 0, "SeqStringPadding");
     } else {
-      sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+      sink_->PutRaw(reinterpret_cast<uint8_t*>(object_start + base),
                     bytes_to_output, "Bytes");
     }
   }
