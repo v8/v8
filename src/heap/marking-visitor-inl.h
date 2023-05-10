@@ -102,9 +102,8 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-V8_INLINE void
-MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
-    Code host, CodeObjectSlot slot) {
+V8_INLINE void MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitInstructionStreamPointerImpl(Code host, InstructionStreamSlot slot) {
   Object object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;

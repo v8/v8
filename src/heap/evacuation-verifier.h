@@ -25,7 +25,8 @@ class EvacuationVerifier final : public ObjectVisitorWithCageBases,
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final;
-  void VisitCodePointer(Code host, CodeObjectSlot slot) final;
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) final;
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final;
   void VisitMapPointer(HeapObject object) final;

@@ -137,7 +137,8 @@ class ObjectVisitor {
   // slot. The values may be modified on return. Not used when
   // V8_EXTERNAL_CODE_SPACE is not enabled (the InstructionStream pointer slots
   // are visited as a part of on-heap slot visitation - via VisitPointers()).
-  virtual void VisitCodePointer(Code host, CodeObjectSlot slot) = 0;
+  virtual void VisitInstructionStreamPointer(Code host,
+                                             InstructionStreamSlot slot) = 0;
 
   // Custom weak pointers must be ignored by the GC but not other
   // visitors. They're used for e.g., lists that are recreated after GC. The
@@ -290,7 +291,8 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) final {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) final {
 #if DEBUG
     Object istream_object = slot.load(code_cage_base());
     InstructionStream istream;

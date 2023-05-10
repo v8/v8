@@ -6186,7 +6186,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkPointers(start, end);
     }
 
-    void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+    void VisitInstructionStreamPointer(Code host,
+                                       InstructionStreamSlot slot) override {
       Object maybe_code = slot.load(code_cage_base());
       HeapObject heap_object;
       if (maybe_code.GetHeapObject(&heap_object)) {

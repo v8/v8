@@ -977,8 +977,8 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
   }
 }
 
-void Serializer::ObjectSerializer::VisitCodePointer(Code host,
-                                                    CodeObjectSlot slot) {
+void Serializer::ObjectSerializer::VisitInstructionStreamPointer(
+    Code host, InstructionStreamSlot slot) {
   DCHECK(!host.has_instruction_stream());
 }
 

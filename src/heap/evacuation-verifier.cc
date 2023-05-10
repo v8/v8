@@ -34,7 +34,8 @@ void EvacuationVerifier::VisitPointers(HeapObject host, MaybeObjectSlot start,
   VerifyPointersImpl(start, end);
 }
 
-void EvacuationVerifier::VisitCodePointer(Code host, CodeObjectSlot slot) {
+void EvacuationVerifier::VisitInstructionStreamPointer(
+    Code host, InstructionStreamSlot slot) {
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   // The slot might contain smi during Code creation, so skip it.

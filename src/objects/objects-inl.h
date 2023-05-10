@@ -725,8 +725,9 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(field_address(byte_offset));
 }
 
-CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
-  return CodeObjectSlot(field_address(byte_offset));
+InstructionStreamSlot HeapObject::RawInstructionStreamField(
+    int byte_offset) const {
+  return InstructionStreamSlot(field_address(byte_offset));
 }
 
 ExternalPointerSlot HeapObject::RawExternalPointerField(int byte_offset) const {

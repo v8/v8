@@ -64,7 +64,8 @@ class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
                      ObjectSlot end) override;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override;
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override;
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override;
   void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override;
 
@@ -99,7 +100,8 @@ void VerifyPointersVisitor::VisitPointers(HeapObject host,
   VerifyPointers(host, start, end);
 }
 
-void VerifyPointersVisitor::VisitCodePointer(Code host, CodeObjectSlot slot) {
+void VerifyPointersVisitor::VisitInstructionStreamPointer(
+    Code host, InstructionStreamSlot slot) {
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   // The slot might contain smi during Code creation.
@@ -452,7 +454,8 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     if (ShouldHaveBeenRecorded(
             host, MaybeObject::FromObject(slot.load(code_cage_base())))) {
       CHECK_GT(untyped_->count(slot.address()), 0);
@@ -583,7 +586,8 @@ class SlotCollectingVisitor final : public ObjectVisitor {
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
 #ifdef V8_EXTERNAL_CODE_SPACE
     code_slots_.push_back(slot);
@@ -604,14 +608,14 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 
   MaybeObjectSlot slot(int i) { return slots_[i]; }
 #ifdef V8_EXTERNAL_CODE_SPACE
-  CodeObjectSlot code_slot(int i) { return code_slots_[i]; }
+  InstructionStreamSlot code_slot(int i) { return code_slots_[i]; }
   int number_of_code_slots() { return static_cast<int>(code_slots_.size()); }
 #endif
 
  private:
   std::vector<MaybeObjectSlot> slots_;
 #ifdef V8_EXTERNAL_CODE_SPACE
-  std::vector<CodeObjectSlot> code_slots_;
+  std::vector<InstructionStreamSlot> code_slots_;
 #endif
 };
 

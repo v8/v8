@@ -78,7 +78,9 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation and thus cannot be found when iterating promoted objects.
-  void VisitCodePointer(Code, CodeObjectSlot) final { UNREACHABLE(); }
+  void VisitInstructionStreamPointer(Code, InstructionStreamSlot) final {
+    UNREACHABLE();
+  }
   void VisitCodeTarget(InstructionStream, RelocInfo*) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(InstructionStream, RelocInfo*) final {
     UNREACHABLE();

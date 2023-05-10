@@ -97,7 +97,8 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     *tagged_fields_count_ += (end - start);
   }
 
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  V8_INLINE void VisitInstructionStreamPointer(
+      Code host, InstructionStreamSlot slot) override {
     *tagged_fields_count_ += 1;
   }
 

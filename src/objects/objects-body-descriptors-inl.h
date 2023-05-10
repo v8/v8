@@ -1091,8 +1091,9 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                   Code::kInstructionStreamOffset);
     static_assert(Code::kInstructionStreamOffset + kTaggedSize ==
                   Code::kEndOfStrongFieldsOffset);
-    v->VisitCodePointer(Code::cast(obj),
-                        obj.RawCodeField(kInstructionStreamOffset));
+    v->VisitInstructionStreamPointer(
+        Code::cast(obj),
+        obj.RawInstructionStreamField(kInstructionStreamOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return Code::kSize; }

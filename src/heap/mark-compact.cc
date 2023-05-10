@@ -110,7 +110,7 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   virtual void VerifyMap(Map map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
-  virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
+  virtual void VerifyCodePointer(InstructionStreamSlot slot) = 0;
   virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
   virtual bool IsMarked(HeapObject object) = 0;
@@ -125,7 +125,8 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     VerifyCodePointer(slot);
   }
 
@@ -252,7 +253,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
-  void VerifyCodePointer(CodeObjectSlot slot) override {
+  void VerifyCodePointer(InstructionStreamSlot slot) override {
     Object maybe_code = slot.load(code_cage_base());
     HeapObject code;
     // The slot might contain smi during Code creation, so skip it.
@@ -1089,7 +1090,8 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     MarkObject(host, slot.load(code_cage_base()));
   }
 
@@ -1151,7 +1153,8 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     UNREACHABLE();
   }
 
@@ -1312,7 +1315,8 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
                        MaybeObjectSlot end) override {
       UNREACHABLE();
     }
-    void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+    void VisitInstructionStreamPointer(Code host,
+                                       InstructionStreamSlot slot) override {
       UNREACHABLE();
     }
     void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
@@ -1406,7 +1410,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
-  inline void VisitCodePointer(Code host, CodeObjectSlot slot) final {
+  inline void VisitInstructionStreamPointer(Code host,
+                                            InstructionStreamSlot slot) final {
     // This code is similar to the implementation of VisitPointer() modulo
     // new kind of slot.
     DCHECK(!HasWeakHeapObjectTag(slot.load(code_cage_base())));
@@ -3692,7 +3697,7 @@ MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 template <>
-Object MakeSlotValue<CodeObjectSlot, HeapObjectReferenceType::STRONG>(
+Object MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
     HeapObject heap_object) {
   return heap_object;
 }
@@ -3713,9 +3718,9 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                     std::is_same<TSlot, FullMaybeObjectSlot>::value ||
                     std::is_same<TSlot, MaybeObjectSlot>::value ||
                     std::is_same<TSlot, OffHeapObjectSlot>::value ||
-                    std::is_same<TSlot, CodeObjectSlot>::value,
+                    std::is_same<TSlot, InstructionStreamSlot>::value,
                 "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot "
-                "or CodeObjectSlot are expected here");
+                "or InstructionStreamSlot are expected here");
   MapWord map_word = heap_obj.map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
     DCHECK_IMPLIES((!v8_flags.minor_mc && !Heap::InFromPage(heap_obj)),
@@ -3801,7 +3806,7 @@ template <AccessMode access_mode>
 static inline void UpdateStrongCodeSlot(HeapObject host,
                                         PtrComprCageBase cage_base,
                                         PtrComprCageBase code_cage_base,
-                                        CodeObjectSlot slot) {
+                                        InstructionStreamSlot slot) {
   Object obj = slot.Relaxed_Load(code_cage_base);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   HeapObject heap_obj;
@@ -3850,7 +3855,8 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(host, cage_base(),
                                                  code_cage_base(), slot);
   }
@@ -4830,7 +4836,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             DCHECK(host.IsCode(cage_base));
             UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
                 host, cage_base, code_cage_base,
-                CodeObjectSlot(slot.address()));
+                InstructionStreamSlot(slot.address()));
             // Always keep slot since all slots are dropped at once after
             // iteration.
             return KEEP_SLOT;
@@ -5331,7 +5337,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
-  void VerifyCodePointer(CodeObjectSlot slot) override {
+  void VerifyCodePointer(InstructionStreamSlot slot) override {
     // Code slots never appear in new space because
     // Code objects, the only object that can contain code pointers, are
     // always allocated in the old space.

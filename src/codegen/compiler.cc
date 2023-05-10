@@ -1729,7 +1729,8 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   // The object graph for a newly compiled Script shouldn't yet contain any
   // Code. If any of these functions are called, then that would indicate that
   // the graph was not disjoint from the rest of the heap as expected.
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     UNREACHABLE();
   }
   void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {

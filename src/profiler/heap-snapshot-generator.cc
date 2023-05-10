@@ -1083,7 +1083,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override {
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
     VisitSlotImpl(code_cage_base(), slot);
   }
 

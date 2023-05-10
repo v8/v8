@@ -971,17 +971,17 @@ struct SlotTraits {
   using TOffHeapObjectSlot =
       OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #ifdef V8_EXTERNAL_CODE_SPACE
-  using TCodeObjectSlot =
+  using TInstructionStreamSlot =
       OffHeapCompressedObjectSlot<ExternalCodeCompressionScheme>;
 #else
-  using TCodeObjectSlot = TObjectSlot;
+  using TInstructionStreamSlot = TObjectSlot;
 #endif  // V8_EXTERNAL_CODE_SPACE
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  using TCodeObjectSlot = OffHeapFullObjectSlot;
+  using TInstructionStreamSlot = OffHeapFullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
 };
 
@@ -1003,12 +1003,12 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 // off-heap.
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 
-// A CodeObjectSlot instance describes a kTaggedSize-sized field ("slot")
-// holding a strong pointer to a InstructionStream object. The InstructionStream
-// object slots might be compressed and since code space might be allocated off
-// the main heap the load operations require explicit cage base value for code
-// space.
-using CodeObjectSlot = SlotTraits::TCodeObjectSlot;
+// A InstructionStreamSlot instance describes a kTaggedSize-sized field
+// ("slot") holding a strong pointer to a InstructionStream object. The
+// InstructionStream object slots might be compressed and since code space might
+// be allocated off the main heap the load operations require explicit cage base
+// value for code space.
+using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 

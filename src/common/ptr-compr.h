@@ -14,7 +14,7 @@ namespace v8::internal {
 // such a class allows plugging different decompression scheme in certain
 // places by introducing another CompressionScheme class with a customized
 // implementation. This is useful, for example, for Code::code
-// field (see CodeObjectSlot).
+// field (see InstructionStreamSlot).
 class V8HeapCompressionScheme {
  public:
   V8_INLINE static Address GetPtrComprCageBaseAddress(Address on_heap_addr);

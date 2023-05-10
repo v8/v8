@@ -101,8 +101,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final {
-    VisitCodePointerImpl(host, slot);
+  V8_INLINE void VisitInstructionStreamPointer(
+      Code host, InstructionStreamSlot slot) final {
+    VisitInstructionStreamPointerImpl(host, slot);
   }
   V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
                                       RelocInfo* rinfo) final;
@@ -155,7 +156,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   // Similar to VisitPointersImpl() but using code cage base for loading from
   // the slot.
-  V8_INLINE void VisitCodePointerImpl(Code host, CodeObjectSlot slot);
+  V8_INLINE void VisitInstructionStreamPointerImpl(Code host,
+                                                   InstructionStreamSlot slot);
 
   V8_INLINE void VisitDescriptorsForMap(Map map);
 
