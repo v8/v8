@@ -2766,6 +2766,9 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
   }
   for (auto it = rhs->ranges_.begin(); it != rhs->ranges_.end(); ++it) {
     (*it)->set_bundle(lhs);
+    // We also tried `std::merge`ing the sorted vectors of `uses_` directly,
+    // but it turns out the (always happening) copies are more expensive
+    // than the (apparently seldom) copies due to insertion in the middle.
     lhs->InsertUses((*it)->first_interval());
   }
   lhs->ranges_.insert(rhs->ranges_.begin(), rhs->ranges_.end());
