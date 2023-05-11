@@ -296,7 +296,7 @@ class PerfTest(unittest.TestCase):
 
     # Require 2 runs. One for the warm-up.
     self._MockCommand(2 * ['.'], 2 * ['Richards: 1\nDeltaBlue: 2\n'])
-    self.assertEqual(0, self._CallMain('--checked-warmup-internal'))
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
 
     # The warm-up ran at the current time and cache is up to date.
     self.assertDictEqual({'test': 123}, cache_handler.read_cache())
@@ -314,7 +314,7 @@ class PerfTest(unittest.TestCase):
 
     # One run only since no warm-up is required.
     self._MockCommand(1 * ['.'], 1 * ['Richards: 1\nDeltaBlue: 2\n'])
-    self.assertEqual(0, self._CallMain('--checked-warmup-internal'))
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
 
     # No warm-up ran, cache is only trimmed.
     self.assertDictEqual({'test': 87}, cache_handler.read_cache())
@@ -330,7 +330,7 @@ class PerfTest(unittest.TestCase):
 
     # Require 2 runs. One for the warm-up.
     self._MockCommand(2 * ['.'], 2 * ['Richards: 1\nDeltaBlue: 2\n'])
-    self.assertEqual(0, self._CallMain('--checked-warmup-internal'))
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
 
     # The warm-up ran at the current time and cache is up to date.
     self.assertDictEqual({'test': 123}, cache_handler.read_cache())

@@ -135,7 +135,6 @@ import psutil
 import re
 import subprocess
 import sys
-import tempfile
 import time
 import traceback
 
@@ -158,7 +157,7 @@ TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 INFRA_FAILURE_RETCODE = 87
 MIN_RUNS_FOR_CONFIDENCE = 10
 
-WARMUP_CACHE_FILE = Path(tempfile.gettempdir()) / 'v8_perf_warmup_cache.json'
+WARMUP_CACHE_FILE = Path.cwd() / 'cache' / 'v8_perf' / 'warmup_cache.json'
 
 
 def GeometricMean(values):
@@ -786,19 +785,19 @@ class NullWarmupManager(WarmupManager):
     pass
 
 
-class TempfileWarmupManager(WarmupManager):
+class CachedWarmupManager(WarmupManager):
   """On-demand warm-up based on system reboot.
 
   The warm-up function is run once after reboot for every benchmark key.
-  The keys are cached in a file in the temp folder.
+  The keys are cached in a file in cache/v8_perf. This relies on the caller
+  creating this directory.
   """
   def __init__(self):
     self.cache_handler = CacheHandler(WARMUP_CACHE_FILE)
     self.cache = self.cache_handler.read_cache()
     self.last_reboot = psutil.boot_time()
     self.trim_cache()
-    # Update file stats to prevent file from being cleaned up too often.
-    # Also ensure the trimmed version on disk.
+    # Ensure the trimmed version is on disk.
     self.cache_handler.write_cache(self.cache)
 
   def is_warmed_up(self, timestamp):
@@ -913,8 +912,8 @@ class DesktopPlatform(Platform):
         self.command_prefix += ['-a', ('0x%x' % core)]
       self.command_prefix += ['-e']
 
-    if args.checked_warmup_internal:
-      self.warmup_manager = TempfileWarmupManager()
+    if args.checked_warmup:
+      self.warmup_manager = CachedWarmupManager()
 
   def PreExecution(self):
     pass
@@ -1226,9 +1225,6 @@ def Main(argv):
                       help='Be verbose and print debug output.')
   parser.add_argument('--checked-warmup', default=False, action='store_true',
                       help='Warm up benchmarks not run since last reboot.')
-  # TODO(https://crbug.com/v8/13984): Flip to above once called from recipe.
-  parser.add_argument('--checked-warmup-internal', default=False,
-                      action='store_true', help='Internal only.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
   try:
