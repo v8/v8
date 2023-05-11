@@ -4,6 +4,7 @@
 
 #include <limits>
 
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler.h"
@@ -509,8 +510,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
-                         InstructionCode opcode, Instruction* instr,
-                         int pc) {
+                         InstructionCode opcode, Instruction* instr, int pc) {
   const MemoryAccessMode access_mode = instr->memory_access_mode();
   if (access_mode == kMemoryAccessProtectedMemOutOfBounds) {
     zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
@@ -688,8 +688,8 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
   } else {
     int store_instr_offset = EmitStore<order>(masm, operand, value, rep);
     if (instr->HasMemoryAccessMode()) {
-      EmitOOLTrapIfNeeded(zone, codegen, instr->opcode(),
-                          instr, store_instr_offset);
+      EmitOOLTrapIfNeeded(zone, codegen, instr->opcode(), instr,
+                          store_instr_offset);
     }
   }
 }
@@ -3303,6 +3303,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Eq
+            ASSEMBLE_SIMD256_BINOP(cmpeqps, AVX);
+            break;
+          }
+          case kL64: {
+            // F64x4Eq
+            ASSEMBLE_SIMD256_BINOP(cmpeqpd, AVX);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -3321,6 +3336,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL64: {
             // F64x2Ne
             ASSEMBLE_SIMD_BINOP(cmpneqpd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Ne
+            ASSEMBLE_SIMD256_BINOP(cmpneqps, AVX);
+            break;
+          }
+          case kL64: {
+            // F64x4Ne
+            ASSEMBLE_SIMD256_BINOP(cmpneqpd, AVX);
             break;
           }
           default:
@@ -3349,6 +3379,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Lt
+            ASSEMBLE_SIMD256_BINOP(cmpltps, AVX);
+            break;
+          }
+          case kL64: {
+            // F64x8Lt
+            ASSEMBLE_SIMD256_BINOP(cmpltpd, AVX);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -3367,6 +3412,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL64: {
             // F64x2Le
             ASSEMBLE_SIMD_BINOP(cmplepd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Le
+            ASSEMBLE_SIMD256_BINOP(cmpleps, AVX);
+            break;
+          }
+          case kL64: {
+            // F64x4Le
+            ASSEMBLE_SIMD256_BINOP(cmplepd, AVX);
             break;
           }
           default:
@@ -3446,7 +3506,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       DCHECK_NE(i.OutputSimd128Register(), kScratchDoubleReg);
       XMMRegister dst = i.OutputSimd128Register();
-      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);  // zeros
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);      // zeros
       __ Pblendw(kScratchDoubleReg, dst, uint8_t{0x55});  // get lo 16 bits
       __ Psubd(dst, kScratchDoubleReg);                   // get hi 16 bits
       __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
@@ -4002,6 +4062,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32Eq
+            ASSEMBLE_SIMD256_BINOP(pcmpeqb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16Eq
+            ASSEMBLE_SIMD256_BINOP(pcmpeqw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8Eq
+            ASSEMBLE_SIMD256_BINOP(pcmpeqd, AVX2);
+            break;
+          }
+          case kL64: {
+            // I64x4Eq
+            ASSEMBLE_SIMD256_BINOP(pcmpeqq, AVX2);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -4074,6 +4159,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // I64x2GtS
             __ I64x2GtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
                         i.InputSimd128Register(1), kScratchDoubleReg);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32GtS
+            ASSEMBLE_SIMD256_BINOP(pcmpgtb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16GtS
+            ASSEMBLE_SIMD256_BINOP(pcmpgtw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8GtS
+            ASSEMBLE_SIMD256_BINOP(pcmpgtd, AVX2);
+            break;
+          }
+          case kL64: {
+            // I64x4GtS
+            ASSEMBLE_SIMD256_BINOP(pcmpgtq, AVX2);
             break;
           }
           default:

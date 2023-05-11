@@ -1111,8 +1111,20 @@
   V(F32x8Pmin)                     \
   V(F32x8Pmax)                     \
   V(F32x8Eq)                       \
+  V(F64x4Eq)                       \
+  V(I64x4Eq)                       \
+  V(I32x8Eq)                       \
+  V(I16x16Eq)                      \
+  V(I8x32Eq)                       \
   V(F32x8Ne)                       \
+  V(F64x4Ne)                       \
+  V(I64x4GtS)                      \
+  V(I32x8GtS)                      \
+  V(I16x16GtS)                     \
+  V(I8x32GtS)                      \
+  V(F64x4Lt)                       \
   V(F32x8Lt)                       \
+  V(F64x4Le)                       \
   V(F32x8Le)                       \
   V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \

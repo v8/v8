@@ -3400,19 +3400,35 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x32SubSatU, ISubSatU, kL8, kV256)                     \
   V(F64x2Eq, FEq, kL64, kV128)                              \
   V(F32x4Eq, FEq, kL32, kV128)                              \
+  V(F32x8Eq, FEq, kL32, kV256)                              \
+  V(F64x4Eq, FEq, kL64, kV256)                              \
+  V(I8x32Eq, IEq, kL8, kV256)                               \
+  V(I16x16Eq, IEq, kL16, kV256)                             \
+  V(I32x8Eq, IEq, kL32, kV256)                              \
+  V(I64x4Eq, IEq, kL64, kV256)                              \
   V(I64x2Eq, IEq, kL64, kV128)                              \
   V(I32x4Eq, IEq, kL32, kV128)                              \
   V(I16x8Eq, IEq, kL16, kV128)                              \
   V(I8x16Eq, IEq, kL8, kV128)                               \
   V(F64x2Ne, FNe, kL64, kV128)                              \
   V(F32x4Ne, FNe, kL32, kV128)                              \
+  V(F32x8Ne, FNe, kL32, kV256)                              \
+  V(F64x4Ne, FNe, kL64, kV256)                              \
   V(I32x4GtS, IGtS, kL32, kV128)                            \
   V(I16x8GtS, IGtS, kL16, kV128)                            \
   V(I8x16GtS, IGtS, kL8, kV128)                             \
+  V(I8x32GtS, IGtS, kL8, kV256)                             \
+  V(I16x16GtS, IGtS, kL16, kV256)                           \
+  V(I32x8GtS, IGtS, kL32, kV256)                            \
+  V(I64x4GtS, IGtS, kL64, kV256)                            \
   V(F64x2Lt, FLt, kL64, kV128)                              \
   V(F32x4Lt, FLt, kL32, kV128)                              \
+  V(F64x4Lt, FLt, kL64, kV256)                              \
+  V(F32x8Lt, FLt, kL32, kV256)                              \
   V(F64x2Le, FLe, kL64, kV128)                              \
   V(F32x4Le, FLe, kL32, kV128)                              \
+  V(F64x4Le, FLe, kL64, kV256)                              \
+  V(F32x8Le, FLe, kL32, kV256)                              \
   V(I32x4MinS, IMinS, kL32, kV128)                          \
   V(I16x8MinS, IMinS, kL16, kV128)                          \
   V(I8x16MinS, IMinS, kL8, kV128)                           \
