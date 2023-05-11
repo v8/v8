@@ -5,7 +5,7 @@
 load("//lib/lib.star", "GOMA", "RECLIENT", "in_console", "v8_builder")
 
 def integration_builder(**kwargs):
-    return v8_builder(disable_resultdb_exports = True, use_goma = GOMA.NO, **kwargs)
+    return v8_builder(disable_resultdb_exports = True, **kwargs)
 
 in_category = in_console("integration")
 
