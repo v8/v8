@@ -988,6 +988,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // SIMD256
   const Operator* F64x4Add();
+  const Operator* F64x4Sqrt();
+  const Operator* F32x8Abs();
+  const Operator* F32x8Neg();
+  const Operator* F32x8Sqrt();
   const Operator* F32x8Add();
   const Operator* I64x4Add();
   const Operator* I32x8Add();
@@ -1055,9 +1059,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8UConvertI16x8();
   const Operator* I16x16SConvertI8x16();
   const Operator* I16x16UConvertI8x16();
+  const Operator* I32x8Neg();
+  const Operator* I32x8Abs();
+  const Operator* I16x16Neg();
+  const Operator* I16x16Abs();
+  const Operator* I8x32Neg();
+  const Operator* I8x32Abs();
   const Operator* I32x8DotI16x16S();
   const Operator* I16x16RoundingAverageU();
   const Operator* I8x32RoundingAverageU();
+
   const Operator* ExtractF128(int32_t lane_index);
 
   const Operator* S256Zero();

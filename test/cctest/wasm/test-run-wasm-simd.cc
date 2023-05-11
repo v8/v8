@@ -380,6 +380,18 @@ WASM_EXEC_TEST(F32x4Sqrt) {
   RunF32x4UnOpTest(execution_tier, kExprF32x4Sqrt, std::sqrt);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_F32x8Abs) {
+  RunF32x8UnOpRevecTest(kExprF32x4Abs, std::abs);
+}
+
+TEST(RunWasmTurbofan_F32x8Neg) { RunF32x8UnOpRevecTest(kExprF32x4Neg, Negate); }
+
+TEST(RunWasmTurbofan_F32x8Sqrt) {
+  RunF32x8UnOpRevecTest(kExprF32x4Sqrt, std::sqrt);
+}
+#endif
+
 WASM_EXEC_TEST(F32x4Ceil) {
   RunF32x4UnOpTest(execution_tier, kExprF32x4Ceil, ceilf, true);
 }
@@ -801,6 +813,12 @@ WASM_EXEC_TEST(F64x2Neg) {
 WASM_EXEC_TEST(F64x2Sqrt) {
   RunF64x2UnOpTest(execution_tier, kExprF64x2Sqrt, std::sqrt);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_F64x4Sqrt) {
+  RunF64x4UnOpRevecTest(kExprF64x2Sqrt, std::sqrt);
+}
+#endif
 
 WASM_EXEC_TEST(F64x2Ceil) {
   RunF64x2UnOpTest(execution_tier, kExprF64x2Ceil, ceil, true);
@@ -1432,6 +1450,16 @@ WASM_EXEC_TEST(I32x4Abs) {
   RunI32x4UnOpTest(execution_tier, kExprI32x4Abs, std::abs);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I32x8Neg) {
+  RunI32x8UnOpRevecTest(kExprI32x4Neg, base::NegateWithWraparound);
+}
+
+TEST(RunWasmTurbofan_I32x8Abs) {
+  RunI32x8UnOpRevecTest(kExprI32x4Abs, std::abs);
+}
+#endif
+
 WASM_EXEC_TEST(S128Not) {
   RunI32x4UnOpTest(execution_tier, kExprS128Not, [](int32_t x) { return ~x; });
 }
@@ -1786,6 +1814,14 @@ WASM_EXEC_TEST(I16x8Neg) {
 WASM_EXEC_TEST(I16x8Abs) {
   RunI16x8UnOpTest(execution_tier, kExprI16x8Abs, Abs);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I16x16Neg) {
+  RunI16x16UnOpRevecTest(kExprI16x8Neg, base::NegateWithWraparound);
+}
+
+TEST(RunWasmTurbofan_I16x16Abs) { RunI16x16UnOpRevecTest(kExprI16x8Abs, Abs); }
+#endif
 
 WASM_EXEC_TEST(I16x8Add) {
   RunI16x8BinOpTest(execution_tier, kExprI16x8Add, base::AddWithWraparound);
@@ -2143,6 +2179,14 @@ WASM_EXEC_TEST(I8x16Neg) {
 WASM_EXEC_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, kExprI8x16Abs, Abs);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I8x32Neg) {
+  RunI8x32UnOpRevecTest(kExprI8x16Neg, base::NegateWithWraparound);
+}
+
+TEST(RunWasmTurbofan_I8x32Abs) { RunI8x32UnOpRevecTest(kExprI8x16Abs, Abs); }
+#endif
 
 WASM_EXEC_TEST(I8x16Popcnt) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
@@ -3135,8 +3179,9 @@ WASM_EXEC_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
-WASM_EXEC_TEST(F32x4AddRevec) {
-  WasmRunner<float, int32_t, int32_t> r(execution_tier);
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_F32x4AddRevec) {
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   float* memory =
       r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
   uint8_t param1 = 0;
@@ -3177,6 +3222,7 @@ WASM_EXEC_TEST(F32x4AddRevec) {
   r.builder().WriteMemory(&memory[6], 2.0f);
   CHECK_EQ(23.0f, r.Call(0, 32));
 }
+#endif
 
 WASM_EXEC_TEST(SimdLoadStoreLoad) {
   {

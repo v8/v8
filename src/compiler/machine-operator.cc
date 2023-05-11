@@ -652,6 +652,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x8DotI8x16I7x16S, Operator::kCommutative, 2, 0, 1)                  \
   V(I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)              \
   V(F64x4Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F32x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F32x8Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F32x8Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
   V(F32x8Add, Operator::kCommutative, 2, 0, 1)                             \
   V(I64x4Add, Operator::kCommutative, 2, 0, 1)                             \
   V(I32x8Add, Operator::kCommutative, 2, 0, 1)                             \
@@ -717,6 +721,12 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)                  \
   V(I16x16SConvertI8x16, Operator::kNoProperties, 1, 0, 1)                 \
   V(I16x16UConvertI8x16, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x8Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I32x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I16x16Neg, Operator::kNoProperties, 1, 0, 1)                           \
+  V(I16x16Abs, Operator::kNoProperties, 1, 0, 1)                           \
+  V(I8x32Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I8x32Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)                      \
   V(I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)               \
   V(I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
