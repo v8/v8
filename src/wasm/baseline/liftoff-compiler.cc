@@ -522,6 +522,7 @@ class LiftoffCompiler {
     DCHECK_IMPLIES(
         next_breakpoint_ptr_ == next_breakpoint_end_,
         next_breakpoint_ptr_ == nullptr && next_breakpoint_end_ == nullptr);
+    DCHECK_IMPLIES(!for_debugging_, debug_sidetable_builder_ == nullptr);
   }
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
