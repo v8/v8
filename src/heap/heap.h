@@ -2716,6 +2716,14 @@ struct StrongRootBlockAllocator::rebind {
   };
 };
 
+// Opt out from libc++ backing sanitization, since root iteration walks up to
+// the capacity.
+#ifdef _LIBCPP_HAS_ASAN_CONTAINER_ANNOTATIONS_FOR_ALL_ALLOCATORS
+template <>
+struct std::__asan_annotate_container_with_allocator<StrongRootBlockAllocator>
+    : std::false_type {};
+#endif
+
 class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
  public:
   enum Origin {
