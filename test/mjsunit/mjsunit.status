@@ -569,6 +569,9 @@
   'wasm/bigint-opt': [SKIP],
   'wasm/simd-lane-memory64': [SKIP],
   'regress/regress-1320641': [SKIP],
+
+  # Needs a huge Uint8Array.
+  'regress/regress-1432470': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################

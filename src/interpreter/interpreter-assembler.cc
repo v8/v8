@@ -1037,7 +1037,8 @@ TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
   return new_budget;
 }
 
-void InterpreterAssembler::DecreaseInterruptBudget(TNode<Int32T> weight) {
+void InterpreterAssembler::DecreaseInterruptBudget(
+    TNode<Int32T> weight, StackCheckBehavior stack_check_behavior) {
   Comment("[ DecreaseInterruptBudget");
   Label done(this), interrupt_check(this);
 
@@ -1052,9 +1053,8 @@ void InterpreterAssembler::DecreaseInterruptBudget(TNode<Int32T> weight) {
          &interrupt_check);
 
   BIND(&interrupt_check);
-  // JumpLoop should do a stack check as part of the interrupt.
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  CallRuntime(bytecode() == Bytecode::kJumpLoop
+  CallRuntime(stack_check_behavior == kEnableStackCheck
                   ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
                   : Runtime::kBytecodeBudgetInterrupt_Ignition,
               GetContext(), function);
@@ -1095,7 +1095,8 @@ void InterpreterAssembler::Jump(TNode<IntPtrT> jump_offset) {
 }
 
 void InterpreterAssembler::JumpBackward(TNode<IntPtrT> jump_offset) {
-  DecreaseInterruptBudget(TruncateIntPtrToInt32(jump_offset));
+  DecreaseInterruptBudget(TruncateIntPtrToInt32(jump_offset),
+                          kEnableStackCheck);
   JumpToOffset(IntPtrSub(BytecodeOffset(), jump_offset));
 }
 
@@ -1323,7 +1324,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   TNode<Int32T> profiling_weight =
       Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()),
                Int32Constant(kFirstBytecodeOffset));
-  DecreaseInterruptBudget(profiling_weight);
+  DecreaseInterruptBudget(profiling_weight, kDisableStackCheck);
 }
 
 TNode<Int8T> InterpreterAssembler::LoadOsrState(
@@ -1414,7 +1415,7 @@ void InterpreterAssembler::OnStackReplacement(
         LoadAndUntagFixedArrayBaseLength(BytecodeArrayTaggedPointer());
     TNode<IntPtrT> weight =
         IntPtrMul(length, IntPtrConstant(v8_flags.osr_to_tierup));
-    DecreaseInterruptBudget(TruncateWordToInt32(weight));
+    DecreaseInterruptBudget(TruncateWordToInt32(weight), kDisableStackCheck);
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context, maybe_target_code.value());
     UpdateInterruptBudget(

@@ -596,14 +596,17 @@ INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
 void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
-    int weight, Label* label, Label* skip_interrupt_label) {
+    int weight, Label* label, Label* skip_interrupt_label,
+    StackCheckBehavior stack_check_behavior) {
   if (weight != 0) {
     ASM_CODE_COMMENT(&masm_);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
 
     DCHECK_LT(weight, 0);
     SaveAccumulatorScope accumulator_scope(&basm_);
-    CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug,
+    CallRuntime(stack_check_behavior == kEnableStackCheck
+                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
+                    : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
                 __ FunctionOperand());
   }
   if (label) __ Jump(label);
@@ -1919,7 +1922,7 @@ void BaselineCompiler::VisitJumpLoop() {
   // We can pass in the same label twice since it's a back edge and thus already
   // bound.
   DCHECK(label->is_bound());
-  UpdateInterruptBudgetAndJumpToLabel(weight, label, label);
+  UpdateInterruptBudgetAndJumpToLabel(weight, label, label, kEnableStackCheck);
 
 #ifndef V8_JITLESS
   {
@@ -1945,7 +1948,8 @@ void BaselineCompiler::VisitJumpLoop() {
     __ Bind(&osr);
     Label do_osr;
     int weight = bytecode_->length() * v8_flags.osr_to_tierup;
-    UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr);
+    UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
+                                        kDisableStackCheck);
     __ Bind(&do_osr);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);

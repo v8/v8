@@ -258,7 +258,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<Int32T> UpdateInterruptBudget(TNode<Int32T> weight);
   // Decrements the bytecode array's interrupt budget by a 32-bit unsigned
   // |weight| and calls Runtime::kInterrupt if counter reaches zero.
-  void DecreaseInterruptBudget(TNode<Int32T> weight);
+  enum StackCheckBehavior {
+    kEnableStackCheck,
+    kDisableStackCheck,
+  };
+  void DecreaseInterruptBudget(TNode<Int32T> weight,
+                               StackCheckBehavior stack_check_behavior);
 
   TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 
