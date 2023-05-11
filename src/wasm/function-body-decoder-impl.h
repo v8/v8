@@ -31,9 +31,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 struct WasmGlobal;
 struct WasmTag;
@@ -642,8 +640,8 @@ struct BlockTypeImmediate {
   uint32_t out_arity() const {
     return static_cast<uint32_t>(sig.return_count());
   }
-  ValueType in_type(uint32_t index) { return sig.GetParam(index); }
-  ValueType out_type(uint32_t index) { return sig.GetReturn(index); }
+  ValueType in_type(uint32_t index) const { return sig.GetParam(index); }
+  ValueType out_type(uint32_t index) const { return sig.GetReturn(index); }
 };
 
 struct BranchDepthImmediate {
@@ -2688,10 +2686,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                             kInitStackDepth, this->pc_, kReachable);
       Control* c = &control_.back();
       if constexpr (decoding_mode == kFunctionBody) {
-        InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
+        InitMerge(&c->start_merge, 0, nullptr);
         InitMerge(&c->end_merge,
                   static_cast<uint32_t>(this->sig_->return_count()),
-                  [&](uint32_t i) {
+                  [this](uint32_t i) {
                     return Value{this->pc_, this->sig_->GetReturn(i)};
                   });
       } else {
@@ -2954,12 +2952,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Block) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(&imm.sig);
-    Control* block = PushControl(kControlBlock, args.length());
-    SetBlockType(block, imm, args.begin());
+    Control* block = PushControl(kControlBlock, imm);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, block);
-    DropArgs(&imm.sig);
-    PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
 
@@ -2992,14 +2986,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->Add(kFeature_eh);
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(&imm.sig);
-    Control* try_block = PushControl(kControlTry, args.length());
-    SetBlockType(try_block, imm, args.begin());
+    Control* try_block = PushControl(kControlTry, imm);
     try_block->previous_catch = current_catch_;
     current_catch_ = static_cast<int>(control_depth() - 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Try, try_block);
-    DropArgs(&imm.sig);
-    PushMergeValues(try_block, &try_block->start_merge);
     return 1 + imm.length;
   }
 
@@ -3179,11 +3169,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Loop) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(&imm.sig);
-    Control* block = PushControl(kControlLoop, args.length());
-    SetBlockType(&control_.back(), imm, args.begin());
+    Control* block = PushControl(kControlLoop, imm);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Loop, block);
-    DropArgs(&imm.sig);
+    // Loops have a merge point at block entry, hence push the merge values
+    // (Phis in case of TurboFan) after calling the interface.
+    // TODO(clemensb): Can we skip this (and the related PushMergeValues in
+    // PopControl) for Liftoff?
     PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
@@ -3192,14 +3183,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Value cond = Peek(kWasmI32);
-    ArgVector args = PeekArgs(&imm.sig, 1);
-    if (!VALIDATE(this->ok())) return 0;
-    Control* if_block = PushControl(kControlIf, 1 + args.length());
-    SetBlockType(if_block, imm, args.begin());
+    Control* if_block = PushControl(kControlIf, imm, 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(If, cond, if_block);
     Drop(cond);
-    DropArgs(&imm.sig);
-    PushMergeValues(if_block, &if_block->start_merge);
     return 1 + imm.length;
   }
 
@@ -3904,9 +3890,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   template <typename func>
-  void InitMerge(Merge<Value>* merge, uint32_t arity, func get_val) {
+  V8_INLINE void InitMerge(Merge<Value>* merge, uint32_t arity, func get_val) {
     merge->arity = arity;
-    if (arity == 1) {
+    if constexpr (std::is_null_pointer_v<func>) {
+      DCHECK_EQ(0, arity);
+    } else if (arity == 1) {
       merge->vals.first = get_val(0);
     } else if (arity > 1) {
       merge->vals.array = this->zone()->template NewArray<Value>(arity);
@@ -3914,24 +3902,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         merge->vals.array[i] = get_val(i);
       }
     }
-  }
-
-  // Initializes start- and end-merges of {c} with values according to the
-  // in- and out-types of {c} respectively.
-  void SetBlockType(Control* c, BlockTypeImmediate& imm, Value* args) {
-    const uint8_t* pc = this->pc_;
-    InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
-      return Value{pc, imm.out_type(i)};
-    });
-    InitMerge(&c->start_merge, imm.in_arity(), [&imm, args](uint32_t i) {
-      // The merge needs to be instantiated with Values of the correct
-      // type, even if the actual Value is bottom/unreachable or has
-      // a subtype of the static type.
-      // So we copy-construct a new Value, and update its type.
-      Value value = args[i];
-      value.type = imm.in_type(i);
-      return value;
-    });
   }
 
   // In reachable code, check if there are at least {count} values on the stack.
@@ -4018,20 +3988,44 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // TODO(jkummerow): Consider refactoring control stack management so
   // that {drop_values} is never needed. That would require decoupling
   // creation of the Control object from setting of its stack depth.
-  Control* PushControl(ControlKind kind, uint32_t drop_values) {
+  Control* PushControl(ControlKind kind, const BlockTypeImmediate& imm,
+                       uint32_t drop_values = 0) {
+    PeekArgs(&imm.sig, drop_values);
     DCHECK(!control_.empty());
-    Reachability reachability = control_.back().innerReachability();
-    // In unreachable code, we may run out of stack.
-    uint32_t stack_depth =
-        stack_.size() >= drop_values ? stack_.size() - drop_values : 0;
-    stack_depth = std::max(stack_depth, control_.back().stack_depth);
+
+    uint32_t consumed_values = static_cast<uint32_t>(imm.sig.parameter_count());
+    uint32_t stack_depth = stack_.size();
+    DCHECK_LE(consumed_values + drop_values, stack_depth);
+    uint32_t inner_stack_depth = stack_depth - consumed_values - drop_values;
+    DCHECK_LE(control_.back().stack_depth, inner_stack_depth);
+
     uint32_t init_stack_depth = this->locals_initialization_stack_depth();
+    Reachability reachability = control_.back().innerReachability();
     control_.EnsureMoreCapacity(1, this->zone_);
-    control_.emplace_back(this->zone_, kind, stack_depth, init_stack_depth,
-                          this->pc_, reachability);
-    current_code_reachable_and_ok_ =
-        VALIDATE(this->ok()) && reachability == kReachable;
-    return &control_.back();
+    control_.emplace_back(this->zone_, kind, inner_stack_depth,
+                          init_stack_depth, this->pc_, reachability);
+    Control* new_block = &control_.back();
+
+    Value* arg_base = stack_.end() - consumed_values - drop_values;
+    // Update the type of input nodes to the more general types expected by the
+    // block. In particular, in unreachable code, the input would have bottom
+    // type otherwise.
+    for (uint32_t i = 0; i < consumed_values; ++i) {
+      DCHECK_IMPLIES(this->ok(), IsSubtypeOf(arg_base[i].type, imm.in_type(i),
+                                             this->module_) ||
+                                     arg_base[i].type == kWasmBottom);
+      arg_base[i].type = imm.in_type(i);
+    }
+
+    // Initialize start- and end-merges of {c} with values according to the
+    // in- and out-types of {c} respectively.
+    const uint8_t* pc = this->pc_;
+    InitMerge(&new_block->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
+      return Value{pc, imm.out_type(i)};
+    });
+    InitMerge(&new_block->start_merge, imm.in_arity(),
+              [arg_base](uint32_t i) { return arg_base[i]; });
+    return new_block;
   }
 
   void PopControl() {
@@ -6844,8 +6838,6 @@ class EmptyInterface {
 #undef VALIDATE
 #undef CHECK_PROTOTYPE_OPCODE
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_FUNCTION_BODY_DECODER_IMPL_H_
