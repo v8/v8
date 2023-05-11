@@ -102,8 +102,13 @@ class BaselineCompiler {
   // Jump helpers.
   Label* NewLabel();
   Label* BuildForwardJumpLabel();
-  void UpdateInterruptBudgetAndJumpToLabel(int weight, Label* label,
-                                           Label* skip_interrupt_label);
+  enum StackCheckBehavior {
+    kEnableStackCheck,
+    kDisableStackCheck,
+  };
+  void UpdateInterruptBudgetAndJumpToLabel(
+      int weight, Label* label, Label* skip_interrupt_label,
+      StackCheckBehavior stack_check_behavior);
   void JumpIfRoot(RootIndex root);
   void JumpIfNotRoot(RootIndex root);
 
