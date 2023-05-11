@@ -106,7 +106,7 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(addr));
   }
 
-  static GeneratedCode FromBuffer(Isolate* isolate, byte* buffer) {
+  static GeneratedCode FromBuffer(Isolate* isolate, uint8_t* buffer) {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 

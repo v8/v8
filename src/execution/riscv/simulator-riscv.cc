@@ -1544,7 +1544,7 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
 // field of a subsequent LUI instruction; otherwise returns -1
 static inline int32_t get_ebreak_code(Instruction* instr) {
   DCHECK(instr->InstructionBits() == kBreakInstr);
-  byte* cur = reinterpret_cast<byte*>(instr);
+  uint8_t* cur = reinterpret_cast<uint8_t*>(instr);
   Instruction* next_instr = reinterpret_cast<Instruction*>(cur + kInstrSize);
   if (next_instr->BaseOpcodeFieldRaw() == LUI)
     return (next_instr->Imm20UValue());
@@ -1589,7 +1589,7 @@ class RiscvDebugger {
   v8::base::EmbeddedVector<char, 256> buffer;                          \
   disasm::NameConverter converter;                                     \
   disasm::Disassembler dasm(converter);                                \
-  dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));    \
+  dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_)); \
   printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, \
          __FUNCTION__, __LINE__, get_pc());                            \
   PrintF(" %-44s\n", buffer.begin());                                  \
@@ -1755,7 +1755,8 @@ void RiscvDebugger::Debug() {
       if (name != nullptr) {
         PrintF("Call builtin:  %s\n", name);
       }
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
+      dasm.InstructionDecode(buffer,
+                             reinterpret_cast<uint8_t*>(sim_->get_pc()));
       PrintF("  0x%016" REGIx_FORMAT "   %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
@@ -1974,11 +1975,11 @@ void RiscvDebugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
@@ -1986,7 +1987,7 @@ void RiscvDebugger::Debug() {
             // The argument is an address or a register name.
             sreg_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(value);
+              cur = reinterpret_cast<uint8_t*>(value);
               // Disassemble 10 instructions at <arg1>.
               end = cur + (10 * kInstrSize);
             }
@@ -1994,7 +1995,7 @@ void RiscvDebugger::Debug() {
             // The argument is the number of instructions.
             sreg_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
               end = cur + (value * kInstrSize);
             }
@@ -2003,7 +2004,7 @@ void RiscvDebugger::Debug() {
           sreg_t value1;
           sreg_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -2095,16 +2096,16 @@ void RiscvDebugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           sreg_t value;
           if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(value);
+            cur = reinterpret_cast<uint8_t*>(value);
             // no length parameter passed, assume 10 instructions
             end = cur + (10 * kInstrSize);
           }
@@ -2112,7 +2113,7 @@ void RiscvDebugger::Debug() {
           sreg_t value1;
           sreg_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -5769,7 +5770,7 @@ void Simulator::DecodeRvvIVV() {
       // disasm::NameConverter converter;
       // disasm::Disassembler dasm(converter);
       // // Use a reasonably large buffer.
-      // dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      // dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
 
       // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
       //        reinterpret_cast<intptr_t>(&instr_), buffer.begin());
@@ -6344,7 +6345,7 @@ void Simulator::DecodeRvvMVV() {
         v8::base::EmbeddedVector<char, 256> buffer;
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
-        dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+        dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
         PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
                reinterpret_cast<intptr_t>(&instr_), buffer.begin());
         UNIMPLEMENTED_RISCV();
@@ -6440,7 +6441,7 @@ void Simulator::DecodeRvvMVV() {
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
              reinterpret_cast<intptr_t>(&instr_), buffer.begin());
       UNIMPLEMENTED_RISCV();
@@ -6548,7 +6549,7 @@ void Simulator::DecodeRvvMVX() {
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
              reinterpret_cast<intptr_t>(&instr_), buffer.begin());
       UNIMPLEMENTED_RISCV();
@@ -7516,7 +7517,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
 
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
     //        reinterpret_cast<intptr_t>(instr), buffer.begin());

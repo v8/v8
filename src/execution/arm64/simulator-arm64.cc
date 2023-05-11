@@ -358,7 +358,7 @@ void Simulator::Init(FILE* stream) {
 
   // Allocate and setup the simulator stack.
   stack_size_ = (v8_flags.sim_stack_size * KB) + (2 * stack_protection_size_);
-  stack_ = reinterpret_cast<uintptr_t>(new byte[stack_size_]);
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size_]);
   stack_limit_ = stack_ + stack_protection_size_;
   uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
   // The stack pointer must be 16-byte aligned.
@@ -399,7 +399,7 @@ void Simulator::ResetState() {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
-  delete[] reinterpret_cast<byte*>(stack_);
+  delete[] reinterpret_cast<uint8_t*>(stack_);
   delete disassembler_decoder_;
   delete print_disasm_;
   delete decoder_;
