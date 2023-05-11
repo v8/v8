@@ -1332,15 +1332,15 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kAllocate: {
       AllocationType allocation = AllocationTypeOf(node->op());
-      return __ Allocate(Map(node->InputAt(0)), allocation,
-                         AllowLargeObjects::kFalse);
+      return __ FinishInitialization(__ Allocate(
+          Map(node->InputAt(0)), allocation, AllowLargeObjects::kFalse));
     }
     // TODO(nicohartmann@): We might not see AllocateRaw here anymore.
     case IrOpcode::kAllocateRaw: {
       Node* size = node->InputAt(0);
       const AllocateParameters& params = AllocateParametersOf(node->op());
-      return __ Allocate(Map(size), params.allocation_type(),
-                         params.allow_large_objects());
+      return __ FinishInitialization(__ Allocate(
+          Map(size), params.allocation_type(), params.allow_large_objects()));
     }
     case IrOpcode::kStoreToObject: {
       Node* object = node->InputAt(0);
@@ -1395,7 +1395,7 @@ OpIndex GraphBuilder::Process(
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
       __ Store(object, value, kind, rep, access.write_barrier_kind,
-               access.offset);
+               access.offset, access.maybe_initializing_or_transitioning_store);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:

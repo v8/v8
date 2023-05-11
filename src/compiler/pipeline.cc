@@ -95,6 +95,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/recreate-schedule-phase.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
+#include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tag-untag-lowering-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
@@ -3065,6 +3066,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     }
 
     Run<turboshaft::MachineLoweringPhase>();
+
+    if (v8_flags.turbo_store_elimination) {
+      Run<turboshaft::StoreStoreEliminationPhase>();
+    }
 
     Run<turboshaft::LateOptimizationPhase>();
 

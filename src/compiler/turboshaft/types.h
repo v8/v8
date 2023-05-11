@@ -878,6 +878,10 @@ inline bool operator==(const Type& lhs, const Type& rhs) {
   return lhs.Equals(rhs);
 }
 
+inline bool operator!=(const Type& lhs, const Type& rhs) {
+  return !lhs.Equals(rhs);
+}
+
 template <>
 struct fast_hash<Type> {
   size_t operator()(const Type& v) const {

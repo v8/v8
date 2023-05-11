@@ -105,14 +105,16 @@ class MemoryOptimizationReducer : public Next {
   OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_scale) {
+                        uint8_t element_scale,
+                        bool maybe_initializing_or_transitioning) {
     if (!ShouldSkipOptimizationStep() &&
         analyzer_->skipped_write_barriers.count(
             Asm().current_operation_origin())) {
       write_barrier = WriteBarrierKind::kNoWriteBarrier;
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale);
+                             write_barrier, offset, element_scale,
+                             maybe_initializing_or_transitioning);
   }
 
   OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type,

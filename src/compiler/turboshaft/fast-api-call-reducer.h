@@ -524,16 +524,16 @@ class FastApiCallReducer : public Next {
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
             __ HeapConstant(factory_->null_value()));
 
-    V<HeapObject> external =
+    Uninitialized<HeapObject> external =
         __ Allocate(JSExternalObject::kHeaderSize, AllocationType::kYoung);
-    __ StoreField(external, AccessBuilder::ForMap(),
-                  __ HeapConstant(factory_->external_map()));
+    __ InitializeField(external, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->external_map()));
     V<FixedArray> empty_fixed_array =
         __ HeapConstant(factory_->empty_fixed_array());
-    __ StoreField(external, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                  empty_fixed_array);
-    __ StoreField(external, AccessBuilder::ForJSObjectElements(),
-                  empty_fixed_array);
+    __ InitializeField(external, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                       empty_fixed_array);
+    __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
+                       empty_fixed_array);
 
 #ifdef V8_ENABLE_SANDBOX
     OpIndex isolate_ptr =
@@ -552,12 +552,13 @@ class FastApiCallReducer : public Next {
         __ Call(allocate_and_initialize_external_pointer_table_entry,
                 {isolate_ptr, pointer},
                 TSCallDescriptor::Create(call_descriptor, __ graph_zone()));
-    __ StoreField(external, AccessBuilder::ForJSExternalObjectPointerHandle(),
-                  handle);
+    __ InitializeField(
+        external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else
-    __ StoreField(external, AccessBuilder::ForJSExternalObjectValue(), pointer);
+    __ InitializeField(external, AccessBuilder::ForJSExternalObjectValue(),
+                       pointer);
 #endif  // V8_ENABLE_SANDBOX
-    GOTO(done, external);
+    GOTO(done, __ FinishInitialization(std::move(external)));
 
     BIND(done, result);
     return result;

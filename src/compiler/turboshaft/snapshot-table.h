@@ -10,6 +10,7 @@
 
 #include "src/base/iterator.h"
 #include "src/base/small-vector.h"
+#include "src/compiler/turboshaft/fast-hash.h"
 #include "src/zone/zone-containers.h"
 
 // A `SnapshotTable` stores a mapping from keys to values and creates snapshots,
@@ -38,6 +39,71 @@ struct NoChangeCallback {
                   const Value& new_value) const {}
 };
 
+/*
+template <class Value, class KeyData>
+class SnapshotTable;
+
+namespace detail {
+
+// Place `KeyData` in a superclass to benefit from empty-base optimization.
+template <class Value, class KeyData>
+struct SnapshotTableEntry : KeyData {
+  Value value;
+  // `merge_offset` is the offset in `merge_values_` where we store the
+  // merged values. It is used during merging (to know what to merge) and when
+  // calling GetPredecessorValue.
+  uint32_t merge_offset = kNoMergeOffset;
+  // Used during merging: the index of the predecessor for which we last
+  // recorded a value. This allows us to only use the last value for a given
+  // predecessor and skip over all earlier ones.
+  uint32_t last_merged_predecessor = kNoMergedPredecessor;
+
+  explicit SnapshotTableEntry(Value value, KeyData data)
+      : KeyData(std::move(data)), value(std::move(value)) {}
+
+  static constexpr uint32_t kNoMergeOffset =
+      std::numeric_limits<uint32_t>::max();
+  static constexpr uint32_t kNoMergedPredecessor =
+      std::numeric_limits<uint32_t>::max();
+};
+
+// A `SnapshotTableKey` identifies an entry in the `SnapshotTable`. For better
+// performance, keys always have identity. The template parameter `KeyData` can
+// be used to embed additional data in the keys. A Key is implemented as a
+// pointer into the table, which also contains the `KeyData`. Therefore, keys
+// have pointer-size and are cheap to copy.
+template <class Value, class KeyData>
+class SnapshotTableKey {
+ public:
+  bool operator==(SnapshotTableKey other) const {
+    return entry_ == other.entry_;
+  }
+  const KeyData& data() const { return *entry_; }
+  KeyData& data() { return *entry_; }
+
+ private:
+  friend class SnapshotTable<Value, KeyData>;
+  friend struct fast_hash<SnapshotTableKey<Value, KeyData>>;
+  SnapshotTableEntry<Value, KeyData>* entry_;
+  explicit SnapshotTableKey(SnapshotTableEntry<Value, KeyData>& entry)
+      : entry_(&entry) {}
+};
+
+}  // namespace detail
+
+template <class Value, class KeyData>
+struct fast_hash<detail::SnapshotTableKey<Value, KeyData>> {
+  size_t operator()(detail::SnapshotTableKey<Value, KeyData> v) const {
+    return fast_hash_combine(v.entry_);
+  }
+};
+
+template <class Value, class KeyData>
+V8_INLINE size_t hash_value(detail::SnapshotTableKey<Value, KeyData> v) {
+  return fast_hash<decltype(v)>{}(v);
+}
+*/
+
 template <class Value, class KeyData = NoKeyData>
 class SnapshotTable {
  private:
@@ -59,6 +125,7 @@ class SnapshotTable {
 
    private:
     friend SnapshotTable;
+    friend size_t hash_value(Key key) { return fast_hash_combine(key.entry_); }
     TableEntry* entry_;
     explicit Key(TableEntry& entry) : entry_(&entry) {}
   };
@@ -180,7 +247,7 @@ class SnapshotTable {
     return Snapshot{*current_snapshot_};
   }
 
-  const Value& Get(Key key) { return key.entry_->value; }
+  const Value& Get(Key key) const { return key.entry_->value; }
 
   // Returns the value associated to {key} in its {predecessor_index}th
   // predecessor (where "predecessor" refers to the predecessors that were
@@ -196,11 +263,13 @@ class SnapshotTable {
     return merge_values_[key.entry_->merge_offset + predecessor_index];
   }
 
-  void Set(Key key, Value new_value) {
+  // {Set} returns whether the {new_value} is different from the previous value.
+  bool Set(Key key, Value new_value) {
     DCHECK(!current_snapshot_->IsSealed());
-    if (key.entry_->value == new_value) return;
+    if (key.entry_->value == new_value) return false;
     log_.push_back(LogEntry{*key.entry_, key.entry_->value, new_value});
     key.entry_->value = new_value;
+    return true;
   }
 
   explicit SnapshotTable(Zone* zone) : zone_(zone) {
@@ -258,6 +327,7 @@ class SnapshotTable {
     base::Vector<LogEntry> log_entries = LogEntries(current_snapshot_);
     for (const LogEntry& entry : base::Reversed(log_entries)) {
       DCHECK_EQ(entry.table_entry.value, entry.new_value);
+      DCHECK_NE(entry.new_value, entry.old_value);
       change_callback(Key{entry.table_entry}, entry.new_value, entry.old_value);
       entry.table_entry.value = entry.old_value;
     }
@@ -270,6 +340,7 @@ class SnapshotTable {
     DCHECK_EQ(snapshot->parent, current_snapshot_);
     for (const LogEntry& entry : LogEntries(snapshot)) {
       DCHECK_EQ(entry.table_entry.value, entry.old_value);
+      DCHECK_NE(entry.new_value, entry.old_value);
       change_callback(Key{entry.table_entry}, entry.old_value, entry.new_value);
       entry.table_entry.value = entry.new_value;
     }
@@ -474,8 +545,10 @@ void SnapshotTable<Value, KeyData>::MergePredecessors(
     Value value = merge_fun(
         key, base::VectorOf<const Value>(&merge_values_[entry->merge_offset],
                                          predecessor_count));
-    change_callback(key, entry->value, value);
-    Set(key, std::move(value));
+    Value old_value = entry->value;
+    if (Set(key, std::move(value))) {
+      change_callback(key, old_value, entry->value);
+    }
   }
 }
 
@@ -525,8 +598,11 @@ class ChangeTrackingSnapshotTable : public SnapshotTable<Value, KeyData> {
   }
 
   void Set(Key key, Value new_value) {
-    static_cast<Derived*>(this)->OnValueChange(key, Super::Get(key), new_value);
-    Super::Set(key, std::move(new_value));
+    Value old_value = Super::Get(key);
+    if (Super::Set(key, std::move(new_value))) {
+      static_cast<Derived*>(this)->OnValueChange(key, old_value,
+                                                 Super::Get(key));
+    }
   }
 
   Key NewKey(KeyData data, Value initial_value = Value{}) {

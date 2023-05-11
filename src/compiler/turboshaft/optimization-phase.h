@@ -668,11 +668,12 @@ class GraphVisitor {
     return assembler().ReduceStore(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
-        op.offset, op.element_size_log2);
+        op.offset, op.element_size_log2,
+        op.maybe_initializing_or_transitioning);
   }
   OpIndex AssembleOutputGraphAllocate(const AllocateOp& op) {
-    return assembler().Allocate(MapToNewGraph(op.size()), op.type,
-                                op.allow_large_objects);
+    return assembler().FinishInitialization(assembler().Allocate(
+        MapToNewGraph(op.size()), op.type, op.allow_large_objects));
   }
   OpIndex AssembleOutputGraphDecodeExternalPointer(
       const DecodeExternalPointerOp& op) {

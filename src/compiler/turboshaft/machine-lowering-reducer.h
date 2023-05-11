@@ -15,6 +15,7 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
@@ -23,6 +24,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/frame-constants.h"
 #include "src/objects/bigint.h"
@@ -721,25 +723,24 @@ class MachineLoweringReducer : public Next {
 #endif
 
           // Allocate a new SeqTwoByteString for {code}.
-          V<Tagged> string =
-              __ Allocate(__ IntPtrConstant(SeqTwoByteString::SizeFor(2)),
-                          AllocationType::kYoung);
+          auto string = __ template Allocate<String>(
+              __ IntPtrConstant(SeqTwoByteString::SizeFor(2)),
+              AllocationType::kYoung);
           // Set padding to 0.
-          __ Store(string, __ IntPtrConstant(0),
-                   StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
-                   MemoryRepresentation::TaggedSigned(), kNoWriteBarrier,
-                   SeqTwoByteString::SizeFor(2) - kObjectAlignment);
-          __ StoreField(string, AccessBuilder::ForMap(),
-                        __ HeapConstant(factory_->string_map()));
-          __ StoreField(string, AccessBuilder::ForNameRawHashField(),
-                        __ Word32Constant(Name::kEmptyHashField));
-          __ StoreField(string, AccessBuilder::ForStringLength(),
-                        __ Word32Constant(2));
-          __ Store(string, code,
-                   StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
-                   MemoryRepresentation::Uint32(), kNoWriteBarrier,
-                   SeqTwoByteString::kHeaderSize);
-          GOTO(done, string);
+          __ Initialize(string, __ IntPtrConstant(0),
+                        MemoryRepresentation::TaggedSigned(),
+                        WriteBarrierKind::kNoWriteBarrier,
+                        SeqTwoByteString::SizeFor(2) - kObjectAlignment);
+          __ InitializeField(string, AccessBuilder::ForMap(),
+                             __ HeapConstant(factory_->string_map()));
+          __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
+                             __ Word32Constant(Name::kEmptyHashField));
+          __ InitializeField(string, AccessBuilder::ForStringLength(),
+                             __ Word32Constant(2));
+          __ Initialize(string, code, MemoryRepresentation::Uint32(),
+                        WriteBarrierKind::kNoWriteBarrier,
+                        SeqTwoByteString::kHeaderSize);
+          GOTO(done, __ FinishInitialization(std::move(string)));
         }
 
         if (BIND(single_code, code)) {
@@ -763,26 +764,25 @@ class MachineLoweringReducer : public Next {
           }
           ELSE {
             // Allocate a new SeqTwoBytesString for {code}.
-            V<Tagged> string =
-                __ Allocate(__ IntPtrConstant(SeqTwoByteString::SizeFor(1)),
-                            AllocationType::kYoung);
+            auto string = __ template Allocate<String>(
+                __ IntPtrConstant(SeqTwoByteString::SizeFor(1)),
+                AllocationType::kYoung);
 
             // Set padding to 0.
-            __ Store(string, __ IntPtrConstant(0),
-                     StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
-                     MemoryRepresentation::TaggedSigned(), kNoWriteBarrier,
-                     SeqTwoByteString::SizeFor(1) - kObjectAlignment);
-            __ StoreField(string, AccessBuilder::ForMap(),
-                          __ HeapConstant(factory_->string_map()));
-            __ StoreField(string, AccessBuilder::ForNameRawHashField(),
-                          __ Word32Constant(Name::kEmptyHashField));
-            __ StoreField(string, AccessBuilder::ForStringLength(),
-                          __ Word32Constant(1));
-            __ Store(string, code,
-                     StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
-                     MemoryRepresentation::Uint16(), kNoWriteBarrier,
-                     SeqTwoByteString::kHeaderSize);
-            GOTO(done, string);
+            __ Initialize(string, __ IntPtrConstant(0),
+                          MemoryRepresentation::TaggedSigned(),
+                          WriteBarrierKind::kNoWriteBarrier,
+                          SeqTwoByteString::SizeFor(1) - kObjectAlignment);
+            __ InitializeField(string, AccessBuilder::ForMap(),
+                               __ HeapConstant(factory_->string_map()));
+            __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
+                               __ Word32Constant(Name::kEmptyHashField));
+            __ InitializeField(string, AccessBuilder::ForStringLength(),
+                               __ Word32Constant(1));
+            __ Initialize(string, code, MemoryRepresentation::Uint16(),
+                          WriteBarrierKind::kNoWriteBarrier,
+                          SeqTwoByteString::kHeaderSize);
+            GOTO(done, __ FinishInitialization(std::move(string)));
           }
           END_IF
         }
@@ -1370,15 +1370,15 @@ class MachineLoweringReducer : public Next {
 
     // Allocate the resulting ConsString.
     BIND(allocate_string, map);
-    V<Tagged> string = __ Allocate(__ IntPtrConstant(ConsString::kSize),
-                                   AllocationType::kYoung);
-    __ StoreField(string, AccessBuilder::ForMap(), map);
-    __ StoreField(string, AccessBuilder::ForNameRawHashField(),
-                  __ Word32Constant(Name::kEmptyHashField));
-    __ StoreField(string, AccessBuilder::ForStringLength(), length);
-    __ StoreField(string, AccessBuilder::ForConsStringFirst(), first);
-    __ StoreField(string, AccessBuilder::ForConsStringSecond(), second);
-    return string;
+    auto string = __ template Allocate<String>(
+        __ IntPtrConstant(ConsString::kSize), AllocationType::kYoung);
+    __ InitializeField(string, AccessBuilder::ForMap(), map);
+    __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
+                       __ Word32Constant(Name::kEmptyHashField));
+    __ InitializeField(string, AccessBuilder::ForStringLength(), length);
+    __ InitializeField(string, AccessBuilder::ForConsStringFirst(), first);
+    __ InitializeField(string, AccessBuilder::ForConsStringSecond(), second);
+    return __ FinishInitialization(std::move(string));
   }
 
   OpIndex REDUCE(NewArray)(V<WordPtr> length, NewArrayOp::Kind kind,
@@ -1421,10 +1421,15 @@ class MachineLoweringReducer : public Next {
                                     access.header_size);
 
     // Allocate the result and initialize the header.
-    V<Tagged> array = __ Allocate(size, allocation_type);
-    __ StoreField(array, AccessBuilder::ForMap(), __ HeapConstant(array_map));
-    __ StoreField(array, AccessBuilder::ForFixedArrayLength(),
-                  __ SmiTag(length));
+    auto uninitialized_array =
+        __ template Allocate<FixedArray>(size, allocation_type);
+    __ InitializeField(uninitialized_array, AccessBuilder::ForMap(),
+                       __ HeapConstant(array_map));
+    __ InitializeField(uninitialized_array,
+                       AccessBuilder::ForFixedArrayLength(), __ SmiTag(length));
+    // TODO(nicohartmann@): Should finish initialization only after all elements
+    // have been initialized.
+    auto array = __ FinishInitialization(std::move(uninitialized_array));
 
     // Initialize the backing store with holes.
     LoopLabel<WordPtr> loop(this);
@@ -2821,24 +2826,24 @@ class MachineLoweringReducer : public Next {
         BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
 
     V<Map> map = __ HeapConstant(factory_->bigint_map());
-    auto bigint = V<FreshlyAllocatedBigInt>::Cast(
-        __ Allocate(__ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
-                    AllocationType::kYoung));
-    __ StoreField(bigint, AccessBuilder::ForMap(), map);
-    __ StoreField(
+    auto bigint = __ template Allocate<FreshlyAllocatedBigInt>(
+        __ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
+        AllocationType::kYoung);
+    __ InitializeField(bigint, AccessBuilder::ForMap(), map);
+    __ InitializeField(
         bigint, AccessBuilder::ForBigIntBitfield(),
         bitfield.valid() ? bitfield : __ Word32Constant(zero_bitfield));
 
     // BigInts have no padding on 64 bit architectures with pointer compression.
     if (BigInt::HasOptionalPadding()) {
-      __ StoreField(bigint, AccessBuilder::ForBigIntOptionalPadding(),
-                    __ IntPtrConstant(0));
+      __ InitializeField(bigint, AccessBuilder::ForBigIntOptionalPadding(),
+                         __ IntPtrConstant(0));
     }
     if (digit.valid()) {
-      __ StoreField(bigint, AccessBuilder::ForBigIntLeastSignificantDigit64(),
-                    digit);
+      __ InitializeField(
+          bigint, AccessBuilder::ForBigIntLeastSignificantDigit64(), digit);
     }
-    return V<BigInt>::Cast(bigint);
+    return V<BigInt>::Cast(__ FinishInitialization(std::move(bigint)));
   }
 
   // TODO(nicohartmann@): Should also make this an operation and lower in
@@ -2869,12 +2874,12 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Tagged> AllocateHeapNumberWithValue(V<Float64> value) {
-    V<Tagged> result = __ Allocate(__ IntPtrConstant(HeapNumber::kSize),
-                                   AllocationType::kYoung);
-    __ StoreField(result, AccessBuilder::ForMap(),
-                  __ HeapConstant(factory_->heap_number_map()));
-    __ StoreField(result, AccessBuilder::ForHeapNumberValue(), value);
-    return result;
+    auto result = __ template Allocate<HeapNumber>(
+        __ IntPtrConstant(HeapNumber::kSize), AllocationType::kYoung);
+    __ InitializeField(result, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->heap_number_map()));
+    __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
+    return __ FinishInitialization(std::move(result));
   }
 
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(

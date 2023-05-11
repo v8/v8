@@ -520,6 +520,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
+  if (maybe_initializing_or_transitioning) os << ", initializing";
   os << "]";
 }
 

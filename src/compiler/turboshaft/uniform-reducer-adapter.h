@@ -62,7 +62,7 @@ namespace v8::internal::compiler::turboshaft {
 //   /* ... */
 // };
 //
-// NOTICE: Inside the ReduceOperation and ReduceInputGraphOperation callbacks,
+// NOTICE: Inside the ReduceXyz and ReduceInputGraphXyz callbacks of MyReducer,
 // you need to make a choice:
 //
 //   A) Call Next::ReduceXyz (or Next::ReduceInputGraphXyz) to forward to the
