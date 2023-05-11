@@ -913,7 +913,7 @@ class DesktopPlatform(Platform):
         self.command_prefix += ['-a', ('0x%x' % core)]
       self.command_prefix += ['-e']
 
-    if args.checked_warmup:
+    if args.checked_warmup_internal:
       self.warmup_manager = TempfileWarmupManager()
 
   def PreExecution(self):
@@ -1226,6 +1226,9 @@ def Main(argv):
                       help='Be verbose and print debug output.')
   parser.add_argument('--checked-warmup', default=False, action='store_true',
                       help='Warm up benchmarks not run since last reboot.')
+  # TODO(https://crbug.com/v8/13984): Flip to above once called from recipe.
+  parser.add_argument('--checked-warmup-internal', default=False,
+                      action='store_true', help='Internal only.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
   try:
