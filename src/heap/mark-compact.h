@@ -266,8 +266,6 @@ class MarkCompactCollector final : public CollectorBase {
   // Returns whether compaction is running.
   bool StartCompaction(StartCompactionMode mode);
 
-  void AbortCompaction();
-
   void StartMarking() final;
 
   static inline bool IsOnEvacuationCandidate(Object obj) {

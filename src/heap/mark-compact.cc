@@ -419,7 +419,6 @@ MarkCompactCollector::~MarkCompactCollector() = default;
 void MarkCompactCollector::SetUp() {}
 
 void MarkCompactCollector::TearDown() {
-  AbortCompaction();
   if (heap()->incremental_marking()->IsMajorMarking()) {
     local_marking_worklists()->Publish();
     heap()->main_thread_local_heap()->marking_barrier()->PublishIfNeeded();
@@ -793,23 +792,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                  space->name(), reduce_memory, candidate_count,
                  total_live_bytes / KB);
   }
-}
-
-void MarkCompactCollector::AbortCompaction() {
-  if (compacting_) {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Changing Code page flags and remembered sets require "
-        "write access "
-        "to the page header");
-    RememberedSet<OLD_TO_OLD>::ClearAll(heap());
-    RememberedSet<OLD_TO_CODE>::ClearAll(heap());
-    for (Page* p : evacuation_candidates_) {
-      p->ClearEvacuationCandidate();
-    }
-    compacting_ = false;
-    evacuation_candidates_.clear();
-  }
-  DCHECK(evacuation_candidates_.empty());
 }
 
 void MarkCompactCollector::Prepare() {
@@ -5977,7 +5959,7 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
 
     if (!was_marked_incrementally) {
       // Create items for each page.
-      RememberedSetOperations::IterateOldMemoryChunks(
+      OldGenerationMemoryChunkIterator::ForAll(
           heap(), [&marking_items](MemoryChunk* chunk) {
             if (chunk->slot_set<OLD_TO_NEW>() ||
                 chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {

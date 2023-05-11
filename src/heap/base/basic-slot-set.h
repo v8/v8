@@ -262,17 +262,6 @@ class BasicSlotSet {
         });
   }
 
-  bool FreeEmptyBuckets(size_t buckets) {
-    bool empty = true;
-    for (size_t bucket_index = 0; bucket_index < buckets; bucket_index++) {
-      if (!FreeBucketIfEmpty(bucket_index)) {
-        empty = false;
-      }
-    }
-
-    return empty;
-  }
-
   static constexpr int kCellsPerBucket = 32;
   static constexpr int kCellsPerBucketLog2 = 5;
   static constexpr int kCellSizeBytesLog2 = 2;

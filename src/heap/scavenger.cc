@@ -343,7 +343,7 @@ void ScavengerCollector::CollectGarbage() {
     }
 
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> memory_chunks;
-    RememberedSetOperations::IterateOldMemoryChunks(
+    OldGenerationMemoryChunkIterator::ForAll(
         heap_, [&memory_chunks](MemoryChunk* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
@@ -482,7 +482,7 @@ void ScavengerCollector::CollectGarbage() {
     }
 
 #ifdef DEBUG
-    RememberedSetOperations::IterateOldMemoryChunks(
+    OldGenerationMemoryChunkIterator::ForAll(
         heap_, [](MemoryChunk* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||

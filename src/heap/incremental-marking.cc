@@ -232,7 +232,7 @@ void IncrementalMarking::MarkRoots() {
 
     std::vector<PageMarkingItem> marking_items;
 
-    RememberedSetOperations::IterateOldMemoryChunks(
+    OldGenerationMemoryChunkIterator::ForAll(
         heap(), [&marking_items](MemoryChunk* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {

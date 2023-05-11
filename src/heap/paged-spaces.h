@@ -537,6 +537,16 @@ class OldGenerationMemoryChunkIterator {
   // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
 
+  // Applies `callback` to all `MemoryChunk` returned by the iterator.
+  template <typename Callback>
+  static void ForAll(Heap* heap, Callback callback) {
+    OldGenerationMemoryChunkIterator it(heap);
+    MemoryChunk* chunk;
+    while ((chunk = it.next()) != nullptr) {
+      callback(chunk);
+    }
+  }
+
  private:
   enum State {
     kOldSpaceState,

@@ -83,17 +83,6 @@ class RememberedSetOperations {
           SlotSet::KEEP_EMPTY_BUCKETS);
     }
   }
-
-  // Iterates over all old generation memory chunks.
-  // The callback should take (MemoryChunk* chunk) and return void.
-  template <typename Callback>
-  static void IterateOldMemoryChunks(Heap* heap, Callback callback) {
-    OldGenerationMemoryChunkIterator it(heap);
-    MemoryChunk* chunk;
-    while ((chunk = it.next()) != nullptr) {
-      callback(chunk);
-    }
-  }
 };
 
 template <RememberedSetType type>
@@ -202,14 +191,6 @@ class RememberedSet : public AllStatic {
       if (!possibly_empty_buckets->IsEmpty()) empty_chunks->Push(chunk);
     }
     return slots;
-  }
-
-  static void FreeEmptyBuckets(MemoryChunk* chunk) {
-    DCHECK(type == OLD_TO_NEW);
-    SlotSet* slot_set = chunk->slot_set<type>();
-    if (slot_set != nullptr && slot_set->FreeEmptyBuckets(chunk->buckets())) {
-      chunk->ReleaseSlotSet<type>();
-    }
   }
 
   static bool CheckPossiblyEmptyBuckets(MemoryChunk* chunk) {
