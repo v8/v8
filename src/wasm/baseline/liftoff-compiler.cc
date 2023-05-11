@@ -2360,8 +2360,15 @@ class LiftoffCompiler {
           }
         });
       case kExprRefEq: {
+#if defined(V8_COMPRESS_POINTERS)
+        // In pointer compression, we smi-corrupt (the upper bits of a
+        // Smi are arbitrary). So, we should only compare the lower 32 bits.
+        return EmitBinOp<kRefNull, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i32_set_cond, kEqual));
+#else
         return EmitBinOp<kRefNull, kI32>(
             BindFirst(&LiftoffAssembler::emit_ptrsize_set_cond, kEqual));
+#endif
       }
 
       default:
