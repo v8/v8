@@ -429,14 +429,20 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
           i::Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
           size_t size =
               end_of_accessible_region_ - new_end_of_accessible_region;
-          CHECK(vas->DecommitPages(new_end_of_accessible_region, size));
+          if (!vas->DecommitPages(new_end_of_accessible_region, size)) {
+            i::V8::FatalProcessOutOfMemory(
+                nullptr, "ArrayBufferAllocator::BackendAllocator()");
+          }
           end_of_accessible_region_ = new_end_of_accessible_region;
         } else if (size >= 2 * kChunkSize) {
           // Can discard pages. The pages stay accessible, so the size of the
           // accessible region doesn't change.
           i::Address chunk_start = RoundUp(start, kChunkSize);
           i::Address chunk_end = RoundDown(start + size, kChunkSize);
-          CHECK(vas->DiscardSystemPages(chunk_start, chunk_end - chunk_start));
+          if (!vas->DiscardSystemPages(chunk_start, chunk_end - chunk_start)) {
+            i::V8::FatalProcessOutOfMemory(
+                nullptr, "ArrayBufferAllocator::BackendAllocator()");
+          }
         }
       });
     }
@@ -469,7 +475,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         size_t size = new_end_of_accessible_region - end_of_accessible_region_;
         if (!vas->SetPagePermissions(end_of_accessible_region_, size,
                                      PagePermissions::kReadWrite)) {
-          CHECK(region_alloc_->FreeRegion(region));
+          if (!region_alloc_->FreeRegion(region)) {
+            i::V8::FatalProcessOutOfMemory(
+                nullptr, "ArrayBufferAllocator::BackendAllocator::Allocate()");
+          }
           return nullptr;
         }
 

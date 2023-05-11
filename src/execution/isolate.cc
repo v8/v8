@@ -4641,9 +4641,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
-  page_allocator()->DecommitPages(
-      reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-      WasmNull::kSize - kTaggedSize);
+  if (!page_allocator()->DecommitPages(
+          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
+          WasmNull::kSize - kTaggedSize)) {
+    V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
+  }
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY
 

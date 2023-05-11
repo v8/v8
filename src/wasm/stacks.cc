@@ -22,7 +22,9 @@ StackMemory::~StackMemory() {
     PrintF("Delete stack #%d\n", id_);
   }
   PageAllocator* allocator = GetPlatformPageAllocator();
-  if (owned_) allocator->DecommitPages(limit_, size_);
+  if (owned_ && !allocator->DecommitPages(limit_, size_)) {
+    V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
+  }
   // We don't need to handle removing the last stack from the list (next_ ==
   // this). This only happens on isolate tear down, otherwise there is always
   // at least one reachable stack (the active stack).
