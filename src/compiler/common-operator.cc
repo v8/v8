@@ -907,7 +907,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kProjection,  // opcode
               Operator::kPure,        // flags
               "Projection",           // name
-              1, 0, 0, 1, 0, 0,       // counts,
+              1, 0, 1, 1, 0, 0,       // counts,
               kIndex) {}              // parameter
   };
 #define CACHED_PROJECTION(index) \
@@ -1613,7 +1613,7 @@ const Operator* CommonOperatorBuilder::Projection(size_t index) {
       IrOpcode::kProjection,              // opcode
       Operator::kPure,                    // flags
       "Projection",                       // name
-      1, 0, 0, 1, 0, 0,                   // counts
+      1, 0, 1, 1, 0, 0,                   // counts
       index);                             // parameter
 }
 

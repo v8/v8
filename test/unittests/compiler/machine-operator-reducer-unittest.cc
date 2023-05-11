@@ -2180,11 +2180,12 @@ TEST_F(MachineOperatorReducerTest, Int32AddWithOverflowWithZero) {
     Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(),
                                  Int32Constant(0), p0, control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), add, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), add));
+    r = Reduce(graph()->NewNode(common()->Projection(0), add, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(p0, r.replacement());
   }
@@ -2192,11 +2193,12 @@ TEST_F(MachineOperatorReducerTest, Int32AddWithOverflowWithZero) {
     Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), p0,
                                  Int32Constant(0), control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), add, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), add));
+    r = Reduce(graph()->NewNode(common()->Projection(0), add, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(p0, r.replacement());
   }
@@ -2211,12 +2213,13 @@ TEST_F(MachineOperatorReducerTest, Int32AddWithOverflowWithConstant) {
       Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(),
                                    Int32Constant(x), Int32Constant(y), control);
 
-      Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+      Reduction r =
+          Reduce(graph()->NewNode(common()->Projection(1), add, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsInt32Constant(base::bits::SignedAddOverflow32(x, y, &z)));
 
-      r = Reduce(graph()->NewNode(common()->Projection(0), add));
+      r = Reduce(graph()->NewNode(common()->Projection(0), add, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsInt32Constant(z));
     }
@@ -2234,11 +2237,11 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithZero) {
   Node* add = graph()->NewNode(machine()->Int32SubWithOverflow(), p0,
                                Int32Constant(0), control);
 
-  Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+  Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-  r = Reduce(graph()->NewNode(common()->Projection(0), add));
+  r = Reduce(graph()->NewNode(common()->Projection(0), add, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p0, r.replacement());
 }
@@ -2252,12 +2255,13 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithConstant) {
       Node* add = graph()->NewNode(machine()->Int32SubWithOverflow(),
                                    Int32Constant(x), Int32Constant(y), control);
 
-      Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+      Reduction r =
+          Reduce(graph()->NewNode(common()->Projection(1), add, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsInt32Constant(base::bits::SignedSubOverflow32(x, y, &z)));
 
-      r = Reduce(graph()->NewNode(common()->Projection(0), add));
+      r = Reduce(graph()->NewNode(common()->Projection(0), add, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsInt32Constant(z));
     }
@@ -2275,11 +2279,12 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithZero) {
     Node* mul = graph()->NewNode(machine()->Int32MulWithOverflow(),
                                  Int32Constant(0), p0, control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), mul));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), mul));
+    r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
   }
@@ -2287,11 +2292,12 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithZero) {
     Node* mul = graph()->NewNode(machine()->Int32MulWithOverflow(), p0,
                                  Int32Constant(0), control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), mul));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), mul));
+    r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
   }
@@ -2304,11 +2310,12 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithOne) {
     Node* mul = graph()->NewNode(machine()->Int32MulWithOverflow(),
                                  Int32Constant(1), p0, control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), mul));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), mul));
+    r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(p0, r.replacement());
   }
@@ -2316,11 +2323,12 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithOne) {
     Node* mul = graph()->NewNode(machine()->Int32MulWithOverflow(), p0,
                                  Int32Constant(1), control);
 
-    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), mul));
+    Reduction r =
+        Reduce(graph()->NewNode(common()->Projection(1), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 
-    r = Reduce(graph()->NewNode(common()->Projection(0), mul));
+    r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(p0, r.replacement());
   }
@@ -2374,12 +2382,13 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithConstant) {
       Node* mul = graph()->NewNode(machine()->Int32MulWithOverflow(),
                                    Int32Constant(x), Int32Constant(y), control);
 
-      Reduction r = Reduce(graph()->NewNode(common()->Projection(1), mul));
+      Reduction r =
+          Reduce(graph()->NewNode(common()->Projection(1), mul, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsInt32Constant(base::bits::SignedMulOverflow32(x, y, &z)));
 
-      r = Reduce(graph()->NewNode(common()->Projection(0), mul));
+      r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsInt32Constant(z));
     }

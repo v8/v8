@@ -620,6 +620,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
 
   function CheckCallStack(error, expected_entries) {
+    print(error.stack);
     let regex = /at ([^ ]+) \(wasm[^\[]+\[([0-9]+)\]:(0x[0-9a-f]+)\)/g;
     let entries = [...error.stack.matchAll(regex)];
     for (let i = 0; i < expected_entries.length; ++i) {
