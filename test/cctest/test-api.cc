@@ -13504,7 +13504,15 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   handle1.SetWeak(&handle1, NewPersistentHandleCallback1,
                   v8::WeakCallbackType::kParameter);
   handle2.Reset();
-  CcTest::CollectAllGarbage();
+  {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared by this GC because of conservative stack scanning and, when
+    // it is cleared, the handle object will be dead and the pointer passed
+    // as parameter to the callback will be dangling.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    CcTest::CollectAllGarbage();
+  }
 }
 
 
@@ -13538,7 +13546,15 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   handle1.SetWeak(&handle1, DisposeAndForceGcCallback1,
                   v8::WeakCallbackType::kParameter);
   to_be_disposed.Reset(isolate, handle2);
-  CcTest::CollectAllGarbage();
+  {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared by this GC because of conservative stack scanning and, when
+    // it is cleared, the handle object will be dead and the pointer passed
+    // as parameter to the callback will be dangling.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    CcTest::CollectAllGarbage();
+  }
 }
 
 void DisposingCallback(
@@ -13576,7 +13592,15 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
                   v8::WeakCallbackType::kParameter);
   handle3.SetWeak(&handle3, HandleCreatingCallback1,
                   v8::WeakCallbackType::kParameter);
-  CcTest::CollectAllGarbage();
+  {
+    // We need to invoke GC without stack, otherwise the weak references may not
+    // be cleared by this GC because of conservative stack scanning and, when
+    // they are cleared, the handle objects will be dead and the pointers passed
+    // as parameters to the callbacks will be dangling.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    CcTest::CollectAllGarbage();
+  }
   EmptyMessageQueues(isolate);
 }
 
