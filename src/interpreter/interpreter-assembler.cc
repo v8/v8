@@ -1054,6 +1054,7 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
   // Update budget.
   StoreObjectFieldNoWriteBarrier(
       feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value());
+
   Goto(&done);
   BIND(&done);
   Comment("] UpdateInterruptBudget");

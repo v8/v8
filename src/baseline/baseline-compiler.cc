@@ -597,7 +597,8 @@ INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
 void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
-    int weight, Label* label, Label* skip_interrupt_label) {
+    int weight, Label* label, Label* skip_interrupt_label,
+    StackCheckBehavior stack_check_behavior) {
   if (weight != 0) {
     ASM_CODE_COMMENT(&masm_);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
@@ -605,6 +606,10 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     if (weight < 0) {
       SaveAccumulatorScope accumulator_scope(&basm_);
       CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug,
+                  __ FunctionOperand());
+      CallRuntime(stack_check_behavior == kEnableStackCheck
+                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
+                    : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
                   __ FunctionOperand());
     }
   }
@@ -614,7 +619,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
-  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
+  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr, kEnableStackCheck);
 }
 
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(
@@ -1928,7 +1933,7 @@ void BaselineCompiler::VisitJumpLoop() {
   // We can pass in the same label twice since it's a back edge and thus already
   // bound.
   DCHECK(label->is_bound());
-  UpdateInterruptBudgetAndJumpToLabel(weight, label, label);
+  UpdateInterruptBudgetAndJumpToLabel(weight, label, label, kEnableStackCheck);
 
   {
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Handle Armed");
