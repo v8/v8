@@ -408,6 +408,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     return types_[index].array_type;
   }
 
+  uint32_t GetSuperType(uint32_t index) { return types_[index].supertype; }
+
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
   int NumExceptions() { return static_cast<int>(exceptions_.size()); }
 

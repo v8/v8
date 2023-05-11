@@ -1088,6 +1088,24 @@ class WasmGenerator {
     builder_->EmitU32V(array_index);  // source array type index
   }
 
+  void array_fill(DataRange* data) {
+    if (num_arrays_ == 0) {
+      return;
+    }
+    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK(builder_->builder()->IsArrayType(array_index));
+    ValueType element_type = builder_->builder()
+                                 ->GetArrayType(array_index)
+                                 ->element_type()
+                                 .Unpacked();
+    GenerateRef(HeapType(array_index), data);  // array
+    Generate(kWasmI32, data);                  // offset
+    Generate(element_type, data);              // value
+    Generate(kWasmI32, data);                  // length
+    builder_->EmitWithPrefix(kExprArrayFill);
+    builder_->EmitU32V(array_index);
+  }
+
   void array_set(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> array_indices(builder->zone());
@@ -1160,18 +1178,175 @@ class WasmGenerator {
   }
 
   bool ref_cast(HeapType type, DataRange* data, Nullability nullable) {
-    // Check the target type and pick the corresponding type hierarchy for the
-    // source type.
-    HeapType::Representation input_type = HeapType::kAny;
-    if (type.representation() == HeapType::kFunc ||
-        std::find(functions_.begin(), functions_.end(),
-                  type.representation()) != functions_.end()) {
-      input_type = HeapType::kFunc;
-    }
-    GenerateRef(HeapType(input_type), data);
+    HeapType input_type = top_type(type);
+    GenerateRef(input_type, data);
     builder_->EmitWithPrefix(nullable ? kExprRefCastNull : kExprRefCast);
     builder_->EmitI32V(type.code());
     return true;  // It always produces the desired result type.
+  }
+
+  HeapType top_type(HeapType type) {
+    switch (type.representation()) {
+      case HeapType::kAny:
+      case HeapType::kEq:
+      case HeapType::kArray:
+      case HeapType::kStruct:
+      case HeapType::kI31:
+      case HeapType::kNone:
+        return HeapType(HeapType::kAny);
+      case HeapType::kExtern:
+      case HeapType::kNoExtern:
+        return HeapType(HeapType::kExtern);
+      case HeapType::kFunc:
+      case HeapType::kNoFunc:
+        return HeapType(HeapType::kFunc);
+      default:
+        DCHECK(type.is_index());
+        if (builder_->builder()->IsSignature(type.ref_index())) {
+          return HeapType(HeapType::kFunc);
+        }
+        DCHECK(builder_->builder()->IsStructType(type.ref_index()) ||
+               builder_->builder()->IsArrayType(type.ref_index()));
+        return HeapType(HeapType::kAny);
+    }
+  }
+
+  HeapType choose_sub_type(HeapType type, DataRange* data) {
+    switch (type.representation()) {
+      case HeapType::kAny: {
+        constexpr HeapType::Representation generic_types[] = {
+            HeapType::kAny,    HeapType::kEq,     HeapType::kArray,
+            HeapType::kStruct, HeapType::kString, HeapType::kI31,
+            HeapType::kNone,
+        };
+        const int type_count = num_arrays_ + num_structs_;
+        const int choice =
+            data->get<uint8_t>() % (type_count + arraysize(generic_types));
+        return choice >= type_count
+                   ? HeapType(generic_types[choice - type_count])
+                   : HeapType(choice);
+      }
+      case HeapType::kEq: {
+        constexpr HeapType::Representation generic_types[] = {
+            HeapType::kEq,     HeapType::kArray, HeapType::kStruct,
+            HeapType::kString, HeapType::kI31,   HeapType::kNone,
+        };
+        const int type_count = num_arrays_ + num_structs_;
+        const int choice =
+            data->get<uint8_t>() % (type_count + arraysize(generic_types));
+        return choice >= type_count
+                   ? HeapType(generic_types[choice - type_count])
+                   : HeapType(choice);
+      }
+      case HeapType::kStruct: {
+        constexpr HeapType::Representation generic_types[] = {
+            HeapType::kStruct,
+            HeapType::kNone,
+        };
+        const int type_count = num_structs_;
+        const int choice =
+            data->get<uint8_t>() % (type_count + arraysize(generic_types));
+        return choice >= type_count
+                   ? HeapType(generic_types[choice - type_count])
+                   : HeapType(choice);
+      }
+      case HeapType::kArray: {
+        constexpr HeapType::Representation generic_types[] = {
+            HeapType::kArray,
+            HeapType::kNone,
+        };
+        const int type_count = num_arrays_;
+        const int choice =
+            data->get<uint8_t>() % (type_count + arraysize(generic_types));
+        return choice >= type_count
+                   ? HeapType(generic_types[choice - type_count])
+                   : HeapType(choice + num_structs_);
+      }
+      case HeapType::kFunc: {
+        constexpr HeapType::Representation generic_types[] = {
+            HeapType::kFunc, HeapType::kNoFunc};
+        const int type_count = static_cast<int>(functions_.size());
+        const int choice =
+            data->get<uint8_t>() % (type_count + arraysize(generic_types));
+        return choice >= type_count
+                   ? HeapType(generic_types[choice - type_count])
+                   : HeapType(functions_[choice]);
+      }
+      case HeapType::kExtern:
+        return HeapType(data->get<bool>() ? HeapType::kExtern
+                                          : HeapType::kNoExtern);
+      default:
+        if (!type.is_index()) {
+          // No logic implemented to find a sub-type.
+          return type;
+        }
+        // Collect all (direct) sub types.
+        // TODO(7748): Also collect indirect sub types.
+        std::vector<uint32_t> subtypes;
+        uint32_t type_count = builder_->builder()->NumTypes();
+        for (uint32_t i = 0; i < type_count; ++i) {
+          if (builder_->builder()->GetSuperType(i) == type.ref_index()) {
+            subtypes.push_back(i);
+          }
+        }
+        return subtypes.empty()
+                   ? type  // no downcast possible
+                   : HeapType(subtypes[data->get<uint8_t>() % subtypes.size()]);
+    }
+  }
+
+  bool br_on_cast(HeapType type, DataRange* data, Nullability nullable) {
+    DCHECK(!blocks_.empty());
+    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t block_index =
+        static_cast<uint32_t>(blocks_.size()) - 1 - target_block;
+    const auto break_types = base::VectorOf(blocks_[target_block]);
+    if (break_types.empty()) {
+      return false;
+    }
+    ValueType break_type = break_types[break_types.size() - 1];
+    if (!break_type.is_reference()) {
+      return false;
+    }
+
+    Generate(base::VectorOf(break_types.data(), break_types.size() - 1), data);
+    if (data->get<bool>()) {
+      // br_on_cast
+      HeapType source_type = top_type(break_type.heap_type());
+      const bool source_is_nullable = data->get<bool>();
+      GenerateRef(source_type, data,
+                  source_is_nullable ? kNullable : kNonNullable);
+      const bool target_is_nullable =
+          source_is_nullable && break_type.is_nullable() && data->get<bool>();
+      builder_->EmitWithPrefix(kExprBrOnCastGeneric);
+      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
+      builder_->EmitU32V(block_index);
+      builder_->EmitI32V(source_type.code());             // source type
+      builder_->EmitI32V(break_type.heap_type().code());  // target type
+      // Fallthrough: Generate the actually desired ref type.
+      ConsumeAndGenerate(break_types, {}, data);
+      GenerateRef(type, data, nullable);
+    } else {
+      // br_on_cast_fail
+      HeapType source_type = break_type.heap_type();
+      const bool source_is_nullable = data->get<bool>();
+      GenerateRef(source_type, data,
+                  source_is_nullable ? kNullable : kNonNullable);
+      const bool target_is_nullable =
+          source_is_nullable &&
+          (!break_type.is_nullable() || data->get<bool>());
+      HeapType target_type = choose_sub_type(source_type, data);
+
+      builder_->EmitWithPrefix(kExprBrOnCastFailGeneric);
+      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
+      builder_->EmitU32V(block_index);
+      builder_->EmitI32V(source_type.code());
+      builder_->EmitI32V(target_type.code());
+      // Fallthrough: Generate the actually desired ref type.
+      ConsumeAndGenerate(break_types, {}, data);
+      GenerateRef(type, data, nullable);
+    }
+    return true;
   }
 
   bool extern_internalize(HeapType type, DataRange* data,
@@ -1393,6 +1568,8 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
 
+  // TODO(7748): Add array.init_data, array.init_elem.
+  // (This requires data / element segments.)
   constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kVoid, kVoid>,
       &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid>,
@@ -1442,6 +1619,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::struct_set,
       &WasmGenerator::array_set,
       &WasmGenerator::array_copy,
+      &WasmGenerator::array_fill,
 
       &WasmGenerator::table_set,
       &WasmGenerator::table_fill,
@@ -2186,18 +2364,19 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   constexpr GenerateFnWithHeap alternatives_indexed_type[] = {
       &WasmGenerator::new_object,    &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast,      &WasmGenerator::ref_as_non_null};
+      &WasmGenerator::ref_cast,      &WasmGenerator::ref_as_non_null,
+      &WasmGenerator::br_on_cast};
 
   constexpr GenerateFnWithHeap alternatives_func_any[] = {
-      &WasmGenerator::table_get,      &WasmGenerator::get_local_ref,
-      &WasmGenerator::array_get_ref,  &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast,       &WasmGenerator::extern_internalize,
-      &WasmGenerator::ref_as_non_null};
+      &WasmGenerator::table_get,       &WasmGenerator::get_local_ref,
+      &WasmGenerator::array_get_ref,   &WasmGenerator::struct_get_ref,
+      &WasmGenerator::ref_cast,        &WasmGenerator::extern_internalize,
+      &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
 
   constexpr GenerateFnWithHeap alternatives_other[] = {
-      &WasmGenerator::array_get_ref, &WasmGenerator::get_local_ref,
-      &WasmGenerator::struct_get_ref, &WasmGenerator::ref_cast,
-      &WasmGenerator::ref_as_non_null};
+      &WasmGenerator::array_get_ref,   &WasmGenerator::get_local_ref,
+      &WasmGenerator::struct_get_ref,  &WasmGenerator::ref_cast,
+      &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
 
   switch (type.representation()) {
     // For abstract types, sometimes generate one of their subtypes.
@@ -2312,14 +2491,19 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       if (data->get<bool>()) {
         GenerateRef(HeapType(HeapType::kAny), data);
         builder_->EmitWithPrefix(kExprExternExternalize);
+        if (nullability == kNonNullable) {
+          builder_->Emit(kExprRefAsNonNull);
+        }
         return;
       }
       V8_FALLTHROUGH;
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
     case HeapType::kNone:
-      DCHECK(nullability == Nullability::kNullable);
       ref_null(type, data);
+      if (nullability == kNonNullable) {
+        builder_->Emit(kExprRefAsNonNull);
+      }
       return;
     default:
       // Indexed type.
@@ -2602,11 +2786,29 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     uint8_t num_arrays = range.get<uint8_t>() % (kMaxArrays + 1);
     uint16_t num_types = num_functions + num_structs + num_arrays;
 
-    // TODO(7748): Support sub-type relationships.
     for (int struct_index = 0; struct_index < num_structs; struct_index++) {
+      uint32_t supertype = kNoSuperType;
       uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
+
+      if (struct_index > 0 && range.get<bool>()) {
+        supertype = range.get<uint8_t>() % struct_index;
+        num_fields += builder.GetStructType(supertype)->field_count();
+      }
       StructType::Builder struct_builder(zone, num_fields);
-      for (int field_index = 0; field_index < num_fields; field_index++) {
+
+      // Add all fields from super type.
+      uint32_t field_index = 0;
+      if (supertype != kNoSuperType) {
+        const StructType* parent = builder.GetStructType(supertype);
+        for (; field_index < parent->field_count(); ++field_index) {
+          // TODO(7748): This could also be any sub type of the supertype's
+          // element type.
+          struct_builder.AddField(parent->field(field_index),
+                                  parent->mutability(field_index));
+        }
+      }
+
+      for (; field_index < num_fields; field_index++) {
         // Notes:
         // - We allow a type to only have non-nullable fields of types that
         //   are defined earlier. This way we avoid infinite non-nullable
@@ -2630,15 +2832,22 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
-      builder.AddStructType(struct_fuz, false);
+      builder.AddStructType(struct_fuz, false, supertype);
     }
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
         ValueType type = GetValueTypeHelper(
             &range, builder.NumTypes(), builder.NumTypes(), kAllowNonNullables,
             kIncludePackedTypes, kIncludeGenerics);
+        uint32_t supertype = kNoSuperType;
+        if (array_index > 0 && range.get<bool>()) {
+        supertype = (range.get<uint8_t>() % array_index) + num_structs;
+        // TODO(7748): This could also be any sub type of the supertype's
+        // element type.
+        type = builder.GetArrayType(supertype)->element_type();
+        }
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
-        builder.AddArrayType(array_fuz, false);
+        builder.AddArrayType(array_fuz, false, supertype);
       }
 
     // We keep the signature for the first (main) function constant.
