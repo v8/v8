@@ -3448,6 +3448,14 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                           compiler::AccessMode::kLoad);
       return result;
     }
+    case compiler::PropertyAccessInfo::kFunctionLength: {
+      // Since the Function object can be used as a superclass, the
+      // receiver and the lookup_start_object can be distinct
+      ValueNode* result = AddNewNode<FunctionLength>({receiver});
+      RecordKnownProperty(lookup_start_object, name, result, access_info,
+                          compiler::AccessMode::kLoad);
+      return result;
+    }
   }
 }
 
@@ -3671,6 +3679,10 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
         case compiler::PropertyAccessInfo::kStringLength:
           poly_access_infos.push_back(
               PolymorphicAccessInfo::StringLength(maps));
+          break;
+        case compiler::PropertyAccessInfo::kFunctionLength:
+          poly_access_infos.push_back(
+              PolymorphicAccessInfo::FunctionLength(maps));
           break;
         default:
           UNREACHABLE();

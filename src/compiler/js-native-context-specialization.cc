@@ -2844,6 +2844,16 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   } else if (access_info.IsStringLength()) {
     DCHECK_EQ(receiver, lookup_start_object);
     value = graph()->NewNode(simplified()->StringLength(), receiver);
+  } else if (access_info.IsFunctionLength()) {
+    // Since the Function object can be used as a superclass, the
+    // receiver and the lookup_start_object can be distinct
+    Node* shared_function_info = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSFunctionSharedFunctionInfo()),
+                         receiver, effect, control);
+    value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForSharedFunctionInfoLength()),
+        shared_function_info, effect, control);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
            access_info.IsDictionaryProtoDataConstant());

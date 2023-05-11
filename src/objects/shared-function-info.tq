@@ -60,6 +60,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
   // kDontAdaptArgumentsSentinel). The value is only reliable when the function
   // has been compiled.
+  // TODO: that should be uint16
   length: int16;
   // [formal_parameter_count]: The number of declared parameters (or the special
   // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
