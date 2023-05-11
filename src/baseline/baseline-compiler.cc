@@ -1943,9 +1943,12 @@ void BaselineCompiler::VisitJumpLoop() {
     }
 
     __ Bind(&osr);
-    // Note: skipping the interrupt_budget update here to avoid handling
-    // interrupts in the middle of the OSR sequence.
+    Label do_osr;
+    int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr);
+    __ Bind(&do_osr);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
   }
 #endif  // !V8_JITLESS

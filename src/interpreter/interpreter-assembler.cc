@@ -1410,10 +1410,15 @@ void InterpreterAssembler::OnStackReplacement(
 
   BIND(&osr_to_turbofan);
   {
-    // Note: skipping the interrupt_budget update here to avoid handling
-    // interrupts in the middle of the OSR sequence.
+    TNode<IntPtrT> length =
+        LoadAndUntagFixedArrayBaseLength(BytecodeArrayTaggedPointer());
+    TNode<IntPtrT> weight =
+        IntPtrMul(length, IntPtrConstant(v8_flags.osr_to_tierup));
+    DecreaseInterruptBudget(TruncateWordToInt32(weight));
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context, maybe_target_code.value());
+    UpdateInterruptBudget(
+        Int32Mul(TruncateWordToInt32(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 
