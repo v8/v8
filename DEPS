@@ -63,12 +63,12 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:55cc876158c057cd64677f1a1a2573c36c6c3025',
+  'luci_go': 'git_revision:c53344de69401cd5d608484b37cd6545f328406c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:12.20230510.3.1',
+  'fuchsia_version': 'version:12.20230509.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -108,7 +108,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4afa042ddb8e35291ad29d0d9496ad225958f23c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4939e910538443902d9b460d8e8a95b4441ce3ba',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6f530a01769e59aea1ac3468c39b57493d9cc995',
   'buildtools/clang_format/script':
