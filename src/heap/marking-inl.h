@@ -168,6 +168,88 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
+inline Address MarkingBitmap::FindPreviousObjectForConservativeMarking(
+    const Page* page, Address maybe_inner_ptr) {
+  const auto* bitmap = page->marking_bitmap();
+  const MarkBit::CellType* cells = bitmap->cells();
+
+  // The first actual bit of the bitmap, corresponding to page->area_start(),
+  // is at start_index which is somewhere in (not necessarily at the start of)
+  // start_cell_index.
+  const auto start_index = MarkingBitmap::AddressToIndex(page->area_start());
+  const auto start_cell_index = MarkingBitmap::IndexToCell(start_index);
+  // We assume that all markbits before start_index are clear:
+  // SLOW_DCHECK(bitmap->AllBitsClearInRange(0, start_index));
+  // This has already been checked for the entire bitmap before starting marking
+  // by MarkCompactCollector::VerifyMarkbitsAreClean.
+
+  const auto index = MarkingBitmap::AddressToIndex(maybe_inner_ptr);
+  auto cell_index = MarkingBitmap::IndexToCell(index);
+  const auto index_in_cell = MarkingBitmap::IndexInCell(index);
+  DCHECK_GT(MarkingBitmap::kBitsPerCell, index_in_cell);
+  const auto mask = static_cast<MarkBit::CellType>(1u) << index_in_cell;
+  auto cell = cells[cell_index];
+
+  // If the markbit is already set, bail out.
+  if ((cell & mask) != 0) return kNullAddress;
+
+  // Clear the bits corresponding to higher addresses in the cell.
+  cell &= ((~static_cast<MarkBit::CellType>(0)) >>
+           (MarkingBitmap::kBitsPerCell - index_in_cell - 1));
+
+  // Traverse the bitmap backwards, until we find a markbit that is set and
+  // whose previous markbit (if it exists) is unset.
+  // First, iterate backwards to find a cell with any set markbit.
+  while (cell == 0 && cell_index > start_cell_index) cell = cells[--cell_index];
+  if (cell == 0) {
+    DCHECK_EQ(start_cell_index, cell_index);
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // We have found such a cell.
+  const auto leading_zeros = base::bits::CountLeadingZeros(cell);
+  const auto leftmost_ones =
+      base::bits::CountLeadingZeros(~(cell << leading_zeros));
+  const auto index_of_last_leftmost_one =
+      MarkingBitmap::kBitsPerCell - leading_zeros - leftmost_ones;
+
+  // If the leftmost sequence of set bits does not reach the start of the cell,
+  // we found it.
+  if (index_of_last_leftmost_one > 0) {
+    return page->address() + MarkingBitmap::IndexToAddressOffset(
+                                 cell_index * MarkingBitmap::kBitsPerCell +
+                                 index_of_last_leftmost_one);
+  }
+
+  // The leftmost sequence of set bits reaches the start of the cell. We must
+  // keep traversing backwards until we find the first unset markbit.
+  if (cell_index == start_cell_index) {
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // Iterate backwards to find a cell with any unset markbit.
+  do {
+    cell = cells[--cell_index];
+  } while (~cell == 0 && cell_index > start_cell_index);
+  if (~cell == 0) {
+    DCHECK_EQ(start_cell_index, cell_index);
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // We have found such a cell.
+  const auto leading_ones = base::bits::CountLeadingZeros(~cell);
+  const auto index_of_last_leading_one =
+      MarkingBitmap::kBitsPerCell - leading_ones;
+  DCHECK_LT(0, index_of_last_leading_one);
+  return page->address() + MarkingBitmap::IndexToAddressOffset(
+                               cell_index * MarkingBitmap::kBitsPerCell +
+                               index_of_last_leading_one);
+}
+
+// static
 MarkBit MarkBit::From(Address address) {
   return MarkingBitmap::MarkBitFromAddress(address);
 }

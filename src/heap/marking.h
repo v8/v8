@@ -186,6 +186,14 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return MarkBit(cell, mask);
   }
 
+  // This method returns the highest address in the page that is lower than
+  // maybe_inner_ptr, has its markbit set, and whose previous address (if it
+  // exists) does not have its markbit set. This address is guaranteed to be
+  // the start of a valid object in the page. In case the markbit corresponding
+  // to maybe_inner_ptr is set, the function bails out and returns kNullAddress.
+  static inline Address FindPreviousObjectForConservativeMarking(
+      const Page* page, Address maybe_inner_ptr);
+
  private:
   V8_INLINE static MarkingBitmap* FromAddress(Address address);
 
