@@ -64,54 +64,6 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
   }
 }
 
-// The intersection (using `&`) of any two NodeTypes must be a valid NodeType
-// (possibly "kUnknown").
-// All heap object types include the heap object bit, so that they can be
-// checked for AnyHeapObject with a single bit check.
-#define NODE_TYPE_LIST(V)                                         \
-  V(Unknown, 0)                                                   \
-  V(NumberOrOddball, (1 << 1))                                    \
-  V(Number, (1 << 2) | kNumberOrOddball)                          \
-  V(ObjectWithKnownMap, (1 << 3))                                 \
-  V(Smi, (1 << 4) | kObjectWithKnownMap | kNumber)                \
-  V(AnyHeapObject, (1 << 5))                                      \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)        \
-  V(Boolean, (1 << 7) | kOddball)                                 \
-  V(Name, (1 << 8) | kAnyHeapObject)                              \
-  V(String, (1 << 9) | kName)                                     \
-  V(InternalizedString, (1 << 10) | kString)                      \
-  V(Symbol, (1 << 11) | kName)                                    \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                       \
-  V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
-  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
-  V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
-
-enum class NodeType {
-#define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
-  NODE_TYPE_LIST(DEFINE_NODE_TYPE)
-#undef DEFINE_NODE_TYPE
-};
-
-inline NodeType CombineType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) |
-                               static_cast<int>(right));
-}
-inline NodeType IntersectType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) &
-                               static_cast<int>(right));
-}
-inline bool NodeTypeIs(NodeType type, NodeType to_check) {
-  int right = static_cast<int>(to_check);
-  return (static_cast<int>(type) & right) == right;
-}
-
-#define DEFINE_NODE_TYPE_CHECK(Type, _)         \
-  inline bool NodeTypeIs##Type(NodeType type) { \
-    return NodeTypeIs(type, NodeType::k##Type); \
-  }
-NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
-#undef DEFINE_NODE_TYPE_CHECK
-
 struct NodeInfo {
   NodeType type = NodeType::kUnknown;
 
