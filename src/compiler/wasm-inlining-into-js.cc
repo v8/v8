@@ -31,7 +31,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
  public:
   WasmIntoJSInlinerImpl(Zone* zone, const wasm::WasmModule* module,
                         MachineGraph* mcgraph, const wasm::FunctionBody& body,
-                        base::Vector<const byte> bytes,
+                        base::Vector<const uint8_t> bytes,
                         SourcePositionTable* source_position_table,
                         int inlining_id)
       : wasm::Decoder(bytes.begin(), bytes.end()),
@@ -359,7 +359,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   Node* instance_node_;
   WasmGraphAssembler gasm_;
   SourcePositionTable* source_position_table_ = nullptr;
-  const byte* instruction_start_ = pc_;
+  const uint8_t* instruction_start_ = pc_;
   int inlining_id_;
   bool is_inlineable_ = true;
 };
@@ -369,7 +369,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
 bool WasmIntoJSInliner::TryInlining(Zone* zone, const wasm::WasmModule* module,
                                     MachineGraph* mcgraph,
                                     const wasm::FunctionBody& body,
-                                    base::Vector<const byte> bytes,
+                                    base::Vector<const uint8_t> bytes,
                                     SourcePositionTable* source_position_table,
                                     int inlining_id) {
   WasmIntoJSInlinerImpl inliner(zone, module, mcgraph, body, bytes,

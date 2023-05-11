@@ -1040,7 +1040,7 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
 #define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)                    \
   do {                                                          \
     XMMRegister dst = i.OutputSimd128Register();                \
-    byte input_index = instr->InputCount() == 2 ? 1 : 0;        \
+    uint8_t input_index = instr->InputCount() == 2 ? 1 : 0;     \
     if (CpuFeatures::IsSupported(AVX)) {                        \
       CpuFeatureScope avx_scope(masm(), AVX);                   \
       DCHECK(instr->InputAt(input_index)->IsSimd128Register()); \
@@ -1090,10 +1090,10 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
       if (CpuFeatures::IsSupported(AVX)) {                               \
         CpuFeatureScope avx_scope(masm(), AVX);                          \
         __ v##opcode(dst, i.InputSimd128Register(0),                     \
-                     byte{i.InputInt##width(1)});                        \
+                     uint8_t{i.InputInt##width(1)});                     \
       } else {                                                           \
         DCHECK_EQ(dst, i.InputSimd128Register(0));                       \
-        __ opcode(dst, byte{i.InputInt##width(1)});                      \
+        __ opcode(dst, uint8_t{i.InputInt##width(1)});                   \
       }                                                                  \
     } else {                                                             \
       constexpr int mask = (1 << width) - 1;                             \
@@ -2483,11 +2483,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             XMMRegister src = i.InputSimd128Register(0);
             if (dst == src) {
               __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-              __ Psrld(kScratchDoubleReg, byte{1});
+              __ Psrld(kScratchDoubleReg, uint8_t{1});
               __ Andps(dst, kScratchDoubleReg);
             } else {
               __ Pcmpeqd(dst, dst);
-              __ Psrld(dst, byte{1});
+              __ Psrld(dst, uint8_t{1});
               __ Andps(dst, src);
             }
             break;
@@ -2523,11 +2523,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             XMMRegister src = i.InputSimd128Register(0);
             if (dst == src) {
               __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-              __ Pslld(kScratchDoubleReg, byte{31});
+              __ Pslld(kScratchDoubleReg, uint8_t{31});
               __ Xorps(dst, kScratchDoubleReg);
             } else {
               __ Pcmpeqd(dst, dst);
-              __ Pslld(dst, byte{31});
+              __ Pslld(dst, uint8_t{31});
               __ Xorps(dst, src);
             }
             break;
@@ -3030,7 +3030,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // F32x4ReplaceLane
             // The insertps instruction uses imm8[5:4] to indicate the lane
             // that needs to be replaced.
-            byte select = i.InputInt8(1) << 4 & 0x30;
+            uint8_t select = i.InputInt8(1) << 4 & 0x30;
             if (instr->InputAt(2)->IsFPRegister()) {
               __ Insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
                           select);
@@ -3510,7 +3510,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pblendw(kScratchDoubleReg, dst, uint8_t{0x55});  // get lo 16 bits
       __ Psubd(dst, kScratchDoubleReg);                   // get hi 16 bits
       __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
-      __ Psrld(dst, byte{1});            // divide by 2 to get in unsigned range
+      __ Psrld(dst, uint8_t{1});         // divide by 2 to get in unsigned range
       __ Cvtdq2ps(dst, dst);             // convert hi exactly
       __ Addps(dst, dst);                // double hi, exactly
       __ Addps(dst, kScratchDoubleReg);  // add hi and lo, may round.
@@ -5461,10 +5461,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
         ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
-        __ Psrld(kScratchDoubleReg, byte{16});
+        __ Psrld(kScratchDoubleReg, uint8_t{16});
         src2 = kScratchDoubleReg;
       }
-      __ Psrld(dst, byte{16});
+      __ Psrld(dst, uint8_t{16});
       __ Packusdw(dst, src2);
       break;
     }
@@ -5487,10 +5487,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
         ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
-        __ Psrlw(kScratchDoubleReg, byte{8});
+        __ Psrlw(kScratchDoubleReg, uint8_t{8});
         src2 = kScratchDoubleReg;
       }
-      __ Psrlw(dst, byte{8});
+      __ Psrlw(dst, uint8_t{8});
       __ Packuswb(dst, src2);
       break;
     }
@@ -5500,42 +5500,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
         ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
-        __ Psllw(kScratchDoubleReg, byte{8});
-        __ Psrlw(kScratchDoubleReg, byte{8});
+        __ Psllw(kScratchDoubleReg, uint8_t{8});
+        __ Psrlw(kScratchDoubleReg, uint8_t{8});
         src2 = kScratchDoubleReg;
       }
-      __ Psllw(dst, byte{8});
-      __ Psrlw(dst, byte{8});
+      __ Psllw(dst, uint8_t{8});
+      __ Psrlw(dst, uint8_t{8});
       __ Packuswb(dst, src2);
       break;
     }
     case kX64S8x16TransposeLow: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Psllw(dst, byte{8});
+      __ Psllw(dst, uint8_t{8});
       if (instr->InputCount() == 1) {
         __ Movdqa(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
         ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
-        __ Psllw(kScratchDoubleReg, byte{8});
+        __ Psllw(kScratchDoubleReg, uint8_t{8});
       }
-      __ Psrlw(dst, byte{8});
+      __ Psrlw(dst, uint8_t{8});
       __ Por(dst, kScratchDoubleReg);
       break;
     }
     case kX64S8x16TransposeHigh: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Psrlw(dst, byte{8});
+      __ Psrlw(dst, uint8_t{8});
       if (instr->InputCount() == 1) {
         __ Movdqa(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
         ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
-        __ Psrlw(kScratchDoubleReg, byte{8});
+        __ Psrlw(kScratchDoubleReg, uint8_t{8});
       }
-      __ Psllw(kScratchDoubleReg, byte{8});
+      __ Psllw(kScratchDoubleReg, uint8_t{8});
       __ Por(dst, kScratchDoubleReg);
       break;
     }
@@ -5552,8 +5552,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshufhw(dst, dst, shuffle_mask);
       }
       __ Movdqa(kScratchDoubleReg, dst);
-      __ Psrlw(kScratchDoubleReg, byte{8});
-      __ Psllw(dst, byte{8});
+      __ Psrlw(kScratchDoubleReg, uint8_t{8});
+      __ Psllw(dst, uint8_t{8});
       __ Por(dst, kScratchDoubleReg);
       break;
     }

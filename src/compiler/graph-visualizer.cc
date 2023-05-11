@@ -865,7 +865,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   // the node itself, if there are no cycles. Any cycles are broken
   // arbitrarily.
 
-  ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
+  ZoneVector<uint8_t> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
   stack.push(ar.graph.end());

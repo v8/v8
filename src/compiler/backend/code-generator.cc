@@ -463,14 +463,14 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
     AssembleArchJumpRegardlessOfAssemblyOrder(target);
 }
 
-base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
+base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+base::OwnedVector<uint8_t> CodeGenerator::GetProtectedInstructionsData() {
 #if V8_ENABLE_WEBASSEMBLY
-  return base::OwnedVector<byte>::Of(
-      base::Vector<byte>::cast(base::VectorOf(protected_instructions_)));
+  return base::OwnedVector<uint8_t>::Of(
+      base::Vector<uint8_t>::cast(base::VectorOf(protected_instructions_)));
 #else
   return {};
 #endif  // V8_ENABLE_WEBASSEMBLY

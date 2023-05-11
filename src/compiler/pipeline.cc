@@ -3113,9 +3113,9 @@ int HashGraphForPGO(Graph* graph) {
 
   constexpr NodeId kUnassigned = static_cast<NodeId>(-1);
 
-  constexpr byte kUnvisited = 0;
-  constexpr byte kOnStack = 1;
-  constexpr byte kVisited = 2;
+  constexpr uint8_t kUnvisited = 0;
+  constexpr uint8_t kOnStack = 1;
+  constexpr uint8_t kVisited = 2;
 
   // Do a depth-first post-order traversal of the graph. For every node, hash:
   //
@@ -3127,7 +3127,7 @@ int HashGraphForPGO(Graph* graph) {
   // What's a traversal number? We can't use node IDs because they're not stable
   // build-to-build, so we assign a new number for each node as it is visited.
 
-  ZoneVector<byte> state(graph->NodeCount(), kUnvisited, &local_zone);
+  ZoneVector<uint8_t> state(graph->NodeCount(), kUnvisited, &local_zone);
   ZoneVector<NodeId> traversal_numbers(graph->NodeCount(), kUnassigned,
                                        &local_zone);
   ZoneStack<Node*> stack(&local_zone);
@@ -3444,12 +3444,12 @@ void LowerInt64(const wasm::FunctionSig* sig, MachineGraph* mcgraph,
   pipeline.RunPrintAndVerify("V8.Int64Lowering", true);
 }
 
-base::OwnedVector<byte> SerializeInliningPositions(
+base::OwnedVector<uint8_t> SerializeInliningPositions(
     const ZoneVector<WasmInliningPosition>& positions) {
   const size_t entry_size =
       sizeof positions[0].inlinee_func_index + sizeof positions[0].caller_pos;
-  auto result = base::OwnedVector<byte>::New(positions.size() * entry_size);
-  byte* iter = result.begin();
+  auto result = base::OwnedVector<uint8_t>::New(positions.size() * entry_size);
+  uint8_t* iter = result.begin();
   for (const auto& [func_index, caller_pos] : positions) {
     size_t index_size = sizeof func_index;
     std::memcpy(iter, &func_index, index_size);

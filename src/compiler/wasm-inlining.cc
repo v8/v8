@@ -87,7 +87,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
-  base::Vector<const byte> function_bytes =
+  base::Vector<const uint8_t> function_bytes =
       data_.wire_bytes_storage->GetCode(inlinee->code);
 
   int call_count = GetCallCount(call);
@@ -170,7 +170,7 @@ void WasmInliner::Finalize() {
     }
 #endif
 
-    base::Vector<const byte> function_bytes =
+    base::Vector<const uint8_t> function_bytes =
         data_.wire_bytes_storage->GetCode(inlinee->code);
 
     const wasm::FunctionBody inlinee_body{inlinee->sig, inlinee->code.offset(),
