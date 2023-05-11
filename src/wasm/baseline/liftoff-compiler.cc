@@ -6284,6 +6284,8 @@ class LiftoffCompiler {
         return RefIsStruct(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
         return RefIsArray(decoder, obj, result_val, null_succeeds);
+      case HeapType::kString:
+        return RefIsString(decoder, obj, result_val, null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -6337,6 +6339,8 @@ class LiftoffCompiler {
         return RefAsStruct(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
         return RefAsArray(decoder, obj, result_val, null_succeeds);
+      case HeapType::kString:
+        return RefAsString(decoder, obj, result_val, null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -6424,6 +6428,8 @@ class LiftoffCompiler {
         return BrOnStruct(decoder, obj, result_on_branch, depth, null_succeeds);
       case HeapType::kArray:
         return BrOnArray(decoder, obj, result_on_branch, depth, null_succeeds);
+      case HeapType::kString:
+        return BrOnString(decoder, obj, result_on_branch, depth, null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -6454,6 +6460,9 @@ class LiftoffCompiler {
       case HeapType::kArray:
         return BrOnNonArray(decoder, obj, result_on_fallthrough, depth,
                             null_succeeds);
+      case HeapType::kString:
+        return BrOnNonString(decoder, obj, result_on_fallthrough, depth,
+                             null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -6550,6 +6559,13 @@ class LiftoffCompiler {
     __ bind(&match);
   }
 
+  void StringCheck(TypeCheck& check, const FreezeCacheState& frozen) {
+    LoadInstanceType(check, frozen, check.no_match);
+    LiftoffRegister instance_type(check.instance_type());
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, check.no_match,
+                           check.instance_type(), FIRST_NONSTRING_TYPE, frozen);
+  }
+
   using TypeChecker = void (LiftoffCompiler::*)(TypeCheck& check,
                                                 const FreezeCacheState& frozen);
 
@@ -6601,6 +6617,11 @@ class LiftoffCompiler {
     AbstractTypeCheck<&LiftoffCompiler::I31Check>(object, null_succeeds);
   }
 
+  void RefIsString(FullDecoder* /* decoder */, const Value& object,
+                   Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::StringCheck>(object, null_succeeds);
+  }
+
   template <TypeChecker type_checker>
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
                         ValueKind result_kind, bool null_succeeds = false) {
@@ -6641,6 +6662,12 @@ class LiftoffCompiler {
                   bool null_succeeds = false) {
     AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(object, decoder, kRef,
                                                    null_succeeds);
+  }
+
+  void RefAsString(FullDecoder* decoder, const Value& object, Value* result,
+                   bool null_succeeds = false) {
+    AbstractTypeCast<&LiftoffCompiler::StringCheck>(object, decoder, kRef,
+                                                    null_succeeds);
   }
 
   template <TypeChecker type_checker>
@@ -6723,6 +6750,13 @@ class LiftoffCompiler {
                                                    null_succeeds);
   }
 
+  void BrOnString(FullDecoder* decoder, const Value& object,
+                  Value* /* value_on_branch */, uint32_t br_depth,
+                  bool null_succeeds) {
+    BrOnAbstractType<&LiftoffCompiler::StringCheck>(object, decoder, br_depth,
+                                                    null_succeeds);
+  }
+
   void BrOnNonStruct(FullDecoder* decoder, const Value& object,
                      Value* /* value_on_branch */, uint32_t br_depth,
                      bool null_succeeds) {
@@ -6749,6 +6783,13 @@ class LiftoffCompiler {
                  bool null_succeeds) {
     BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(object, decoder, br_depth,
                                                    null_succeeds);
+  }
+
+  void BrOnNonString(FullDecoder* decoder, const Value& object,
+                     Value* /* value_on_branch */, uint32_t br_depth,
+                     bool null_succeeds) {
+    BrOnNonAbstractType<&LiftoffCompiler::StringCheck>(object, decoder,
+                                                       br_depth, null_succeeds);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,

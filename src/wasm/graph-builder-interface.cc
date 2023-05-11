@@ -1525,6 +1525,9 @@ class WasmGraphBuildingInterface {
       case HeapType::kArray:
         return BrOnArray(decoder, object, value_on_branch, br_depth,
                          null_succeeds);
+      case HeapType::kString:
+        return BrOnString(decoder, object, value_on_branch, br_depth,
+                          null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -1560,6 +1563,9 @@ class WasmGraphBuildingInterface {
       case HeapType::kArray:
         return BrOnNonArray(decoder, object, value_on_fallthrough, br_depth,
                             null_succeeds);
+      case HeapType::kString:
+        return BrOnNonString(decoder, object, value_on_fallthrough, br_depth,
+                             null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -1692,6 +1698,38 @@ class WasmGraphBuildingInterface {
                   Value* value_on_fallthrough, uint32_t br_depth,
                   bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false, null_succeeds);
+  }
+
+  void RefIsString(FullDecoder* decoder, const Value& object, Value* result) {
+    bool null_succeeds = false;
+    SetAndTypeNode(result,
+                   builder_->RefIsString(object.node, object.type.is_nullable(),
+                                         null_succeeds));
+  }
+
+  void RefAsString(FullDecoder* decoder, const Value& object, Value* result) {
+    bool null_succeeds = false;
+    TFNode* cast_object =
+        builder_->RefAsString(object.node, object.type.is_nullable(),
+                              decoder->position(), null_succeeds);
+    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
+    SetAndTypeNode(result, rename);
+  }
+
+  void BrOnString(FullDecoder* decoder, const Value& object,
+                  Value* value_on_branch, uint32_t br_depth,
+                  bool null_succeeds) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnString>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true, null_succeeds);
+  }
+
+  void BrOnNonString(FullDecoder* decoder, const Value& object,
+                     Value* value_on_fallthrough, uint32_t br_depth,
+                     bool null_succeeds) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnString>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
         br_depth, false, null_succeeds);
   }

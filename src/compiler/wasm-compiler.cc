@@ -5518,6 +5518,24 @@ void WasmGraphBuilder::ManagedObjectInstanceCheck(Node* object,
                         BranchHint::kTrue);
 }
 
+void WasmGraphBuilder::StringCheck(Node* object, bool object_can_be_null,
+                                   Callbacks callbacks, bool null_succeeds) {
+  if (object_can_be_null) {
+    if (null_succeeds) {
+      callbacks.succeed_if(IsNull(object, wasm::kWasmAnyRef),
+                           BranchHint::kFalse);
+    } else {
+      // The {IsDataRefMap} check below will fail for {null} anyway.
+    }
+  }
+  callbacks.fail_if(gasm_->IsSmi(object), BranchHint::kFalse);
+  Node* map = gasm_->LoadMap(object);
+  Node* instance_type = gasm_->LoadInstanceType(map);
+  Node* check = gasm_->Uint32LessThan(
+      instance_type, gasm_->Uint32Constant(FIRST_NONSTRING_TYPE));
+  callbacks.fail_if_not(check, BranchHint::kTrue);
+}
+
 void WasmGraphBuilder::BrOnCastAbs(
     Node** match_control, Node** match_effect, Node** no_match_control,
     Node** no_match_effect, std::function<void(Callbacks)> type_checker) {
@@ -5573,6 +5591,8 @@ Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
       return RefIsStruct(object, is_nullable, null_succeeds);
     case wasm::HeapType::kArray:
       return RefIsArray(object, is_nullable, null_succeeds);
+    case wasm::HeapType::kString:
+      return RefIsString(object, is_nullable, null_succeeds);
     case wasm::HeapType::kNone:
     case wasm::HeapType::kNoExtern:
     case wasm::HeapType::kNoFunc:
@@ -5606,6 +5626,8 @@ Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
       return RefAsStruct(object, is_nullable, position, null_succeeds);
     case wasm::HeapType::kArray:
       return RefAsArray(object, is_nullable, position, null_succeeds);
+    case wasm::HeapType::kString:
+      return RefAsString(object, is_nullable, position, null_succeeds);
     case wasm::HeapType::kNone:
     case wasm::HeapType::kNoExtern:
     case wasm::HeapType::kNoFunc: {
@@ -5792,6 +5814,40 @@ void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
                 }
                 callbacks.fail_if_not(gasm_->IsSmi(object), BranchHint::kTrue);
               });
+}
+
+Node* WasmGraphBuilder::RefIsString(Node* object, bool object_can_be_null,
+                                    bool null_succeeds) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  StringCheck(object, object_can_be_null, TestCallbacks(&done), null_succeeds);
+  gasm_->Goto(&done, Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefAsString(Node* object, bool object_can_be_null,
+                                    wasm::WasmCodePosition position,
+                                    bool null_succeeds) {
+  auto done = gasm_->MakeLabel();
+  StringCheck(object, object_can_be_null, CastCallbacks(&done, position),
+              null_succeeds);
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
+}
+
+void WasmGraphBuilder::BrOnString(Node* object, Node* /*rtt*/,
+                                  WasmTypeCheckConfig config,
+                                  Node** match_control, Node** match_effect,
+                                  Node** no_match_control,
+                                  Node** no_match_effect) {
+  bool null_succeeds = config.to.is_nullable();
+  BrOnCastAbs(
+      match_control, match_effect, no_match_control, no_match_effect,
+      [this, config, object, null_succeeds](Callbacks callbacks) -> void {
+        return StringCheck(object, config.from.is_nullable(), callbacks,
+                           null_succeeds);
+      });
 }
 
 Node* WasmGraphBuilder::TypeGuard(Node* value, wasm::ValueType type) {

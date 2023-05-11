@@ -520,6 +520,12 @@ class WasmGraphBuilder {
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
+  Node* RefIsString(Node* object, bool object_can_be_null, bool null_succeeds);
+  Node* RefAsString(Node* object, bool object_can_be_null,
+                    wasm::WasmCodePosition position, bool null_succeeds);
+  void BrOnString(Node* object, Node* rtt, WasmTypeCheckConfig config,
+                  Node** match_control, Node** match_effect,
+                  Node** no_match_control, Node** no_match_effect);
   Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                       Node* offset, Node* size);
   Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,
@@ -789,6 +795,8 @@ class WasmGraphBuilder {
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
                                   InstanceType instance_type,
                                   Callbacks callbacks, bool null_succeeds);
+  void StringCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
+                   bool null_succeeds);
 
   void BrOnCastAbs(Node** match_control, Node** match_effect,
                    Node** no_match_control, Node** no_match_effect,
