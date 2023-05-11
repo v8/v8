@@ -614,7 +614,6 @@ using InnerPointerResolutionHeapTest =
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
-  v8_flags.page_promotion = false;
 
   Persistent<v8::FixedArray> weak1, weak2, strong;
   Address inner_ptr1, inner_ptr2, inner_ptr3, outside_ptr1, outside_ptr2;
@@ -748,7 +747,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
-  v8_flags.page_promotion = false;
 
   Global<v8::FixedArray> weak;
   Address inner_ptr;

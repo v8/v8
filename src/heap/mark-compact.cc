@@ -4371,29 +4371,49 @@ intptr_t NewSpacePageEvacuationThreshold(GarbageCollector collector) {
          MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
 }
 
-bool ShouldMovePage(GarbageCollector collector, Page* p, intptr_t live_bytes,
-                    intptr_t wasted_bytes,
-                    MemoryReductionMode memory_reduction_mode) {
+bool ShouldMovePageForFullGC(Page* p, intptr_t live_bytes,
+                             MemoryReductionMode memory_reduction_mode) {
   Heap* heap = p->heap();
   DCHECK(!p->NeverEvacuate());
-  bool should_move_page =
+  const bool should_move_page =
       v8_flags.page_promotion &&
       (memory_reduction_mode == MemoryReductionMode::kNone) &&
-      ((live_bytes + wasted_bytes >
-        NewSpacePageEvacuationThreshold(collector)) ||
-       (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-        (p->AllocatedLabSize() == 0))) &&
-      (collector == GarbageCollector::MARK_COMPACTOR ||
-       heap->new_space()->IsPromotionCandidate(p)) &&
+      (live_bytes >
+       NewSpacePageEvacuationThreshold(GarbageCollector::MARK_COMPACTOR)) &&
       heap->CanExpandOldGeneration(live_bytes);
-  if (v8_flags.trace_page_promotions && should_move_page) {
+  if (v8_flags.trace_page_promotions) {
     PrintIsolate(
-        p->owner()->heap()->isolate(),
-        "[Page Promotion] %p: collector=%s, live bytes = %zu, "
-        "wasted bytes = %zu, promotion threshold = %zu, allocated labs size = "
-        "%zu\n",
-        p, collector == GarbageCollector::MARK_COMPACTOR ? "mc" : "mmc",
-        live_bytes, wasted_bytes, NewSpacePageEvacuationThreshold(collector),
+        heap->isolate(),
+        "[Page Promotion] %p: collector=mc, should move: %d"
+        ", live bytes = %zu, promotion threshold = %zu"
+        ", allocated labs size = %zu\n",
+        p, should_move_page, live_bytes,
+        NewSpacePageEvacuationThreshold(GarbageCollector::MARK_COMPACTOR),
+        p->AllocatedLabSize());
+  }
+  return should_move_page;
+}
+
+bool ShouldMovePageForYoungGC(Page* p, intptr_t live_bytes,
+                              intptr_t wasted_bytes) {
+  DCHECK(v8_flags.page_promotion);
+  Heap* heap = p->heap();
+  DCHECK(!p->NeverEvacuate());
+  const bool should_move_page =
+      ((live_bytes + wasted_bytes) >
+           NewSpacePageEvacuationThreshold(
+               GarbageCollector::MINOR_MARK_COMPACTOR) ||
+       (p->AllocatedLabSize() == 0)) &&
+      (heap->new_space()->IsPromotionCandidate(p)) &&
+      heap->CanExpandOldGeneration(live_bytes);
+  if (v8_flags.trace_page_promotions) {
+    PrintIsolate(
+        heap->isolate(),
+        "[Page Promotion] %p: collector=mmc, should move: %d"
+        ", live bytes = %zu, wasted bytes = %zu, promotion threshold = %zu"
+        ", allocated labs size = %zu\n",
+        p, should_move_page, live_bytes, wasted_bytes,
+        NewSpacePageEvacuationThreshold(GarbageCollector::MINOR_MARK_COMPACTOR),
         p->AllocatedLabSize());
   }
   return should_move_page;
@@ -4433,8 +4453,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     MemoryReductionMode memory_reduction_mode =
         heap()->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                      : MemoryReductionMode::kNone;
-    if (ShouldMovePage(GarbageCollector::MARK_COMPACTOR, page,
-                       live_bytes_on_page, 0, memory_reduction_mode) ||
+    if (ShouldMovePageForFullGC(page, live_bytes_on_page,
+                                memory_reduction_mode) ||
         force_page_promotion) {
       EvacuateNewToOldSpacePageVisitor::Move(page);
       page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -6164,9 +6184,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
       continue;
     }
 
-    if (ShouldMovePage(GarbageCollector::MINOR_MARK_COMPACTOR, p,
-                       live_bytes_on_page, p->wasted_memory(),
-                       MemoryReductionMode::kNone)) {
+    if (ShouldMovePageForYoungGC(p, live_bytes_on_page, p->wasted_memory())) {
       EvacuateNewToOldSpacePageVisitor::Move(p);
       has_promoted_pages = true;
       sweeper()->AddPromotedPageForIteration(p);
