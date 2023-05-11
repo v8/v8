@@ -690,14 +690,15 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
   }
 
   // Try to find an existing Tagged conversion for {phi} in {phi_taggings_}.
-  if (phi->has_key()) {
+  auto it = phi_to_key_.find(phi);
+  if (it != phi_to_key_.end()) {
     if (predecessor_index.has_value()) {
       if (ValueNode* tagging = phi_taggings_.GetPredecessorValue(
-              phi->key(), predecessor_index.value())) {
+              it->second, predecessor_index.value())) {
         return tagging;
       }
     } else {
-      if (ValueNode* tagging = phi_taggings_.Get(phi->key())) {
+      if (ValueNode* tagging = phi_taggings_.Get(it->second)) {
         return tagging;
       }
     }
@@ -745,13 +746,13 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     return tagged;
   }
 
-  if (phi->has_key()) {
+  if (it != phi_to_key_.end()) {
     // The Key already existed, but wasn't set on the current path.
-    phi_taggings_.Set(phi->key(), tagged);
+    phi_taggings_.Set(it->second, tagged);
   } else {
     // The Key didn't already exist, so we create it now.
     auto key = phi_taggings_.NewKey();
-    phi->set_key(key);
+    phi_to_key_.insert({phi, key});
     phi_taggings_.Set(key, tagged);
   }
   return tagged;

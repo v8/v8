@@ -426,17 +426,6 @@ ValueNode* EnsureTagged(MaglevGraphBuilder* builder,
                            value, predecessor);
 }
 
-NodeType GetNodeType(compiler::JSHeapBroker* broker, LocalIsolate* isolate,
-                     const KnownNodeAspects& aspects, ValueNode* node) {
-  // We first check the KnownNodeAspects in order to return the most precise
-  // type possible.
-  if (const NodeInfo* info = aspects.TryGetInfoFor(node)) {
-    return info->type;
-  }
-  // If this node has no NodeInfo, we fall back to its static type.
-  return StaticTypeForNode(broker, isolate, node);
-}
-
 }  // namespace
 
 ValueNode* MergePointInterpreterFrameState::MergeValue(
@@ -473,20 +462,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
     result->set_input(predecessors_so_far_, unmerged);
-
-    NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
-    if (predecessors_so_far_ == 0) {
-      DCHECK(result->is_loop_phi());
-      // For loop Phis, `type` is always Unknown until the backedge has been
-      // bound, so there is no point in updating it here.
-      result->set_post_loop_type(unmerged_type);
-    } else {
-      result->merge_type(unmerged_type);
-      result->merge_post_loop_type(unmerged_type);
-    }
-
     return result;
   }
 
@@ -524,39 +499,32 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
   }
 
-  NodeType merged_type =
-      StaticTypeForNode(builder->broker(), builder->local_isolate(), merged);
-
-  bool is_tagged = merged->properties().value_representation() ==
-                   ValueRepresentation::kTagged;
-  NodeType type = merged_type != NodeType::kUnknown
-                      ? merged_type
-                      : per_predecessor_alternatives->first()->node_type();
-  int i = 0;
-  for (const Alternatives* alt : *per_predecessor_alternatives) {
-    ValueNode* tagged = is_tagged ? merged : alt->tagged_alternative();
-    if (tagged == nullptr) {
-      tagged = NonTaggedToTagged(builder, alt->node_type(), merged,
-                                 predecessors_[i]);
+  if (merged->properties().value_representation() ==
+      ValueRepresentation::kTagged) {
+    for (int i = 0; i < predecessors_so_far_; i++) {
+      result->set_input(i, merged);
     }
-    result->set_input(i, tagged);
-    type = IntersectType(type, merged_type != NodeType::kUnknown
-                                   ? merged_type
-                                   : alt->node_type());
-    i++;
+  } else {
+    // If the existing merged value is untagged, we look through the
+    // per-predecessor alternative representations, and try to find tagged
+    // representations there.
+    int i = 0;
+    for (const Alternatives* alt : *per_predecessor_alternatives) {
+      // TODO(victorgomes): Support Phi nodes of untagged values.
+      ValueNode* tagged = alt->tagged_alternative();
+      if (tagged == nullptr) {
+        tagged = NonTaggedToTagged(builder, alt->node_type(), merged,
+                                   predecessors_[i]);
+      }
+      result->set_input(i, tagged);
+      i++;
+    }
+    DCHECK_EQ(i, predecessors_so_far_);
   }
-  DCHECK_EQ(i, predecessors_so_far_);
 
-  // Note: it's better to call GetNodeType on {unmerged} before updating it with
-  // EnsureTagged, since untagged nodes have a higher chance of having a
-  // StaticType.
-  NodeType unmerged_type = GetNodeType(
-      builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
-
-  result->set_type(IntersectType(type, unmerged_type));
 
   phis_.Add(result);
   return result;
@@ -574,15 +542,6 @@ void MergePointInterpreterFrameState::MergeLoopValue(
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
-
-  NodeType type = GetNodeType(builder->broker(), builder->local_isolate(),
-                              unmerged_aspects, unmerged);
-  result->merge_post_loop_type(type);
-  // We've just merged the backedge, which means that future uses of this Phi
-  // will be after the loop, so we can now promote `post_loop_type` to the
-  // regular `type`.
-  DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
-  result->promote_post_loop_type();
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
     // Propagating the `uses_repr` from {result} to {unmerged_phi}.
