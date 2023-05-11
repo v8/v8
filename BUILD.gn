@@ -303,7 +303,7 @@ declare_args() {
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
       v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "loong64"
+      v8_current_cpu == "loong64" || v8_current_cpu == "riscv64"
 
   # Enables additional heap verification phases and checks.
   cppgc_enable_verify_heap = ""
@@ -658,7 +658,8 @@ assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
 
 assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
-           v8_current_cpu == "arm64" || v8_current_cpu == "loong64",
+           v8_current_cpu == "arm64" || v8_current_cpu == "loong64" ||
+           v8_current_cpu == "riscv64",
        "CppGC caged heap requires 64bit platforms")
 
 assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
