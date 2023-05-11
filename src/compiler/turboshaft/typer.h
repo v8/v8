@@ -900,7 +900,7 @@ struct FloatOperationTyper {
     // Precise checks for when the result can be -0 is difficult, because of
     // large (negative) exponents. To be safe we add -0 whenever the left hand
     // side can be negative. We might refine this when necessary.
-    bool maybe_minus_zero = l.max() < 0.0 || l.has_minus_zero();
+    bool maybe_minus_zero = l.min() < 0.0 || l.has_minus_zero();
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minus_zero ? type_t::kMinusZero : 0) |
                               l.special_values();
