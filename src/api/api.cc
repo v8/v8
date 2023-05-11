@@ -11138,8 +11138,14 @@ CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
 }
 
 CFunctionInfo::CFunctionInfo(const CTypeInfo& return_info,
-                             unsigned int arg_count, const CTypeInfo* arg_info)
-    : return_info_(return_info), arg_count_(arg_count), arg_info_(arg_info) {
+                             unsigned int arg_count, const CTypeInfo* arg_info,
+                             Int64Representation repr)
+    : return_info_(return_info),
+      repr_(repr),
+      arg_count_(arg_count),
+      arg_info_(arg_info) {
+  DCHECK(repr == Int64Representation::kNumber ||
+         repr == Int64Representation::kBigInt);
   if (arg_count_ > 0) {
     for (unsigned int i = 0; i < arg_count_ - 1; ++i) {
       DCHECK(arg_info_[i].GetType() != CTypeInfo::kCallbackOptionsType);

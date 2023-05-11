@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -493,9 +494,44 @@ class FastApiCallReducer : public Next {
         return __ ConvertInt32ToNumber(result);
       case CTypeInfo::Type::kUint32:
         return __ ConvertUint32ToNumber(result);
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        UNREACHABLE();
+      case CTypeInfo::Type::kInt64: {
+        CFunctionInfo::Int64Representation repr =
+            c_signature->GetInt64Representation();
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return __ ConvertPrimitiveToObject(
+              result, ConvertPrimitiveToObjectOp::Kind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertPrimitiveToObject(
+              result, ConvertPrimitiveToObjectOp::Kind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
+        }
+      }
+      case CTypeInfo::Type::kUint64: {
+        CFunctionInfo::Int64Representation repr =
+            c_signature->GetInt64Representation();
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return __ ConvertPrimitiveToObject(
+              result, ConvertPrimitiveToObjectOp::Kind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertPrimitiveToObject(
+              result, ConvertPrimitiveToObjectOp::Kind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
+        }
+      }
       case CTypeInfo::Type::kFloat32:
         return __ ConvertFloat64ToNumber(
             __ ChangeFloat32ToFloat64(result),

@@ -316,9 +316,13 @@ class EffectControlLinearizer {
   Node* ChangeTaggedInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeInt32ToTagged(Node* value);
+  Node* ChangeInt64ToBigInt(Node* value);
   Node* ChangeInt64ToSmi(Node* value);
+  Node* ChangeInt64ToTagged(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
   Node* ChangeIntPtrToSmi(Node* value);
+  Node* ChangeUint64ToBigInt(Node* value);
+  Node* ChangeUint64ToTagged(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeUint32ToTagged(Node* value);
@@ -2073,26 +2077,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_not_in_smi_range = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kTagged);
-
-  Node* value32 = __ TruncateInt64ToInt32(value);
-  __ GotoIfNot(__ Word64Equal(__ ChangeInt32ToInt64(value32), value),
-               &if_not_in_smi_range);
-
-  if (SmiValuesAre32Bits()) {
-    Node* value_smi = ChangeInt64ToSmi(value);
-    __ Goto(&done, value_smi);
-  } else {
-    SmiTagOrOverflow(value32, &if_not_in_smi_range, &done);
-  }
-
-  __ Bind(&if_not_in_smi_range);
-  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
-  __ Goto(&done, number);
-
-  __ Bind(&done);
-  return done.PhiAt(0);
+  return ChangeInt64ToTagged(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node) {
@@ -2122,21 +2107,7 @@ Node* EffectControlLinearizer::LowerChangeUint64ToTagged(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
 
-  auto if_not_in_smi_range = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kTagged);
-
-  Node* check =
-      __ Uint64LessThanOrEqual(value, __ Int64Constant(Smi::kMaxValue));
-  __ GotoIfNot(check, &if_not_in_smi_range);
-  __ Goto(&done, ChangeInt64ToSmi(value));
-
-  __ Bind(&if_not_in_smi_range);
-  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
-
-  __ Goto(&done, number);
-  __ Bind(&done);
-
-  return done.PhiAt(0);
+  return ChangeUint64ToTagged(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt32(Node* node) {
@@ -4406,45 +4377,18 @@ Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
-  auto done = __ MakeLabel(MachineRepresentation::kTagged);
   Node* value = node->InputAt(0);
 
-  // BigInts with value 0 must be of size 0 (canonical form).
-  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
-            BuildAllocateBigInt(nullptr, nullptr));
-
-  // Shift sign bit into BigInt's sign bit position.
-  Node* sign =
-      __ Word64Shr(value, __ IntPtrConstant(63 - BigInt::SignBits::kShift));
-  Node* bitfield =
-      __ Word32Or(__ Int32Constant(BigInt::LengthBits::encode(1)), sign);
-
-  // We use (value XOR (value >> 63)) - (value >> 63) to compute the
-  // absolute value, in a branchless fashion.
-  Node* sign_mask = __ Word64Sar(value, __ Int64Constant(63));
-  Node* absolute_value = __ Int64Sub(__ Word64Xor(value, sign_mask), sign_mask);
-  __ Goto(&done, BuildAllocateBigInt(bitfield, absolute_value));
-
-  __ Bind(&done);
-  return done.PhiAt(0);
+  return ChangeInt64ToBigInt(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
-  auto done = __ MakeLabel(MachineRepresentation::kTagged);
   Node* value = node->InputAt(0);
 
-  // BigInts with value 0 must be of size 0 (canonical form).
-  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
-            BuildAllocateBigInt(nullptr, nullptr));
-
-  const auto bitfield = BigInt::LengthBits::encode(1);
-  __ Goto(&done, BuildAllocateBigInt(__ Int32Constant(bitfield), value));
-
-  __ Bind(&done);
-  return done.PhiAt(0);
+  return ChangeUint64ToBigInt(value);
 }
 
 Node* EffectControlLinearizer::LowerTruncateBigIntToWord64(Node* node) {
@@ -6286,6 +6230,31 @@ Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
   return ChangeIntPtrToSmi(ChangeInt32ToIntPtr(value));
 }
 
+Node* EffectControlLinearizer::ChangeInt64ToBigInt(Node* value) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
+
+  // Shift sign bit into BigInt's sign bit position.
+  Node* sign =
+      __ Word64Shr(value, __ IntPtrConstant(63 - BigInt::SignBits::kShift));
+  Node* bitfield =
+      __ Word32Or(__ Int32Constant(BigInt::LengthBits::encode(1)), sign);
+
+  // We use (value XOR (value >> 63)) - (value >> 63) to compute the
+  // absolute value, in a branchless fashion.
+  Node* sign_mask = __ Word64Sar(value, __ Int64Constant(63));
+  Node* absolute_value = __ Int64Sub(__ Word64Xor(value, sign_mask), sign_mask);
+  __ Goto(&done, BuildAllocateBigInt(bitfield, absolute_value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::ChangeInt64ToSmi(Node* value) {
   DCHECK(machine()->Is64());
   return ChangeIntPtrToSmi(value);
@@ -6296,6 +6265,63 @@ Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {
     value = __ ChangeUint32ToUint64(value);
   }
   return value;
+}
+
+Node* EffectControlLinearizer::ChangeInt64ToTagged(Node* value) {
+  auto if_not_in_smi_range = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  Node* value32 = __ TruncateInt64ToInt32(value);
+  __ GotoIfNot(__ Word64Equal(__ ChangeInt32ToInt64(value32), value),
+               &if_not_in_smi_range);
+
+  if (SmiValuesAre32Bits()) {
+    Node* value_smi = ChangeInt64ToSmi(value);
+    __ Goto(&done, value_smi);
+  } else {
+    SmiTagOrOverflow(value32, &if_not_in_smi_range, &done);
+  }
+
+  __ Bind(&if_not_in_smi_range);
+  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
+  __ Goto(&done, number);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::ChangeUint64ToBigInt(Node* value) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
+
+  const auto bitfield = BigInt::LengthBits::encode(1);
+  __ Goto(&done, BuildAllocateBigInt(__ Int32Constant(bitfield), value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::ChangeUint64ToTagged(Node* value) {
+  auto if_not_in_smi_range = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  Node* check =
+      __ Uint64LessThanOrEqual(value, __ Int64Constant(Smi::kMaxValue));
+  __ GotoIfNot(check, &if_not_in_smi_range);
+  __ Goto(&done, ChangeInt64ToSmi(value));
+
+  __ Bind(&if_not_in_smi_range);
+  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
+
+  __ Goto(&done, number);
+  __ Bind(&done);
+
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
@@ -7067,6 +7093,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
       },
       // Convert return value from C function to JS value
       [this](const CFunctionInfo* c_signature, Node* c_call_result) -> Node* {
+        // TODO(mslekova, aapoalas): Implement these conversions in SL.
         switch (c_signature->ReturnInfo().GetType()) {
           case CTypeInfo::Type::kVoid:
             return __ UndefinedConstant();
@@ -7078,9 +7105,28 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
             return ChangeInt32ToTagged(c_call_result);
           case CTypeInfo::Type::kUint32:
             return ChangeUint32ToTagged(c_call_result);
-          case CTypeInfo::Type::kInt64:
-          case CTypeInfo::Type::kUint64:
-            UNREACHABLE();
+          case CTypeInfo::Type::kInt64: {
+            CFunctionInfo::Int64Representation repr =
+                c_signature->GetInt64Representation();
+            if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+              return ChangeInt64ToBigInt(c_call_result);
+            } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+              return ChangeInt64ToTagged(c_call_result);
+            } else {
+              UNREACHABLE();
+            }
+          }
+          case CTypeInfo::Type::kUint64: {
+            CFunctionInfo::Int64Representation repr =
+                c_signature->GetInt64Representation();
+            if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+              return ChangeUint64ToBigInt(c_call_result);
+            } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+              return ChangeUint64ToTagged(c_call_result);
+            } else {
+              UNREACHABLE();
+            }
+          }
           case CTypeInfo::Type::kFloat32:
             return ChangeFloat64ToTagged(
                 __ ChangeFloat32ToFloat64(c_call_result),

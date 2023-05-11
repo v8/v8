@@ -572,6 +572,9 @@
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
+
+  # Needs 64-bit number register support
+  'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################
@@ -1964,6 +1967,7 @@
   'compiler/fast-api-calls-8args': [FAIL],
   'compiler/fast-api-calls-string': [FAIL],
   'compiler/fast-api-calls-pointer': [FAIL],
+  'compiler/fast-api-calls-64-bit-integer-values': [FAIL],
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
