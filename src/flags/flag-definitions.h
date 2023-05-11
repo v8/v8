@@ -2180,7 +2180,6 @@ DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
-DEFINE_IMPLICATION(minor_mc, page_promotion)
 
 DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_mc_marking,
                             "perform young generation marking concurrently")
