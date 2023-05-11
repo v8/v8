@@ -9,6 +9,7 @@
   "is_component_build": false,
   "is_debug": false,
   "is_full_debug": false,
+  "is_ios": false,
   "is_official_build": false,
   "is_ubsan_vptr": false,
   "is_msan": false,

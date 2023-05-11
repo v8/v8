@@ -326,9 +326,11 @@ class BaseTestRunner(object):
       print(self.build_config)
 
     # Represents the OS where tests are run on. Same as host OS except for
-    # Android, which is determined by build output.
+    # Android and iOS, which are determined by build output.
     if self.build_config.is_android:
       self.target_os = 'android'
+    elif self.build_config.is_ios:
+      self.target_os = 'ios'
     else:
       self.target_os = utils.GuessOS()
 
@@ -680,6 +682,7 @@ class BaseTestRunner(object):
         shard_count=shard_count,
         shard_id=shard_id,
         shell_dir=self.outdir,
+        target_os=self.target_os,
         timeout=timeout,
         verbose=self.options.verbose,
         regenerate_expected_files=self.options.regenerate_expected_files,
