@@ -2537,6 +2537,30 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitF64x4Le(node);
     case IrOpcode::kF32x8Le:
       return MarkAsSimd256(node), VisitF32x8Le(node);
+    case IrOpcode::kI32x8MinS:
+      return MarkAsSimd256(node), VisitI32x8MinS(node);
+    case IrOpcode::kI16x16MinS:
+      return MarkAsSimd256(node), VisitI16x16MinS(node);
+    case IrOpcode::kI8x32MinS:
+      return MarkAsSimd256(node), VisitI8x32MinS(node);
+    case IrOpcode::kI32x8MinU:
+      return MarkAsSimd256(node), VisitI32x8MinU(node);
+    case IrOpcode::kI16x16MinU:
+      return MarkAsSimd256(node), VisitI16x16MinU(node);
+    case IrOpcode::kI8x32MinU:
+      return MarkAsSimd256(node), VisitI8x32MinU(node);
+    case IrOpcode::kI32x8MaxS:
+      return MarkAsSimd256(node), VisitI32x8MaxS(node);
+    case IrOpcode::kI16x16MaxS:
+      return MarkAsSimd256(node), VisitI16x16MaxS(node);
+    case IrOpcode::kI8x32MaxS:
+      return MarkAsSimd256(node), VisitI8x32MaxS(node);
+    case IrOpcode::kI32x8MaxU:
+      return MarkAsSimd256(node), VisitI32x8MaxU(node);
+    case IrOpcode::kI16x16MaxU:
+      return MarkAsSimd256(node), VisitI16x16MaxU(node);
+    case IrOpcode::kI8x32MaxU:
+      return MarkAsSimd256(node), VisitI8x32MaxU(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),

@@ -1126,6 +1126,18 @@
   V(F32x8Lt)                       \
   V(F64x4Le)                       \
   V(F32x8Le)                       \
+  V(I32x8MinS)                     \
+  V(I16x16MinS)                    \
+  V(I8x32MinS)                     \
+  V(I32x8MinU)                     \
+  V(I16x16MinU)                    \
+  V(I8x32MinU)                     \
+  V(I32x8MaxS)                     \
+  V(I16x16MaxS)                    \
+  V(I8x32MaxS)                     \
+  V(I32x8MaxU)                     \
+  V(I16x16MaxU)                    \
+  V(I8x32MaxU)                     \
   V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \
   V(F32x4DemoteF64x4)              \

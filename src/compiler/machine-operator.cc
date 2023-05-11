@@ -696,6 +696,18 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x8Lt, Operator::kNoProperties, 2, 0, 1)                             \
   V(F64x4Le, Operator::kNoProperties, 2, 0, 1)                             \
   V(F32x8Le, Operator::kNoProperties, 2, 0, 1)                             \
+  V(I32x8MinS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16MinS, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I8x32MinS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x8MinU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16MinU, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I8x32MinU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x8MaxS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16MaxS, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I8x32MaxS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x8MaxU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16MaxU, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I8x32MaxU, Operator::kNoProperties, 2, 0, 1)                           \
   V(F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)                    \

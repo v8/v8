@@ -4379,6 +4379,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32MinS
+            ASSEMBLE_SIMD256_BINOP(pminsb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16MinS
+            ASSEMBLE_SIMD256_BINOP(pminsw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8MinS
+            ASSEMBLE_SIMD256_BINOP(pminsd, AVX2);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -4402,6 +4422,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL32: {
             // I32x4MaxS
             ASSEMBLE_SIMD_BINOP(pmaxsd);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32MaxS
+            ASSEMBLE_SIMD256_BINOP(pmaxsb, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16MaxS
+            ASSEMBLE_SIMD256_BINOP(pmaxsw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8MaxS
+            ASSEMBLE_SIMD256_BINOP(pmaxsd, AVX2);
             break;
           }
           default:
@@ -4477,6 +4517,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32MinU
+            ASSEMBLE_SIMD256_BINOP(pminub, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16MinU
+            ASSEMBLE_SIMD256_BINOP(pminuw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8MinU
+            ASSEMBLE_SIMD256_BINOP(pminud, AVX2);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
@@ -4500,6 +4560,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case kL32: {
             // I32x4MaxU
             ASSEMBLE_SIMD_BINOP(pmaxud);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32MaxU
+            ASSEMBLE_SIMD256_BINOP(pmaxub, AVX2);
+            break;
+          }
+          case kL16: {
+            // I16x16MaxU
+            ASSEMBLE_SIMD256_BINOP(pmaxuw, AVX2);
+            break;
+          }
+          case kL32: {
+            // I32x8MaxU
+            ASSEMBLE_SIMD256_BINOP(pmaxud, AVX2);
             break;
           }
           default:

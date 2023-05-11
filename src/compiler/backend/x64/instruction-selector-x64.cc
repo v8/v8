@@ -3441,6 +3441,18 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU, IMaxU, kL32, kV128)                          \
   V(I16x8MaxU, IMaxU, kL16, kV128)                          \
   V(I8x16MaxU, IMaxU, kL8, kV128)                           \
+  V(I32x8MinS, IMinS, kL32, kV256)                          \
+  V(I16x16MinS, IMinS, kL16, kV256)                         \
+  V(I8x32MinS, IMinS, kL8, kV256)                           \
+  V(I32x8MinU, IMinU, kL32, kV256)                          \
+  V(I16x16MinU, IMinU, kL16, kV256)                         \
+  V(I8x32MinU, IMinU, kL8, kV256)                           \
+  V(I32x8MaxS, IMaxS, kL32, kV256)                          \
+  V(I16x16MaxS, IMaxS, kL16, kV256)                         \
+  V(I8x32MaxS, IMaxS, kL8, kV256)                           \
+  V(I32x8MaxU, IMaxU, kL32, kV256)                          \
+  V(I16x16MaxU, IMaxU, kL16, kV256)                         \
+  V(I8x32MaxU, IMaxU, kL8, kV256)                           \
   V(I16x8RoundingAverageU, IRoundingAverageU, kL16, kV128)  \
   V(I16x16RoundingAverageU, IRoundingAverageU, kL16, kV256) \
   V(I8x16RoundingAverageU, IRoundingAverageU, kL8, kV128)   \

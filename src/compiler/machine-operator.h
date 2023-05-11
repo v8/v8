@@ -1034,6 +1034,18 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x8Lt();
   const Operator* F64x4Le();
   const Operator* F32x8Le();
+  const Operator* I32x8MinS();
+  const Operator* I16x16MinS();
+  const Operator* I8x32MinS();
+  const Operator* I32x8MinU();
+  const Operator* I16x16MinU();
+  const Operator* I8x32MinU();
+  const Operator* I32x8MaxS();
+  const Operator* I16x16MaxS();
+  const Operator* I8x32MaxS();
+  const Operator* I32x8MaxU();
+  const Operator* I16x16MaxU();
+  const Operator* I8x32MaxU();
   const Operator* F64x4ConvertI32x4S();
   const Operator* F32x8SConvertI32x8();
   const Operator* F32x4DemoteF64x4();
