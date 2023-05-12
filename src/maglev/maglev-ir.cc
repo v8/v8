@@ -1063,6 +1063,54 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
+void CheckMaps::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(2);
+}
+
+void CheckMaps::GenerateCode(MaglevAssembler* masm,
+                             const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+
+  // TODO(victorgomes): This can happen, because we do not emit an unconditional
+  // deopt when we intersect the map sets.
+  if (maps().is_empty()) {
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
+    return;
+  }
+
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  Label done;
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ JumpIf(is_smi, &done, Label::Distance::kNear);
+    } else {
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    }
+  }
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register temp_for_map_load = temps.Acquire();
+  Register temp_for_map_compare = temps.Acquire();
+  MaybeGenerateMapLoad(masm, object, temp_for_map_load);
+
+  size_t map_count = maps().size();
+  for (size_t i = 0; i < map_count - 1; ++i) {
+    Handle<Map> map = maps().at(i).object();
+    GenerateMapCompare(masm, map, temp_for_map_compare);
+    __ JumpIf(kEqual, &done, Label::Distance::kNear);
+  }
+  Handle<Map> last_map = maps().at(map_count - 1).object();
+  GenerateMapCompare(masm, last_map, temp_for_map_compare);
+  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongMap, this);
+  __ bind(&done);
+}
+
 int DeleteProperty::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kDeleteProperty>::type;
   return D::GetStackParameterCount();

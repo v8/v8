@@ -37,45 +37,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
           Operand(ToRegister(raw_allocation()), offset()));
 }
 
-void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
-void CheckMaps::GenerateCode(MaglevAssembler* masm,
-                             const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-
-  // TODO(victorgomes): This can happen, because we do not emit an unconditional
-  // deopt when we intersect the map sets.
-  if (maps().is_empty()) {
-    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
-    return;
-  }
-
-  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
-
-  Label done;
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    if (maps_include_heap_number) {
-      // Smis count as matching the HeapNumber map, so we're done.
-      __ j(is_smi, &done);
-    } else {
-      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
-    }
-  }
-
-  size_t map_count = maps().size();
-  for (size_t i = 0; i < map_count - 1; ++i) {
-    Handle<Map> map = maps().at(i).object();
-    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-    __ j(equal, &done);
-  }
-  Handle<Map> last_map = maps().at(map_count - 1).object();
-  __ Cmp(FieldOperand(object, HeapObject::kMapOffset), last_map);
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
-  __ bind(&done);
-}
-
 void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
@@ -97,6 +58,16 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   }
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
   __ bind(&done);
+}
+
+void CheckMaps::MaybeGenerateMapLoad(MaglevAssembler* masm, Register object,
+                                     Register temp) {
+  register_for_map_compare_ = object;
+}
+
+void CheckMaps::GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map,
+                                   Register temp) {
+  __ Cmp(FieldOperand(register_for_map_compare_, HeapObject::kMapOffset), map);
 }
 
 int CheckMapsWithMigration::MaxCallStackArgs() const {

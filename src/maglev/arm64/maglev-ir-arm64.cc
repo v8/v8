@@ -212,49 +212,16 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ Bind(&check_done);
 }
 
-void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
-void CheckMaps::GenerateCode(MaglevAssembler* masm,
-                             const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
+void CheckMaps::MaybeGenerateMapLoad(MaglevAssembler* masm, Register object,
+                                     Register temp) {
+  register_for_map_compare_ = temp;
+  __ LoadMap(register_for_map_compare_, object);
+}
 
-  // TODO(victorgomes): This can happen, because we do not emit an unconditional
-  // deopt when we intersect the map sets.
-  if (maps().is_empty()) {
-    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
-    return;
-  }
-
-  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
-
-  Label done;
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    if (maps_include_heap_number) {
-      // Smis count as matching the HeapNumber map, so we're done.
-      __ B(&done, is_smi);
-    } else {
-      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
-    }
-  }
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register object_map = temps.Acquire();
-  Register map = temps.Acquire();
-  __ LoadMap(object_map, object);
-  size_t map_count = maps().size();
-  for (size_t i = 0; i < map_count - 1; ++i) {
-    Handle<Map> map_handle = maps().at(i).object();
-    __ Move(map, map_handle);
-    __ CmpTagged(object_map, map);
-    __ B(&done, eq);
-  }
-  Handle<Map> last_map_handle = maps().at(map_count - 1).object();
-  __ Move(map, last_map_handle);
-  __ CmpTagged(object_map, map);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
-  __ Bind(&done);
+void CheckMaps::GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map,
+                                   Register temp) {
+  __ Move(temp, map);
+  __ CmpTagged(register_for_map_compare_, temp);
 }
 
 int CheckMapsWithMigration::MaxCallStackArgs() const {

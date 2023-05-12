@@ -4367,7 +4367,9 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
+        maps_(maps),
+        register_for_map_compare_(Register::no_reg()) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4384,8 +4386,15 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  void MaybeGenerateMapLoad(MaglevAssembler* masm, Register object,
+                            Register temp);
+  void GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map,
+                          Register temp);
+
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
+
+  Register register_for_map_compare_;
 };
 
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
