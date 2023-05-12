@@ -201,6 +201,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
+  Handle<Tuple2> NewTuple2Uninitialized(AllocationType allocation);
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
 

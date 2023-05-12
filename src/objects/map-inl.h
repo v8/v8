@@ -811,7 +811,7 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
-  CHECK_EQ(Map::cast(value).GetConstructor(), constructor_or_back_pointer());
+  CHECK_EQ(Map::cast(value).GetConstructorRaw(), constructor_or_back_pointer());
   set_constructor_or_back_pointer(value, mode);
 }
 
@@ -860,12 +860,34 @@ bool Map::IsPrototypeValidityCellValid() const {
   return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
-DEF_GETTER(Map, GetConstructor, Object) {
+DEF_GETTER(Map, GetConstructorRaw, Object) {
   Object maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.
   while (ConcurrentIsMap(cage_base, maybe_constructor)) {
     maybe_constructor =
         Map::cast(maybe_constructor).constructor_or_back_pointer(cage_base);
+  }
+  return maybe_constructor;
+}
+
+DEF_GETTER(Map, GetNonInstancePrototype, Object) {
+  DCHECK(has_non_instance_prototype());
+  Object raw_constructor = GetConstructorRaw(cage_base);
+  CHECK(raw_constructor.IsTuple2());
+  // Get prototype from the {constructor, non-instance_prototype} tuple.
+  Tuple2 non_instance_prototype_constructor_tuple =
+      Tuple2::cast(raw_constructor);
+  Object result = non_instance_prototype_constructor_tuple.value2();
+  DCHECK(!result.IsJSReceiver());
+  DCHECK(!result.IsFunctionTemplateInfo());
+  return result;
+}
+
+DEF_GETTER(Map, GetConstructor, Object) {
+  Object maybe_constructor = GetConstructorRaw(cage_base);
+  if (maybe_constructor.IsTuple2()) {
+    // Get constructor from the {constructor, non-instance_prototype} tuple.
+    maybe_constructor = Tuple2::cast(maybe_constructor).value1();
   }
   return maybe_constructor;
 }
@@ -878,15 +900,19 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
     maybe_constructor =
         Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
   }
+  if (maybe_constructor.IsTuple2()) {
+    // Get constructor from the {constructor, non-instance_prototype} tuple.
+    maybe_constructor = Tuple2::cast(maybe_constructor).value1();
+  }
   return maybe_constructor;
 }
 
 DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
   Object constructor = GetConstructor(cage_base);
   if (constructor.IsJSFunction(cage_base)) {
-    // TODO(ishell): IsApiFunction(isolate) and get_api_func_data(isolate)
-    DCHECK(JSFunction::cast(constructor).shared(cage_base).IsApiFunction());
-    return JSFunction::cast(constructor).shared(cage_base).get_api_func_data();
+    SharedFunctionInfo sfi = JSFunction::cast(constructor).shared(cage_base);
+    DCHECK(sfi.IsApiFunction());
+    return sfi.get_api_func_data();
   }
   DCHECK(constructor.IsFunctionTemplateInfo(cage_base));
   return FunctionTemplateInfo::cast(constructor);
@@ -895,6 +921,9 @@ DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
 void Map::SetConstructor(Object constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
   CHECK(!constructor_or_back_pointer().IsMap());
+  // Constructor field must contain {constructor, non-instance_prototype} tuple
+  // for maps with non-instance prototype.
+  DCHECK_EQ(has_non_instance_prototype(), constructor.IsTuple2());
   set_constructor_or_back_pointer(constructor, mode);
 }
 

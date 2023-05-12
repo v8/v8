@@ -609,10 +609,19 @@ V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
   instance_map->SetInObjectUnusedPropertyFields(0);
   // Shared objects are not extensible and have a null prototype.
   instance_map->set_is_extensible(false);
+
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
                             factory->null_value(), factory->null_value());
-  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
+
+  // Create a new {constructor, non-instance_prototype} tuple and store it
+  // in Map::constructor field.
+  Handle<Tuple2> non_instance_prototype_constructor_tuple =
+      isolate->factory()->NewTuple2(isolate->function_function(),
+                                    factory->null_value(),
+                                    AllocationType::kOld);
   constructor->map().set_has_non_instance_prototype(true);
+  constructor->map().SetConstructor(*non_instance_prototype_constructor_tuple);
+
   JSObject::AddProperty(
       isolate, constructor, factory->has_instance_symbol(),
       handle(isolate->native_context()->shared_space_js_object_has_instance(),
@@ -731,6 +740,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
       CreateFunctionForBuiltin(isolate(), factory()->empty_string(),
                                empty_function_map, Builtin::kEmptyFunction);
   native_context()->set_empty_function(*empty_function);
+  empty_function_map->SetConstructor(*empty_function);
 
   // --- E m p t y ---
   Handle<String> source = factory()->InternalizeString("() {}");
@@ -1169,6 +1179,7 @@ void Genesis::CreateJSProxyMaps() {
   proxy_map->set_is_dictionary_map(true);
   proxy_map->set_may_have_interesting_symbols(true);
   native_context()->set_proxy_map(*proxy_map);
+  proxy_map->SetConstructor(native_context()->object_function());
 
   Handle<Map> proxy_callable_map =
       Map::Copy(isolate_, proxy_map, "callable Proxy");
@@ -1451,6 +1462,10 @@ void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
 
+// See https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor for details
+// about intrinsicDefaultProto concept. In short it's about using proper
+// prototype object from constructor's realm when the constructor has
+// non-instance prototype.
 static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
                                              Handle<JSFunction> function,
                                              int context_index) {

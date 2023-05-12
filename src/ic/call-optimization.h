@@ -18,12 +18,13 @@ class CallOptimization {
   CallOptimization(IsolateT* isolate, Handle<Object> function);
 
   // Gets accessor context by given holder map via holder's constructor.
-  // Returns empty value in case the constructor is a function that's supposed
-  // to be taken from current native context, i.e. when the holder object
-  // is a JSFunction with |native_context_index_symbol| property.
-  // See InstallWithIntrinsicDefaultProto() for details.
+  // If the holder is a remote object returns empty optional.
+  // This method must not be called for holder maps with null constructor
+  // because they can't be holders for lazy accessor pairs anyway.
   base::Optional<NativeContext> GetAccessorContext(Map holder_map) const;
 
+  // Return true if the accessor context for given holder doesn't match
+  // given native context of if the holder is a remote object.
   bool IsCrossContextLazyAccessorPair(NativeContext native_context,
                                       Map holder_map) const;
 

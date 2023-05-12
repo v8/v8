@@ -205,12 +205,9 @@ DEF_GETTER(JSFunction, prototype, Object) {
   DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map(cage_base).has_non_instance_prototype()) {
-    Object prototype = map(cage_base).GetConstructor(cage_base);
-    // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap(cage_base));
-    DCHECK(!prototype.IsFunctionTemplateInfo(cage_base));
-    return prototype;
+  Map map = this->map(cage_base);
+  if (map.has_non_instance_prototype()) {
+    return map.GetNonInstancePrototype(cage_base);
   }
   return instance_prototype(cage_base);
 }

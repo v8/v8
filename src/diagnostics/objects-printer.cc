@@ -2907,6 +2907,9 @@ void Map::MapPrint(std::ostream& os) {
     }
   }
   os << "\n - prototype: " << Brief(prototype());
+  if (has_non_instance_prototype()) {
+    os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
+  }
   if (!IsContextMap()) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }

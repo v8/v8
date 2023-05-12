@@ -435,6 +435,11 @@ Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
   return handle(result, isolate());
 }
 
+Handle<Tuple2> Factory::NewTuple2Uninitialized(AllocationType allocation) {
+  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation);
+  return handle(result, isolate());
+}
+
 Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
                                   AllocationType allocation) {
   auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation);
@@ -3811,6 +3816,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   }
   Handle<JSFunction> empty_function;
   if (maybe_empty_function.ToHandle(&empty_function)) {
+    map->SetConstructor(*empty_function);
     Map::SetPrototype(isolate(), map, empty_function);
   }
 
@@ -3902,6 +3908,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     raw_map.set_is_callable(true);
   }
   Map::SetPrototype(isolate(), map, empty_function);
+  map->SetConstructor(*empty_function);
 
   //
   // Setup descriptors array.

@@ -4916,13 +4916,24 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     // Replace the pointer to the exact constructor with the Object function
     // from the same context if undetectable from JS. This is to avoid keeping
     // memory alive unnecessarily.
-    Object maybe_constructor = new_map->GetConstructor();
+    Object maybe_constructor = new_map->GetConstructorRaw();
+    Tuple2 tuple;
+    if (maybe_constructor.IsTuple2()) {
+      // Handle the {constructor, non-instance_prototype} tuple case if the map
+      // has non-instance prototype.
+      tuple = Tuple2::cast(maybe_constructor);
+      maybe_constructor = tuple.value1();
+    }
     if (maybe_constructor.IsJSFunction()) {
       JSFunction constructor = JSFunction::cast(maybe_constructor);
       if (!constructor.shared().IsApiFunction()) {
-        Context context = constructor.native_context();
+        NativeContext context = constructor.native_context();
         JSFunction object_function = context.object_function();
-        new_map->SetConstructor(object_function);
+        if (!tuple.is_null()) {
+          tuple.set_value1(object_function);
+        } else {
+          new_map->SetConstructor(object_function);
+        }
       }
     }
     JSObject::MigrateToMap(isolate, object, new_map);

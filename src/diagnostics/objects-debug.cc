@@ -570,6 +570,22 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(has_shared_array_elements());
       }
     }
+
+    // Check constuctor value in JSFunction's maps.
+    if (IsJSFunctionMap() && !constructor_or_back_pointer().IsMap()) {
+      Object maybe_constructor = constructor_or_back_pointer();
+      // Constructor field might still contain a tuple if this map used to
+      // have non-instance prototype earlier.
+      CHECK_IMPLIES(has_non_instance_prototype(), maybe_constructor.IsTuple2());
+      if (maybe_constructor.IsTuple2()) {
+        Tuple2 tuple = Tuple2::cast(maybe_constructor);
+        // Unwrap the {constructor, non-instance_prototype} pair.
+        maybe_constructor = tuple.value1();
+        CHECK(!tuple.value2().IsJSReceiver());
+      }
+      CHECK(maybe_constructor.IsJSFunction() ||
+            maybe_constructor.IsFunctionTemplateInfo());
+    }
   }
 
   if (!may_have_interesting_symbols()) {

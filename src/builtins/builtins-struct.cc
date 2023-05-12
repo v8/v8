@@ -200,8 +200,15 @@ BUILTIN(SharedStructTypeConstructor) {
   instance_map->set_is_extensible(false);
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
                             factory->null_value(), factory->null_value());
-  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
+
+  // Create a new {constructor, non-instance_prototype} tuple and store it
+  // in Map::constructor field.
+  Handle<Tuple2> non_instance_prototype_constructor_tuple =
+      isolate->factory()->NewTuple2(isolate->function_function(),
+                                    factory->null_value(),
+                                    AllocationType::kOld);
   constructor->map().set_has_non_instance_prototype(true);
+  constructor->map().SetConstructor(*non_instance_prototype_constructor_tuple);
 
   // Pre-create the enum cache in the shared space, as otherwise for-in
   // enumeration will incorrectly create an enum cache in the per-thread heap.

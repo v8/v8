@@ -29,17 +29,16 @@ base::Optional<NativeContext> CallOptimization::GetAccessorContext(
     return constant_function_->native_context();
   }
   Object maybe_constructor = holder_map.GetConstructor();
-  if (maybe_constructor.IsNull()) {
-    CHECK(holder_map.IsJSFunctionMap());
-    // This happens when the holder is a JSFunction with a
-    // |native_context_index_symbol| property containing index of the
-    // respective constructor function that's supposed to be taken the
-    // current native context. See InstallWithIntrinsicDefaultProto().
-    return {};
+  if (maybe_constructor.IsJSFunction()) {
+    JSFunction constructor = JSFunction::cast(maybe_constructor);
+    return constructor.native_context();
   }
-  CHECK(maybe_constructor.IsJSFunction());
-  JSFunction constructor = JSFunction::cast(maybe_constructor);
-  return constructor.native_context();
+  // |maybe_constructor| might theoretically be |null| for some objects but
+  // they can't be holders for lazy accessor properties.
+  CHECK(maybe_constructor.IsFunctionTemplateInfo());
+
+  // The holder is a remote object which doesn't have a creation context.
+  return {};
 }
 
 bool CallOptimization::IsCrossContextLazyAccessorPair(
@@ -48,12 +47,8 @@ bool CallOptimization::IsCrossContextLazyAccessorPair(
   if (is_constant_call()) return false;
   base::Optional<NativeContext> maybe_context = GetAccessorContext(holder_map);
   if (!maybe_context.has_value()) {
-    // This happens when the holder is a JSFunction with a
-    // |native_context_index_symbol| property containing index of the
-    // respective constructor function that's supposed to be taken the
-    // current native context. See InstallWithIntrinsicDefaultProto().
-    // So this means that the holder is compatible with any context.
-    return false;
+    // The holder is a remote object which doesn't have a creation context.
+    return true;
   }
   return native_context != maybe_context.value();
 }

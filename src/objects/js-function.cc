@@ -719,8 +719,15 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     Handle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
-    new_map->SetConstructor(*value);
+    // Create a new {constructor, non-instance_prototype} tuple and store it
+    // in Map::constructor field.
+    Handle<Object> constructor(new_map->GetConstructor(), isolate);
+    Handle<Tuple2> non_instance_prototype_constructor_tuple =
+        isolate->factory()->NewTuple2(constructor, value, AllocationType::kOld);
+
     new_map->set_has_non_instance_prototype(true);
+    new_map->SetConstructor(*non_instance_prototype_constructor_tuple);
+
     JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();

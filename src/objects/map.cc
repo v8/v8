@@ -1157,7 +1157,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
     DisallowGarbageCollection no_gc;
     Map src = *src_handle;
     Map raw = *result;
-    raw.set_constructor_or_back_pointer(src.GetConstructor());
+    raw.set_constructor_or_back_pointer(src.GetConstructorRaw());
     raw.set_bit_field(src.bit_field());
     raw.set_bit_field2(src.bit_field2());
     int new_bit_field3 = src.bit_field3();

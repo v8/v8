@@ -571,15 +571,9 @@ Handle<NativeContext> GetAccessorContext(
   base::Optional<NativeContext> maybe_context =
       call_optimization.GetAccessorContext(holder_map);
 
-  if (maybe_context.has_value()) {
-    return handle(maybe_context.value(), isolate);
-  }
-
-  // This happens when the holder is a JSFunction with a
-  // |native_context_index_symbol| property containing index of the
-  // respective constructor function that's supposed to be taken the
-  // current native context. See InstallWithIntrinsicDefaultProto().
-  return isolate->native_context();
+  // Holders which are remote objects are not expected in the IC system.
+  CHECK(maybe_context.has_value());
+  return handle(maybe_context.value(), isolate);
 }
 
 }  // namespace
