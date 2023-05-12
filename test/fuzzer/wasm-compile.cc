@@ -1283,9 +1283,8 @@ class WasmGenerator {
     switch (type.representation()) {
       case HeapType::kAny: {
         constexpr HeapType::Representation generic_types[] = {
-            HeapType::kAny,    HeapType::kEq,     HeapType::kArray,
-            HeapType::kStruct, HeapType::kString, HeapType::kI31,
-            HeapType::kNone,
+            HeapType::kAny,    HeapType::kEq,  HeapType::kArray,
+            HeapType::kStruct, HeapType::kI31, HeapType::kNone,
         };
         const int type_count = num_arrays_ + num_structs_;
         const int choice =
@@ -1296,8 +1295,8 @@ class WasmGenerator {
       }
       case HeapType::kEq: {
         constexpr HeapType::Representation generic_types[] = {
-            HeapType::kEq,     HeapType::kArray, HeapType::kStruct,
-            HeapType::kString, HeapType::kI31,   HeapType::kNone,
+            HeapType::kEq,  HeapType::kArray, HeapType::kStruct,
+            HeapType::kI31, HeapType::kNone,
         };
         const int type_count = num_arrays_ + num_structs_;
         const int choice =
