@@ -88,7 +88,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
 #ifdef V8_COMPRESS_POINTERS
-    LoadRootRelative(kPtrComprCageBaseRegister, IsolateData::cage_base_offset());
+    LoadRootRelative(kPtrComprCageBaseRegister,
+                     IsolateData::cage_base_offset());
 #endif
   }
 
@@ -686,9 +687,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
-  void LoadCompressedRoot(Register destination, RootIndex index);
+  void LoadTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register dst, Register object);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -810,6 +812,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTaggedSigned(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, Register src);
+  void DecompressTagged(Register dst, Tagged_t immediate);
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
   void AtomicDecompressTagged(Register dst, const MemOperand& src);
@@ -865,6 +868,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
+
+  void JumpIfObjectType(Label* target, Condition cc, Register object,
+                        InstanceType instance_type, Register scratch = no_reg);
+  // Fast check if the object is a js receiver type. Assumes only primitive
+  // objects or js receivers are passed.
+  void JumpIfJSAnyIsNotPrimitive(
+      Register heap_object, Register scratch, Label* target,
+      Label::Distance distance = Label::kFar,
+      Condition condition = Condition::kUnsignedGreaterThanEqual);
+  void JumpIfJSAnyIsPrimitive(Register heap_object, Register scratch,
+                              Label* target,
+                              Label::Distance distance = Label::kFar) {
+    return JumpIfJSAnyIsNotPrimitive(heap_object, scratch, target, distance,
+                                     Condition::kUnsignedLessThan);
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support

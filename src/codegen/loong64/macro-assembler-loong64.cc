@@ -101,9 +101,22 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 }
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
+      is_int12(ReadOnlyRootPtr(index))) {
+    DecompressTagged(destination, ReadOnlyRootPtr(index));
+    return;
+  }
+  // Many roots have addresses that are too large to fit into addition immediate
+  // operands. Evidence suggests that the extra instruction for decompression
+  // costs us more than the load.
   Ld_d(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
-void MacroAssembler::LoadCompressedRoot(Register destination, RootIndex index) {
+void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
+      is_int12(ReadOnlyRootPtr(index))) {
+    li(destination, (int32_t)ReadOnlyRootPtr(index));
+    return;
+  }
   Ld_w(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
@@ -353,7 +366,7 @@ void MacroAssembler::Add_d(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
       DCHECK(rj != scratch);
       li(scratch, rk);
       add_d(rd, rj, scratch);
@@ -2241,7 +2254,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rj,
       left = temps.hasAvailable() ? temps.Acquire() : t8;
       slli_w(left, rj, 0);
     }
-    LoadCompressedRoot(right, index);
+    LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
   } else {
     LoadRoot(right, index);
@@ -3538,6 +3551,11 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
+void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
+  ASM_CODE_COMMENT(this);
+  Ld_w(dst, FieldMemOperand(object, HeapObject::kMapOffset));
+}
+
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedField(
@@ -3732,6 +3750,65 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfObjectType(Label* target, Condition cc,
+                                      Register object,
+                                      InstanceType instance_type,
+                                      Register scratch) {
+  DCHECK(cc == eq || cc == ne);
+  UseScratchRegisterScope temps(this);
+  if (scratch == no_reg) {
+    scratch = temps.Acquire();
+  }
+  if (V8_STATIC_ROOTS_BOOL) {
+    if (base::Optional<RootIndex> expected =
+            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
+      Tagged_t ptr = ReadOnlyRootPtr(*expected);
+      LoadCompressedMap(scratch, object);
+      Branch(target, cc, scratch, Operand(ptr));
+      return;
+    }
+  }
+  GetObjectType(object, scratch, scratch);
+  Branch(target, cc, scratch, Operand(instance_type));
+}
+
+void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
+                                               Register scratch, Label* target,
+                                               Label::Distance distance,
+                                               Condition cc) {
+  CHECK(cc == Condition::kUnsignedLessThan ||
+        cc == Condition::kUnsignedGreaterThanEqual);
+  if (V8_STATIC_ROOTS_BOOL) {
+#ifdef DEBUG
+    Label ok;
+    LoadMap(scratch, heap_object);
+    GetInstanceTypeRange(scratch, scratch, FIRST_JS_RECEIVER_TYPE, scratch);
+    Branch(&ok, Condition::kUnsignedLessThanEqual, scratch,
+           Operand(LAST_JS_RECEIVER_TYPE - FIRST_JS_RECEIVER_TYPE));
+
+    LoadMap(scratch, heap_object);
+    GetInstanceTypeRange(scratch, scratch, FIRST_PRIMITIVE_HEAP_OBJECT_TYPE,
+                         scratch);
+    Branch(&ok, Condition::kUnsignedLessThanEqual, scratch,
+           Operand(LAST_PRIMITIVE_HEAP_OBJECT_TYPE -
+                   FIRST_PRIMITIVE_HEAP_OBJECT_TYPE));
+
+    Abort(AbortReason::kInvalidReceiver);
+    bind(&ok);
+#endif  // DEBUG
+
+    // All primitive object's maps are allocated at the start of the read only
+    // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+    // addresses.
+    LoadCompressedMap(scratch, heap_object);
+    Branch(target, cc, scratch, Operand(InstanceTypeChecker::kNonJsReceiverMapLimit));
+  } else {
+    static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    GetObjectType(heap_object, scratch, scratch);
+    Branch(target, cc, scratch, Operand(FIRST_JS_RECEIVER_TYPE));
+  }
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -4452,6 +4529,11 @@ void MacroAssembler::DecompressTagged(Register dst, Register src) {
   ASM_CODE_COMMENT(this);
   Bstrpick_d(dst, src, 31, 0);
   Add_d(dst, kPtrComprCageBaseRegister, Operand(dst));
+}
+
+void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
+  ASM_CODE_COMMENT(this);
+  Add_d(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,

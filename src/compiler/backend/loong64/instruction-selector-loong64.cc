@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -72,6 +73,25 @@ class Loong64OperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(Node* node, InstructionCode mode) {
+    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector()->isolate()->roots_table();
+      RootIndex root_index;
+      CompressedHeapObjectMatcher m(node);
+      if (m.HasResolvedValue() &&
+          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+        if (!RootsTable::IsReadOnly(root_index)) return false;
+        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                  root_index, selector()->isolate()),
+                              mode);
+      }
+      return false;
+    }
+
     return IsIntegerConstant(node) &&
            CanBeImmediate(GetIntegerConstantValue(node), mode);
   }
@@ -493,15 +513,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kLoong64Ld_wu;
       break;
 #endif
-    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kCompressed:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kLoong64Ld_wu;
       break;
 #endif
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kNone:               // Fall through.
-    case MachineRepresentation::kSimd128:            // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
+    case MachineRepresentation::kMapWord:           // Fall through.
+    case MachineRepresentation::kNone:              // Fall through.
+    case MachineRepresentation::kSimd128:           // Fall through.
     case MachineRepresentation::kSimd256:
       UNREACHABLE();
   }
@@ -588,10 +608,10 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kLoong64StoreCompressTagged;
         break;
 #endif
-      case MachineRepresentation::kSandboxedPointer:   // Fall through.
-      case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kNone:               // Fall through.
-      case MachineRepresentation::kSimd128:            // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
+      case MachineRepresentation::kMapWord:           // Fall through.
+      case MachineRepresentation::kNone:              // Fall through.
+      case MachineRepresentation::kSimd128:           // Fall through.
       case MachineRepresentation::kSimd256:
         UNREACHABLE();
     }
@@ -2456,7 +2476,41 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
   if (m.right().Is(0)) {
     return VisitWordCompareZero(m.node(), m.left().node(), &cont);
   }
-
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+    Loong64OperandGenerator g(this);
+    const RootsTable& roots_table = isolate()->roots_table();
+    RootIndex root_index;
+    Node* left = nullptr;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+        left = m.left().node();
+        right = m.right().ResolvedValue();
+      } else {
+        HeapObjectBinopMatcher m2(node);
+        if (m2.right().HasResolvedValue()) {
+          left = m2.left().node();
+          right = m2.right().ResolvedValue();
+        }
+      }
+    }
+    if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
+      if (RootsTable::IsReadOnly(root_index)) {
+        Tagged_t ptr =
+            MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+        if (g.CanBeImmediate(ptr, kLoong64Cmp32)) {
+          return VisitCompare(this, kLoong64Cmp32, g.UseRegister(left),
+                              g.TempImmediate(ptr), &cont);
+        }
+      }
+    }
+  }
   VisitWord32Compare(this, node, &cont);
 }
 

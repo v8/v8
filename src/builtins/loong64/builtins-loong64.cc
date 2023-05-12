@@ -275,12 +275,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ bind(&check_receiver);
   __ JumpIfSmi(a0, &use_receiver);
 
-  // If the type of the result (stored in its map) is less than
-  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-  __ GetObjectType(a0, t2, t2);
-  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  __ Branch(&leave_and_return, greater_equal, t2,
-            Operand(FIRST_JS_RECEIVER_TYPE));
+  // Check if the type of the result is not an object in the ECMA sense.
+  __ JumpIfJSAnyIsNotPrimitive(a0, t2, &leave_and_return);
   __ Branch(&use_receiver);
 
   __ bind(&do_throw);
@@ -1123,8 +1119,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label compile_lazy;
-  __ GetObjectType(kInterpreterBytecodeArrayRegister, kScratchReg, kScratchReg);
-  __ Branch(&compile_lazy, ne, kScratchReg, Operand(BYTECODE_ARRAY_TYPE));
+  __ JumpIfObjectType(&compile_lazy, ne, kInterpreterBytecodeArrayRegister,
+                      BYTECODE_ARRAY_TYPE, kScratchReg);
 
 #ifndef V8_JITLESS
   // Load the feedback vector from the closure.
@@ -1505,10 +1501,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, SharedFunctionInfo::kFunctionDataOffset));
-  __ GetObjectType(t0, kInterpreterDispatchTableRegister,
-                   kInterpreterDispatchTableRegister);
-  __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
-            Operand(INTERPRETER_DATA_TYPE));
+  __ JumpIfObjectType(&builtin_trampoline, ne, t0, INTERPRETER_DATA_TYPE,
+                      kInterpreterDispatchTableRegister);
 
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
@@ -2106,11 +2100,21 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Branch(&done, eq, len, Operand(zero_reg));
     __ slli_d(scratch, len, kSystemPointerSizeLog2);
     __ Sub_d(scratch, sp, Operand(scratch));
-    __ LoadRoot(t1, RootIndex::kTheHoleValue);
+#if !V8_STATIC_ROOTS_BOOL
+    // We do not use the Branch(reg, RootIndex) macro without static roots,
+    // as it would do a LoadRoot behind the scenes and we want to avoid that
+    // in a loop.
+    __ LoadTaggedRoot(t1, RootIndex::kTheHoleValue);
+#endif  // !V8_STATIC_ROOTS_BOOL
     __ bind(&loop);
     __ LoadTaggedField(a5, MemOperand(src, 0));
     __ addi_d(src, src, kTaggedSize);
-    __ CompareTaggedAndBranch(&push, ne, a5, Operand(t1));
+#if V8_STATIC_ROOTS_BOOL
+    __ Branch(&push, ne, a5, RootIndex::kTheHoleValue);
+#else
+    __ slli_w(t0, a5, 0);
+    __ Branch(&push, ne, t0, Operand(t1));
+#endif
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ St_d(a5, MemOperand(a7, 0));
@@ -2244,9 +2248,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       Label convert_to_object, convert_receiver;
       __ LoadReceiver(a3, a0);
       __ JumpIfSmi(a3, &convert_to_object);
-      static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-      __ GetObjectType(a3, a4, a4);
-      __ Branch(&done_convert, hs, a4, Operand(FIRST_JS_RECEIVER_TYPE));
+      __ JumpIfJSAnyIsNotPrimitive(a3, a4, &done_convert);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(a3, RootIndex::kUndefinedValue, &convert_global_proxy);
@@ -3702,8 +3704,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ GetObjectType(code_obj, t2, t2);
-    __ Branch(&start_with_baseline, eq, t2, Operand(CODE_TYPE));
+    __ JumpIfObjectType(&start_with_baseline, eq, code_obj, CODE_TYPE, t2);
 
     // Start with bytecode as there is no baseline code.
     Builtin builtin_id = next_bytecode
@@ -3733,8 +3734,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.
-  __ GetObjectType(feedback_vector, t2, t2);
-  __ Branch(&install_baseline_code, ne, t2, Operand(FEEDBACK_VECTOR_TYPE));
+  __ JumpIfObjectType(&install_baseline_code, ne, feedback_vector,
+                      FEEDBACK_VECTOR_TYPE, t2);
 
   // Save BytecodeOffset from the stack frame.
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
