@@ -2202,7 +2202,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
 Handle<FixedArray> Debug::GetLoadedScripts() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+  isolate_->heap()->CollectAllGarbage(GCFlag::kNoFlags,
                                       GarbageCollectionReason::kDebugger);
   Factory* factory = isolate_->factory();
   if (!factory->script_list()->IsWeakArrayList()) {

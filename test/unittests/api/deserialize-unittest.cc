@@ -356,12 +356,12 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       }
     }
 
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+    i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                          i::GarbageCollectionReason::kTesting);
 
     // A second round of GC is necessary in case incremental marking had already
     // started before the bytecode was aged.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+    i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                          i::GarbageCollectionReason::kTesting);
   }
 
@@ -506,7 +506,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+    i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                          i::GarbageCollectionReason::kTesting);
 
     // All tracked objects from the original Script should have been reused if
@@ -668,12 +668,12 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   i::BytecodeArray bytecode =
       GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
   bytecode.EnsureOldForTesting();
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
@@ -766,12 +766,12 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
     bytecode.EnsureOldForTesting();
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
@@ -843,12 +843,12 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
     bytecode.EnsureOldForTesting();
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
   // Start several background deserializations.

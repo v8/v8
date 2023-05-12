@@ -77,7 +77,7 @@ class InterruptTest {
   static void CollectAllGarbage(Isolate* isolate, void* data) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i_isolate->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+        i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
 
   static void MakeSubjectOneByteExternal(Isolate* isolate, void* data) {

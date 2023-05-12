@@ -98,7 +98,7 @@ void InvokeGC(v8::Isolate* isolate, ExecutionType execution_type,
           execution_type == ExecutionType::kAsync
               ? StackState::kNoHeapPointers
               : StackState::kMayContainHeapPointers);
-      heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+      heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
       break;

@@ -214,7 +214,7 @@ class WithIsolateScopeMixin : public TMixin {
 
   void CollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+    iso->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                    i::GarbageCollectionReason::kTesting);
   }
 
@@ -226,7 +226,7 @@ class WithIsolateScopeMixin : public TMixin {
 
   void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+    iso->heap()->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                           i::GarbageCollectionReason::kTesting);
   }
 

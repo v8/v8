@@ -763,7 +763,7 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
+  CcTest::heap()->CollectAllGarbage(i::GCFlag::kReduceMemoryFootprint,
                                     i::GarbageCollectionReason::kTesting);
 }
 
@@ -16716,7 +16716,7 @@ TEST(TestIdleNotification) {
   for (int i = 0; i < 200 && !finished; i++) {
     if (i < 10 && CcTest::heap()->incremental_marking()->IsStopped()) {
       CcTest::heap()->StartIncrementalMarking(
-          i::Heap::kReduceMemoryFootprintMask,
+          i::GCFlag::kReduceMemoryFootprint,
           i::GarbageCollectionReason::kTesting);
     }
     START_ALLOW_USE_DEPRECATED();
@@ -27391,7 +27391,7 @@ static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
       v8::Local<v8::Context>::New(isolate_2, context_2);
   v8::Context::Scope context_scope(context);
   i::Heap* heap_2 = reinterpret_cast<i::Isolate*>(isolate_2)->heap();
-  heap_2->CollectAllGarbage(i::Heap::kForcedGC,
+  heap_2->CollectAllGarbage(i::GCFlag::kForced,
                             i::GarbageCollectionReason::kTesting);
   CompileRun("f2() //# sourceURL=isolate2b");
 }

@@ -1162,11 +1162,11 @@ void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
   if (in_no_gc_scope() || !isolate_) return;
 
   // TODO(mlippautz): Respect full config.
-  const int flags =
+  const auto flags =
       (config.free_memory_handling ==
        cppgc::internal::GCConfig::FreeMemoryHandling::kDiscardWherePossible)
-          ? Heap::kReduceMemoryFootprintMask
-          : Heap::kNoGCFlags;
+          ? GCFlag::kReduceMemoryFootprint
+          : GCFlag::kNoFlags;
   isolate_->heap()->CollectAllGarbage(
       flags, GarbageCollectionReason::kCppHeapAllocationFailure);
 }

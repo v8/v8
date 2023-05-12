@@ -67,7 +67,7 @@ void StatisticsExtension::GetCounters(
 
   if (info.Length() > 0) {  // GC if first argument evaluates to true.
     if (info[0]->IsBoolean() && info[0]->BooleanValue(info.GetIsolate())) {
-      heap->CollectAllGarbage(Heap::kNoGCFlags,
+      heap->CollectAllGarbage(GCFlag::kNoFlags,
                               GarbageCollectionReason::kCountersExtension);
     }
   }

@@ -1953,7 +1953,7 @@ void Deoptimizer::MaterializeHeapObjects() {
   translated_state_.Prepare(static_cast<Address>(stack_fp_));
   if (v8_flags.deopt_every_n_times > 0) {
     // Doing a GC here will find problems with the deoptimized frames.
-    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+    isolate_->heap()->CollectAllGarbage(GCFlag::kNoFlags,
                                         GarbageCollectionReason::kTesting);
   }
 

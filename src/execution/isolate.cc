@@ -1610,7 +1610,7 @@ Object Isolate::StackOverflow() {
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && v8_flags.stress_compaction) {
-    heap()->CollectAllGarbage(Heap::kNoGCFlags,
+    heap()->CollectAllGarbage(GCFlag::kNoFlags,
                               GarbageCollectionReason::kTesting);
   }
 #endif  // VERIFY_HEAP

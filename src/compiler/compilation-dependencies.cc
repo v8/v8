@@ -1242,7 +1242,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   //    compilation saw a self-consistent state of the jsfunction.
   if (v8_flags.stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
-        Heap::kForcedGC, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
+        GCFlag::kForced, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
 #ifdef DEBUG
   for (auto dep : dependencies_) {

@@ -1165,7 +1165,7 @@ void Heap::GarbageCollectionPrologue(
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE);
 
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
-                          current_gc_flags_ & kForcedGC ||
+                          current_gc_flags_ & GCFlag::kForced ||
                           force_gc_on_next_allocation_;
   is_current_gc_for_heap_profiler_ =
       gc_reason == GarbageCollectionReason::kHeapProfiler;
@@ -1479,7 +1479,7 @@ bool GCCallbacksScope::CheckReenter() const {
 
 void Heap::HandleGCRequest() {
   if (IsStressingScavenge() && stress_scavenge_observer_->HasRequestedGC()) {
-    CollectAllGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
     stress_scavenge_observer_->RequestedGCDone();
   } else if (HighMemoryPressure()) {
     CheckMemoryPressure();
@@ -1503,20 +1503,18 @@ void Heap::StartMinorMCIncrementalMarkingIfNeeded() {
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
       (new_space()->Size() >=
        MinorGCJob::YoungGenerationTaskTriggerSize(this))) {
-    StartIncrementalMarking(Heap::kNoGCFlags, GarbageCollectionReason::kTask,
+    StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
                             GarbageCollector::MINOR_MARK_COMPACTOR);
   }
 }
 
-void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
+void Heap::CollectAllGarbage(GCFlags gc_flags,
+                             GarbageCollectionReason gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
-  // Since we are ignoring the return value, the exact choice of space does
-  // not matter, so long as we do not specify NEW_SPACE, which would not
-  // cause a full GC.
-  set_current_gc_flags(flags);
+  current_gc_flags_ = gc_flags;
   CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
-  set_current_gc_flags(kNoGCFlags);
+  current_gc_flags_ = GCFlag::kNoFlags;
 }
 
 namespace {
@@ -1601,10 +1599,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   isolate()->ClearSerializerData();
   isolate()->compilation_cache()->Clear();
 
-  set_current_gc_flags(
-      kReduceMemoryFootprintMask |
-      (gc_reason == GarbageCollectionReason::kLowMemoryNotification ? kForcedGC
-                                                                    : 0));
+  current_gc_flags_ =
+      GCFlag::kReduceMemoryFootprint |
+      (gc_reason == GarbageCollectionReason::kLowMemoryNotification
+           ? GCFlag::kForced
+           : GCFlag::kNoFlags);
   constexpr int kMaxNumberOfAttempts = 7;
   constexpr int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
@@ -1614,7 +1613,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       break;
     }
   }
-  set_current_gc_flags(kNoGCFlags);
+  current_gc_flags_ = GCFlag::kNoFlags;
 
   EagerlyFreeExternalMemory();
 
@@ -1641,13 +1640,13 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
 }
 
-void Heap::PreciseCollectAllGarbage(int flags,
+void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
                                     GarbageCollectionReason gc_reason,
                                     const GCCallbackFlags gc_callback_flags) {
   if (!incremental_marking()->IsStopped()) {
     FinalizeIncrementalMarkingAtomically(gc_reason);
   }
-  CollectAllGarbage(flags, gc_reason, gc_callback_flags);
+  CollectAllGarbage(gc_flags, gc_reason, gc_callback_flags);
 }
 
 void Heap::ReportExternalMemoryPressure() {
@@ -1664,7 +1663,7 @@ void Heap::ReportExternalMemoryPressure() {
       static_cast<int>((limit - baseline) / MB));
   if (current > baseline + external_memory_hard_limit()) {
     CollectAllGarbage(
-        kReduceMemoryFootprintMask,
+        GCFlag::kReduceMemoryFootprint,
         GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
                                      kGCCallbackFlagsForExternalMemory));
@@ -1676,7 +1675,7 @@ void Heap::ReportExternalMemoryPressure() {
                               GarbageCollectionReason::kExternalMemoryPressure,
                               kGCCallbackFlagsForExternalMemory);
     } else {
-      CollectAllGarbage(i::Heap::kNoGCFlags,
+      CollectAllGarbage(i::GCFlag::kNoFlags,
                         GarbageCollectionReason::kExternalMemoryPressure,
                         kGCCallbackFlagsForExternalMemory);
     }
@@ -1915,7 +1914,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   return ++contexts_disposed_;
 }
 
-void Heap::StartIncrementalMarking(int gc_flags,
+void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags,
                                    GarbageCollector collector) {
@@ -1965,7 +1964,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
   tracer()->StartCycle(collector, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
 
-  set_current_gc_flags(gc_flags);
+  current_gc_flags_ = gc_flags;
   current_gc_callback_flags_ = gc_callback_flags;
 
   incremental_marking()->Start(collector, gc_reason);
@@ -2014,7 +2013,7 @@ void Heap::CompleteSweepingFull() {
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
-    int gc_flags, const GCCallbackFlags gc_callback_flags) {
+    GCFlags gc_flags, const GCCallbackFlags gc_callback_flags) {
   if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
     // Do not start incremental marking while invoking GC callbacks.
     // Heap::CollectGarbage already decided which GC is going to be invoked. In
@@ -4033,7 +4032,7 @@ void Heap::CheckMemoryPressure() {
   } else if (memory_pressure_level == MemoryPressureLevel::kModerate) {
     if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
       TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
-      StartIncrementalMarking(kReduceMemoryFootprintMask,
+      StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                               GarbageCollectionReason::kMemoryPressure);
     }
   }
@@ -4046,7 +4045,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
   const double kMaxMemoryPressurePauseMs = 100;
 
   double start = MonotonicallyIncreasingTimeInMs();
-  CollectAllGarbage(kReduceMemoryFootprintMask,
+  CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
                     GarbageCollectionReason::kMemoryPressure,
                     kGCCallbackFlagCollectAllAvailableGarbage);
   EagerlyFreeExternalMemory();
@@ -4063,12 +4062,12 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-      CollectAllGarbage(kReduceMemoryFootprintMask,
+      CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
                         GarbageCollectionReason::kMemoryPressure,
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
-        StartIncrementalMarking(kReduceMemoryFootprintMask,
+        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                                 GarbageCollectionReason::kMemoryPressure);
       }
     }

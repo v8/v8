@@ -6502,7 +6502,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, Handle<T> table) {
     if (capacity > T::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
-            Heap::kNoGCFlags, GarbageCollectionReason::kFullHashtable);
+            GCFlag::kNoFlags, GarbageCollectionReason::kFullHashtable);
       }
       table->Rehash(isolate);
     }

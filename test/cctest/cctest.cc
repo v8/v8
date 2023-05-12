@@ -215,7 +215,7 @@ void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
 
 void CcTest::CollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+  iso->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                  i::GarbageCollectionReason::kTesting);
 }
 
@@ -226,7 +226,7 @@ void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
 
 void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+  iso->heap()->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                         i::GarbageCollectionReason::kTesting);
 }
 

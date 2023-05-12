@@ -388,7 +388,7 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
   CHECK(thread->Start());
 
   sema_white.Wait();
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
   sema_marking_started.Signal();
 
@@ -455,7 +455,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
     fixed_array = *fixed_array_handle;
     value = *value_handle;
   }
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
   CHECK(heap->marking_state()->IsUnmarked(value));
 
@@ -543,7 +543,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       code = *code_handle;
       value = *value_handle;
     }
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
     CHECK(heap->marking_state()->IsUnmarked(value));
 

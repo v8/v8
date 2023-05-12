@@ -119,7 +119,7 @@ inline void CollectGarbage(AllocationSpace space, v8::Isolate* isolate) {
 
 inline void FullGC(v8::Isolate* isolate) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
+  heap->CollectAllGarbage(GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
 }
 
 inline void YoungGC(v8::Isolate* isolate) {

@@ -272,7 +272,7 @@ TEST_F(UnifiedHeapWithCustomSpaceSnapshotTest, ConsistentIdAfterCompaction) {
   CppHeap::From(isolate()->heap()->cpp_heap())
       ->compactor()
       .EnableForNextGCForTesting();
-  isolate()->heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
+  isolate()->heap()->CollectAllGarbage(i::GCFlag::kReduceMemoryFootprint,
                                        i::GarbageCollectionReason::kTesting);
   EXPECT_NE(original_pointer, gced->object);
 

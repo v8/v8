@@ -37,9 +37,9 @@ TEST_F(WasmCapiTest, Serialize) {
   ResetModule();
   Heap* heap =
       reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate()->heap();
-  heap->PreciseCollectAllGarbage(Heap::kForcedGC,
+  heap->PreciseCollectAllGarbage(GCFlag::kForced,
                                  GarbageCollectionReason::kTesting);
-  heap->PreciseCollectAllGarbage(Heap::kForcedGC,
+  heap->PreciseCollectAllGarbage(GCFlag::kForced,
                                  GarbageCollectionReason::kTesting);
   own<Module> deserialized = Module::deserialize(store(), serialized);
 

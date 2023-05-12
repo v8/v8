@@ -9380,7 +9380,7 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   } else {
     DCHECK_EQ(kFullGarbageCollection, type);
     reinterpret_cast<i::Isolate*>(this)->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
+        i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting,
         kGCCallbackFlagForced);
   }
 }

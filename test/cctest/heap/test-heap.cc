@@ -2567,7 +2567,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::Heap::kNoGCFlags,
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                           i::GarbageCollectionReason::kTesting);
 
   i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
@@ -2604,13 +2604,11 @@ HEAP_TEST(GCFlags) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
 
-  heap->set_current_gc_flags(Heap::kNoGCFlags);
-  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
-
+  heap->current_gc_flags_ = GCFlag::kNoFlags;
   // Check whether we appropriately reset flags after GC.
-  CcTest::heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
+  CcTest::heap()->CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
                                     GarbageCollectionReason::kTesting);
-  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
+  CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
 
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
@@ -2619,16 +2617,16 @@ HEAP_TEST(GCFlags) {
 
   IncrementalMarking* marking = heap->incremental_marking();
   marking->Stop();
-  heap->StartIncrementalMarking(Heap::kReduceMemoryFootprintMask,
-                                i::GarbageCollectionReason::kTesting);
-  CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
+  heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                                GarbageCollectionReason::kTesting);
+  CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
   CcTest::CollectGarbage(NEW_SPACE);
   // NewSpace scavenges should not overwrite the flags.
-  CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
+  CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
   CcTest::CollectAllGarbage();
-  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
+  CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
 }
 
 HEAP_TEST(Regress845060) {
@@ -2649,7 +2647,7 @@ HEAP_TEST(Regress845060) {
   CHECK(Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
 
   // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
-  heap->StartIncrementalMarking(i::Heap::kReduceMemoryFootprintMask,
+  heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
                                 GarbageCollectionReason::kTesting);
 
   // Run the test (which allocates results) until the original string was
@@ -2668,7 +2666,7 @@ TEST(IdleNotificationFinishMarking) {
   heap::SimulateFullSpace(CcTest::heap()->old_space());
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::Heap::kNoGCFlags,
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                           i::GarbageCollectionReason::kTesting);
 
   CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count);
@@ -4073,7 +4071,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
     CcTest::heap()->StartIncrementalMarking(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+        i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
   heap::SimulateIncrementalMarking(CcTest::heap());
   CHECK(marking->IsMajorMarkingComplete());
@@ -5104,7 +5102,7 @@ TEST(Regress388880) {
   // that would cause crash.
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::Heap::kNoGCFlags,
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                           i::GarbageCollectionReason::kTesting);
   CHECK(marking->IsMarking());
 
@@ -5133,7 +5131,7 @@ TEST(Regress3631) {
       "weak_map");
   if (marking->IsStopped()) {
     CcTest::heap()->StartIncrementalMarking(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+        i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
   // Incrementally mark the backing store.
   Handle<JSReceiver> obj =
@@ -5763,7 +5761,7 @@ TEST(Regress598319) {
   // Start incremental marking.
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
@@ -5873,7 +5871,7 @@ TEST(Regress615489) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
@@ -5972,7 +5970,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());

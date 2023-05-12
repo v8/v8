@@ -412,7 +412,7 @@ void CheckAndHandleInterrupts(i::Isolate* isolate) {
 StoreImpl::~StoreImpl() {
 #ifdef DEBUG
   reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
-      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
+      i::GCFlag::kForced, i::GarbageCollectionReason::kTesting,
       v8::kNoGCCallbackFlags);
 #endif
   context()->Exit();
