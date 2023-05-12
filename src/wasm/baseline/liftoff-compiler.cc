@@ -4885,7 +4885,7 @@ class LiftoffCompiler {
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             base::Vector<Value> /* args */) {
+             const Value* /* args */) {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.

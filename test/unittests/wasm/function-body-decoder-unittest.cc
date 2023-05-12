@@ -3879,7 +3879,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   ExpectFailure(&sig_r_v, {WASM_GC_OP(kExprStructNew), struct_type_index},
                 kAppendEnd,
                 "not enough arguments on the stack for struct.new "
-                "(need 2, got 1)");
+                "(need 1, got 0)");
   // Too many arguments.
   ExpectFailure(
       &sig_r_v,

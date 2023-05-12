@@ -638,7 +638,7 @@ class WasmGraphBuildingInterface {
     }
     builder_->SetControl(fenv->control);
     ScopedSsaEnv scoped_env(this, tenv);
-    BrOrRet(decoder, depth, 1);
+    BrOrRet(decoder, depth, 0);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
@@ -646,7 +646,7 @@ class WasmGraphBuildingInterface {
     if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<ValidationTag>(decoder, imm).next();
-      BrOrRet(decoder, target, 1);
+      BrOrRet(decoder, target, 0);
       return;
     }
 
@@ -660,7 +660,7 @@ class WasmGraphBuildingInterface {
       ScopedSsaEnv env(this, Split(decoder->zone(), ssa_env_));
       builder_->SetControl(i == imm.table_count ? builder_->IfDefault(sw)
                                                 : builder_->IfValue(i, sw));
-      BrOrRet(decoder, target, 1);
+      BrOrRet(decoder, target, 0);
     }
     DCHECK(decoder->ok());
   }
@@ -1017,12 +1017,10 @@ class WasmGraphBuildingInterface {
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             base::Vector<const Value> value_args) {
-    int count = value_args.length();
-    ZoneVector<TFNode*> args(count, decoder->zone());
-    for (int i = 0; i < count; ++i) {
-      args[i] = value_args[i].node;
-    }
+             const Value arg_values[]) {
+    int count = static_cast<int>(imm.tag->sig->parameter_count());
+    NodeVector args(count);
+    GetNodes(args.data(), base::VectorOf(arg_values, count));
     CheckForException(decoder,
                       builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
                                       decoder->position()));

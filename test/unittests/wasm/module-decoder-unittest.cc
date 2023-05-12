@@ -874,7 +874,7 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
                                              WASM_I32V(20), WASM_I32V(30)))};
   EXPECT_FAILURE_WITH_MSG(length_error,
                           "not enough arguments on the stack for "
-                          "array.new_fixed (need 11, got 4)");
+                          "array.new_fixed (need 10, got 3)");
 }
 
 TEST_F(WasmModuleVerifyTest, EmptyStruct) {
