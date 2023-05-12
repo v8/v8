@@ -282,9 +282,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
     // Construct a passive or declarative segment, which has no table
     // index or offset.
-    WasmElemSegment(Zone* zone, ValueType type, bool declarative)
+    WasmElemSegment(Zone* zone, ValueType type, bool declarative,
+                    WasmInitExpr offset)
         : type(type),
           table_index(0),
+          offset(offset),
           entries(zone),
           status(declarative ? kStatusDeclarative : kStatusPassive) {
       DCHECK(IsValidOffsetKind(offset.kind()));
@@ -305,7 +307,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     // offset would also be mistyped.
     bool IsValidOffsetKind(WasmInitExpr::Operator kind) {
       return kind == WasmInitExpr::kI32Const ||
-             kind == WasmInitExpr::kGlobalGet;
+             kind == WasmInitExpr::kGlobalGet ||
+             kind == WasmInitExpr::kRefNullConst;
     }
   };
 
@@ -320,9 +323,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                            bool mutability,
                            base::Vector<const char> module = {});
   void AddDataSegment(const uint8_t* data, uint32_t size, uint32_t dest);
+  void AddPassiveDataSegment(const uint8_t* data, uint32_t size);
   // Add an element segment to this {WasmModuleBuilder}. {segment}'s enties
   // have to be initialized.
-  void AddElementSegment(WasmElemSegment segment);
+  uint32_t AddElementSegment(WasmElemSegment segment);
   // Helper method to create an active segment with one function. Assumes that
   // table segment at {table_index} is typed as funcref.
   void SetIndirectFunction(uint32_t table_index, uint32_t index_in_table,
@@ -419,6 +423,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumFunctions() { return static_cast<int>(functions_.size()); }
 
+  int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
+
   const FunctionSig* GetExceptionType(int index) {
     return types_[exceptions_[index]].function_sig;
   }
@@ -460,6 +466,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmDataSegment {
     ZoneVector<uint8_t> data;
     uint32_t dest;
+    bool is_active = true;
   };
 
   friend class WasmFunctionBuilder;

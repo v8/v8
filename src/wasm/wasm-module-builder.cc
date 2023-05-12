@@ -305,6 +305,15 @@ void WasmModuleBuilder::AddDataSegment(const uint8_t* data, uint32_t size,
   }
 }
 
+void WasmModuleBuilder::AddPassiveDataSegment(const uint8_t* data,
+                                              uint32_t size) {
+  data_segments_.push_back({ZoneVector<uint8_t>(zone()), 0, false});
+  ZoneVector<uint8_t>& vec = data_segments_.back().data;
+  for (uint32_t i = 0; i < size; i++) {
+    vec.push_back(data[i]);
+  }
+}
+
 uint32_t WasmModuleBuilder::ForceAddSignature(const FunctionSig* sig,
                                               bool is_final,
                                               uint32_t supertype) {
@@ -373,8 +382,9 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-void WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
+uint32_t WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
   element_segments_.push_back(std::move(segment));
+  return static_cast<uint32_t>(element_segments_.size() - 1);
 }
 
 void WasmModuleBuilder::SetIndirectFunction(
@@ -870,6 +880,14 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
+  // == emit data segment count section ========================================
+  if (std::any_of(data_segments_.begin(), data_segments_.end(),
+                  [](auto segment) { return !segment.is_active; })) {
+    buffer->write_u8(kDataCountSectionCode);
+    buffer->write_u32v(1);  // section length
+    buffer->write_u32v(static_cast<uint32_t>(data_segments_.size()));
+  }
+
   // == emit compilation hints section =========================================
   bool emit_compilation_hints = false;
   for (auto* fn : functions_) {
@@ -912,12 +930,16 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(data_segments_.size());
 
     for (auto segment : data_segments_) {
-      buffer->write_u8(0);              // linear memory segment
-      buffer->write_u8(kExprI32Const);  // constant expression for dest
-      buffer->write_u32v(segment.dest);
-      buffer->write_u8(kExprEnd);
+      if (segment.is_active) {
+        buffer->write_u8(0);              // linear memory segment
+        buffer->write_u8(kExprI32Const);  // constant expression for dest
+        buffer->write_u32v(segment.dest);
+        buffer->write_u8(kExprEnd);
+      } else {
+        buffer->write_u8(kPassive);
+      }
       buffer->write_u32v(static_cast<uint32_t>(segment.data.size()));
-      buffer->write(&segment.data[0], segment.data.size());
+      buffer->write(segment.data.data(), segment.data.size());
     }
     FixupSection(buffer, start);
   }

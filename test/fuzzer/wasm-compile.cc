@@ -34,6 +34,7 @@ constexpr int kMaxExceptions = 4;
 constexpr int kMaxTableSize = 32;
 constexpr int kMaxTables = 4;
 constexpr int kMaxArraySize = 20;
+constexpr int kMaxPassiveDataSegments = 2;
 
 class DataRange {
   base::Vector<const uint8_t> data_;
@@ -155,6 +156,17 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
 ValueType GetValueType(DataRange* data, uint32_t num_types) {
   return GetValueTypeHelper(data, num_types, num_types, kAllowNonNullables,
                             kExcludePackedTypes, kIncludeGenerics);
+}
+
+void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
+  int length = range->get<uint8_t>() % 65;
+  ZoneVector<uint8_t> data(length, builder->zone());
+  for (int i = 0; i < length; ++i) {
+    // The actual values shouldn't matter much.
+    data[i] = length - i - 1;
+  }
+  builder->AddPassiveDataSegment(data.data(),
+                                 static_cast<uint32_t>(data.size()));
 }
 
 class WasmGenerator {
@@ -357,7 +369,6 @@ class WasmGenerator {
         data);
   }
 
-  // TODO(7748): kExprBrOnNonNull is not covered.
   template <ValueKind wanted_kind>
   void br_on_null(DataRange* data) {
     DCHECK(!blocks_.empty());
@@ -371,6 +382,29 @@ class WasmGenerator {
     builder_->Emit(kExprDrop);
     ConsumeAndGenerate(
         break_types,
+        wanted_kind == kVoid
+            ? base::Vector<ValueType>{}
+            : base::VectorOf({ValueType::Primitive(wanted_kind)}),
+        data);
+  }
+
+  template <ValueKind wanted_kind>
+  void br_on_non_null(DataRange* data) {
+    DCHECK(!blocks_.empty());
+    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const auto break_types = base::VectorOf(blocks_[target_block]);
+    if (break_types.empty() ||
+        !break_types[break_types.size() - 1].is_reference()) {
+      // Invalid break_types for br_on_non_null.
+      Generate<wanted_kind>(data);
+      return;
+    }
+    Generate(break_types, data);
+    builder_->EmitWithI32V(
+        kExprBrOnNonNull,
+        static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
+    ConsumeAndGenerate(
+        base::VectorOf(break_types.data(), break_types.size() - 1),
         wanted_kind == kVoid
             ? base::Vector<ValueType>{}
             : base::VectorOf({ValueType::Primitive(wanted_kind)}),
@@ -860,25 +894,63 @@ class WasmGenerator {
         builder_->EmitU32V(index);
       }
     } else if (builder_->builder()->IsArrayType(index)) {
-      bool can_be_defaultable = builder_->builder()
-                                    ->GetArrayType(index)
-                                    ->element_type()
-                                    .is_defaultable();
-      // TODO(7748): Add array.new_data and array.new_elem.
-      // (This requires data / element segments.)
+      ValueType element_type =
+          builder_->builder()->GetArrayType(index)->element_type();
+      bool can_be_defaultable = element_type.is_defaultable();
       WasmOpcode array_new_op[] = {
-          kExprArrayNew, kExprArrayNewFixed,
+          kExprArrayNew,        kExprArrayNewFixed,
+          kExprArrayNewData,    kExprArrayNewElem,
           kExprArrayNewDefault,  // default op has to be at the end of the list.
       };
       size_t op_size = arraysize(array_new_op);
       if (!can_be_defaultable) --op_size;
       switch (array_new_op[data->get<uint8_t>() % op_size]) {
+        case kExprArrayNewElem:
+        case kExprArrayNewData: {
+          // This is more restrictive than it has to be.
+          // TODO(7748): Also support nonnullable and non-index reference
+          // types.
+          if (element_type.is_reference() && element_type.is_nullable() &&
+              element_type.has_index()) {
+            // Add a new element segment with the corresponding type.
+            WasmModuleBuilder::WasmElemSegment segment(
+                builder_->builder()->zone(), element_type, false,
+                WasmInitExpr::RefNullConst(element_type.heap_representation()));
+            size_t element_count = data->get<uint8_t>() % 11;
+            for (size_t i = 0; i < element_count; ++i) {
+              segment.entries.emplace_back(
+                  WasmModuleBuilder::WasmElemSegment::Entry::kRefNullEntry,
+                  element_type.ref_index());
+            }
+            uint32_t element_segment =
+                builder_->builder()->AddElementSegment(std::move(segment));
+            // Generate offset, length.
+            // TODO(7748): Change the distribution here to make it more likely
+            // that the numbers are in range.
+            Generate(base::VectorOf({kWasmI32, kWasmI32}), data);
+            // Generate array.new_elem instruction.
+            builder_->EmitWithPrefix(kExprArrayNewElem);
+            builder_->EmitU32V(index);
+            builder_->EmitU32V(element_segment);
+            break;
+          } else if (!element_type.is_reference()) {
+            // Lazily create a data segment if the module doesn't have one yet.
+            if (builder_->builder()->NumDataSegments() == 0) {
+              GeneratePassiveDataSegment(data, builder_->builder());
+            }
+            int data_index =
+                data->get<uint8_t>() % builder_->builder()->NumDataSegments();
+            // Generate offset, length.
+            Generate(base::VectorOf({kWasmI32, kWasmI32}), data);
+            builder_->EmitWithPrefix(kExprArrayNewData);
+            builder_->EmitU32V(index);
+            builder_->EmitU32V(data_index);
+            break;
+          }
+          V8_FALLTHROUGH;  // To array.new.
+        }
         case kExprArrayNew:
-          Generate(builder_->builder()
-                       ->GetArrayType(index)
-                       ->element_type()
-                       .Unpacked(),
-                   data);
+          Generate(element_type.Unpacked(), data);
           Generate(kWasmI32, data);
           builder_->EmitI32Const(kMaxArraySize);
           builder_->Emit(kExprI32RemS);
@@ -896,12 +968,8 @@ class WasmGenerator {
             element_count =
                 data->get<uint16_t>() % kV8MaxWasmArrayNewFixedLength;
           }
-          ValueType element_type = builder_->builder()
-                                       ->GetArrayType(index)
-                                       ->element_type()
-                                       .Unpacked();
           for (uint32_t i = 0; i < element_count; ++i) {
-            Generate(element_type, data);
+            Generate(element_type.Unpacked(), data);
           }
           builder_->EmitWithPrefix(kExprArrayNewFixed);
           builder_->EmitU32V(index);
@@ -1582,6 +1650,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::br,
       &WasmGenerator::br_if<kVoid>,
       &WasmGenerator::br_on_null<kVoid>,
+      &WasmGenerator::br_on_non_null<kVoid>,
 
       &WasmGenerator::memop<kExprI32StoreMem, kI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
@@ -1711,6 +1780,7 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::if_<kI32, kIfElse>,
       &WasmGenerator::br_if<kI32>,
       &WasmGenerator::br_on_null<kI32>,
+      &WasmGenerator::br_on_non_null<kI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
       &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -1846,6 +1916,7 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::if_<kI64, kIfElse>,
       &WasmGenerator::br_if<kI64>,
       &WasmGenerator::br_on_null<kI64>,
+      &WasmGenerator::br_on_non_null<kI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
       &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -1951,6 +2022,7 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
       &WasmGenerator::if_<kF32, kIfElse>,
       &WasmGenerator::br_if<kF32>,
       &WasmGenerator::br_on_null<kF32>,
+      &WasmGenerator::br_on_non_null<kF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
@@ -2013,6 +2085,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
       &WasmGenerator::if_<kF64, kIfElse>,
       &WasmGenerator::br_if<kF64>,
       &WasmGenerator::br_on_null<kF64>,
+      &WasmGenerator::br_on_non_null<kF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
 
@@ -2937,6 +3010,11 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         }
         builder.AddElementSegment(std::move(segment));
       }
+    }
+
+    int num_data_segments = range.get<uint8_t>() % kMaxPassiveDataSegments;
+    for (int i = 0; i < num_data_segments; i++) {
+      GeneratePassiveDataSegment(&range, &builder);
     }
 
     for (int i = 0; i < num_functions; ++i) {
