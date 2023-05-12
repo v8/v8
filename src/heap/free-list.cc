@@ -72,6 +72,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
 void FreeListCategory::Free(Address start, size_t size_in_bytes, FreeMode mode,
                             FreeList* owner) {
   FreeSpace free_space = FreeSpace::cast(HeapObject::FromAddress(start));
+  DCHECK_EQ(free_space.Size(), size_in_bytes);
   {
     CodePageMemoryModificationScope memory_modification_scope(
         BasicMemoryChunk::FromAddress(start));

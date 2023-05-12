@@ -926,7 +926,6 @@ void RightTrimString(Isolate* isolate, Handle<SeqOneByteString> string,
                      int chars_allocated, int chars_written) {
   DCHECK_LE(chars_written, chars_allocated);
   if (chars_written == chars_allocated) return;
-  string->set_length(chars_written, kReleaseStore);
   int string_size =
       ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_allocated));
   int needed_size =
@@ -935,6 +934,7 @@ void RightTrimString(Isolate* isolate, Handle<SeqOneByteString> string,
     isolate->heap()->NotifyObjectSizeChange(*string, string_size, needed_size,
                                             ClearRecordedSlots::kNo);
   }
+  string->set_length(chars_written, kReleaseStore);
 }
 
 }  // namespace

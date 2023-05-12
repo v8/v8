@@ -228,11 +228,6 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   // ThinString.
   ThinString thin = ThinString::unchecked_cast(*this);
   thin.set_actual(internalized);
-  if (initial_shape.IsExternal()) {
-    set_map(target_map, kReleaseStore);
-  } else {
-    set_map_safe_transition(target_map, kReleaseStore);
-  }
 
   DCHECK_GE(old_size, ThinString::kSize);
   int size_delta = old_size - ThinString::kSize;
@@ -248,6 +243,12 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
       // large.
       DCHECK(!may_contain_recorded_slots);
     }
+  }
+
+  if (initial_shape.IsExternal()) {
+    set_map(target_map, kReleaseStore);
+  } else {
+    set_map_safe_transition(target_map, kReleaseStore);
   }
 }
 
