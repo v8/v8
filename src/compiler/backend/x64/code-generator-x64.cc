@@ -3680,6 +3680,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             UNREACHABLE();
         }
 
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL8: {
+            // I8x32Splat
+            YMMRegister dst = i.OutputSimd256Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I8x32Splat(dst, i.InputRegister(0));
+            } else {
+              __ I8x32Splat(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          case kL16: {
+            // I16x16Splat
+            YMMRegister dst = i.OutputSimd256Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I16x16Splat(dst, i.InputRegister(0));
+            } else {
+              __ I16x16Splat(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          case kL32: {
+            // I32x8Splat
+            YMMRegister dst = i.OutputSimd256Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I32x8Splat(dst, i.InputRegister(0));
+            } else {
+              __ I32x8Splat(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          case kL64: {
+            // I64X4Splat
+            YMMRegister dst = i.OutputSimd256Register();
+            if (HasRegisterInput(instr, 0)) {
+              __ I64x4Splat(dst, i.InputRegister(0));
+            } else {
+              __ I64x4Splat(dst, i.InputOperand(0));
+            }
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }
