@@ -405,18 +405,12 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
       NegateCondition(is_smi),
       [](MaglevAssembler* masm, Register object, Register result_reg,
          ZoneLabelRef done, CheckedObjectToIndex* node) {
-        Label is_string;
+        Label check_string;
         MaglevAssembler::ScratchRegisterScope temps(masm);
         Register scratch = temps.Acquire();
         __ LoadMap(scratch, object);
-        __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
-                                    LAST_STRING_TYPE);
-        __ B(&is_string, ls);
-
-        __ Cmp(scratch, Immediate(HEAP_NUMBER_TYPE));
-        // The IC will go generic if it encounters something other than a
-        // Number or String key.
-        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, node);
+        __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+        __ B(&check_string, ne);
 
         // Heap Number.
         {
@@ -436,8 +430,15 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
         }
 
         // String.
-        __ Bind(&is_string);
+        __ Bind(&check_string);
+        __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                    LAST_STRING_TYPE);
+        // The IC will go generic if it encounters something other than a
+        // Number or String key.
+        __ EmitEagerDeoptIf(hi, DeoptimizeReason::kNotInt32, node);
+
         {
+          // TODO(verwaest): Load the cached number from the string hash.
           RegisterSnapshot snapshot = node->register_snapshot();
           snapshot.live_registers.clear(result_reg);
           DCHECK(!snapshot.live_tagged_registers.has(result_reg));

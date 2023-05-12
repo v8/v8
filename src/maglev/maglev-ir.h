@@ -3753,7 +3753,8 @@ class ToObject : public FixedInputValueNodeT<2, ToObject> {
   using Base = FixedInputValueNodeT<2, ToObject>;
 
  public:
-  explicit ToObject(uint64_t bitfield) : Base(bitfield) {}
+  explicit ToObject(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -3762,11 +3763,15 @@ class ToObject : public FixedInputValueNodeT<2, ToObject> {
 
   Input& context() { return Node::input(0); }
   Input& value_input() { return Node::input(1); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class ToString : public FixedInputValueNodeT<2, ToString> {
@@ -4849,8 +4854,7 @@ class CheckedInternalizedString
   using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
 
  public:
-  explicit CheckedInternalizedString(
-      uint64_t bitfield, CheckType check_type = CheckType::kCheckHeapObject)
+  explicit CheckedInternalizedString(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {
     CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
   }
@@ -4877,7 +4881,8 @@ class CheckedObjectToIndex
   using Base = FixedInputValueNodeT<1, CheckedObjectToIndex>;
 
  public:
-  explicit CheckedObjectToIndex(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedObjectToIndex(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32() |
@@ -4887,11 +4892,15 @@ class CheckedObjectToIndex
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return Node::input(kObjectIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {

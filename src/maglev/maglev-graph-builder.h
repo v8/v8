@@ -359,9 +359,10 @@ class MaglevGraphBuilder {
   class CallSpeculationScope;
   class LazyDeoptFrameScope;
 
-  bool CheckStaticType(ValueNode* node, NodeType type);
-  bool CheckType(ValueNode* node, NodeType type);
+  bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  void SetKnownType(ValueNode* node, NodeType type);
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
   bool ShouldEmitInterruptBudgetChecks() {
     if (is_inline()) return false;

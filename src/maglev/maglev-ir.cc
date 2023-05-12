@@ -3339,7 +3339,11 @@ void ToObject::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(value_input());
   Label call_builtin, done;
   // Avoid the builtin call if {value} is a JSReceiver.
-  __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(value);
+  } else {
+    __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
+  }
   __ JumpIfJSAnyIsNotPrimitive(value, &done, Label::Distance::kNear);
   __ bind(&call_builtin);
   __ CallBuiltin(Builtin::kToObject);

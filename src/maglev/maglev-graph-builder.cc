@@ -768,11 +768,21 @@ ValueNode* MaglevGraphBuilder::GetSmiValue(
   UNREACHABLE();
 }
 
+namespace {
+CheckType GetCheckType(NodeType type) {
+  return NodeTypeIs(type, NodeType::kAnyHeapObject)
+             ? CheckType::kOmitHeapObjectCheck
+             : CheckType::kCheckHeapObject;
+}
+}  // namespace
+
 ValueNode* MaglevGraphBuilder::GetInternalizedString(
     interpreter::Register reg) {
   ValueNode* node = GetTaggedValue(reg);
-  if (CheckType(node, NodeType::kInternalizedString)) return node;
-  node = AddNewNode<CheckedInternalizedString>({node});
+  NodeType old_type;
+  if (CheckType(node, NodeType::kInternalizedString, &old_type)) return node;
+  if (old_type != NodeType::kString) SetKnownType(node, NodeType::kString);
+  node = AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type));
   current_interpreter_frame_.set(reg, node);
   return node;
 }
@@ -2270,14 +2280,13 @@ void MaglevGraphBuilder::VisitTestUndetectable() {
     return;
   }
 
-  if (CheckType(value, NodeType::kSmi)) {
+  NodeType old_type;
+  if (CheckType(value, NodeType::kSmi, &old_type)) {
     SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
     return;
   }
 
-  enum CheckType type = CheckType(value, NodeType::kAnyHeapObject)
-                            ? CheckType::kOmitHeapObjectCheck
-                            : CheckType::kCheckHeapObject;
+  enum CheckType type = GetCheckType(old_type);
   if (TryBuildBranchFor<BranchIfUndetectable>({value}, type)) return;
   SetAccumulator(AddNewNode<TestUndetectable>({value}, type));
 }
@@ -2777,13 +2786,16 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 }
 }  // namespace
 
+bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type,
+                                         NodeType* old_type) {
+  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
+  if (old_type) *old_type = static_type;
+  return NodeTypeIs(static_type, type);
+}
+
 bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
                                     NodeType* old_type) {
-  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (NodeTypeIs(static_type, type)) {
-    if (old_type) *old_type = static_type;
-    return true;
-  }
+  if (CheckStaticType(node, type, old_type)) return true;
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
   if (old_type) *old_type = known_info->type;
   if (NodeTypeIs(known_info->type, type)) return true;
@@ -2791,6 +2803,12 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
+void MaglevGraphBuilder::SetKnownType(ValueNode* node, NodeType type) {
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  DCHECK(!CheckType(node, type));
+  DCHECK(NodeTypeIs(type, known_info->type));
+  known_info->type = type;
+}
 void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
                                        compiler::ObjectRef ref) {
   DCHECK(!node->Is<Constant>());
@@ -2800,14 +2818,12 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
   known_info->constant_alternative = GetConstant(ref);
 }
 
-bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type) {
-  return NodeTypeIs(StaticTypeForNode(broker(), local_isolate(), node), type);
-}
-
-bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
-  if (CheckStaticType(node, type)) return true;
+bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
+                                   NodeType* old_type) {
+  if (CheckStaticType(node, type, old_type)) return true;
   auto it = known_node_aspects().FindInfo(node);
   if (!known_node_aspects().IsValid(it)) return false;
+  if (old_type) *old_type = it->second.type;
   return NodeTypeIs(it->second.type, type);
 }
 
@@ -2857,14 +2873,6 @@ void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   if (EnsureType(object, NodeType::kAnyHeapObject)) return;
   AddNewNode<CheckHeapObject>({object});
 }
-
-namespace {
-CheckType GetCheckType(NodeType type) {
-  return NodeTypeIs(type, NodeType::kAnyHeapObject)
-             ? CheckType::kOmitHeapObjectCheck
-             : CheckType::kCheckHeapObject;
-}
-}  // namespace
 
 void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
@@ -3684,9 +3692,10 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
     case ValueRepresentation::kTagged:
+      NodeType old_type;
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         return GetInt32Constant(constant->value().value());
-      } else if (CheckType(object, NodeType::kSmi)) {
+      } else if (CheckType(object, NodeType::kSmi, &old_type)) {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
         if (!node_info->int32_alternative) {
           node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({object});
@@ -3695,7 +3704,8 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
-        return AddNewNode<CheckedObjectToIndex>({object});
+        return AddNewNode<CheckedObjectToIndex>({object},
+                                                GetCheckType(old_type));
       }
     case ValueRepresentation::kInt32:
       // Already good.
@@ -6836,11 +6846,13 @@ void MaglevGraphBuilder::VisitToObject() {
   // ToObject <dst>
   ValueNode* value = GetAccumulatorTagged();
   interpreter::Register destination = iterator_.GetRegisterOperand(0);
-  if (CheckType(value, NodeType::kJSReceiver)) {
+  NodeType old_type;
+  if (CheckType(value, NodeType::kJSReceiver, &old_type)) {
     MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                              destination);
   } else {
-    StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value}));
+    StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value},
+                                                    GetCheckType(old_type)));
   }
 }
 
