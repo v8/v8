@@ -509,8 +509,9 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
       }
     } else {
       ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
-      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                   is_big_endian, false);
+      __ ToBoolean(ToRegister(is_little_endian_input()),
+                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                   false);
       __ bind(*is_big_endian);
       __ ReverseByteOrder(result_reg, element_size);
       __ bind(*is_little_endian);
@@ -564,8 +565,9 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
       }
     } else {
       ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
-      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                   is_big_endian, false);
+      __ ToBoolean(ToRegister(is_little_endian_input()),
+                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                   false);
       __ bind(*is_big_endian);
       __ ReverseByteOrder(value, element_size);
       __ bind(*is_little_endian);
@@ -620,8 +622,9 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                 is_big_endian, true);
+    __ ToBoolean(ToRegister(is_little_endian_input()),
+                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                 true);
     // x64 is little endian.
     static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
     __ bind(*is_little_endian);
@@ -679,8 +682,9 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                 is_big_endian, true);
+    __ ToBoolean(ToRegister(is_little_endian_input()),
+                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                 true);
     // x64 is little endian.
     static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
     __ bind(*is_little_endian);

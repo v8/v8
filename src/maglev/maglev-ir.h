@@ -3323,20 +3323,26 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
 class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
   using Base = FixedInputValueNodeT<1, ToBoolean>;
 
  public:
-  explicit ToBoolean(uint64_t bitfield) : Base(bitfield) {}
+  explicit ToBoolean(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& value() { return Node::input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class ToBooleanLogicalNot
@@ -3344,16 +3350,21 @@ class ToBooleanLogicalNot
   using Base = FixedInputValueNodeT<1, ToBooleanLogicalNot>;
 
  public:
-  explicit ToBooleanLogicalNot(uint64_t bitfield) : Base(bitfield) {}
+  explicit ToBooleanLogicalNot(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& value() { return Node::input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
@@ -3442,8 +3453,6 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
  private:
   const compiler::FeedbackSource feedback_;
 };
-
-enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
 
 class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
   using Base = FixedInputValueNodeT<1, TestUndetectable>;
@@ -7606,18 +7615,24 @@ class BranchIfToBooleanTrue
   using Base = BranchControlNodeT<1, BranchIfToBooleanTrue>;
 
  public:
-  explicit BranchIfToBooleanTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
+  explicit BranchIfToBooleanTrue(uint64_t bitfield, CheckType check_type,
+                                 BasicBlockRef* if_true_refs,
                                  BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type), if_true_refs,
+             if_false_refs) {}
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& condition_input() { return input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class BranchIfInt32ToBooleanTrue

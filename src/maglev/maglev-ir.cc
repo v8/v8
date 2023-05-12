@@ -3249,7 +3249,7 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef object_is_true(masm), object_is_false(masm);
   // TODO(leszeks): We're likely to be calling this on an existing boolean --
   // maybe that's a case we should fast-path here and re-use that boolean value?
-  __ ToBoolean(object, object_is_true, object_is_false, true);
+  __ ToBoolean(object, check_type(), object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kTrueValue);
   __ Jump(&done);
@@ -3268,7 +3268,7 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   Register return_value = ToRegister(result());
   Label done;
   ZoneLabelRef object_is_true(masm), object_is_false(masm);
-  __ ToBoolean(object, object_is_true, object_is_false, true);
+  __ ToBoolean(object, check_type(), object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kFalseValue);
   __ Jump(&done);
@@ -4386,8 +4386,8 @@ void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef false_label =
       ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
   bool fallthrough_when_true = (if_true() == state.next_block());
-  __ ToBoolean(ToRegister(condition_input()), true_label, false_label,
-               fallthrough_when_true);
+  __ ToBoolean(ToRegister(condition_input()), check_type(), true_label,
+               false_label, fallthrough_when_true);
 }
 
 void BranchIfInt32ToBooleanTrue::SetValueLocationConstraints() {

@@ -1748,7 +1748,8 @@ class MaglevGraphBuilder {
   void VisitBinarySmiOperation();
 
   base::Optional<int> TryFindNextBranch();
-  template <typename BranchControlNodeT, typename... Args>
+  template <typename BranchControlNodeT, bool init_flip = false,
+            typename... Args>
   bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
                          Args&&... args);
 
@@ -1770,8 +1771,8 @@ class MaglevGraphBuilder {
   void BuildBranchIfNull(ValueNode* node, JumpType jump_type);
   void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
   void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
-  ValueNode* BuildToBoolean(ValueNode* node);
-  ValueNode* BuildToBooleanLogicalNot(ValueNode* node);
+  void BuildToBoolean(ValueNode* node);
+  void BuildToBooleanLogicalNot(ValueNode* node);
   BasicBlock* BuildSpecializedBranchIfCompareNode(ValueNode* node,
                                                   BasicBlockRef* true_target,
                                                   BasicBlockRef* false_target);

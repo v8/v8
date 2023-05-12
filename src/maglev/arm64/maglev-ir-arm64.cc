@@ -435,7 +435,8 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                                     LAST_STRING_TYPE);
         // The IC will go generic if it encounters something other than a
         // Number or String key.
-        __ EmitEagerDeoptIf(hi, DeoptimizeReason::kNotInt32, node);
+        __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotInt32,
+                            node);
 
         {
           // TODO(verwaest): Load the cached number from the string hash.
@@ -1656,8 +1657,9 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
       }
     } else {
       ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
-      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                   is_big_endian, false);
+      __ ToBoolean(ToRegister(is_little_endian_input()),
+                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                   false);
       __ Bind(*is_big_endian);
       __ ReverseByteOrder(result_reg, element_size);
       __ Bind(*is_little_endian);
@@ -1704,8 +1706,9 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
       }
     } else {
       ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
-      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                   is_big_endian, false);
+      __ ToBoolean(ToRegister(is_little_endian_input()),
+                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                   false);
       __ Bind(*is_big_endian);
       __ ReverseByteOrder(value, element_size);
       __ Bind(*is_little_endian);
@@ -1766,8 +1769,9 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                 is_big_endian, true);
+    __ ToBoolean(ToRegister(is_little_endian_input()),
+                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                 true);
     // arm64 is little endian.
     static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
     __ Bind(*is_little_endian);
@@ -1829,8 +1833,9 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
-                 is_big_endian, true);
+    __ ToBoolean(ToRegister(is_little_endian_input()),
+                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
+                 true);
     // arm64 is little endian.
     static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
     __ Bind(*is_little_endian);

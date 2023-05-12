@@ -1692,7 +1692,7 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
   return {};
 }
 
-template <typename BranchControlNodeT, typename... Args>
+template <typename BranchControlNodeT, bool init_flip, typename... Args>
 bool MaglevGraphBuilder::TryBuildBranchFor(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
   base::Optional<int> maybe_next_branch_offset = TryFindNextBranch();
@@ -1712,7 +1712,7 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
   iterator_.Advance();
 
   // Evaluate Movs and LogicalNots between test and jump.
-  bool flip = false;
+  bool flip = init_flip;
   for (;; iterator_.Advance()) {
     DCHECK_LE(iterator_.current_offset(), next_branch_offset);
     UpdateSourceAndBytecodePosition(iterator_.current_offset());
@@ -4801,7 +4801,7 @@ void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
     default:
       break;
   }
-  SetAccumulator(BuildToBooleanLogicalNot(value));
+  BuildToBooleanLogicalNot(value);
 }
 
 void MaglevGraphBuilder::VisitLogicalNot() {
@@ -6678,28 +6678,39 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
     // call further, we might already have a boolean constant as result.
     // TODO(leszeks): Avoid forcing a conversion to tagged here.
+    // TODO(verwaest): Also check the dynamic type.
     if (TryBuildBranchFor<BranchIfToBooleanTrue>(
-            {GetTaggedValue(call_result)})) {
+            {GetTaggedValue(call_result)},
+            GetCheckType(
+                StaticTypeForNode(broker(), local_isolate(), call_result)))) {
       return ReduceResult::Done();
     }
-    return BuildToBoolean(GetTaggedValue(call_result));
+    BuildToBoolean(GetTaggedValue(call_result));
+    return ReduceResult::Done();
   }
 
   return ReduceResult::Fail();
 }
 
-ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
-  if (CheckType(value, NodeType::kBoolean)) {
-    return value;
+void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
+  NodeType old_type;
+  if (CheckType(value, NodeType::kBoolean, &old_type)) {
+    SetAccumulator(value);
+  } else if (!TryBuildBranchFor<BranchIfToBooleanTrue>(
+                 {value}, GetCheckType(old_type))) {
+    SetAccumulator(AddNewNode<ToBoolean>({value}, GetCheckType(old_type)));
   }
-  return AddNewNode<ToBoolean>({value});
 }
 
-ValueNode* MaglevGraphBuilder::BuildToBooleanLogicalNot(ValueNode* value) {
-  if (CheckType(value, NodeType::kBoolean)) {
-    return AddNewNode<LogicalNot>({value});
+void MaglevGraphBuilder::BuildToBooleanLogicalNot(ValueNode* value) {
+  NodeType old_type;
+  if (CheckType(value, NodeType::kBoolean, &old_type)) {
+    SetAccumulator(AddNewNode<LogicalNot>({value}));
+  } else if (!TryBuildBranchFor<BranchIfToBooleanTrue, /* flip */ true>(
+                 {value}, GetCheckType(old_type))) {
+    SetAccumulator(
+        AddNewNode<ToBooleanLogicalNot>({value}, GetCheckType(old_type)));
   }
-  return AddNewNode<ToBooleanLogicalNot>({value});
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
@@ -6876,7 +6887,7 @@ void MaglevGraphBuilder::VisitToBoolean() {
     default:
       break;
   }
-  return SetAccumulator(BuildToBoolean(value));
+  BuildToBoolean(value);
 }
 
 void FastObject::ClearFields() {
@@ -7896,12 +7907,13 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
       // convert the node to BranchIfFloat64ToBooleanTrue or
       // BranchIfInt32ToBooleanTrue.
       node = GetTaggedValue(node, UseReprHintRecording::kDoNotRecord);
-      if (CheckType(node, NodeType::kBoolean)) {
+      NodeType old_type;
+      if (CheckType(node, NodeType::kBoolean, &old_type)) {
         return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
                                                  true_target, false_target);
       }
-      return FinishBlock<BranchIfToBooleanTrue>({node}, true_target,
-                                                false_target);
+      return FinishBlock<BranchIfToBooleanTrue>({node}, GetCheckType(old_type),
+                                                true_target, false_target);
     }
   }
 }

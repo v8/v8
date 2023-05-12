@@ -177,8 +177,8 @@ class MaglevAssembler : public MacroAssembler {
                           Label* char_code_fits_one_byte, Register result,
                           Register char_code, Register scratch);
 
-  void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
-                 bool fallthrough_when_true);
+  void ToBoolean(Register value, CheckType check_type, ZoneLabelRef is_true,
+                 ZoneLabelRef is_false, bool fallthrough_when_true);
   void TestTypeOf(Register object,
                   interpreter::TestTypeOfFlags::LiteralFlag literal,
                   Label* if_true, Label::Distance true_distance,
