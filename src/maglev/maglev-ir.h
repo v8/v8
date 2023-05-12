@@ -4386,10 +4386,8 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  void MaybeGenerateMapLoad(MaglevAssembler* masm, Register object,
-                            Register temp);
-  void GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map,
-                          Register temp);
+  void MaybeGenerateMapLoad(MaglevAssembler* masm, Register object);
+  void GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map);
 
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;

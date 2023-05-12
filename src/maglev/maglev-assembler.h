@@ -360,6 +360,10 @@ class MaglevAssembler : public MacroAssembler {
     return code_gen_state()->compilation_info();
   }
 
+  ScratchRegisterScope* scratch_register_scope() const {
+    return scratch_register_scope_;
+  }
+
  private:
   inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
     return StandardFrameConstants::kExpressionsOffset -

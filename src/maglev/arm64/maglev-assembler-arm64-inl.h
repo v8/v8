@@ -55,10 +55,14 @@ inline int ShiftFromScale(int n) {
 
 class MaglevAssembler::ScratchRegisterScope {
  public:
-  explicit ScratchRegisterScope(MaglevAssembler* masm) : wrapped_scope_(masm) {
-    // This field is never used in arm64.
-    DCHECK_NULL(masm->scratch_register_scope_);
+  explicit ScratchRegisterScope(MaglevAssembler* masm)
+      : wrapped_scope_(masm),
+        masm_(masm),
+        prev_scope_(masm->scratch_register_scope_) {
+    masm_->scratch_register_scope_ = this;
   }
+
+  ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
   Register Acquire() { return wrapped_scope_.AcquireX(); }
   void Include(Register reg) { wrapped_scope_.Include(reg); }
@@ -90,6 +94,8 @@ class MaglevAssembler::ScratchRegisterScope {
 
  private:
   UseScratchRegisterScope wrapped_scope_;
+  MaglevAssembler* masm_;
+  ScratchRegisterScope* prev_scope_;
 };
 
 namespace detail {

@@ -1063,11 +1063,6 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
-void CheckMaps::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  set_temporaries_needed(2);
-}
-
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
@@ -1095,18 +1090,16 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   }
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register temp_for_map_load = temps.Acquire();
-  Register temp_for_map_compare = temps.Acquire();
-  MaybeGenerateMapLoad(masm, object, temp_for_map_load);
+  MaybeGenerateMapLoad(masm, object);
 
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i).object();
-    GenerateMapCompare(masm, map, temp_for_map_compare);
+    GenerateMapCompare(masm, map);
     __ JumpIf(kEqual, &done, Label::Distance::kNear);
   }
   Handle<Map> last_map = maps().at(map_count - 1).object();
-  GenerateMapCompare(masm, last_map, temp_for_map_compare);
+  GenerateMapCompare(masm, last_map);
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
 }
