@@ -1082,7 +1082,6 @@
 // SIMD256 for AVX
 #define MACHINE_SIMD256_OP_LIST(V) \
   V(F64x4Add)                      \
-  V(F64x4Sqrt)                     \
   V(F32x8Add)                      \
   V(I64x4Add)                      \
   V(I32x8Add)                      \
@@ -1148,15 +1147,6 @@
   V(I32x8UConvertI16x8)            \
   V(I16x16SConvertI8x16)           \
   V(I16x16UConvertI8x16)           \
-  V(F32x8Abs)                      \
-  V(F32x8Neg)                      \
-  V(F32x8Sqrt)                     \
-  V(I32x8Abs)                      \
-  V(I32x8Neg)                      \
-  V(I16x16Abs)                     \
-  V(I16x16Neg)                     \
-  V(I8x32Abs)                      \
-  V(I8x32Neg)                      \
   V(I32x8DotI16x16S)               \
   V(I16x16RoundingAverageU)        \
   V(I8x32RoundingAverageU)         \
