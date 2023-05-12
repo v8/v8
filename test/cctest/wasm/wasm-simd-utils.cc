@@ -43,6 +43,42 @@ void RunI8x16UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(64);
+  // Build fn to load a I8x32 vector with test value, perform unop, and write
+  // the result to another array.
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+
+  FOR_INT8_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[18], x);
+    r.Call(0, 32);
+    int8_t expected = expected_op(x);
+    CHECK_EQ(expected, memory[33]);
+    CHECK_EQ(expected, memory[50]);
+  }
+}
+#endif
+
 template <typename T, typename OpType>
 void RunI8x16BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        OpType expected_op) {
@@ -151,6 +187,42 @@ void RunI16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(32);
+  // Build fn to load a I16x16 vector with test value, perform unop, and write
+  // the result to another array.
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+
+  FOR_INT16_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[10], x);
+    r.Call(0, 32);
+    int16_t expected = expected_op(x);
+    CHECK_EQ(expected, memory[17]);
+    CHECK_EQ(expected, memory[26]);
+  }
+}
+#endif
+
 template <typename T, typename OpType>
 void RunI16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        OpType expected_op) {
@@ -257,6 +329,42 @@ void RunI32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  // Build fn to load a I32x8 vector with test value, perform unop, and write
+  // the result to another array.
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[6], x);
+    r.Call(0, 32);
+    int32_t expected = expected_op(x);
+    CHECK_EQ(expected, memory[9]);
+    CHECK_EQ(expected, memory[14]);
+  }
+}
+#endif
 
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        Int32BinOp expected_op) {
@@ -484,6 +592,60 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(16);
+  // Build fn to load a F32x8 vector with test value, perform unop, and write
+  // the result to another array.
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    float expected = expected_op(x);
+#if V8_OS_AIX
+    if (!MightReverseSign<FloatUnOp>(expected_op))
+      expected = FpOpWorkaround<float>(x, expected);
+#endif
+    if (!PlatformCanRepresent(expected)) continue;
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[6], x);
+    r.Call(0, 32);
+    CheckFloatResult(x, x, expected, memory[9]);
+    CheckFloatResult(x, x, expected, memory[14]);
+  }
+
+  FOR_FLOAT32_NAN_INPUTS(f) {
+    float x = base::bit_cast<float>(nan_test_array[f]);
+    if (!PlatformCanRepresent(x)) continue;
+    float expected = expected_op(x);
+    if (!PlatformCanRepresent(expected)) continue;
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[6], x);
+    r.Call(0, 32);
+    CheckFloatResult(x, x, expected, memory[9]);
+    CheckFloatResult(x, x, expected, memory[14]);
+  }
+}
+#endif
+
 namespace {
 // Relaxed-simd operations are deterministic only for some range of values.
 // Exclude those from being tested. Currently this is only used for f32x4, f64x2
@@ -665,6 +827,60 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  double* memory = r.builder().AddMemoryElems<double>(8);
+  // Build fn to load a F64x4 vector with test value, perform unop, and write
+  // the result to another array.
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+
+  FOR_FLOAT64_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    double expected = expected_op(x);
+#if V8_OS_AIX
+    if (!MightReverseSign<DoubleUnOp>(expected_op))
+      expected = FpOpWorkaround<double>(x, expected);
+#endif
+    if (!PlatformCanRepresent(expected)) continue;
+    r.builder().WriteMemory(&memory[0], x);
+    r.builder().WriteMemory(&memory[3], x);
+    r.Call(0, 32);
+    CheckDoubleResult(x, x, expected, memory[4]);
+    CheckDoubleResult(x, x, expected, memory[7]);
+  }
+
+  FOR_FLOAT64_NAN_INPUTS(d) {
+    double x = base::bit_cast<double>(double_nan_test_array[d]);
+    if (!PlatformCanRepresent(x)) continue;
+    double expected = expected_op(x);
+    if (!PlatformCanRepresent(expected)) continue;
+    r.builder().WriteMemory(&memory[0], x);
+    r.builder().WriteMemory(&memory[3], x);
+    r.Call(0, 32);
+    CheckDoubleResult(x, x, expected, memory[4]);
+    CheckDoubleResult(x, x, expected, memory[7]);
+  }
+}
+#endif
 
 void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        DoubleBinOp expected_op) {

@@ -2485,6 +2485,26 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16SConvertI8x16(node);
     case IrOpcode::kI16x16UConvertI8x16:
       return MarkAsSimd256(node), VisitI16x16UConvertI8x16(node);
+    case IrOpcode::kF32x8Abs:
+      return MarkAsSimd256(node), VisitF32x8Abs(node);
+    case IrOpcode::kF32x8Neg:
+      return MarkAsSimd256(node), VisitF32x8Neg(node);
+    case IrOpcode::kF32x8Sqrt:
+      return MarkAsSimd256(node), VisitF32x8Sqrt(node);
+    case IrOpcode::kF64x4Sqrt:
+      return MarkAsSimd256(node), VisitF64x4Sqrt(node);
+    case IrOpcode::kI32x8Abs:
+      return MarkAsSimd256(node), VisitI32x8Abs(node);
+    case IrOpcode::kI32x8Neg:
+      return MarkAsSimd256(node), VisitI32x8Neg(node);
+    case IrOpcode::kI16x16Abs:
+      return MarkAsSimd256(node), VisitI16x16Abs(node);
+    case IrOpcode::kI16x16Neg:
+      return MarkAsSimd256(node), VisitI16x16Neg(node);
+    case IrOpcode::kI8x32Abs:
+      return MarkAsSimd256(node), VisitI8x32Abs(node);
+    case IrOpcode::kI8x32Neg:
+      return MarkAsSimd256(node), VisitI8x32Neg(node);
     case IrOpcode::kI32x8DotI16x16S:
       return MarkAsSimd256(node), VisitI32x8DotI16x16S(node);
     case IrOpcode::kI16x16RoundingAverageU:

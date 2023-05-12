@@ -3529,6 +3529,16 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
   V(I8x16AllTrue, IAllTrue, kL8, kV128)           \
   V(S128Not, SNot, kL8, kV128)                    \
+  V(F32x8Abs, FAbs, kL32, kV256)                  \
+  V(I32x8Abs, IAbs, kL32, kV256)                  \
+  V(I16x16Abs, IAbs, kL16, kV256)                 \
+  V(I8x32Abs, IAbs, kL8, kV256)                   \
+  V(F32x8Neg, FNeg, kL32, kV256)                  \
+  V(I32x8Neg, INeg, kL32, kV256)                  \
+  V(I16x16Neg, INeg, kL16, kV256)                 \
+  V(I8x32Neg, INeg, kL8, kV256)                   \
+  V(F64x4Sqrt, FSqrt, kL64, kV256)                \
+  V(F32x8Sqrt, FSqrt, kL32, kV256)                \
   V(S256Not, SNot, kL8, kV256)
 
 #define SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(V) \
