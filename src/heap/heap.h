@@ -46,20 +46,14 @@
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
-namespace cppgc {
-namespace internal {
-
+namespace cppgc::internal {
 enum class HeapObjectNameForUnnamedObject : uint8_t;
 class ClassNameAsHeapObjectNameScope;
+}  // namespace cppgc::internal
 
-}  // namespace internal
-}  // namespace cppgc
-
-namespace heap {
-namespace base {
+namespace heap::base {
 class Stack;
-}  // namespace base
-}  // namespace heap
+}  // namespace heap::base
 
 namespace v8 {
 
@@ -70,7 +64,6 @@ using OutOfMemoryCallback = void (*)(void* data);
 namespace internal {
 
 namespace heap {
-
 class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
@@ -80,16 +73,9 @@ class Heap;
 class Impl;
 }  // namespace third_party_heap
 
-class IncrementalMarking;
-class BackingStore;
-class JSArrayBuffer;
-class JSPromise;
-class NativeContext;
-
-using v8::MemoryPressureLevel;
-
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
+class BackingStore;
 class BasicMemoryChunk;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -101,12 +87,15 @@ class EphemeronRememberedSet;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
+class IncrementalMarking;
 class IsolateSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
+class JSArrayBuffer;
 class JSFinalizationRegistry;
+class JSPromise;
 class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
@@ -115,6 +104,7 @@ class MemoryMeasurement;
 class MemoryReducer;
 class MinorGCJob;
 class MinorMarkCompactCollector;
+class NativeContext;
 class NopRwxMemoryWriteScope;
 class ObjectIterator;
 class ObjectStats;
@@ -134,11 +124,6 @@ class Space;
 class StressScavengeObserver;
 class TimedHistogram;
 class WeakObjectRetainer;
-
-enum ArrayStorageAllocationMode {
-  DONT_INITIALIZE_ARRAY_ELEMENTS,
-  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
-};
 
 enum class ClearRecordedSlots { kYes, kNo };
 
@@ -209,7 +194,7 @@ enum class GCFlag : uint8_t {
 using GCFlags = base::Flags<GCFlag, uint8_t>;
 DEFINE_OPERATORS_FOR_FLAGS(GCFlags)
 
-class Heap {
+class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
@@ -693,8 +678,8 @@ class Heap {
   bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
 
-  V8_EXPORT_PRIVATE void MemoryPressureNotification(MemoryPressureLevel level,
-                                                    bool is_isolate_locked);
+  V8_EXPORT_PRIVATE void MemoryPressureNotification(
+      v8::MemoryPressureLevel level, bool is_isolate_locked);
   void CheckMemoryPressure();
 
   V8_EXPORT_PRIVATE void AddNearHeapLimitCallback(v8::NearHeapLimitCallback,
@@ -779,7 +764,7 @@ class Heap {
 
   bool HighMemoryPressure() {
     return memory_pressure_level_.load(std::memory_order_relaxed) !=
-           MemoryPressureLevel::kNone;
+           v8::MemoryPressureLevel::kNone;
   }
 
   bool CollectionRequested();
@@ -2147,7 +2132,7 @@ class Heap {
 
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
-  std::atomic<MemoryPressureLevel> memory_pressure_level_;
+  std::atomic<v8::MemoryPressureLevel> memory_pressure_level_;
 
   std::vector<std::pair<v8::NearHeapLimitCallback, void*>>
       near_heap_limit_callbacks_;

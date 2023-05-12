@@ -545,7 +545,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   int num_elements = std::max(0, argument_count - start_index);
   Handle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(result->elements());

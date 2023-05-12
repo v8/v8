@@ -119,6 +119,11 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+enum class ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
@@ -599,7 +604,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSArray> NewJSArray(
@@ -608,8 +614,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     if (capacity != 0) {
       elements_kind = GetHoleyElementsKind(elements_kind);
     }
-    return NewJSArray(elements_kind, 0, capacity,
-                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, allocation);
+    return NewJSArray(
+        elements_kind, 0, capacity,
+        ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+        allocation);
   }
 
   // Create a JSArray with the given elements.
@@ -628,7 +636,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   Handle<JSWeakMap> NewJSWeakMap();
 
@@ -1173,7 +1182,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // this method requires capacity greater than zero.
   Handle<FixedArrayBase> NewJSArrayStorage(
       ElementsKind elements_kind, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   void InitializeAllocationMemento(AllocationMemento memento,
                                    AllocationSite allocation_site);

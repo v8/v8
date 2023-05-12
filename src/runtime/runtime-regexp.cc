@@ -845,9 +845,9 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   // Create JSArray of substrings separated by separator.
   int part_count = static_cast<int>(indices->size());
 
-  Handle<JSArray> result =
-      isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
-                                     INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  Handle<JSArray> result = isolate->factory()->NewJSArray(
+      PACKED_ELEMENTS, part_count, part_count,
+      ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   DCHECK(result->HasObjectElements());
 

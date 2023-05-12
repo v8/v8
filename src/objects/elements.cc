@@ -5428,9 +5428,10 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
   // boxing doubles may cause incremental marking.
   bool requires_double_boxing =
       has_raw_doubles && !IsDoubleElementsKind(result_elements_kind);
-  ArrayStorageAllocationMode mode = requires_double_boxing
-                                        ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
-                                        : DONT_INITIALIZE_ARRAY_ELEMENTS;
+  auto mode =
+      requires_double_boxing
+          ? ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+          : ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS;
   Handle<JSArray> result_array = isolate->factory()->NewJSArray(
       result_elements_kind, result_len, result_len, mode);
   if (result_len == 0) return result_array;
