@@ -960,7 +960,7 @@ class WasmGenerator {
         case kExprArrayNewFixed: {
           uint32_t element_count;
           uint8_t diceroll = data->get<uint8_t>();
-          if (diceroll < 250) {
+          if (diceroll < 250 || element_type.is_non_nullable()) {
             // Most generated arrays will be small and fast...
             element_count = diceroll % 25;
           } else {
