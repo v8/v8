@@ -12,11 +12,11 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
-namespace v8 {
-namespace internal {
-namespace heap {
+namespace v8::internal::heap {
+
+using IteratorsTest = TestWithNativeContext;
 
 namespace {
 template <typename T>
@@ -29,93 +29,88 @@ void TestIterator(T it) {
 }
 }  // namespace
 
-TEST(HeapObjectIteratorNullPastEnd) {
+TEST_F(IteratorsTest, HeapObjectIteratorNullPastEnd) {
   TestIterator<HeapObjectIterator>(
-      static_cast<v8::internal::HeapObjectIterator>(CcTest::heap()));
+      static_cast<v8::internal::HeapObjectIterator>(i_isolate()->heap()));
 }
 
-TEST(ReadOnlyHeapObjectIteratorNullPastEnd) {
+TEST_F(IteratorsTest, ReadOnlyHeapObjectIteratorNullPastEnd) {
   TestIterator<ReadOnlyHeapObjectIterator>(
       static_cast<v8::internal::ReadOnlyHeapObjectIterator>(
-          CcTest::read_only_heap()));
+          i_isolate()->read_only_heap()));
 }
 
-TEST(CombinedHeapObjectIteratorNullPastEnd) {
-  TestIterator<CombinedHeapObjectIterator>(CcTest::heap());
+TEST_F(IteratorsTest, CombinedHeapObjectIteratorNullPastEnd) {
+  TestIterator<CombinedHeapObjectIterator>(i_isolate()->heap());
 }
 
 namespace {
 // An arbitrary object guaranteed to live on the non-read-only heap.
-Object CreateWritableObject() {
-  return *v8::Utils::OpenHandle(*v8::Object::New(CcTest::isolate()));
+Object CreateWritableObject(v8::Isolate* isolate) {
+  return *v8::Utils::OpenHandle(*v8::Object::New(isolate));
 }
 }  // namespace
 
-TEST(ReadOnlyHeapObjectIterator) {
-  CcTest::InitializeVM();
-  HandleScope handle_scope(CcTest::i_isolate());
-  const Object sample_object = CreateWritableObject();
-  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
-
+TEST_F(IteratorsTest, ReadOnlyHeapObjectIterator) {
+  HandleScope handle_scope(i_isolate());
+  const Object sample_object = CreateWritableObject(v8_isolate());
+  ReadOnlyHeapObjectIterator iterator(i_isolate()->read_only_heap());
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(ReadOnlyHeap::Contains(obj));
-    CHECK(!CcTest::heap()->Contains(obj));
+    CHECK(!i_isolate()->heap()->Contains(obj));
     CHECK_NE(sample_object, obj);
   }
 }
 
-TEST(HeapObjectIterator) {
-  CcTest::InitializeVM();
-  HandleScope handle_scope(CcTest::i_isolate());
-  const Object sample_object = CreateWritableObject();
-  HeapObjectIterator iterator(CcTest::heap());
+TEST_F(IteratorsTest, HeapObjectIterator) {
+  Heap* const heap = i_isolate()->heap();
+  HandleScope handle_scope(i_isolate());
+  const Object sample_object = CreateWritableObject(v8_isolate());
   bool seen_sample_object = false;
-
+  HeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                   !ReadOnlyHeap::Contains(obj));
-    CHECK(CcTest::heap()->Contains(obj));
+    CHECK(heap->Contains(obj));
     if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }
 
-TEST(CombinedHeapObjectIterator) {
-  CcTest::InitializeVM();
-  HandleScope handle_scope(CcTest::i_isolate());
-  const Object sample_object = CreateWritableObject();
-  CombinedHeapObjectIterator iterator(CcTest::heap());
+TEST_F(IteratorsTest, CombinedHeapObjectIterator) {
+  Heap* const heap = i_isolate()->heap();
+  HandleScope handle_scope(i_isolate());
+  const Object sample_object = CreateWritableObject(v8_isolate());
   bool seen_sample_object = false;
-
+  CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK(IsValidHeapObject(CcTest::heap(), obj));
+    CHECK(IsValidHeapObject(heap, obj));
     if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }
 
-TEST(PagedSpaceIterator) {
-  Heap* const heap = CcTest::heap();
+TEST_F(IteratorsTest, PagedSpaceIterator) {
+  Heap* const heap = i_isolate()->heap();
   PagedSpaceIterator iterator(heap);
-  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
-  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
+  CHECK_EQ(heap->old_space(), iterator.Next());
+  CHECK_EQ(heap->code_space(), iterator.Next());
   for (int i = 0; i < 20; i++) {
     CHECK_NULL(iterator.Next());
   }
 }
 
-TEST(SpaceIterator) {
-  auto* const read_only_space = CcTest::read_only_heap()->read_only_space();
-  for (SpaceIterator it(CcTest::heap()); it.HasNext();) {
+TEST_F(IteratorsTest, SpaceIterator) {
+  auto* const read_only_space =
+      i_isolate()->read_only_heap()->read_only_space();
+  for (SpaceIterator it(i_isolate()->heap()); it.HasNext();) {
     // ReadOnlySpace is not actually a Space but is instead a BaseSpace, but
     // ensure it's not been inserted incorrectly.
     CHECK_NE(it.Next(), reinterpret_cast<BaseSpace*>(read_only_space));
   }
 }
 
-}  // namespace heap
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::heap
