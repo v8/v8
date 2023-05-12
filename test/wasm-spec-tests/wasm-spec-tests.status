@@ -7,24 +7,27 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  # "data" is supposed to fail for "data segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "data" is supposed to fail for "data segment does not fit"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/data': [FAIL],
-  # "elem" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "elem" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/elem': [FAIL],
   # "imports" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/imports': [FAIL],
-  # "linking" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "linking" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/linking': [FAIL],
   # "table" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/table': [FAIL],
-  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
+  # TODO(13780): Fix validation of memory args to check that the offset is
+  # within the memory limit.
+  'proposals/memory64/address': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/globals': [FAIL],
@@ -78,14 +81,15 @@
   'proposals/multi-memory/store': [FAIL],
   'proposals/multi-memory/traps0': [FAIL],
 
-  # The 'address' and 'binary' tests fail because they expect too-big-LEBs
-  # as memory offsets to fail validation. With memory64, all offsets are
-  # decoded as u64 though, so they pass validation.
-  # TODO(13918): Update main spec tests to be memory64 compliant; see
-  # https://github.com/WebAssembly/spec/pull/1648.
+  # These tests need to be rebased to include
+  # https://github.com/WebAssembly/spec/pull/1649 and
+  # https://github.com/WebAssembly/spec/pull/1650.
   'proposals/extended-const/binary': [FAIL],
+  'proposals/extended-const/binary-leb128': [FAIL],
+  'proposals/js-types/binary-leb128': [FAIL],
   'proposals/js-types/binary': [FAIL],
-  'proposals/memory64/address': [FAIL],
+  'proposals/tail-call/binary': [FAIL],
+  'proposals/tail-call/binary-leb128': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -202,7 +206,7 @@
   '*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
-################################################################################
+##############################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],  # variant == stress_snapshot
