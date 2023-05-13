@@ -5503,11 +5503,14 @@ Handle<Object> JSPromise::Fulfill(Handle<JSPromise> promise,
 static void MoveMessageToPromise(Isolate* isolate, Handle<JSPromise> promise) {
   if (!isolate->has_pending_message()) return;
 
-  Handle<Object> message = handle(isolate->pending_message(), isolate);
-  Handle<Symbol> key = isolate->factory()->promise_debug_message_symbol();
-  Object::SetProperty(isolate, promise, key, message, StoreOrigin::kMaybeKeyed,
-                      Just(ShouldThrow::kThrowOnError))
-      .Assert();
+  if (isolate->debug()->is_active()) {
+    Handle<Object> message = handle(isolate->pending_message(), isolate);
+    Handle<Symbol> key = isolate->factory()->promise_debug_message_symbol();
+    Object::SetProperty(isolate, promise, key, message,
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
+        .Assert();
+  }
 
   // The message object for a rejected promise was only stored for this purpose.
   // Clear it, otherwise we might leak memory.
@@ -5521,7 +5524,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
-  if (isolate->debug()->is_active()) MoveMessageToPromise(isolate, promise);
+  MoveMessageToPromise(isolate, promise);
 
   if (debug_event) isolate->debug()->OnPromiseReject(promise, reason);
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
