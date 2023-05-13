@@ -35,12 +35,12 @@
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   #
-  # With the is_official_build flag CHECK failures and UNREACHABLE do not pass
+  # With the official_build flag CHECK failures and UNREACHABLE do not pass
   # through the normal V8_Fatal and we can't distinguish FAIL from CRASH.
   # TODO(v8:13945, olivf) We could make FAILs in official builds
   #                       distinguishable from crashes and improve the test
   #                       runner. So far, it only affects very few tests.
-  'test-serialize/TestCheckThatAlwaysFails': [FAIL, ['is_official_build', CRASH]],
+  'test-serialize/TestCheckThatAlwaysFails': [FAIL, ['official_build', CRASH]],
   'test-serialize/TestFatal': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
@@ -93,8 +93,8 @@
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
   # Test that misuse of PopAndReturn does not compile.
-  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL, ['is_official_build', CRASH]],
-  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['is_official_build', CRASH]],
+  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
+  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
 
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
@@ -255,12 +255,12 @@
 }],  # 'tsan == True'
 
 ##############################################################################
-['is_full_debug', {
+['full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
-}],  # 'is_full_debug'
+}],  # 'full_debug'
 
 ##############################################################################
 ['byteorder == big', {
@@ -567,14 +567,14 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['jitless_build_mode', {
+['has_jitless', {
   # invocation_count maintenance is disabled.
   'test-debug/DebugCoverage*': [SKIP],
   # Feedback collection maintenance is (mostly) disabled.
   'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
   # WebAssembly not included.
   'test-api/Threading8': [SKIP],
-}],  # jitless_build_mode
+}],  # has_jitless
 
 ##############################################################################
 ['lite_mode', {

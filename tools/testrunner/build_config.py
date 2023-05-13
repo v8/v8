@@ -15,89 +15,86 @@ class BuildConfig(object):
 
   def __init__(self, build_config, options):
     self.options = options
-    # In V8 land, GN's x86 is called ia32.
-    if build_config['v8_target_cpu'] == 'x86':
-      self.arch = 'ia32'
-    else:
-      self.arch = build_config['v8_target_cpu']
 
-    self.asan = build_config['is_asan']
-    self.cfi_vptr = build_config['is_cfi']
-    self.code_comments = build_config['v8_code_comments']
-    self.component_build = build_config['is_component_build']
-    self.concurrent_marking = build_config['v8_enable_concurrent_marking']
+    self.asan = build_config['asan']
+    self.cfi = build_config['cfi']
+    self.code_comments = build_config['code_comments']
+    self.component_build = build_config['component_build']
+    self.concurrent_marking = build_config['concurrent_marking']
     self.conservative_stack_scanning = build_config[
-        'v8_enable_conservative_stack_scanning']
-    self.control_flow_integrity = build_config['v8_control_flow_integrity']
+        'conservative_stack_scanning']
+    self.current_cpu = build_config['current_cpu']
+    self.v8_cfi = build_config['v8_cfi']
     self.dcheck_always_on = build_config['dcheck_always_on']
-    self.debug_code = build_config['v8_enable_debug_code']
+    self.debug_code = build_config['debug_code']
     self.dict_property_const_tracking = build_config[
-        'v8_dict_property_const_tracking']
-    self.direct_local = build_config['v8_enable_direct_local']
-    self.disassembler = build_config['v8_enable_disassembler']
-    self.gdbjit = build_config['v8_enable_gdbjit']
+        'dict_property_const_tracking']
+    self.direct_local = build_config['direct_local']
+    self.disassembler = build_config['disassembler']
+    self.gdbjit = build_config['gdbjit']
     self.is_android = build_config['is_android']
-    self.is_clang = build_config['is_clang']
-    self.is_clang_coverage = build_config['is_clang_coverage']
-    self.is_debug = build_config['is_debug']
-    self.is_DEBUG_defined = build_config['is_DEBUG_defined']
-    self.is_full_debug = build_config['is_full_debug']
+    self.clang = build_config['clang']
+    self.clang_coverage = build_config['clang_coverage']
+    self.debugging_features = build_config['debugging_features']
+    self.DEBUG_defined = build_config['DEBUG_defined']
+    self.full_debug = build_config['full_debug']
     self.is_ios = build_config['is_ios']
-    self.is_official_build = build_config['is_official_build']
-    self.lite_mode = build_config['v8_enable_lite_mode']
-    self.maglev = build_config['v8_enable_maglev']
-    self.msan = build_config['is_msan']
-    self.no_i18n = not build_config['v8_enable_i18n_support']
-    self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.official_build = build_config['official_build']
+    self.lite_mode = build_config['lite_mode']
+    self.has_maglev = build_config['has_maglev']
+    self.msan = build_config['msan']
+    self.i18n = build_config['i18n']
+    self.pointer_compression = build_config['pointer_compression']
     self.pointer_compression_shared_cage = build_config[
-        'v8_enable_pointer_compression_shared_cage']
-    self.predictable = build_config['v8_enable_verify_predictable']
-    self.sandbox = build_config['v8_enable_sandbox']
-    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
-    self.simulator_run = (
-        build_config['target_cpu'] != build_config['v8_target_cpu'])
-    self.single_generation = build_config['v8_enable_single_generation']
-    self.slow_dchecks = build_config['v8_enable_slow_dchecks']
-    self.third_party_heap = build_config['v8_enable_third_party_heap']
-    self.tsan = build_config['is_tsan']
-    self.turbofan = build_config['v8_enable_turbofan']
-    # TODO(machenbach): We only have ubsan not ubsan_vptr.
-    self.ubsan_vptr = build_config['is_ubsan_vptr']
-    self.verify_csa = build_config['v8_enable_verify_csa']
-    self.verify_heap = build_config['v8_enable_verify_heap']
-    self.webassembly = build_config['v8_enable_webassembly']
-    self.write_barriers = not build_config['v8_disable_write_barriers']
-    # TODO(jgruber): Don't rename once it's no longer necessary to avoid
-    # conflicts with test variant names.
-    self.jitless_build_mode = build_config['v8_jitless']
-    # Export only for MIPS target
-    if self.arch in ['mips64', 'mips64el']:
-      self._mips_arch_variant = build_config['mips_arch_variant']
-      self.mips_use_msa = build_config['mips_use_msa']
+        'pointer_compression_shared_cage']
+    self.verify_predictable = build_config['verify_predictable']
+    self.sandbox = build_config['sandbox']
+    self.shared_ro_heap = build_config['shared_ro_heap']
+    self.single_generation = build_config['single_generation']
+    self.slow_dchecks = build_config['slow_dchecks']
+    self.third_party_heap = build_config['third_party_heap']
+    self.tsan = build_config['tsan']
+    self.has_turbofan = build_config['has_turbofan']
+    self.ubsan = build_config['ubsan']
+    self.verify_csa = build_config['verify_csa']
+    self.verify_heap = build_config['verify_heap']
+    self.has_webassembly = build_config['has_webassembly']
+    self.write_barriers = build_config['write_barriers']
+    self.has_jitless = build_config['has_jitless']
+    self.target_cpu = build_config['target_cpu']
+    self.v8_current_cpu = build_config['v8_current_cpu']
+    self.v8_target_cpu = build_config['v8_target_cpu']
+    self.mips_arch_variant = build_config['mips_arch_variant']
+    self.mips_use_msa = build_config['mips_use_msa']
+
+  @property
+  def arch(self):
+    # In V8 land, GN's x86 is called ia32.
+    return 'ia32' if self.v8_target_cpu == 'x86' else self.v8_target_cpu
+
+  @property
+  def simulator_run(self):
+    return self.target_cpu != self.v8_target_cpu
 
   @property
   def use_sanitizer(self):
-    return (self.asan or self.cfi_vptr or self.msan or self.tsan or
-            self.ubsan_vptr)
+    return self.asan or self.cfi or self.msan or self.tsan or self.ubsan
 
   @property
   def no_js_shared_memory(self):
-    return (not self.shared_ro_heap) or (
-        self.pointer_compression and
-        not self.pointer_compression_shared_cage) or (not self.write_barriers)
+    return (
+        not self.shared_ro_heap
+        or self.pointer_compression and not self.pointer_compression_shared_cage
+        or not self.write_barriers)
 
   @property
-  def is_mips_arch(self):
+  def mips_arch(self):
     return self.arch in ['mips64', 'mips64el']
 
   @property
   def simd_mips(self):
-    return (self.is_mips_arch and self._mips_arch_variant == "r6" and
+    return (self.mips_arch and self.mips_arch_variant == "r6" and
             self.mips_use_msa)
-
-  @property
-  def mips_arch_variant(self):
-    return (self.is_mips_arch and self._mips_arch_variant)
 
   @property
   def no_simd_hardware(self):
@@ -134,10 +131,10 @@ class BuildConfig(object):
     """Increases timeout for slow build configurations."""
     factors = dict(
         lite_mode=2,
-        predictable=4,
+        verify_predictable=4,
         tsan=2,
         use_sanitizer=1.5,
-        is_full_debug=4,
+        full_debug=4,
     )
     result = initial_factor
     for k, v in factors.items():
@@ -150,33 +147,33 @@ class BuildConfig(object):
   def __str__(self):
     attrs = [
         'asan',
-        'cfi_vptr',
+        'cfi',
         'code_comments',
-        'control_flow_integrity',
+        'v8_cfi',
         'dcheck_always_on',
         'debug_code',
         'dict_property_const_tracking',
         'disassembler',
         'gdbjit',
-        'is_debug',
-        'is_DEBUG_defined',
-        'jitless_build_mode',
+        'debugging_features',
+        'DEBUG_defined',
+        'has_jitless',
         'lite_mode',
-        'maglev',
+        'has_maglev',
         'msan',
-        'no_i18n',
+        'i18n',
         'pointer_compression',
         'pointer_compression_shared_cage',
-        'predictable',
+        'verify_predictable',
         'sandbox',
         'slow_dchecks',
         'third_party_heap',
         'tsan',
-        'turbofan',
-        'ubsan_vptr',
+        'has_turbofan',
+        'ubsan',
         'verify_csa',
         'verify_heap',
-        'webassembly',
+        'has_webassembly',
     ]
     detected_options = [attr for attr in attrs if getattr(self, attr, False)]
     return ', '.join(detected_options)

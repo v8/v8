@@ -72,7 +72,7 @@
 }],  # 'gc_fuzzer'
 
 ##############################################################################
-['predictable == True', {
+['verify_predictable', {
   # https://crbug.com/v8/8147
   'debug/debug-liveedit-*': [SKIP],
   'debug/debug-set-variable-value': [SKIP],
@@ -81,7 +81,7 @@
   'debug/regress/regress-opt-after-debug-deopt': [SKIP],
   'debug/regress/regress-prepare-break-while-recompile': [SKIP],
   'regress/regress-7421': [SKIP],
-}],  # 'predictable == True'
+}],  # 'verify_predictable'
 
 ##############################################################################
 ['variant == no_wasm_traps', {

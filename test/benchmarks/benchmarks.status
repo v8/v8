@@ -115,14 +115,14 @@
   'octane/gbemu-part1': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
-['predictable', {
+['verify_predictable', {
   # https://crbug.com/v8/8537
   'octane/typescript': [SKIP],
 
   # https://crbug.com/v8/13234
   'octane/box2d': [SKIP],
   'octane/earley-boyer': [SKIP],
-}],  # 'predictable'
+}],  # 'verify_predictable'
 
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.

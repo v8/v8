@@ -1187,7 +1187,7 @@
 
 }],  # ALWAYS
 
-['no_i18n == True', {
+['not i18n', {
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [SKIP],
 
@@ -1301,7 +1301,7 @@
   'staging/Temporal/TimeZone/old/getInstantFor': [FAIL],
   'staging/Temporal/TimeZone/old/getNextTransition': [FAIL],
   'staging/Temporal/ZonedDateTime/old/construction-and-properties': [FAIL],
-}],  # no_i18n == True
+}],  # not i18n
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
 
