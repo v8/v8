@@ -349,7 +349,7 @@ class BaseTestRunner(object):
               % build_config_path)
         raise TestRunnerError()
 
-    return BuildConfig(build_config_json, self.options)
+    return BuildConfig(build_config_json)
 
   # Returns possible build paths in order:
   # gn
@@ -543,120 +543,62 @@ class BaseTestRunner(object):
     instances (see NumFuzzer for usage)."""
     return True
 
+  @property
+  def _no_simd_hardware(self):
+    # TODO(liviurau): Add some tests and refactor the logic here.
+    # We try to find all the reasons why we have no_simd.
+    no_simd_hardware = any(i in self.options.extra_flags for i in [
+        '--noenable-sse3', '--no-enable-sse3', '--noenable-ssse3',
+        '--no-enable-ssse3', '--noenable-sse4-1', '--no-enable-sse4_1'
+    ])
+
+    # Set no_simd_hardware on architectures without Simd enabled.
+    if self.build_config.arch == 'mips64el':
+      no_simd_hardware = not self.build_config.simd_mips
+
+    if self.build_config.arch == 'loong64'  or \
+       self.build_config.arch == 'riscv32':
+      no_simd_hardware = True
+
+    # S390 hosts without VEF1 do not support Simd.
+    if self.build_config.arch == 's390x' and \
+       not self.build_config.simulator_run and \
+       not utils.IsS390SimdSupported():
+      no_simd_hardware = True
+
+    # Ppc64 processors earlier than POWER9 do not support Simd instructions
+    if self.build_config.arch == 'ppc64' and \
+       not self.build_config.simulator_run and \
+       utils.GuessPowerProcessorVersion() < 9:
+      no_simd_hardware = True
+
+    return no_simd_hardware
+
   def _get_statusfile_variables(self):
-    return {
-        "arch":
-            self.build_config.arch,
-        "asan":
-            self.build_config.asan,
-        "byteorder":
-            sys.byteorder,
-        "cfi":
-            self.build_config.cfi,
-        "code_comments":
-            self.build_config.code_comments,
-        "component_build":
-            self.build_config.component_build,
-        "conservative_stack_scanning":
-            self.build_config.conservative_stack_scanning,
-        "v8_cfi":
-            self.build_config.v8_cfi,
-        "concurrent_marking":
-            self.build_config.concurrent_marking,
-        "single_generation":
-            self.build_config.single_generation,
-        "dcheck_always_on":
-            self.build_config.dcheck_always_on,
-        "debug_code":
-            self.build_config.debug_code,
-        "deopt_fuzzer":
-            False,
-        "direct_local":
-            self.build_config.direct_local,
-        "disassembler":
-            self.build_config.disassembler,
-        "endurance_fuzzer":
-            False,
-        "gc_fuzzer":
-            False,
-        "gc_stress":
-            False,
-        "gdbjit":
-            self.build_config.gdbjit,
-        "has_maglev":
-            self.build_config.has_maglev,
-        "has_turbofan":
-            self.build_config.has_turbofan,
-        "has_webassembly":
-            self.build_config.has_webassembly,
-        "isolates":
-            self.options.isolates,
-        "clang":
-            self.build_config.clang,
-        "clang_coverage":
-            self.build_config.clang_coverage,
-        "debugging_features":
-            self.build_config.debugging_features,
-        "DEBUG_defined":
-            self.build_config.DEBUG_defined,
-        "full_debug":
-            self.build_config.full_debug,
-        "official_build":
-            self.build_config.official_build,
-        "interrupt_fuzzer":
-            False,
-        "has_jitless":
-            self.build_config.has_jitless,
-        "mips_arch_variant":
-            self.build_config.mips_arch_variant,
-        "mode":
-            self.mode_options.status_mode,
-        "msan":
-            self.build_config.msan,
-        "no_harness":
-            self.options.no_harness,
-        "i18n":
-            self.build_config.i18n,
-        "no_simd_hardware":
-            self.build_config.no_simd_hardware,
-        "novfp3":
-            False,
-        "optimize_for_size":
-            "--optimize-for-size" in self.options.extra_flags,
-        "verify_predictable":
-            self.build_config.verify_predictable,
-        "simd_mips":
-            self.build_config.simd_mips,
-        "simulator_run":
-            self.build_config.simulator_run
-            and not self.options.dont_skip_simulator_slow_tests,
-        "slow_dchecks":
-            self.build_config.slow_dchecks,
-        "system":
-            self.target_os,
-        "third_party_heap":
-            self.build_config.third_party_heap,
-        "tsan":
-            self.build_config.tsan,
-        "ubsan":
-            self.build_config.ubsan,
-        "verify_csa":
-            self.build_config.verify_csa,
-        "verify_heap":
-            self.build_config.verify_heap,
-        "lite_mode":
-            self.build_config.lite_mode,
-        "pointer_compression":
-            self.build_config.pointer_compression,
-        "pointer_compression_shared_cage":
-            self.build_config.pointer_compression_shared_cage,
-        "no_js_shared_memory":
-            self.build_config.no_js_shared_memory,
-        "sandbox":
-            self.build_config.sandbox,
-        "dict_property_const_tracking":
-            self.build_config.dict_property_const_tracking,
-    }
+    """Returns all attributes accessible in status files.
+
+    All build-time flags from V8's BUILD.gn file as defined by the action
+    v8_dump_build_config can be accessed in status files.
+    """
+    variables = dict(self.build_config.items())
+    variables.update({
+        "byteorder": sys.byteorder,
+        "deopt_fuzzer": False,
+        "endurance_fuzzer": False,
+        "gc_fuzzer": False,
+        "gc_stress": False,
+        "isolates": self.options.isolates,
+        "interrupt_fuzzer": False,
+        "mode": self.mode_options.status_mode,
+        "no_harness": self.options.no_harness,
+        "no_simd_hardware": self._no_simd_hardware,
+        "novfp3": False,
+        "optimize_for_size": "--optimize-for-size" in self.options.extra_flags,
+        "simulator_run": variables["simulator_run"]
+                         and not self.options.dont_skip_simulator_slow_tests,
+        "system": self.target_os,
+    })
+    return variables
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""

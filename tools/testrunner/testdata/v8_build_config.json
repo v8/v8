@@ -1,0 +1,17 @@
+{
+  "asan": false,
+  "cfi": false,
+  "dcheck_always_on": false,
+  "debugging_features": false,
+  "full_debug": false,
+  "i18n": true,
+  "is_android": false,
+  "is_ios": false,
+  "msan": false,
+  "shared_ro_heap": false,
+  "target_cpu": "x64",
+  "tsan": false,
+  "ubsan": false,
+  "verify_predictable": false,
+  "v8_target_cpu": "x64"
+}

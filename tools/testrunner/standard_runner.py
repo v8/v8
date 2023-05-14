@@ -269,9 +269,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ])
 
   def _get_statusfile_variables(self):
-    variables = (
-        super(StandardTestRunner, self)._get_statusfile_variables())
-
+    variables = super(StandardTestRunner, self)._get_statusfile_variables()
     variables.update({
       'gc_stress': self.options.gc_stress or self.options.random_gc_stress,
       'gc_fuzzer': self.options.random_gc_stress,

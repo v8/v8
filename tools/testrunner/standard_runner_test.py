@@ -125,8 +125,8 @@ class StandardRunnerTest(TestRunnerTest):
     result.has_returncode(1)
 
   def testGN(self):
-    """Test running only failing tests in two variants."""
-    result = self.run_tests('--gn',baseroot="testroot5")
+    """Test setup with legacy GN out dir."""
+    result = self.run_tests('--gn', baseroot="testroot5", outdir='out.gn')
     result.stdout_includes('>>> Latest GN build found: build')
     result.stdout_includes('Build found: ')
     result.stdout_includes('v8_test_/out.gn/build')
@@ -221,14 +221,9 @@ class StandardRunnerTest(TestRunnerTest):
         '--variants=default',
         'sweet/bananas',
         config_overrides=dict(
-          dcheck_always_on=True, asan=True, cfi=True,
-          msan=True, tsan=True, ubsan=True, target_cpu='x86',
-          i18n=True, v8_target_cpu='x86',
-          verify_csa=False, lite_mode=False,
-          pointer_compression=False,
-          pointer_compression_shared_cage=False,
-          shared_ro_heap=False,
-          sandbox=False
+            asan=True, cfi=True, dcheck_always_on=True, has_webassembly=True,
+            i18n=True, msan=True, target_cpu='x86', tsan=True,
+            ubsan=True, v8_target_cpu='x86',
         )
     )
     result.stdout_includes('>>> Autodetected:')
@@ -239,7 +234,8 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('msan')
     result.stdout_includes('tsan')
     result.stdout_includes('ubsan')
-    result.stdout_includes('webassembly')
+    result.stdout_includes('use_sanitizer')
+    result.stdout_includes('has_webassembly')
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
@@ -316,7 +312,7 @@ class StandardRunnerTest(TestRunnerTest):
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""
-    result = self.run_tests(baseroot='wrong_path')
+    result = self.run_tests(baseroot='wrong_path', with_build_config=False)
     result.stdout_includes('Failed to load build config')
     result.has_returncode(5)
 
