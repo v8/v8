@@ -109,32 +109,62 @@ void RevecTest::TestBinOp(const Operator* bin_op) {
             MachineRepresentation::kSimd256);
 }
 
-// FAdd
-TEST_F(RevecTest, F64x4Add) { TestBinOp(machine()->F64x2Add()); }
-TEST_F(RevecTest, F32x8Add) { TestBinOp(machine()->F32x4Add()); }
-// IAdd
-TEST_F(RevecTest, I64x4Add) { TestBinOp(machine()->I64x2Add()); }
-TEST_F(RevecTest, I32x8Add) { TestBinOp(machine()->I32x4Add()); }
-TEST_F(RevecTest, I16x16Add) { TestBinOp(machine()->I16x8Add()); }
-TEST_F(RevecTest, I8x32Add) { TestBinOp(machine()->I8x16Add()); }
-// FSub
-TEST_F(RevecTest, F64x4Sub) { TestBinOp(machine()->F64x2Sub()); }
-TEST_F(RevecTest, F32x8Sub) { TestBinOp(machine()->F32x4Sub()); }
-// ISub
-TEST_F(RevecTest, I64x4Sub) { TestBinOp(machine()->I64x2Sub()); }
-TEST_F(RevecTest, I32x8Sub) { TestBinOp(machine()->I32x4Sub()); }
-TEST_F(RevecTest, I16x16Sub) { TestBinOp(machine()->I16x8Sub()); }
-TEST_F(RevecTest, I8x32Sub) { TestBinOp(machine()->I8x16Sub()); }
-// FMul
-TEST_F(RevecTest, F64x4Mul) { TestBinOp(machine()->F64x2Mul()); }
-TEST_F(RevecTest, F32x8Mul) { TestBinOp(machine()->F32x4Mul()); }
-// IMul
-TEST_F(RevecTest, I64x4Mul) { TestBinOp(machine()->I64x2Mul()); }
-TEST_F(RevecTest, I32x8Mul) { TestBinOp(machine()->I32x4Mul()); }
-TEST_F(RevecTest, I16x16Mul) { TestBinOp(machine()->I16x8Mul()); }
-// FDiv
-TEST_F(RevecTest, F64x4Div) { TestBinOp(machine()->F64x2Div()); }
-TEST_F(RevecTest, F32x8Div) { TestBinOp(machine()->F32x4Div()); }
+#define BIN_OP_LIST(V)     \
+  V(F64x2Add, F64x4Add)    \
+  V(F32x4Add, F32x8Add)    \
+  V(I64x2Add, I64x4Add)    \
+  V(I32x4Add, I32x8Add)    \
+  V(I16x8Add, I16x16Add)   \
+  V(I8x16Add, I8x32Add)    \
+  V(F64x2Sub, F64x4Sub)    \
+  V(F32x4Sub, F32x8Sub)    \
+  V(I64x2Sub, I64x4Sub)    \
+  V(I32x4Sub, I32x8Sub)    \
+  V(I16x8Sub, I16x16Sub)   \
+  V(I8x16Sub, I8x32Sub)    \
+  V(F64x2Mul, F64x4Mul)    \
+  V(F32x4Mul, F32x8Mul)    \
+  V(I64x2Mul, I64x4Mul)    \
+  V(I32x4Mul, I32x8Mul)    \
+  V(I16x8Mul, I16x16Mul)   \
+  V(F64x2Div, F64x4Div)    \
+  V(F32x4Div, F32x8Div)    \
+  V(F64x2Eq, F64x4Eq)      \
+  V(F32x4Eq, F32x8Eq)      \
+  V(I64x2Eq, I64x4Eq)      \
+  V(I32x4Eq, I32x8Eq)      \
+  V(I16x8Eq, I16x16Eq)     \
+  V(I8x16Eq, I8x32Eq)      \
+  V(F64x2Ne, F64x4Ne)      \
+  V(F32x4Ne, F32x8Ne)      \
+  V(I64x2GtS, I64x4GtS)    \
+  V(I32x4GtS, I32x8GtS)    \
+  V(I16x8GtS, I16x16GtS)   \
+  V(I8x16GtS, I8x32GtS)    \
+  V(F64x2Lt, F64x4Lt)      \
+  V(F32x4Lt, F32x8Lt)      \
+  V(F64x2Le, F64x4Le)      \
+  V(F32x4Le, F32x8Le)      \
+  V(I32x4MinS, I32x8MinS)  \
+  V(I16x8MinS, I16x16MinS) \
+  V(I8x16MinS, I8x32MinS)  \
+  V(I32x4MinU, I32x8MinU)  \
+  V(I16x8MinU, I16x16MinU) \
+  V(I8x16MinU, I8x32MinU)  \
+  V(I32x4MaxS, I32x8MaxS)  \
+  V(I16x8MaxS, I16x16MaxS) \
+  V(I8x16MaxS, I8x32MaxS)  \
+  V(I32x4MaxU, I32x8MaxU)  \
+  V(I16x8MaxU, I16x16MaxU) \
+  V(I8x16MaxU, I8x32MaxU)
+
+#define TEST_BIN_OP(op128, op256) \
+  TEST_F(RevecTest, op256) { TestBinOp(machine()->op128()); }
+
+BIN_OP_LIST(TEST_BIN_OP)
+
+#undef TEST_BIN_OP
+#undef BIN_OP_LIST
 
 // Create a graph with load chain that can not be packed due to effect
 // dependency:
