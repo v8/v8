@@ -4615,6 +4615,7 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
       TERMINAL_FAST_ELEMENTS_KIND, 0);
   Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
                     wrap_for_valid_iterator_prototype);
+  valid_iterator_wrapper_map->SetConstructor(*iterator_function);
   native_context()->set_valid_iterator_wrapper_map(*valid_iterator_wrapper_map);
 
   // --- %IteratorHelperPrototype%
