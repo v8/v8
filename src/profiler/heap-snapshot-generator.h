@@ -406,7 +406,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   HeapEntry* AllocateEntry(Smi smi) override;
   uint32_t EstimateObjectsCount();
-  void PopulateLineEnds();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
   void MakeGlobalObjectTagMap(const IsolateSafepointScope& safepoint_scope);
@@ -429,7 +428,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   const char* GetSystemEntryName(HeapObject object);
   HeapEntry::Type GetSystemEntryType(HeapObject object);
 
-  JSFunction GetLocationFunction(HeapObject object);
   void ExtractLocation(HeapEntry* entry, HeapObject object);
   void ExtractLocationForJSFunction(HeapEntry* entry, JSFunction func);
   void ExtractReferences(HeapEntry* entry, HeapObject obj);

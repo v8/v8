@@ -788,29 +788,22 @@ HeapEntry* V8HeapExplorer::AllocateEntry(Smi smi) {
   return entry;
 }
 
-JSFunction V8HeapExplorer::GetLocationFunction(HeapObject object) {
-  DisallowHeapAllocation no_gc;
-
+void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {
   if (object.IsJSFunction()) {
-    return JSFunction::cast(object);
+    JSFunction func = JSFunction::cast(object);
+    ExtractLocationForJSFunction(entry, func);
+
   } else if (object.IsJSGeneratorObject()) {
     JSGeneratorObject gen = JSGeneratorObject::cast(object);
-    return gen.function();
+    ExtractLocationForJSFunction(entry, gen.function());
+
   } else if (object.IsJSObject()) {
     JSObject obj = JSObject::cast(object);
     JSFunction maybe_constructor = GetConstructor(heap_->isolate(), obj);
 
-    return maybe_constructor;
-  }
-
-  return JSFunction();
-}
-
-void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {
-  DisallowHeapAllocation no_gc;
-  JSFunction func = GetLocationFunction(object);
-  if (!func.is_null()) {
-    ExtractLocationForJSFunction(entry, func);
+    if (!maybe_constructor.is_null()) {
+      ExtractLocationForJSFunction(entry, maybe_constructor);
+    }
   }
 }
 
@@ -820,7 +813,6 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   Script script = Script::cast(func.shared().script());
   int scriptId = script.id();
   int start = func.shared().StartPosition();
-  DCHECK(script.has_line_ends());
   Script::PositionInfo info;
   script.GetPositionInfo(start, &info);
   snapshot_->AddLocation(entry, scriptId, info.line, info.column);
@@ -1029,26 +1021,6 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
   }
 
   return HeapEntry::kHidden;
-}
-
-void V8HeapExplorer::PopulateLineEnds() {
-  std::vector<Handle<Script>> scripts;
-  HandleScope scope(isolate());
-
-  {
-    Script::Iterator iterator(isolate());
-    for (Script script = iterator.Next(); !script.is_null();
-         script = iterator.Next()) {
-        if (!script.has_line_ends()) {
-        scripts.push_back(handle(script, isolate()));
-        }
-    }
-  }
-
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  for (auto& script : scripts) {
-    Script::InitLineEnds(isolate(), script);
-  }
 }
 
 uint32_t V8HeapExplorer::EstimateObjectsCount() {
@@ -2843,8 +2815,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
     HeapVerifier::VerifyHeap(debug_heap);
   }
 #endif
-
-  v8_heap_explorer_.PopulateLineEnds();
 
   InitProgressCounter();
 
