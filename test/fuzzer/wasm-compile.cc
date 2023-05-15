@@ -207,6 +207,23 @@ void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
                                  static_cast<uint32_t>(data.size()));
 }
 
+uint32_t GenerateRefTypeElementSegment(DataRange* range,
+                                       WasmModuleBuilder* builder,
+                                       ValueType element_type) {
+  DCHECK(element_type.is_object_reference());
+  DCHECK(element_type.has_index());
+  WasmModuleBuilder::WasmElemSegment segment(
+      builder->zone(), element_type, false,
+      WasmInitExpr::RefNullConst(element_type.heap_representation()));
+  size_t element_count = range->get<uint8_t>() % 11;
+  for (size_t i = 0; i < element_count; ++i) {
+    segment.entries.emplace_back(
+        WasmModuleBuilder::WasmElemSegment::Entry::kRefNullEntry,
+        element_type.ref_index());
+  }
+  return builder->AddElementSegment(std::move(segment));
+}
+
 class WasmGenerator {
   template <WasmOpcode Op, ValueKind... Args>
   void op(DataRange* data) {
@@ -497,6 +514,12 @@ class WasmGenerator {
     br_table(
         wanted_kind == kVoid ? kWasmVoid : ValueType::Primitive(wanted_kind),
         data);
+  }
+
+  void return_op(DataRange* data) {
+    auto returns = builder_->signature()->returns();
+    Generate(base::VectorOf(returns.begin(), returns.size()), data);
+    builder_->Emit(kExprReturn);
   }
 
   // TODO(eholk): make this function constexpr once gcc supports it
@@ -1014,17 +1037,8 @@ class WasmGenerator {
           if (element_type.is_reference() && element_type.is_nullable() &&
               element_type.has_index()) {
             // Add a new element segment with the corresponding type.
-            WasmModuleBuilder::WasmElemSegment segment(
-                builder_->builder()->zone(), element_type, false,
-                WasmInitExpr::RefNullConst(element_type.heap_representation()));
-            size_t element_count = data->get<uint8_t>() % 11;
-            for (size_t i = 0; i < element_count; ++i) {
-              segment.entries.emplace_back(
-                  WasmModuleBuilder::WasmElemSegment::Entry::kRefNullEntry,
-                  element_type.ref_index());
-            }
-            uint32_t element_segment =
-                builder_->builder()->AddElementSegment(std::move(segment));
+            uint32_t element_segment = GenerateRefTypeElementSegment(
+                data, builder_->builder(), element_type);
             // Generate offset, length.
             // TODO(7748): Change the distribution here to make it more likely
             // that the numbers are in range.
@@ -1273,6 +1287,66 @@ class WasmGenerator {
     Generate(kWasmI32, data);                  // length
     builder_->EmitWithPrefix(kExprArrayFill);
     builder_->EmitU32V(array_index);
+  }
+
+  void array_init_data(DataRange* data) {
+    if (num_arrays_ == 0) {
+      return;
+    }
+    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK(builder_->builder()->IsArrayType(array_index));
+    const ArrayType* array_type =
+        builder_->builder()->GetArrayType(array_index);
+    DCHECK(array_type->mutability());
+    ValueType element_type = array_type->element_type().Unpacked();
+    if (element_type.is_reference()) {
+      return;
+    }
+    if (builder_->builder()->NumDataSegments() == 0) {
+      GeneratePassiveDataSegment(data, builder_->builder());
+    }
+
+    int data_index =
+        data->get<uint8_t>() % builder_->builder()->NumDataSegments();
+    // Generate array, index, data_offset, length.
+    Generate(base::VectorOf({ValueType::RefNull(array_index), kWasmI32,
+                             kWasmI32, kWasmI32}),
+             data);
+    builder_->EmitWithPrefix(kExprArrayInitData);
+    builder_->EmitU32V(array_index);
+    builder_->EmitU32V(data_index);
+  }
+
+  void array_init_elem(DataRange* data) {
+    if (num_arrays_ == 0) {
+      return;
+    }
+    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK(builder_->builder()->IsArrayType(array_index));
+    const ArrayType* array_type =
+        builder_->builder()->GetArrayType(array_index);
+    DCHECK(array_type->mutability());
+    ValueType element_type = array_type->element_type().Unpacked();
+    // This is more restrictive than it has to be.
+    // TODO(7748): Also support nonnullable and non-index reference
+    // types.
+    if (!element_type.is_reference() || element_type.is_non_nullable() ||
+        !element_type.has_index()) {
+      return;
+    }
+    // Add a new element segment with the corresponding type.
+    uint32_t element_segment =
+        GenerateRefTypeElementSegment(data, builder_->builder(), element_type);
+    // Generate array, index, elem_offset, length.
+    // TODO(7748): Change the distribution here to make it more likely
+    // that the numbers are in range.
+    Generate(base::VectorOf({ValueType::RefNull(array_index), kWasmI32,
+                             kWasmI32, kWasmI32}),
+             data);
+    // Generate array.new_elem instruction.
+    builder_->EmitWithPrefix(kExprArrayInitElem);
+    builder_->EmitU32V(array_index);
+    builder_->EmitU32V(element_segment);
   }
 
   void array_set(DataRange* data) {
@@ -1754,6 +1828,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::br_on_null<kVoid>,
       &WasmGenerator::br_on_non_null<kVoid>,
       &WasmGenerator::br_table<kVoid>,
+      &WasmGenerator::return_op,
 
       &WasmGenerator::memop<kExprI32StoreMem, kI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
@@ -1792,6 +1867,8 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::array_set,
       &WasmGenerator::array_copy,
       &WasmGenerator::array_fill,
+      &WasmGenerator::array_init_data,
+      &WasmGenerator::array_init_elem,
 
       &WasmGenerator::table_set,
       &WasmGenerator::table_fill,
