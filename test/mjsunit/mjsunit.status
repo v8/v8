@@ -1919,14 +1919,6 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant == stress_maglev', {
-  # Maglev doesn't support elements transitions (yet!).
-  'compiler/regress-9945-2': [FAIL],
-}], # variant == stress_maglev
-
-##############################################################################
-# Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall.
 ['variant == stress_maglev or variant == stress_maglev_future', {
   # Maglev doesn't inline Array constructors, so it won't bake in allocation
   # site feedback.

@@ -477,8 +477,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     maglev_future,
     "enable maglev features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(maglev_future, maglev)
-DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
-                            "enable inlining in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_inlining, true,
+            "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, false,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
