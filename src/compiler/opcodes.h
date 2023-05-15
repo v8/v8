@@ -1148,6 +1148,10 @@
   V(I32x8UConvertI16x8)            \
   V(I16x16SConvertI8x16)           \
   V(I16x16UConvertI8x16)           \
+  V(I16x16SConvertI32x8)           \
+  V(I16x16UConvertI32x8)           \
+  V(I8x32SConvertI16x16)           \
+  V(I8x32UConvertI16x16)           \
   V(F32x8Abs)                      \
   V(F32x8Neg)                      \
   V(F32x8Sqrt)                     \

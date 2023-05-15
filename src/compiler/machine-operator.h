@@ -1059,6 +1059,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8UConvertI16x8();
   const Operator* I16x16SConvertI8x16();
   const Operator* I16x16UConvertI8x16();
+  const Operator* I16x16SConvertI32x8();
+  const Operator* I16x16UConvertI32x8();
+  const Operator* I8x32SConvertI16x16();
+  const Operator* I8x32UConvertI16x16();
   const Operator* I32x8Neg();
   const Operator* I32x8Abs();
   const Operator* I16x16Neg();
