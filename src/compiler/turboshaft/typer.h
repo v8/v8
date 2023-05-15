@@ -424,6 +424,10 @@ struct FloatOperationTyper {
         0) {
       special_values |= type_t::kMinusZero;
     }
+    if (elements.empty()) {
+      DCHECK_NE(0, special_values);
+      return type_t::OnlySpecialValues(special_values);
+    }
     return type_t::Set(elements, special_values, zone);
   }
 
