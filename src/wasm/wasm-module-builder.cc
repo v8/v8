@@ -881,8 +881,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit data segment count section ========================================
-  if (std::any_of(data_segments_.begin(), data_segments_.end(),
-                  [](auto segment) { return !segment.is_active; })) {
+  if (std::any_of(
+          data_segments_.begin(), data_segments_.end(),
+          [](const WasmDataSegment& segment) { return !segment.is_active; })) {
     buffer->write_u8(kDataCountSectionCode);
     buffer->write_u32v(1);  // section length
     buffer->write_u32v(static_cast<uint32_t>(data_segments_.size()));
