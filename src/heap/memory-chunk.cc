@@ -203,14 +203,14 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   }
 
   possibly_empty_buckets_.Release();
-  ReleaseSlotSet<OLD_TO_NEW>();
-  ReleaseSlotSet<OLD_TO_NEW_BACKGROUND>();
-  ReleaseSlotSet<OLD_TO_OLD>();
-  ReleaseSlotSet<OLD_TO_CODE>();
-  ReleaseSlotSet<OLD_TO_SHARED>();
-  ReleaseTypedSlotSet<OLD_TO_NEW>();
-  ReleaseTypedSlotSet<OLD_TO_OLD>();
-  ReleaseTypedSlotSet<OLD_TO_SHARED>();
+  ReleaseSlotSet(OLD_TO_NEW);
+  ReleaseSlotSet(OLD_TO_NEW_BACKGROUND);
+  ReleaseSlotSet(OLD_TO_OLD);
+  ReleaseSlotSet(OLD_TO_CODE);
+  ReleaseSlotSet(OLD_TO_SHARED);
+  ReleaseTypedSlotSet(OLD_TO_NEW);
+  ReleaseTypedSlotSet(OLD_TO_OLD);
+  ReleaseTypedSlotSet(OLD_TO_SHARED);
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
@@ -222,59 +222,31 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
 }
 
-template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
-template V8_EXPORT_PRIVATE SlotSet*
-MemoryChunk::AllocateSlotSet<OLD_TO_NEW_BACKGROUND>();
-template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
-template V8_EXPORT_PRIVATE SlotSet*
-MemoryChunk::AllocateSlotSet<OLD_TO_SHARED>();
-template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
-
-template <RememberedSetType type>
-SlotSet* MemoryChunk::AllocateSlotSet() {
-  return AllocateSlotSet(&slot_set_[type]);
-}
-
-SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
+SlotSet* MemoryChunk::AllocateSlotSet(RememberedSetType type) {
   SlotSet* new_slot_set = SlotSet::Allocate(buckets());
   SlotSet* old_slot_set = base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
-      slot_set, nullptr, new_slot_set);
-  if (old_slot_set != nullptr) {
+      &slot_set_[type], nullptr, new_slot_set);
+  if (old_slot_set) {
     SlotSet::Delete(new_slot_set, buckets());
     new_slot_set = old_slot_set;
   }
-  DCHECK(new_slot_set);
+  DCHECK_NOT_NULL(new_slot_set);
   return new_slot_set;
 }
 
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW_BACKGROUND>();
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_SHARED>();
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
-
-template <RememberedSetType type>
-void MemoryChunk::ReleaseSlotSet() {
-  ReleaseSlotSet(&slot_set_[type]);
-}
-
-void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
-  if (*slot_set) {
-    SlotSet::Delete(*slot_set, buckets());
-    *slot_set = nullptr;
+void MemoryChunk::ReleaseSlotSet(RememberedSetType type) {
+  SlotSet* slot_set = slot_set_[type];
+  if (slot_set) {
+    slot_set_[type] = nullptr;
+    SlotSet::Delete(slot_set, buckets());
   }
 }
 
-template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_NEW>();
-template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
-template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_SHARED>();
-
-template <RememberedSetType type>
-TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
+TypedSlotSet* MemoryChunk::AllocateTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = new TypedSlotSet(address());
   TypedSlotSet* old_value = base::AsAtomicPointer::Release_CompareAndSwap(
       &typed_slot_set_[type], nullptr, typed_slot_set);
-  if (old_value != nullptr) {
+  if (old_value) {
     delete typed_slot_set;
     typed_slot_set = old_value;
   }
@@ -282,13 +254,7 @@ TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
   return typed_slot_set;
 }
 
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW_BACKGROUND>();
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_SHARED>();
-
-template <RememberedSetType type>
-void MemoryChunk::ReleaseTypedSlotSet() {
+void MemoryChunk::ReleaseTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = typed_slot_set_[type];
   if (typed_slot_set) {
     typed_slot_set_[type] = nullptr;
@@ -296,20 +262,13 @@ void MemoryChunk::ReleaseTypedSlotSet() {
   }
 }
 
-bool MemoryChunk::HasRecordedSlots() const {
+bool MemoryChunk::ContainsAnySlots() const {
   for (int rs_type = 0; rs_type < NUMBER_OF_REMEMBERED_SET_TYPES; rs_type++) {
     if (slot_set_[rs_type] || typed_slot_set_[rs_type]) {
       return true;
     }
   }
-
   return false;
-}
-
-bool MemoryChunk::HasRecordedOldToNewSlots() const {
-  DCHECK_NULL(typed_slot_set_[OLD_TO_NEW_BACKGROUND]);
-  return slot_set_[OLD_TO_NEW] || typed_slot_set_[OLD_TO_NEW] ||
-         slot_set_[OLD_TO_NEW_BACKGROUND];
 }
 
 #ifdef DEBUG

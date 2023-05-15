@@ -99,43 +99,42 @@ class MemoryChunk : public BasicMemoryChunk {
     return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
   }
 
-  template <RememberedSetType type>
-  bool ContainsSlots() {
-    return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr;
-  }
-
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
-    if (access_mode == AccessMode::ATOMIC)
+    if constexpr (access_mode == AccessMode::ATOMIC)
       return base::AsAtomicPointer::Acquire_Load(&slot_set_[type]);
     return slot_set_[type];
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
+  const SlotSet* slot_set() const {
+    return const_cast<MemoryChunk*>(this)->slot_set<type, access_mode>();
+  }
+
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   TypedSlotSet* typed_slot_set() {
-    if (access_mode == AccessMode::ATOMIC)
+    if constexpr (access_mode == AccessMode::ATOMIC)
       return base::AsAtomicPointer::Acquire_Load(&typed_slot_set_[type]);
     return typed_slot_set_[type];
   }
 
-  template <RememberedSetType type>
-  V8_EXPORT_PRIVATE SlotSet* AllocateSlotSet();
-  SlotSet* AllocateSweepingSlotSet();
-  SlotSet* AllocateSlotSet(SlotSet** slot_set);
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
+  const TypedSlotSet* typed_slot_set() const {
+    return const_cast<MemoryChunk*>(this)->typed_slot_set<type, access_mode>();
+  }
 
+  template <RememberedSetType type>
+  bool ContainsSlots() const {
+    return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr;
+  }
+  bool ContainsAnySlots() const;
+
+  V8_EXPORT_PRIVATE SlotSet* AllocateSlotSet(RememberedSetType type);
   // Not safe to be called concurrently.
-  template <RememberedSetType type>
-  void ReleaseSlotSet();
-  void ReleaseSlotSet(SlotSet** slot_set);
-
-  template <RememberedSetType type>
-  TypedSlotSet* AllocateTypedSlotSet();
+  void ReleaseSlotSet(RememberedSetType type);
+  TypedSlotSet* AllocateTypedSlotSet(RememberedSetType type);
   // Not safe to be called concurrently.
-  template <RememberedSetType type>
-  void ReleaseTypedSlotSet();
-
-  bool HasRecordedSlots() const;
-  bool HasRecordedOldToNewSlots() const;
+  void ReleaseTypedSlotSet(RememberedSetType type);
 
   int FreeListsLength();
 

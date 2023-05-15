@@ -4789,7 +4789,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
 
     // Full GCs will empty new space, so [old_to_new_type] is empty.
-    chunk_->ReleaseSlotSet<old_to_new_type>();
+    chunk_->ReleaseSlotSet(old_to_new_type);
   }
 
   void UpdateUntypedOldToOldPointers() {
@@ -4809,7 +4809,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return KEEP_SLOT;
           },
           SlotSet::KEEP_EMPTY_BUCKETS);
-      chunk_->ReleaseSlotSet<OLD_TO_OLD>();
+      chunk_->ReleaseSlotSet(OLD_TO_OLD);
     }
   }
 
@@ -4835,7 +4835,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return KEEP_SLOT;
           },
           SlotSet::FREE_EMPTY_BUCKETS);
-      chunk_->ReleaseSlotSet<OLD_TO_CODE>();
+      chunk_->ReleaseSlotSet(OLD_TO_CODE);
     }
   }
 
@@ -4867,7 +4867,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           return KEEP_SLOT;
         });
     // Full GCs will empty new space, so OLD_TO_NEW is empty.
-    chunk_->ReleaseTypedSlotSet<OLD_TO_NEW>();
+    chunk_->ReleaseTypedSlotSet(OLD_TO_NEW);
     // OLD_TO_NEW_BACKGROUND typed slots set should always be empty.
     DCHECK_NULL(chunk_->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
@@ -4893,7 +4893,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           }
           return result;
         });
-    chunk_->ReleaseTypedSlotSet<OLD_TO_OLD>();
+    chunk_->ReleaseTypedSlotSet(OLD_TO_OLD);
   }
 
   Heap* heap_;
@@ -4913,7 +4913,7 @@ void CollectRememberedSetUpdatingItems(
     // No need to update pointers on evacuation candidates. Evacuated pages will
     // be released after this phase.
     if (chunk->IsEvacuationCandidate()) continue;
-    if (chunk->HasRecordedSlots()) {
+    if (chunk->ContainsAnySlots()) {
       items->emplace_back(
           std::make_unique<RememberedSetUpdatingItem>(space->heap(), chunk));
     }
@@ -5070,7 +5070,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet<OLD_TO_SHARED>();
+    if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet(OLD_TO_SHARED);
 
     RememberedSet<OLD_TO_SHARED>::IterateTyped(
         chunk, [this](SlotType slot_type, Address slot) {
@@ -5082,7 +5082,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
                 return UpdateStrongOldToSharedSlot(cage_base, slot);
               });
         });
-    if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet<OLD_TO_SHARED>();
+    if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
   }
 }
 
@@ -5811,7 +5811,7 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
           },
           SlotSet::FREE_EMPTY_BUCKETS);
   if (slot_count == 0) {
-    chunk_->ReleaseSlotSet<old_to_new_type>();
+    chunk_->ReleaseSlotSet(old_to_new_type);
   }
 }
 

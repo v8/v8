@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/heap.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/slot-set.h"
@@ -95,7 +96,7 @@ class RememberedSet : public AllStatic {
     DCHECK(chunk->Contains(slot_addr));
     SlotSet* slot_set = chunk->slot_set<type, access_mode>();
     if (slot_set == nullptr) {
-      slot_set = chunk->AllocateSlotSet<type>();
+      slot_set = chunk->AllocateSlotSet(type);
     }
     RememberedSetOperations::Insert<access_mode>(slot_set, chunk, slot_addr);
   }
@@ -199,7 +200,7 @@ class RememberedSet : public AllStatic {
     if (slot_set != nullptr &&
         slot_set->CheckPossiblyEmptyBuckets(chunk->buckets(),
                                             chunk->possibly_empty_buckets())) {
-      chunk->ReleaseSlotSet<type>();
+      chunk->ReleaseSlotSet(type);
       return true;
     }
 
@@ -212,7 +213,7 @@ class RememberedSet : public AllStatic {
                           uint32_t offset) {
     TypedSlotSet* slot_set = memory_chunk->typed_slot_set<type>();
     if (slot_set == nullptr) {
-      slot_set = memory_chunk->AllocateTypedSlotSet<type>();
+      slot_set = memory_chunk->AllocateTypedSlotSet(type);
     }
     slot_set->Insert(slot_type, offset);
   }
@@ -222,7 +223,7 @@ class RememberedSet : public AllStatic {
     if (slot_set == nullptr) {
       CodePageHeaderModificationScope header_modification_scope(
           "Allocating a typed slot set requires header write permissions.");
-      slot_set = page->AllocateTypedSlotSet<type>();
+      slot_set = page->AllocateTypedSlotSet(type);
     }
     slot_set->Merge(other.get());
   }
@@ -251,7 +252,7 @@ class RememberedSet : public AllStatic {
       int new_count =
           slot_set->Iterate(callback, TypedSlotSet::KEEP_EMPTY_CHUNKS);
       if (new_count == 0) {
-        chunk->ReleaseTypedSlotSet<type>();
+        chunk->ReleaseTypedSlotSet(type);
       }
     }
   }
@@ -262,9 +263,9 @@ class RememberedSet : public AllStatic {
     OldGenerationMemoryChunkIterator it(heap);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
-      chunk->ReleaseSlotSet<OLD_TO_OLD>();
-      chunk->ReleaseSlotSet<OLD_TO_CODE>();
-      chunk->ReleaseTypedSlotSet<OLD_TO_OLD>();
+      chunk->ReleaseSlotSet(OLD_TO_OLD);
+      chunk->ReleaseSlotSet(OLD_TO_CODE);
+      chunk->ReleaseTypedSlotSet(OLD_TO_OLD);
     }
   }
 };
