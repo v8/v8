@@ -1821,12 +1821,14 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
 }
 
 compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
-    ValueNode* node) {
+    ValueNode* node, ValueNode** constant_node) {
   if (auto result = TryGetConstant(broker(), local_isolate(), node)) {
+    if (constant_node) *constant_node = node;
     return result;
   }
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
   if (info && info->is_constant()) {
+    if (constant_node) *constant_node = info->constant_alternative;
     return TryGetConstant(info->constant_alternative);
   }
   return {};
@@ -6337,6 +6339,14 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         }
         if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
         if (!call_result->properties().is_tagged()) return implicit_receiver;
+        ValueNode* constant_node;
+        if (compiler::OptionalHeapObjectRef maybe_constant =
+                TryGetConstant(call_result, &constant_node)) {
+          compiler::HeapObjectRef constant = maybe_constant.value();
+          if (!constant.IsTheHole(broker())) {
+            return constant.IsJSReceiver() ? constant_node : implicit_receiver;
+          }
+        }
         return AddNewNode<CheckConstructResult>(
             {call_result, implicit_receiver});
       }

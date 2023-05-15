@@ -1402,7 +1402,8 @@ class MaglevGraphBuilder {
   ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
 
-  compiler::OptionalHeapObjectRef TryGetConstant(ValueNode* node);
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      ValueNode* node, ValueNode** constant_node = nullptr);
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,
