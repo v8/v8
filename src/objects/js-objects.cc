@@ -5,6 +5,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/api/api-natives.h"
 #include "src/base/optional.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -1386,8 +1387,24 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
   if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
-    descriptor.reset(new v8::PropertyDescriptor(
-        v8::Utils::ToLocal(desc->get()), v8::Utils::ToLocal(desc->set())));
+    Handle<Object> getter = desc->get();
+    if (!getter.is_null() && getter->IsFunctionTemplateInfo()) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, getter,
+          ApiNatives::InstantiateFunction(
+              Handle<FunctionTemplateInfo>::cast(getter), MaybeHandle<Name>()),
+          Nothing<bool>());
+    }
+    Handle<Object> setter = desc->set();
+    if (!setter.is_null() && setter->IsFunctionTemplateInfo()) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, setter,
+          ApiNatives::InstantiateFunction(
+              Handle<FunctionTemplateInfo>::cast(setter), MaybeHandle<Name>()),
+          Nothing<bool>());
+    }
+    descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),
+                                                v8::Utils::ToLocal(setter)));
   } else if (PropertyDescriptor::IsDataDescriptor(desc)) {
     if (desc->has_writable()) {
       descriptor.reset(new v8::PropertyDescriptor(
