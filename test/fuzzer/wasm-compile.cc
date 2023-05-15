@@ -411,6 +411,56 @@ class WasmGenerator {
         data);
   }
 
+  void br_table(ValueType result_type, DataRange* data) {
+    const uint8_t block_count = 1 + data->get<uint8_t>() % 8;
+    // Generate the block entries.
+    uint16_t entry_bits =
+        block_count > 4 ? data->get<uint16_t>() : data->get<uint8_t>();
+    for (size_t i = 0; i < block_count; ++i) {
+      builder_->Emit(kExprBlock);
+      builder_->EmitValueType(result_type);
+      blocks_.emplace_back();
+      if (result_type != kWasmVoid) {
+        blocks_.back().push_back(result_type);
+      }
+      // There can be additional instructions in each block.
+      // Only generate it with a 25% chance as it's otherwise quite unlikely to
+      // have enough random bytes left for the br_table instruction.
+      if ((entry_bits & 3) == 3) {
+        Generate(kWasmVoid, data);
+      }
+      entry_bits >>= 2;
+    }
+    // Generate the br_table.
+    Generate(result_type, data);
+    Generate(kWasmI32, data);
+    builder_->Emit(kExprBrTable);
+    uint32_t entry_count = 1 + data->get<uint8_t>() % 8;
+    builder_->EmitU32V(entry_count);
+    for (size_t i = 0; i < entry_count + 1; ++i) {
+      builder_->EmitU32V(data->get<uint8_t>() % block_count);
+    }
+    // Generate the block ends.
+    uint8_t exit_bits = result_type == kWasmVoid ? 0 : data->get<uint8_t>();
+    for (size_t i = 0; i < block_count; ++i) {
+      if (exit_bits & 1) {
+        // Drop and generate new value.
+        builder_->Emit(kExprDrop);
+        Generate(result_type, data);
+      }
+      exit_bits >>= 1;
+      builder_->Emit(kExprEnd);
+      blocks_.pop_back();
+    }
+  }
+
+  template <ValueKind wanted_kind>
+  void br_table(DataRange* data) {
+    br_table(
+        wanted_kind == kVoid ? kWasmVoid : ValueType::Primitive(wanted_kind),
+        data);
+  }
+
   // TODO(eholk): make this function constexpr once gcc supports it
   static uint8_t max_alignment(WasmOpcode memop) {
     switch (memop) {
@@ -1650,6 +1700,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::br_if<kVoid>,
       &WasmGenerator::br_on_null<kVoid>,
       &WasmGenerator::br_on_non_null<kVoid>,
+      &WasmGenerator::br_table<kVoid>,
 
       &WasmGenerator::memop<kExprI32StoreMem, kI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
@@ -1780,6 +1831,7 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::br_if<kI32>,
       &WasmGenerator::br_on_null<kI32>,
       &WasmGenerator::br_on_non_null<kI32>,
+      &WasmGenerator::br_table<kI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
       &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -1916,6 +1968,7 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::br_if<kI64>,
       &WasmGenerator::br_on_null<kI64>,
       &WasmGenerator::br_on_non_null<kI64>,
+      &WasmGenerator::br_table<kI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
       &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -2022,6 +2075,7 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
       &WasmGenerator::br_if<kF32>,
       &WasmGenerator::br_on_null<kF32>,
       &WasmGenerator::br_on_non_null<kF32>,
+      &WasmGenerator::br_table<kF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
@@ -2085,6 +2139,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
       &WasmGenerator::br_if<kF64>,
       &WasmGenerator::br_on_null<kF64>,
       &WasmGenerator::br_on_non_null<kF64>,
+      &WasmGenerator::br_table<kF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
 
