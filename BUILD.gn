@@ -2406,68 +2406,67 @@ action("v8_dump_build_config") {
   outputs = [ "$root_out_dir/v8_build_config.json" ]
   is_DEBUG_defined = v8_enable_debugging_features || dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
-  write_barriers = !v8_disable_write_barriers
-
-  mips_arch_variant_var = ""
-  mips_use_msa_var = false
-  if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    mips_arch_variant_var = mips_arch_variant
-    mips_use_msa_var = mips_use_msa
-  }
-
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
     "is_android=$is_android",
-    "asan=$is_asan",
-    "cfi=$is_cfi",
-    "clang=$is_clang",
-    "clang_coverage=$use_clang_coverage",
-    "component_build=$is_component_build",
-    "debugging_features=$v8_enable_debugging_features",
-    "DEBUG_defined=$is_DEBUG_defined",
-    "full_debug=$is_full_debug",
+    "is_asan=$is_asan",
+    "is_cfi=$is_cfi",
+    "is_clang=$is_clang",
+    "is_clang_coverage=$use_clang_coverage",
+    "is_component_build=$is_component_build",
+    "is_debug=$v8_enable_debugging_features",
+    "is_DEBUG_defined=$is_DEBUG_defined",
+    "is_full_debug=$is_full_debug",
     "is_ios=$is_ios",
-    "msan=$is_msan",
-    "official_build=$is_official_build",
-    "tsan=$is_tsan",
-    "ubsan=$is_ubsan",
+    "is_msan=$is_msan",
+    "is_official_build=$is_official_build",
+    "is_tsan=$is_tsan",
+    "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
-    "code_comments=$v8_code_comments",
-    "v8_cfi=$v8_control_flow_integrity",
+    "v8_code_comments=$v8_code_comments",
+    "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_current_cpu=\"$v8_current_cpu\"",
-    "dict_property_const_tracking=$v8_dict_property_const_tracking",
-    "write_barriers=$write_barriers",
-    "atomic_object_field_writes=$v8_enable_atomic_object_field_writes",
-    "cet_shadow_stack=$v8_enable_cet_shadow_stack",
-    "concurrent_marking=$v8_enable_concurrent_marking",
-    "conservative_stack_scanning=$v8_enable_conservative_stack_scanning",
-    "debug_code=$v8_enable_debug_code",
-    "direct_local=$v8_enable_direct_local",
-    "disassembler=$v8_enable_disassembler",
-    "gdbjit=$v8_enable_gdbjit",
-    "i18n=$v8_enable_i18n_support",
-    "lite_mode=$v8_enable_lite_mode",
-    "has_maglev=$v8_enable_maglev",
-    "pointer_compression=$v8_enable_pointer_compression",
-    "pointer_compression_shared_cage=$v8_enable_pointer_compression_shared_cage",
-    "runtime_call_stats=$v8_enable_runtime_call_stats",
-    "sandbox=$v8_enable_sandbox",
-    "shared_ro_heap=$v8_enable_shared_ro_heap",
-    "single_generation=$v8_enable_single_generation",
-    "slow_dchecks=$v8_enable_slow_dchecks",
-    "third_party_heap=$v8_enable_third_party_heap",
-    "has_turbofan=$v8_enable_turbofan",
-    "verify_csa=$v8_enable_verify_csa",
-    "verify_heap=$v8_enable_verify_heap",
-    "verify_predictable=$v8_enable_verify_predictable",
-    "has_webassembly=$v8_enable_webassembly",
-    "has_jitless=$v8_jitless",
+    "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
+    "v8_disable_write_barriers=$v8_disable_write_barriers",
+    "v8_enable_atomic_object_field_writes=" +
+        "$v8_enable_atomic_object_field_writes",
+    "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
+    "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
+    "v8_enable_conservative_stack_scanning=" +
+        "$v8_enable_conservative_stack_scanning",
+    "v8_enable_debug_code=$v8_enable_debug_code",
+    "v8_enable_direct_local=$v8_enable_direct_local",
+    "v8_enable_disassembler=$v8_enable_disassembler",
+    "v8_enable_gdbjit=$v8_enable_gdbjit",
+    "v8_enable_i18n_support=$v8_enable_i18n_support",
+    "v8_enable_lite_mode=$v8_enable_lite_mode",
+    "v8_enable_maglev=$v8_enable_maglev",
+    "v8_enable_pointer_compression=$v8_enable_pointer_compression",
+    "v8_enable_pointer_compression_shared_cage=" +
+        "$v8_enable_pointer_compression_shared_cage",
+    "v8_enable_runtime_call_stats=$v8_enable_runtime_call_stats",
+    "v8_enable_sandbox=$v8_enable_sandbox",
+    "v8_enable_shared_ro_heap=$v8_enable_shared_ro_heap",
+    "v8_enable_single_generation=$v8_enable_single_generation",
+    "v8_enable_slow_dchecks=$v8_enable_slow_dchecks",
+    "v8_enable_third_party_heap=$v8_enable_third_party_heap",
+    "v8_enable_turbofan=$v8_enable_turbofan",
+    "v8_enable_verify_csa=$v8_enable_verify_csa",
+    "v8_enable_verify_heap=$v8_enable_verify_heap",
+    "v8_enable_verify_predictable=$v8_enable_verify_predictable",
+    "v8_enable_webassembly=$v8_enable_webassembly",
+    "v8_jitless=$v8_jitless",
     "v8_target_cpu=\"$v8_target_cpu\"",
-    "mips_arch_variant=\"$mips_arch_variant_var\"",
-    "mips_use_msa=$mips_use_msa_var",
   ]
+
+  if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    args += [
+      "mips_arch_variant=\"$mips_arch_variant\"",
+      "mips_use_msa=$mips_use_msa",
+    ]
+  }
 }
 
 ###############################################################################

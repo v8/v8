@@ -533,9 +533,9 @@
 }],  # tsan and not concurrent_marking
 
 ##############################################################################
-['not i18n', {
+['no_i18n == True', {
   'runtime/evaluate-without-side-effects-i18n': [SKIP],
-}],  # not i18n
+}],  # no_i18n == True
 
 ##############################################################################
 ['lite_mode or variant in (nooptimization, jitless, assert_types)', {

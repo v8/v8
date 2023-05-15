@@ -398,7 +398,7 @@ class BaseTestRunner(object):
     )
 
   def _process_default_options(self):
-    if self.build_config.debugging_features:
+    if self.build_config.is_debug:
       self.mode_options = self._custom_debug_mode()
     elif self.build_config.dcheck_always_on:
       self.mode_options = TRY_RELEASE_MODE
@@ -452,7 +452,7 @@ class BaseTestRunner(object):
         asan_options.append('detect_stack_use_after_return=0')
       os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
-    if self.build_config.cfi:
+    if self.build_config.cfi_vptr:
       os.environ['UBSAN_OPTIONS'] = ":".join([
         'print_stacktrace=1',
         'print_summary=1',
@@ -460,7 +460,7 @@ class BaseTestRunner(object):
         symbolizer_option,
       ])
 
-    if self.build_config.ubsan:
+    if self.build_config.ubsan_vptr:
       os.environ['UBSAN_OPTIONS'] = ":".join([
         'print_stacktrace=1',
         symbolizer_option,
@@ -551,16 +551,16 @@ class BaseTestRunner(object):
             self.build_config.asan,
         "byteorder":
             sys.byteorder,
-        "cfi":
-            self.build_config.cfi,
+        "cfi_vptr":
+            self.build_config.cfi_vptr,
         "code_comments":
             self.build_config.code_comments,
         "component_build":
             self.build_config.component_build,
         "conservative_stack_scanning":
             self.build_config.conservative_stack_scanning,
-        "v8_cfi":
-            self.build_config.v8_cfi,
+        "control_flow_integrity":
+            self.build_config.control_flow_integrity,
         "concurrent_marking":
             self.build_config.concurrent_marking,
         "single_generation":
@@ -583,30 +583,33 @@ class BaseTestRunner(object):
             False,
         "gdbjit":
             self.build_config.gdbjit,
+        # TODO(jgruber): Note this rename from maglev to has_maglev is required
+        # to avoid a name clash with the "maglev" variant. See also the TODO in
+        # statusfile.py (this really shouldn't be needed).
         "has_maglev":
-            self.build_config.has_maglev,
+            self.build_config.maglev,
         "has_turbofan":
-            self.build_config.has_turbofan,
+            self.build_config.turbofan,
         "has_webassembly":
-            self.build_config.has_webassembly,
+            self.build_config.webassembly,
         "isolates":
             self.options.isolates,
-        "clang":
-            self.build_config.clang,
-        "clang_coverage":
-            self.build_config.clang_coverage,
-        "debugging_features":
-            self.build_config.debugging_features,
-        "DEBUG_defined":
-            self.build_config.DEBUG_defined,
-        "full_debug":
-            self.build_config.full_debug,
-        "official_build":
-            self.build_config.official_build,
+        "is_clang":
+            self.build_config.is_clang,
+        "is_clang_coverage":
+            self.build_config.is_clang_coverage,
+        "is_debug":
+            self.build_config.is_debug,
+        "is_DEBUG_defined":
+            self.build_config.is_DEBUG_defined,
+        "is_full_debug":
+            self.build_config.is_full_debug,
+        "is_official_build":
+            self.build_config.is_official_build,
         "interrupt_fuzzer":
             False,
-        "has_jitless":
-            self.build_config.has_jitless,
+        "jitless_build_mode":
+            self.build_config.jitless_build_mode,
         "mips_arch_variant":
             self.build_config.mips_arch_variant,
         "mode":
@@ -615,16 +618,16 @@ class BaseTestRunner(object):
             self.build_config.msan,
         "no_harness":
             self.options.no_harness,
-        "i18n":
-            self.build_config.i18n,
+        "no_i18n":
+            self.build_config.no_i18n,
         "no_simd_hardware":
             self.build_config.no_simd_hardware,
         "novfp3":
             False,
         "optimize_for_size":
             "--optimize-for-size" in self.options.extra_flags,
-        "verify_predictable":
-            self.build_config.verify_predictable,
+        "predictable":
+            self.build_config.predictable,
         "simd_mips":
             self.build_config.simd_mips,
         "simulator_run":
@@ -638,8 +641,8 @@ class BaseTestRunner(object):
             self.build_config.third_party_heap,
         "tsan":
             self.build_config.tsan,
-        "ubsan":
-            self.build_config.ubsan,
+        "ubsan_vptr":
+            self.build_config.ubsan_vptr,
         "verify_csa":
             self.build_config.verify_csa,
         "verify_heap":
@@ -673,7 +676,7 @@ class BaseTestRunner(object):
         isolates=self.options.isolates,
         mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=self.options.no_harness,
-        noi18n=not self.build_config.i18n,
+        noi18n=self.build_config.no_i18n,
         random_seed=self.options.random_seed,
         run_skipped=self.options.run_skipped,
         shard_count=shard_count,

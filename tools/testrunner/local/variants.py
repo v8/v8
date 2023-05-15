@@ -136,7 +136,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 # applies when the code_comments build variable is NOT set.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!code_comments": ["--code-comments"],
-    "!DEBUG_defined": [
+    "!is_DEBUG_defined": [
         "--check_handle_count",
         "--code_stats",
         "--dump_wasm_module",
@@ -177,11 +177,11 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!has_maglev": ["--maglev"],
     "!has_turbofan":
         kIncompatibleFlagsForNoTurbofan,
-    "has_jitless":
+    "jitless_build_mode":
         INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "lite_mode": ["--max-semi-space-size=*"] +
                  INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "verify_predictable": [
+    "predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
         "--stress-concurrent-allocation", "--stress-concurrent-inlining"

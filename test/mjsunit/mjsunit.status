@@ -107,9 +107,9 @@
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
   #
-  # With the official_build flag CHECK failures can't be distinguished from
+  # With the is_official_build flag CHECK failures can't be distinguished from
   # CRASH. See cctest.status for details (v8:13945).
-  'verify-check-false': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
+  'verify-check-false': [FAIL, NO_VARIANTS, ['is_official_build', CRASH]],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
 
   ##############################################################################
@@ -160,7 +160,7 @@
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
-  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
+  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or predictable', SKIP], ['tsan', SKIP]],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
@@ -179,11 +179,11 @@
 
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
-  'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['verify_predictable', SKIP]],
+  'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['predictable', SKIP]],
 
-  # Only makes sense without i18n.
+  # Only makes sense in the no_i18n variant.
   'es6/unicode-regexp-ignore-case-noi18n':
-      [['not i18n', PASS], ['i18n', FAIL]],
+      [['no_i18n == True', PASS], ['no_i18n == False', FAIL]],
 
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
@@ -447,10 +447,10 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['has_jitless', {
+['jitless_build_mode', {
   # invocation_count maintenance is disabled.
   'code-coverage*': [SKIP],
-}],  # has_jitless
+}],  # jitless_build_mode
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
@@ -492,7 +492,7 @@
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
-['not i18n', {
+['no_i18n', {
   # Case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [FAIL],
   'es7/regexp-ui-word': [FAIL],
@@ -527,27 +527,27 @@
   'regress/regress-crbug-1052647': [PASS,FAIL],
   'regress/regress-1409058': [SKIP],
 
-  # Temporal intl tests won't work without i18n
+  # Temporal intl tests won't work in no_i18n
   'temporal/function-exist': [FAIL],
   'temporal/plain-date-get-era': [FAIL],
   'temporal/plain-date-get-eraYear': [FAIL],
   'temporal/plain-date-time-get-era': [FAIL],
   'temporal/plain-date-time-get-eraYear': [FAIL],
 
-  # Non-BMP characters currently aren't considered identifiers without i18n
+  # Non-BMP characters currently aren't considered identifiers in no_i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
 
   # Tests ICU-specific behavior.
   'regress/regress-crbug-1414292': [SKIP],
-}],  # 'not i18n'
+}],  # 'no_i18n'
 
 ##############################################################################
-['full_debug', {
+['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'regress/regress-2790': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
-}],  # 'full_debug'
+}],  # 'is_full_debug'
 
 ##############################################################################
 ['byteorder == big', {
@@ -1222,7 +1222,7 @@
 }],  # 'endurance_fuzzer'
 
 ##############################################################################
-['verify_predictable', {
+['predictable == True', {
 
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
@@ -1254,8 +1254,8 @@
   # BUG(v8:9975).
   'es6/typedarray-copywithin': [SKIP],
 
-  # BUG(v8:11858): Deadlocks in verify_predictable mode when waiting for the
-  # native module cache entry to be completed.
+  # BUG(v8:11858): Deadlocks in predictable mode when waiting for the native
+  # module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
 
   # The test triggers profiling, which can trigger non-deterministic
@@ -1268,7 +1268,7 @@
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   'object-literal': [SKIP],
-}],  # 'verify_predictable'
+}],  # 'predictable == True'
 
 ##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
@@ -1982,10 +1982,10 @@
 }], # variant == stress_maglev or variant == stress_maglev_future
 
 ##############################################################################
-['clang_coverage and mode == debug', {
+['is_clang_coverage and mode == debug', {
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
-}],  # 'clang_coverage and mode == debug'
+}],  # 'is_clang_coverage and mode == debug'
 
 ]

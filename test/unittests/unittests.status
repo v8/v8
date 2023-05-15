@@ -18,7 +18,7 @@
   'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
   # https://crbug.com/v8/8919
-  'PlatformTest.StackAlignment': [PASS, ['not clang', SKIP]],
+  'PlatformTest.StackAlignment': [PASS, ['not is_clang', SKIP]],
 
   # We do not yet shrink weak maps after they have been emptied by the GC
   'WeakMapsTest.Shrinking': [SKIP],
@@ -180,7 +180,7 @@
 }],
 
 ################################################################################
-['not clang and (arch == riscv64 or arch == riscv32)',{
+['is_clang == False and (arch == riscv64 or arch == riscv32)',{
   'LoggingTest.SourceLocation':[SKIP]  # issue-174
 }],
 
@@ -204,7 +204,7 @@
 }], # jitless
 
 ##############################################################################
-['has_jitless', {
+['jitless_build_mode', {
   # Feedback collection maintenance is (mostly) disabled.
   'FeedbackVectorTest.Vector*': [SKIP],
   'InterpreterTest.InterpreterBigIntComparisons': [SKIP],
@@ -220,7 +220,7 @@
   'InterpreterTest.InterpreterBitwiseTypeFeedback': [SKIP],
   # These require executable code space.
   'AssemblerX64Test.*': [SKIP],
-}],  # has_jitless
+}],  # jitless_build_mode
 
 ################################################################################
 ['third_party_heap', {
@@ -342,9 +342,9 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-['not i18n', {
+['no_i18n == True', {
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
-}],  # not i18n
+}],  # no_i18n == True
 
 ##############################################################################
 ['no_simd_hardware == True', {
@@ -355,15 +355,15 @@
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
 }],
 
-# With the official_build flag exceptions are disabled. Therefore torque
+# With the is_official_build flag exceptions are disabled. Therefore torque
 # tests fail that rely on catching them (v8:13945).
-['official_build', {
+['is_official_build', {
   'LanguageServerJson.ParserError': [FAIL],
   'FlagDefinitionsTest.FreezeFlags': [FAIL],
   'LanguageServerJson.LexerError': [FAIL],
   'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [FAIL],
   'Torque.ImportNonExistentFile': [FAIL],
   'Torque.Enums': [FAIL],
-}],  # 'official_build'
+}],  # 'is_official_build'
 
 ]
