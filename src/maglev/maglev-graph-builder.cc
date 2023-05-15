@@ -6685,16 +6685,6 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
       call_result = result.value();
     }
 
-    // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
-    // call further, we might already have a boolean constant as result.
-    // TODO(leszeks): Avoid forcing a conversion to tagged here.
-    // TODO(verwaest): Also check the dynamic type.
-    if (TryBuildBranchFor<BranchIfToBooleanTrue>(
-            {GetTaggedValue(call_result)},
-            GetCheckType(
-                StaticTypeForNode(broker(), local_isolate(), call_result)))) {
-      return ReduceResult::Done();
-    }
     BuildToBoolean(GetTaggedValue(call_result));
     return ReduceResult::Done();
   }
@@ -6705,7 +6695,10 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   NodeType old_type;
   if (CheckType(value, NodeType::kBoolean, &old_type)) {
-    SetAccumulator(value);
+    if (!TryBuildBranchFor<BranchIfRootConstant>({value},
+                                                 RootIndex::kTrueValue)) {
+      SetAccumulator(value);
+    }
   } else if (!TryBuildBranchFor<BranchIfToBooleanTrue>(
                  {value}, GetCheckType(old_type))) {
     SetAccumulator(AddNewNode<ToBoolean>({value}, GetCheckType(old_type)));
@@ -6715,7 +6708,10 @@ void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
 void MaglevGraphBuilder::BuildToBooleanLogicalNot(ValueNode* value) {
   NodeType old_type;
   if (CheckType(value, NodeType::kBoolean, &old_type)) {
-    SetAccumulator(AddNewNode<LogicalNot>({value}));
+    if (!TryBuildBranchFor<BranchIfRootConstant>({value},
+                                                 RootIndex::kFalseValue)) {
+      SetAccumulator(AddNewNode<LogicalNot>({value}));
+    }
   } else if (!TryBuildBranchFor<BranchIfToBooleanTrue, /* flip */ true>(
                  {value}, GetCheckType(old_type))) {
     SetAccumulator(
