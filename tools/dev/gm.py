@@ -159,10 +159,14 @@ def detect_goma():
   cipd_bin = Path(goma).parent / ".cipd_bin"
   if not cipd_bin.exists():
     return None
+  # Some machines have one of these files, some have the other, some have both.
   goma_auth = Path("~/.goma_client_oauth2_config").expanduser()
-  if not goma_auth.exists():
-    return None
-  return cipd_bin
+  if goma_auth.exists():
+    return cipd_bin
+  goma_auth = Path("~/.goma_oauth2_config").expanduser()
+  if goma_auth.exists():
+    return cipd_bin
+  return None
 
 
 GOMADIR = detect_goma()
