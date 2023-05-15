@@ -3820,9 +3820,6 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
     uint8_t op, YMMRegister dst, XMMRegister src1, Operand src2, SIMDPrefix pp,
     LeadingOpcode m, VexW w, CpuFeature feature);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
-    uint8_t op, YMMRegister dst, XMMRegister src1, YMMRegister src2,
-    SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature);
 
 void Assembler::vps(uint8_t op, XMMRegister dst, XMMRegister src1,
                     XMMRegister src2) {

@@ -2734,12 +2734,6 @@ extern template EXPORT_TEMPLATE_DECLARE(
                                               XMMRegister src1, Operand src2,
                                               SIMDPrefix pp, LeadingOpcode m,
                                               VexW w, CpuFeature feature);
-extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void Assembler::vinstr(uint8_t op, YMMRegister dst,
-                                              XMMRegister src1,
-                                              YMMRegister src2, SIMDPrefix pp,
-                                              LeadingOpcode m, VexW w,
-                                              CpuFeature feature);
 
 // Helper class that ensures that there is enough space for generating
 // instructions and relocation information.  The constructor makes

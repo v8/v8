@@ -3590,11 +3590,7 @@ void InstructionSelector::VisitS256Zero(Node* node) {
   V(I64x2, kL64, kV128)             \
   V(I32x4, kL32, kV128)             \
   V(I16x8, kL16, kV128)             \
-  V(I8x16, kL8, kV128)              \
-  V(I64x4, kL64, kV256)             \
-  V(I32x8, kL32, kV256)             \
-  V(I16x16, kL16, kV256)            \
-  V(I8x32, kL8, kV256)
+  V(I8x16, kL8, kV128)
 
 // Splat with an optimization for const 0.
 #define VISIT_INT_SIMD_SPLAT(Type, LaneSize, VectorLength)                   \
