@@ -37,10 +37,15 @@ constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 
 class DataRange {
+  // data_ is used for general random values for fuzzing.
   base::Vector<const uint8_t> data_;
+  // The RNG is used for generating random values (i32.consts etc.) for which
+  // the quality of the input is less important.
+  base::RandomNumberGenerator rng_;
 
  public:
-  explicit DataRange(base::Vector<const uint8_t> data) : data_(data) {}
+  explicit DataRange(base::Vector<const uint8_t> data, int64_t seed = -1)
+      : data_(data), rng_(seed == -1 ? get<int64_t>() : seed) {}
   DataRange(const DataRange&) = delete;
   DataRange& operator=(const DataRange&) = delete;
 
@@ -48,11 +53,13 @@ class DataRange {
   // lead to OOM because the end might not be reached.
   // Define move constructor and move assignment, disallow copy constructor and
   // copy assignment (below).
-  DataRange(DataRange&& other) V8_NOEXCEPT : DataRange(other.data_) {
+  DataRange(DataRange&& other) V8_NOEXCEPT : data_(other.data_),
+                                             rng_(other.rng_) {
     other.data_ = {};
   }
   DataRange& operator=(DataRange&& other) V8_NOEXCEPT {
     data_ = other.data_;
+    rng_ = other.rng_;
     other.data_ = {};
     return *this;
   }
@@ -60,24 +67,56 @@ class DataRange {
   size_t size() const { return data_.size(); }
 
   DataRange split() {
-    uint16_t num_bytes = get<uint16_t>() % std::max(size_t{1}, data_.size());
-    DataRange split(data_.SubVector(0, num_bytes));
+    // As we might split many times, only use 2 bytes if the data size is large.
+    uint16_t random_choice = data_.size() > std::numeric_limits<uint8_t>::max()
+                                 ? get<uint16_t>()
+                                 : get<uint8_t>();
+    uint16_t num_bytes = random_choice % std::max(size_t{1}, data_.size());
+    int64_t new_seed = rng_.initial_seed() ^ rng_.NextInt64();
+    DataRange split(data_.SubVector(0, num_bytes), new_seed);
     data_ += num_bytes;
     return split;
   }
 
   template <typename T, size_t max_bytes = sizeof(T)>
+  T getPseudoRandom() {
+    static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
+    static_assert(max_bytes <= sizeof(T));
+    // Special handling for signed integers: Calling getPseudoRandom<int32_t, 1>
+    // () should be equal to getPseudoRandom<int8_t>(). (The NextBytes() below
+    // does not achieve that due to depending on endianness and either never
+    // generating negative values or filling in the highest significant bits
+    // which would be unexpected).
+    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+      switch (max_bytes) {
+        case 1:
+          return static_cast<int8_t>(getPseudoRandom<uint8_t>());
+        case 2:
+          return static_cast<int16_t>(getPseudoRandom<uint16_t>());
+        case 4:
+          return static_cast<int32_t>(getPseudoRandom<uint32_t>());
+        default:
+          return static_cast<T>(
+              getPseudoRandom<std::make_unsigned_t<T>, max_bytes>());
+      }
+    }
+
+    T result{};
+    rng_.NextBytes(&result, max_bytes);
+    return result;
+  }
+
+  template <typename T>
   T get() {
     // Bool needs special handling (see template specialization below).
     static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
-    static_assert(max_bytes <= sizeof(T));
+
     // We want to support the case where we have less than sizeof(T) bytes
-    // remaining in the slice. For example, if we emit an i32 constant, it's
-    // okay if we don't have a full four bytes available, we'll just use what
-    // we have. We aren't concerned about endianness because we are generating
-    // arbitrary expressions.
-    const size_t num_bytes = std::min(max_bytes, data_.size());
-    T result = T();
+    // remaining in the slice. We'll just use what we have, so we get a bit of
+    // randomness when there are still some bytes left. If size == 0, get<T>()
+    // returns the type's value-initialized value.
+    const size_t num_bytes = std::min(sizeof(T), data_.size());
+    T result{};
     memcpy(&result, data_.begin(), num_bytes);
     data_ += num_bytes;
     return result;
@@ -162,8 +201,7 @@ void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
   int length = range->get<uint8_t>() % 65;
   ZoneVector<uint8_t> data(length, builder->zone());
   for (int i = 0; i < length; ++i) {
-    // The actual values shouldn't matter much.
-    data[i] = length - i - 1;
+    data[i] = range->getPseudoRandom<uint8_t>();
   }
   builder->AddPassiveDataSegment(data.data(),
                                  static_cast<uint32_t>(data.size()));
@@ -342,7 +380,7 @@ class WasmGenerator {
   void br(DataRange* data) {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
-    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = blocks_[target_block];
 
     Generate(base::VectorOf(break_types), data);
@@ -354,7 +392,7 @@ class WasmGenerator {
   void br_if(DataRange* data) {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
-    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
 
     Generate(break_types, data);
@@ -372,7 +410,7 @@ class WasmGenerator {
   template <ValueKind wanted_kind>
   void br_on_null(DataRange* data) {
     DCHECK(!blocks_.empty());
-    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
     Generate(break_types, data);
     GenerateRef(data);
@@ -391,7 +429,7 @@ class WasmGenerator {
   template <ValueKind wanted_kind>
   void br_on_non_null(DataRange* data) {
     DCHECK(!blocks_.empty());
-    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const auto break_types = base::VectorOf(blocks_[target_block]);
     if (break_types.empty() ||
         !break_types[break_types.size() - 1].is_reference()) {
@@ -576,8 +614,9 @@ class WasmGenerator {
 
   template <WasmOpcode memory_op, ValueKind... arg_kinds>
   void memop(DataRange* data) {
-    const uint8_t align = data->get<uint8_t>() % (max_alignment(memory_op) + 1);
-    const uint32_t offset = data->get<uint32_t>();
+    const uint8_t align =
+        data->getPseudoRandom<uint8_t>() % (max_alignment(memory_op) + 1);
+    const uint32_t offset = data->getPseudoRandom<uint32_t>();
 
     // Generate the index and the arguments, if any.
     Generate<kI32, arg_kinds...>(data);
@@ -594,8 +633,9 @@ class WasmGenerator {
 
   template <WasmOpcode Op, ValueKind... Args>
   void atomic_op(DataRange* data) {
-    const uint8_t align = data->get<uint8_t>() % (max_alignment(Op) + 1);
-    const uint32_t offset = data->get<uint32_t>();
+    const uint8_t align =
+        data->getPseudoRandom<uint8_t>() % (max_alignment(Op) + 1);
+    const uint32_t offset = data->getPseudoRandom<uint32_t>();
 
     Generate<Args...>(data);
     builder_->EmitWithPrefix(Op);
@@ -613,7 +653,7 @@ class WasmGenerator {
   void simd_const(DataRange* data) {
     builder_->EmitWithPrefix(kExprS128Const);
     for (int i = 0; i < kSimd128Size; i++) {
-      builder_->EmitByte(data->get<uint8_t>());
+      builder_->EmitByte(data->getPseudoRandom<uint8_t>());
     }
   }
 
@@ -691,6 +731,19 @@ class WasmGenerator {
     builder_->Emit(kConvertOpcodes[arr_idx]);
   }
 
+  int choose_function_table_index(DataRange* data) {
+    int table_count = builder_->builder()->NumTables();
+    int start = data->get<uint8_t>() % table_count;
+    for (int i = 0; i < table_count; ++i) {
+      int index = (start + i) % table_count;
+      if (builder_->builder()->GetTableType(index).is_reference_to(
+              HeapType::kFunc)) {
+        return index;
+      }
+    }
+    FATAL("No funcref table found; table index 0 is expected to be funcref");
+  }
+
   void call(DataRange* data, ValueType wanted_kind, CallKind call_kind) {
     uint8_t random_byte = data->get<uint8_t>();
     int func_index = random_byte % functions_.size();
@@ -715,8 +768,7 @@ class WasmGenerator {
         // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprReturnCallIndirect, sig_index);
-        // TODO(11954): Use other table indices too.
-        builder_->EmitByte(0);  // Table index.
+        builder_->EmitByte(choose_function_table_index(data));  // Table index.
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->EmitWithU32V(kExprReturnCallRef, sig_index);
@@ -730,8 +782,7 @@ class WasmGenerator {
         // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprCallIndirect, sig_index);
-        // TODO(11954): Use other table indices too.
-        builder_->EmitByte(0);  // Table index.
+        builder_->EmitByte(choose_function_table_index(data));  // Table index.
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->EmitWithU32V(kExprCallRef, sig_index);
@@ -812,12 +863,12 @@ class WasmGenerator {
 
   template <size_t num_bytes>
   void i32_const(DataRange* data) {
-    builder_->EmitI32Const(data->get<int32_t, num_bytes>());
+    builder_->EmitI32Const(data->getPseudoRandom<int32_t, num_bytes>());
   }
 
   template <size_t num_bytes>
   void i64_const(DataRange* data) {
-    builder_->EmitI64Const(data->get<int64_t, num_bytes>());
+    builder_->EmitI64Const(data->getPseudoRandom<int64_t, num_bytes>());
   }
 
   Var GetRandomGlobal(DataRange* data, bool ensure_mutable) {
@@ -1414,7 +1465,7 @@ class WasmGenerator {
 
   bool br_on_cast(HeapType type, DataRange* data, Nullability nullable) {
     DCHECK(!blocks_.empty());
-    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const uint32_t target_block = data->get<uint8_t>() % blocks_.size();
     const uint32_t block_index =
         static_cast<uint32_t>(blocks_.size()) - 1 - target_block;
     const auto break_types = base::VectorOf(blocks_[target_block]);
@@ -1634,6 +1685,10 @@ class WasmGenerator {
   template <ValueKind T1, ValueKind T2, ValueKind... Ts>
   void Generate(DataRange* data) {
     // TODO(clemensb): Implement a more even split.
+    // TODO(mliedtke): Instead of splitting we should probably "reserve" amount
+    // x for the first part, any reserved but potentially unused random bytes
+    // should then carry over instead of throwing them away which heavily
+    // reduces the amount of actually used random input bytes.
     auto first_data = data->split();
     Generate<T1>(&first_data);
     Generate<T2, Ts...>(data);
@@ -1685,8 +1740,6 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
 
-  // TODO(7748): Add array.init_data, array.init_elem.
-  // (This requires data / element segments.)
   constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kVoid, kVoid>,
       &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid>,
@@ -1751,7 +1804,7 @@ template <>
 void WasmGenerator::Generate<kI32>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() <= 1) {
-    builder_->EmitI32Const(data->get<uint32_t>());
+    builder_->EmitI32Const(data->getPseudoRandom<uint32_t>());
     return;
   }
 
@@ -1917,7 +1970,7 @@ template <>
 void WasmGenerator::Generate<kI64>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() <= 1) {
-    builder_->EmitI64Const(data->get<int64_t>());
+    builder_->EmitI64Const(data->getPseudoRandom<int64_t>());
     return;
   }
 
@@ -2038,7 +2091,7 @@ template <>
 void WasmGenerator::Generate<kF32>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() <= sizeof(float)) {
-    builder_->EmitF32Const(data->get<float>());
+    builder_->EmitF32Const(data->getPseudoRandom<float>());
     return;
   }
 
@@ -2102,7 +2155,7 @@ template <>
 void WasmGenerator::Generate<kF64>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() <= sizeof(double)) {
-    builder_->EmitF64Const(data->get<double>());
+    builder_->EmitF64Const(data->getPseudoRandom<double>());
     return;
   }
 
@@ -2169,7 +2222,7 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
   if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
     // TODO(v8:8460): v128.const is not implemented yet, and we need a way to
     // "bottom-out", so use a splat to generate this.
-    builder_->EmitI32Const(data->get<int32_t>());
+    builder_->EmitI32Const(data->getPseudoRandom<int32_t>());
     builder_->EmitWithPrefix(kExprI8x16Splat);
     return;
   }
@@ -2589,14 +2642,14 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       return;
     }
     case HeapType::kFunc: {
-      uint32_t random = data->get<uint32_t>() % (functions_.size() + 1);
+      uint32_t random = data->get<uint8_t>() % (functions_.size() + 1);
       /// Try generating one of the alternatives
       // and continue to the rest of the methods in case it fails.
       if (random >= functions_.size()) {
         if (GenerateOneOf(alternatives_func_any, type, data, nullability)) {
           return;
         }
-        random = data->get<uint32_t>() % functions_.size();
+        random = data->get<uint8_t>() % functions_.size();
       }
       uint32_t signature_index = functions_[random];
       DCHECK(builder_->builder()->IsSignature(signature_index));
@@ -2896,7 +2949,13 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     WasmModuleBuilder builder(zone);
 
-    DataRange range(data);
+    // Split input data in two parts:
+    // - One for the "module" (types, globals, ..)
+    // - One for all the function bodies
+    // This prevents using a too large portion on the module resulting in
+    // uninteresting function bodies.
+    DataRange module_range(data);
+    DataRange functions_range = module_range.split();
     std::vector<uint32_t> function_signatures;
 
     // Add struct and array types first so that we get a chance to generate
@@ -2905,20 +2964,20 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // definitions.
 
     static_assert(kMaxFunctions >= 1, "need min. 1 function");
-    uint8_t num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
+    uint8_t num_functions = 1 + (module_range.get<uint8_t>() % kMaxFunctions);
 
     // We need at least one struct/array in order to support WasmInitExpr
     // for kData, kAny and kEq.
-    uint8_t num_structs = 1 + range.get<uint8_t>() % kMaxStructs;
-    uint8_t num_arrays = range.get<uint8_t>() % (kMaxArrays + 1);
+    uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
+    uint8_t num_arrays = module_range.get<uint8_t>() % (kMaxArrays + 1);
     uint16_t num_types = num_functions + num_structs + num_arrays;
 
     for (int struct_index = 0; struct_index < num_structs; struct_index++) {
       uint32_t supertype = kNoSuperType;
-      uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
+      uint8_t num_fields = module_range.get<uint8_t>() % (kMaxStructFields + 1);
 
-      if (struct_index > 0 && range.get<bool>()) {
-        supertype = range.get<uint8_t>() % struct_index;
+      if (struct_index > 0 && module_range.get<bool>()) {
+        supertype = module_range.get<uint8_t>() % struct_index;
         num_fields += builder.GetStructType(supertype)->field_count();
       }
       StructType::Builder struct_builder(zone, num_fields);
@@ -2951,11 +3010,11 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         //   materialize these types with (ref 0), and having such fields in
         //   struct 0 would produce an infinite recursion.
         ValueType type = GetValueTypeHelper(
-            &range, builder.NumTypes(), builder.NumTypes(), kAllowNonNullables,
-            kIncludePackedTypes,
+            &module_range, builder.NumTypes(), builder.NumTypes(),
+            kAllowNonNullables, kIncludePackedTypes,
             struct_index != 0 ? kIncludeGenerics : kExcludeGenerics);
 
-        bool mutability = range.get<bool>();
+        bool mutability = module_range.get<bool>();
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
@@ -2963,16 +3022,16 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
-        ValueType type = GetValueTypeHelper(
-            &range, builder.NumTypes(), builder.NumTypes(), kAllowNonNullables,
-            kIncludePackedTypes, kIncludeGenerics);
-        uint32_t supertype = kNoSuperType;
-        if (array_index > 0 && range.get<bool>()) {
-        supertype = (range.get<uint8_t>() % array_index) + num_structs;
+      ValueType type = GetValueTypeHelper(
+          &module_range, builder.NumTypes(), builder.NumTypes(),
+          kAllowNonNullables, kIncludePackedTypes, kIncludeGenerics);
+      uint32_t supertype = kNoSuperType;
+      if (array_index > 0 && module_range.get<bool>()) {
+        supertype = (module_range.get<uint8_t>() % array_index) + num_structs;
         // TODO(7748): This could also be any sub type of the supertype's
         // element type.
         type = builder.GetArrayType(supertype)->element_type();
-        }
+      }
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
         builder.AddArrayType(array_fuz, false, supertype);
       }
@@ -2983,17 +3042,18 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       for (uint8_t i = 1; i < num_functions; i++) {
         FunctionSig* sig =
-            GenerateSig(zone, &range, kFunctionSig, builder.NumTypes());
+            GenerateSig(zone, &module_range, kFunctionSig, builder.NumTypes());
         uint32_t signature_index =
             builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
         function_signatures.push_back(signature_index);
       }
 
-    int num_exceptions = 1 + (range.get<uint8_t>() % kMaxExceptions);
-    for (int i = 0; i < num_exceptions; ++i) {
-      FunctionSig* sig = GenerateSig(zone, &range, kExceptionSig, num_types);
-      builder.AddException(sig);
-    }
+      int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
+      for (int i = 0; i < num_exceptions; ++i) {
+        FunctionSig* sig =
+            GenerateSig(zone, &module_range, kExceptionSig, num_types);
+        builder.AddException(sig);
+      }
 
     // Generate function declarations before tables. This will be needed once we
     // have typed-function tables.
@@ -3008,22 +3068,22 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       functions.push_back(builder.AddFunction(function_signatures[i]));
     }
 
-    int num_globals = range.get<uint8_t>() % (kMaxGlobals + 1);
+    int num_globals = module_range.get<uint8_t>() % (kMaxGlobals + 1);
     std::vector<ValueType> globals;
     std::vector<uint8_t> mutable_globals;
     globals.reserve(num_globals);
     mutable_globals.reserve(num_globals);
 
     for (int i = 0; i < num_globals; ++i) {
-      ValueType type =
-          GetValueTypeHelper(&range, num_types, num_types, kAllowNonNullables,
-                             kExcludePackedTypes, kIncludeGenerics);
+      ValueType type = GetValueTypeHelper(
+          &module_range, num_types, num_types, kAllowNonNullables,
+          kExcludePackedTypes, kIncludeGenerics);
       // 1/8 of globals are immutable.
-      const bool mutability = (range.get<uint8_t>() % 8) != 0;
+      const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
 
       builder.AddGlobal(
           type, mutability,
-          GenerateInitExpr(zone, range, &builder, type,
+          GenerateInitExpr(zone, module_range, &builder, type,
                            static_cast<uint32_t>(num_structs + num_arrays)));
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
@@ -3032,21 +3092,21 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // Generate tables before function bodies, so they are available for table
     // operations.
     // Always generate at least one table for call_indirect.
-    int num_tables = range.get<uint8_t>() % kMaxTables + 1;
+    int num_tables = module_range.get<uint8_t>() % kMaxTables + 1;
     for (int i = 0; i < num_tables; i++) {
       // Table 0 has to reference all functions in the program. This is so that
       // all functions count as declared so they can be referenced with
       // ref.func.
       // TODO(11954): Consider removing this restriction.
       uint32_t min_size =
-          i == 0 ? num_functions : range.get<uint8_t>() % kMaxTableSize;
+          i == 0 ? num_functions : module_range.get<uint8_t>() % kMaxTableSize;
       uint32_t max_size =
-          range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
+          module_range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
       // Table 0 is always funcref.
       // TODO(11954): Remove this requirement once we support call_indirect with
       // other table indices.
       // TODO(11954): Support typed function tables.
-      bool use_funcref = i == 0 || range.get<bool>();
+      bool use_funcref = i == 0 || module_range.get<bool>();
       ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
       uint32_t table_index = builder.AddTable(type, min_size, max_size);
       if (type == kWasmFuncRef) {
@@ -3066,14 +3126,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       }
     }
 
-    int num_data_segments = range.get<uint8_t>() % kMaxPassiveDataSegments;
+    int num_data_segments =
+        module_range.get<uint8_t>() % kMaxPassiveDataSegments;
     for (int i = 0; i < num_data_segments; i++) {
-      GeneratePassiveDataSegment(&range, &builder);
+      GeneratePassiveDataSegment(&module_range, &builder);
     }
 
     for (int i = 0; i < num_functions; ++i) {
       WasmFunctionBuilder* f = functions[i];
-      DataRange function_range = range.split();
+      // On the last function don't split the DataRange but just use the
+      // existing DataRange.
+      DataRange function_range = i != num_functions - 1
+                                     ? functions_range.split()
+                                     : std::move(functions_range);
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
                         num_structs, num_arrays, &function_range);
       const FunctionSig* sig = f->signature();
