@@ -2114,7 +2114,7 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
       break;
     case RO_V_VSLIDEUP_VI:
-      Format(instr, "vslideup.vi   'vd, 'vs2, 'uimm5'vm");
+      Format(instr, "vslideup.vi 'vd, 'vs2, 'uimm5'vm");
       break;
     case RO_V_VSRL_VI:
       Format(instr, "vsrl.vi   'vd, 'vs2, 'uimm5'vm");
@@ -2169,7 +2169,10 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       Format(instr, "vssub.vx  'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VRSUB_VX:
-      Format(instr, "vrsub.vx  'vd, 'vs2, 'rs1'vm");
+      if (instr->Rs1Value() == zero_reg.code())
+        Format(instr, "vneg.vv   'vd, 'vs2'vm");
+      else
+        Format(instr, "vrsub.vx  'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VMIN_VX:
       Format(instr, "vmin.vx   'vd, 'vs2, 'rs1'vm");
@@ -2489,7 +2492,7 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
       break;
     case RO_V_VFSGNJN_VV:
       if (instr->Vs1Value() == instr->Vs2Value()) {
-        Format(instr, "vneg.vv   'vd, 'vs1'vm");
+        Format(instr, "vfneg.vv  'vd, 'vs1'vm");
       } else {
         Format(instr, "vfsgnjn.vv   'vd, 'vs2, 'vs1'vm");
       }

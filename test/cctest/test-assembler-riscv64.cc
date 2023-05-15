@@ -2110,6 +2110,47 @@ TEST(RVV_VFMV_signaling_NaN) {
   }
 }
 
+TEST(RVV_VFNEG_signaling_NaN) {
+  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
+  CcTest::InitializeVM();
+
+  {
+    constexpr uint32_t n = 2;
+    int64_t rs1_fval = 0x7FF4000000000000;
+    int64_t expected_fval = 0xFFF4000000000000;
+    int64_t dst[n] = {0};
+    auto fn = [](MacroAssembler& assm) {
+      __ VU.set(t0, VSew::E64, Vlmul::m1);
+      __ fmv_d_x(ft0, a0);
+      __ vfmv_vf(v1, ft0);
+      __ vfneg_vv(v2, v1);
+      __ vs(v2, a1, 0, VSew::E64);
+    };
+    GenAndRunTest<int64_t, int64_t>((int64_t)rs1_fval, (int64_t)dst, fn);
+    for (uint32_t i = 0; i < n; i++) {
+      CHECK_EQ(expected_fval, dst[i]);
+    }
+  }
+
+  {
+    constexpr uint32_t n = 4;
+    int32_t rs1_fval = 0x7F400000;
+    int32_t expected_fval = 0xFF400000;
+    int32_t dst[n] = {0};
+    auto fn = [](MacroAssembler& assm) {
+      __ VU.set(t0, VSew::E32, Vlmul::m1);
+      __ fmv_w_x(ft0, a0);
+      __ vfmv_vf(v1, ft0);
+      __ vfneg_vv(v2, v1);
+      __ vs(v2, a1, 0, VSew::E32);
+    };
+    GenAndRunTest<int64_t, int64_t>((int64_t)rs1_fval, (int64_t)dst, fn);
+    for (uint32_t i = 0; i < n; i++) {
+      CHECK_EQ(expected_fval, dst[i]);
+    }
+  }
+}
+
 // Tests for Floating-Point scalar move instructions between vector and scalar f
 // register
 #define UTEST_RVV_VF_MV_FORM_WITH_RES(instr_name, reg1, reg2, width, type)   \
