@@ -58,7 +58,7 @@ function test(length) {
     strLower += String.fromCharCode(charCodeToLower(c));
     strUpper += String.fromCharCode(charCodeToUpper(c));
   }
-  str = %FlattenString(str);
+  str = createExternalizableString(str);
   strLower = %FlattenString(strLower);
   strUpper = %FlattenString(strUpper);
   // Sequential string.
