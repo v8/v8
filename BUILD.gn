@@ -5846,6 +5846,8 @@ v8_component("v8_libbase") {
 
   deps = [ ":v8_config_headers" ]
 
+  libs = []
+
   data = []
 
   data_deps = []
