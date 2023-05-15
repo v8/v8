@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 
+#include "src/compiler/turboshaft/branch-elimination-reducer.h"
 #include "src/compiler/turboshaft/fast-api-call-reducer.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -12,8 +13,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 void MachineLoweringPhase::Run(Zone* temp_zone) {
-  turboshaft::OptimizationPhase<turboshaft::MachineLoweringReducer,
-                                turboshaft::FastApiCallReducer>::Run(temp_zone);
+  turboshaft::OptimizationPhase<
+      turboshaft::MachineLoweringReducer, turboshaft::VariableReducer,
+      turboshaft::FastApiCallReducer,
+      turboshaft::BranchEliminationReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

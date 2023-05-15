@@ -10,7 +10,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 struct StoreStoreEliminationPhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS(StoreStoreElimination)
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(StoreStoreElim)
 
   void Run(Zone* temp_zone);
 };

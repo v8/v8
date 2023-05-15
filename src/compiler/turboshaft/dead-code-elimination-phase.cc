@@ -6,14 +6,16 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
+#include "src/compiler/turboshaft/tag-untag-lowering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 void DeadCodeEliminationPhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(), DEBUG_BOOL);
 
-  turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer>::Run(
-      temp_zone);
+  turboshaft::OptimizationPhase<
+      turboshaft::DeadCodeEliminationReducer,
+      turboshaft::TagUntagLoweringReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -88,7 +88,6 @@
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
-#include "src/compiler/turboshaft/late-optimization-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
@@ -96,7 +95,6 @@
 #include "src/compiler/turboshaft/recreate-schedule-phase.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/store-store-elimination-phase.h"
-#include "src/compiler/turboshaft/tag-untag-lowering-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
@@ -3071,21 +3069,18 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       Run<turboshaft::StoreStoreEliminationPhase>();
     }
 
-    Run<turboshaft::LateOptimizationPhase>();
-
     Run<turboshaft::OptimizePhase>();
 
-    Run<turboshaft::DecompressionOptimizationPhase>();
-
-    Run<turboshaft::TypedOptimizationsPhase>();
+    if (v8_flags.turboshaft_typed_optimizations) {
+      Run<turboshaft::TypedOptimizationsPhase>();
+    }
 
     if (v8_flags.turboshaft_assert_types) {
       Run<turboshaft::TypeAssertionsPhase>();
     }
 
     Run<turboshaft::DeadCodeEliminationPhase>();
-
-    Run<turboshaft::TagUntagLoweringPhase>();
+    Run<turboshaft::DecompressionOptimizationPhase>();
 
     auto [new_graph, new_schedule] =
         Run<turboshaft::RecreateSchedulePhase>(linkage);

@@ -445,11 +445,6 @@ class DeadCodeEliminationReducer
     return Continuation{this}.ReduceInputGraph(ig_index, op);
   }
 
-  template <Opcode opcode, typename Continuation, typename... Args>
-  OpIndex ReduceOperation(const Args&... args) {
-    return Continuation{this}.Reduce(args...);
-  }
-
  private:
   base::Optional<FixedSidetable<OperationState::Liveness>> liveness_;
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_{Asm().phase_zone()};
