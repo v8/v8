@@ -3527,9 +3527,12 @@ class RepresentationSelector {
         }
       }
       case IrOpcode::kSpeculativeBigIntNegate: {
-        if (truncation.IsUnused()) {
-          VisitUnused<T>(node);
-        } else if (truncation.IsUsedAsWord64()) {
+        // NOTE: If truncation is Unused, we still need to preserve at least the
+        // BigInt type check (see http://crbug.com/1431713 for some details).
+        // We can use the standard lowering to word64 operations and have
+        // following phases remove the unused truncation and subtraction
+        // operations.
+        if (truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,
                        UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
                        MachineRepresentation::kWord64);
