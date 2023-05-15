@@ -584,7 +584,11 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(!tuple.value2().IsJSReceiver());
       }
       CHECK(maybe_constructor.IsJSFunction() ||
-            maybe_constructor.IsFunctionTemplateInfo());
+            maybe_constructor.IsFunctionTemplateInfo() ||
+            // The above check might fail until empty function setup is done.
+            isolate->raw_native_context()
+                .get(Context::EMPTY_FUNCTION_INDEX)
+                .IsUndefined());
     }
   }
 

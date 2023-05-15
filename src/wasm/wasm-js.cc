@@ -3173,8 +3173,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     JSFunction::EnsureHasInitialMap(function_constructor);
     Handle<JSObject> function_proto(
         JSObject::cast(function_constructor->instance_prototype()), isolate);
-    Handle<Map> function_map = isolate->factory()->CreateSloppyFunctionMap(
-        FUNCTION_WITHOUT_PROTOTYPE, MaybeHandle<JSFunction>());
+    Handle<Map> function_map =
+        Map::Copy(isolate, isolate->sloppy_function_without_prototype_map(),
+                  "WebAssembly.Function");
     CHECK(JSObject::SetPrototype(
               isolate, function_proto,
               handle(context->function_function().prototype(), isolate), false,

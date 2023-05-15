@@ -3816,8 +3816,16 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   }
   Handle<JSFunction> empty_function;
   if (maybe_empty_function.ToHandle(&empty_function)) {
+    // Temporarily set constructor to empty function to calm down map verifier.
     map->SetConstructor(*empty_function);
     Map::SetPrototype(isolate(), map, empty_function);
+  } else {
+    // |maybe_empty_function| is allowed to be empty only during empty function
+    // creation.
+    DCHECK(isolate()
+               ->raw_native_context()
+               .get(Context::EMPTY_FUNCTION_INDEX)
+               .IsUndefined());
   }
 
   //
@@ -3906,9 +3914,10 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     raw_map.set_has_prototype_slot(has_prototype);
     raw_map.set_is_constructor(has_prototype);
     raw_map.set_is_callable(true);
+    // Temporarily set constructor to empty function to calm down map verifier.
+    raw_map.SetConstructor(*empty_function);
   }
   Map::SetPrototype(isolate(), map, empty_function);
-  map->SetConstructor(*empty_function);
 
   //
   // Setup descriptors array.
@@ -3971,6 +3980,8 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
     raw_map.set_is_constructor(true);
     raw_map.set_is_prototype_map(true);
     raw_map.set_is_callable(true);
+    // Temporarily set constructor to empty function to calm down map verifier.
+    raw_map.SetConstructor(*empty_function);
   }
   Map::SetPrototype(isolate(), map, empty_function);
 

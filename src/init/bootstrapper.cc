@@ -441,6 +441,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   }
   Handle<Map> initial_map =
       factory->NewMap(type, instance_size, elements_kind, inobject_properties);
+  initial_map->SetConstructor(*result);
   if (type == JS_FUNCTION_TYPE) {
     DCHECK_EQ(instance_size, JSFunction::kSizeWithPrototype);
     // Since we are creating an initial map for JSFunction objects with
@@ -739,8 +740,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   Handle<JSFunction> empty_function =
       CreateFunctionForBuiltin(isolate(), factory()->empty_string(),
                                empty_function_map, Builtin::kEmptyFunction);
-  native_context()->set_empty_function(*empty_function);
   empty_function_map->SetConstructor(*empty_function);
+  native_context()->set_empty_function(*empty_function);
 
   // --- E m p t y ---
   Handle<String> source = factory()->InternalizeString("() {}");
@@ -1753,10 +1754,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       isolate_->sloppy_function_with_name_map()->SetConstructor(*function_fun);
       isolate_->sloppy_function_with_readonly_prototype_map()->SetConstructor(
           *function_fun);
+      isolate_->sloppy_function_without_prototype_map()->SetConstructor(
+          *function_fun);
 
       isolate_->strict_function_map()->SetConstructor(*function_fun);
       isolate_->strict_function_with_name_map()->SetConstructor(*function_fun);
       isolate_->strict_function_with_readonly_prototype_map()->SetConstructor(
+          *function_fun);
+      isolate_->strict_function_without_prototype_map()->SetConstructor(
           *function_fun);
 
       isolate_->class_function_map()->SetConstructor(*function_fun);
@@ -4277,6 +4282,8 @@ void Genesis::InitializeIteratorFunctions() {
 
     native_context->generator_function_map().SetConstructor(
         *generator_function_function);
+    native_context->generator_function_with_name_map().SetConstructor(
+        *generator_function_function);
   }
 
   {  // -- A s y n c G e n e r a t o r
@@ -4306,6 +4313,8 @@ void Genesis::InitializeIteratorFunctions() {
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     native_context->async_generator_function_map().SetConstructor(
+        *async_generator_function_function);
+    native_context->async_generator_function_with_name_map().SetConstructor(
         *async_generator_function_function);
   }
 
@@ -4407,9 +4416,6 @@ void Genesis::InitializeIteratorFunctions() {
         async_function_constructor,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    JSFunction::SetPrototype(async_function_constructor,
-                             async_function_prototype);
-
     // Async functions don't have a prototype, but they use generator objects
     // under the hood to model the suspend/resume (in await). Instead of using
     // the "prototype" / initial_map machinery (like for (async) generators),
@@ -4419,6 +4425,10 @@ void Genesis::InitializeIteratorFunctions() {
     Handle<Map> async_function_object_map = factory->NewMap(
         JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kHeaderSize);
     native_context->set_async_function_object_map(*async_function_object_map);
+
+    isolate_->async_function_map()->SetConstructor(*async_function_constructor);
+    isolate_->async_function_with_name_map()->SetConstructor(
+        *async_function_constructor);
   }
 }
 
