@@ -320,21 +320,6 @@ void ScavengerCollector::CollectGarbage() {
   EphemeronRememberedSet::TableList ephemeron_table_list;
 
   {
-    Sweeper* sweeper = heap_->sweeper();
-
-    // Pause the concurrent sweeper.
-    Sweeper::PauseScope pause_scope(sweeper);
-    // Filter out pages from the sweeper that need to be processed for old to
-    // new slots by the Scavenger. After processing, the Scavenger adds back
-    // pages that are still unsweeped. This way the Scavenger has exclusive
-    // access to the slots of a page and can completely avoid any locks on
-    // the page itself.
-    Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages([](Page* page) {
-      return !page->ContainsSlots<OLD_TO_NEW>() &&
-             !page->ContainsSlots<OLD_TO_NEW_BACKGROUND>();
-    });
-
     const bool is_logging = isolate_->log_object_relocation();
     for (int i = 0; i < num_scavenge_tasks; ++i) {
       scavengers.emplace_back(
@@ -668,15 +653,6 @@ void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
   indices.first->second.insert(entry);
 }
 
-void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* chunk) {
-  AllocationSpace space = chunk->owner_identity();
-  if ((space == OLD_SPACE) && !chunk->SweepingDone()) {
-    heap()->sweeper()->AddPage(space, Page::cast(chunk),
-                               Sweeper::READD_TEMPORARY_REMOVED_PAGE,
-                               AccessMode::ATOMIC);
-  }
-}
-
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
@@ -728,8 +704,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
         },
         &empty_chunks_local_);
   }
-
-  AddPageToSweeperIfNecessary(page);
 }
 
 void Scavenger::Process(JobDelegate* delegate) {
