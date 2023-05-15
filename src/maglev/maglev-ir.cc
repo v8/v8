@@ -1083,7 +1083,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ JumpIf(is_smi, &done, Label::Distance::kNear);
+      __ JumpIf(is_smi, &done);
     } else {
       __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
     }
@@ -1096,7 +1096,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i).object();
     GenerateMapCompare(masm, map);
-    __ JumpIf(kEqual, &done, Label::Distance::kNear);
+    __ JumpIf(kEqual, &done);
   }
   Handle<Map> last_map = maps().at(map_count - 1).object();
   GenerateMapCompare(masm, last_map);
