@@ -310,44 +310,25 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
       Signed(DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
   TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
 
-  Label inobject(this), out_of_object(this);
-  Branch(IsSetWord32<LoadHandler::IsInobjectBits>(handler_word), &inobject,
-         &out_of_object);
+  TNode<BoolT> is_inobject =
+      IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
+  TNode<HeapObject> property_storage = Select<HeapObject>(
+      is_inobject, [&]() { return holder; },
+      [&]() { return LoadFastProperties(holder); });
 
-  BIND(&inobject);
-  {
-    Label is_double(this);
-    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-    exit_point->Return(LoadObjectField(holder, offset));
+  Label is_double(this);
+  TNode<Object> value = LoadObjectField(property_storage, offset);
+  GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+  exit_point->Return(value);
 
-    BIND(&is_double);
-    TNode<Object> heap_number = LoadObjectField(holder, offset);
-    // This is not an "old" Smi value from before a Smi->Double transition.
-    // Rather, it's possible that since the last update of this IC, the Double
-    // field transitioned to a Tagged field, and was then assigned a Smi.
-    GotoIf(TaggedIsSmi(heap_number), miss);
-    GotoIfNot(IsHeapNumber(CAST(heap_number)), miss);
-    *var_double_value = LoadHeapNumberValue(CAST(heap_number));
-    Goto(rebox_double);
-  }
-
-  BIND(&out_of_object);
-  {
-    Label is_double(this);
-    TNode<HeapObject> properties = LoadFastProperties(holder);
-    TNode<Object> value = LoadObjectField(properties, offset);
-    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-    exit_point->Return(value);
-
-    BIND(&is_double);
-    // This is not an "old" Smi value from before a Smi->Double transition.
-    // Rather, it's possible that since the last update of this IC, the Double
-    // field transitioned to a Tagged field, and was then assigned a Smi.
-    GotoIf(TaggedIsSmi(value), miss);
-    GotoIfNot(IsHeapNumber(CAST(value)), miss);
-    *var_double_value = LoadHeapNumberValue(CAST(value));
-    Goto(rebox_double);
-  }
+  BIND(&is_double);
+  // This is not an "old" Smi value from before a Smi->Double transition.
+  // Rather, it's possible that since the last update of this IC, the Double
+  // field transitioned to a Tagged field, and was then assigned a Smi.
+  GotoIf(TaggedIsSmi(value), miss);
+  GotoIfNot(IsHeapNumber(CAST(value)), miss);
+  *var_double_value = LoadHeapNumberValue(CAST(value));
+  Goto(rebox_double);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
