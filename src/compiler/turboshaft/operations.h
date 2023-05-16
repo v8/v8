@@ -3704,8 +3704,8 @@ struct TransitionAndStoreArrayElementOp
     kSignedSmallElement,
   };
   Kind kind;
-  Handle<Map> fast_map;
-  Handle<Map> double_map;
+  MaybeHandle<Map> fast_map;
+  MaybeHandle<Map> double_map;
 
   static constexpr OpProperties properties = OpProperties::Writing();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -3715,8 +3715,8 @@ struct TransitionAndStoreArrayElementOp
   OpIndex value() const { return Base::input(2); }
 
   TransitionAndStoreArrayElementOp(OpIndex array, OpIndex index, OpIndex value,
-                                   Kind kind, Handle<Map> fast_map,
-                                   Handle<Map> double_map)
+                                   Kind kind, MaybeHandle<Map> fast_map,
+                                   MaybeHandle<Map> double_map)
       : Base(array, index, value),
         kind(kind),
         fast_map(fast_map),

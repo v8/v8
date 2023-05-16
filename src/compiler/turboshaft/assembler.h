@@ -2649,8 +2649,8 @@ class AssemblerOpInterface {
 
   void TransitionAndStoreArrayElement(
       V<Object> array, V<WordPtr> index, OpIndex value,
-      TransitionAndStoreArrayElementOp::Kind kind, Handle<Map> fast_map,
-      Handle<Map> double_map) {
+      TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
+      MaybeHandle<Map> double_map) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }

@@ -2028,8 +2028,8 @@ class MachineLoweringReducer : public Next {
 
   OpIndex REDUCE(TransitionAndStoreArrayElement)(
       V<JSArray> array, V<WordPtr> index, OpIndex value,
-      TransitionAndStoreArrayElementOp::Kind kind, Handle<Map> fast_map,
-      Handle<Map> double_map) {
+      TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
+      MaybeHandle<Map> double_map) {
     V<Map> map = __ LoadMapField(array);
     V<Word32> bitfield2 =
         __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
@@ -2088,12 +2088,13 @@ class MachineLoweringReducer : public Next {
                              __ HeapConstant(factory_->heap_number_map()))) {
             // {value} is a HeapNumber.
             TransitionElementsTo(array, HOLEY_SMI_ELEMENTS,
-                                 HOLEY_DOUBLE_ELEMENTS, double_map);
+                                 HOLEY_DOUBLE_ELEMENTS,
+                                 double_map.ToHandleChecked());
             GOTO(do_store, HOLEY_DOUBLE_ELEMENTS);
           }
           ELSE {
             TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                                 fast_map);
+                                 fast_map.ToHandleChecked());
             GOTO(do_store, HOLEY_ELEMENTS);
           }
           END_IF
@@ -2109,7 +2110,7 @@ class MachineLoweringReducer : public Next {
         IF_NOT (UNLIKELY(__ TaggedEqual(
                     value_map, __ HeapConstant(factory_->heap_number_map())))) {
           TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map);
+                               fast_map.ToHandleChecked());
           GOTO(do_store, HOLEY_ELEMENTS);
         }
         END_IF
@@ -2166,7 +2167,7 @@ class MachineLoweringReducer : public Next {
           // Transition {array} from HOLEY_SMI_ELEMENTS to
           // HOLEY_DOUBLE_ELEMENTS.
           TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
-                               double_map);
+                               double_map.ToHandleChecked());
         }
         ELSE {
           // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
@@ -2206,11 +2207,11 @@ class MachineLoweringReducer : public Next {
         IF_NOT (LIKELY(__ Int32LessThan(HOLEY_SMI_ELEMENTS, elements_kind))) {
           // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_ELEMENTS.
           TransitionElementsTo(array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map);
+                               fast_map.ToHandleChecked());
         }
         ELSE_IF (UNLIKELY(__ Int32LessThan(HOLEY_ELEMENTS, elements_kind))) {
           TransitionElementsTo(array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS,
-                               fast_map);
+                               fast_map.ToHandleChecked());
         }
         END_IF
 
