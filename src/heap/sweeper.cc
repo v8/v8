@@ -1125,17 +1125,17 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
 }
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
-                      Sweeper::AddPageMode mode, AccessMode mutex_mode) {
+                      Sweeper::AddPageMode mode) {
   DCHECK_NE(NEW_SPACE, space);
-  AddPageImpl(space, page, mode, mutex_mode);
+  AddPageImpl(space, page, mode);
 }
 
-void Sweeper::AddNewSpacePage(Page* page, AccessMode mutex_mode) {
+void Sweeper::AddNewSpacePage(Page* page) {
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
-  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR, mutex_mode);
+  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR);
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
@@ -1166,16 +1166,11 @@ void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
 }
 
 void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
-                          Sweeper::AddPageMode mode, AccessMode mutex_mode) {
-  base::Optional<base::MutexGuard> guard;
-  if (mutex_mode == AccessMode::ATOMIC) {
-    guard.emplace(&mutex_);
-  } else {
-    // This assert only checks that the non_atomic version is only used on the
-    // main thread. It would not catch cases where main thread add a page
-    // non-atomically while concurrent jobs are adding pages atomically.
-    AssertMainThreadOrSharedMainThread(heap_);
-  }
+                          Sweeper::AddPageMode mode) {
+  // This assert only checks that the non_atomic version is only used on the
+  // main thread. It would not catch cases where main thread add a page
+  // non-atomically while concurrent jobs are adding pages atomically.
+  AssertMainThreadOrSharedMainThread(heap_);
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),
                  !major_sweeping_state_.HasValidJob());
